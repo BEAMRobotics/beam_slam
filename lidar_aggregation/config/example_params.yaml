@@ -1,0 +1,5 @@
+# How often to publish the vehicle state in (seconds)
+publish_period: 1.0
+
+# The path from $HOME to the log directory
+log_directory: /.ros/log/autonomoose/example_package

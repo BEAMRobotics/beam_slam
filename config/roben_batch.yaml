@@ -1,0 +1,76 @@
+sensor_models:
+  - name: 'absolute_pose'
+    type: 'fuse_models::Odometry2D'
+    motion_models: ['unicycle_2d']
+  - name: 'velocity'
+    type: 'fuse_models::Odometry2D'
+    motion_models: ['unicycle_2d']
+  - name: 'absolute_pose2d'
+    type: 'fuse_models::Pose2D'
+    motion_models: ['unicycle_2d']
+
+
+motion_models:
+  - name: 'unicycle_2d'
+    type: 'fuse_models::Unicycle2D'
+
+publishers:
+  - name: 'pose_pub'
+    type: 'fuse_models::Odometry2DPublisher'
+  - name: 'path_pub'
+    type: 'fuse_publishers::Path2DPublisher'
+  - name: 'graph_pub'
+    type: 'fuse_publishers::SerializedPublisher'
+
+unicycle_2d:
+  process_noise_diagonal: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+  buffer_length: 100000
+
+absolute_pose2d:
+  differential: 'false'
+  queue_size: 10
+  topic: '/odometry/pose'
+  target_frame: 'odom'
+  position_dimensions: ['x','y']
+  orientation_dimensions: ['yaw']
+
+absolute_pose:
+  differential: 'false'
+  queue_size: 10
+  topic: '/odometry/ground_truth'
+  pose_target_frame: 'odom'
+  position_dimensions: []
+  orientation_dimensions: []
+  twist_target_frame: 'base_link'
+  linear_velocity_dimensions: ['x','y']
+  angular_velocity_dimensions: ['yaw']
+
+velocity:
+  differential: 'false'
+  queue_size: 10
+  topic: '/husky_velocity_controller/odom'
+  pose_target_frame: 'odom'
+  position_dimensions: []
+  orientation_dimensions: []
+  twist_target_frame: 'base_link'
+  linear_velocity_dimensions: ['x','y']
+  angular_velocity_dimensions: ['yaw']
+
+optimization_period: 0.25
+#lag_duration: 100
+
+path_pub:
+  frame_id: 'odom'
+
+pose_pub:
+  publish_tf: 'true'
+  predict_to_current_time: 'false'
+  map_frame_id: 'map'
+  odom_frame_id: 'odom'
+  base_link_frame_id: 'base_link'
+  world_frame_id: 'odom'
+  topic: 'odometry/filtered'
+
+
+graph_pub:
+  frame_id: 'odom'

@@ -1,0 +1,9 @@
+<library path="lib/liblidar_aggregation_nodelet">
+    <class name="lidar_aggregation/lidar_aggregation_nodelet"
+           type="lidar_aggregation::LidarAggregationNodelet"
+           base_class_type="nodelet::Nodelet">
+        <description>
+           Route Publisher Nodelet.
+        </description>
+    </class>
+</library>

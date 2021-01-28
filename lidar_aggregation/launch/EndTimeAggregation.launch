@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="lidar_aggregation" type="lidar_aggregation_node" name="end_time_lidar_aggregation" output="screen">
+        <rosparam command="load" file="$(find lidar_aggregation)/config/end_time_lidar_aggregation.yaml" />
+    </node>
+</launch>

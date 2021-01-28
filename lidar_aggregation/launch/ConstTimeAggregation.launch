@@ -1,0 +1,8 @@
+ <!-- Const time aggregation aggregates points at a constant interval. 
+      We don't have separate class options for this, instead we use 
+      EndTimeLidarAggregator where the aggregation time is set in the nodelet. -->
+<launch>
+    <node pkg="lidar_aggregation" type="const_time_lidar_aggregation_node" name="const_time_lidar_aggregation" output="screen">
+        <rosparam command="load" file="$(find lidar_aggregation)/config/end_time_lidar_aggregation.yaml" />
+    </node>
+</launch>
