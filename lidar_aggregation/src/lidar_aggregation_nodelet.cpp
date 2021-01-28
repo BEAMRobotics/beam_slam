@@ -53,7 +53,7 @@ void LidarAggregationNodelet::onInit() {
       std::make_shared<tf2::BufferCore>(ros::Duration(extrinsics_buffer_time_));
 
   if (params_.aggregator_type == "ENDTIME") {
-    // TODO: figure this out for the case where we don't know
+    // TODO: figure this out for the case where we don't know the frames yet
     aggregator_ = std::make_unique<EndTimeLidarAggregator>(poses_, extrinsics_, "test", "test", "test");
   } else if (params_.aggregator_type == "CENTERTIME") {
     throw std::invalid_argument{"CENTERLINE Aggregator not yet implemented."};
