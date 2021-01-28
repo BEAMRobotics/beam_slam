@@ -1,4 +1,4 @@
-#include <lidar_aggregation/lidar_aggregation_nodelet.hpp>
+#include <lidar_aggregation/lidar_aggregation_nodelet.h>
 
 #include <stdlib.h>
 #include <string>
@@ -17,7 +17,7 @@
 #include <beam_utils/optional.h>
 #include <beam_utils/pointclouds.h>
 
-#include <lidar_aggregation/lidar_aggregators/end_time_lidar_aggregator.hpp>
+#include <lidar_aggregation/lidar_aggregators/end_time_lidar_aggregator.h>
 
 namespace lidar_aggregation {
 
@@ -27,7 +27,7 @@ void LidarAggregationNodelet::onInit() {
   nh_ = getNodeHandle();
   private_nh_ = getPrivateNodeHandle();
 
-  loadParams();
+  LoadParams();
 
   aggregate_publisher_ =
       nh_.advertise<sensor_msgs::PointCloud2>(params_.aggregate_topic, 1000);
@@ -53,8 +53,9 @@ void LidarAggregationNodelet::onInit() {
       std::make_shared<tf2::BufferCore>(ros::Duration(extrinsics_buffer_time_));
 
   if (params_.aggregator_type == "ENDTIME") {
-    // TODO: figure this out for the case where we don't know the frames yet
-    aggregator_ = std::make_unique<EndTimeLidarAggregator>(poses_, extrinsics_, "test", "test", "test");
+    aggregator_ = std::make_unique<EndTimeLidarAggregator>(
+        poses_, extrinsics_, params_.baselink_frame, params_.lidar_frame,
+        world_frame_);
   } else if (params_.aggregator_type == "CENTERTIME") {
     throw std::invalid_argument{"CENTERLINE Aggregator not yet implemented."};
   } else {
@@ -62,16 +63,16 @@ void LidarAggregationNodelet::onInit() {
               params_.aggregator_type);
     throw std::invalid_argument{"Invalid Aggregator Type"};
   }
-  
 }
 
-void LidarAggregationNodelet::loadParams() {
+void LidarAggregationNodelet::LoadParams() {
   if (nh_.getParam("lidar_aggregation/aggregation_time_topic",
                    params_.aggregation_time_topic)) {
     ROS_INFO("Loaded parameter aggregation_time_topic: %s",
              params_.aggregation_time_topic);
   } else {
     ROS_ERROR("Could not load parameter aggregation_time_topic");
+    throw std::invalid_argument{"Could not load parameter aggregation_time_topic"};
   }
 
   if (nh_.getParam("lidar_aggregation/pointcloud_topic",
@@ -79,6 +80,7 @@ void LidarAggregationNodelet::loadParams() {
     ROS_INFO("Loaded parameter pointcloud_topic: %s", params_.pointcloud_topic);
   } else {
     ROS_ERROR("Could not load parameter pointcloud_topic");
+    throw std::invalid_argument{"Could not load parameter pointcloud_topic"};
   }
 
   if (nh_.getParam("lidar_aggregation/aggregate_topic",
@@ -86,6 +88,7 @@ void LidarAggregationNodelet::loadParams() {
     ROS_INFO("Loaded parameter aggregate_topic: %s", params_.aggregate_topic);
   } else {
     ROS_ERROR("Could not load parameter aggregate_topic");
+    throw std::invalid_argument{"Could not load parameter aggregate_topic"};
   }
 
   if (nh_.getParam("lidar_aggregation/odometry_topic",
@@ -93,6 +96,7 @@ void LidarAggregationNodelet::loadParams() {
     ROS_INFO("Loaded parameter odometry_topic: %s", params_.odometry_topic);
   } else {
     ROS_ERROR("Could not load parameter odometry_topic");
+    throw std::invalid_argument{"Could not load parameter odometry_topic"};
   }
 
   if (nh_.getParam("lidar_aggregation/log_directory", params_.log_directory)) {
@@ -268,11 +272,13 @@ void LidarAggregationNodelet::AddExtrinsic(const ros::Time& time) {
   }
   std::string autority{"tf"};
   geometry_msgs::TransformStamped T;
-  // T.transform.translation.x = 
-  // T.transform.translation.y = 
-  // T.transform.translation.z = 
-  // T.transform.quaternion = 
-  // T.setData(tf::Transform(T_BASELINK_LIDAR.transform.rotation, T_BASELINK_LIDAR.transform.translation));
+  T.transform.translation.x = T_BASELINK_LIDAR.getOrigin().getX(); 
+  T.transform.translation.y = T_BASELINK_LIDAR.getOrigin().getY(); 
+  T.transform.translation.z = T_BASELINK_LIDAR.getOrigin().getZ(); 
+  T.transform.rotation.x = T_BASELINK_LIDAR.getRotation().getX();
+  T.transform.rotation.y = T_BASELINK_LIDAR.getRotation().getY();
+  T.transform.rotation.z = T_BASELINK_LIDAR.getRotation().getZ();
+  T.transform.rotation.w = T_BASELINK_LIDAR.getRotation().getW();
   T.child_frame_id = T_BASELINK_LIDAR.child_frame_id_;
   T.header.frame_id = T_BASELINK_LIDAR.frame_id_;
   T.header.stamp = T_BASELINK_LIDAR.stamp_;

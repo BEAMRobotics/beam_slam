@@ -39,7 +39,7 @@ target_link_libraries(${PROJECT_NAME}
     beam::utils
 )
 
-#### ROS Nodelet
+#### ROS Nodelets
 add_library(${PROJECT_NAME}_nodelet
     src/${PROJECT_NAME}_nodelet.cpp
 )
@@ -47,18 +47,36 @@ target_link_libraries(${PROJECT_NAME}_nodelet
     ${catkin_LIBRARIES}
     ${PROJECT_NAME}
     ${Boost_LIBRARIES}
+    ${nodelet_LIBRARIES}
+    ${roscpp_LIBRARIES}
     beam::utils
+)
+add_library(${PROJECT_NAME}_time_publisher_nodelet
+    src/${PROJECT_NAME}_time_publisher_nodelet.cpp
+)
+target_link_libraries(${PROJECT_NAME}_time_publisher_nodelet
+    ${catkin_LIBRARIES}
+    ${PROJECT_NAME}
+    ${Boost_LIBRARIES}
     ${nodelet_LIBRARIES}
     ${roscpp_LIBRARIES}
 )
 
-#### ROS Node
+#### ROS Nodes
 add_executable(${PROJECT_NAME}_node
     src/${PROJECT_NAME}_node.cpp
 )
 target_link_libraries(${PROJECT_NAME}_node
     ${catkin_LIBRARIES}
+    ${nodelet_LIBRARIES}
+    ${roscpp_LIBRARIES}
     beam::utils
+)
+add_executable(${PROJECT_NAME}_time_publisher_node
+    src/${PROJECT_NAME}_time_publisher_node.cpp
+)
+target_link_libraries(${PROJECT_NAME}_time_publisher_node
+    ${catkin_LIBRARIES}
     ${nodelet_LIBRARIES}
     ${roscpp_LIBRARIES}
 )

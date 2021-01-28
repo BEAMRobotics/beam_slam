@@ -1,4 +1,4 @@
-#include <lidar_aggregation/lidar_aggregators/end_time_lidar_aggregator.hpp>
+#include <lidar_aggregation/lidar_aggregators/end_time_lidar_aggregator.h>
 
 #include <beam_utils/math.h>
 #include <tf2_eigen/tf2_eigen.h>

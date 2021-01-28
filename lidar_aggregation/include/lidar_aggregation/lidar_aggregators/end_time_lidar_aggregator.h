@@ -3,7 +3,7 @@
 #include <beam_utils/optional.h>
 #include <beam_utils/pointclouds.h>
 
-#include <lidar_aggregation/lidar_aggregators/lidar_aggregator_base.hpp>
+#include <lidar_aggregation/lidar_aggregators/lidar_aggregator_base.h>
 
 /**
  * @brief This class takes a care of aggregating lidar chunks into a motion
@@ -49,9 +49,9 @@ private:
 
   std::shared_ptr<tf2::BufferCore> poses_;
   std::shared_ptr<tf2::BufferCore> extrinsics_;
-  std::string baselink_frame_;
-  std::string lidar_frame_;
-  std::string world_frame_;
+  const std::string& baselink_frame_;
+  const std::string& lidar_frame_;
+  const std::string& world_frame_;
   ros::Duration max_aggregate_duration_;
   bool static_extrinsics_;
   bool clear_queue_on_update_;

@@ -6,19 +6,26 @@
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/log/utility/setup/console.hpp>
 #include <boost/log/utility/setup/file.hpp>
+#include <nav_msgs/Odometry.h>
 #include <nodelet/nodelet.h>
 #include <pluginlib/class_list_macros.h>
 #include <ros/package.h>
 #include <ros/ros.h>
-#include <nav_msgs/Odometry.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <std_msgs/Time.h>
 #include <tf/transform_listener.h>
 
-#include <lidar_aggregation/lidar_aggregators/lidar_aggregator_base.hpp>
+#include <lidar_aggregation/lidar_aggregators/lidar_aggregator_base.h>
 
 namespace lidar_aggregation {
 
+/**
+ * @brief this nodelet performs lidar_aggregation given any aggregator class
+ * derived from lidar_aggregator_base class. To start aggregation, it subscribes
+ * to a time topic to signal aggregation times. It also subscribes to tf to
+ * retrieve dynamic or static extrinsic transformations published to tf, and
+ * retrieves poses from a specified odometry topic to interpolate points.
+ */
 class LidarAggregationNodelet : public nodelet::Nodelet {
 public:
   // Nodelet Constructor
@@ -43,7 +50,7 @@ public:
 private:
   void onInit();
 
-  void loadParams();
+  void LoadParams();
 
   // Set logging sink to be used by boost::log.
   //      Only used for code internal to the nodelet (non-ROS code)

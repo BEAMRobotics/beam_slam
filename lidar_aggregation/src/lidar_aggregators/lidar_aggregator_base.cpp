@@ -1,4 +1,4 @@
-#include <lidar_aggregation/lidar_aggregators/lidar_aggregator_base.hpp>
+#include <lidar_aggregation/lidar_aggregators/lidar_aggregator_base.h>
 
 #include <beam_utils/log.h>
 

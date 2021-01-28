@@ -1,0 +1,22 @@
+ <!-- Const time aggregation aggregates points at a constant interval. 
+      We don't have separate class options for this, instead we use 
+      EndTimeLidarAggregator where the aggregation time is set using 
+      lidar_aggregation_time_publisher_nodelet. 
+      
+      Note: this launch file launches two nodelets under the same 
+      manager to do the publishing of the aggregation time, and the 
+      actual aggregation
+      -->
+<launch>
+  <node pkg="nodelet" type="nodelet" name="aggregation_nodelet"  args="manager"/>
+
+  <rosparam file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml"/>
+  <rosparam file="$(find lidar_aggregation)/config/end_time_aggregator_params.yaml"/>
+  <node pkg="nodelet" type="nodelet" name="aggregator"
+        args="load lidar_aggregation/LidarAggregationNodelet aggregator_nodelet">
+  </node>
+  <rosparam command="load" file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml" />
+  <node pkg="nodelet" type="nodelet" name="const_time_publisher" 
+        args="load lidar_aggregation/LidarAggregationTimePublisherNodelet const_time_publisher_nodelet">
+  </node>
+</launch>
