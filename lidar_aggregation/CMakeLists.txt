@@ -10,6 +10,8 @@ set(catkin_deps roscpp roslib nodelet std_msgs nav_msgs sensor_msgs)
 find_package(catkin REQUIRED ${catkin_deps})
 find_package(Boost COMPONENTS REQUIRED log_setup log)
 find_package(beam REQUIRED utils)
+find_package(nodelet REQUIRED)
+find_package(roscpp REQUIRED)
 
 catkin_package(
     INCLUDE_DIRS include
@@ -22,6 +24,8 @@ include_directories(
     include
     ${catkin_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIR}
+    ${nodelet_INCLUDE_DIRS}
+    ${roscpp_INCLUDE_DIRS}
 )
 
 add_library(${PROJECT_NAME}
@@ -35,7 +39,7 @@ target_link_libraries(${PROJECT_NAME}
     beam::utils
 )
 
-#### ROS Nodelet 
+#### ROS Nodelet
 add_library(${PROJECT_NAME}_nodelet
     src/${PROJECT_NAME}_nodelet.cpp
 )
@@ -44,6 +48,8 @@ target_link_libraries(${PROJECT_NAME}_nodelet
     ${PROJECT_NAME}
     ${Boost_LIBRARIES}
     beam::utils
+    ${nodelet_LIBRARIES}
+    ${roscpp_LIBRARIES}
 )
 
 #### ROS Node
@@ -53,4 +59,6 @@ add_executable(${PROJECT_NAME}_node
 target_link_libraries(${PROJECT_NAME}_node
     ${catkin_LIBRARIES}
     beam::utils
+    ${nodelet_LIBRARIES}
+    ${roscpp_LIBRARIES}
 )

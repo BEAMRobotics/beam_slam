@@ -31,13 +31,13 @@ void LidarAggregationNodelet::onInit() {
 
   aggregate_publisher_ =
       nh_.advertise<sensor_msgs::PointCloud2>(params_.aggregate_topic, 1000);
-  aggregation_time_subscriber_ = nh_.subscribe(
+  aggregation_time_subscriber_ = nh_.subscribe<std_msgs::Time>(
       params_.aggregation_time_topic, 10,
       boost::bind(&LidarAggregationNodelet::AggregationTimeCallback, this, _1));
-  pointcloud_subscriber_ = nh_.subscribe(
+  pointcloud_subscriber_ = nh_.subscribe<sensor_msgs::PointCloud2>(
       params_.pointcloud_topic, 10,
       boost::bind(&LidarAggregationNodelet::PointCloudCallback, this, _1));
-  odometry_subscriber_ = nh_.subscribe(
+  odometry_subscriber_ = nh_.subscribe<nav_msgs::Odometry>(
       params_.odometry_topic, 100,
       boost::bind(&LidarAggregationNodelet::OdometryCallback, this, _1));
 
