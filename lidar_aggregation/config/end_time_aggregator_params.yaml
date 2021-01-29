@@ -1,5 +1,5 @@
 aggregator_type: ENDTIME
-aggregation_time_topic: aggregation_time
+aggregation_time_topic: /aggregation_time
 pointcloud_topic: /hvlp/velodyne_points
 aggregate_topic: /hvlp/aggregates
 odometry_topic: /odometry/ground_truth

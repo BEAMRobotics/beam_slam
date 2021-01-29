@@ -7,3 +7,13 @@
         </description>
     </class>
 </library>
+
+<library path="lib/liblidar_aggregation_time_publisher_nodelet">
+    <class name="lidar_aggregation/lidar_aggregation_time_publisher_nodelet"
+           type="lidar_aggregation::LidarAggregationTimePublisherNodelet"
+           base_class_type="nodelet::Nodelet">
+        <description>
+           Route Publisher Nodelet.
+        </description>
+    </class>
+</library>

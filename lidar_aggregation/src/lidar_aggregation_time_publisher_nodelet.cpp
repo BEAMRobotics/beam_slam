@@ -26,7 +26,6 @@ LidarAggregationTimePublisherNodelet::LidarAggregationTimePublisherNodelet() {}
 void LidarAggregationTimePublisherNodelet::onInit() {
   nh_ = getNodeHandle();
   private_nh_ = getPrivateNodeHandle();
-
   LoadParams();
 
   time_publisher_ =
@@ -44,7 +43,7 @@ void LidarAggregationTimePublisherNodelet::LoadParams() {
   if (nh_.getParam("lidar_aggregation/aggregation_time_topic",
                    params_.aggregation_time_topic)) {
     ROS_INFO("Loaded parameter aggregation_time_topic: %s",
-             params_.aggregation_time_topic);
+             params_.aggregation_time_topic.c_str());
   } else {
     ROS_ERROR("Could not load parameter aggregation_time_topic, using default: "
               "default_topic");
@@ -54,7 +53,7 @@ void LidarAggregationTimePublisherNodelet::LoadParams() {
 
   if (nh_.getParam("lidar_aggregation/odometry_topic",
                    params_.odometry_topic)) {
-    ROS_INFO("Loaded parameter odometry_topic: %s", params_.odometry_topic);
+    ROS_INFO("Loaded parameter odometry_topic: %s", params_.odometry_topic.c_str());
   } else {
     ROS_ERROR("Could not load parameter odometry_topic");
     throw std::invalid_argument{"Could not load parameter odometry_topic"};
@@ -62,14 +61,14 @@ void LidarAggregationTimePublisherNodelet::LoadParams() {
 
   if (nh_.getParam("lidar_aggregation/aggregation_time",
                    params_.aggregation_time)) {
-    ROS_INFO("Loaded parameter aggregation_time: %s", params_.aggregation_time);
+    ROS_INFO("Loaded parameter aggregation_time: %.2f", params_.aggregation_time);
   } else {
     params_.aggregation_time = 1;
     ROS_INFO("Could not load parameter lidar_frame, using: 1");
   }
 
   if (nh_.getParam("lidar_aggregation/log_directory", params_.log_directory)) {
-    ROS_INFO("Loaded parameter log_directory: %s", params_.log_directory);
+    ROS_INFO("Loaded parameter log_directory: %s", params_.log_directory.c_str());
   } else {
     params_.log_directory = ".ros/log/";
     ROS_INFO("Could not parameter load log_directory, using .ros/log");

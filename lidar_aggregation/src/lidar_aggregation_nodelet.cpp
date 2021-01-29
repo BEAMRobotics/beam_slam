@@ -60,7 +60,7 @@ void LidarAggregationNodelet::onInit() {
     throw std::invalid_argument{"CENTERLINE Aggregator not yet implemented."};
   } else {
     ROS_ERROR("Invalid aggregator type: %s, Options: ENDTIME, CENTERTIME",
-              params_.aggregator_type);
+              params_.aggregator_type.c_str());
     throw std::invalid_argument{"Invalid Aggregator Type"};
   }
 }
@@ -69,15 +69,17 @@ void LidarAggregationNodelet::LoadParams() {
   if (nh_.getParam("lidar_aggregation/aggregation_time_topic",
                    params_.aggregation_time_topic)) {
     ROS_INFO("Loaded parameter aggregation_time_topic: %s",
-             params_.aggregation_time_topic);
+             params_.aggregation_time_topic.c_str());
   } else {
     ROS_ERROR("Could not load parameter aggregation_time_topic");
-    throw std::invalid_argument{"Could not load parameter aggregation_time_topic"};
+    throw std::invalid_argument{
+        "Could not load parameter aggregation_time_topic"};
   }
 
   if (nh_.getParam("lidar_aggregation/pointcloud_topic",
                    params_.pointcloud_topic)) {
-    ROS_INFO("Loaded parameter pointcloud_topic: %s", params_.pointcloud_topic);
+    ROS_INFO("Loaded parameter pointcloud_topic: %s",
+             params_.pointcloud_topic.c_str());
   } else {
     ROS_ERROR("Could not load parameter pointcloud_topic");
     throw std::invalid_argument{"Could not load parameter pointcloud_topic"};
@@ -85,7 +87,8 @@ void LidarAggregationNodelet::LoadParams() {
 
   if (nh_.getParam("lidar_aggregation/aggregate_topic",
                    params_.aggregate_topic)) {
-    ROS_INFO("Loaded parameter aggregate_topic: %s", params_.aggregate_topic);
+    ROS_INFO("Loaded parameter aggregate_topic: %s",
+             params_.aggregate_topic.c_str());
   } else {
     ROS_ERROR("Could not load parameter aggregate_topic");
     throw std::invalid_argument{"Could not load parameter aggregate_topic"};
@@ -93,7 +96,8 @@ void LidarAggregationNodelet::LoadParams() {
 
   if (nh_.getParam("lidar_aggregation/odometry_topic",
                    params_.odometry_topic)) {
-    ROS_INFO("Loaded parameter odometry_topic: %s", params_.odometry_topic);
+    ROS_INFO("Loaded parameter odometry_topic: %s",
+             params_.odometry_topic.c_str());
   } else {
     ROS_ERROR("Could not load parameter odometry_topic");
     throw std::invalid_argument{"Could not load parameter odometry_topic"};
@@ -127,7 +131,7 @@ void LidarAggregationNodelet::LoadParams() {
 
   if (nh_.getParam("lidar_aggregation/max_aggregation_time_seconds",
                    params_.max_aggregation_time_seconds)) {
-    ROS_INFO("Loaded parameter clear_queue_on_update: %d",
+    ROS_INFO("Loaded parameter clear_queue_on_update: %.2f",
              params_.max_aggregation_time_seconds);
   } else {
     params_.max_aggregation_time_seconds = 10;
@@ -136,7 +140,8 @@ void LidarAggregationNodelet::LoadParams() {
 
   if (nh_.getParam("lidar_aggregation/baselink_frame",
                    params_.baselink_frame)) {
-    ROS_INFO("Loaded parameter baselink_frame: %s", params_.baselink_frame);
+    ROS_INFO("Loaded parameter baselink_frame: %s",
+             params_.baselink_frame.c_str());
   } else {
     params_.baselink_frame = "";
     ROS_INFO("Could not load parameter baselink_frame, using frame from "
@@ -144,7 +149,7 @@ void LidarAggregationNodelet::LoadParams() {
   }
 
   if (nh_.getParam("lidar_aggregation/lidar_frame", params_.lidar_frame)) {
-    ROS_INFO("Loaded parameter lidar_frame: %s", params_.lidar_frame);
+    ROS_INFO("Loaded parameter lidar_frame: %s", params_.lidar_frame.c_str());
   } else {
     params_.lidar_frame = "";
     ROS_INFO("Could not load parameter lidar_frame, using frame from "
@@ -272,9 +277,9 @@ void LidarAggregationNodelet::AddExtrinsic(const ros::Time& time) {
   }
   std::string autority{"tf"};
   geometry_msgs::TransformStamped T;
-  T.transform.translation.x = T_BASELINK_LIDAR.getOrigin().getX(); 
-  T.transform.translation.y = T_BASELINK_LIDAR.getOrigin().getY(); 
-  T.transform.translation.z = T_BASELINK_LIDAR.getOrigin().getZ(); 
+  T.transform.translation.x = T_BASELINK_LIDAR.getOrigin().getX();
+  T.transform.translation.y = T_BASELINK_LIDAR.getOrigin().getY();
+  T.transform.translation.z = T_BASELINK_LIDAR.getOrigin().getZ();
   T.transform.rotation.x = T_BASELINK_LIDAR.getRotation().getX();
   T.transform.rotation.y = T_BASELINK_LIDAR.getRotation().getY();
   T.transform.rotation.z = T_BASELINK_LIDAR.getRotation().getZ();

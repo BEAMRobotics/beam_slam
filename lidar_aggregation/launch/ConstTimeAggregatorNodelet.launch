@@ -10,12 +10,14 @@
 <launch>
   <node pkg="nodelet" type="nodelet" name="aggregation_nodelet"  args="manager"/>
 
-  <rosparam file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml"/>
-  <rosparam file="$(find lidar_aggregation)/config/end_time_aggregator_params.yaml"/>
+  <!-- <rosparam file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml"/>
+  <rosparam file="$(find lidar_aggregation)/config/end_time_aggregator_params.yaml"/> -->
+  <rosparam param="aggregator" file="$(find lidar_aggregation)/config/end_time_aggregator_params.yaml"/>
   <node pkg="nodelet" type="nodelet" name="aggregator"
         args="load lidar_aggregation/LidarAggregationNodelet aggregator_nodelet">
   </node>
-  <rosparam command="load" file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml" />
+
+  <rosparam param="const_time_publisher" file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml"/>
   <node pkg="nodelet" type="nodelet" name="const_time_publisher" 
         args="load lidar_aggregation/LidarAggregationTimePublisherNodelet const_time_publisher_nodelet">
   </node>
