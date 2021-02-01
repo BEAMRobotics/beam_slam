@@ -41,9 +41,6 @@ void LidarAggregationNodelet::onInit() {
       params_.odometry_topic, 100,
       boost::bind(&LidarAggregationNodelet::OdometryCallback, this, _1));
 
-  // Set nodelet's internal logger
-  SetInternalLogger();
-
   // add extrinsics to TfTree
   SetExtrinsics();
 
@@ -103,13 +100,6 @@ void LidarAggregationNodelet::LoadParams() {
     throw std::invalid_argument{"Could not load parameter odometry_topic"};
   }
 
-  if (nh_.getParam("lidar_aggregation/log_directory", params_.log_directory)) {
-    ROS_INFO("Loaded parameter log_directory: %s", params_.log_directory);
-  } else {
-    params_.log_directory = ".ros/log/";
-    ROS_INFO("Could not parameter load log_directory, using .ros/log");
-  }
-
   if (nh_.getParam("lidar_aggregation/dynamic_extrinsics",
                    params_.dynamic_extrinsics)) {
     ROS_INFO("Loaded parameter dynamic_extrinsics: %d",
@@ -155,56 +145,6 @@ void LidarAggregationNodelet::LoadParams() {
     ROS_INFO("Could not load parameter lidar_frame, using frame from "
              "input pointcloud message.");
   }
-}
-
-// Set a logger to catch the errors published by the internal C++ library so
-// that you don't spam the console!
-void LidarAggregationNodelet::SetInternalLogger() {
-  boost::log::add_common_attributes();
-
-  // Set the logging directory
-  // TODO(msmart) clean this up so that it doesn't use '/' convention for
-  // files going to HOME. Maybe check for first character in parameter being
-  // '/' and then treat as absolute, or relative if '/' is not first
-  // character.
-  std::string log_path = getenv("HOME") + params_.log_directory;
-
-  // TODO(msmart) add more complicated example demonstrating tiers of severity
-  // logging. For now - just drop anything less than info.
-
-  // Filter based on logging severity
-  boost::log::core::get()->set_filter(
-      // trace and debug level log events are filtered out
-      boost::log::trivial::severity >= boost::log::trivial::info);
-
-  // Define the desired log file.
-  // TODO(msmart) - fix this formatting so lint stops yelling.
-  boost::log::add_file_log(
-      // Set log file name
-      boost::log::keywords::file_name =
-          log_path + "/lidar_aggregation_nodelet_%N.log",
-      // Set log file rotation size in bytes.
-      // These values are low here for example.
-      boost::log::keywords::rotation_size = 512,
-      // Set log entry format
-      boost::log::keywords::format = "[%TimeStamp%]: %Message%"
-      // Call make_collector off of the sink created by add_file_log
-      )
-      ->locked_backend()
-      ->set_file_collector(
-          // Collectors are only applied after a log file is closed.
-          // Each time a log file is closed, the collector checks to
-          // see if an action needs to be taken relative to the next
-          // log file.
-          boost::log::sinks::file::make_collector(
-              // 'target' sets the folder that will be "managed"
-              // by overwriting logs to maintain following
-              // objective.
-              boost::log::keywords::target = log_path,
-              // If the logs being created in total exceed
-              // max_size, then the next log file created will
-              // overwrite the first log file.
-              boost::log::keywords::max_size = 5 * 512));
 }
 
 void LidarAggregationNodelet::SetExtrinsics() {

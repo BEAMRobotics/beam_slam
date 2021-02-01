@@ -38,7 +38,6 @@ public:
     std::string pointcloud_topic; // input cloud topic
     std::string aggregate_topic;
     std::string odometry_topic;
-    std::string log_directory; // relative to the $HOME directory
     bool dynamic_extrinsics;
     bool clear_queue_on_update;
     double max_aggregation_time_seconds;

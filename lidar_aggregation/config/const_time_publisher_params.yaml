@@ -1,4 +1,3 @@
 odometry_topic: /odometry/ground_truth
 aggregation_time_topic: /aggregation_time
-aggregation_time: 1
-log_directory: /.ros/log/beam_slam/lidar_aggregation
+aggregation_time_seconds: 1

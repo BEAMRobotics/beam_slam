@@ -34,8 +34,7 @@ public:
   struct Params {
     std::string odometry_topic;
     std::string aggregation_time_topic;
-    double aggregation_time;
-    std::string log_directory; // relative to the $HOME directory
+    ros::Duration aggregation_time;
   };
 
 private:
@@ -61,6 +60,7 @@ private:
   // member variables
   Params params_;
   int counter_{0};
+  ros::Time prev_time_{ros::Time(0)};
 };
 
 } // namespace lidar_aggregation

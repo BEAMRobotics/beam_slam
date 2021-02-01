@@ -26,17 +26,15 @@ LidarAggregationTimePublisherNodelet::LidarAggregationTimePublisherNodelet() {}
 void LidarAggregationTimePublisherNodelet::onInit() {
   nh_ = getNodeHandle();
   private_nh_ = getPrivateNodeHandle();
+  
   LoadParams();
-
+  
   time_publisher_ =
       nh_.advertise<std_msgs::Time>(params_.aggregation_time_topic, 1000);
   odometry_subscriber_ = nh_.subscribe<nav_msgs::Odometry>(
       params_.odometry_topic, 100,
       boost::bind(&LidarAggregationTimePublisherNodelet::OdometryCallback, this,
                   _1));
-
-  // Set nodelet's internal logger
-  SetInternalLogger();
 }
 
 void LidarAggregationTimePublisherNodelet::LoadParams() {
@@ -59,77 +57,26 @@ void LidarAggregationTimePublisherNodelet::LoadParams() {
     throw std::invalid_argument{"Could not load parameter odometry_topic"};
   }
 
-  if (nh_.getParam("lidar_aggregation/aggregation_time",
-                   params_.aggregation_time)) {
-    ROS_INFO("Loaded parameter aggregation_time: %.2f", params_.aggregation_time);
+  double aggregation_time_seconds;
+  if (nh_.getParam("lidar_aggregation/aggregation_time_seconds",
+                   aggregation_time_seconds)) {
+    ROS_INFO("Loaded parameter aggregation_time: %.2f", aggregation_time_seconds);
+    params_.aggregation_time = ros::Duration(aggregation_time_seconds);
   } else {
-    params_.aggregation_time = 1;
-    ROS_INFO("Could not load parameter lidar_frame, using: 1");
+    params_.aggregation_time = ros::Duration(1);
+    ROS_INFO("Could not load parameter aggregation_time_seconds, using: 1");
   }
-
-  if (nh_.getParam("lidar_aggregation/log_directory", params_.log_directory)) {
-    ROS_INFO("Loaded parameter log_directory: %s", params_.log_directory.c_str());
-  } else {
-    params_.log_directory = ".ros/log/";
-    ROS_INFO("Could not parameter load log_directory, using .ros/log");
-  }
-}
-
-// Set a logger to catch the errors published by the internal C++ library so
-// that you don't spam the console!
-void LidarAggregationTimePublisherNodelet::SetInternalLogger() {
-  boost::log::add_common_attributes();
-
-  // Set the logging directory
-  // TODO(msmart) clean this up so that it doesn't use '/' convention for
-  // files going to HOME. Maybe check for first character in parameter being
-  // '/' and then treat as absolute, or relative if '/' is not first
-  // character.
-  std::string log_path = getenv("HOME") + params_.log_directory;
-
-  // TODO(msmart) add more complicated example demonstrating tiers of severity
-  // logging. For now - just drop anything less than info.
-
-  // Filter based on logging severity
-  boost::log::core::get()->set_filter(
-      // trace and debug level log events are filtered out
-      boost::log::trivial::severity >= boost::log::trivial::info);
-
-  // Define the desired log file.
-  // TODO(msmart) - fix this formatting so lint stops yelling.
-  boost::log::add_file_log(
-      // Set log file name
-      boost::log::keywords::file_name =
-          log_path + "/lidar_aggregation_nodelet_%N.log",
-      // Set log file rotation size in bytes.
-      // These values are low here for example.
-      boost::log::keywords::rotation_size = 512,
-      // Set log entry format
-      boost::log::keywords::format = "[%TimeStamp%]: %Message%"
-      // Call make_collector off of the sink created by add_file_log
-      )
-      ->locked_backend()
-      ->set_file_collector(
-          // Collectors are only applied after a log file is closed.
-          // Each time a log file is closed, the collector checks to
-          // see if an action needs to be taken relative to the next
-          // log file.
-          boost::log::sinks::file::make_collector(
-              // 'target' sets the folder that will be "managed"
-              // by overwriting logs to maintain following
-              // objective.
-              boost::log::keywords::target = log_path,
-              // If the logs being created in total exceed
-              // max_size, then the next log file created will
-              // overwrite the first log file.
-              boost::log::keywords::max_size = 5 * 512));
 }
 
 void LidarAggregationTimePublisherNodelet::OdometryCallback(
     const nav_msgs::OdometryConstPtr message) {
-  std_msgs::Time time;
-  time.data = message->header.stamp;
-  time_publisher_.publish(time);
+  if(message->header.stamp - prev_time_ > params_.aggregation_time){
+    std_msgs::Time time;
+    time.data = message->header.stamp;
+    time_publisher_.publish(time);
+    prev_time_ = message->header.stamp;
+  }
+  
 }
 
 } // namespace lidar_aggregation
