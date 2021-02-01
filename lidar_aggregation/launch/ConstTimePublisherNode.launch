@@ -1,7 +1,7 @@
 <!-- This launch file launches the publisher to publish aggregation times at a constant rate -->
 <launch>
-    <node pkg="lidar_aggregation" type="lidar_aggregation_time_publisher_node" name="lidar_aggregation" output="screen">
-        <rosparam command="load" file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml" />
+    <node pkg="lidar_aggregation" type="lidar_aggregation_time_publisher_node" name="const_time_aggregator_publisher" output="screen">
+        <rosparam command="load" file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml" ns="/lidar_aggregation" />
     </node>
 </launch>
 

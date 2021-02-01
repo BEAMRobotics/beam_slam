@@ -12,6 +12,7 @@ find_package(Boost COMPONENTS REQUIRED log_setup log)
 find_package(beam REQUIRED utils)
 find_package(nodelet REQUIRED)
 find_package(roscpp REQUIRED)
+find_package(tf REQUIRED)
 
 catkin_package(
     INCLUDE_DIRS include
@@ -49,6 +50,7 @@ target_link_libraries(${PROJECT_NAME}_nodelet
     ${Boost_LIBRARIES}
     ${nodelet_LIBRARIES}
     ${roscpp_LIBRARIES}
+    ${tf_LIBRARIES}
     beam::utils
 )
 add_library(${PROJECT_NAME}_time_publisher_nodelet
@@ -70,6 +72,7 @@ target_link_libraries(${PROJECT_NAME}_node
     ${catkin_LIBRARIES}
     ${nodelet_LIBRARIES}
     ${roscpp_LIBRARIES}
+    ${tf_LIBRARIES}
     beam::utils
 )
 add_executable(${PROJECT_NAME}_time_publisher_node

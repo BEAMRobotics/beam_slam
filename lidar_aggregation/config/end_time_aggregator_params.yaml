@@ -6,3 +6,5 @@ odometry_topic: /odometry/ground_truth
 dynamic_extrinsics: false
 clear_queue_on_update: false
 max_aggregation_time_seconds: 5
+baselink_frame: base_link
+lidar_frame: hvlp_link

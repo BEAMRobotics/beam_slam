@@ -97,10 +97,13 @@ void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
 Eigen::Matrix4d
     EndTimeLidarAggregator::LookupT_BASELINK_LIDAR(const ros::Time& time) {
   std::string error_msg;
+  std::cout << "lidar_frame_: " << lidar_frame_ << "\n";
+  std::cout << "baselink_frame_: " << baselink_frame_ << "\n";
+  std::cout << "time: " << time.toSec() << "\n";
   bool can_transform = extrinsics_->canTransform(lidar_frame_, baselink_frame_,
                                                  time, &error_msg);
   if (!can_transform) {
-    BEAM_ERROR("Cannot lookup T_LIDAR_BASELINK: %s", error_msg);
+    BEAM_ERROR("Cannot lookup T_LIDAR_BASELINK: {}", error_msg);
     throw std::runtime_error{"Cannot lookup T_LIDAR_BASELINK"};
   }
   geometry_msgs::TransformStamped T_LIDAR_BASELINK =

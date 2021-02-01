@@ -63,6 +63,15 @@ void LidarAggregationNodelet::onInit() {
 }
 
 void LidarAggregationNodelet::LoadParams() {
+  if (nh_.getParam("lidar_aggregation/aggregator_type",
+                   params_.aggregator_type)) {
+    ROS_INFO("Loaded parameter aggregator_type: %s",
+             params_.aggregator_type.c_str());
+  } else {
+    ROS_ERROR("Could not load parameter aggregator_type");
+    throw std::invalid_argument{"Could not load parameter aggregator_type"};
+  }
+
   if (nh_.getParam("lidar_aggregation/aggregation_time_topic",
                    params_.aggregation_time_topic)) {
     ROS_INFO("Loaded parameter aggregation_time_topic: %s",
@@ -121,7 +130,7 @@ void LidarAggregationNodelet::LoadParams() {
 
   if (nh_.getParam("lidar_aggregation/max_aggregation_time_seconds",
                    params_.max_aggregation_time_seconds)) {
-    ROS_INFO("Loaded parameter clear_queue_on_update: %.2f",
+    ROS_INFO("Loaded parameter max_aggregation_time_seconds: %.2f",
              params_.max_aggregation_time_seconds);
   } else {
     params_.max_aggregation_time_seconds = 10;
