@@ -1,15 +1,24 @@
 aggregator_type: ENDTIME # Options: ENDTIME
-aggregation_time_topic: /aggregation_time
-pointcloud_topic: /hvlp/velodyne_points
-aggregate_topic: /hvlp/aggregates
-odometry_topic: /odometry/ground_truth
-dynamic_extrinsics: false
-clear_queue_on_update: false
-max_aggregation_time_seconds: 5
-baselink_frame: base_link
-lidar_frame: hvlp_link
-
-
-# Set ROS console log level.  Note this sets the system level and will override 
-# any other log_level set in other nodes
-log_level: INFO # Options: DEBUG, INFO, WARN, ERROR, FATAL.
+aggregation_time_topic: /aggregation_time # trigger time which tells aggregator 
+                                          # when to aggregate together scans
+pointcloud_topic: /hvlp/velodyne_points # input topic for lidar chunks to 
+                                        # aggregate. This should be a point cloud 
+                                        # message for each lidar packet. See 
+                                        # unpack_velodyne_scans package in 
+                                        # beam_robotics/inspection_tools
+aggregate_topic: /hvlp/aggregates # output topic for aggregates
+odometry_topic: /odometry/ground_truth # odometry to use for motion compensation
+dynamic_extrinsics: false # if transform from baselink_frame to lidar_frame is
+                          # dynamic. If set to true, it will continually lookup
+                          # this transform on tf.
+clear_queue_on_update: false  # this will clear lidar chunk queue each time an
+                              # aggregate is published, even if all chunks are
+                              # not added to the aggregate due to poses laggging
+                              # behind lidar
+max_aggregation_time_seconds: 10 # to account for a stationary scanner
+baselink_frame: "" # If blank, it will use frame from odometry
+lidar_frame: "" # input and aggregate cloud frame. If not set, it will
+                       # use frame from pointcloud_topic
+log_level: INFO # Options: DEBUG, INFO, WARN, ERROR, FATAL. Set ROS console 
+                # log level.  Note this sets the system level and will 
+                # override any other log_level set in other nodes
