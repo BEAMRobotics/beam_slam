@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(beam_launch)
+project(beam_slam_demo)
 
 find_package(catkin REQUIRED COMPONENTS roslaunch)
 

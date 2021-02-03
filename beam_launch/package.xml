@@ -3,12 +3,12 @@
   href="http://download.ros.org/schema/package_format3.xsd"
   schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>beam_launch</name>
+  <name>beam_slam_demo</name>
   <version>0.0.1</version>
   <description>Package containing launch and config files for beam slam</description>
 
-  <author email="author@beamrobotics.com">beam_author</author>
-  <maintainer email="maintainer@beamrobotics.com">beam_maintainer</maintainer>
+  <author email="nicholas.c.charron@gmail.com">Nick Charron</author>
+  <maintainer email="nicholas.c.charron@gmail.com">Nick Charron</maintainer>
 
   <license>BSD</license>
 

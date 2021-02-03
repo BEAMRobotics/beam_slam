@@ -1,7 +1,7 @@
 <launch>
 
-  <arg name="config" default="$(find beam_launch)/config/demo.yaml" />
-  <arg name="rviz" default="$(find beam_launch)/rviz/demo.rviz" />
+  <arg name="config" default="$(find beam_slam_demo)/config/demo_2d.yaml" />
+  <arg name="rviz" default="$(find beam_slam_demo)/rviz/demo_2d.rviz" />
   
   <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="fixed_lag_smoother" output="screen">
     <rosparam command="load" file="$(arg config)"/>

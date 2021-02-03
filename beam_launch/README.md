@@ -1,8 +1,8 @@
-# beam_launch
+# beam_slam_demo
 
 ## Description:
 
-Package containing all launch/config/test data for running beam slam. 
+Package containing example launch/config/test data for running beam slam. 
 
 ## Demo Instructions:
 
