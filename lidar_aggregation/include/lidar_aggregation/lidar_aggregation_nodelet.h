@@ -51,14 +51,10 @@ private:
 
   void LoadParams();
 
-  // Set logging sink to be used by boost::log.
-  //      Only used for code internal to the nodelet (non-ROS code)
-  void SetInternalLogger();
-
-  void SetExtrinsics();
+  bool SetExtrinsics();
 
   // lookup extrinsic calibration on /tf and save to extrinsics
-  void AddExtrinsic(const ros::Time& time);
+  bool AddExtrinsic(const ros::Time& time, int num_attempts = 1);
 
   // callbacks
   void PointCloudCallback(const sensor_msgs::PointCloud2ConstPtr message);
@@ -85,6 +81,7 @@ private:
   Eigen::Matrix4d T_BASELINK_LIDAR_;
   int counter_{0};
   std::string world_frame_;
+  bool extrinsics_set_{false};
 
   // other tunable parameters
   // int max_lookup_attempts_{3};

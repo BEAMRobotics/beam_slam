@@ -7,22 +7,12 @@
       manager to do the publishing of the aggregation time, and the 
       actual aggregation
       -->
-
-<!-- <launch>
-  <node pkg="nodelet" type="nodelet" name="aggregation_nodelet"  args="manager"/>
-  <rosparam param="aggregator" file="$(find lidar_aggregation)/config/end_time_aggregator_params.yaml"/>
-  <node pkg="nodelet" type="nodelet" name="aggregator"
-        args="load lidar_aggregation/LidarAggregationNodelet aggregator_nodelet">
-  </node>
-
-  <rosparam param="const_time_publisher" file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml"/>
-  <node pkg="nodelet" type="nodelet" name="const_time_publisher" 
-        args="load lidar_aggregation/LidarAggregationTimePublisherNodelet const_time_publisher_nodelet">
-  </node>
-</launch> -->
-
 <launch>
-      <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager"/>
-      <node pkg="nodelet" type="nodelet" name="publisher" args="load lidar_aggregation/lidar_aggregation_nodelet nodelet_manager" output="screen"/>
-      <node pkg="nodelet" type="nodelet" name="aggregator" args="load lidar_aggregation/lidar_aggregation_time_publisher_nodelet nodelet_manager" output="screen"/>
+      <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen"/>
+      <node pkg="nodelet" type="nodelet" name="time_publisher" args="load lidar_aggregation/lidar_aggregation_time_publisher_nodelet nodelet_manager" output="screen">
+            <rosparam command="load" file="$(find lidar_aggregation)/config/const_time_publisher_params.yaml" ns="/lidar_aggregation/time_publisher" />
+      </node>
+      <node pkg="nodelet" type="nodelet" name="aggregator" args="load lidar_aggregation/lidar_aggregation_nodelet nodelet_manager" output="screen">
+            <rosparam command="load" file="$(find lidar_aggregation)/config/end_time_aggregator_params.yaml" ns="/lidar_aggregation/aggregator" />
+      </node>
 </launch>

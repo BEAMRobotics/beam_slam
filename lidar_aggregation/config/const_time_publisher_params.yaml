@@ -1,3 +1,7 @@
 odometry_topic: /odometry/ground_truth
 aggregation_time_topic: /aggregation_time
-aggregation_time_seconds: 1
+aggregation_time_seconds: 2
+
+# Set ROS console log level.  Note this sets the system level and will override 
+# any other log_level set in other nodes
+log_level: INFO # Options: DEBUG, INFO, WARN, ERROR, FATAL.

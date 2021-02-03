@@ -42,10 +42,6 @@ private:
 
   void LoadParams();
 
-  // Set logging sink to be used by boost::log.
-  //      Only used for code internal to the nodelet (non-ROS code)
-  void SetInternalLogger();
-
   void OdometryCallback(const nav_msgs::OdometryConstPtr message);
 
   // Nodehandles, both public and private

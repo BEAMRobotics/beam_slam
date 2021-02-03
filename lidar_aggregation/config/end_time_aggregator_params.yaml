@@ -1,4 +1,4 @@
-aggregator_type: ENDTIME
+aggregator_type: ENDTIME # Options: ENDTIME
 aggregation_time_topic: /aggregation_time
 pointcloud_topic: /hvlp/velodyne_points
 aggregate_topic: /hvlp/aggregates
@@ -8,3 +8,8 @@ clear_queue_on_update: false
 max_aggregation_time_seconds: 5
 baselink_frame: base_link
 lidar_frame: hvlp_link
+
+
+# Set ROS console log level.  Note this sets the system level and will override 
+# any other log_level set in other nodes
+log_level: INFO # Options: DEBUG, INFO, WARN, ERROR, FATAL.
