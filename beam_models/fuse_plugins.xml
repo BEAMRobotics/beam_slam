@@ -1,0 +1,55 @@
+<library path="lib/libbeam_models">
+  <class type="beam_models::Pose3D" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces absolute or relative pose constraints from information published by
+      another node
+    </description>
+  </class>
+  <class type="beam_models::Twist3D" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces absolute or relative pose constraints from information published by
+      another node
+    </description>
+  </class>
+  <class type="beam_models::Odometry3D" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces absolute or relative pose constraints from information published by
+      another node
+    </description>
+  </class>
+  <class type="fuse_models::Unicycle3D" base_class_type="fuse_core::MotionModel">
+    <description>
+      An adapter-type sensor that produces absolute or relative pose constraints from information published by
+      another node
+    </description>
+  </class>
+  <class type="fuse_models::Unicycle3DStateKinematicConstraint" base_class_type="fuse_core::Constraint">
+    <description>
+      A class that represents a kinematic constraint between 2D states at two different times.
+    </description>
+  </class>
+  <class type="beam_models::Odometry3DLoader" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces absolute or relative pose constraints from information published by
+      another node
+    </description>
+  </class>
+  <class type="beam_models::ScanMatcher" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces absolute or relative pose constraints from information published by
+      another node
+    </description>
+  </class>
+  <class type="beam_models::Odometry3DLoaderRelative" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces absolute or relative pose constraints from information published by
+      another node
+    </description>
+  </class>
+  <class type="beam_models::Unicycle3DIgnition" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces absolute or relative pose constraints from information published by
+      another node
+    </description>
+  </class>
+</library>

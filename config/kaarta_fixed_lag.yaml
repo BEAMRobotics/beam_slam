@@ -1,0 +1,50 @@
+sensor_models:
+  - name: 'icp3d'
+    type: 'beam_models::frame_to_frame::ICP3D'
+    motion_models: ['unicycle_3d']
+
+
+motion_models:
+  - name: 'unicycle_3d'
+    type: 'beam_models::motion::Unicycle3D'
+
+publishers:
+  - name: 'odom_pub'
+    type: 'beam_publishers::Odometry3DPublisher'
+  - name: 'path_pub'
+    type: 'beam_publishers::Path3DPublisher'
+
+unicycle_3d:
+  process_noise_diagonal: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+  buffer_length: 10 # Default: 3
+
+icp3d:
+  differential: 'false'
+  queue_size: 10
+  pointcloud_topic: '/velodyne_aggregates'
+  initialization_path_topic: '/initialization_path'
+  position_dimensions: ['x','y','z']
+  orientation_dimensions: ['w', 'x', 'y', 'z']
+  downsample_size: [0.05, 0.05, 0.05]
+
+optimization_period: 0.25
+lag_duration: 100
+
+path_pub:
+  frame_id: 'odom' # Stored in pose header. Default: odom
+  path_topic: 'path' # Default: path
+  pose_array_topic: 'pose_array' # Default: pose_array
+
+odom_pub:
+  publish_tf: 'false' # Default: true
+  predict_to_current_time: 'false' # Default: false
+  tf_publish_frequency: 10 # Default: 10
+  tf_cache_time: 10 # Default: 10
+  tf_timeout: 0.1 # Default: 0.1
+  queue_size: 1 # Default: 1
+  map_frame_id: 'map' # I DONT THINK THIS IS USED. Default: map
+  odom_frame_id: 'odom' # I DONT THINK THIS IS USED. Default: odom
+  base_link_frame_id: 'base_link' # I DONT THINK THIS IS USED. Default: base_link
+  base_link_output_frame_id: 'base_link' # Stored in odometry.child_frame_id Default: base_link_frame_id
+  world_frame_id: 'odom' # Stored in odometry.header.frame_id. Default: odom_frame_id
+  topic: 'beam_slam/optimized_odometry' # Output odometry topic
