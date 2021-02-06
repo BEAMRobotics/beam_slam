@@ -1,16 +1,14 @@
 #pragma once
 
 #include <cassert>
-#include <string>
-#include <vector>
 
 #include <ceres/covariance.h>
 #include <fuse_core/ceres_options.h>
-#include <fuse_models/parameters/parameter_base.h>
 #include <ros/console.h>
-#include <ros/node_handle.h>
 
-namespace beam_publisher { namespace parameters {
+#include <beam_parameters/parameter_base.h>
+
+namespace beam_parameters { namespace publishers {
 
 /**
  * @brief Defines the set of parameters required by the Odometry3DPublisher
@@ -24,26 +22,26 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-    nh.getParam("publish_tf", publish_tf);
-    nh.getParam("predict_to_current_time", predict_to_current_time);
-    nh.getParam("tf_publish_frequency", tf_publish_frequency);
+    getParam(nh, "publish_tf", publish_tf, true);
+    getParam(nh, "predict_to_current_time", predict_to_current_time, false);
+    getParam(nh, "tf_publish_frequency", tf_publish_frequency, 10);
 
-    double tf_cache_time_double = tf_cache_time.toSec();
-    nh.getParam("tf_cache_time", tf_cache_time_double);
+    double tf_cache_time_double;
+    getParam(nh, "tf_cache_time", tf_cache_time_double, 10);
     tf_cache_time.fromSec(tf_cache_time_double);
 
-    double tf_timeout_double = tf_timeout.toSec();
-    nh.getParam("tf_timeout", tf_timeout_double);
+    double tf_timeout_double;
+    getParam(nh, "tf_timeout", tf_timeout_double, 0.1);
     tf_timeout.fromSec(tf_timeout_double);
 
-    nh.getParam("queue_size", queue_size);
-
-    nh.getParam("map_frame_id", map_frame_id);
-    nh.getParam("odom_frame_id", odom_frame_id);
-    nh.getParam("base_link_frame_id", base_link_frame_id);
-    nh.param("base_link_output_frame_id", base_link_output_frame_id,
-             base_link_frame_id);
-    nh.param("world_frame_id", world_frame_id, odom_frame_id);
+    getParam(nh, "queue_size", queue_size, 1);
+    getParam(nh, "map_frame_id", map_frame_id, "map");
+    getParam(nh, "odom_frame_id", odom_frame_id, "odom");
+    getParam(nh, "base_link_frame_id", base_link_frame_id, "base_link");
+    param(nh, "base_link_output_frame_id", base_link_output_frame_id,
+          base_link_frame_id);
+    param(nh, "world_frame_id", world_frame_id, odom_frame_id);
+    getParam(nh, "topic", topic, "odometry/filtered");
 
     const bool frames_valid =
         map_frame_id != odom_frame_id && map_frame_id != base_link_frame_id &&
@@ -64,27 +62,23 @@ public:
       assert(frames_valid);
     }
 
-    nh.getParam("topic", topic);
-
     fuse_core::loadCovarianceOptionsFromROS(
         ros::NodeHandle(nh, "covariance_options"), covariance_options);
   }
 
-  bool publish_tf{true};
-  bool predict_to_current_time{false};
-  double tf_publish_frequency{10.0};
-  ros::Duration tf_cache_time{10.0};
-  ros::Duration tf_timeout{0.1};
-  int queue_size{1};
-  std::string map_frame_id{"map"};
-  std::string odom_frame_id{"odom"};
-  std::string base_link_frame_id{"base_link"};
-  std::string base_link_output_frame_id{base_link_frame_id};
-  std::string world_frame_id{odom_frame_id};
-  std::string topic{"odometry/filtered"};
+  bool publish_tf;
+  bool predict_to_current_time;
+  double tf_publish_frequency;
+  ros::Duration tf_cache_time;
+  ros::Duration tf_timeout;
+  int queue_size;
+  std::string map_frame_id;
+  std::string odom_frame_id;
+  std::string base_link_frame_id;
+  std::string base_link_output_frame_id;
+  std::string world_frame_id;
+  std::string topic;
   ceres::Covariance::Options covariance_options;
 };
 
-}} // namespace beam_publisher::parameters
-
-#endif // FUSE_MODELS_PARAMETERS_ODOMETRY_3D_PUBLISHER_PARAMS_H
+}} // namespace beam_parameters::publishers

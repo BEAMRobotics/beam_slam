@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>beam_parameters</name>
+  <version>0.4.0</version>
+  <description>
+    Parameter classes to be used in beam_slam
+  </description>
+
+  <maintainer email="nicholas.c.charron@gmail.com">Nick Charron</maintainer>
+  <author email="nicholas.c.charron@gmail.com">Nick Charron</author>
+
+  <license>Proprietary</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>roscpp</depend>
+</package>
