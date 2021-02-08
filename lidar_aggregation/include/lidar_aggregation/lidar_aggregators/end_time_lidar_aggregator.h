@@ -31,6 +31,7 @@ public:
    * @param static_extrinsics set to true if extrinsics do not change with time
    * @param clear_queue_on_update set to true to clear queue of lidar chunks
    * each time Aggregate() is called
+   * TODO: Check if this works when max_aggregate_duration is not provided
    */
   EndTimeLidarAggregator(
       const std::shared_ptr<tf2::BufferCore> poses,

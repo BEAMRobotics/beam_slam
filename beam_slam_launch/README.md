@@ -2,7 +2,7 @@
 
 ## Description:
 
-Package containing example launch/config/test data for running beam slam. 
+Package containing launch and config files for running beam_slam. This also contains example launch/config/test data for running demos. 
 
 ## Demo Instructions:
 

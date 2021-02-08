@@ -11,7 +11,7 @@ namespace beam_parameters { namespace models {
 /**
  * @brief Defines the set of parameters required by the ScanMatcher class
  */
-struct ScanMatcherParams : public ParameterBase {
+struct ScanMatcher3DParams : public ParameterBase {
 public:
   /**
    * @brief Method for loading parameter values from ROS.

@@ -20,12 +20,12 @@ struct ReferenceCloud{
   Eigen::Matrix4d T_REF_CLOUD;
 };
 
-class ScanMatcher : public fuse_core::AsyncSensorModel {
+class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   using Pose3D = fuse_variables::Position3DStamped;
 
 public:
   SMART_PTR_DEFINITIONS(ScanMatcher);
-  using ParameterType = beam_parameters::models::ScanMatcherParams;
+  using ParameterType = beam_parameters::models::ScanMatcher3DParams;
 
   ScanMatcher();
 

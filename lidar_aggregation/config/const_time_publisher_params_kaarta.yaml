@@ -1,0 +1,7 @@
+odometry_topic: /integrated_to_init # used just for retrieving timing only
+aggregation_time_topic: /aggregation_time # output topic for trigger
+aggregation_time_seconds: 5 # period between time triggers
+log_level: INFO # Options: DEBUG, INFO, WARN, ERROR, FATAL. Set ROS console 
+                # log level.  Note this sets the system level and will 
+                # override any other log_level set in other nodes
+
