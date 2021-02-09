@@ -4,6 +4,11 @@
       An adapter-type sensor that produces absolute or relative pose constraints from information published by
       another node
     </description>
+      <class type="beam_models::motion::Unicycle3DIgnition" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces absolute or relative pose constraints from information published by
+      another node
+    </description>
   <class type="beam_models::frame_to_frame::ScanMatcher3D" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints

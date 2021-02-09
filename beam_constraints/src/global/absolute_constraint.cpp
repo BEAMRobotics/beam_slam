@@ -1,0 +1,12 @@
+#include <beam_constraints/global/absolute_constraint.h>
+
+#include <pluginlib/class_list_macros.h>
+#include <boost/serialization/export.hpp>
+
+BOOST_CLASS_EXPORT_IMPLEMENT(fuse_constraints::AbsoluteVelocityAngular3DStampedConstraint);
+BOOST_CLASS_EXPORT_IMPLEMENT(fuse_constraints::AbsoluteVelocityLinear3DStampedConstraint);
+BOOST_CLASS_EXPORT_IMPLEMENT(fuse_constraints::AbsoluteAccelerationLinear3DStampedConstraint);
+
+PLUGINLIB_EXPORT_CLASS(fuse_constraints::AbsoluteVelocityAngular3DStampedConstraint, fuse_core::Constraint);
+PLUGINLIB_EXPORT_CLASS(fuse_constraints::AbsoluteVelocityLinear3DStampedConstraint, fuse_core::Constraint);
+PLUGINLIB_EXPORT_CLASS(fuse_constraints::AbsoluteAccelerationLinear3DStampedConstraint, fuse_core::Constraint);
