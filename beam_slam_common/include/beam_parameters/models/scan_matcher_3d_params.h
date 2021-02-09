@@ -4,7 +4,7 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <ros/param.h>
 
-#include <beam_models/parameter_base.h>
+#include <beam_parameters/parameter_base.h>
 
 namespace beam_parameters { namespace models {
 
@@ -54,9 +54,7 @@ public:
   int num_neighbors;
   std::string pointcloud_topic;
   std::string initialization_path_topic;
-
-  std::vector<size_t> position_indices;
-  std::vector<size_t> orientation_indices;
+  std::string matcher_params_path;
 };
 
 }} // namespace beam_parameters::models

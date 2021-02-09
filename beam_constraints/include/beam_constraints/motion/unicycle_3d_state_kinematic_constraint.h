@@ -1,9 +1,5 @@
 #pragma once
 
-#include <ostream>
-#include <string>
-#include <vector>
-
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/export.hpp>
@@ -11,7 +7,6 @@
 #include <fuse_core/eigen.h>
 #include <fuse_core/macros.h>
 #include <fuse_core/serialization.h>
-#include <fuse_core/uuid.h>
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
@@ -24,7 +19,7 @@ using Vector15d = Eigen::Matrix<double, 15, 1>;
 
 } // namespace fuse_core
 
-namespace beam_models { namespace motion {
+namespace beam_constraints { namespace motion {
 
 /**
  * @brief A class that represents a kinematic constraint between 3D states at
@@ -161,6 +156,6 @@ private:
   }
 };
 
-}} // namespace beam_models::motion
+}} // namespace beam_constraints::motion
 
-BOOST_CLASS_EXPORT_KEY(beam_models::Unicycle3DStateKinematicConstraint);
+BOOST_CLASS_EXPORT_KEY(beam_constraints::motion::Unicycle3DStateKinematicConstraint);

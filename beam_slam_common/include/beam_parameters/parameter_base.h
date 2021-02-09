@@ -1,12 +1,9 @@
 #pragma once
 
-#include <stdexcept>
-#include <string>
-#include <vector>
-
 #include <ros/node_handle.h>
+#include <boost/lexical_cast.hpp>
 
-#include <beam_models/common/sensor_config.h>
+#include <beam_common/sensor_config.h>
 
 namespace beam_parameters {
 
@@ -36,9 +33,9 @@ void getParam(const ros::NodeHandle& nh, const std::string& key, T& value,
               const T& default_value) {
   if (!nh.getParam(key, value)) {
     value = default_value;
-    const std::string info = "Could not find parameter " + key +
-                             " in namespace " + nh.getNamespace() +
-                             ", using default: " + std::to_string(default_value);
+    const std::string info =
+        "Could not find parameter " + key + " in namespace " +
+        nh.getNamespace() + ", using default: " + boost::lexical_cast<std::string>(value);
     ROS_INFO_STREAM(info);
   }
 }
@@ -67,7 +64,7 @@ inline std::vector<size_t> loadSensorConfig(const ros::NodeHandle& nh,
                                             const std::string& name) {
   std::vector<std::string> dimensions;
   if (nh.getParam(name, dimensions)) {
-    return common::getDimensionIndices<T>(dimensions);
+    return beam_common::getDimensionIndices<T>(dimensions);
   }
 
   return {};

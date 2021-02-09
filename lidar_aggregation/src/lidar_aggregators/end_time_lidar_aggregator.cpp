@@ -19,9 +19,7 @@ EndTimeLidarAggregator::EndTimeLidarAggregator(
 
 void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
   // check aggregates have been added
-  if (lidar_chunks_.size() == 0) {
-    return;
-  }
+  if (lidar_chunks_.size() == 0) { return; }
 
   // get extrinsics if static
   Eigen::Matrix4d T_BASELINK_LIDAR;

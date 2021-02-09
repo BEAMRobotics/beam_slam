@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cassert>
-
 #include <ceres/covariance.h>
 #include <fuse_core/ceres_options.h>
 #include <ros/console.h>
@@ -22,26 +20,28 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-    getParam(nh, "publish_tf", publish_tf, true);
-    getParam(nh, "predict_to_current_time", predict_to_current_time, false);
-    getParam(nh, "tf_publish_frequency", tf_publish_frequency, 10);
+    getParam<bool>(nh, "publish_tf", publish_tf, true);
+    getParam<bool>(nh, "predict_to_current_time", predict_to_current_time,
+                   false);
+    getParam<double>(nh, "tf_publish_frequency", tf_publish_frequency, 10);
 
     double tf_cache_time_double;
-    getParam(nh, "tf_cache_time", tf_cache_time_double, 10);
+    getParam<double>(nh, "tf_cache_time", tf_cache_time_double, 10);
     tf_cache_time.fromSec(tf_cache_time_double);
 
     double tf_timeout_double;
-    getParam(nh, "tf_timeout", tf_timeout_double, 0.1);
+    getParam<double>(nh, "tf_timeout", tf_timeout_double, 0.1);
     tf_timeout.fromSec(tf_timeout_double);
 
-    getParam(nh, "queue_size", queue_size, 1);
-    getParam(nh, "map_frame_id", map_frame_id, "map");
-    getParam(nh, "odom_frame_id", odom_frame_id, "odom");
-    getParam(nh, "base_link_frame_id", base_link_frame_id, "base_link");
-    param(nh, "base_link_output_frame_id", base_link_output_frame_id,
-          base_link_frame_id);
-    param(nh, "world_frame_id", world_frame_id, odom_frame_id);
-    getParam(nh, "topic", topic, "odometry/filtered");
+    getParam<int>(nh, "queue_size", queue_size, 1);
+    getParam<std::string>(nh, "map_frame_id", map_frame_id, "map");
+    getParam<std::string>(nh, "odom_frame_id", odom_frame_id, "odom");
+    getParam<std::string>(nh, "base_link_frame_id", base_link_frame_id,
+                          "base_link");
+    getParam<std::string>(nh, "base_link_output_frame_id",
+                          base_link_output_frame_id, base_link_frame_id);
+    getParam<std::string>(nh, "world_frame_id", world_frame_id, odom_frame_id);
+    getParam<std::string>(nh, "topic", topic, "odometry/filtered");
 
     const bool frames_valid =
         map_frame_id != odom_frame_id && map_frame_id != base_link_frame_id &&

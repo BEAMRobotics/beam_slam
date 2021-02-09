@@ -51,7 +51,8 @@ void LidarAggregationNodelet::onInit() {
   if (params_.aggregator_type == "ENDTIME") {
     aggregator_ = std::make_unique<EndTimeLidarAggregator>(
         poses_, extrinsics_, params_.baselink_frame, params_.lidar_frame,
-        world_frame_);
+        world_frame_, ros::Duration(params_.max_aggregation_time_seconds),
+        !params_.dynamic_extrinsics, params_.clear_queue_on_update);
   } else if (params_.aggregator_type == "CENTERTIME") {
     throw std::invalid_argument{"CENTERLINE Aggregator not yet implemented."};
   } else {

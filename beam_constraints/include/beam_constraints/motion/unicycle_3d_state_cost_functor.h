@@ -1,50 +1,17 @@
 #pragma once
 
-#include <fuse_core/eigen.h>
 #include <fuse_core/macros.h>
 #include <fuse_core/util.h>
 
-#include <beam_models/motion/unicycle_3d_predict.h>
+#include <beam_constraints/motion/unicycle_3d_predict.h>
 
-namespace beam_models { namespace motion {
+namespace beam_constraints { namespace motion {
 
 /**
- * @brief Create a cost function for a 2D state vector
+ * @brief Create a cost function for a 3D state vector
  *
- * The state vector includes the following quantities, given in this order:
- *   x position
- *   y position
- *   yaw (rotation about the z axis)
- *   x velocity
- *   yaw velocity
- *   x acceleration
- *   y acceleration
+ * TODO: add more detail
  *
- * The Ceres::NormalPrior cost function only supports a single variable. This is
- * a convenience cost function that applies a prior constraint on both the
- * entire state vector.
- *
- * The cost function is of the form:
- *
- *             ||    [        x_t2 - proj(x_t1)       ] ||^2
- *   cost(x) = ||    [        y_t2 - proj(y_t1)       ] ||
- *             ||    [      yaw_t2 - proj(yaw_t1)     ] ||
- *             ||A * [    x_vel_t2 - proj(x_vel_t1)   ] ||
- *             ||    [    y_vel_t2 - proj(y_vel_t1)   ] ||
- *             ||    [  yaw_vel_t2 - proj(yaw_vel_t1) ] ||
- *             ||    [    x_acc_t2 - proj(x_acc_t1)   ] ||
- *             ||    [    y_acc_t2 - proj(y_acc_t1)   ] ||
- *
- * where, the matrix A is fixed, the state variables are provided at two
- * discrete time steps, and proj is a function that projects the state variables
- * from time t1 to time t2. In case the user is interested in implementing a
- * cost function of the form
- *
- *   cost(X) = (X - mu)^T S^{-1} (X - mu)
- *
- * where, mu is a vector and S is a covariance matrix, then, A = S^{-1/2}, i.e
- * the matrix A is the square root information matrix (the inverse of the
- * covariance).
  */
 class Unicycle3DStateCostFunctor {
 public:
@@ -157,4 +124,4 @@ bool Unicycle3DStateCostFunctor::operator()(
   return true;
 }
 
-}} // namespace beam_models::motion
+}} // namespace beam_constraints::motion

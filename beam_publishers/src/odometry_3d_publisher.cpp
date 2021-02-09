@@ -1,19 +1,9 @@
+#include <beam_publishers/odometry_3d_publisher.h>
 
-#include <mutex>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include <fuse_core/async_publisher.h>
-#include <fuse_core/uuid.h>
-#include <nav_msgs/Odometry.h>
 #include <pluginlib/class_list_macros.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
 
-#include <beam_models/unicycle_3d_predict.h>
-#include <beam_publishers/odometry_3d_publisher.h>
+#include <beam_constraints/motion/unicycle_3d_predict.h>
 
 // Register this publisher with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(beam_publishers::Odometry3DPublisher,
@@ -171,8 +161,6 @@ bool Odometry3DPublisher::getState(
     state.pose.pose.position.x = position_variable.x();
     state.pose.pose.position.y = position_variable.y();
     state.pose.pose.position.z = position_variable.z();
-    // state.pose.pose.orientation =
-    // tf2::toMsg(tf2_2d::Rotation(orientation_variable.yaw()));
     state.pose.pose.orientation = tf2::toMsg(
         tf2::Quaternion(orientation_variable.x(), orientation_variable.y(),
                         orientation_variable.z(), orientation_variable.w()));
@@ -221,9 +209,10 @@ void Odometry3DPublisher::tfPublishTimerCallback(const ros::TimerEvent& event) {
     tf2::Vector3 unused_acc;
     tf2::Vector3 unused_angular_vel;
 
-    predict(pose, velocity_linear, velocity_angular, unused_acc,
-            event.current_real.toSec() - odom_output_.header.stamp.toSec(),
-            pose, velocity_linear, unused_angular_vel, unused_acc);
+    beam_constraints::motion::predict(
+        pose, velocity_linear, velocity_angular, unused_acc,
+        event.current_real.toSec() - odom_output_.header.stamp.toSec(), pose,
+        velocity_linear, unused_angular_vel, unused_acc);
 
     trans.header.stamp = event.current_real;
   }

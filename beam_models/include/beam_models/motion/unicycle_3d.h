@@ -1,20 +1,17 @@
 #pragma once
 
 #include <map>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include <fuse_core/async_motion_model.h>
 #include <fuse_core/constraint.h>
-#include <fuse_core/eigen.h>
 #include <fuse_core/graph.h>
 #include <fuse_core/macros.h>
 #include <fuse_core/timestamp_manager.h>
 #include <fuse_core/transaction.h>
+#include <fuse_core/uuid.h>
 #include <fuse_core/variable.h>
 #include <ros/ros.h>
-#include <tf2_2d/tf2_2d.h>
+#include <tf2/utils.h>
 
 namespace beam_models { namespace motion {
 
@@ -127,7 +124,7 @@ protected:
   fuse_core::TimestampManager
       timestamp_manager_; //!< Tracks timestamps and previously created motion
                           //!< model segments
-  fuse_core::Matrix15d
+  Eigen::Matrix<double, 15, 15, Eigen::RowMajor>
       process_noise_covariance_; //!< Process noise covariance matrix
 
   StateHistory state_history_; //!< History of optimized graph pose estimates

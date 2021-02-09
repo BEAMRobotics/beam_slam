@@ -1,7 +1,5 @@
 #pragma once
 
-#include <string>
-
 #include <fuse_core/async_publisher.h>
 #include <fuse_core/graph.h>
 #include <fuse_core/macros.h>

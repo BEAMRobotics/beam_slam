@@ -9,7 +9,9 @@
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
-namespace beam_models { namespace common {
+#include <beam_utils/math.h>
+
+namespace beam_common {
 
 /**
  * @brief Extracts relative 3D pose data from a PoseWithCovarianceStamped and
@@ -140,9 +142,10 @@ inline bool processRelativePoseWithCovariance(
   auto orientation1 = fuse_variables::Orientation3DStamped::make_shared(
       time1, device_id);
   position1->x() = T_REF_POSE1(0,3);
-  position1->y() = T_REF_POSE1(1,3);;
-  position1->z() = T_REF_POSE1(2,3)
-  Eigen::Quaterniond q1(T_REF_POSE1.block(0,0,3,3));
+  position1->y() = T_REF_POSE1(1,3);
+  position1->z() = T_REF_POSE1(2,3);
+  Eigen::Matrix3d R1 = T_REF_POSE1.block(0,0,3,3);
+  Eigen::Quaterniond q1(R1);
   orientation1->x() = q1.x();
   orientation1->y() = q1.y();
   orientation1->z() = q1.z();
@@ -153,15 +156,16 @@ inline bool processRelativePoseWithCovariance(
   auto orientation2 = fuse_variables::Orientation3DStamped::make_shared(
       time2, device_id);
     position2->x() = T_REF_POSE2(0,3);
-  position2->y() = T_REF_POSE2(1,3);;
-  position2->z() = T_REF_POSE2(2,3)
-  Eigen::Quaterniond q2(T_REF_POSE2.block(0,0,3,3));
+  position2->y() = T_REF_POSE2(1,3);
+  position2->z() = T_REF_POSE2(2,3);
+  Eigen::Matrix3d R2 = T_REF_POSE2.block(0,0,3,3);
+  Eigen::Quaterniond q2(R2);
   orientation2->x() = q2.x();
   orientation2->y() = q2.y();
   orientation2->z() = q2.z();
   orientation2->w() = q2.w();    
 
-  Eigen::Affine3d affine_delta(beam::InvertTtransform(T_REF_POSE1)*T_REF_POSE2);
+  Eigen::Affine3d affine_delta(beam::InvertTransform(T_REF_POSE1)*T_REF_POSE2);
   Eigen::Quaterniond q_delta(affine_delta.linear());
 
   // Create the delta for the constraint
@@ -190,4 +194,4 @@ inline bool processRelativePoseWithCovariance(
   return true;
 }
 
-}} // namespace beam_models::common
+} // namespace beam_common

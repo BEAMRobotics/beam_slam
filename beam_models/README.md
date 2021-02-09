@@ -1,1 +1,1 @@
-The `beam_models` package contains plugins that can be used to produce state estimates for a wide variety of robots. The package is intended to support transitioning from the `robot_localization` package to `fuse`.
+The `beam_constraints` package contains fuse constraints used by sensor models in beam_models.

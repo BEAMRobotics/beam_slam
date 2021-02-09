@@ -1,13 +1,12 @@
-#include <beam_models/motion/unicycle_3d_state_kinematic_constraint.h>
+#include <beam_constraints/motion/unicycle_3d_state_kinematic_constraint.h>
 
-#include <Eigen/Dense>
 #include <boost/serialization/export.hpp>
 #include <ceres/autodiff_cost_function.h>
 #include <pluginlib/class_list_macros.h>
 
-#include <beam_models/motion/unicycle_3d_state_cost_functor.h>
+#include <beam_constraints/motion/unicycle_3d_state_cost_functor.h>
 
-namespace beam_models { namespace motion {
+namespace beam_constraints { namespace motion {
 
 Unicycle3DStateKinematicConstraint::Unicycle3DStateKinematicConstraint(
     const std::string& source,
@@ -78,8 +77,9 @@ ceres::CostFunction* Unicycle3DStateKinematicConstraint::costFunction() const {
       new Unicycle3DStateCostFunctor(dt_, sqrt_information_));
 }
 
-}} // namespace beam_models::motion
+}} // namespace beam_constraints::motion
 
-BOOST_CLASS_EXPORT_IMPLEMENT(beam_models::Unicycle3DStateKinematicConstraint);
-PLUGINLIB_EXPORT_CLASS(beam_models::Unicycle3DStateKinematicConstraint,
+BOOST_CLASS_EXPORT_IMPLEMENT(
+    beam_constraints::motion::Unicycle3DStateKinematicConstraint);
+PLUGINLIB_EXPORT_CLASS(beam_constraints::motion::Unicycle3DStateKinematicConstraint,
                        fuse_core::Constraint);

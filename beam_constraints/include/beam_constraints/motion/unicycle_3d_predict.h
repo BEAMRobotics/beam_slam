@@ -1,15 +1,15 @@
 #pragma once
 
-#include <ceres/jet.h>
 #include <fuse_core/util.h>
-#include <tf2_2d/tf2_2d.h>
+
+#include <tf2/LinearMath/Transform.h>
 
 namespace fuse_core {
 using Matrix15d = Eigen::Matrix<double, 15, 15, Eigen::RowMajor>;
 using Vector15d = Eigen::Matrix<double, 15, 1>;
 } // namespace fuse_core
 
-namespace beam_models { namespace motion {
+namespace beam_constraints { namespace motion {
 
 /**
  * @brief Given a state and time delta, predicts a new state
@@ -255,4 +255,4 @@ inline void predict(const tf2::Transform& pose1,
   acc_linear2.setZ(acc_linear_z_pred);
 };
 
-}} // namespace beam_models::motion
+}} // namespace beam_constraints::motion

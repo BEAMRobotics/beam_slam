@@ -1,13 +1,9 @@
 #pragma once
 
-#include <memory>
-#include <string>
-
 #include <fuse_core/async_publisher.h>
 #include <fuse_core/graph.h>
 #include <fuse_core/transaction.h>
 #include <fuse_core/uuid.h>
-#include <fuse_core/variable.h>
 #include <fuse_publishers/stamped_variable_synchronizer.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
@@ -19,9 +15,9 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
-#include <beam_publishers/parameters/odometry_3d_publisher_params.h>
+#include <beam_parameters/publishers/odometry_3d_publisher_params.h>
 
-namespace beam_publisher {
+namespace beam_publishers {
 
 /**
  * @class Odometry3DPublisher plugin that publishes a nav_msgs::Odometry message
@@ -71,7 +67,7 @@ namespace beam_publisher {
 class Odometry3DPublisher : public fuse_core::AsyncPublisher {
 public:
   SMART_PTR_DEFINITIONS(Odometry3DPublisher);
-  using ParameterType = parameters::Odometry3DPublisherParams;
+  using ParameterType = beam_parameters::publishers::Odometry3DPublisherParams;
 
   /**
    * @brief Constructor
@@ -176,4 +172,4 @@ protected:
   ros::Timer tf_publish_timer_;
 };
 
-} // namespace beam_publisher
+} // namespace beam_publishers

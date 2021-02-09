@@ -10,7 +10,6 @@ find_package(beam REQUIRED COMPONENTS utils matching)
 find_package(
   catkin REQUIRED
   COMPONENTS
-    beam_constraints
     fuse_core
     fuse_graphs
     fuse_publishers
@@ -18,7 +17,6 @@ find_package(
     fuse_models
     fuse_constraints
     geometry_msgs
-    message_generation
     nav_msgs
     pluginlib
     rosbag
@@ -29,17 +27,13 @@ find_package(
     tf2
     tf2_2d
     tf2_geometry_msgs
-    tf2_ros)
+    tf2_ros
+    beam_constraints
+    beam_slam_common)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
-
-generate_messages(
-  DEPENDENCIES
-    geometry_msgs
-    std_msgs
-)
 
 catkin_package(
   INCLUDE_DIRS
@@ -47,7 +41,6 @@ catkin_package(
   LIBRARIES
     ${PROJECT_NAME}
   CATKIN_DEPENDS
-    beam_constraints
     fuse_core
     fuse_graphs
     fuse_models
@@ -60,13 +53,12 @@ catkin_package(
     pcl_conversions
     pluginlib
     roscpp
-    rosbag
     sensor_msgs
-    std_srvs
     tf2
-    tf2_2d
     tf2_geometry_msgs
     tf2_ros
+    beam_constraints
+    beam_slam_common
   DEPENDS
     Boost
     CERES
@@ -83,13 +75,12 @@ include_directories(
   ${CERES_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
 )
-message(STATUS "Using libpointmatcher version ${libpointmatcher_VERSION}")
+
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
   src/motion/unicycle_3d.cpp
-  src/motion/unicycle_3d_ignition.cpp
-  src/motion/unicycle_3d_state_kinematic_constraint.cpp
+  src/frame_to_frame/scan_matcher_3d.cpp
 )
 
 ## Specify libraries to link a library or executable target against
@@ -97,6 +88,8 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
+    beam::utils
+    beam::matching
 )
 add_dependencies(
   ${PROJECT_NAME}

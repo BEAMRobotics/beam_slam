@@ -1,7 +1,5 @@
 #include <beam_publishers/path_3d_publisher.h>
-#include <fuse_core/async_publisher.h>
-#include <fuse_core/graph.h>
-#include <fuse_core/transaction.h>
+
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
@@ -9,14 +7,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
 #include <pluginlib/class_list_macros.h>
-#include <ros/ros.h>
 #include <tf2/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-
-#include <algorithm>
-#include <string>
-#include <utility>
-#include <vector>
 
 // Register this publisher with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(beam_publishers::Path3DPublisher, fuse_core::Publisher);
@@ -64,7 +56,7 @@ void Path3DPublisher::notifyCallback(
       (pose_array_publisher_.getNumSubscribers() == 0)) {
     return;
   }
-  
+
   // Extract all of the 3D pose variables to the path
   std::vector<geometry_msgs::PoseStamped> poses;
   for (const auto& variable : graph->getVariables()) {
@@ -89,22 +81,22 @@ void Path3DPublisher::notifyCallback(
       poses.push_back(std::move(pose));
     }
   }
-  
+
   // Exit if there are no poses
   if (poses.empty()) { return; }
-  
+
   // Sort the poses by timestamp
   auto compare_stamps = [](const geometry_msgs::PoseStamped& pose1,
                            const geometry_msgs::PoseStamped& pose2) {
     return pose1.header.stamp < pose2.header.stamp;
   };
   std::sort(poses.begin(), poses.end(), compare_stamps);
-  
+
   // Define the header for the aggregate message
   std_msgs::Header header;
   header.stamp = poses.back().header.stamp;
   header.frame_id = frame_id_;
-  
+
   // Convert the sorted poses into a Path msg
   if (path_publisher_.getNumSubscribers() > 0) {
     nav_msgs::Path path_msg;
@@ -112,7 +104,7 @@ void Path3DPublisher::notifyCallback(
     path_msg.poses = poses;
     path_publisher_.publish(path_msg);
   }
-  
+
   // Convert the sorted poses into a PoseArray msg
   if (pose_array_publisher_.getNumSubscribers() > 0) {
     geometry_msgs::PoseArray pose_array_msg;

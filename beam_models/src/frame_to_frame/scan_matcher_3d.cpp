@@ -1,30 +1,23 @@
-#include <beam_models/scan_matcher/scan_matcher.h>
+#include <beam_models/frame_to_frame/scan_matcher_3d.h>
 
 #include <fuse_core/transaction.h>
-#include <fuse_core/uuid.h>
-#include <nlohmann/json.hpp>
 #include <pluginlib/class_list_macros.h>
-#include <rosbag/bag.h>
-#include <rosbag/view.h>
 
-#include <beam_calibration/TfTree.h>
-#include <beam_mapping/Poses.h>
 #include <beam_matching/Matchers.h>
 #include <beam_utils/filesystem.h>
-#include <beam_utils/math.h>
 
-#include <beam_models/common/sensor_proc.h>
+#include <beam_common/sensor_proc.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(beam_models::frame_to_frame::ScanMatcher,
+PLUGINLIB_EXPORT_CLASS(beam_models::frame_to_frame::ScanMatcher3D,
                        fuse_core::SensorModel)
 
 namespace beam_models { namespace frame_to_frame {
 
-ScanMatcher::ScanMatcher()
+ScanMatcher3D::ScanMatcher3D()
     : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL) {}
 
-void ScanMatcher::onInit() {
+void ScanMatcher3D::onInit() {
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   params_.loadFromROS(private_node_handle_);
@@ -32,18 +25,18 @@ void ScanMatcher::onInit() {
   if (params_.type == "ICP") {
     std::string config_path =
         beam::LibbeamRoot() + "beam_matching/config/icp.json";
-    IcpMatcherParams matcher_params(config_path);
-    matcher_ = make_unique<beam_matching::IcpMatcher>(matcher_params);
+    beam_matching::IcpMatcherParams matcher_params(config_path);
+    matcher_ = std::make_unique<beam_matching::IcpMatcher>(matcher_params);
   } else if (params_.type == "GICP") {
     std::string config_path =
         beam::LibbeamRoot() + "beam_matching/config/gicp.json";
-    GicpMatcherParams matcher_params(config_path);
-    matcher_ = make_unique<beam_matching::GicpMatcher>(matcher_params);
+    beam_matching::GicpMatcherParams matcher_params(config_path);
+    matcher_ = std::make_unique<beam_matching::GicpMatcher>(matcher_params);
   } else if (params_.type == "NDT") {
     std::string config_path =
         beam::LibbeamRoot() + "beam_matching/config/ndt.json";
-    NdtMatcherParams matcher_params(config_path);
-    matcher_ = make_unique<beam_matching::NdtMatcher>(matcher_params);
+    beam_matching::NdtMatcherParams matcher_params(config_path);
+    matcher_ = std::make_unique<beam_matching::NdtMatcher>(matcher_params);
   } else {
     const std::string error =
         "scan matcher type invalid. Options: ICP, GICP, NDT.";
@@ -52,21 +45,20 @@ void ScanMatcher::onInit() {
   }
 }
 
-void ScanMatcher::onStart() {
+void ScanMatcher3D::onStart() {
   reference_clouds_.clear();
-
   pointcloud_subscriber_ = node_handle_.subscribe(
       params_.pointcloud_topic, params_.queue_size,
       &PointCloudThrottledCallback::callback, &throttled_callback_);
 }
 
-void ScanMatcher::onStop() {
+void ScanMatcher3D::onStop() {
   pointcloud_subscriber_.shutdown();
 }
 
-void ScanMatcher::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
+void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ReferenceCloud current_cloud;
-  current_cloud.cloud = beam_utils::ROSToPCL(*msg, current_cloud.time);
+  current_cloud.cloud = beam::ROSToPCL(*msg, current_cloud.time);
   // TODO: implement
   current_cloud.T_REF_CLOUD = GetEstimatedPose(current_cloud.time);
 
@@ -88,9 +80,9 @@ void ScanMatcher::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     transaction->stamp(msg->header.stamp);
 
     // build transaction
-    common::processRelativePoseWithCovariance(
+    beam_common::processRelativePoseWithCovariance(
         name(), device_id_, iter->time, current_cloud.time, iter->T_REF_CLOUD,
-        current_cloud.T_REF_CLOUD, covariance, transaction);
+        current_cloud.T_REF_CLOUD, covariance, *transaction);
 
     // Send the transaction object to the plugin's parent
     sendTransaction(transaction);
@@ -103,11 +95,15 @@ void ScanMatcher::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   reference_clouds_.push_front(current_cloud);
 }
 
-void ScanMatcher::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
+void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   // TODO: get updated scan poses
 }
 
-void ScanMatcher::MatchScans(const ReferenceCloud& cloud1,
+Eigen::Matrix4d ScanMatcher3D::GetEstimatedPose(const ros::Time& time){
+  // TODO
+}
+
+void ScanMatcher3D::MatchScans(const ReferenceCloud& cloud1,
                              const ReferenceCloud& cloud2,
                              Eigen::Matrix4d& T_CLOUD1_CLOUD2,
                              Eigen::Matrix<double, 6, 6>& covariance) {
@@ -116,11 +112,11 @@ void ScanMatcher::MatchScans(const ReferenceCloud& cloud1,
 
   // transform cloud2 into cloud1 frame
   PointCloudPtr cloud2_transformed;
-  pcl::transformPointCloud(cloud2.cloud, cloud2_transformed,
+  pcl::transformPointCloud(*cloud2.cloud, *cloud2_transformed,
                            Eigen::Affine3d(T_CLOUD1_CLOUD2));
 
   // match clouds
-  matcher_->Setup(cloud1, cloud2_transformed);
+  matcher_->Setup(cloud1.cloud, cloud2_transformed);
   matcher_->Match();
   Eigen::Matrix4d T_CLOUD1_CLOUD1EST = matcher_->GetResult().matrix();
   T_CLOUD1_CLOUD2 = T_CLOUD1_CLOUD1EST * T_CLOUD1EST_CLOUD2;
