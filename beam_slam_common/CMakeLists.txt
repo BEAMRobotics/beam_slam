@@ -38,6 +38,7 @@ add_library(${PROJECT_NAME}
   src/beam_parameters/models/model_params.cpp
   src/beam_parameters/publishers/publisher_params.cpp
   src/beam_common/common.cpp
+  src/beam_common/pose_lookup.cpp
   )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}

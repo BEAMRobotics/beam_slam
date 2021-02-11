@@ -40,7 +40,9 @@ scan_matcher_3d:
   differential: 'false' # Default: false
   queue_size: 10 # Subscriber queue size. Default: 10
   pointcloud_topic: '/velodyne_aggregates'
-  initialization_path_topic: '/initialization_path'
+  pointcloud_frame: 'velodyne' # used to lookup extrinsic calibrations
+  frame_initializer_type: 'ODOMETRY'
+  frame_initializer_topic: '/initialization_path'
   matcher_params_path: '' # Defaults to params in libbeam 
 
 path_pub:

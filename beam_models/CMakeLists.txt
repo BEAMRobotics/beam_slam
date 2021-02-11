@@ -82,6 +82,8 @@ add_library(
   src/motion/unicycle_3d.cpp
   src/motion/unicycle_3d_ignition.cpp
   src/frame_to_frame/scan_matcher_3d.cpp
+  src/frame_initializers/frame_initializer_base.cpp
+  src/frame_initializers/odometry_frame_initializer.cpp
 )
 
 ## Specify libraries to link a library or executable target against

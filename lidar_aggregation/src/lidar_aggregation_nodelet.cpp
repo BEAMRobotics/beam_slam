@@ -273,6 +273,7 @@ void LidarAggregationNodelet::PointCloudCallback(
   ROS_DEBUG("Added lidar chunk.");
 }
 
+// TODO: use beam_common::PoseLookup class to cleanup this code
 bool LidarAggregationNodelet::AddExtrinsic(const ros::Time& time,
                                            int num_attempts) {
   tf::StampedTransform T_BASELINK_LIDAR;

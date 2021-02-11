@@ -43,7 +43,6 @@ inline bool processRelativePoseWithCovariance(
     const geometry_msgs::PoseWithCovarianceStamped& pose1,
     const geometry_msgs::PoseWithCovarianceStamped& pose2,
     fuse_core::Transaction& transaction) {
-
   // Convert the poses into tf2 transforms
   tf2::Transform absolute_pose1_3d;
   tf2::fromMsg(pose1.pose.pose, absolute_pose1_3d);
@@ -130,51 +129,22 @@ inline bool processRelativePoseWithCovariance(
 }
 
 inline bool processRelativePoseWithCovariance(
-    const std::string& source, const fuse_core::UUID& device_id,
-    const ros::Time& time1, const ros::Time& time2,
-    const Eigen::Matrix4d& T_REF_POSE1,
-    const Eigen::Matrix4d& T_REF_POSE2,
+    const std::string& source,
+    const fuse_variables::Position3DStamped::SharedPtr& position1,
+    const fuse_variables::Orientation3DStamped::SharedPtr& orientation1,
+    const fuse_variables::Position3DStamped::SharedPtr& position2,
+    const fuse_variables::Orientation3DStamped::SharedPtr& orientation2,
+    const Eigen::Matrix4d& T_CLOUD1_CLOUD2,
     const Eigen::Matrix<double, 6, 6>& covariance,
     fuse_core::Transaction& transaction) {
-  // Create the pose variables
-  auto position1 = fuse_variables::Position3DStamped::make_shared(
-      time1, device_id);
-  auto orientation1 = fuse_variables::Orientation3DStamped::make_shared(
-      time1, device_id);
-  position1->x() = T_REF_POSE1(0,3);
-  position1->y() = T_REF_POSE1(1,3);
-  position1->z() = T_REF_POSE1(2,3);
-  Eigen::Matrix3d R1 = T_REF_POSE1.block(0,0,3,3);
-  Eigen::Quaterniond q1(R1);
-  orientation1->x() = q1.x();
-  orientation1->y() = q1.y();
-  orientation1->z() = q1.z();
-  orientation1->w() = q1.w();
+  // convert rotation matrix to quaternion
+  Eigen::Matrix3d R = T_CLOUD1_CLOUD2.block(0, 0, 3, 3);
+  Eigen::Quaterniond q(R);
 
-  auto position2 = fuse_variables::Position3DStamped::make_shared(
-      time1, device_id);
-  auto orientation2 = fuse_variables::Orientation3DStamped::make_shared(
-      time2, device_id);
-    position2->x() = T_REF_POSE2(0,3);
-  position2->y() = T_REF_POSE2(1,3);
-  position2->z() = T_REF_POSE2(2,3);
-  Eigen::Matrix3d R2 = T_REF_POSE2.block(0,0,3,3);
-  Eigen::Quaterniond q2(R2);
-  orientation2->x() = q2.x();
-  orientation2->y() = q2.y();
-  orientation2->z() = q2.z();
-  orientation2->w() = q2.w();    
-
-  Eigen::Affine3d affine_delta(beam::InvertTransform(T_REF_POSE1)*T_REF_POSE2);
-  Eigen::Quaterniond q_delta(affine_delta.linear());
-
-  // Create the delta for the constraint
+  // Convert measurement to fuse variable
   fuse_core::Vector7d pose_relative_mean;
-  pose_relative_mean << affine_delta.translation().x(),
-      affine_delta.translation().y(), affine_delta.translation().z(), q_delta.w(),
-      q_delta.x(), q_delta.y(), q_delta.z();
-
-  // TODO: check covariance is correct 
+  pose_relative_mean << T_CLOUD1_CLOUD2(0, 3), T_CLOUD1_CLOUD2(1, 3),
+      T_CLOUD1_CLOUD2(2, 3), q.w(), q.x(), q.y(), q.z();
 
   // Create a relative pose constraint. We assume the pose measurements are
   // independent.
@@ -188,8 +158,8 @@ inline bool processRelativePoseWithCovariance(
   transaction.addVariable(position2);
   transaction.addVariable(orientation2);
   transaction.addConstraint(constraint, true);
-  transaction.addInvolvedStamp(time1);
-  transaction.addInvolvedStamp(time2);
+  transaction.addInvolvedStamp(position1->stamp());
+  transaction.addInvolvedStamp(position2->stamp());
 
   return true;
 }

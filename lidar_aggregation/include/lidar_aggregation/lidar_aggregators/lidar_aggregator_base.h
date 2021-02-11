@@ -2,33 +2,30 @@
 
 #include <queue>
 
-#include <tf2/buffer_core.h>
 #include <boost/make_shared.hpp>
+#include <tf2/buffer_core.h>
 
 #include <beam_utils/optional.h>
 #include <beam_utils/pointclouds.h>
 
-
 struct LidarChunk {
   PointCloudPtr cloud;
   ros::Time time;
-  LidarChunk(){
-    cloud = boost::make_shared<PointCloud>();
-  }
+  LidarChunk() { cloud = boost::make_shared<PointCloud>(); }
 };
 
 struct LidarAggregate {
   PointCloudPtr cloud;
   ros::Time time;
-  LidarAggregate(){
-    cloud = boost::make_shared<PointCloud>();
-  }
+  LidarAggregate() { cloud = boost::make_shared<PointCloud>(); }
 };
 
 class LidarAggregatorBase {
 public:
   /**
-   * @brief Adds a new lidar chunk to the queue to be aggregated. It also checks that the timestamps are in increasing order, and ingores chunks that are not.
+   * @brief Adds a new lidar chunk to the queue to be aggregated. It also checks
+   * that the timestamps are in increasing order, and ingores chunks that are
+   * not.
    * @param lidar_chunk set of lidar points to be added
    */
   void Add(const LidarChunk& lidar_chunk);

@@ -9,15 +9,11 @@
 #include <beam_matching/Matcher.h>
 #include <beam_utils/pointclouds.h>
 
+#include <beam_models/frame_to_frame/scan_pose.h>
+#include <beam_models/frame_initializers/frame_initializer_base.h>
 #include <beam_parameters/models/scan_matcher_3d_params.h>
 
 namespace beam_models { namespace frame_to_frame {
-
-struct ReferenceCloud {
-  PointCloudPtr cloud;
-  ros::Time time;
-  Eigen::Matrix4d T_REF_CLOUD;
-};
 
 class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   using Pose3D = fuse_variables::Position3DStamped;
@@ -62,17 +58,18 @@ protected:
 
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
-  void MatchScans(const ReferenceCloud& cloud1, const ReferenceCloud& cloud2,
+  void MatchScans(const PointCloudPtr& cloud1, const PointCloudPtr& cloud2,
+                  const Eigen::Matrix4d& T_WORLD_CLOUD1,
+                  const Eigen::Matrix4d& T_WORLD_CLOUD2,
                   Eigen::Matrix4d& T_CLOUD1_CLOUD2,
                   Eigen::Matrix<double, 6, 6>& covariance);
-
-  Eigen::Matrix4d GetEstimatedPose(const ros::Time& time);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   ParameterType params_;
   ros::Subscriber pointcloud_subscriber_;
-  std::list<ReferenceCloud> reference_clouds_;
+  std::list<ScanPose> reference_clouds_;
   std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
+  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
 
   using PointCloudThrottledCallback =
       fuse_models::common::ThrottledCallback<sensor_msgs::PointCloud2>;

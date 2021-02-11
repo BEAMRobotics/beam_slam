@@ -22,9 +22,12 @@ public:
     getParamRequired(nh, "type", type);
     getParam(nh, "queue_size", queue_size, 10);
     getParam(nh, "num_neighbors", num_neighbors, 1);
+    getParam(nh, "frame_initializer_type", frame_initializer_type,
+             frame_initializer_type);
+    getParam(nh, "frame_initializer_topic", frame_initializer_topic,
+             frame_initializer_topic);
     getParamRequired(nh, "pointcloud_topic", pointcloud_topic);
-    getParamRequired(nh, "initialization_path_topic",
-                     initialization_path_topic);
+    getParamRequired(nh, "pointcloud_frame", pointcloud_frame);
 
     // need custom message for matcher_params_path
     if (!nh.getParam("matcher_params_path", matcher_params_path)) {
@@ -53,7 +56,9 @@ public:
   int queue_size;
   int num_neighbors;
   std::string pointcloud_topic;
-  std::string initialization_path_topic;
+  std::string pointcloud_frame;
+  std::string frame_initializer_type{"ODOMETRY"};
+  std::string frame_initializer_topic{""};
   std::string matcher_params_path;
 };
 
