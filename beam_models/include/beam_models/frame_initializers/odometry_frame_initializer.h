@@ -19,22 +19,18 @@ class OdometryFrameInitializer : public FrameInitializerBase {
 public:
   /**
    * @brief Constructor
-   * @param odometry_subscriber object to subscribe to the odometry messages.
-   * This subscriber must use the callback defined in OdometryFrameInitializer
+   * @param topic odometry topic to subscribe to
+   * @param queue_size subscriber queue size
    * @param sensor_frame_id frame ID attached to the sensor, used to lookup
    * extrinsic calibrations. If not supplied, it will assume the odometry is
    * already in the correct frame.
+   * @param static_extrinsics set to false if extrinsics change and transforms
+   * are broadcasted to /tf
+   * @param poses_buffer_time lenth of time to store poses for interpolation
    */
-  OdometryFrameInitializer(const ros::Subscriber& odometry_subscriber,
-                           const std::string& sensor_frame_id = "",
-                           bool static_extrinsics = true,
-                           double poses_buffer_time = 20);
-
-  // OdometryFrameInitializer(const ros::NodeHandle& nh, const std::string& topic,
-  //                          const std::string& sensor_frame_id = "",
-  //                          bool static_extrinsics = true,
-  //                          double poses_buffer_time = 20,
-  //                          int subscriber_queue_size = 100);
+  OdometryFrameInitializer(const std::string& topic, int queue_size,
+                           const std::string& sensor_frame_id,
+                           bool static_extrinsics, double poses_buffer_time);
 
   /**
    * @brief Gets estimate frame pose
@@ -45,10 +41,14 @@ public:
   bool GetEstimatedPose(const ros::Time& time,
                         Eigen::Matrix4d& T_WORLD_SENSOR) override;
 
+  /**
+   * @brief Converts incoming odometry messages to tf poses and stores them in a
+   * buffercore
+   * @param message odometry message
+   */
   void OdometryCallback(const nav_msgs::OdometryConstPtr message);
-  
-private:
 
+private:
   beam_common::PoseLookup::Params pose_lookup_params_;
   std::unique_ptr<beam_common::PoseLookup> pose_lookup_;
   std::shared_ptr<tf2::BufferCore> poses_;

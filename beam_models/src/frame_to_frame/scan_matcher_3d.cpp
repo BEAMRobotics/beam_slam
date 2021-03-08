@@ -48,19 +48,10 @@ void ScanMatcher3D::onInit() {
 
   // init frame initializer
   if (params_.frame_initializer_type == "ODOMETRY") {
-    ros::Subscriber odometry_subscriber =
-        private_node_handle_.subscribe<nav_msgs::Odometry>(
-            params_.frame_initializer_topic, 100,
-            boost::bind(
-                &frame_initializers::OdometryFrameInitializer::OdometryCallback,
-                &frame_initializer_, _1));
-    // frame_initializer_ =
-    //     std::make_unique<frame_initializers::OdometryFrameInitializer>(
-    //         private_node_handle_, params_.frame_initializer_topic,
-    //         params_.pointcloud_frame);
     frame_initializer_ =
         std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            odometry_subscriber, params_.pointcloud_frame);
+            params_.frame_initializer_topic, 100, params_.pointcloud_frame,
+            true, 30);
   } else {
     const std::string error =
         "frame_initializer_type invalid. Options: ODOMETRY";

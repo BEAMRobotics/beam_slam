@@ -5,11 +5,14 @@
 namespace beam_models { namespace frame_initializers {
 
 OdometryFrameInitializer::OdometryFrameInitializer(
-    const ros::Subscriber& odometry_subscriber,
+    const std::string& topic, int queue_size,
     const std::string& sensor_frame_id, bool static_extrinsics,
-    double poses_buffer_time)
-    : odometry_subscriber_(odometry_subscriber) {
+    double poses_buffer_time) {
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time));
+
+  ros::NodeHandle n;
+  ros::Subscriber odometry_subscriber = n.subscribe<nav_msgs::Odometry>(
+      topic, queue_size, boost::bind(&OdometryFrameInitializer::OdometryCallback, this, _1));
 
   // set pose lookup params and set pose lookup to nullptr until first odom msg
   // comes in
@@ -18,25 +21,6 @@ OdometryFrameInitializer::OdometryFrameInitializer(
   pose_lookup_params_.static_extrinsics = static_extrinsics;
   pose_lookup_ = nullptr;
 }
-
-// OdometryFrameInitializer::OdometryFrameInitializer(
-//     const ros::NodeHandle& nh, const std::string& topic,
-//     const std::string& sensor_frame_id, bool static_extrinsics,
-//     double poses_buffer_time, int subscriber_queue_size) {
-//   poses_ =
-//   std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time));
-//   odometry_subscriber_ = nh.subscribe<nav_msgs::Odometry>(
-//       topic, subscriber_queue_size,
-//       boost::bind(&OdometryFrameInitializer::OdometryCallback, this, _1));
-
-//   // set pose lookup params and set pose lookup to nullptr until first odom
-//   msg
-//   // comes in
-//   pose_lookup_params_.poses = poses_;
-//   pose_lookup_params_.sensor_frame = sensor_frame_id;
-//   pose_lookup_params_.static_extrinsics = static_extrinsics;
-//   pose_lookup_ = nullptr;
-// }
 
 void OdometryFrameInitializer::OdometryCallback(
     const nav_msgs::OdometryConstPtr message) {
