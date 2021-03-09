@@ -1,15 +1,19 @@
 #include <lidar_aggregation/lidar_aggregators/end_time_lidar_aggregator.h>
 
+#include <ros/console.h>
+
 #include <beam_utils/math.h>
 
 EndTimeLidarAggregator::EndTimeLidarAggregator(
     const std::shared_ptr<tf2::BufferCore> poses,
     const std::shared_ptr<tf2::BufferCore> extrinsics,
+    const ros::Time& first_pose_time,
     const std::string& baselink_frame, const std::string& lidar_frame,
     const std::string& world_frame, const ros::Duration& max_aggregate_duration,
     bool static_extrinsics, bool clear_queue_on_update)
     : poses_(poses),
       extrinsics_(extrinsics),
+      first_pose_time_(first_pose_time),
       baselink_frame_(baselink_frame),
       lidar_frame_(lidar_frame),
       world_frame_(world_frame),
@@ -20,7 +24,7 @@ EndTimeLidarAggregator::EndTimeLidarAggregator(
 void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
   // check aggregates have been added
   if (lidar_chunks_.size() == 0) { return; }
-
+  
   // get extrinsics if static
   Eigen::Matrix4d T_BASELINK_LIDAR;
   Eigen::Matrix4d T_LIDAR_BASELINK;
@@ -28,13 +32,13 @@ void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
     T_BASELINK_LIDAR = LookupT_BASELINK_LIDAR(ros::Time(0));
     T_LIDAR_BASELINK = beam::InvertTransform(T_BASELINK_LIDAR);
   }
-
+  
   // get pose for aggregate time
   Eigen::Matrix4d T_WORLD_BASELINK_AGGT =
       LookupT_WORLD_BASELINK(aggregation_time);
   Eigen::Matrix4d T_BASELINK_AGGT_WORLD =
       beam::InvertTransform(T_WORLD_BASELINK_AGGT);
-
+  
   // iteratre through stored lidar chunks and add to current aggregate until
   // chunk time exceeds pose or extrinsic time in which case we break
   LidarAggregate current_aggregate;
@@ -42,7 +46,14 @@ void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
   while (!lidar_chunks_.empty()) {
     LidarChunk current_chunk = lidar_chunks_.front();
 
-    // check pose time is available
+    // check current chunk time is after first avaibable pose, if not then pop
+    if (first_pose_time_ > current_chunk.time) {
+      ROS_DEBUG("Pose time for current lidar chunk not available, skipping.");
+      lidar_chunks_.pop();
+      continue;
+    }
+
+    // check current chunk time prior to last available pose
     ros::Time latest_pose_available;
     std::string error_string;
     poses_->_getLatestCommonTime(poses_->_lookupFrameNumber(world_frame_),
@@ -50,11 +61,11 @@ void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
                                  latest_pose_available, &error_string);
 
     if (current_chunk.time > latest_pose_available) {
-      BEAM_INFO("Chunk time is past the latest pose time, stopping "
+      ROS_DEBUG("Chunk time is past the latest pose time, stopping "
                 "aggregation.");
       break;
     }
-
+    
     // check extrinsic time is available if not static, the lookup extrinsic
     if (!static_extrinsics_) {
       ros::Time latest_extrinsic_available;
@@ -67,22 +78,22 @@ void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
       T_BASELINK_LIDAR = LookupT_BASELINK_LIDAR(current_chunk.time);
       T_LIDAR_BASELINK = beam::InvertTransform(T_BASELINK_LIDAR);
     }
-
+    
     // check that chunk_time is less than aggregation time
     if (current_chunk.time > aggregation_time) {
-      BEAM_INFO("Chunk time is past the aggregation time, stopping "
+      ROS_DEBUG("Chunk time is past the aggregation time, stopping "
                 "aggregation.");
       break;
     }
-
+    
     lidar_chunks_.pop();
 
     // check duration of aggregate
     if (aggregation_time - current_chunk.time > max_aggregate_duration_) {
-      BEAM_INFO("Chunk time is outside aggregation window, skipping chunk.");
+      ROS_DEBUG("Chunk time is outside aggregation window, skipping chunk.");
       continue;
     }
-
+    
     // transform all points from chunk and add to aggregate
     for (PointCloud::iterator it = current_chunk.cloud->begin();
          it != current_chunk.cloud->end(); it++) {
@@ -95,14 +106,28 @@ void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
       current_aggregate.cloud->push_back(
           pcl::PointXYZ(P_LIDAR_AGGT[0], P_LIDAR_AGGT[1], P_LIDAR_AGGT[2]));
     }
+    
   }
 
   // add to finalized aggregates
   finalized_aggregates_.push_back(current_aggregate);
 
   if (clear_queue_on_update_) { lidar_chunks_ = std::queue<LidarChunk>(); }
-
   return;
+}
+
+ros::Time EndTimeLidarAggregator::GetEarliestPoseTime() {
+  std::string error_msg;
+  bool can_transform = poses_->canTransform(world_frame_, baselink_frame_,
+                                            ros::Time(0), &error_msg);
+  if (!can_transform) {
+    ROS_ERROR("Cannot lookup T_WORLD_BASELINK: %s.\n Stored frames: %s",
+               error_msg.c_str(), poses_->_allFramesAsDot().c_str());
+    throw std::runtime_error{"Cannot lookup T_WORLD_BASELINK"};
+  }
+  geometry_msgs::TransformStamped T_WORLD_BASELINK =
+      poses_->lookupTransform(world_frame_, baselink_frame_, ros::Time(0));
+  return T_WORLD_BASELINK.header.stamp;
 }
 
 Eigen::Matrix4d
@@ -112,7 +137,8 @@ Eigen::Matrix4d
       poses_->canTransform(world_frame_, baselink_frame_, time, &error_msg);
 
   if (!can_transform) {
-    BEAM_ERROR("Cannot lookup T_WORLD_BASELINK: {}", error_msg);
+    ROS_ERROR("Cannot lookup T_WORLD_BASELINK: %s.\n Stored frames: %s",
+               error_msg.c_str(), poses_->_allFramesAsDot().c_str());
     throw std::runtime_error{"Cannot lookup T_WORLD_BASELINK"};
   }
 

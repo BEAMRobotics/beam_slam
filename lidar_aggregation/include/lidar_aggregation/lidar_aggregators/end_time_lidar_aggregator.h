@@ -24,10 +24,11 @@ public:
    * @param poses pointer to tf tree of poses (T_WORLD_BASELINK)
    * @param extrinsics pointer to tf tree of extrinsics (T_BASELINK_LIDAR). If
    * extrinsics are static, this will be one transform.
-   * @param baselink_frame moving frame in poses
+   * @param first_pose_time time associated with the first pose. This is stored as a const ref so it can be changed outside thie class when the first pose is added
+   * @param baselink_frame moving frame in poses. This is stored as a const ref so it can be changed outside thie class when the first pose is added
    * @param lidar_frame source (from) frame in extrinsics. This is usually the
-   * lidar frame. Aggregates will remain in this frame.
-   * @param baselink_frame fixed frame in poses
+   * lidar frame. Aggregates will remain in this frame. This is stored as a const ref so it can be changed outside thie class when the first pose is added
+   * @param baselink_frame fixed frame in poses. This is stored as a const ref so it can be changed outside thie class when the first pose is added
    * @param static_extrinsics set to true if extrinsics do not change with time
    * @param clear_queue_on_update set to true to clear queue of lidar chunks
    * each time Aggregate() is called
@@ -35,6 +36,7 @@ public:
   EndTimeLidarAggregator(
       const std::shared_ptr<tf2::BufferCore> poses,
       const std::shared_ptr<tf2::BufferCore> extrinsics,
+      const ros::Time& first_pose_time,
       const std::string& baselink_frame, const std::string& lidar_frame,
       const std::string& world_frame,
       const ros::Duration& max_aggregate_duration = ros::Duration(5),
@@ -47,11 +49,14 @@ private:
 
   Eigen::Matrix4d LookupT_WORLD_BASELINK(const ros::Time& time);
 
+  ros::Time GetEarliestPoseTime();
+
   std::shared_ptr<tf2::BufferCore> poses_;
   std::shared_ptr<tf2::BufferCore> extrinsics_;
   const std::string& baselink_frame_;
   const std::string& lidar_frame_;
   const std::string& world_frame_;
+  const ros::Time& first_pose_time_;
   ros::Duration max_aggregate_duration_;
   bool static_extrinsics_;
   bool clear_queue_on_update_;

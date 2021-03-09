@@ -82,6 +82,7 @@ private:
   int counter_{0};
   std::string world_frame_;
   bool extrinsics_set_{false};
+  ros::Time first_pose_time_{ros::Time(0)};
 
   // other tunable parameters
   // int max_lookup_attempts_{3};

@@ -50,7 +50,7 @@ void LidarAggregationNodelet::onInit() {
 
   if (params_.aggregator_type == "ENDTIME") {
     aggregator_ = std::make_unique<EndTimeLidarAggregator>(
-        poses_, extrinsics_, params_.baselink_frame, params_.lidar_frame,
+        poses_, extrinsics_, first_pose_time_, params_.baselink_frame, params_.lidar_frame,
         world_frame_, ros::Duration(params_.max_aggregation_time_seconds),
         !params_.dynamic_extrinsics, params_.clear_queue_on_update);
   } else if (params_.aggregator_type == "CENTERTIME") {
@@ -221,6 +221,7 @@ void LidarAggregationNodelet::AggregationTimeCallback(
   std::vector<LidarAggregate> aggregates = aggregator_->Get();
 
   for (LidarAggregate aggregate : aggregates) {
+    if(aggregate.cloud->size() == 0){continue;}
     sensor_msgs::PointCloud2 output_cloud = beam::PCLToROS(
         aggregate.cloud, aggregate.time, params_.lidar_frame, counter_);
     counter_++;
@@ -234,17 +235,26 @@ void LidarAggregationNodelet::OdometryCallback(
   ROS_DEBUG("Aggregator received odometry message.");
   if (params_.baselink_frame.empty()) {
     params_.baselink_frame = message->child_frame_id;
+    if (params_.baselink_frame.substr(0, 1) == "/") {
+      params_.baselink_frame.erase(0, 1);
+    }
     ROS_DEBUG("Set base_link frame.");
   }
 
   if (world_frame_.empty()) {
     world_frame_ = message->header.frame_id;
-    ROS_DEBUG("Set world_frame_ frame.");
+    if (world_frame_.substr(0, 1) == "/") { world_frame_.erase(0, 1); }
+    ROS_DEBUG("Set world frame.");
+  }
+
+  if (first_pose_time_ == ros::Time(0)) {
+      first_pose_time_ = message->header.stamp;
   }
 
   geometry_msgs::TransformStamped tf_stamped;
   tf_stamped.header = message->header;
-  tf_stamped.child_frame_id = message->child_frame_id;
+  tf_stamped.header.frame_id = world_frame_;
+  tf_stamped.child_frame_id = params_.baselink_frame;
   tf_stamped.transform.translation.x = message->pose.pose.position.x;
   tf_stamped.transform.translation.y = message->pose.pose.position.y;
   tf_stamped.transform.translation.z = message->pose.pose.position.z;
@@ -259,6 +269,9 @@ void LidarAggregationNodelet::PointCloudCallback(
   ROS_DEBUG("Received pointcloud message.");
   if (params_.lidar_frame.empty()) {
     params_.lidar_frame = message->header.frame_id;
+        if (params_.lidar_frame.substr(0, 1) == "/") {
+      params_.lidar_frame.erase(0, 1);
+    }
     ROS_DEBUG("Set lidar_frame frame.");
   }
 
@@ -276,6 +289,9 @@ void LidarAggregationNodelet::PointCloudCallback(
 // TODO: use beam_common::PoseLookup class to cleanup this code
 bool LidarAggregationNodelet::AddExtrinsic(const ros::Time& time,
                                            int num_attempts) {
+  // if baselink and lidar frames are the same, no extrinsics needed                                             
+  if(params_.baselink_frame == params_.lidar_frame){return true;}   
+
   tf::StampedTransform T_BASELINK_LIDAR;
   int lookup_counter = 0;
   while (lookup_counter < num_attempts) {

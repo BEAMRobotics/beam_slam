@@ -1,6 +1,14 @@
 <launch>
-    <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="fixed_lag_smoother" output="screen">
+    <!-- <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="fixed_lag_smoother" output="screen">
         <rosparam command="load" file="$(find beam_slam)/config/kaarta_fixed_lag.yaml"/>
+    </node> -->
+
+    <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen"/>
+    <node pkg="nodelet" type="nodelet" name="time_publisher" args="load lidar_aggregation/lidar_aggregation_time_publisher_nodelet nodelet_manager" output="screen">
+        <rosparam command="load" file="$(find lidar_aggregation)/config/const_time_publisher_params_kaarta.yaml" ns="/lidar_aggregation/time_publisher" />
+    </node>
+    <node pkg="nodelet" type="nodelet" name="aggregator" args="load lidar_aggregation/lidar_aggregation_nodelet nodelet_manager" output="screen">
+        <rosparam command="load" file="$(find lidar_aggregation)/config/end_time_aggregator_params_kaarta.yaml" ns="/lidar_aggregation/aggregator" />
     </node>
 
 </launch>
