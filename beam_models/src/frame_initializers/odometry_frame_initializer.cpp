@@ -11,8 +11,9 @@ OdometryFrameInitializer::OdometryFrameInitializer(
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time));
 
   ros::NodeHandle n;
-  ros::Subscriber odometry_subscriber = n.subscribe<nav_msgs::Odometry>(
-      topic, queue_size, boost::bind(&OdometryFrameInitializer::OdometryCallback, this, _1));
+  odometry_subscriber_ = n.subscribe<nav_msgs::Odometry>(
+      topic, queue_size,
+      boost::bind(&OdometryFrameInitializer::OdometryCallback, this, _1));
 
   // set pose lookup params and set pose lookup to nullptr until first odom msg
   // comes in
@@ -27,9 +28,15 @@ void OdometryFrameInitializer::OdometryCallback(
   // init pose lookup params if not already done
   if (pose_lookup_params_.baselink_frame.empty()) {
     pose_lookup_params_.baselink_frame = message->child_frame_id;
+    if (pose_lookup_params_.baselink_frame.substr(0, 1) == "/") {
+      pose_lookup_params_.baselink_frame.erase(0, 1);
+    }
   }
   if (pose_lookup_params_.world_frame.empty()) {
     pose_lookup_params_.world_frame = message->header.frame_id;
+    if (pose_lookup_params_.world_frame.substr(0, 1) == "/") {
+      pose_lookup_params_.world_frame.erase(0, 1);
+    }
   }
   if (pose_lookup_ == nullptr) {
     pose_lookup_ =

@@ -5,6 +5,7 @@ set(build_depends
   roscpp
   )
 
+find_package(tf REQUIRED)
 find_package(beam REQUIRED COMPONENTS utils)
 
 find_package(
@@ -51,5 +52,6 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
+    ${tf_LIBRARIES}
     beam::utils
   )

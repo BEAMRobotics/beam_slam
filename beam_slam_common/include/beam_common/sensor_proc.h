@@ -136,7 +136,9 @@ inline bool processRelativePoseWithCovariance(
     const fuse_variables::Orientation3DStamped::SharedPtr& orientation2,
     const Eigen::Matrix4d& T_CLOUD1_CLOUD2,
     const Eigen::Matrix<double, 6, 6>& covariance,
-    fuse_core::Transaction& transaction) {
+    fuse_core::Transaction& transaction,
+    bool add_pose1_variable,
+    bool add_pose2_variable) {
   // convert rotation matrix to quaternion
   Eigen::Matrix3d R = T_CLOUD1_CLOUD2.block(0, 0, 3, 3);
   Eigen::Quaterniond q(R);
@@ -152,15 +154,18 @@ inline bool processRelativePoseWithCovariance(
       fuse_constraints::RelativePose3DStampedConstraint::make_shared(
           source, *position1, *orientation1, *position2, *orientation2,
           pose_relative_mean, covariance);
-
-  transaction.addVariable(position1);
-  transaction.addVariable(orientation1);
-  transaction.addVariable(position2);
-  transaction.addVariable(orientation2);
+  if(add_pose1_variable){
+    transaction.addVariable(position1, true);
+    transaction.addVariable(orientation1, true);
+  }    
+  if(add_pose2_variable){
+    transaction.addVariable(position2, true);
+    transaction.addVariable(orientation2, true);
+  }
   transaction.addConstraint(constraint, true);
   transaction.addInvolvedStamp(position1->stamp());
   transaction.addInvolvedStamp(position2->stamp());
-
+  
   return true;
 }
 

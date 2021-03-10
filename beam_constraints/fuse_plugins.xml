@@ -1,7 +1,7 @@
 <library path="lib/libbeam_constraints">
-    <class type="beam_constraints::Unicycle3DStateKinematicConstraint" base_class_type="fuse_core::Constraint">
+  <class type="beam_constraints::Unicycle3DStateKinematicConstraint" base_class_type="fuse_core::Constraint">
     <description>
       A class that represents a kinematic constraint between 3D states at two different times.
     </description>
-  </class>class>
+  </class>
 </library>

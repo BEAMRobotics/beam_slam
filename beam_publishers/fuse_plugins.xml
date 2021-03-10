@@ -1,5 +1,4 @@
 <library path="lib/libbeam_publishers">
-  </class>
   <class type="beam_publishers::Path3DPublisher" base_class_type="fuse_core::Publisher">
     <description>
       Publisher that publishes the most recent Position3DStamped/Orientation3DStamped to one or more topics,

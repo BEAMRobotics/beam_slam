@@ -15,7 +15,7 @@ clear_queue_on_update: false  # this will clear lidar chunk queue each time an
                               # aggregate is published, even if all chunks are
                               # not added to the aggregate due to poses laggging
                               # behind lidar
-max_aggregation_time_seconds: 10 # to account for a stationary scanner
+max_aggregation_time_seconds: 3 # to account for a stationary scanner
 baselink_frame: velodyne # If blank, it will use frame from odometry
 lidar_frame: velodyne # input and aggregate cloud frame. If not set, it will
                        # use frame from pointcloud_topic

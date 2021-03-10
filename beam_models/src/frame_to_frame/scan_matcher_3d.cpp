@@ -16,7 +16,10 @@ PLUGINLIB_EXPORT_CLASS(beam_models::frame_to_frame::ScanMatcher3D,
 namespace beam_models { namespace frame_to_frame {
 
 ScanMatcher3D::ScanMatcher3D()
-    : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL) {}
+    : fuse_core::AsyncSensorModel(1),
+      device_id_(fuse_core::uuid::NIL),
+      throttled_callback_(
+          std::bind(&ScanMatcher3D::process, this, std::placeholders::_1)) {}
 
 void ScanMatcher3D::onInit() {
   // Read settings from the parameter sever
@@ -72,6 +75,7 @@ void ScanMatcher3D::onStop() {
 }
 
 void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
+  ROS_DEBUG("Received incoming scan");
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
 
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT;
@@ -89,8 +93,12 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     return;
   }
 
+  int counter = 0;
   for (auto iter = reference_clouds_.begin(); iter != reference_clouds_.end();
        iter++) {
+    counter++;
+    ROS_DEBUG("Matching against neighbor no. %d", counter);
+
     // run matcher to get refined cloud pose
     Eigen::Matrix4d T_CLOUDREF_CLOUDCURRENT;
     Eigen::Matrix<double, 6, 6> covariance;
@@ -106,9 +114,10 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     beam_common::processRelativePoseWithCovariance(
         name(), iter->Position(), iter->Orientation(),
         current_scan_pose.Position(), current_scan_pose.Orientation(),
-        T_CLOUDREF_CLOUDCURRENT, covariance, *transaction);
+        T_CLOUDREF_CLOUDCURRENT, covariance, *transaction, true, counter == 1);
 
     // Send the transaction object to the plugin's parent
+    ROS_DEBUG("Sending transaction");
     sendTransaction(transaction);
   }
 
@@ -120,10 +129,16 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 }
 
 void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  // update scan poses
-  for (auto iter = reference_clouds_.begin(); iter != reference_clouds_.end();
-       iter++) {
-    iter->Update(graph_msg);
+  // update scan poses and remove poses that are expired
+  std::list<ScanPose>::iterator iter = reference_clouds_.begin();
+  while (iter != reference_clouds_.end()) {
+    if (!graph_msg->variableExists(iter->Position()->uuid()) ||
+        !graph_msg->variableExists(iter->Orientation()->uuid())) {
+      reference_clouds_.erase(iter++);
+    } else {
+      iter->Update(graph_msg);
+      ++iter;
+    }
   }
 }
 
@@ -137,13 +152,15 @@ void ScanMatcher3D::MatchScans(const PointCloudPtr& cloud1,
       beam::InvertTransform(T_WORLD_CLOUD1) * T_WORLD_CLOUD2;
 
   // transform cloud2 into cloud1 frame
-  PointCloudPtr cloud2_transformed;
+  PointCloudPtr cloud2_transformed = boost::make_shared<PointCloud>();
   pcl::transformPointCloud(*cloud2, *cloud2_transformed,
                            Eigen::Affine3d(T_CLOUD1EST_CLOUD2));
 
   // match clouds
   matcher_->Setup(cloud1, cloud2_transformed);
   matcher_->Match();
+  matcher_->EstimateInfo();
+
   Eigen::Matrix4d T_CLOUD1_CLOUD1EST = matcher_->GetResult().matrix();
   T_CLOUD1_CLOUD2 = T_CLOUD1_CLOUD1EST * T_CLOUD1EST_CLOUD2;
   covariance = matcher_->GetInfo();

@@ -17,7 +17,7 @@ publishers:
 solver_options:
   minimizer_type: "TRUST_REGION"
   linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
-  minimizer_progress_to_stdout: true
+  minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
   max_num_iterations: 50
@@ -32,17 +32,15 @@ unicycle_3d:
   process_noise_diagonal: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
   buffer_length: 10 # Default: 3
 
-unicycle_ignition:
-  publish_on_startup: false
-
 scan_matcher_3d:
   type: 'ICP' # Options: ICP, NDT, GICP (TODO: LIBPOINTMATCHER, TEASER, LOAM)
   differential: 'false' # Default: false
   queue_size: 10 # Subscriber queue size. Default: 10
-  pointcloud_topic: '/velodyne_aggregates'
+  pointcloud_topic: '/kaarta/aggregates'
   pointcloud_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'ODOMETRY'
-  frame_initializer_topic: '/initialization_path'
+  frame_initializer_topic: '/integrated_to_init'
+  num_neighbors: 3 # how many neighboring scans to register against
   matcher_params_path: '' # Defaults to params in libbeam 
 
 path_pub:
@@ -62,4 +60,4 @@ odom_pub:
   base_link_frame_id: 'base_link' # I DONT THINK THIS IS USED. Default: base_link
   base_link_output_frame_id: 'base_link' # Stored in odometry.child_frame_id Default: base_link_frame_id
   world_frame_id: 'odom' # Stored in odometry.header.frame_id. Default: odom_frame_id
-  topic: 'beam_slam/optimized_odometry' # Output odometry topic
+  topic: 'fixed_lag_smoother/optimized_odometry' # Output odometry topic
