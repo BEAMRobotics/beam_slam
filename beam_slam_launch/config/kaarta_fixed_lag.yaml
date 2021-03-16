@@ -25,8 +25,8 @@ solver_options:
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
 
-optimization_period: 0.25
-lag_duration: 10
+optimization_period: 1
+lag_duration: 30
 
 unicycle_3d:
   process_noise_diagonal: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
@@ -36,12 +36,16 @@ scan_matcher_3d:
   type: 'ICP' # Options: ICP, NDT, GICP (TODO: LIBPOINTMATCHER, TEASER, LOAM)
   differential: 'false' # Default: false
   queue_size: 10 # Subscriber queue size. Default: 10
+  downsample_size: 0.05 # voxel size (m) for downsample filter. Default: 0.03
+  outlier_threshold_t: 0.3 # reject scan registration measurements that surpass this translation (m). Set to zero to ignore. Default: 0.5
+  outlier_threshold_r: 30 # reject scan registration measurements that surpass this rotation (deg). Set to zero to ignore. Default: 30
   pointcloud_topic: '/kaarta/aggregates'
   pointcloud_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'ODOMETRY'
   frame_initializer_topic: '/integrated_to_init'
-  num_neighbors: 3 # how many neighboring scans to register against
-  matcher_params_path: '' # Defaults to params in libbeam 
+  num_neighbors: 5 # how many neighboring scans to register against
+  matcher_params_path: '' # Defaults to params in libbeam
+  scan_output_directory: '/home/nick/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty
 
 path_pub:
   frame_id: 'odom' # Stored in pose header. Default: odom

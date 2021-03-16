@@ -5,7 +5,7 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS utils matching)
+find_package(beam REQUIRED COMPONENTS utils matching filtering)
 
 find_package(
   catkin REQUIRED
@@ -34,6 +34,7 @@ find_package(
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
+find_package(Catch2 REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS
@@ -93,9 +94,45 @@ target_link_libraries(
     ${CERES_LIBRARIES}
     beam::utils
     beam::matching
+    beam::filtering
 )
 add_dependencies(
   ${PROJECT_NAME}
     ${${PROJECT_NAME}_EXPORTED_TARGETS}
     ${catkin_EXPORTED_TARGETS}
 )
+
+
+######## TESTS ############
+add_executable(${PROJECT_NAME}_scan_matcher_3d_tests
+  tests/scan_matcher_3d_tests.cpp
+)
+target_include_directories(${PROJECT_NAME}_scan_matcher_3d_tests
+  PUBLIC
+    include
+)
+target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_tests
+    ${PROJECT_NAME}
+    Catch2::Catch2
+)
+
+#[[
+#############
+## Testing ##
+#############
+
+# Model tests
+catkin_add_gtest(test_unicycle_2d
+  test/test_unicycle_2d.cpp
+)
+target_link_libraries(test_unicycle_2d
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  ${CERES_LIBRARIES}
+)
+set_target_properties(test_unicycle_2d
+  PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED YES
+)
+#]]

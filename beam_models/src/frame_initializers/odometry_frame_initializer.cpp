@@ -57,7 +57,8 @@ void OdometryFrameInitializer::OdometryCallback(
 bool OdometryFrameInitializer::GetEstimatedPose(
     const ros::Time& time, Eigen::Matrix4d& T_WORLD_SENSOR) {
   if (pose_lookup_ == nullptr) { return false; }
-  return pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, time);
+  bool result = pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, time);
+  return result;
 }
 
 }} // namespace beam_models::frame_initializers

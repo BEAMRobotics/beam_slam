@@ -5,6 +5,8 @@
 
 #include <lidar_aggregation/lidar_aggregators/lidar_aggregator_base.h>
 
+static bool tmp_bool{false};
+
 /**
  * @brief This class takes a care of aggregating lidar chunks into a motion
  * compensated aggregate, where all poins in the aggregate come before the
@@ -45,9 +47,9 @@ public:
   void Aggregate(const ros::Time& aggregation_time) override;
 
 private:
-  Eigen::Matrix4d LookupT_BASELINK_LIDAR(const ros::Time& time);
+  Eigen::Matrix4d LookupT_BASELINK_LIDAR(const ros::Time& time, bool& success = tmp_bool);
 
-  Eigen::Matrix4d LookupT_WORLD_BASELINK(const ros::Time& time);
+  Eigen::Matrix4d LookupT_WORLD_BASELINK(const ros::Time& time, bool& success = tmp_bool);
 
   ros::Time GetEarliestPoseTime();
 
