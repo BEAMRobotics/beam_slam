@@ -131,48 +131,50 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     MatchScans((*iter)->Cloud(), cloud_current, (*iter)->T_WORLD_CLOUD(),
                T_WORLD_CLOUDCURRENT, T_CLOUDREF_CLOUDCURRENT, covariance);
 
-    if(!PassedThreshold(T_CLOUDREF_CLOUDCURRENT, beam::InvertTransform((*iter)->T_WORLD_CLOUD()) * T_WORLD_CLOUDCURRENT)){
-      ROS_DEBUG("Failed scan matcher transform threshold check. Skipping measurement.");
+    if (!PassedThreshold(T_CLOUDREF_CLOUDCURRENT,
+                         beam::InvertTransform((*iter)->T_WORLD_CLOUD()) *
+                             T_WORLD_CLOUDCURRENT)) {
+      ROS_DEBUG("Failed scan matcher transform threshold check. Skipping "
+                "measurement.");
       continue;
     }
 
-    /*
     /// DELETE ME
-    PointCloudPtr cloud_ref = (*iter)->Cloud();
-    PointCloud cloud_ref_world;
-    PointCloud cloud_cur_initial_world;
-    PointCloud cloud_cur_aligned_world;
-    const Eigen::Matrix4d T_WORLD_CLOUD_REF_INIT =
-        (*iter)->T_WORLD_CLOUD_INIT();
-    Eigen::Matrix4d T_WORLD_CLOUD_CURRENT_INIT = T_WORLD_CLOUDCURRENT;
+    if (output_scan_registration_results_) {
+      PointCloudPtr cloud_ref = (*iter)->Cloud();
+      PointCloud cloud_ref_world;
+      PointCloud cloud_cur_initial_world;
+      PointCloud cloud_cur_aligned_world;
+      const Eigen::Matrix4d T_WORLD_CLOUD_REF_INIT =
+          (*iter)->T_WORLD_CLOUD_INIT();
+      Eigen::Matrix4d T_WORLD_CLOUD_CURRENT_INIT = T_WORLD_CLOUDCURRENT;
 
-    Eigen::Matrix4d T_CLOUDREF_CLOUDCURRENT_TMP;
-    Eigen::Matrix<double, 6, 6> tmp;
-    MatchScans(cloud_ref, cloud_current, T_WORLD_CLOUD_REF_INIT,
-               T_WORLD_CLOUD_CURRENT_INIT, T_CLOUDREF_CLOUDCURRENT_TMP, tmp);        
+      Eigen::Matrix4d T_CLOUDREF_CLOUDCURRENT_TMP;
+      Eigen::Matrix<double, 6, 6> tmp;
+      MatchScans(cloud_ref, cloud_current, T_WORLD_CLOUD_REF_INIT,
+                 T_WORLD_CLOUD_CURRENT_INIT, T_CLOUDREF_CLOUDCURRENT_TMP, tmp);
 
-    Eigen::Matrix4d T_WORLD_CLOUDCUR_ALIGNED =
-        T_WORLD_CLOUD_REF_INIT * T_CLOUDREF_CLOUDCURRENT_TMP;
-    pcl::transformPointCloud(*cloud_ref, cloud_ref_world,
-                             T_WORLD_CLOUD_REF_INIT);
-    pcl::transformPointCloud(*cloud_current, cloud_cur_initial_world,
-                             T_WORLD_CLOUD_CURRENT_INIT);
-    pcl::transformPointCloud(*cloud_current, cloud_cur_aligned_world,
-                             T_WORLD_CLOUDCUR_ALIGNED);
-    pcl::io::savePCDFileASCII("/home/nick/tmp/" +
-                                  std::to_string((*iter)->Stamp().toSec()) +
-                                  "_reference.pcd",
-                              cloud_ref_world);
-    pcl::io::savePCDFileASCII("/home/nick/tmp/" +
-                                  std::to_string((*iter)->Stamp().toSec()) +
-                                  "_current_initial.pcd",
-                              cloud_cur_initial_world);
-    pcl::io::savePCDFileASCII("/home/nick/tmp/" +
-                                  std::to_string((*iter)->Stamp().toSec()) +
-                                  "_current_aligned.pcd",
-                              cloud_cur_aligned_world);
-    ////////////////
-    */
+      Eigen::Matrix4d T_WORLD_CLOUDCUR_ALIGNED =
+          T_WORLD_CLOUD_REF_INIT * T_CLOUDREF_CLOUDCURRENT_TMP;
+      pcl::transformPointCloud(*cloud_ref, cloud_ref_world,
+                               T_WORLD_CLOUD_REF_INIT);
+      pcl::transformPointCloud(*cloud_current, cloud_cur_initial_world,
+                               T_WORLD_CLOUD_CURRENT_INIT);
+      pcl::transformPointCloud(*cloud_current, cloud_cur_aligned_world,
+                               T_WORLD_CLOUDCUR_ALIGNED);
+      pcl::io::savePCDFileASCII("/home/nick/tmp/" +
+                                    std::to_string((*iter)->Stamp().toSec()) +
+                                    "_reference.pcd",
+                                cloud_ref_world);
+      pcl::io::savePCDFileASCII("/home/nick/tmp/" +
+                                    std::to_string((*iter)->Stamp().toSec()) +
+                                    "_current_initial.pcd",
+                                cloud_cur_initial_world);
+      pcl::io::savePCDFileASCII("/home/nick/tmp/" +
+                                    std::to_string((*iter)->Stamp().toSec()) +
+                                    "_current_aligned.pcd",
+                                cloud_cur_aligned_world);
+    }
 
     // Create a transaction object
     auto transaction = fuse_core::Transaction::make_shared();
@@ -194,14 +196,18 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   reference_clouds_.push_front(current_scan_pose);
 }
 
-bool ScanMatcher3D::PassedThreshold(const Eigen::Matrix4d& T_measured, const Eigen::Matrix4d& T_estimated){
-  Eigen::Matrix3d R1 = T_measured.block(0,0,3,3);
-  Eigen::Matrix3d R2 = T_estimated.block(0,0,3,3);
+bool ScanMatcher3D::PassedThreshold(const Eigen::Matrix4d& T_measured,
+                                    const Eigen::Matrix4d& T_estimated) {
+  Eigen::Matrix3d R1 = T_measured.block(0, 0, 3, 3);
+  Eigen::Matrix3d R2 = T_estimated.block(0, 0, 3, 3);
 
-  double t_error = (T_measured.block(0,3,3,1) - T_estimated.block(0,3,3,1)).norm();
-  double r_error = std::abs(Eigen::AngleAxis<double>(R1).angle() - Eigen::AngleAxis<double>(R2).angle());
+  double t_error =
+      (T_measured.block(0, 3, 3, 1) - T_estimated.block(0, 3, 3, 1)).norm();
+  double r_error = std::abs(Eigen::AngleAxis<double>(R1).angle() -
+                            Eigen::AngleAxis<double>(R2).angle());
 
-  if(t_error > params_.outlier_threshold_t || r_error > params_.outlier_threshold_r){
+  if (t_error > params_.outlier_threshold_t ||
+      r_error > params_.outlier_threshold_r) {
     return false;
   }
   return true;
@@ -240,21 +246,22 @@ void ScanMatcher3D::MatchScans(const PointCloudPtr& cloud1,
                                const Eigen::Matrix4d& T_WORLD_CLOUD2,
                                Eigen::Matrix4d& T_CLOUD1_CLOUD2,
                                Eigen::Matrix<double, 6, 6>& covariance) {
-  Eigen::Matrix4d T_CLOUD1EST_CLOUD2 =
+  Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
       beam::InvertTransform(T_WORLD_CLOUD1) * T_WORLD_CLOUD2;
 
   // transform cloud2 into cloud1 frame
-  PointCloudPtr cloud2_transformed = boost::make_shared<PointCloud>();
-  pcl::transformPointCloud(*cloud2, *cloud2_transformed,
-                           Eigen::Affine3d(T_CLOUD1EST_CLOUD2));
+  PointCloudPtr cloud2_RefFInit = boost::make_shared<PointCloud>();
+  pcl::transformPointCloud(*cloud2, *cloud2_RefFInit,
+                           Eigen::Affine3d(T_CLOUD1_CLOUD2_init));
 
   // match clouds
-  matcher_->Setup(cloud1, cloud2_transformed);
+  matcher_->SetRef(cloud2_RefFInit);
+  matcher_->SetTarget(cloud1);
   matcher_->Match();
   matcher_->EstimateInfo();
 
-  Eigen::Matrix4d T_CLOUD1_CLOUD1EST = matcher_->GetResult().inverse().matrix();
-  T_CLOUD1_CLOUD2 = T_CLOUD1_CLOUD1EST * T_CLOUD1EST_CLOUD2;
+  Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher_->GetResult().matrix();
+  T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
   covariance = matcher_->GetInfo();
 }
 

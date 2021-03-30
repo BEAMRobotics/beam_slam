@@ -61,6 +61,7 @@ void Unicycle3D::onInit() {
                              process_noise_diagonal);
 
   if (process_noise_diagonal.size() != 15) {
+    ROS_ERROR("Process noise diagonal must be of length 15. Length given: %d", process_noise_diagonal.size());
     throw std::runtime_error("Process noise diagonal must be of length 15!");
   }
 

@@ -32,7 +32,7 @@ void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
     bool success = true;
     T_BASELINK_LIDAR = LookupT_BASELINK_LIDAR(ros::Time(0), success);
     if (!success) {
-      BEAM_WARN("Cannot perform aggregation, skipping trigger at time: %.4f",
+      ROS_WARN("Cannot perform aggregation, skipping trigger at time: %.4f",
                 aggregation_time.toSec());
       return;
     }
@@ -44,7 +44,7 @@ void EndTimeLidarAggregator::Aggregate(const ros::Time& aggregation_time) {
   Eigen::Matrix4d T_WORLD_BASELINK_AGGT =
       LookupT_WORLD_BASELINK(aggregation_time, success);
   if (!success) {
-    BEAM_WARN("Cannot perform aggregation, skipping trigger at time: %.4f",
+    ROS_WARN("Cannot perform aggregation, skipping trigger at time: %.4f",
               aggregation_time.toSec());
     return;
   }

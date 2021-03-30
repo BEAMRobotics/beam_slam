@@ -2,7 +2,9 @@ sensor_models:
   - name: 'scan_matcher_3d'
     type: 'beam_models::frame_to_frame::ScanMatcher3D'
     motion_models: ['unicycle_3d']
-
+  - name: 'unicycle_ignition'
+    type: 'beam_models::motion::Unicycle3DIgnition'
+    ignition: true
 
 motion_models:
   - name: 'unicycle_3d'
@@ -28,9 +30,22 @@ solver_options:
 optimization_period: 1
 lag_duration: 30
 
-unicycle_3d:
-  process_noise_diagonal: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+unicycle_ignition:
+  publish_on_startup: false
+  process_noise_diagonal: [1.0e-9, 1.0e-9, 1.0e-9, 
+                           1.0e-9, 1.0e-9, 1.0e-9, 
+                           1.0e-9, 1.0e-9, 1.0e-9, 
+                           1.0e-9, 1.0e-9, 1.0e-9, 
+                           1.0e-9, 1.0e-9, 1.0e-9]
   buffer_length: 10 # Default: 3
+
+unicycle_3d:
+  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2]
+  buffer_length: 100000
 
 scan_matcher_3d:
   type: 'ICP' # Options: ICP, NDT, GICP (TODO: LIBPOINTMATCHER, TEASER, LOAM)
