@@ -85,7 +85,7 @@ protected:
       fuse_models::common::ThrottledCallback<sensor_msgs::PointCloud2>;
   PointCloudThrottledCallback throttled_callback_;
 
-  output_scan_registration_results_{false};
+  bool output_scan_registration_results_{false};
 };
 
 }} // namespace beam_models::frame_to_frame
