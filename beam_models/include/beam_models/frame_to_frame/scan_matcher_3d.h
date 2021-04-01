@@ -85,7 +85,9 @@ protected:
       fuse_models::common::ThrottledCallback<sensor_msgs::PointCloud2>;
   PointCloudThrottledCallback throttled_callback_;
 
-  bool output_scan_registration_results_{false};
+  // Extra debugging tools: these must be set here, not in the config file
+  bool output_scan_registration_results_{true};
+  std::string tmp_output_path_{"/home/nick/tmp/"};
 };
 
 }} // namespace beam_models::frame_to_frame

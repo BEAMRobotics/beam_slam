@@ -109,6 +109,13 @@ public:
     pcl::transformPointCloud(*pointcloud_, cloud_final, this->T_WORLD_CLOUD());
     pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd", cloud_initial);
     pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd", cloud_final);
+
+    std::cout << "Saving cloud with:\n"
+              << "Stamp: " << stamp_.toSec() << "\n"
+              << "Num updates: " << updates_ << "\n"
+              << "Initial Pose: \n" << T_WORLD_CLOUD_initial_ << "\n"
+              << "Final Pose: \n" << this->T_WORLD_CLOUD() << "\n";
+              
   }
 
   const Eigen::Matrix4d T_WORLD_CLOUD_INIT(){

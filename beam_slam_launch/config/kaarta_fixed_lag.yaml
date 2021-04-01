@@ -58,7 +58,7 @@ scan_matcher_3d:
   pointcloud_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'ODOMETRY'
   frame_initializer_topic: '/integrated_to_init'
-  num_neighbors: 5 # how many neighboring scans to register against
+  num_neighbors: 10 # how many neighboring scans to register against
   matcher_params_path: '' # Defaults to params in libbeam
   scan_output_directory: '/home/nick/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty
 

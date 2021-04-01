@@ -131,49 +131,41 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     MatchScans((*iter)->Cloud(), cloud_current, (*iter)->T_WORLD_CLOUD(),
                T_WORLD_CLOUDCURRENT, T_CLOUDREF_CLOUDCURRENT, covariance);
 
+    if (output_scan_registration_results_) {
+      PointCloudPtr cloud_ref = (*iter)->Cloud();
+      PointCloud cloud_ref_world;
+      PointCloud cloud_cur_initial_world;
+      PointCloud cloud_cur_aligned_world;
+
+      const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT = T_WORLD_CLOUDCURRENT;
+      const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = (*iter)->T_WORLD_CLOUD();
+      Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
+          T_WORLD_CLOUDREF_INIT * T_CLOUDREF_CLOUDCURRENT;
+
+      pcl::transformPointCloud(*cloud_ref, cloud_ref_world,
+                               T_WORLD_CLOUDREF_INIT);
+      pcl::transformPointCloud(*cloud_current, cloud_cur_initial_world,
+                               T_WORLD_CLOUDCURRENT_INIT);
+      pcl::transformPointCloud(*cloud_current, cloud_cur_aligned_world,
+                               T_WORLD_CLOUDCURRENT_OPT);
+
+      std::string filename = tmp_output_path_ +
+                             std::to_string((*iter)->Stamp().toSec()) + "U" +
+                             std::to_string((*iter)->Updates());
+
+      pcl::io::savePCDFileASCII(filename + "_ref.pcd", cloud_ref_world);
+      pcl::io::savePCDFileASCII(filename + "_cur_init.pcd",
+                                cloud_cur_initial_world);
+      pcl::io::savePCDFileASCII(filename + "_cur_alig.pcd",
+                                cloud_cur_aligned_world);
+    }
+
     if (!PassedThreshold(T_CLOUDREF_CLOUDCURRENT,
                          beam::InvertTransform((*iter)->T_WORLD_CLOUD()) *
                              T_WORLD_CLOUDCURRENT)) {
       ROS_DEBUG("Failed scan matcher transform threshold check. Skipping "
                 "measurement.");
       continue;
-    }
-
-    /// DELETE ME
-    if (output_scan_registration_results_) {
-      PointCloudPtr cloud_ref = (*iter)->Cloud();
-      PointCloud cloud_ref_world;
-      PointCloud cloud_cur_initial_world;
-      PointCloud cloud_cur_aligned_world;
-      const Eigen::Matrix4d T_WORLD_CLOUD_REF_INIT =
-          (*iter)->T_WORLD_CLOUD_INIT();
-      Eigen::Matrix4d T_WORLD_CLOUD_CURRENT_INIT = T_WORLD_CLOUDCURRENT;
-
-      Eigen::Matrix4d T_CLOUDREF_CLOUDCURRENT_TMP;
-      Eigen::Matrix<double, 6, 6> tmp;
-      MatchScans(cloud_ref, cloud_current, T_WORLD_CLOUD_REF_INIT,
-                 T_WORLD_CLOUD_CURRENT_INIT, T_CLOUDREF_CLOUDCURRENT_TMP, tmp);
-
-      Eigen::Matrix4d T_WORLD_CLOUDCUR_ALIGNED =
-          T_WORLD_CLOUD_REF_INIT * T_CLOUDREF_CLOUDCURRENT_TMP;
-      pcl::transformPointCloud(*cloud_ref, cloud_ref_world,
-                               T_WORLD_CLOUD_REF_INIT);
-      pcl::transformPointCloud(*cloud_current, cloud_cur_initial_world,
-                               T_WORLD_CLOUD_CURRENT_INIT);
-      pcl::transformPointCloud(*cloud_current, cloud_cur_aligned_world,
-                               T_WORLD_CLOUDCUR_ALIGNED);
-      pcl::io::savePCDFileASCII("/home/nick/tmp/" +
-                                    std::to_string((*iter)->Stamp().toSec()) +
-                                    "_reference.pcd",
-                                cloud_ref_world);
-      pcl::io::savePCDFileASCII("/home/nick/tmp/" +
-                                    std::to_string((*iter)->Stamp().toSec()) +
-                                    "_current_initial.pcd",
-                                cloud_cur_initial_world);
-      pcl::io::savePCDFileASCII("/home/nick/tmp/" +
-                                    std::to_string((*iter)->Stamp().toSec()) +
-                                    "_current_aligned.pcd",
-                                cloud_cur_aligned_world);
     }
 
     // Create a transaction object
@@ -214,20 +206,24 @@ bool ScanMatcher3D::PassedThreshold(const Eigen::Matrix4d& T_measured,
 }
 
 void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  // update scan poses
-  for (auto iter = reference_clouds_.begin(); iter != reference_clouds_.end();
-       iter++) {
-    (*iter)->Update(graph_msg);
-  }
-
   // if we aren't saving scans, then no need to worry above active scans list
-  if (params_.scan_output_directory.empty()) { return; }
+  if (params_.scan_output_directory.empty()) {
+    // in this case, only update poses for reference clouds
+    for (auto iter = reference_clouds_.begin(); iter != reference_clouds_.end();
+         iter++) {
+      (*iter)->Update(graph_msg);
+    }
+    return;
+  }
 
   auto variables = GetPositionVariables(graph_msg);
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
-    // if found, do nothing
-    if (variables.find(iter->first) != variables.end()) { continue; }
+    // if found, we want to update the pose then continue
+    if (variables.find(iter->first) != variables.end()) {
+      iter->second->Update(graph_msg);
+      continue;
+    }
 
     // if scan has never been updated, then it is probably just not yet in the
     // window so do nothing
