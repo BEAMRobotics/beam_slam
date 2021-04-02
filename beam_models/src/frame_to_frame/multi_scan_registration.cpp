@@ -16,6 +16,12 @@ MultiScanRegistration::MultiScanRegistration(
       outlier_threshold_r_(outlier_threshold_r),
       source_(source) {}
 
+void MultiScanRegistration::SetFixedCovariance(
+    const Eigen::Matrix<double, 6, 6>& covariance) {
+  covariance_ = covariance;
+  use_fixed_covariance_ = true;
+}
+
 fuse_core::Transaction::SharedPtr MultiScanRegistration::RegisterNewScan(
     const std::shared_ptr<ScanPose>& new_scan) {
   // Create a transaction object
@@ -151,11 +157,16 @@ void MultiScanRegistration::MatchScans(
   matcher_->SetRef(cloud2_RefFInit);
   matcher_->SetTarget(cloud1);
   matcher_->Match();
-  matcher_->EstimateInfo();
 
+  if(use_fixed_covariance_){
+    covariance = covariance_;
+  } else {
+    matcher_->EstimateInfo();
+    covariance = matcher_->GetInfo();
+  }
+  
   Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher_->GetResult().matrix();
   T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
-  covariance = matcher_->GetInfo();
 }
 
 }} // namespace beam_models::frame_to_frame

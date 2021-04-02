@@ -14,10 +14,12 @@ class MultiScanRegistration {
 public:
   MultiScanRegistration(
       std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher,
-      int num_neighbors, double outlier_threshold_t,
-      double outlier_threshold_r, const std::string& source);
+      int num_neighbors, double outlier_threshold_t, double outlier_threshold_r,
+      const std::string& source);
 
   ~MultiScanRegistration() = default;
+
+  void SetFixedCovariance(const Eigen::Matrix<double, 6, 6>& covariance);
 
   fuse_core::Transaction::SharedPtr
       RegisterNewScan(const std::shared_ptr<ScanPose>& new_scan);
@@ -40,6 +42,8 @@ private:
   double outlier_threshold_t_;
   double outlier_threshold_r_;
   std::string source_;
+  Eigen::Matrix<double, 6, 6> covariance_;
+  bool use_fixed_covariance_{false};
 
   // Extra debugging tools: these must be set here, not in the config file
   bool output_scan_registration_results_{true};

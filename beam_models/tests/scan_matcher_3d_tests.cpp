@@ -37,7 +37,7 @@ public:
     downsampler.Filter(*test_cloud_tmp, *test_cloud);
 
     // create poses
-    srand(time(NULL));
+    // srand(time(NULL));
     double max_pose_rot{20};
     double max_pose_trans{1};
     double max_pert_rot{10};
@@ -133,10 +133,10 @@ fuse_constraints::RelativePose3DStampedConstraint::SharedPtr CreateConstraint(
   pose_relative_mean << T_CLOUD1_CLOUD2(0, 3), T_CLOUD1_CLOUD2(1, 3),
       T_CLOUD1_CLOUD2(2, 3), q.w(), q.x(), q.y(), q.z();
 
-  // create identity covariance
+  // create covariance
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
-  // covariance = covariance * 0.1;
+  covariance = covariance * 0.1;
 
   // Create a relative pose constraint. We assume the pose measurements are
   // independent.
@@ -350,13 +350,12 @@ TEST_CASE("Test scan registration - vanilla icp") {
   pcl::transformPointCloud(*SP2_pert->Cloud(), S2_RefFOpt2, T_S1_S2_opt);
 
   // output results
-  /*
-  pcl::io::savePCDFileASCII("/home/nick/tmp/S1_RefF.pcd", *SP1->Cloud());
-  pcl::io::savePCDFileASCII("/home/nick/tmp/S2_RefFEst.pcd", *S2_RefFEst);
-  pcl::io::savePCDFileASCII("/home/nick/tmp/S2_RefFOpt2.pcd", S2_RefFOpt2);
-  pcl::io::savePCDFileASCII("/home/nick/tmp/S2_RefFOpt1.pcd", S2_RefFOpt1);
-  */
-
+  
+  // pcl::io::savePCDFileASCII("/home/nick/tmp/S1_RefF.pcd", *SP1->Cloud());
+  // pcl::io::savePCDFileASCII("/home/nick/tmp/S2_RefFEst.pcd", *S2_RefFEst);
+  // pcl::io::savePCDFileASCII("/home/nick/tmp/S2_RefFOpt2.pcd", S2_RefFOpt2);
+  // pcl::io::savePCDFileASCII("/home/nick/tmp/S2_RefFOpt1.pcd", S2_RefFOpt1);
+  
   // check final transform is close to original
   REQUIRE(data_.T_S1_S2.norm() == Approx(T_S1_S2_opt.norm()).epsilon(0.0001));
 }
@@ -447,6 +446,7 @@ TEST_CASE("Test simple 2 node FG with perturbed pose and scan registration") {
   fuse_variables::Orientation3DStamped::SharedPtr o1 = SP1->Orientation();
   fuse_variables::Position3DStamped::SharedPtr p2 = SP2_pert->Position();
   fuse_variables::Orientation3DStamped::SharedPtr o2 = SP2_pert->Orientation();
+
   graph.addVariable(p1);
   graph.addVariable(o1);
   graph.addVariable(p2);
@@ -470,6 +470,8 @@ TEST_CASE("Test simple 2 node FG with perturbed pose and scan registration") {
           prior_covariance);
   graph.addConstraint(prior);
 
+  graph.print();
+
   // Optimize the constraints and variables.
   graph.optimize();
 
@@ -483,7 +485,117 @@ TEST_CASE("Test simple 2 node FG with perturbed pose and scan registration") {
   }
 }
 
-TEST_CASE("Test multi scan registration") {
+TEST_CASE("Test multi scan registration with two scans") {
+  // create scan poses
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP1 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP2 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP2_pert =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+
+  // init scan registration
+  beam_matching::IcpMatcherParams matcher_params;
+  matcher_params.max_corr = 1;
+  matcher_params.max_iter = 50;
+  matcher_params.t_eps = 1e-8;
+  matcher_params.fit_eps = 1e-2;
+  matcher_params.lidar_ang_covar = 7.78e-9;
+  matcher_params.lidar_lin_covar = 2.5e-4;
+  matcher_params.multiscale_steps = 0;
+  matcher_params.res = 0;
+
+  std::unique_ptr<beam_matching::IcpMatcher> matcher =
+      std::make_unique<beam_matching::IcpMatcher>(matcher_params);
+
+  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
+      multi_scan_registration =
+          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
+              std::move(matcher), 1, 1, 30, "TEST");
+  
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+  multi_scan_registration->SetFixedCovariance(covariance);
+
+
+  auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
+  auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
+
+  // validate stamps
+  REQUIRE(transaction1->stamp() == SP1->Stamp());
+  REQUIRE(transaction2->stamp() == SP2->Stamp());
+
+  // Create the graph
+  fuse_graphs::HashGraph graph;
+
+  // add variables and validate uuids for each transaction
+  std::vector<fuse_core::UUID> uuids;
+  uuids = AddVariables(transaction1, graph);
+  REQUIRE(uuids.size() == 2);
+  for (auto uuid : uuids) {
+    bool should_be_true =
+        uuid == SP1->Position()->uuid() || uuid == SP1->Orientation()->uuid();
+    REQUIRE(should_be_true);
+  }
+  uuids = AddVariables(transaction2, graph);
+  REQUIRE(uuids.size() == 2);
+  for (auto uuid : uuids) {
+    bool should_be_true =
+        uuid == SP2->Position()->uuid() || uuid == SP2->Orientation()->uuid();
+    REQUIRE(should_be_true);
+  }
+
+  // add constraints and validate for each transaction
+  int counter{0};
+  counter += AddConstraints(transaction1, graph);
+  counter += AddConstraints(transaction2, graph);
+  REQUIRE(counter == 1);
+
+  // Add prior on first pose
+  fuse_core::Vector7d mean;
+  mean << SP1->Position()->x(), SP1->Position()->y(), SP1->Position()->z(),
+      SP1->Orientation()->w(), SP1->Orientation()->x(), SP1->Orientation()->y(),
+      SP1->Orientation()->z();
+  fuse_core::Matrix6d prior_covariance;
+  prior_covariance.setIdentity();
+  prior_covariance = prior_covariance * 0.0000000001;
+  auto prior =
+      std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+          "PRIOR", *SP1->Position(), *SP1->Orientation(), mean,
+          prior_covariance);
+  graph.addConstraint(prior);
+
+  graph.print();
+
+  // Optimize the constraints and variables.
+  graph.optimize();
+
+  auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph.getVariable(SP1->Position()->uuid()));
+  auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph.getVariable(SP2->Position()->uuid()));
+
+  auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph.getVariable(SP1->Orientation()->uuid()));
+  auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph.getVariable(SP2->Orientation()->uuid()));
+
+  for (int i = 0; i < 3; i++) {
+    REQUIRE(std::abs(SP1->Position()->data()[i] - p1.data()[i]) < 0.001);
+    REQUIRE(std::abs(SP2->Position()->data()[i] - p2.data()[i]) < 0.001);
+  }
+  for (int i = 0; i < 4; i++) {
+    REQUIRE(std::abs(SP1->Orientation()->data()[i] - o1.data()[i]) < 0.001);
+    REQUIRE(std::abs(SP2->Orientation()->data()[i] - o2.data()[i]) < 0.001);
+  }
+}
+
+TEST_CASE("Test multi scan registration with three scans") {
   // create scan poses
   std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP1 =
       std::make_shared<beam_models::frame_to_frame::ScanPose>(
@@ -522,6 +634,11 @@ TEST_CASE("Test multi scan registration") {
           std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
               std::move(matcher), 2, 1, 30, "TEST");
 
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+  multi_scan_registration->SetFixedCovariance(covariance);
+  
   auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
   auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
   auto transaction3 = multi_scan_registration->RegisterNewScan(SP3_pert);
