@@ -49,9 +49,15 @@ void ScanMatcher3D::onInit() {
     ROS_FATAL_STREAM(error);
     throw std::runtime_error(error);
   }
+
   multi_scan_registration_ = std::make_unique<MultiScanRegistration>(
       std::move(matcher), params_.num_neighbors, params_.outlier_threshold_t,
-      params_.outlier_threshold_r, name());
+      params_.outlier_threshold_r, name(), params_.fix_first_scan);
+
+  // Eigen::Matrix<double, 6, 1> cov_dia;
+  // cov_dia << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1;
+  // Eigen::Matrix<double, 6, 6> covariance = cov_dia.asDiagonal();
+  // multi_scan_registration_->SetFixedCovariance(covariance);
 
   // init frame initializer
   if (params_.frame_initializer_type == "ODOMETRY") {
@@ -116,17 +122,21 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 
   // build transaction of registration measurements
   fuse_core::Transaction::SharedPtr transaction =
-      multi_scan_registration_->RegisterNewScan(current_scan_pose);
+      multi_scan_registration_->RegisterNewScan(current_scan_pose);    
 
   // Send the transaction object to the plugin's parent
-  ROS_DEBUG("Sending transaction");
-  sendTransaction(transaction);
+  if(transaction != nullptr){
+    ROS_DEBUG("Sending transaction");
+    sendTransaction(transaction);
+  } 
+  
 }
 
 // TODO: active_clouds_ shouldn't need to be a map since we aren't searching
 // anymore. It is useful for removing specific items but not the best
 // implementation
 void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
+
   // update only reference clouds if we are not storing all clouds in the graph
   if (params_.scan_output_directory.empty()) {
     multi_scan_registration_->UpdateScanPoses(graph_msg);

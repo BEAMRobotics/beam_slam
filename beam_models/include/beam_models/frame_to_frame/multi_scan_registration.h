@@ -15,7 +15,7 @@ public:
   MultiScanRegistration(
       std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher,
       int num_neighbors, double outlier_threshold_t, double outlier_threshold_r,
-      const std::string& source);
+      const std::string& source, bool fix_first_scan = false);
 
   ~MultiScanRegistration() = default;
 
@@ -26,15 +26,29 @@ public:
 
   void UpdateScanPoses(fuse_core::Graph::ConstSharedPtr graph_msg);
 
+  inline std::list<std::shared_ptr<ScanPose>>::iterator Begin() {
+    return reference_clouds_.begin();
+  }
+
+  inline std::list<std::shared_ptr<ScanPose>>::iterator End() {
+    return reference_clouds_.end();
+  }
+
+  std::shared_ptr<ScanPose> GetScan(const ros::Time& t);
+
+  void PrintScanDetails(std::ostream& stream = std::cout);
+
 private:
-  void MatchScans(const PointCloudPtr& cloud1, const PointCloudPtr& cloud2,
-                  const Eigen::Matrix4d& T_WORLD_CLOUD1,
-                  const Eigen::Matrix4d& T_WORLD_CLOUD2,
+  bool MatchScans(const std::shared_ptr<ScanPose>& scan_pose_1,
+                  const std::shared_ptr<ScanPose>& scan_pose_2,
                   Eigen::Matrix4d& T_CLOUD1_CLOUD2,
                   Eigen::Matrix<double, 6, 6>& covariance);
 
   bool PassedThreshold(const Eigen::Matrix4d& T_measured,
                        const Eigen::Matrix4d& T_estimated);
+
+  void AddPrior(const std::shared_ptr<ScanPose>& scan,
+                fuse_core::Transaction::SharedPtr transaction);
 
   std::list<std::shared_ptr<ScanPose>> reference_clouds_;
   std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
@@ -44,9 +58,10 @@ private:
   std::string source_;
   Eigen::Matrix<double, 6, 6> covariance_;
   bool use_fixed_covariance_{false};
+  bool fix_first_scan_;
 
   // Extra debugging tools: these must be set here, not in the config file
-  bool output_scan_registration_results_{true};
+  bool output_scan_registration_results_{false};
   std::string tmp_output_path_{"/home/nick/tmp/"};
 };
 

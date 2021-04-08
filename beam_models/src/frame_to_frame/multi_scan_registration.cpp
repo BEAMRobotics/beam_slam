@@ -2,6 +2,7 @@
 
 #include <beam_common/sensor_proc.h>
 #include <beam_matching/Matchers.h>
+#include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/transaction.h>
 
 namespace beam_models { namespace frame_to_frame {
@@ -9,12 +10,13 @@ namespace beam_models { namespace frame_to_frame {
 MultiScanRegistration::MultiScanRegistration(
     std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher,
     int num_neighbors, double outlier_threshold_t, double outlier_threshold_r,
-    const std::string& source)
+    const std::string& source, bool fix_first_scan)
     : matcher_(std::move(matcher)),
       num_neighbors_(num_neighbors),
       outlier_threshold_t_(outlier_threshold_t),
       outlier_threshold_r_(outlier_threshold_r),
-      source_(source) {}
+      source_(source),
+      fix_first_scan_(fix_first_scan) {}
 
 void MultiScanRegistration::SetFixedCovariance(
     const Eigen::Matrix<double, 6, 6>& covariance) {
@@ -34,10 +36,12 @@ fuse_core::Transaction::SharedPtr MultiScanRegistration::RegisterNewScan(
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
     reference_clouds_.push_front(new_scan);
+    if (fix_first_scan_) { AddPrior(new_scan, transaction); }
     return transaction;
   }
 
   int counter = 0;
+  int num_constraints = 0;
   for (auto ref_iter = reference_clouds_.begin();
        ref_iter != reference_clouds_.end(); ref_iter++) {
     counter++;
@@ -46,46 +50,7 @@ fuse_core::Transaction::SharedPtr MultiScanRegistration::RegisterNewScan(
     // run matcher to get refined cloud pose
     Eigen::Matrix4d T_CLOUDREF_CLOUDCURRENT;
     Eigen::Matrix<double, 6, 6> covariance;
-    MatchScans((*ref_iter)->Cloud(), new_scan->Cloud(),
-               (*ref_iter)->T_WORLD_CLOUD(), new_scan->T_WORLD_CLOUD(),
-               T_CLOUDREF_CLOUDCURRENT, covariance);
-
-    if (output_scan_registration_results_) {
-      PointCloudPtr cloud_ref = (*ref_iter)->Cloud();
-      PointCloud cloud_ref_world;
-      PointCloud cloud_cur_initial_world;
-      PointCloud cloud_cur_aligned_world;
-
-      const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
-          new_scan->T_WORLD_CLOUD();
-      const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT =
-          (*ref_iter)->T_WORLD_CLOUD();
-      Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
-          T_WORLD_CLOUDREF_INIT * T_CLOUDREF_CLOUDCURRENT;
-
-      pcl::transformPointCloud(*cloud_ref, cloud_ref_world,
-                               T_WORLD_CLOUDREF_INIT);
-      pcl::transformPointCloud(*new_scan->Cloud(), cloud_cur_initial_world,
-                               T_WORLD_CLOUDCURRENT_INIT);
-      pcl::transformPointCloud(*new_scan->Cloud(), cloud_cur_aligned_world,
-                               T_WORLD_CLOUDCURRENT_OPT);
-
-      std::string filename = tmp_output_path_ +
-                             std::to_string((*ref_iter)->Stamp().toSec()) +
-                             "U" + std::to_string((*ref_iter)->Updates());
-
-      pcl::io::savePCDFileASCII(filename + "_ref.pcd", cloud_ref_world);
-      pcl::io::savePCDFileASCII(filename + "_cur_init.pcd",
-                                cloud_cur_initial_world);
-      pcl::io::savePCDFileASCII(filename + "_cur_alig.pcd",
-                                cloud_cur_aligned_world);
-    }
-
-    if (!PassedThreshold(T_CLOUDREF_CLOUDCURRENT,
-                         beam::InvertTransform((*ref_iter)->T_WORLD_CLOUD()) *
-                             new_scan->T_WORLD_CLOUD())) {
-      ROS_DEBUG("Failed scan matcher transform threshold check. Skipping "
-                "measurement.");
+    if (!MatchScans(*ref_iter, new_scan, T_CLOUDREF_CLOUDCURRENT, covariance)) {
       continue;
     }
 
@@ -105,7 +70,12 @@ fuse_core::Transaction::SharedPtr MultiScanRegistration::RegisterNewScan(
             pose_relative_mean, covariance);
 
     transaction->addConstraint(constraint, true);
+    num_constraints++;
   }
+
+  // if no constraints were added for this scan, then remove don't add variable
+  // or constraint
+  if (num_constraints == 0) { return nullptr; }
 
   // add cloud to reference cloud list and remove last
   if (reference_clouds_.size() == num_neighbors_) {
@@ -140,11 +110,15 @@ void MultiScanRegistration::UpdateScanPoses(
   }
 }
 
-void MultiScanRegistration::MatchScans(
-    const PointCloudPtr& cloud1, const PointCloudPtr& cloud2,
-    const Eigen::Matrix4d& T_WORLD_CLOUD1,
-    const Eigen::Matrix4d& T_WORLD_CLOUD2, Eigen::Matrix4d& T_CLOUD1_CLOUD2,
-    Eigen::Matrix<double, 6, 6>& covariance) {
+bool MultiScanRegistration::MatchScans(
+    const std::shared_ptr<ScanPose>& scan_pose_1,
+    const std::shared_ptr<ScanPose>& scan_pose_2,
+    Eigen::Matrix4d& T_CLOUD1_CLOUD2, Eigen::Matrix<double, 6, 6>& covariance) {
+  PointCloudPtr cloud1 = scan_pose_1->Cloud();
+  PointCloudPtr cloud2 = scan_pose_2->Cloud();
+  Eigen::Matrix4d T_WORLD_CLOUD1 = scan_pose_1->T_WORLD_CLOUD();
+  Eigen::Matrix4d T_WORLD_CLOUD2 = scan_pose_2->T_WORLD_CLOUD();
+
   Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
       beam::InvertTransform(T_WORLD_CLOUD1) * T_WORLD_CLOUD2;
 
@@ -156,17 +130,88 @@ void MultiScanRegistration::MatchScans(
   // match clouds
   matcher_->SetRef(cloud2_RefFInit);
   matcher_->SetTarget(cloud1);
-  matcher_->Match();
+  if (!matcher_->Match()) {
+    ROS_ERROR("Failed scan matching. Skipping measurement.");
+    return false;
+  }
 
-  if(use_fixed_covariance_){
+  Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher_->GetResult().matrix();
+  T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
+
+  if (output_scan_registration_results_) {
+    PointCloudPtr cloud_ref = cloud1;
+    PointCloud cloud_ref_world;
+    PointCloud cloud_cur_initial_world;
+    PointCloud cloud_cur_aligned_world;
+
+    const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT = T_WORLD_CLOUD2;
+    const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = T_WORLD_CLOUD1;
+    Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
+        T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
+
+    pcl::transformPointCloud(*cloud_ref, cloud_ref_world,
+                             T_WORLD_CLOUDREF_INIT);
+    pcl::transformPointCloud(*cloud2, cloud_cur_initial_world,
+                             T_WORLD_CLOUDCURRENT_INIT);
+    pcl::transformPointCloud(*cloud2, cloud_cur_aligned_world,
+                             T_WORLD_CLOUDCURRENT_OPT);
+
+    std::string filename = tmp_output_path_ +
+                           std::to_string(scan_pose_1->Stamp().toSec()) + "U" +
+                           std::to_string(scan_pose_1->Updates());
+
+    pcl::io::savePCDFileASCII(filename + "_ref.pcd", cloud_ref_world);
+    pcl::io::savePCDFileASCII(filename + "_cur_init.pcd",
+                              cloud_cur_initial_world);
+    pcl::io::savePCDFileASCII(filename + "_cur_alig.pcd",
+                              cloud_cur_aligned_world);
+    ROS_INFO("Saved scan registration results to %s", filename.c_str());
+  }
+
+  if (!PassedThreshold(T_CLOUD1_CLOUD2,
+                       beam::InvertTransform(scan_pose_1->T_WORLD_CLOUD()) *
+                           scan_pose_2->T_WORLD_CLOUD())) {
+    ROS_ERROR("Failed scan matcher transform threshold check. Skipping "
+              "measurement.");
+    return false;
+  }
+
+  if (use_fixed_covariance_) {
     covariance = covariance_;
   } else {
     matcher_->EstimateInfo();
     covariance = matcher_->GetInfo();
   }
-  
-  Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher_->GetResult().matrix();
-  T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
+
+  return true;
+}
+
+std::shared_ptr<ScanPose> MultiScanRegistration::GetScan(const ros::Time& t) {
+  for (auto iter = Begin(); iter != End(); iter++) {
+    if ((*iter)->Stamp() == t) { return *iter; }
+  }
+  return nullptr;
+}
+
+void MultiScanRegistration::PrintScanDetails(std::ostream& stream) {
+  for (auto iter = Begin(); iter != End(); iter++) { (*iter)->Print(stream); }
+}
+
+void MultiScanRegistration::AddPrior(
+    const std::shared_ptr<ScanPose>& scan,
+    fuse_core::Transaction::SharedPtr transaction) {
+  fuse_core::Vector7d mean;
+  mean << scan->Position()->x(), scan->Position()->y(), scan->Position()->z(),
+      scan->Orientation()->w(), scan->Orientation()->x(),
+      scan->Orientation()->y(), scan->Orientation()->z();
+  fuse_core::Matrix6d prior_covariance;
+  prior_covariance.setIdentity();
+  prior_covariance = prior_covariance * 0.0000000001;
+  auto prior =
+      std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+          "FIRST_SCAN_PRIOR", *scan->Position(), *scan->Orientation(), mean,
+          prior_covariance);
+  transaction->addConstraint(prior, true);
 }
 
 }} // namespace beam_models::frame_to_frame

@@ -38,13 +38,27 @@ public:
   bool Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
     if (graph_msg->variableExists(position_->uuid()) &&
         graph_msg->variableExists(orientation_->uuid())) {
+      /////////
+      // std::string filename = "/home/nick/tmp2/" + std::to_string(stamp_.toSec()) + "_U" + std::to_string(updates_);
+      // PointCloud cloud_initial;
+      // pcl::transformPointCloud(*pointcloud_, cloud_initial,
+      //                          this->T_WORLD_CLOUD());
+      // pcl::io::savePCDFileASCII(filename + "_initial.pcd",
+      //                           cloud_initial);
+      ///////////////
       *position_ = dynamic_cast<const fuse_variables::Position3DStamped&>(
           graph_msg->getVariable(position_->uuid()));
 
       *orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
           graph_msg->getVariable(orientation_->uuid()));
-      updates_++;    
-      return true;    
+      updates_++;
+      /////////////
+      // PointCloud cloud_final;
+      // pcl::transformPointCloud(*pointcloud_, cloud_final,
+      //                          this->T_WORLD_CLOUD());
+      // pcl::io::savePCDFileASCII(filename + "_final.pcd", cloud_final);
+      ////////////
+      return true;
     }
     return false;
   }
@@ -53,9 +67,7 @@ public:
     return (std::abs(stamp_.toSec() - time.toSec()) <= tolerance);
   }
 
-  int Updates(){
-    return updates_;
-  }
+  int Updates() { return updates_; }
 
   bool operator<(const ScanPose& rhs) const { return (stamp_ < rhs.stamp_); }
 
@@ -110,17 +122,10 @@ public:
     pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd", cloud_initial);
     pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd", cloud_final);
 
-    std::cout << "Saving cloud with:\n"
-              << "Stamp: " << stamp_.toSec() << "\n"
-              << "Num updates: " << updates_ << "\n"
-              << "Initial Pose: \n" << T_WORLD_CLOUD_initial_ << "\n"
-              << "Final Pose: \n" << this->T_WORLD_CLOUD() << "\n";
-              
+    ROS_DEBUG("Saving cloud with stamp: %.5f", stamp_.toSec());
   }
 
-  const Eigen::Matrix4d T_WORLD_CLOUD_INIT(){
-    return T_WORLD_CLOUD_initial_;
-  }
+  const Eigen::Matrix4d T_WORLD_CLOUD_INIT() { return T_WORLD_CLOUD_initial_; }
 
   using Ptr = std::shared_ptr<ScanPose>;
 

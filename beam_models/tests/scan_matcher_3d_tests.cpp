@@ -88,6 +88,34 @@ public:
     *S1 = *test_cloud;
     pcl::transformPointCloud(*S1, *S2, beam::InvertTransform(T_S1_S2));
     pcl::transformPointCloud(*S1, *S3, beam::InvertTransform(T_S1_S3));
+
+    // create scan matcher params
+    matcher_params.max_corr = 1;
+    matcher_params.max_iter = 50;
+    matcher_params.t_eps = 1e-8;
+    matcher_params.fit_eps = 1e-2;
+    matcher_params.lidar_ang_covar = 7.78e-9;
+    matcher_params.lidar_lin_covar = 2.5e-4;
+    matcher_params.multiscale_steps = 0;
+    matcher_params.res = 0;
+
+    // create prior that will be used in optimization
+    std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP_TMP =
+        std::make_shared<beam_models::frame_to_frame::ScanPose>(ros::Time(0),
+                                                                T_WORLD_S1, S1);
+
+    fuse_core::Vector7d mean;
+    mean << SP_TMP->Position()->x(), SP_TMP->Position()->y(),
+        SP_TMP->Position()->z(), SP_TMP->Orientation()->w(),
+        SP_TMP->Orientation()->x(), SP_TMP->Orientation()->y(),
+        SP_TMP->Orientation()->z();
+    fuse_core::Matrix6d prior_covariance;
+    prior_covariance.setIdentity();
+    prior_covariance = prior_covariance * 0.0000000001;
+
+    prior = std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+        "PRIOR", *(SP_TMP->Position()), *(SP_TMP->Orientation()), mean,
+        prior_covariance);
   }
 
   Eigen::Matrix4d T_WORLD_S1;
@@ -101,6 +129,8 @@ public:
   PointCloudPtr S1;
   PointCloudPtr S2;
   PointCloudPtr S3;
+  beam_matching::IcpMatcherParams matcher_params;
+  fuse_constraints::AbsolutePose3DStampedConstraint::SharedPtr prior;
 };
 
 Data data_;
@@ -191,6 +221,14 @@ std::vector<fuse_core::UUID>
     uuids.push_back(iter->uuid());
   }
   return uuids;
+}
+
+bool VectorsEqual(double* v1, double* v2, int vsize) {
+  double precision = 0.001;
+  for (int i = 0; i < vsize; i++) {
+    if (std::abs(v1[i] - v2[i]) > precision) { return false; }
+  }
+  return true;
 }
 
 TEST_CASE("Test scan pose") {
@@ -288,17 +326,7 @@ TEST_CASE("Test simple 2 node FG with perturbed pose") {
   graph.addConstraint(constraint1);
 
   // Add prior on first pose
-  fuse_core::Vector7d mean;
-  mean << SP1->Position()->x(), SP1->Position()->y(), SP1->Position()->z(),
-      SP1->Orientation()->w(), SP1->Orientation()->x(), SP1->Orientation()->y(),
-      SP1->Orientation()->z();
-  fuse_core::Matrix6d covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.0000000001;
-  auto prior =
-      std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-          "PRIOR", *SP1->Position(), *SP1->Orientation(), mean, covariance);
-  graph.addConstraint(prior);
+  graph.addConstraint(data_.prior);
 
   // Optimize the constraints and variables.
   graph.optimize();
@@ -350,12 +378,12 @@ TEST_CASE("Test scan registration - vanilla icp") {
   pcl::transformPointCloud(*SP2_pert->Cloud(), S2_RefFOpt2, T_S1_S2_opt);
 
   // output results
-  
+
   // pcl::io::savePCDFileASCII("/home/nick/tmp/S1_RefF.pcd", *SP1->Cloud());
   // pcl::io::savePCDFileASCII("/home/nick/tmp/S2_RefFEst.pcd", *S2_RefFEst);
   // pcl::io::savePCDFileASCII("/home/nick/tmp/S2_RefFOpt2.pcd", S2_RefFOpt2);
   // pcl::io::savePCDFileASCII("/home/nick/tmp/S2_RefFOpt1.pcd", S2_RefFOpt1);
-  
+
   // check final transform is close to original
   REQUIRE(data_.T_S1_S2.norm() == Approx(T_S1_S2_opt.norm()).epsilon(0.0001));
 }
@@ -384,18 +412,8 @@ TEST_CASE("Test simple 2 node FG with perturbed pose and scan registration") {
   pcl::transformPointCloud(*(SP2_pert->Cloud()), *S2_RefFEst,
                            Eigen::Affine3d(T_S1_S2_init));
 
-  beam_matching::IcpMatcherParams matcher_params;
-  matcher_params.max_corr = 1;
-  matcher_params.max_iter = 50;
-  matcher_params.t_eps = 1e-8;
-  matcher_params.fit_eps = 1e-2;
-  matcher_params.lidar_ang_covar = 7.78e-9;
-  matcher_params.lidar_lin_covar = 2.5e-4;
-  matcher_params.multiscale_steps = 0;
-  matcher_params.res = 0;
-
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
-      std::make_unique<beam_matching::IcpMatcher>(matcher_params);
+      std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
   matcher->SetRef(S2_RefFEst);
   matcher->SetTarget(SP1->Cloud());
   matcher->Match();
@@ -457,20 +475,7 @@ TEST_CASE("Test simple 2 node FG with perturbed pose and scan registration") {
   graph.addConstraint(constraint1);
 
   // Add prior on first pose
-  fuse_core::Vector7d mean;
-  mean << SP1->Position()->x(), SP1->Position()->y(), SP1->Position()->z(),
-      SP1->Orientation()->w(), SP1->Orientation()->x(), SP1->Orientation()->y(),
-      SP1->Orientation()->z();
-  fuse_core::Matrix6d prior_covariance;
-  prior_covariance.setIdentity();
-  prior_covariance = prior_covariance * 0.0000000001;
-  auto prior =
-      std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-          "PRIOR", *SP1->Position(), *SP1->Orientation(), mean,
-          prior_covariance);
-  graph.addConstraint(prior);
-
-  graph.print();
+  graph.addConstraint(data_.prior);
 
   // Optimize the constraints and variables.
   graph.optimize();
@@ -493,35 +498,24 @@ TEST_CASE("Test multi scan registration with two scans") {
   std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP2 =
       std::make_shared<beam_models::frame_to_frame::ScanPose>(
           ros::Time(1), data_.T_WORLD_S2, data_.S2);
-  
+
   std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP2_pert =
       std::make_shared<beam_models::frame_to_frame::ScanPose>(
           ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
 
   // init scan registration
-  beam_matching::IcpMatcherParams matcher_params;
-  matcher_params.max_corr = 1;
-  matcher_params.max_iter = 50;
-  matcher_params.t_eps = 1e-8;
-  matcher_params.fit_eps = 1e-2;
-  matcher_params.lidar_ang_covar = 7.78e-9;
-  matcher_params.lidar_lin_covar = 2.5e-4;
-  matcher_params.multiscale_steps = 0;
-  matcher_params.res = 0;
-
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
-      std::make_unique<beam_matching::IcpMatcher>(matcher_params);
+      std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
   std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
       multi_scan_registration =
           std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
               std::move(matcher), 1, 1, 30, "TEST");
-  
+
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
   covariance = covariance * 0.1;
   multi_scan_registration->SetFixedCovariance(covariance);
-
 
   auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
   auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
@@ -557,20 +551,7 @@ TEST_CASE("Test multi scan registration with two scans") {
   REQUIRE(counter == 1);
 
   // Add prior on first pose
-  fuse_core::Vector7d mean;
-  mean << SP1->Position()->x(), SP1->Position()->y(), SP1->Position()->z(),
-      SP1->Orientation()->w(), SP1->Orientation()->x(), SP1->Orientation()->y(),
-      SP1->Orientation()->z();
-  fuse_core::Matrix6d prior_covariance;
-  prior_covariance.setIdentity();
-  prior_covariance = prior_covariance * 0.0000000001;
-  auto prior =
-      std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-          "PRIOR", *SP1->Position(), *SP1->Orientation(), mean,
-          prior_covariance);
-  graph.addConstraint(prior);
-
-  graph.print();
+  graph.addConstraint(data_.prior);
 
   // Optimize the constraints and variables.
   graph.optimize();
@@ -616,29 +597,19 @@ TEST_CASE("Test multi scan registration with three scans") {
           ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
 
   // init scan registration
-  beam_matching::IcpMatcherParams matcher_params;
-  matcher_params.max_corr = 1;
-  matcher_params.max_iter = 50;
-  matcher_params.t_eps = 1e-8;
-  matcher_params.fit_eps = 1e-2;
-  matcher_params.lidar_ang_covar = 7.78e-9;
-  matcher_params.lidar_lin_covar = 2.5e-4;
-  matcher_params.multiscale_steps = 0;
-  matcher_params.res = 0;
-
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
-      std::make_unique<beam_matching::IcpMatcher>(matcher_params);
+      std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
   std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
       multi_scan_registration =
           std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
-              std::move(matcher), 2, 1, 30, "TEST");
+              std::move(matcher), 3, 1, 30, "TEST");
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
   covariance = covariance * 0.1;
   multi_scan_registration->SetFixedCovariance(covariance);
-  
+
   auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
   auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
   auto transaction3 = multi_scan_registration->RegisterNewScan(SP3_pert);
@@ -683,18 +654,7 @@ TEST_CASE("Test multi scan registration with three scans") {
   REQUIRE(counter == 3);
 
   // Add prior on first pose
-  fuse_core::Vector7d mean;
-  mean << SP1->Position()->x(), SP1->Position()->y(), SP1->Position()->z(),
-      SP1->Orientation()->w(), SP1->Orientation()->x(), SP1->Orientation()->y(),
-      SP1->Orientation()->z();
-  fuse_core::Matrix6d prior_covariance;
-  prior_covariance.setIdentity();
-  prior_covariance = prior_covariance * 0.0000000001;
-  auto prior =
-      std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-          "PRIOR", *SP1->Position(), *SP1->Orientation(), mean,
-          prior_covariance);
-  graph.addConstraint(prior);
+  graph.addConstraint(data_.prior);
 
   // Optimize the constraints and variables.
   graph.optimize();
@@ -713,14 +673,297 @@ TEST_CASE("Test multi scan registration with three scans") {
   auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(SP3->Orientation()->uuid()));
 
-  for (int i = 0; i < 3; i++) {
-    REQUIRE(std::abs(SP1->Position()->data()[i] - p1.data()[i]) < 0.001);
-    REQUIRE(std::abs(SP2->Position()->data()[i] - p2.data()[i]) < 0.001);
-    REQUIRE(std::abs(SP3->Position()->data()[i] - p3.data()[i]) < 0.001);
+  REQUIRE(VectorsEqual(SP1->Position()->data(), p1.data(), 3));
+  REQUIRE(VectorsEqual(SP1->Orientation()->data(), o1.data(), 4));
+  REQUIRE(VectorsEqual(SP2->Position()->data(), p2.data(), 3));
+  REQUIRE(VectorsEqual(SP2->Orientation()->data(), o2.data(), 4));
+  REQUIRE(VectorsEqual(SP3->Position()->data(), p3.data(), 3));
+  REQUIRE(VectorsEqual(SP3->Orientation()->data(), o3.data(), 4));
+}
+
+TEST_CASE("Test multi scan registration transactions and updates") {
+  // create scan poses
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP1 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP2 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP3 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(2), data_.T_WORLD_S3, data_.S3);
+
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP2_pert =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP3_pert =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
+
+  // init scan registration
+  std::unique_ptr<beam_matching::IcpMatcher> matcher =
+      std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
+
+  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
+      multi_scan_registration =
+          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
+              std::move(matcher), 3, 1, 30, "TEST");
+
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+  multi_scan_registration->SetFixedCovariance(covariance);
+
+  // get transactions for each new scan
+  auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
+  auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
+  auto transaction3 = multi_scan_registration->RegisterNewScan(SP3_pert);
+
+  // Create the graph and add transactions
+  fuse_core::Graph::SharedPtr graph = fuse_graphs::HashGraph::make_shared();
+  graph->update(*transaction1);
+  REQUIRE(graph->variableExists(SP1->Position()->uuid()));
+  REQUIRE(!graph->variableExists(SP2_pert->Position()->uuid()));
+  REQUIRE(!graph->variableExists(SP3_pert->Position()->uuid()));
+  graph->update(*transaction2);
+  REQUIRE(graph->variableExists(SP1->Position()->uuid()));
+  REQUIRE(graph->variableExists(SP2_pert->Position()->uuid()));
+  REQUIRE(!graph->variableExists(SP3_pert->Position()->uuid()));
+  graph->update(*transaction3);
+  REQUIRE(graph->variableExists(SP1->Position()->uuid()));
+  REQUIRE(graph->variableExists(SP2_pert->Position()->uuid()));
+  REQUIRE(graph->variableExists(SP3_pert->Position()->uuid()));
+
+  // Add prior on first pose
+  graph->addConstraint(data_.prior);
+
+  // Optimize the constraints and variables.
+  graph->optimize();
+
+  auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph->getVariable(SP1->Position()->uuid()));
+  auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph->getVariable(SP2->Position()->uuid()));
+  auto p3 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph->getVariable(SP3->Position()->uuid()));
+
+  auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph->getVariable(SP1->Orientation()->uuid()));
+  auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph->getVariable(SP2->Orientation()->uuid()));
+  auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph->getVariable(SP3->Orientation()->uuid()));
+
+  REQUIRE(VectorsEqual(SP1->Position()->data(), p1.data(), 3));
+  REQUIRE(VectorsEqual(SP1->Orientation()->data(), o1.data(), 4));
+  REQUIRE(VectorsEqual(SP2->Position()->data(), p2.data(), 3));
+  REQUIRE(VectorsEqual(SP2->Orientation()->data(), o2.data(), 4));
+  REQUIRE(VectorsEqual(SP3->Position()->data(), p3.data(), 3));
+  REQUIRE(VectorsEqual(SP3->Orientation()->data(), o3.data(), 4));
+
+  // test updating scan poses from graph msg
+  for (int update = 1; update < 6; update++) {
+    multi_scan_registration->UpdateScanPoses(graph);
+    auto SP1_ = multi_scan_registration->GetScan(SP1->Stamp());
+    auto SP2_ = multi_scan_registration->GetScan(SP2->Stamp());
+    auto SP3_ = multi_scan_registration->GetScan(SP3->Stamp());
+    REQUIRE(VectorsEqual(SP1->Position()->data(), SP1_->Position()->data(), 3));
+    REQUIRE(VectorsEqual(SP1->Orientation()->data(),
+                         SP1_->Orientation()->data(), 4));
+    REQUIRE(SP1_->Updates() == update);
+    REQUIRE(VectorsEqual(SP2->Position()->data(), SP2_->Position()->data(), 3));
+    REQUIRE(VectorsEqual(SP2->Orientation()->data(),
+                         SP2_->Orientation()->data(), 4));
+    REQUIRE(SP2_->Updates() == update);
+    REQUIRE(VectorsEqual(SP3->Position()->data(), SP3_->Position()->data(), 3));
+    REQUIRE(VectorsEqual(SP3->Orientation()->data(),
+                         SP3_->Orientation()->data(), 4));
+    REQUIRE(SP3_->Updates() == update);
   }
-  for (int i = 0; i < 4; i++) {
-    REQUIRE(std::abs(SP1->Orientation()->data()[i] - o1.data()[i]) < 0.001);
-    REQUIRE(std::abs(SP2->Orientation()->data()[i] - o2.data()[i]) < 0.001);
-    REQUIRE(std::abs(SP3->Orientation()->data()[i] - o3.data()[i]) < 0.001);
+}
+
+TEST_CASE("Test multi scan registration with different num_neighbors") {
+  // create scan poses
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP1 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP2 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP3 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(2), data_.T_WORLD_S3, data_.S3);
+
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP2_pert =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP3_pert =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
+
+  // init scan registration
+  std::unique_ptr<beam_matching::IcpMatcher> matcher1 =
+      std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
+  std::unique_ptr<beam_matching::IcpMatcher> matcher2 =
+      std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
+
+  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
+      multi_scan_registration1 =
+          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
+              std::move(matcher1), 1, 1, 30, "TEST");
+
+  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
+      multi_scan_registration2 =
+          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
+              std::move(matcher2), 2, 1, 30, "TEST");
+
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+  multi_scan_registration1->SetFixedCovariance(covariance);
+  multi_scan_registration2->SetFixedCovariance(covariance);
+
+  // get transactions for each new scan
+  auto transaction11 = multi_scan_registration1->RegisterNewScan(SP1);
+  auto transaction12 = multi_scan_registration1->RegisterNewScan(SP2_pert);
+  auto transaction13 = multi_scan_registration1->RegisterNewScan(SP3_pert);
+
+  auto transaction21 = multi_scan_registration2->RegisterNewScan(SP1);
+  auto transaction22 = multi_scan_registration2->RegisterNewScan(SP2_pert);
+  auto transaction23 = multi_scan_registration2->RegisterNewScan(SP3_pert);
+
+  // Create the graph and add transactions
+  fuse_core::Graph::SharedPtr graph1 = fuse_graphs::HashGraph::make_shared();
+  graph1->update(*transaction11);
+  graph1->update(*transaction12);
+  graph1->update(*transaction13);
+
+  fuse_core::Graph::SharedPtr graph2 = fuse_graphs::HashGraph::make_shared();
+  graph2->update(*transaction21);
+  graph2->update(*transaction22);
+  graph2->update(*transaction23);
+
+  // check correct number of constraints are added
+  auto constraints_added1 = graph1->getConstraints();
+  int counter1 = 0;
+  for (auto iter = constraints_added1.begin(); iter != constraints_added1.end();
+       iter++) {
+    counter1++;
   }
+  REQUIRE(counter1 == 2);
+
+  auto constraints_added2 = graph2->getConstraints();
+  int counter2 = 0;
+  for (auto iter = constraints_added2.begin(); iter != constraints_added2.end();
+       iter++) {
+    counter2++;
+  }
+  REQUIRE(counter1 == 2);
+
+  // Add prior on first pose
+  graph1->addConstraint(data_.prior);
+  graph2->addConstraint(data_.prior);
+
+  // Optimize the constraints and variables.
+  graph1->optimize();
+  graph2->optimize();
+
+  auto p11 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph1->getVariable(SP1->Position()->uuid()));
+  auto p12 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph1->getVariable(SP2->Position()->uuid()));
+  auto p13 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph1->getVariable(SP3->Position()->uuid()));
+
+  auto o11 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph1->getVariable(SP1->Orientation()->uuid()));
+  auto o12 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph1->getVariable(SP2->Orientation()->uuid()));
+  auto o13 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph1->getVariable(SP3->Orientation()->uuid()));
+
+  REQUIRE(VectorsEqual(SP1->Position()->data(), p11.data(), 3));
+  REQUIRE(VectorsEqual(SP1->Orientation()->data(), o11.data(), 4));
+  REQUIRE(VectorsEqual(SP2->Position()->data(), p12.data(), 3));
+  REQUIRE(VectorsEqual(SP2->Orientation()->data(), o12.data(), 4));
+  REQUIRE(VectorsEqual(SP3->Position()->data(), p13.data(), 3));
+  REQUIRE(VectorsEqual(SP3->Orientation()->data(), o13.data(), 4));
+
+  auto p21 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph2->getVariable(SP1->Position()->uuid()));
+  auto p22 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph2->getVariable(SP2->Position()->uuid()));
+  auto p23 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph2->getVariable(SP3->Position()->uuid()));
+
+  auto o21 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph2->getVariable(SP1->Orientation()->uuid()));
+  auto o22 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph2->getVariable(SP2->Orientation()->uuid()));
+  auto o23 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph2->getVariable(SP3->Orientation()->uuid()));
+
+  REQUIRE(VectorsEqual(SP1->Position()->data(), p21.data(), 3));
+  REQUIRE(VectorsEqual(SP1->Orientation()->data(), o21.data(), 4));
+  REQUIRE(VectorsEqual(SP2->Position()->data(), p22.data(), 3));
+  REQUIRE(VectorsEqual(SP2->Orientation()->data(), o22.data(), 4));
+  REQUIRE(VectorsEqual(SP3->Position()->data(), p23.data(), 3));
+  REQUIRE(VectorsEqual(SP3->Orientation()->data(), o23.data(), 4));
+}
+
+TEST_CASE("Test multi scan registration with different registration cases") {
+  // create scan poses
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP1 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP2 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP3 =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(2), data_.T_WORLD_S3, data_.S3);
+
+  // init scan registration
+  std::unique_ptr<beam_matching::IcpMatcher> matcher =
+      std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
+
+  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
+      multi_scan_registration =
+          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
+              std::move(matcher), 5, 1, 30, "TEST");
+
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+  multi_scan_registration->SetFixedCovariance(covariance);
+
+  // get transactions for each new scan
+  auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
+  auto transaction2 = multi_scan_registration->RegisterNewScan(SP2);
+  auto transaction3 = multi_scan_registration->RegisterNewScan(SP3);
+
+  // Create the graph and add transactions
+  fuse_core::Graph::SharedPtr graph = fuse_graphs::HashGraph::make_shared();
+  graph->update(*transaction1);
+  graph->update(*transaction2);
+  graph->update(*transaction3);
+
+  // create two bad ScanPose objects and make sure that no transactions are
+  // added
+  Eigen::VectorXd perturb(6);
+  perturb << -45, 30, 20, 10, -5, 4;
+  Eigen::Matrix4d T_WORLD_S4_pert =
+      beam::PerturbTransformDegM(data_.T_WORLD_S3, perturb);
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP4_BADINIT =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(3), T_WORLD_S4_pert, data_.S3);
+  std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP4_EMPTY =
+      std::make_shared<beam_models::frame_to_frame::ScanPose>(
+          ros::Time(3), T_WORLD_S4_pert, boost::make_shared<PointCloud>());
+  auto transactionNULL1 = multi_scan_registration->RegisterNewScan(SP4_BADINIT);
+  auto transactionNULL2 = multi_scan_registration->RegisterNewScan(SP4_EMPTY);
+  REQUIRE(transactionNULL1 == nullptr);
+  REQUIRE(transactionNULL2 == nullptr);
 }
