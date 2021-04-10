@@ -1,5 +1,6 @@
 #include <beam_models/frame_to_frame/scan_matcher_3d.h>
 
+#include <boost/filesystem.hpp>
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
@@ -71,6 +72,22 @@ void ScanMatcher3D::onInit() {
     ROS_FATAL_STREAM(error);
     throw std::runtime_error(error);
   }
+
+  // if outputting scans, clear folder
+  if (!params_.scan_output_directory.empty()) {
+    if (boost::filesystem::is_directory(params_.scan_output_directory)) {
+      boost::filesystem::remove_all(params_.scan_output_directory);
+    }
+    boost::filesystem::create_directory(params_.scan_output_directory);
+  }
+
+  // if outputting graph update results, clear results folder:
+  if (output_graph_updates_) {
+    if (boost::filesystem::is_directory(graph_updates_path_)) {
+      boost::filesystem::remove_all(graph_updates_path_);
+    }
+    boost::filesystem::create_directory(graph_updates_path_);
+  }
 }
 
 void ScanMatcher3D::onStart() {
@@ -114,7 +131,7 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
       msg->header.stamp, T_WORLD_CLOUDCURRENT, cloud_current);
 
   // if outputting scans, add to the active list
-  if (!params_.scan_output_directory.empty()) {
+  if (!params_.scan_output_directory.empty() || output_graph_updates_) {
     active_clouds_.emplace(
         boost::to_string(current_scan_pose->Position()->uuid()),
         current_scan_pose);
@@ -122,23 +139,24 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 
   // build transaction of registration measurements
   fuse_core::Transaction::SharedPtr transaction =
-      multi_scan_registration_->RegisterNewScan(current_scan_pose);    
+      multi_scan_registration_->RegisterNewScan(current_scan_pose);
 
   // Send the transaction object to the plugin's parent
-  if(transaction != nullptr){
+  if (transaction != nullptr) {
     ROS_DEBUG("Sending transaction");
     sendTransaction(transaction);
-  } 
-  
+  }
 }
 
 // TODO: active_clouds_ shouldn't need to be a map since we aren't searching
 // anymore. It is useful for removing specific items but not the best
 // implementation
 void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
+  std::string update_time =
+      beam::ConvertTimeToDate(std::chrono::system_clock::now());
 
   // update only reference clouds if we are not storing all clouds in the graph
-  if (params_.scan_output_directory.empty()) {
+  if (params_.scan_output_directory.empty() && !output_graph_updates_) {
     multi_scan_registration_->UpdateScanPoses(graph_msg);
     return;
   }
@@ -156,8 +174,21 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
     // Othewise, it has probably been marginalized out, so save and remove from
     // active list
-    iter->second->Save(params_.scan_output_directory);
+    if (!params_.scan_output_directory.empty()) {
+      iter->second->Save(params_.scan_output_directory);
+    }
     active_clouds_.erase(iter->first);
+  }
+
+  updates_++;
+
+  std::string curent_path = graph_updates_path_ + "U" +
+                            std::to_string(updates_) + "_" + update_time + "/";
+  boost::filesystem::create_directory(curent_path);
+  boost::filesystem::create_directory(curent_path);
+  for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
+       iter++) {
+    iter->second->Save(curent_path);
   }
 }
 

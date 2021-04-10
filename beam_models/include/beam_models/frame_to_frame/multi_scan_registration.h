@@ -61,8 +61,10 @@ private:
   bool fix_first_scan_;
 
   // Extra debugging tools: these must be set here, not in the config file
-  bool output_scan_registration_results_{false};
-  std::string tmp_output_path_{"/home/nick/tmp/"};
+  bool output_scan_registration_results_{true};
+  std::string current_scan_path_;
+  std::string tmp_output_path_{"/home/nick/results/beam_slam/scan_registration/"};
+  PointCloudColPtr coord_frame_;
 };
 
 }} // namespace beam_models::frame_to_frame

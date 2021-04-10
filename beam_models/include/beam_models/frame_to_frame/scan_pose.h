@@ -39,7 +39,8 @@ public:
     if (graph_msg->variableExists(position_->uuid()) &&
         graph_msg->variableExists(orientation_->uuid())) {
       /////////
-      // std::string filename = "/home/nick/tmp2/" + std::to_string(stamp_.toSec()) + "_U" + std::to_string(updates_);
+      // std::string filename = "/home/nick/tmp2/" +
+      // std::to_string(stamp_.toSec()) + "_U" + std::to_string(updates_);
       // PointCloud cloud_initial;
       // pcl::transformPointCloud(*pointcloud_, cloud_initial,
       //                          this->T_WORLD_CLOUD());
@@ -107,22 +108,43 @@ public:
            << "  - w: " << orientation_->w() << "\n";
   }
 
-  void Save(const std::string& save_path, bool to_world_frame = true) {
+  void Save(const std::string& save_path, bool to_world_frame = true,
+            bool add_frame = true) {
     std::string file_name_prefix = save_path + std::to_string(stamp_.toSec());
     if (!to_world_frame) {
       pcl::io::savePCDFileASCII(file_name_prefix + ".pcd", *pointcloud_);
       return;
     }
 
-    PointCloud cloud_initial;
-    PointCloud cloud_final;
-    pcl::transformPointCloud(*pointcloud_, cloud_initial,
-                             T_WORLD_CLOUD_initial_);
-    pcl::transformPointCloud(*pointcloud_, cloud_final, this->T_WORLD_CLOUD());
-    pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd", cloud_initial);
-    pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd", cloud_final);
+    PointCloudPtr cloud_initial = boost::make_shared<PointCloud>();
+    PointCloudPtr cloud_final = boost::make_shared<PointCloud>();
 
-    ROS_DEBUG("Saving cloud with stamp: %.5f", stamp_.toSec());
+    pcl::transformPointCloud(*pointcloud_, *cloud_initial,
+                             T_WORLD_CLOUD_initial_);
+    pcl::transformPointCloud(*pointcloud_, *cloud_final, this->T_WORLD_CLOUD());
+
+    PointCloudColPtr cloud_initial_col =
+        beam::ColorPointCloud(cloud_initial, 255, 0, 0);
+    PointCloudColPtr cloud_final_col =
+        beam::ColorPointCloud(cloud_final, 0, 255, 0);
+
+    if (add_frame) {
+      PointCloudColPtr cloud_initial_col_ =
+          beam::AddFrameToCloud(cloud_initial_col, T_WORLD_CLOUD_initial_);
+      PointCloudColPtr cloud_final_col_ =
+          beam::AddFrameToCloud(cloud_final_col, this->T_WORLD_CLOUD());
+      pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
+                                *cloud_initial_col_);
+      pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd",
+                                *cloud_final_col_);
+    } else {
+      pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
+                                *cloud_initial_col);
+      pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd",
+                                *cloud_final_col);
+    }
+
+    ROS_DEBUG("Saved cloud with stamp: %.5f", stamp_.toSec());
   }
 
   const Eigen::Matrix4d T_WORLD_CLOUD_INIT() { return T_WORLD_CLOUD_initial_; }
