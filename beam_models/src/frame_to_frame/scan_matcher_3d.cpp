@@ -64,11 +64,15 @@ void ScanMatcher3D::onInit() {
   if (params_.frame_initializer_type == "ODOMETRY") {
     frame_initializer_ =
         std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            params_.frame_initializer_topic, 100, params_.pointcloud_frame,
+            params_.frame_initializer_info, 100, params_.pointcloud_frame,
             true, 30);
+  } else if (params_.frame_initializer_type == "POSEFILE") {
+    frame_initializer_ =
+        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
+            params_.frame_initializer_info, params_.pointcloud_frame);
   } else {
     const std::string error =
-        "frame_initializer_type invalid. Options: ODOMETRY";
+        "frame_initializer_type invalid. Options: ODOMETRY, POSEFILE";
     ROS_FATAL_STREAM(error);
     throw std::runtime_error(error);
   }

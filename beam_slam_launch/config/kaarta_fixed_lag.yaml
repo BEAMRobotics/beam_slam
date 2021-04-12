@@ -56,8 +56,9 @@ scan_matcher_3d:
   outlier_threshold_r: 20 # reject scan registration measurements that surpass this rotation (deg). Set to zero to ignore. Default: 30
   pointcloud_topic: '/kaarta/aggregates'
   pointcloud_frame: 'velodyne' # used to lookup extrinsic calibrations
-  frame_initializer_type: 'ODOMETRY'
-  frame_initializer_topic: '/integrated_to_init'
+  frame_initializer_type: 'ODOMETRY' # options: ODOMETRY, POSEFILE
+  frame_initializer_info: '/home/nick/datasets/slam/kaarta/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
+  # frame_initializer_info: '/integrated_to_init' # for ODOMETRY: topic, for POSEFILE: path
   num_neighbors: 3 # how many neighboring scans to register against
   matcher_params_path: '/home/nick/config/slam/icp.json' # Defaults to params in libbeam
   fix_first_scan: true # set this to true if no ignition is used
