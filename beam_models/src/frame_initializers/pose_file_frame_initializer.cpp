@@ -22,14 +22,14 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   }
   beam_mapping::Poses poses_reader;
   std::string extension = boost::filesystem::extension(file_path);
-  if (extension == "json") {
+  if (extension == ".json") {
     poses_reader.LoadFromJSON(file_path);
-  } else if (extension == "txt") {
+  } else if (extension == ".txt") {
     poses_reader.LoadFromTXT(file_path);
-  } else if (extension == "ply") {
+  } else if (extension == ".ply") {
     poses_reader.LoadFromPLY(file_path);
   } else {
-    ROS_ERROR("Invalid file extension for pose file. Options: json, txt, ply");
+    ROS_ERROR("Invalid file extension for pose file. Options: .json, .txt, .ply");
     throw std::invalid_argument{"Invalid extensions type."};
   }
 
