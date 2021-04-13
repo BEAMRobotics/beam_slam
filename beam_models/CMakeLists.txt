@@ -106,23 +106,23 @@ add_dependencies(
 )
 
 
-######## TESTS ############
-add_executable(${PROJECT_NAME}_scan_matcher_3d_tests
-  tests/scan_matcher_3d_tests.cpp
-)
-target_include_directories(${PROJECT_NAME}_scan_matcher_3d_tests
-  PUBLIC
-    include
-)
-target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_tests
-    ${PROJECT_NAME}
-    Catch2::Catch2
-)
-
-#[[
 #############
 ## Testing ##
 #############
+
+#add_executable(${PROJECT_NAME}_scan_matcher_3d_tests
+#  tests/scan_matcher_3d_tests.cpp
+#)
+#target_include_directories(${PROJECT_NAME}_scan_matcher_3d_tests
+#  PUBLIC
+#    include
+#)
+#target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_tests
+#    ${PROJECT_NAME}
+#    Catch2::Catch2
+#)
+
+#[[
 
 # Model tests
 catkin_add_gtest(test_unicycle_2d

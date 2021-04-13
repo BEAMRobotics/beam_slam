@@ -77,8 +77,8 @@ odom_pub:
   tf_timeout: 0.1 # Default: 0.1
   queue_size: 1 # Publisher queue size. Default: 1
   map_frame_id: 'map' # I DONT THINK THIS IS USED. Default: map
-  odom_frame_id: 'odom' # I DONT THINK THIS IS USED. Default: odom
-  base_link_frame_id: 'base_link' # I DONT THINK THIS IS USED. Default: base_link
-  base_link_output_frame_id: 'base_link' # Stored in odometry.child_frame_id Default: base_link_frame_id
-  world_frame_id: 'odom' # Stored in odometry.header.frame_id. Default: odom_frame_id
+  odom_frame_id: 'sensor_init' # I DONT THINK THIS IS USED. Default: odom
+  base_link_frame_id: 'sensor' # I DONT THINK THIS IS USED. Default: base_link
+  base_link_output_frame_id: 'sensor' # Stored in odometry.child_frame_id Default: base_link_frame_id
+  world_frame_id: 'sensor_init' # Stored in odometry.header.frame_id. Default: odom_frame_id
   topic: 'fixed_lag_smoother/optimized_odometry' # Output odometry topic

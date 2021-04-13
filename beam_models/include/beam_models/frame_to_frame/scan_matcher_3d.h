@@ -9,8 +9,8 @@
 #include <beam_utils/pointclouds.h>
 
 #include <beam_models/frame_initializers/frame_initializer_base.h>
-#include <beam_models/frame_to_frame/scan_pose.h>
 #include <beam_models/frame_to_frame/multi_scan_registration.h>
+#include <beam_models/frame_to_frame/scan_pose.h>
 #include <beam_parameters/models/scan_matcher_3d_params.h>
 
 namespace beam_models { namespace frame_to_frame {
@@ -61,8 +61,8 @@ protected:
   fuse_core::UUID device_id_; //!< The UUID of this device
   ParameterType params_;
   ros::Subscriber pointcloud_subscriber_;
-  std::unordered_map<std::string, std::shared_ptr<ScanPose>>
-      active_clouds_; // only needed if you want to output the final clouds
+  std::list<ScanPose> active_clouds_; // only needed if you want to output the
+                                      // final clouds or graph updates
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   std::unique_ptr<MultiScanRegistration> multi_scan_registration_;
 
@@ -73,7 +73,8 @@ protected:
   // Extra debugging tools: these must be set here, not in the config file
   bool output_graph_updates_{true};
   int updates_{0};
-  std::string graph_updates_path_ = "/home/nick/results/beam_slam/graph_updates/";
+  std::string graph_updates_path_ =
+      "/home/nick/results/beam_slam/graph_updates/";
 };
 
 }} // namespace beam_models::frame_to_frame

@@ -64,8 +64,8 @@ void ScanMatcher3D::onInit() {
   if (params_.frame_initializer_type == "ODOMETRY") {
     frame_initializer_ =
         std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            params_.frame_initializer_info, 100, params_.pointcloud_frame,
-            true, 30);
+            params_.frame_initializer_info, 100, params_.pointcloud_frame, true,
+            30);
   } else if (params_.frame_initializer_type == "POSEFILE") {
     frame_initializer_ =
         std::make_unique<frame_initializers::PoseFileFrameInitializer>(
@@ -107,7 +107,7 @@ void ScanMatcher3D::onStop() {
               params_.scan_output_directory.c_str());
     for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
          iter++) {
-      iter->second->Save(params_.scan_output_directory);
+      iter->Save(params_.scan_output_directory);
     }
   }
   active_clouds_.clear();
@@ -131,14 +131,11 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     return;
   }
 
-  std::shared_ptr<ScanPose> current_scan_pose = std::make_shared<ScanPose>(
-      msg->header.stamp, T_WORLD_CLOUDCURRENT, cloud_current);
+  ScanPose current_scan_pose(msg->header.stamp, T_WORLD_CLOUDCURRENT, *cloud_current);
 
   // if outputting scans, add to the active list
   if (!params_.scan_output_directory.empty() || output_graph_updates_) {
-    active_clouds_.emplace(
-        boost::to_string(current_scan_pose->Position()->uuid()),
-        current_scan_pose);
+    active_clouds_.push_back(current_scan_pose);
   }
 
   // build transaction of registration measurements
@@ -152,12 +149,15 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   }
 }
 
-// TODO: active_clouds_ shouldn't need to be a map since we aren't searching
-// anymore. It is useful for removing specific items but not the best
-// implementation
 void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
+  updates_++;
+
   std::string update_time =
       beam::ConvertTimeToDate(std::chrono::system_clock::now());
+
+  // remove all scan registration clouds that have been factored out of graph
+  // TODO: check this by setting lag_duration < num_neighbors * time_between_scans
+  // multi_scan_registration_->RemoveMissingScans(graph_msg);
 
   // update only reference clouds if we are not storing all clouds in the graph
   if (params_.scan_output_directory.empty() && !output_graph_updates_) {
@@ -165,35 +165,42 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     return;
   }
 
-  // otherwise, iterate through all cloud poses in the graph and update
-  for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
-       iter++) {
-    bool update_successful = iter->second->Update(graph_msg);
-
-    if (update_successful) { continue; }
+  auto i = active_clouds_.begin();
+  while (i != active_clouds_.end()) {
+    bool update_successful = i->Update(graph_msg);
+    if (update_successful) {
+      ++i;
+      continue;
+    }
 
     // if scan has never been updated, then it is probably just not yet in the
     // window so do nothing
-    if (iter->second->Updates() == 0) { continue; }
+    if (i->Updates() == 0) {
+      ++i;
+      continue;
+    }
 
     // Othewise, it has probably been marginalized out, so save and remove from
     // active list
     if (!params_.scan_output_directory.empty()) {
-      iter->second->Save(params_.scan_output_directory);
+      i->Save(params_.scan_output_directory);
     }
-    active_clouds_.erase(iter->first);
+    active_clouds_.erase(i++);
   }
 
-  updates_++;
-
+  if (!output_graph_updates_) { return; }
   std::string curent_path = graph_updates_path_ + "U" +
                             std::to_string(updates_) + "_" + update_time + "/";
   boost::filesystem::create_directory(curent_path);
   boost::filesystem::create_directory(curent_path);
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
-    iter->second->Save(curent_path);
+    iter->Save(curent_path);
   }
 }
+
+// void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
+//   multi_scan_registration_->UpdateScanPoses(graph_msg);
+// }
 
 }} // namespace beam_models::frame_to_frame

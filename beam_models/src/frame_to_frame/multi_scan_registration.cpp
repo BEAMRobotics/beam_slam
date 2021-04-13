@@ -35,14 +35,14 @@ void MultiScanRegistration::SetFixedCovariance(
   use_fixed_covariance_ = true;
 }
 
-fuse_core::Transaction::SharedPtr MultiScanRegistration::RegisterNewScan(
-    const std::shared_ptr<ScanPose>& new_scan) {
+fuse_core::Transaction::SharedPtr
+    MultiScanRegistration::RegisterNewScan(const ScanPose& new_scan) {
   // Create a transaction object
   auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(new_scan->Stamp());
-  transaction->addVariable(new_scan->Position(), true);
-  transaction->addVariable(new_scan->Orientation(), true);
-  transaction->addInvolvedStamp(new_scan->Stamp());
+  transaction->stamp(new_scan.Stamp());
+  transaction->addVariable(new_scan.PositionPtr(), true);
+  transaction->addVariable(new_scan.OrientationPtr(), true);
+  transaction->addInvolvedStamp(new_scan.Stamp());
 
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
@@ -53,7 +53,7 @@ fuse_core::Transaction::SharedPtr MultiScanRegistration::RegisterNewScan(
 
   if (output_scan_registration_results_) {
     current_scan_path_ =
-        tmp_output_path_ + std::to_string(new_scan->Stamp().toSec()) + "/";
+        tmp_output_path_ + std::to_string(new_scan.Stamp().toSec()) + "/";
     boost::filesystem::create_directory(current_scan_path_);
   }
 
@@ -82,9 +82,9 @@ fuse_core::Transaction::SharedPtr MultiScanRegistration::RegisterNewScan(
     // create and add constraint
     auto constraint =
         fuse_constraints::RelativePose3DStampedConstraint::make_shared(
-            source_, *(*ref_iter)->Position(), *(*ref_iter)->Orientation(),
-            *(new_scan->Position()), *(new_scan->Orientation()),
-            pose_relative_mean, covariance);
+            source_, ref_iter->Position(), ref_iter->Orientation(),
+            (new_scan.Position()), (new_scan.Orientation()), pose_relative_mean,
+            covariance);
 
     transaction->addConstraint(constraint, true);
     num_constraints++;
@@ -123,30 +123,52 @@ void MultiScanRegistration::UpdateScanPoses(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
   for (auto iter = reference_clouds_.begin(); iter != reference_clouds_.end();
        iter++) {
-    (*iter)->Update(graph_msg);
+    iter->Update(graph_msg);
+  }
+}
+
+void MultiScanRegistration::RemoveMissingScans(
+    fuse_core::Graph::ConstSharedPtr graph_msg, bool require_one_update) {
+  auto i = reference_clouds_.begin();
+  while (i != reference_clouds_.end()) {
+    // first, check that number of updates is greater than 0
+    if (require_one_update && i->Updates() == 0) {
+      ++i;
+      continue;
+    }
+
+    // check if variables exist
+    bool keep_scan = (graph_msg->variableExists(i->Position().uuid()) &&
+                      graph_msg->variableExists(i->Orientation().uuid()));
+
+    // remove variable is required, and update iterator
+    if (!keep_scan) {
+      reference_clouds_.erase(i++);
+    } else {
+      ++i;
+    }
   }
 }
 
 bool MultiScanRegistration::MatchScans(
-    const std::shared_ptr<ScanPose>& scan_pose_1,
-    const std::shared_ptr<ScanPose>& scan_pose_2,
+    const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
     Eigen::Matrix4d& T_CLOUD1_CLOUD2, Eigen::Matrix<double, 6, 6>& covariance) {
-  PointCloudPtr cloud1 = scan_pose_1->Cloud();
-  PointCloudPtr cloud2 = scan_pose_2->Cloud();
-  Eigen::Matrix4d T_WORLD_CLOUD1 = scan_pose_1->T_WORLD_CLOUD();
-  Eigen::Matrix4d T_WORLD_CLOUD2 = scan_pose_2->T_WORLD_CLOUD();
+  const PointCloud& cloud1 = scan_pose_1.Cloud();
+  const PointCloud& cloud2 = scan_pose_2.Cloud();
+  Eigen::Matrix4d T_WORLD_CLOUD1 = scan_pose_1.T_WORLD_CLOUD();
+  Eigen::Matrix4d T_WORLD_CLOUD2 = scan_pose_2.T_WORLD_CLOUD();
 
   Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
       beam::InvertTransform(T_WORLD_CLOUD1) * T_WORLD_CLOUD2;
 
   // transform cloud2 into cloud1 frame
-  PointCloudPtr cloud2_RefFInit = boost::make_shared<PointCloud>();
-  pcl::transformPointCloud(*cloud2, *cloud2_RefFInit,
+  PointCloud cloud2_RefFInit;
+  pcl::transformPointCloud(cloud2, cloud2_RefFInit,
                            Eigen::Affine3d(T_CLOUD1_CLOUD2_init));
 
   // match clouds
-  matcher_->SetRef(cloud2_RefFInit);
-  matcher_->SetTarget(cloud1);
+  matcher_->SetRef(boost::make_shared<PointCloud>(cloud2_RefFInit));
+  matcher_->SetTarget(boost::make_shared<PointCloud>(cloud1));
   if (!matcher_->Match()) {
     ROS_ERROR("Failed scan matching. Skipping measurement.");
     return false;
@@ -156,7 +178,8 @@ bool MultiScanRegistration::MatchScans(
   T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
 
   if (output_scan_registration_results_) {
-    PointCloudPtr cloud_ref = cloud1;
+    PointCloudPtr cloud_ref = boost::make_shared<PointCloud>();
+    *cloud_ref = cloud1;
     PointCloudPtr cloud_ref_world = boost::make_shared<PointCloud>();
     PointCloudPtr cloud_cur_initial_world = boost::make_shared<PointCloud>();
     PointCloudPtr cloud_cur_aligned_world = boost::make_shared<PointCloud>();
@@ -168,9 +191,9 @@ bool MultiScanRegistration::MatchScans(
 
     pcl::transformPointCloud(*cloud_ref, *cloud_ref_world,
                              T_WORLD_CLOUDREF_INIT);
-    pcl::transformPointCloud(*cloud2, *cloud_cur_initial_world,
+    pcl::transformPointCloud(cloud2, *cloud_cur_initial_world,
                              T_WORLD_CLOUDCURRENT_INIT);
-    pcl::transformPointCloud(*cloud2, *cloud_cur_aligned_world,
+    pcl::transformPointCloud(cloud2, *cloud_cur_aligned_world,
                              T_WORLD_CLOUDCURRENT_OPT);
 
     PointCloudColPtr cloud_ref_world_col =
@@ -187,9 +210,8 @@ bool MultiScanRegistration::MatchScans(
     cloud_cur_aligned_world_col = beam::AddFrameToCloud(
         cloud_cur_aligned_world_col, coord_frame_, T_WORLD_CLOUDCURRENT_OPT);
 
-    std::string filename = current_scan_path_ +
-                           std::to_string(scan_pose_1->Stamp().toSec()) + "U" +
-                           std::to_string(scan_pose_1->Updates());
+    double t = scan_pose_1.Stamp().toSec();
+    std::string filename = current_scan_path_ + std::to_string(t);
 
     pcl::io::savePCDFileASCII(filename + "_ref.pcd", *cloud_ref_world_col);
     pcl::io::savePCDFileASCII(filename + "_cur_init.pcd",
@@ -201,8 +223,8 @@ bool MultiScanRegistration::MatchScans(
   }
 
   if (!PassedThreshold(T_CLOUD1_CLOUD2,
-                       beam::InvertTransform(scan_pose_1->T_WORLD_CLOUD()) *
-                           scan_pose_2->T_WORLD_CLOUD())) {
+                       beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
+                           scan_pose_2.T_WORLD_CLOUD())) {
     ROS_ERROR("Failed scan matcher transform threshold check. Skipping "
               "measurement.");
     return false;
@@ -218,30 +240,32 @@ bool MultiScanRegistration::MatchScans(
   return true;
 }
 
-std::shared_ptr<ScanPose> MultiScanRegistration::GetScan(const ros::Time& t) {
+ScanPose MultiScanRegistration::GetScan(const ros::Time& t, bool& success) {
   for (auto iter = Begin(); iter != End(); iter++) {
-    if ((*iter)->Stamp() == t) { return *iter; }
+    if (iter->Stamp() == t) { 
+      success = true;
+      return *iter; }
   }
-  return nullptr;
+  success = false;
+  return ScanPose();
 }
 
 void MultiScanRegistration::PrintScanDetails(std::ostream& stream) {
-  for (auto iter = Begin(); iter != End(); iter++) { (*iter)->Print(stream); }
+  for (auto iter = Begin(); iter != End(); iter++) { iter->Print(stream); }
 }
 
 void MultiScanRegistration::AddPrior(
-    const std::shared_ptr<ScanPose>& scan,
-    fuse_core::Transaction::SharedPtr transaction) {
+    const ScanPose& scan, fuse_core::Transaction::SharedPtr transaction) {
   fuse_core::Vector7d mean;
-  mean << scan->Position()->x(), scan->Position()->y(), scan->Position()->z(),
-      scan->Orientation()->w(), scan->Orientation()->x(),
-      scan->Orientation()->y(), scan->Orientation()->z();
+  mean << scan.Position().x(), scan.Position().y(), scan.Position().z(),
+      scan.Orientation().w(), scan.Orientation().x(), scan.Orientation().y(),
+      scan.Orientation().z();
   fuse_core::Matrix6d prior_covariance;
   prior_covariance.setIdentity();
   prior_covariance = prior_covariance * 0.0000000001;
   auto prior =
       std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-          "FIRST_SCAN_PRIOR", *scan->Position(), *scan->Orientation(), mean,
+          "FIRST_SCAN_PRIOR", scan.Position(), scan.Orientation(), mean,
           prior_covariance);
   transaction->addConstraint(prior, true);
 }

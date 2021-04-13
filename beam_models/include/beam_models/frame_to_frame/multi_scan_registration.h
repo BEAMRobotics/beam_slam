@@ -22,35 +22,42 @@ public:
   void SetFixedCovariance(const Eigen::Matrix<double, 6, 6>& covariance);
 
   fuse_core::Transaction::SharedPtr
-      RegisterNewScan(const std::shared_ptr<ScanPose>& new_scan);
+      RegisterNewScan(const ScanPose& new_scan);
 
   void UpdateScanPoses(fuse_core::Graph::ConstSharedPtr graph_msg);
 
-  inline std::list<std::shared_ptr<ScanPose>>::iterator Begin() {
+  void RemoveMissingScans(fuse_core::Graph::ConstSharedPtr graph_msg,
+                          bool require_one_update = true);
+
+  inline std::list<ScanPose>::iterator Begin() {
     return reference_clouds_.begin();
   }
 
-  inline std::list<std::shared_ptr<ScanPose>>::iterator End() {
+  inline std::list<ScanPose>::iterator End() {
     return reference_clouds_.end();
   }
 
-  std::shared_ptr<ScanPose> GetScan(const ros::Time& t);
+  inline int GetNumStoredScans(){
+    return reference_clouds_.size();
+  }
+
+  ScanPose GetScan(const ros::Time& t, bool& success);
 
   void PrintScanDetails(std::ostream& stream = std::cout);
 
 private:
-  bool MatchScans(const std::shared_ptr<ScanPose>& scan_pose_1,
-                  const std::shared_ptr<ScanPose>& scan_pose_2,
+  bool MatchScans(const ScanPose& scan_pose_1,
+                  const ScanPose& scan_pose_2,
                   Eigen::Matrix4d& T_CLOUD1_CLOUD2,
                   Eigen::Matrix<double, 6, 6>& covariance);
 
   bool PassedThreshold(const Eigen::Matrix4d& T_measured,
                        const Eigen::Matrix4d& T_estimated);
 
-  void AddPrior(const std::shared_ptr<ScanPose>& scan,
+  void AddPrior(const ScanPose& scan,
                 fuse_core::Transaction::SharedPtr transaction);
 
-  std::list<std::shared_ptr<ScanPose>> reference_clouds_;
+  std::list<ScanPose> reference_clouds_;
   std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
   int num_neighbors_;
   double outlier_threshold_t_;
@@ -63,7 +70,8 @@ private:
   // Extra debugging tools: these must be set here, not in the config file
   bool output_scan_registration_results_{true};
   std::string current_scan_path_;
-  std::string tmp_output_path_{"/home/nick/results/beam_slam/scan_registration/"};
+  std::string tmp_output_path_{
+      "/home/nick/results/beam_slam/scan_registration/"};
   PointCloudColPtr coord_frame_;
 };
 

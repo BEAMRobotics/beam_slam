@@ -715,32 +715,31 @@ TEST_CASE("Test multi scan registration transactions and updates") {
   covariance = covariance * 0.1;
   multi_scan_registration->SetFixedCovariance(covariance);
 
-  // get transactions for each new scan
-  auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
-  auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
-  auto transaction3 = multi_scan_registration->RegisterNewScan(SP3_pert);
-
-  // Create the graph and add transactions
+  // Create the graph
   fuse_core::Graph::SharedPtr graph = fuse_graphs::HashGraph::make_shared();
+
+  // add transactions
+  auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
   graph->update(*transaction1);
+  graph->addConstraint(data_.prior);
+  graph->optimize();
   REQUIRE(graph->variableExists(SP1->Position()->uuid()));
   REQUIRE(!graph->variableExists(SP2_pert->Position()->uuid()));
   REQUIRE(!graph->variableExists(SP3_pert->Position()->uuid()));
+  auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
   graph->update(*transaction2);
+  graph->optimize();
   REQUIRE(graph->variableExists(SP1->Position()->uuid()));
   REQUIRE(graph->variableExists(SP2_pert->Position()->uuid()));
   REQUIRE(!graph->variableExists(SP3_pert->Position()->uuid()));
+  auto transaction3 = multi_scan_registration->RegisterNewScan(SP3_pert);
   graph->update(*transaction3);
+  graph->optimize();
   REQUIRE(graph->variableExists(SP1->Position()->uuid()));
   REQUIRE(graph->variableExists(SP2_pert->Position()->uuid()));
   REQUIRE(graph->variableExists(SP3_pert->Position()->uuid()));
 
-  // Add prior on first pose
-  graph->addConstraint(data_.prior);
-
-  // Optimize the constraints and variables.
-  graph->optimize();
-
+  // Check results
   auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
       graph->getVariable(SP1->Position()->uuid()));
   auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
@@ -763,24 +762,41 @@ TEST_CASE("Test multi scan registration transactions and updates") {
   REQUIRE(VectorsEqual(SP3->Orientation()->data(), o3.data(), 4));
 
   // test updating scan poses from graph msg
-  for (int update = 1; update < 6; update++) {
-    multi_scan_registration->UpdateScanPoses(graph);
-    auto SP1_ = multi_scan_registration->GetScan(SP1->Stamp());
-    auto SP2_ = multi_scan_registration->GetScan(SP2->Stamp());
-    auto SP3_ = multi_scan_registration->GetScan(SP3->Stamp());
-    REQUIRE(VectorsEqual(SP1->Position()->data(), SP1_->Position()->data(), 3));
-    REQUIRE(VectorsEqual(SP1->Orientation()->data(),
-                         SP1_->Orientation()->data(), 4));
-    REQUIRE(SP1_->Updates() == update);
-    REQUIRE(VectorsEqual(SP2->Position()->data(), SP2_->Position()->data(), 3));
-    REQUIRE(VectorsEqual(SP2->Orientation()->data(),
-                         SP2_->Orientation()->data(), 4));
-    REQUIRE(SP2_->Updates() == update);
-    REQUIRE(VectorsEqual(SP3->Position()->data(), SP3_->Position()->data(), 3));
-    REQUIRE(VectorsEqual(SP3->Orientation()->data(),
-                         SP3_->Orientation()->data(), 4));
-    REQUIRE(SP3_->Updates() == update);
-  }
+
+  auto SP1_ = multi_scan_registration->GetScan(SP1->Stamp());
+  auto SP2_ = multi_scan_registration->GetScan(SP2->Stamp());
+  auto SP3_ = multi_scan_registration->GetScan(SP3->Stamp());
+  REQUIRE(SP1_->Updates() == 0);
+  REQUIRE(!VectorsEqual(SP2->Position()->data(), SP2_->Position()->data(), 3));
+  REQUIRE(
+      !VectorsEqual(SP2->Orientation()->data(), SP2_->Orientation()->data(), 4));
+  REQUIRE(SP2_->Updates() == 0);
+  REQUIRE(!VectorsEqual(SP3->Position()->data(), SP3_->Position()->data(), 3));
+  REQUIRE(
+      !VectorsEqual(SP3->Orientation()->data(), SP3_->Orientation()->data(), 4));
+  REQUIRE(SP3_->Updates() == 0);
+  multi_scan_registration->UpdateScanPoses(graph);
+  SP1_ = multi_scan_registration->GetScan(SP1->Stamp());
+  SP2_ = multi_scan_registration->GetScan(SP2->Stamp());
+  SP3_ = multi_scan_registration->GetScan(SP3->Stamp());
+  REQUIRE(VectorsEqual(SP1->Position()->data(), SP1_->Position()->data(), 3));
+  REQUIRE(
+      VectorsEqual(SP1->Orientation()->data(), SP1_->Orientation()->data(), 4));
+  REQUIRE(SP1_->Updates() == 1);
+  REQUIRE(VectorsEqual(SP2->Position()->data(), SP2_->Position()->data(), 3));
+  REQUIRE(
+      VectorsEqual(SP2->Orientation()->data(), SP2_->Orientation()->data(), 4));
+  REQUIRE(SP2_->Updates() == 1);
+  REQUIRE(VectorsEqual(SP3->Position()->data(), SP3_->Position()->data(), 3));
+  REQUIRE(
+      VectorsEqual(SP3->Orientation()->data(), SP3_->Orientation()->data(), 4));
+  REQUIRE(SP3_->Updates() == 1);
+
+  //   // save clouds:
+  //   std::string save_path = "/home/nick/tmp/";
+  //   SP1_->Save(save_path);
+  //   SP2_->Save(save_path);
+  //   SP3_->Save(save_path);
 }
 
 TEST_CASE("Test multi scan registration with different num_neighbors") {
@@ -953,7 +969,7 @@ TEST_CASE("Test multi scan registration with different registration cases") {
   // create two bad ScanPose objects and make sure that no transactions are
   // added
   Eigen::VectorXd perturb(6);
-  perturb << -45, 30, 20, 10, -5, 4;
+  perturb << -45, 30, 90, 10, -10, 8;
   Eigen::Matrix4d T_WORLD_S4_pert =
       beam::PerturbTransformDegM(data_.T_WORLD_S3, perturb);
   std::shared_ptr<beam_models::frame_to_frame::ScanPose> SP4_BADINIT =
