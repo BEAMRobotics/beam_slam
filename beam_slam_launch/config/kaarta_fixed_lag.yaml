@@ -2,9 +2,6 @@ sensor_models:
   - name: 'scan_matcher_3d'
     type: 'beam_models::frame_to_frame::ScanMatcher3D'
     motion_models: ['unicycle_3d']
-  # - name: 'unicycle_ignition'
-  #   type: 'beam_models::motion::Unicycle3DIgnition'
-  #   ignition: true
 
 motion_models:
   - name: 'unicycle_3d'
@@ -28,16 +25,7 @@ solver_options:
   function_tolerance: 0.00000015
 
 optimization_frequency: 1
-lag_duration: 10
-
-# unicycle_ignition:
-#   publish_on_startup: true
-#   process_noise_diagonal: [1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9]
-#   buffer_length: 10 # Default: 3
+lag_duration: 20
 
 unicycle_3d:
   process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
@@ -50,7 +38,6 @@ unicycle_3d:
 scan_matcher_3d:
   type: 'ICP' # Options: ICP, NDT, GICP (TODO: LIBPOINTMATCHER, TEASER, LOAM)
   differential: false # Default: false
-  queue_size: 10 # Subscriber queue size. Default: 10
   downsample_size: 0.05 # voxel size (m) for downsample filter. Default: 0.03
   outlier_threshold_t: 0.3 # reject scan registration measurements that surpass this translation (m). Set to zero to ignore. Default: 0.5
   outlier_threshold_r: 20 # reject scan registration measurements that surpass this rotation (deg). Set to zero to ignore. Default: 30
@@ -58,8 +45,9 @@ scan_matcher_3d:
   pointcloud_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'ODOMETRY' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/integrated_to_init' # for ODOMETRY: topic, for POSEFILE: path
-  num_neighbors: 3 # how many neighboring scans to register against
+  num_neighbors: 7 # how many neighboring scans to register against
   matcher_params_path: '/home/nick/config/slam/icp.json' # Defaults to params in libbeam
+  matcher_noise_diagonal: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01] # fixed covariance diagonal for matcher results. Set all to zero to use pre-computer covariance from matcher (NOT TESTED)
   fix_first_scan: true # set this to true if no ignition is used
   # scan_output_directory: '' # Outputs scans as PCD files IFF not empty
   scan_output_directory: '/home/nick/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty

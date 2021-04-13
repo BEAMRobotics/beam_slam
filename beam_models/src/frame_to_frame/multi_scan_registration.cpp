@@ -9,14 +9,8 @@ namespace beam_models { namespace frame_to_frame {
 
 MultiScanRegistration::MultiScanRegistration(
     std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher,
-    int num_neighbors, double outlier_threshold_t, double outlier_threshold_r,
-    const std::string& source, bool fix_first_scan)
-    : matcher_(std::move(matcher)),
-      num_neighbors_(num_neighbors),
-      outlier_threshold_t_(outlier_threshold_t),
-      outlier_threshold_r_(outlier_threshold_r),
-      source_(source),
-      fix_first_scan_(fix_first_scan) {
+    const Params& params)
+    : matcher_(std::move(matcher)), params_(params) {
   // if outputting results, clear output folder:
   if (!output_scan_registration_results_) { return; }
 
@@ -40,14 +34,18 @@ fuse_core::Transaction::SharedPtr
   // Create a transaction object
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(new_scan.Stamp());
-  transaction->addVariable(new_scan.PositionPtr(), true);
-  transaction->addVariable(new_scan.OrientationPtr(), true);
+  ScanPose sp_tmp = new_scan;
+  auto pos = fuse_variables::Position3DStamped::make_shared(sp_tmp.Position());
+  auto _or =
+      fuse_variables::Orientation3DStamped::make_shared(sp_tmp.Orientation());
+  transaction->addVariable(pos, true);
+  transaction->addVariable(_or, true);
   transaction->addInvolvedStamp(new_scan.Stamp());
 
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
     reference_clouds_.push_front(new_scan);
-    if (fix_first_scan_) { AddPrior(new_scan, transaction); }
+    if (params_.fix_first_scan) { AddPrior(new_scan, transaction); }
     return transaction;
   }
 
@@ -56,6 +54,8 @@ fuse_core::Transaction::SharedPtr
         tmp_output_path_ + std::to_string(new_scan.Stamp().toSec()) + "/";
     boost::filesystem::create_directory(current_scan_path_);
   }
+
+  RemoveOldScans(new_scan.Stamp());
 
   int counter = 0;
   int num_constraints = 0;
@@ -82,7 +82,7 @@ fuse_core::Transaction::SharedPtr
     // create and add constraint
     auto constraint =
         fuse_constraints::RelativePose3DStampedConstraint::make_shared(
-            source_, ref_iter->Position(), ref_iter->Orientation(),
+            params_.source, ref_iter->Position(), ref_iter->Orientation(),
             (new_scan.Position()), (new_scan.Orientation()), pose_relative_mean,
             covariance);
 
@@ -95,7 +95,7 @@ fuse_core::Transaction::SharedPtr
   if (num_constraints == 0) { return nullptr; }
 
   // add cloud to reference cloud list and remove last
-  if (reference_clouds_.size() == num_neighbors_) {
+  if (reference_clouds_.size() == params_.num_neighbors) {
     reference_clouds_.pop_back();
   }
   reference_clouds_.push_front(new_scan);
@@ -113,7 +113,8 @@ bool MultiScanRegistration::PassedThreshold(
   double r_error = std::abs(Eigen::AngleAxis<double>(R1).angle() -
                             Eigen::AngleAxis<double>(R2).angle());
 
-  if (t_error > outlier_threshold_t_ || r_error > outlier_threshold_r_) {
+  if (t_error > params_.outlier_threshold_t ||
+      r_error > params_.outlier_threshold_r) {
     return false;
   }
   return true;
@@ -124,6 +125,20 @@ void MultiScanRegistration::UpdateScanPoses(
   for (auto iter = reference_clouds_.begin(); iter != reference_clouds_.end();
        iter++) {
     iter->Update(graph_msg);
+  }
+}
+
+void MultiScanRegistration::RemoveOldScans(const ros::Time& new_scan_time) {
+  if (params_.lag_duration == 0) { return; }
+
+  auto i = reference_clouds_.begin();
+  while (i != reference_clouds_.end()) {
+    // remove scan if new_scan_time - ref_scan_time > lag_duration
+    if (new_scan_time - i->Stamp() > ros::Duration(params_.lag_duration)) {
+      reference_clouds_.erase(i++);
+    } else {
+      ++i;
+    }
   }
 }
 
@@ -242,12 +257,13 @@ bool MultiScanRegistration::MatchScans(
 
 ScanPose MultiScanRegistration::GetScan(const ros::Time& t, bool& success) {
   for (auto iter = Begin(); iter != End(); iter++) {
-    if (iter->Stamp() == t) { 
+    if (iter->Stamp() == t) {
       success = true;
-      return *iter; }
+      return *iter;
+    }
   }
   success = false;
-  return ScanPose();
+  return ScanPose(ros::Time(0), Eigen::Matrix4d::Identity(), PointCloud());
 }
 
 void MultiScanRegistration::PrintScanDetails(std::ostream& stream) {

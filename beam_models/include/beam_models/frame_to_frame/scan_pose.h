@@ -1,7 +1,7 @@
 #pragma once
 
-#include <beam_utils/pointclouds.h>
 #include <beam_utils/math.h>
+#include <beam_utils/pointclouds.h>
 
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>
@@ -19,10 +19,9 @@ public:
            const PointCloud& pc)
       : stamp_(time), pointcloud_(pc), T_WORLD_CLOUD_initial_(T_WORLD_CLOUD) {
     // create fuse variables
-    position_ = fuse_variables::Position3DStamped(
-        time, fuse_core::uuid::NIL);
-    orientation_ = fuse_variables::Orientation3DStamped(
-        time, fuse_core::uuid::NIL);
+    position_ = fuse_variables::Position3DStamped(time, fuse_core::uuid::NIL);
+    orientation_ =
+        fuse_variables::Orientation3DStamped(time, fuse_core::uuid::NIL);
 
     // add transform
     position_.x() = T_WORLD_CLOUD(0, 3);
@@ -54,30 +53,20 @@ public:
     return (std::abs(stamp_.toSec() - time.toSec()) <= tolerance);
   }
 
-  int Updates() { return updates_; }
+  int Updates() const { return updates_; }
 
   bool operator<(const ScanPose& rhs) const { return (stamp_ < rhs.stamp_); }
 
-  fuse_variables::Position3DStamped Position() const {
-    return position_;
-  }
+  fuse_variables::Position3DStamped Position() const { return position_; }
 
   fuse_variables::Orientation3DStamped Orientation() const {
     return orientation_;
   }
 
-  fuse_variables::Position3DStamped::SharedPtr PositionPtr() const {
-    return fuse_variables::Position3DStamped::make_shared(position_);
-  }
-
-  fuse_variables::Orientation3DStamped::SharedPtr OrientationPtr() const {
-    return fuse_variables::Orientation3DStamped::make_shared(orientation_);
-  }
-
   Eigen::Matrix4d T_WORLD_CLOUD() const {
     Eigen::Matrix4d T_WORLD_CLOUD{Eigen::Matrix4d::Identity()};
-    Eigen::Quaterniond q(orientation_.w(), orientation_.x(),
-                         orientation_.y(), orientation_.z());
+    Eigen::Quaterniond q(orientation_.w(), orientation_.x(), orientation_.y(),
+                         orientation_.z());
     T_WORLD_CLOUD.block(0, 3, 3, 1) =
         Eigen::Vector3d{position_.x(), position_.y(), position_.z()};
     T_WORLD_CLOUD.block(0, 0, 3, 3) = q.toRotationMatrix();
@@ -91,6 +80,7 @@ public:
   void Print(std::ostream& stream = std::cout) const {
     stream << "  Stamp: " << stamp_ << "\n"
            << "  Cloud size: " << pointcloud_.size() << "\n"
+           << "  Number of Updates: " << updates_ << "\n"
            << "  Position:\n"
            << "  - x: " << position_.x() << "\n"
            << "  - y: " << position_.y() << "\n"
@@ -141,7 +131,7 @@ public:
     ROS_DEBUG("Saved cloud with stamp: %.5f", stamp_.toSec());
   }
 
-  const Eigen::Matrix4d T_WORLD_CLOUD_INIT() { return T_WORLD_CLOUD_initial_; }
+  const Eigen::Matrix4d T_WORLD_CLOUD_INIT() const { return T_WORLD_CLOUD_initial_; }
 
 protected:
   ros::Time stamp_;

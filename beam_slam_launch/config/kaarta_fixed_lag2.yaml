@@ -2,9 +2,6 @@ sensor_models:
   - name: 'scan_matcher_3d'
     type: 'beam_models::frame_to_frame::ScanMatcher3D'
     motion_models: ['unicycle_3d']
-  # - name: 'unicycle_ignition'
-  #   type: 'beam_models::motion::Unicycle3DIgnition'
-  #   ignition: true
 
 motion_models:
   - name: 'unicycle_3d'
@@ -29,15 +26,6 @@ solver_options:
 
 optimization_frequency: 1
 lag_duration: 10
-
-# unicycle_ignition:
-#   publish_on_startup: true
-#   process_noise_diagonal: [1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9]
-#   buffer_length: 10 # Default: 3
 
 unicycle_3d:
   process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,

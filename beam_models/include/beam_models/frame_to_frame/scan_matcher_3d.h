@@ -69,9 +69,10 @@ protected:
   using PointCloudThrottledCallback =
       fuse_models::common::ThrottledCallback<sensor_msgs::PointCloud2>;
   PointCloudThrottledCallback throttled_callback_;
+  // double lag_duration_{1000};
 
   // Extra debugging tools: these must be set here, not in the config file
-  bool output_graph_updates_{true};
+  bool output_graph_updates_{false};
   int updates_{0};
   std::string graph_updates_path_ =
       "/home/nick/results/beam_slam/graph_updates/";

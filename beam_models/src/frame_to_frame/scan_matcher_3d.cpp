@@ -51,14 +51,26 @@ void ScanMatcher3D::onInit() {
     throw std::runtime_error(error);
   }
 
+  MultiScanRegistration::Params scan_reg_params{
+      .num_neighbors = params_.num_neighbors,
+      .outlier_threshold_t = params_.outlier_threshold_t,
+      .outlier_threshold_r = params_.outlier_threshold_r,
+      .source = name(),
+      .lag_duration = params_.lag_duration,
+      .fix_first_scan = params_.fix_first_scan};
   multi_scan_registration_ = std::make_unique<MultiScanRegistration>(
-      std::move(matcher), params_.num_neighbors, params_.outlier_threshold_t,
-      params_.outlier_threshold_r, name(), params_.fix_first_scan);
+      std::move(matcher), scan_reg_params);
 
-  // Eigen::Matrix<double, 6, 1> cov_dia;
-  // cov_dia << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1;
-  // Eigen::Matrix<double, 6, 6> covariance = cov_dia.asDiagonal();
-  // multi_scan_registration_->SetFixedCovariance(covariance);
+  // set covariance if not set to zero in config
+  if (std::accumulate(params_.matcher_noise_diagonal.begin(),
+                      params_.matcher_noise_diagonal.end(), 0.0) > 0) {
+    Eigen::Matrix<double, 6, 6> covariance;
+    covariance.setIdentity();
+    for (int i = 0; i < 6; i++) {
+      covariance(i, i) = params_.matcher_noise_diagonal[i];
+    }
+    multi_scan_registration_->SetFixedCovariance(covariance);
+  }
 
   // init frame initializer
   if (params_.frame_initializer_type == "ODOMETRY") {
@@ -96,8 +108,8 @@ void ScanMatcher3D::onInit() {
 
 void ScanMatcher3D::onStart() {
   pointcloud_subscriber_ = node_handle_.subscribe(
-      params_.pointcloud_topic, params_.queue_size,
-      &PointCloudThrottledCallback::callback, &throttled_callback_);
+      params_.pointcloud_topic, 10, &PointCloudThrottledCallback::callback,
+      &throttled_callback_);
 }
 
 void ScanMatcher3D::onStop() {
@@ -131,7 +143,8 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     return;
   }
 
-  ScanPose current_scan_pose(msg->header.stamp, T_WORLD_CLOUDCURRENT, *cloud_current);
+  ScanPose current_scan_pose(msg->header.stamp, T_WORLD_CLOUDCURRENT,
+                             *cloud_current);
 
   // if outputting scans, add to the active list
   if (!params_.scan_output_directory.empty() || output_graph_updates_) {
@@ -154,16 +167,6 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
   std::string update_time =
       beam::ConvertTimeToDate(std::chrono::system_clock::now());
-
-  // remove all scan registration clouds that have been factored out of graph
-  // TODO: check this by setting lag_duration < num_neighbors * time_between_scans
-  // multi_scan_registration_->RemoveMissingScans(graph_msg);
-
-  // update only reference clouds if we are not storing all clouds in the graph
-  if (params_.scan_output_directory.empty() && !output_graph_updates_) {
-    multi_scan_registration_->UpdateScanPoses(graph_msg);
-    return;
-  }
 
   auto i = active_clouds_.begin();
   while (i != active_clouds_.end()) {
@@ -198,9 +201,5 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     iter->Save(curent_path);
   }
 }
-
-// void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
-//   multi_scan_registration_->UpdateScanPoses(graph_msg);
-// }
 
 }} // namespace beam_models::frame_to_frame
