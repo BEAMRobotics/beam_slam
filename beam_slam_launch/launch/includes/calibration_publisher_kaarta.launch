@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+<!-- If extrinsics_file_path is empty, it will use the robot_name to lookup the extrinsics 
+  calibration json file so it has to be consistent with the folder names-->
+  <arg name="robot_name" default="kaarta"/>
+  <arg name="extrinsics_file_path" default="$(find beam_slam_launch)/calibrations/extrinsics_kaarta.json"/>
+
+  <node name="calibration_publisher_main" pkg="calibration_publisher" type="calibration_publisher_main">
+    <param name="robot_name" value="$(arg robot_name)"/>
+    <param name="extrinsics_file_path" value="$(arg extrinsics_file_path)"/>
+  </node>
+
+</launch>

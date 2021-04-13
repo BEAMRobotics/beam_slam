@@ -40,7 +40,7 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_WORLD_BASELINK,
 
   ros::Time lookup_time = ros::Time(0);
   if (!params_.static_extrinsics) { lookup_time = time; }
-  
+
   tf::StampedTransform TROS_BASELINK_SENSOR;
   try {
     tf_listener_.lookupTransform(params_.baselink_frame, params_.sensor_frame,
@@ -48,7 +48,8 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_WORLD_BASELINK,
     extrinsics_set_ = true;
   } catch (tf::TransformException& ex) {
     if (params_.static_extrinsics) {
-      BEAM_WARN("Cannot lookup static extrinsics.");
+      BEAM_WARN("Cannot lookup static extrinsics between frames: {} , {}",
+                params_.baselink_frame, params_.sensor_frame);
     } else {
       BEAM_WARN("Cannot lookup dynamic extrinsics for t = %.10f",
                 lookup_time.toSec());
@@ -58,9 +59,9 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_WORLD_BASELINK,
 
   // convert to Eigen matrix
   Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
-  T(0,3) = TROS_BASELINK_SENSOR.getOrigin().getX();
-  T(1,3) = TROS_BASELINK_SENSOR.getOrigin().getY();
-  T(2,3) = TROS_BASELINK_SENSOR.getOrigin().getZ();
+  T(0, 3) = TROS_BASELINK_SENSOR.getOrigin().getX();
+  T(1, 3) = TROS_BASELINK_SENSOR.getOrigin().getY();
+  T(2, 3) = TROS_BASELINK_SENSOR.getOrigin().getZ();
   Eigen::Quaternionf q;
   q.x() = TROS_BASELINK_SENSOR.getRotation().getX();
   q.y() = TROS_BASELINK_SENSOR.getRotation().getY();

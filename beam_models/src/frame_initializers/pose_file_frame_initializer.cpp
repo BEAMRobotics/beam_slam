@@ -29,15 +29,14 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   } else if (extension == ".ply") {
     poses_reader.LoadFromPLY(file_path);
   } else {
-    ROS_ERROR("Invalid file extension for pose file. Options: .json, .txt, .ply");
+    ROS_ERROR(
+        "Invalid file extension for pose file. Options: .json, .txt, .ply");
     throw std::invalid_argument{"Invalid extensions type."};
   }
 
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
       transforms = poses_reader.GetPoses();
   std::vector<ros::Time> timestamps = poses_reader.GetTimeStamps();
-
-  std::shared_ptr<tf2::BufferCore> poses = std::make_shared<tf2::BufferCore>();
 
   if (_baselink_frame_id.empty()) {
     _baselink_frame_id = poses_reader.GetFixedFrame();
@@ -54,6 +53,14 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   }
 
   if (_sensor_frame_id.empty()) { _sensor_frame_id = _baselink_frame_id; }
+
+  // create buffer core with cache time slightly larger than the difference
+  // between the min and max timestamps. Also include a minimum
+  double cache_time = 1.2 * (timestamps[timestamps.size() - 1].toSec() -
+                             timestamps[0].toSec());
+  if (cache_time < 10) { cache_time = 10; }
+  std::shared_ptr<tf2::BufferCore> poses =
+      std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
 
   for (int i = 0; i < transforms.size(); i++) {
     geometry_msgs::TransformStamped tf_stamped;
@@ -79,7 +86,8 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
       .sensor_frame = _sensor_frame_id,
       .baselink_frame = _baselink_frame_id,
       .world_frame = _world_frame_id,
-      .static_extrinsics = static_extrinsics,};
+      .static_extrinsics = static_extrinsics,
+  };
   pose_lookup_ = std::make_unique<beam_common::PoseLookup>(pose_lookup_params);
 }
 
