@@ -1,7 +1,7 @@
 #pragma once
 
-#include <beam_utils/pointclouds.h>
 #include <beam_utils/math.h>
+#include <beam_utils/pointclouds.h>
 
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>
@@ -16,34 +16,33 @@ public:
   ScanPose() = default;
 
   ScanPose(const ros::Time& time, const Eigen::Matrix4d& T_WORLD_CLOUD,
-           PointCloudPtr pc)
+           const PointCloud& pc)
       : stamp_(time), pointcloud_(pc), T_WORLD_CLOUD_initial_(T_WORLD_CLOUD) {
     // create fuse variables
-    position_ = fuse_variables::Position3DStamped::make_shared(
-        time, fuse_core::uuid::NIL);
-    orientation_ = fuse_variables::Orientation3DStamped::make_shared(
-        time, fuse_core::uuid::NIL);
+    position_ = fuse_variables::Position3DStamped(time, fuse_core::uuid::NIL);
+    orientation_ =
+        fuse_variables::Orientation3DStamped(time, fuse_core::uuid::NIL);
 
     // add transform
-    position_->x() = T_WORLD_CLOUD(0, 3);
-    position_->y() = T_WORLD_CLOUD(1, 3);
-    position_->z() = T_WORLD_CLOUD(2, 3);
+    position_.x() = T_WORLD_CLOUD(0, 3);
+    position_.y() = T_WORLD_CLOUD(1, 3);
+    position_.z() = T_WORLD_CLOUD(2, 3);
     Eigen::Matrix3d R = T_WORLD_CLOUD.block(0, 0, 3, 3);
     Eigen::Quaterniond q(R);
-    orientation_->x() = q.x();
-    orientation_->y() = q.y();
-    orientation_->z() = q.z();
-    orientation_->w() = q.w();
+    orientation_.x() = q.x();
+    orientation_.y() = q.y();
+    orientation_.z() = q.z();
+    orientation_.w() = q.w();
   }
 
   bool Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
-    if (graph_msg->variableExists(position_->uuid()) &&
-        graph_msg->variableExists(orientation_->uuid())) {
-      *position_ = dynamic_cast<const fuse_variables::Position3DStamped&>(
-          graph_msg->getVariable(position_->uuid()));
+    if (graph_msg->variableExists(position_.uuid()) &&
+        graph_msg->variableExists(orientation_.uuid())) {
+      position_ = dynamic_cast<const fuse_variables::Position3DStamped&>(
+          graph_msg->getVariable(position_.uuid()));
 
-      *orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-          graph_msg->getVariable(orientation_->uuid()));
+      orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+          graph_msg->getVariable(orientation_.uuid()));
       updates_++;
       return true;
     }
@@ -54,60 +53,59 @@ public:
     return (std::abs(stamp_.toSec() - time.toSec()) <= tolerance);
   }
 
-  int Updates() { return updates_; }
+  int Updates() const { return updates_; }
 
   bool operator<(const ScanPose& rhs) const { return (stamp_ < rhs.stamp_); }
 
-  fuse_variables::Position3DStamped::SharedPtr Position() const {
-    return position_;
-  }
+  fuse_variables::Position3DStamped Position() const { return position_; }
 
-  fuse_variables::Orientation3DStamped::SharedPtr Orientation() const {
+  fuse_variables::Orientation3DStamped Orientation() const {
     return orientation_;
   }
 
   Eigen::Matrix4d T_WORLD_CLOUD() const {
     Eigen::Matrix4d T_WORLD_CLOUD{Eigen::Matrix4d::Identity()};
-    Eigen::Quaterniond q(orientation_->w(), orientation_->x(),
-                         orientation_->y(), orientation_->z());
+    Eigen::Quaterniond q(orientation_.w(), orientation_.x(), orientation_.y(),
+                         orientation_.z());
     T_WORLD_CLOUD.block(0, 3, 3, 1) =
-        Eigen::Vector3d{position_->x(), position_->y(), position_->z()};
+        Eigen::Vector3d{position_.x(), position_.y(), position_.z()};
     T_WORLD_CLOUD.block(0, 0, 3, 3) = q.toRotationMatrix();
     return T_WORLD_CLOUD;
   }
 
-  PointCloudPtr Cloud() const { return pointcloud_; }
+  PointCloud Cloud() const { return pointcloud_; }
 
   ros::Time Stamp() const { return stamp_; }
 
   void Print(std::ostream& stream = std::cout) const {
     stream << "  Stamp: " << stamp_ << "\n"
-           << "  Cloud size: " << pointcloud_->size() << "\n"
+           << "  Cloud size: " << pointcloud_.size() << "\n"
+           << "  Number of Updates: " << updates_ << "\n"
            << "  Position:\n"
-           << "  - x: " << position_->x() << "\n"
-           << "  - y: " << position_->y() << "\n"
-           << "  - z: " << position_->z() << "\n"
+           << "  - x: " << position_.x() << "\n"
+           << "  - y: " << position_.y() << "\n"
+           << "  - z: " << position_.z() << "\n"
            << "  Orientation:\n"
-           << "  - x: " << orientation_->x() << "\n"
-           << "  - y: " << orientation_->y() << "\n"
-           << "  - z: " << orientation_->z() << "\n"
-           << "  - w: " << orientation_->w() << "\n";
+           << "  - x: " << orientation_.x() << "\n"
+           << "  - y: " << orientation_.y() << "\n"
+           << "  - z: " << orientation_.z() << "\n"
+           << "  - w: " << orientation_.w() << "\n";
   }
 
   void Save(const std::string& save_path, bool to_world_frame = true,
             bool add_frame = true) {
     std::string file_name_prefix = save_path + std::to_string(stamp_.toSec());
     if (!to_world_frame) {
-      pcl::io::savePCDFileASCII(file_name_prefix + ".pcd", *pointcloud_);
+      pcl::io::savePCDFileASCII(file_name_prefix + ".pcd", pointcloud_);
       return;
     }
 
     PointCloudPtr cloud_initial = boost::make_shared<PointCloud>();
     PointCloudPtr cloud_final = boost::make_shared<PointCloud>();
 
-    pcl::transformPointCloud(*pointcloud_, *cloud_initial,
+    pcl::transformPointCloud(pointcloud_, *cloud_initial,
                              T_WORLD_CLOUD_initial_);
-    pcl::transformPointCloud(*pointcloud_, *cloud_final, this->T_WORLD_CLOUD());
+    pcl::transformPointCloud(pointcloud_, *cloud_final, this->T_WORLD_CLOUD());
 
     PointCloudColPtr cloud_initial_col =
         beam::ColorPointCloud(cloud_initial, 255, 0, 0);
@@ -133,16 +131,14 @@ public:
     ROS_DEBUG("Saved cloud with stamp: %.5f", stamp_.toSec());
   }
 
-  const Eigen::Matrix4d T_WORLD_CLOUD_INIT() { return T_WORLD_CLOUD_initial_; }
-
-  using Ptr = std::shared_ptr<ScanPose>;
+  const Eigen::Matrix4d T_WORLD_CLOUD_INIT() const { return T_WORLD_CLOUD_initial_; }
 
 protected:
   ros::Time stamp_;
   int updates_{0};
-  fuse_variables::Position3DStamped::SharedPtr position_;
-  fuse_variables::Orientation3DStamped::SharedPtr orientation_;
-  PointCloudPtr pointcloud_;
+  fuse_variables::Position3DStamped position_;
+  fuse_variables::Orientation3DStamped orientation_;
+  PointCloud pointcloud_;
   const Eigen::Matrix4d T_WORLD_CLOUD_initial_;
 };
 

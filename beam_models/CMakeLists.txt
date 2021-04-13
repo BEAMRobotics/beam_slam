@@ -106,7 +106,10 @@ add_dependencies(
 )
 
 
-######## TESTS ############
+#############
+## Testing ##
+#############
+
 add_executable(${PROJECT_NAME}_scan_matcher_3d_tests
   tests/scan_matcher_3d_tests.cpp
 )
@@ -120,9 +123,6 @@ target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_tests
 )
 
 #[[
-#############
-## Testing ##
-#############
 
 # Model tests
 catkin_add_gtest(test_unicycle_2d

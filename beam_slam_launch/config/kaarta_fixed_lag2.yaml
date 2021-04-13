@@ -2,9 +2,6 @@ sensor_models:
   - name: 'scan_matcher_3d'
     type: 'beam_models::frame_to_frame::ScanMatcher3D'
     motion_models: ['unicycle_3d']
-  # - name: 'unicycle_ignition'
-  #   type: 'beam_models::motion::Unicycle3DIgnition'
-  #   ignition: true
 
 motion_models:
   - name: 'unicycle_3d'
@@ -30,15 +27,6 @@ solver_options:
 optimization_frequency: 1
 lag_duration: 10
 
-# unicycle_ignition:
-#   publish_on_startup: true
-#   process_noise_diagonal: [1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9, 
-#                            1.0e-9, 1.0e-9, 1.0e-9]
-#   buffer_length: 10 # Default: 3
-
 unicycle_3d:
   process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
                            1.0e-2, 1.0e-2, 1.0e-2,
@@ -58,7 +46,7 @@ scan_matcher_3d:
   pointcloud_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
-  num_neighbors: 3 # how many neighboring scans to register against
+  num_neighbors: 10 # how many neighboring scans to register against
   matcher_params_path: '/home/nick/config/slam/icp.json' # Defaults to params in libbeam
   fix_first_scan: true # set this to true if no ignition is used
   # scan_output_directory: '' # Outputs scans as PCD files IFF not empty
