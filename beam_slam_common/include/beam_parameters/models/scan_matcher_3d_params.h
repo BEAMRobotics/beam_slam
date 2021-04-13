@@ -27,8 +27,8 @@ public:
     getParam<double>(nh, "outlier_threshold_r", outlier_threshold_r, 30);
     getParam<std::string>(nh, "frame_initializer_type", frame_initializer_type,
              frame_initializer_type);
-    getParam<std::string>(nh, "frame_initializer_topic", frame_initializer_topic,
-             frame_initializer_topic);
+    getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
+             frame_initializer_info);
     getParamRequired<std::string>(nh, "pointcloud_topic", pointcloud_topic);
     getParamRequired<std::string>(nh, "pointcloud_frame", pointcloud_frame);
     getParam<bool>(nh, "fix_first_scan", fix_first_scan, false);
@@ -67,7 +67,7 @@ public:
   std::string pointcloud_topic;
   std::string pointcloud_frame;
   std::string frame_initializer_type{"ODOMETRY"};
-  std::string frame_initializer_topic{""};
+  std::string frame_initializer_info{""};
   std::string matcher_params_path;
   std::string scan_output_directory;
 };

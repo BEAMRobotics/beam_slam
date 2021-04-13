@@ -1,6 +1,7 @@
 #pragma once
 
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/math.h>
 
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>
@@ -38,27 +39,12 @@ public:
   bool Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
     if (graph_msg->variableExists(position_->uuid()) &&
         graph_msg->variableExists(orientation_->uuid())) {
-      /////////
-      // std::string filename = "/home/nick/tmp2/" +
-      // std::to_string(stamp_.toSec()) + "_U" + std::to_string(updates_);
-      // PointCloud cloud_initial;
-      // pcl::transformPointCloud(*pointcloud_, cloud_initial,
-      //                          this->T_WORLD_CLOUD());
-      // pcl::io::savePCDFileASCII(filename + "_initial.pcd",
-      //                           cloud_initial);
-      ///////////////
       *position_ = dynamic_cast<const fuse_variables::Position3DStamped&>(
           graph_msg->getVariable(position_->uuid()));
 
       *orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
           graph_msg->getVariable(orientation_->uuid()));
       updates_++;
-      /////////////
-      // PointCloud cloud_final;
-      // pcl::transformPointCloud(*pointcloud_, cloud_final,
-      //                          this->T_WORLD_CLOUD());
-      // pcl::io::savePCDFileASCII(filename + "_final.pcd", cloud_final);
-      ////////////
       return true;
     }
     return false;
