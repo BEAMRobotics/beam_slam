@@ -43,7 +43,7 @@ scan_matcher_3d:
   outlier_threshold_t: 0.3 # reject scan registration measurements that surpass this translation (m). Set to zero to ignore. Default: 0.5
   outlier_threshold_r: 20 # reject scan registration measurements that surpass this rotation (deg). Set to zero to ignore. Default: 30
   pointcloud_topic: '/velodyne_points'
-  pointcloud_frame: 'velodyne' # used to lookup extrinsic calibrations
+  sensor_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
   num_neighbors: 10 # how many neighboring scans to register against

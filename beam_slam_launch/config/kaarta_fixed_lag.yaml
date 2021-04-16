@@ -41,8 +41,8 @@ scan_matcher_3d:
   downsample_size: 0.05 # voxel size (m) for downsample filter. Default: 0.03
   outlier_threshold_t: 0.3 # reject scan registration measurements that surpass this translation (m). Set to zero to ignore. Default: 0.5
   outlier_threshold_r: 20 # reject scan registration measurements that surpass this rotation (deg). Set to zero to ignore. Default: 30
-  pointcloud_topic: '/kaarta/aggregates'
-  pointcloud_frame: 'velodyne' # used to lookup extrinsic calibrations
+  subscriber_topic: '/kaarta/aggregates'
+  sensor_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'ODOMETRY' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/integrated_to_init' # for ODOMETRY: topic, for POSEFILE: path
   num_neighbors: 7 # how many neighboring scans to register against

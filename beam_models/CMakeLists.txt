@@ -82,6 +82,7 @@ add_library(
   ${PROJECT_NAME}
   src/motion/unicycle_3d.cpp
   src/motion/unicycle_3d_ignition.cpp
+  src/frame_to_frame/frame_to_frame_sensor_model_base.cpp
   src/frame_to_frame/scan_matcher_3d.cpp
   src/frame_to_frame/multi_scan_registration.cpp
   src/frame_initializers/frame_initializer_base.cpp

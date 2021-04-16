@@ -13,7 +13,6 @@ struct ParameterBase {
 
   /**
    * @brief Method for loading parameter values from ROS.
-   *
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   virtual void loadFromROS(const ros::NodeHandle& nh) = 0;
@@ -21,7 +20,6 @@ struct ParameterBase {
 
 /**
  * @brief Utility method for handling non-required ROS params
- *
  * @param[in] nh - The ROS node handle with which to load parameters
  * @param[in] key - The ROS parameter key for the required parameter
  * @param[out] value - The ROS parameter value for the \p key
@@ -42,7 +40,6 @@ void getParam(const ros::NodeHandle& nh, const std::string& key, T& value,
 
 /**
  * @brief Utility method for handling required ROS params
- *
  * @param[in] nh - The ROS node handle with which to load parameters
  * @param[in] key - The ROS parameter key for the required parameter
  * @param[out] value - The ROS parameter value for the \p key
