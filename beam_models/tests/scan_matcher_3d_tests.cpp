@@ -482,8 +482,10 @@ TEST_CASE("Test multi scan registration with two scans") {
   covariance = covariance * 0.1;
   multi_scan_registration->SetFixedCovariance(covariance);
 
-  auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
-  auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
+  auto transaction1 =
+      multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
+  auto transaction2 =
+      multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
 
   // validate stamps
   REQUIRE(transaction1->stamp() == SP1.Stamp());
@@ -578,9 +580,12 @@ TEST_CASE("Test multi scan registration with three scans") {
   covariance = covariance * 0.1;
   multi_scan_registration->SetFixedCovariance(covariance);
 
-  auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
-  auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
-  auto transaction3 = multi_scan_registration->RegisterNewScan(SP3_pert);
+  auto transaction1 =
+      multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
+  auto transaction2 =
+      multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
+  auto transaction3 =
+      multi_scan_registration->RegisterNewScan(SP3_pert).GetTransaction();
 
   // validate stamps
   REQUIRE(transaction1->stamp() == SP1.Stamp());
@@ -668,7 +673,6 @@ TEST_CASE("Test multi scan registration transactions and updates") {
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-
   beam_models::frame_to_frame::MultiScanRegistration::Params scan_reg_params{
       .num_neighbors = 3,
       .outlier_threshold_t = 1,
@@ -691,20 +695,23 @@ TEST_CASE("Test multi scan registration transactions and updates") {
   fuse_core::Graph::SharedPtr graph = fuse_graphs::HashGraph::make_shared();
 
   // add transactions
-  auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
+  auto transaction1 =
+      multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
   graph->update(*transaction1);
   graph->addConstraint(data_.prior);
   graph->optimize();
   REQUIRE(graph->variableExists(SP1.Position().uuid()));
   REQUIRE(!graph->variableExists(SP2_pert.Position().uuid()));
   REQUIRE(!graph->variableExists(SP3_pert.Position().uuid()));
-  auto transaction2 = multi_scan_registration->RegisterNewScan(SP2_pert);
+  auto transaction2 =
+      multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
   graph->update(*transaction2);
   graph->optimize();
   REQUIRE(graph->variableExists(SP1.Position().uuid()));
   REQUIRE(graph->variableExists(SP2_pert.Position().uuid()));
   REQUIRE(!graph->variableExists(SP3_pert.Position().uuid()));
-  auto transaction3 = multi_scan_registration->RegisterNewScan(SP3_pert);
+  auto transaction3 =
+      multi_scan_registration->RegisterNewScan(SP3_pert).GetTransaction();
   graph->update(*transaction3);
   graph->optimize();
   REQUIRE(graph->variableExists(SP1.Position().uuid()));
@@ -819,13 +826,19 @@ TEST_CASE("Test multi scan registration with different num_neighbors") {
   multi_scan_registration2->SetFixedCovariance(covariance);
 
   // get transactions for each new scan
-  auto transaction11 = multi_scan_registration1->RegisterNewScan(SP1);
-  auto transaction12 = multi_scan_registration1->RegisterNewScan(SP2_pert);
-  auto transaction13 = multi_scan_registration1->RegisterNewScan(SP3_pert);
+  auto transaction11 =
+      multi_scan_registration1->RegisterNewScan(SP1).GetTransaction();
+  auto transaction12 =
+      multi_scan_registration1->RegisterNewScan(SP2_pert).GetTransaction();
+  auto transaction13 =
+      multi_scan_registration1->RegisterNewScan(SP3_pert).GetTransaction();
 
-  auto transaction21 = multi_scan_registration2->RegisterNewScan(SP1);
-  auto transaction22 = multi_scan_registration2->RegisterNewScan(SP2_pert);
-  auto transaction23 = multi_scan_registration2->RegisterNewScan(SP3_pert);
+  auto transaction21 =
+      multi_scan_registration2->RegisterNewScan(SP1).GetTransaction();
+  auto transaction22 =
+      multi_scan_registration2->RegisterNewScan(SP2_pert).GetTransaction();
+  auto transaction23 =
+      multi_scan_registration2->RegisterNewScan(SP3_pert).GetTransaction();
 
   // Create the graph and add transactions
   fuse_core::Graph::SharedPtr graph1 = fuse_graphs::HashGraph::make_shared();
@@ -936,9 +949,12 @@ TEST_CASE("Test multi scan registration with different registration cases") {
   multi_scan_registration->SetFixedCovariance(covariance);
 
   // get transactions for each new scan
-  auto transaction1 = multi_scan_registration->RegisterNewScan(SP1);
-  auto transaction2 = multi_scan_registration->RegisterNewScan(SP2);
-  auto transaction3 = multi_scan_registration->RegisterNewScan(SP3);
+  auto transaction1 =
+      multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
+  auto transaction2 =
+      multi_scan_registration->RegisterNewScan(SP2).GetTransaction();
+  auto transaction3 =
+      multi_scan_registration->RegisterNewScan(SP3).GetTransaction();
 
   // Create the graph and add transactions
   fuse_core::Graph::SharedPtr graph = fuse_graphs::HashGraph::make_shared();
@@ -956,8 +972,10 @@ TEST_CASE("Test multi scan registration with different registration cases") {
                                                     T_WORLD_S4_pert, data_.S3);
   beam_models::frame_to_frame::ScanPose SP4_EMPTY(ros::Time(3), T_WORLD_S4_pert,
                                                   PointCloud());
-  auto transactionNULL1 = multi_scan_registration->RegisterNewScan(SP4_BADINIT);
-  auto transactionNULL2 = multi_scan_registration->RegisterNewScan(SP4_EMPTY);
+  auto transactionNULL1 =
+      multi_scan_registration->RegisterNewScan(SP4_BADINIT).GetTransaction();
+  auto transactionNULL2 =
+      multi_scan_registration->RegisterNewScan(SP4_EMPTY).GetTransaction();
   REQUIRE(transactionNULL1 == nullptr);
   REQUIRE(transactionNULL2 == nullptr);
 }

@@ -4,32 +4,26 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <ros/param.h>
 
-#include <beam_parameters/parameter_base.h>
+#include <beam_parameters/models/frame_to_frame_parameter_base.h>
 
 namespace beam_parameters { namespace models {
 
 /**
  * @brief Defines the set of parameters required by the ScanMatcher class
  */
-struct ScanMatcher3DParams : public ParameterBase {
+struct ScanMatcher3DParams : public FrameToFrameParameterBase {
 public:
   /**
    * @brief Method for loading parameter values from ROS.
    *
    * @param[in] nh - The ROS node handle with which to load parameters
    */
-  void loadFromROS(const ros::NodeHandle& nh) final {
+  void loadExtraParams(const ros::NodeHandle& nh) final {
     getParamRequired<std::string>(nh, "type", type);
     getParam<int>(nh, "num_neighbors", num_neighbors, 1);
     getParam<float>(nh, "downsample_size", downsample_size, 0.03);
     getParam<double>(nh, "outlier_threshold_t", outlier_threshold_t, 0.03);
     getParam<double>(nh, "outlier_threshold_r", outlier_threshold_r, 30);
-    getParam<std::string>(nh, "frame_initializer_type", frame_initializer_type,
-                          frame_initializer_type);
-    getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
-                          frame_initializer_info);
-    getParamRequired<std::string>(nh, "pointcloud_topic", pointcloud_topic);
-    getParamRequired<std::string>(nh, "pointcloud_frame", pointcloud_frame);
     getParam<bool>(nh, "fix_first_scan", fix_first_scan, false);
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           "");
@@ -63,10 +57,6 @@ public:
   double outlier_threshold_r;
   double lag_duration;
   bool fix_first_scan;
-  std::string pointcloud_topic;
-  std::string pointcloud_frame;
-  std::string frame_initializer_type{"ODOMETRY"};
-  std::string frame_initializer_info{""};
   std::string matcher_params_path;
   std::string scan_output_directory;
 };

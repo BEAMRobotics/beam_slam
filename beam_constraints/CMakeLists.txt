@@ -5,12 +5,14 @@ set(build_depends
   fuse_core
   fuse_graphs
   fuse_variables
+  fuse_constraints
   geometry_msgs
   pluginlib
   roscpp
   tf2
   tf2_geometry_msgs
   tf2_ros
+  beam_slam_common
 )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -41,6 +43,7 @@ catkin_package(
 
 # fuse_constraints library
 add_library(${PROJECT_NAME}
+  src/frame_to_frame/frame_to_frame_transaction_base.cpp
   src/motion/unicycle_3d_state_kinematic_constraint.cpp
 )
 add_dependencies(${PROJECT_NAME}
