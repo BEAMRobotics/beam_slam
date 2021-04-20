@@ -468,6 +468,8 @@ TEST_CASE("Test multi scan registration with two scans") {
       .num_neighbors = 1,
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
+      .min_motion_trans_m = 0,
+      .min_motion_rot_rad = 0,
       .source = "TEST",
       .lag_duration = 100,
       .fix_first_scan = false};
@@ -566,6 +568,8 @@ TEST_CASE("Test multi scan registration with three scans") {
       .num_neighbors = 3,
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
+      .min_motion_trans_m = 0,
+      .min_motion_rot_rad = 0,
       .source = "TEST",
       .lag_duration = 100,
       .fix_first_scan = false};
@@ -677,6 +681,8 @@ TEST_CASE("Test multi scan registration transactions and updates") {
       .num_neighbors = 3,
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
+      .min_motion_trans_m = 0,
+      .min_motion_rot_rad = 0,
       .source = "TEST",
       .lag_duration = 0, // should still work with 0
       .fix_first_scan = false};
@@ -797,6 +803,8 @@ TEST_CASE("Test multi scan registration with different num_neighbors") {
       .num_neighbors = 1,
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
+      .min_motion_trans_m = 0,
+      .min_motion_rot_rad = 0,
       .source = "TEST",
       .lag_duration = 100,
       .fix_first_scan = false};
@@ -810,6 +818,8 @@ TEST_CASE("Test multi scan registration with different num_neighbors") {
       .num_neighbors = 2,
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
+      .min_motion_trans_m = 0,
+      .min_motion_rot_rad = 0,
       .source = "TEST",
       .lag_duration = 100,
       .fix_first_scan = true};
@@ -935,6 +945,8 @@ TEST_CASE("Test multi scan registration with different registration cases") {
       .num_neighbors = 5,
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
+      .min_motion_trans_m = 0,
+      .min_motion_rot_rad = 0,
       .source = "TEST",
       .lag_duration = 100,
       .fix_first_scan = true};

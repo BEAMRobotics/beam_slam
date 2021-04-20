@@ -24,6 +24,8 @@ public:
     int num_neighbors;
     double outlier_threshold_t;
     double outlier_threshold_r;
+    double min_motion_trans_m{0};
+    double min_motion_rot_rad{0};
     std::string source{"MULTISCANREGISTRATION"};
     double lag_duration{0};
     bool fix_first_scan{false};
@@ -64,8 +66,10 @@ private:
                   Eigen::Matrix4d& T_CLOUD1_CLOUD2,
                   Eigen::Matrix<double, 6, 6>& covariance);
 
-  bool PassedThreshold(const Eigen::Matrix4d& T_measured,
-                       const Eigen::Matrix4d& T_estimated);
+  bool PassedMinMotion(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
+
+  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured,
+                          const Eigen::Matrix4d& T_estimated);
 
   std::list<ScanPose> reference_clouds_;
 

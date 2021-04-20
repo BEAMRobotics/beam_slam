@@ -51,6 +51,8 @@ void ScanMatcher3D::onInit() {
       .num_neighbors = params_.num_neighbors,
       .outlier_threshold_t = params_.outlier_threshold_t,
       .outlier_threshold_r = params_.outlier_threshold_r,
+      .min_motion_trans_m = params_.min_motion_trans_m,
+      .min_motion_rot_rad = params_.min_motion_rot_rad,
       .source = name(),
       .lag_duration = params_.lag_duration,
       .fix_first_scan = params_.fix_first_scan};
