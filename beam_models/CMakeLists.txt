@@ -29,7 +29,8 @@ find_package(
     tf2_geometry_msgs
     tf2_ros
     beam_constraints
-    beam_slam_common)
+    beam_slam_common
+		beam_variables)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -60,6 +61,7 @@ catkin_package(
     tf2_ros
     beam_constraints
     beam_slam_common
+		beam_variables
   DEPENDS
     Boost
     CERES
@@ -85,6 +87,8 @@ add_library(
   src/frame_to_frame/frame_to_frame_sensor_model_base.cpp
   src/frame_to_frame/scan_matcher_3d.cpp
   src/frame_to_frame/multi_scan_registration.cpp
+	src/frame_to_frame/imu_3d.cpp
+	src/frame_to_frame/imu_preintegration.cpp
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
