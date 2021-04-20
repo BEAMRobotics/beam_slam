@@ -1,0 +1,7 @@
+<library path="lib/libbeam_variables">
+  <class type="beam_variables::ImuBiasStamped" base_class_type="fuse_core::Variable">
+    <description>
+    	Variable representing IMU bias (Bx, By, Bz) at a specific time, with a specific piece of hardware.
+    </description>
+  </class>
+</library>
