@@ -20,7 +20,7 @@ namespace beam_variables {
  */
 class ImuBiasStamped : public fuse_variables::FixedSizeVariable<3>,
                        public fuse_variables::Stamped {
- public:
+public:
   FUSE_VARIABLE_DEFINITIONS(ImuBiasStamped);
 
   /**
@@ -82,7 +82,7 @@ class ImuBiasStamped : public fuse_variables::FixedSizeVariable<3>,
    */
   void print(std::ostream& stream = std::cout) const override;
 
- private:
+private:
   // Allow Boost Serialization access to private methods
   friend class boost::serialization::access;
 
