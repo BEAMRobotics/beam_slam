@@ -44,6 +44,9 @@ catkin_package(
 # fuse_constraints library
 add_library(${PROJECT_NAME}
   src/frame_to_frame/frame_to_frame_transaction_base.cpp
+	src/frame_to_frame/relative_pose_with_velocity_3d_stamped_constraint.cpp
+	src/global/absolute_constraint.cpp
+	src/global/absolute_pose_with_velocity_3d_stamped_constraint.cpp
   src/motion/unicycle_3d_state_kinematic_constraint.cpp
 )
 add_dependencies(${PROJECT_NAME}
@@ -61,3 +64,65 @@ target_link_libraries(${PROJECT_NAME}
   ${CERES_LIBRARIES}
   ${EIGEN3_LIBRARIES}
 )
+
+##########
+## Test ##
+##########
+
+if(CATKIN_ENABLE_TESTING)
+  find_package(roslint REQUIRED)
+  find_package(rostest REQUIRED)
+
+  # Lint tests
+  set(ROSLINT_CPP_OPTS "--filter=-build/c++11,-runtime/references")
+  roslint_cpp()
+  roslint_add_test()
+
+	# Absolute Pose With Velocity 3D Stamped Constraint Tests
+  catkin_add_gtest(test_absolute_pose_with_velocity_3d_stamped_constraint
+    tests/test_absolute_pose_with_velocity_3d_stamped_constraint.cpp
+  )
+  add_dependencies(test_absolute_pose_with_velocity_3d_stamped_constraint
+    ${catkin_EXPORTED_TARGETS}
+  )
+  target_include_directories(test_absolute_pose_with_velocity_3d_stamped_constraint
+    PRIVATE
+      include
+      ${catkin_INCLUDE_DIRS}
+      ${CERES_INCLUDE_DIRS}
+  )
+  target_link_libraries(test_absolute_pose_with_velocity_3d_stamped_constraint
+    ${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+    ${CERES_LIBRARIES}
+  )
+  set_target_properties(test_absolute_pose_with_velocity_3d_stamped_constraint
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
+
+	# Relative Pose With Velocity 3D Stamped Constraint Tests
+  catkin_add_gtest(test_relative_pose_with_velocity_3d_stamped_constraint
+    tests/test_relative_pose_with_velocity_3d_stamped_constraint.cpp
+  )
+  add_dependencies(test_relative_pose_with_velocity_3d_stamped_constraint
+    ${catkin_EXPORTED_TARGETS}
+  )
+  target_include_directories(test_relative_pose_with_velocity_3d_stamped_constraint
+    PRIVATE
+      include
+      ${catkin_INCLUDE_DIRS}
+      ${CERES_INCLUDE_DIRS}
+  )
+  target_link_libraries(test_relative_pose_with_velocity_3d_stamped_constraint
+    ${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+    ${CERES_LIBRARIES}
+  )
+  set_target_properties(test_relative_pose_with_velocity_3d_stamped_constraint
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
+endif()
