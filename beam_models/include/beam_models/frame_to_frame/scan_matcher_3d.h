@@ -15,7 +15,7 @@ class ScanMatcher3D
     : public FrameToFrameSensorModelBase<
           sensor_msgs::PointCloud2,
           beam_parameters::models::ScanMatcher3DParams,
-          beam_constraints::frame_to_frame::RelativePose3DStampedTransaction> {
+          beam_constraints::frame_to_frame::Pose3DStampedTransaction> {
 public:
   SMART_PTR_DEFINITIONS(ScanMatcher3D);
 
@@ -23,7 +23,7 @@ public:
 
   ~ScanMatcher3D() override = default;
 
-beam_constraints::frame_to_frame::RelativePose3DStampedTransaction
+beam_constraints::frame_to_frame::Pose3DStampedTransaction
       GenerateTransaction(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
 protected:

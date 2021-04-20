@@ -4,7 +4,7 @@
 
 namespace beam_constraints { namespace frame_to_frame {
 
-using RelativePose3DStampedTransaction = FrameToFrameTransactionBase<
+using Pose3DStampedTransaction = FrameToFrameTransactionBase<
     fuse_constraints::RelativePose3DStampedConstraint,
     fuse_constraints::AbsolutePose3DStampedConstraint>;
 

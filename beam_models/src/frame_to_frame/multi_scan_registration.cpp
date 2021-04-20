@@ -7,7 +7,7 @@
 
 #include <beam_common/sensor_proc.h>
 #include <beam_common/utils.h>
-#include <beam_constraints/frame_to_frame/relative_pose_3d_stamped_transaction.h>
+#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 namespace beam_models { namespace frame_to_frame {
 
@@ -33,10 +33,10 @@ void MultiScanRegistration::SetFixedCovariance(
   use_fixed_covariance_ = true;
 }
 
-beam_constraints::frame_to_frame::RelativePose3DStampedTransaction
+beam_constraints::frame_to_frame::Pose3DStampedTransaction
     MultiScanRegistration::RegisterNewScan(const ScanPose& new_scan) {
-  beam_constraints::frame_to_frame::RelativePose3DStampedTransaction
-      transaction(new_scan.Stamp());
+  beam_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
+      new_scan.Stamp());
 
   // add pose variables for new scan
   transaction.AddPoseVariables(new_scan.Position(), new_scan.Orientation(),
@@ -96,7 +96,7 @@ beam_constraints::frame_to_frame::RelativePose3DStampedTransaction
   // if no constraints were added for this scan, send empty transaction (don't
   // add scan to graph)
   if (num_constraints == 0) {
-    return beam_constraints::frame_to_frame::RelativePose3DStampedTransaction(
+    return beam_constraints::frame_to_frame::Pose3DStampedTransaction(
         new_scan.Stamp());
   }
 
@@ -260,7 +260,8 @@ bool MultiScanRegistration::MatchScans(
   return true;
 }
 
-bool MultiScanRegistration::PassedMinMotion(const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
+bool MultiScanRegistration::PassedMinMotion(
+    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
   // check translation
   if (T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm() >= params_.min_motion_trans_m) {
     return true;

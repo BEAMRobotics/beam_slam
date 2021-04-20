@@ -44,6 +44,7 @@ catkin_package(
 # fuse_constraints library
 add_library(${PROJECT_NAME}
   src/frame_to_frame/frame_to_frame_transaction_base.cpp
+  src/frame_to_frame/pose_3d_stamped_transaction.cpp
   src/motion/unicycle_3d_state_kinematic_constraint.cpp
 )
 add_dependencies(${PROJECT_NAME}
