@@ -10,7 +10,7 @@ class Imu3D
     : public FrameToFrameSensorModelBase<
           sensor_msgs::Imu,
           beam_parameters::models::Imu3DParams,
-          beam_constraints::frame_to_frame::RelativePoseWithVelocity3DStampedTransaction> {
+          beam_constraints::frame_to_frame::PoseWithVelocity3DStampedTransaction> {
 public:
   SMART_PTR_DEFINITIONS(Imu3D);
 
@@ -18,7 +18,7 @@ public:
 
   ~Imu3D() override = default;
 
-beam_constraints::frame_to_frame::RelativePoseWithVelocity3DStampedTransaction
+beam_constraints::frame_to_frame::PoseWithVelocity3DStampedTransaction
       GenerateTransaction(const sensor_msgs::Imu::ConstPtr& msg);
 
 protected:

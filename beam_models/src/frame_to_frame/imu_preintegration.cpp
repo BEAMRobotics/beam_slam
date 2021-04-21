@@ -3,7 +3,6 @@
 #include <fuse_core/transaction.h>
 #include <manif/manif.h>
 
-#include <beam_constraints/frame_to_frame/relative_pose_3d_stamped_transaction.h>
 
 namespace beam_models { namespace frame_to_frame {
 

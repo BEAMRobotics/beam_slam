@@ -2,7 +2,7 @@
 
 #include <sensor_msgs/Imu.h>
 
-#include <beam_constraints/frame_to_frame/relative_pose_3d_stamped_transaction.h>
+#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <beam_variables/imu_bias_stamped.h>
 
 namespace beam_models { namespace frame_to_frame {

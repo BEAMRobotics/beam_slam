@@ -52,7 +52,7 @@ void Imu3D::onStop() {
   subscriber_.shutdown();
 }
 
-beam_constraints::frame_to_frame::RelativePoseWithVelocity3DStampedTransaction
+beam_constraints::frame_to_frame::PoseWithVelocity3DStampedTransaction
     Imu3D::GenerateTransaction(
         const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_DEBUG("Received incoming imu message");

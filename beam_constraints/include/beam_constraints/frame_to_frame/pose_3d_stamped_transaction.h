@@ -6,11 +6,11 @@
 
 namespace beam_constraints { namespace frame_to_frame {
 
-using RelativePose3DStampedTransaction = FrameToFrameTransactionBase<
+using Pose3DStampedTransaction = FrameToFrameTransactionBase<
     fuse_constraints::RelativePose3DStampedConstraint,
     fuse_constraints::AbsolutePose3DStampedConstraint>;
 
-using RelativePoseWithVelocity3DStampedTransaction = FrameToFrameTransactionBase<
+using PoseWithVelocity3DStampedTransaction = FrameToFrameTransactionBase<
     beam_constraints::frame_to_frame::RelativePoseWithVelocity3DStampedConstraint,
     beam_constraints::global::AbsolutePoseWithVelocity3DStampedConstraint>;
 

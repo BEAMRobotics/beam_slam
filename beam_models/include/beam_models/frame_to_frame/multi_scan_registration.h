@@ -6,7 +6,7 @@
 #include <beam_matching/Matcher.h>
 #include <beam_utils/pointclouds.h>
 
-#include <beam_constraints/frame_to_frame/relative_pose_3d_stamped_transaction.h>
+#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <beam_models/frame_to_frame/scan_pose.h>
 
 static bool tmp_{true};
@@ -37,7 +37,7 @@ public:
 
   void SetFixedCovariance(const Eigen::Matrix<double, 6, 6>& covariance);
 
-  beam_constraints::frame_to_frame::RelativePose3DStampedTransaction
+  beam_constraints::frame_to_frame::Pose3DStampedTransaction
       RegisterNewScan(const ScanPose& new_scan);
 
   void UpdateScanPoses(fuse_core::Graph::ConstSharedPtr graph_msg);

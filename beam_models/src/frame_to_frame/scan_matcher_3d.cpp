@@ -99,7 +99,7 @@ void ScanMatcher3D::onStop() {
   subscriber_.shutdown();
 }
 
-beam_constraints::frame_to_frame::RelativePose3DStampedTransaction
+beam_constraints::frame_to_frame::Pose3DStampedTransaction
     ScanMatcher3D::GenerateTransaction(
         const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
@@ -115,7 +115,7 @@ beam_constraints::frame_to_frame::RelativePose3DStampedTransaction
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT;
   if (!frame_initializer_->GetEstimatedPose(msg->header.stamp,
                                             T_WORLD_CLOUDCURRENT)) {
-    return beam_constraints::frame_to_frame::RelativePose3DStampedTransaction(
+    return beam_constraints::frame_to_frame::Pose3DStampedTransaction(
         msg->header.stamp);
   }
 
