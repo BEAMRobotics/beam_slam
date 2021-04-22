@@ -2,7 +2,7 @@
 
 #include <sensor_msgs/Imu.h>
 
-#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <beam_constraints/frame_to_frame/imu_state_3d_stamped_transaction.h>
 #include <beam_variables/imu_bias_stamped.h>
 
 namespace beam_models { namespace frame_to_frame {
@@ -19,6 +19,8 @@ public:
     double gravitational_acceleration;
     double initial_imu_acceleration_bias;
     double initial_imu_gyroscope_bias;
+		std::string source{"IMUPREINTERATION"};
+		const fuse_core::UUID& device_id = fuse_core::uuid::NIL;
   };
 
 	struct ImuData {
@@ -44,17 +46,19 @@ public:
 
 	void populateBuffer(const sensor_msgs::Imu::ConstPtr& msg);
 
-	void setFirstFrame(const sensor_msgs::Imu::ConstPtr& msg);
-
   void SetFixedCovariance(const fuse_core::Matrix6d& covariance);
 
 	inline int getBufferSize() { return imu_data_buffer_.size(); }
 
+	beam_constraints::frame_to_frame::ImuState3DStampedTransaction
+      RegisterNewImuPreintegrationFactor();
+
 private:
 	Params params_;
+	bool first_window_{true};
 	bool use_fixed_imu_noise_covariance_{false};
 	fuse_core::Matrix6d imu_noise_covariance_;
-	use_core::Vector3d gravitational_acceleration_;
+	fuse_core::Vector3d gravitational_acceleration_;
 
 	std::vector<ImuData> imu_data_buffer_;
 

@@ -9,54 +9,53 @@
 namespace beam_constraints { namespace global {
 
 /**
- * @brief Create a prior cost function on the 3D position, velocity and
- *orientation variables at once.
+ * @brief Create a prior cost function on the 3D imu state at once.
  *
  * The Ceres::NormalPrior cost function only supports a single variable. This is
- *a convenience cost function that applies a prior constraint on both the 3D
- *position, velocity, and orientation variables at once.
+ * a convenience cost function that applies a prior constraint on both 3D imu
+ * state variables at once.
  *
  * The cost function is of the form:
  *
  *   cost(x) = || A * [  p - b(0:2)               ] ||^2
- *						 ||     [  v - b(3:5)								] ||
+ *						 ||     [  v - b(3:5)
+ *] ||
  *             ||     [  AngleAxis(b(6:9)^-1 * q) ] ||
  *
  * where, the matrix A and the vector b are fixed, p is the position variable, v
- *is the velocity variable and q is the orientation variable. Note that the
- *covariance submatrix for the quaternion is 3x3, representing errors in the
- *orientation local parameterization tangent space.
+ * is the velocity variable and q is the orientation variable. Note that the
+ * covariance submatrix for the quaternion is 3x3, representing errors in the
+ * orientation local parameterization tangent space.
  */
-class NormalPriorPoseWithVelocity3DCostFunctor {
-public:
+class NormalPriorImuState3DCostFunctor {
+ public:
   FUSE_MAKE_ALIGNED_OPERATOR_NEW();
 
-  NormalPriorPoseWithVelocity3DCostFunctor(
-      const fuse_core::Matrix9d& A, const Eigen::Matrix<double, 10, 1>& b);
+  NormalPriorImuState3DCostFunctor(const fuse_core::Matrix9d& A,
+                                   const Eigen::Matrix<double, 10, 1>& b);
 
   template <typename T>
   bool operator()(const T* const position, const T* const velocity,
                   const T* const orientation, T* residual) const;
 
-private:
+ private:
   fuse_core::Matrix9d A_;
   Eigen::Matrix<double, 10, 1> b_;
 
   fuse_constraints::NormalPriorOrientation3DCostFunctor orientation_functor_;
 };
 
-NormalPriorPoseWithVelocity3DCostFunctor::
-    NormalPriorPoseWithVelocity3DCostFunctor(
-        const fuse_core::Matrix9d& A, const Eigen::Matrix<double, 10, 1>& b)
+NormalPriorImuState3DCostFunctor::NormalPriorImuState3DCostFunctor(
+    const fuse_core::Matrix9d& A, const Eigen::Matrix<double, 10, 1>& b)
     : A_(A),
       b_(b),
-      orientation_functor_(fuse_core::Matrix3d::Identity(), b_.tail<4>())
-{}
+      orientation_functor_(fuse_core::Matrix3d::Identity(), b_.tail<4>()) {}
 
 template <typename T>
-bool NormalPriorPoseWithVelocity3DCostFunctor::operator()(
-    const T* const position, const T* const velocity,
-    const T* const orientation, T* residual) const {
+bool NormalPriorImuState3DCostFunctor::operator()(const T* const position,
+                                                  const T* const velocity,
+                                                  const T* const orientation,
+                                                  T* residual) const {
   // Compute the position error
   residual[0] = position[0] - T(b_(0));
   residual[1] = position[1] - T(b_(1));
@@ -79,4 +78,3 @@ bool NormalPriorPoseWithVelocity3DCostFunctor::operator()(
 }
 
 }}  // namespace beam_constraints::global
-

@@ -21,20 +21,18 @@ namespace beam_constraints { namespace frame_to_frame {
 
 /**
  * @brief A constraint that represents a measurement on the difference between
- * position, velocity, and orientation
+ * imu states
  *
- * This constraint holds the measured 3D pose and velocity change as well as the
+ * This constraint holds the measured 3D imu state change as well as the
  * measurement uncertainty/covariance.
  */
-class RelativePoseWithVelocity3DStampedConstraint
-    : public fuse_core::Constraint {
-public:
-  FUSE_CONSTRAINT_DEFINITIONS_WITH_EIGEN(
-      RelativePoseWithVelocity3DStampedConstraint);
+class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
+ public:
+  FUSE_CONSTRAINT_DEFINITIONS_WITH_EIGEN(RelativeImuState3DStampedConstraint);
 
-  RelativePoseWithVelocity3DStampedConstraint() = default;
+  RelativeImuState3DStampedConstraint() = default;
 
-  RelativePoseWithVelocity3DStampedConstraint(
+  RelativeImuState3DStampedConstraint(
       const std::string& source,
       const fuse_variables::Position3DStamped& position1,
       const fuse_variables::VelocityLinear3DStamped& velocity1,
@@ -45,7 +43,7 @@ public:
       const Eigen::Matrix<double, 10, 1>& delta,
       const fuse_core::Matrix9d& covariance);
 
-  virtual ~RelativePoseWithVelocity3DStampedConstraint() = default;
+  virtual ~RelativeImuState3DStampedConstraint() = default;
 
   const Eigen::Matrix<double, 10, 1>& delta() const { return delta_; }
 
@@ -61,11 +59,11 @@ public:
 
   ceres::CostFunction* costFunction() const override;
 
-protected:
+ protected:
   Eigen::Matrix<double, 10, 1> delta_;
   fuse_core::Matrix9d sqrt_information_;
 
-private:
+ private:
   friend class boost::serialization::access;
 
   template <class Archive>
@@ -77,6 +75,7 @@ private:
 };
 
 }}  // namespace beam_constraints::frame_to_frame
+ 
 
-BOOST_CLASS_EXPORT_KEY(beam_constraints::frame_to_frame::
-                           RelativePoseWithVelocity3DStampedConstraint);
+BOOST_CLASS_EXPORT_KEY(
+    beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint);

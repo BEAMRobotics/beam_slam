@@ -13,7 +13,7 @@
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 #include <gtest/gtest.h>
 
-#include <beam_constraints/global/absolute_pose_with_velocity_3d_stamped_constraint.h>
+#include <beam_constraints/global/absolute_imu_state_3d_stamped_constraint.h>
 
 class Data {
 public:
@@ -44,7 +44,7 @@ public:
     // clang-format on
 
     absolute_pose_with_velocity_constraint = std::make_shared<
-        beam_constraints::global::AbsolutePoseWithVelocity3DStampedConstraint>(
+        beam_constraints::global::AbsoluteImuState3DStampedConstraint>(
         "test", *position1, *velocity1, *orientation1, mean, cov);
   }
 
@@ -54,8 +54,8 @@ public:
   Eigen::Matrix<double, 10, 1> mean;
   fuse_core::Matrix9d cov;
 
-  beam_constraints::global::AbsolutePoseWithVelocity3DStampedConstraint::
-      SharedPtr absolute_pose_with_velocity_constraint;
+  beam_constraints::global::AbsoluteImuState3DStampedConstraint::SharedPtr
+      absolute_pose_with_velocity_constraint;
 
 private:
   fuse_core::UUID device_id;
@@ -63,11 +63,11 @@ private:
 
 Data data_;
 
-TEST(AbsolutePoseWithVelocity3DStampedConstraint, Constructor) {
+TEST(AbsoluteImuState3DStampedConstraint, Constructor) {
   EXPECT_NO_THROW(*data_.absolute_pose_with_velocity_constraint);
 }
 
-TEST(AbsolutePoseWithVelocity3DStampedConstraint, Covariance) {
+TEST(AbsoluteImuState3DStampedConstraint, Covariance) {
   fuse_core::Matrix9d expected_cov = data_.cov;
   fuse_core::Matrix9d expected_sqrt_info = data_.cov.inverse().llt().matrixU();
 
@@ -77,7 +77,7 @@ TEST(AbsolutePoseWithVelocity3DStampedConstraint, Covariance) {
   EXPECT_MATRIX_NEAR(expected_sqrt_info, constraint.sqrtInformation(), 1.0e-9);
 }
 
-TEST(AbsolutePoseWithVelocity3DStampedConstraint, Optimization) {
+TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
   /*
   Optimize a single pose with velocity and single constraint, verify the
   expected value and covariance are generated. Create the variables
@@ -106,7 +106,7 @@ TEST(AbsolutePoseWithVelocity3DStampedConstraint, Optimization) {
   Eigen::Matrix<double, 10, 1> mean;
   mean << 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 0.0, 0.0, 0.0;
 
-	// clang-format off
+  // clang-format off
   fuse_core::Matrix9d cov;
   cov << 1.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8,
          0.1, 2.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3,
@@ -117,10 +117,10 @@ TEST(AbsolutePoseWithVelocity3DStampedConstraint, Optimization) {
 				 0.6, 0.5, 0.3, 0.5, 0.6, 0.6, 7.0, 0.7, 0.8, 
 				 0.7, 0.4, 0.4, 0.6, 0.7, 0.7, 0.7, 8.0, 0.7,
 				 0.8, 0.3, 0.5, 0.7, 0.8, 0.8, 0.8, 0.7, 9.0;
-	// clang-format on
+  // clang-format on
 
   auto constraint =
-      beam_constraints::global::AbsolutePoseWithVelocity3DStampedConstraint::
+      beam_constraints::global::AbsoluteImuState3DStampedConstraint::
           make_shared("test", *position_variable, *velocity_variable,
                       *orientation_variable, mean, cov);
 
@@ -229,11 +229,11 @@ TEST(AbsolutePoseWithVelocity3DStampedConstraint, Optimization) {
   EXPECT_MATRIX_NEAR(expected_covariance, actual_covariance, 1.0e-5);
 }
 
-TEST(AbsolutePoseWithVelocity3DStampedConstraint, Serialization) {
+TEST(AbsoluteImuState3DStampedConstraint, Serialization) {
   // Construct a constraint
-  beam_constraints::global::AbsolutePoseWithVelocity3DStampedConstraint
-      expected("test", *(data_.position1), *(data_.velocity1),
-               *(data_.orientation1), data_.mean, data_.cov);
+  beam_constraints::global::AbsoluteImuState3DStampedConstraint expected(
+      "test", *(data_.position1), *(data_.velocity1), *(data_.orientation1),
+      data_.mean, data_.cov);
 
   // Serialize the constraint into an archive
   std::stringstream stream;
@@ -243,7 +243,7 @@ TEST(AbsolutePoseWithVelocity3DStampedConstraint, Serialization) {
   }
 
   // Deserialize a new constraint from that same stream
-  beam_constraints::global::AbsolutePoseWithVelocity3DStampedConstraint actual;
+  beam_constraints::global::AbsoluteImuState3DStampedConstraint actual;
   {
     fuse_core::TextInputArchive archive(stream);
     actual.deserialize(archive);

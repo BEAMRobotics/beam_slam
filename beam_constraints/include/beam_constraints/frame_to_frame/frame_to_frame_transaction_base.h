@@ -11,6 +11,8 @@
 #include <fuse_variables/position_3d_stamped.h>
 
 #include <beam_common/utils.h>
+#include <beam_constraints/frame_to_frame/relative_imu_state_3d_stamped_constraint.h>
+#include <beam_constraints/global/absolute_imu_state_3d_stamped_constraint.h>
 
 namespace beam_constraints { namespace frame_to_frame {
 

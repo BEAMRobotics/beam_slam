@@ -14,7 +14,7 @@
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 #include <gtest/gtest.h>
 
-#include <beam_constraints/frame_to_frame/relative_pose_with_velocity_3d_stamped_constraint.h>
+#include <beam_constraints/frame_to_frame/relative_imu_state_3d_stamped_constraint.h>
 #include <beam_constraints/global/absolute_constraint.h>
 
 class Data {
@@ -52,11 +52,10 @@ public:
         1.5474423658, 1.4955587413, 2.0867534199, 2.2015121310, 2.1018661364, 2.6603791289, 2.2149242549, 1.8742007939, 2.8698714081;
     // clang-format on
 
-    relative_pose_with_velocity_constraint =
-        std::make_shared<beam_constraints::frame_to_frame::
-                             RelativePoseWithVelocity3DStampedConstraint>(
-            "test", *position1, *velocity1, *orientation1, *position2,
-            *velocity2, *orientation2, delta, cov);
+    relative_pose_with_velocity_constraint = std::make_shared<
+        beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint>(
+        "test", *position1, *velocity1, *orientation1, *position2, *velocity2,
+        *orientation2, delta, cov);
   }
 
   fuse_variables::Position3DStamped::SharedPtr position1;
@@ -68,9 +67,8 @@ public:
   Eigen::Matrix<double, 10, 1> delta;
   fuse_core::Matrix9d cov;
 
-  beam_constraints::frame_to_frame::
-      RelativePoseWithVelocity3DStampedConstraint::SharedPtr
-          relative_pose_with_velocity_constraint;
+  beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint::
+      SharedPtr relative_pose_with_velocity_constraint;
 
 private:
   fuse_core::UUID device_id;
@@ -78,11 +76,11 @@ private:
 
 Data data_;
 
-TEST(RelativePoseWithVelocity3DStampedConstraint, Constructor) {
+TEST(RelativeImuState3DStampedConstraint, Constructor) {
   EXPECT_NO_THROW(*data_.relative_pose_with_velocity_constraint);
 }
 
-TEST(RelativePoseWithVelocity3DStampedConstraint, Covariance) {
+TEST(RelativeImuState3DStampedConstraint, Covariance) {
   fuse_core::Matrix9d expected_cov = data_.cov;
   fuse_core::Matrix9d expected_sqrt_info = data_.cov.inverse().llt().matrixU();
 
@@ -92,7 +90,7 @@ TEST(RelativePoseWithVelocity3DStampedConstraint, Covariance) {
   EXPECT_MATRIX_NEAR(expected_sqrt_info, constraint.sqrtInformation(), 1.0e-9);
 }
 
-TEST(RelativePoseWithVelocity3DStampedConstraint, Optimization) {
+TEST(RelativeImuState3DStampedConstraint, Optimization) {
   /*
   Optimize a two node system, where:
   1) An absolute pose constraint is generated at the origin of the world frame
@@ -163,10 +161,10 @@ TEST(RelativePoseWithVelocity3DStampedConstraint, Optimization) {
   Eigen::Matrix<double, 10, 1> mean_delta;
   mean_delta << 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;
   fuse_core::Matrix9d cov_delta = fuse_core::Matrix9d::Identity();
-  auto relative_pose_with_velocity = beam_constraints::frame_to_frame::
-      RelativePoseWithVelocity3DStampedConstraint::make_shared(
-          "test", *position1, *velocity1, *orientation1, *position2, *velocity2,
-          *orientation2, mean_delta, cov_delta);
+  auto relative_pose_with_velocity =
+      beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint::
+          make_shared("test", *position1, *velocity1, *orientation1, *position2,
+                      *velocity2, *orientation2, mean_delta, cov_delta);
 
   // Build the problem
   ceres::Problem::Options problem_options;
@@ -198,7 +196,7 @@ TEST(RelativePoseWithVelocity3DStampedConstraint, Optimization) {
   problem.AddResidualBlock(prior_velocity->costFunction(),
                            prior_velocity->lossFunction(),
                            prior_velocity_parameter_blocks);
-													 
+
   std::vector<double *> relative_pose_with_velocity_parameter_blocks;
   relative_pose_with_velocity_parameter_blocks.push_back(position1->data());
   relative_pose_with_velocity_parameter_blocks.push_back(velocity1->data());
@@ -351,9 +349,9 @@ TEST(RelativePoseWithVelocity3DStampedConstraint, Optimization) {
   }
 }
 
-TEST(RelativePoseWithVelocity3DStampedConstraint, Serialization) {
+TEST(RelativeImuState3DStampedConstraint, Serialization) {
   // Construct a constraint
-  beam_constraints::frame_to_frame::RelativePoseWithVelocity3DStampedConstraint
+  beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint
       expected("test", *(data_.position1), *(data_.velocity1),
                *(data_.orientation1), *(data_.position2), *(data_.velocity2),
                *(data_.orientation2), data_.delta, data_.cov);
@@ -366,8 +364,7 @@ TEST(RelativePoseWithVelocity3DStampedConstraint, Serialization) {
   }
 
   // Deserialize a new constraint from that same stream
-  beam_constraints::frame_to_frame::RelativePoseWithVelocity3DStampedConstraint
-      actual;
+  beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint actual;
   {
     fuse_core::TextInputArchive archive(stream);
     actual.deserialize(archive);

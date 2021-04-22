@@ -10,7 +10,7 @@ namespace beam_constraints { namespace frame_to_frame {
 
 /**
  * @brief Implements a cost function that models a difference between 3D
- * position, velocity, and orientation variables.
+ * imu states.
  *
  * This cost function computes the difference using standard 3D transformation
  * math:
@@ -26,12 +26,12 @@ namespace beam_constraints { namespace frame_to_frame {
  * Note that the cost function's quaternion components are only concerned with
  * the imaginary components (qx, qy, qz).
  */
-class NormalDeltaPoseWithVelocity3DCostFunctor {
+class NormalDeltaImuState3DCostFunctor {
 public:
   FUSE_MAKE_ALIGNED_OPERATOR_NEW();
 
-  NormalDeltaPoseWithVelocity3DCostFunctor(
-      const fuse_core::Matrix9d& A, const Eigen::Matrix<double, 10, 1>& b);
+  NormalDeltaImuState3DCostFunctor(const fuse_core::Matrix9d& A,
+                                   const Eigen::Matrix<double, 10, 1>& b);
 
   template <typename T>
   bool operator()(const T* const position1, const T* const velocity1,
@@ -46,15 +46,14 @@ private:
   fuse_constraints::NormalDeltaOrientation3DCostFunctor orientation_functor_;
 };
 
-NormalDeltaPoseWithVelocity3DCostFunctor::
-    NormalDeltaPoseWithVelocity3DCostFunctor(
-        const fuse_core::Matrix9d& A, const Eigen::Matrix<double, 10, 1>& b)
+NormalDeltaImuState3DCostFunctor::NormalDeltaImuState3DCostFunctor(
+    const fuse_core::Matrix9d& A, const Eigen::Matrix<double, 10, 1>& b)
     : A_(A),
       b_(b),
       orientation_functor_(fuse_core::Matrix3d::Identity(), b_.tail<4>()) {}
 
 template <typename T>
-bool NormalDeltaPoseWithVelocity3DCostFunctor::operator()(
+bool NormalDeltaImuState3DCostFunctor::operator()(
     const T* const position1, const T* const velocity1,
     const T* const orientation1, const T* const position2,
     const T* const velocity2, const T* const orientation2, T* residual) const {
@@ -94,4 +93,5 @@ bool NormalDeltaPoseWithVelocity3DCostFunctor::operator()(
   return true;
 }
 
-}}  // namespace beam_constraints::frame_to_frame
+}}  // namespace namespace beam_constraints::frame_to_frame
+

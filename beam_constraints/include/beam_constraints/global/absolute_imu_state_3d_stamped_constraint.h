@@ -20,21 +20,19 @@
 namespace beam_constraints { namespace global {
 
 /**
- * @brief A constraint that represents either prior information about a 3D pose
- * with velocity, or a direct measurement of the 3D pose with velocity.
+ * @brief A constraint that represents either prior information about a 3D imu
+ * state, or a direct measurement of the 3D imu state.
  *
- * This constraint holds the measured 3D pose with velocity and the measurement
+ * This constraint holds the measured 3D imu state and the measurement
  * uncertainty/covariance. Orientations are represented as quaternions.
  */
-class AbsolutePoseWithVelocity3DStampedConstraint
-    : public fuse_core::Constraint {
+class AbsoluteImuState3DStampedConstraint : public fuse_core::Constraint {
 public:
-  FUSE_CONSTRAINT_DEFINITIONS_WITH_EIGEN(
-      AbsolutePoseWithVelocity3DStampedConstraint);
+  FUSE_CONSTRAINT_DEFINITIONS_WITH_EIGEN(AbsoluteImuState3DStampedConstraint);
 
-  AbsolutePoseWithVelocity3DStampedConstraint() = default;
+  AbsoluteImuState3DStampedConstraint() = default;
 
-  AbsolutePoseWithVelocity3DStampedConstraint(
+  AbsoluteImuState3DStampedConstraint(
       const std::string& source,
       const fuse_variables::Position3DStamped& position,
       const fuse_variables::VelocityLinear3DStamped& velocity,
@@ -42,7 +40,7 @@ public:
       const Eigen::Matrix<double, 10, 1>& mean,
       const fuse_core::Matrix9d& covariance);
 
-  virtual ~AbsolutePoseWithVelocity3DStampedConstraint() = default;
+  virtual ~AbsoluteImuState3DStampedConstraint() = default;
 
   const Eigen::Matrix<double, 10, 1>& mean() const { return mean_; }
 
@@ -58,7 +56,7 @@ public:
 
   ceres::CostFunction* costFunction() const override;
 
-protected:
+ protected:
   Eigen::Matrix<double, 10, 1> mean_;
   fuse_core::Matrix9d sqrt_information_;
 
@@ -76,4 +74,4 @@ private:
 }}  // namespace beam_constraints::global
 
 BOOST_CLASS_EXPORT_KEY(
-    beam_constraints::global::AbsolutePoseWithVelocity3DStampedConstraint);
+    beam_constraints::global::AbsoluteImuState3DStampedConstraint);
