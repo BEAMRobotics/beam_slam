@@ -21,33 +21,42 @@ public:
     double initial_imu_gyroscope_bias;
   };
 
+	struct ImuData {
+		ros::Time time;
+		fuse_core::Vector3d linear_acceleration;
+		fuse_core::Vector3d angular_velocity;
+		fuse_core::Matrix6d noise_covariance;
+
+		ImuData() {
+			linear_acceleration.setZero();
+			angular_velocity.setZero();
+			noise_covariance.setZero();
+		}
+	};
+
   ImuPreintegration(const Params& params);
 
   ~ImuPreintegration() = default;
 
-	void clearBuffers();
+	void clearBuffer() { imu_data_buffer_.clear(); }
 
-	void reserveBuffers();
+	void reserveBuffer() { imu_data_buffer_.reserve(params_.buffer_size); }
 
-	void populateBuffers(const sensor_msgs::Imu::ConstPtr& msg);
+	void populateBuffer(const sensor_msgs::Imu::ConstPtr& msg);
 
 	void setFirstFrame(const sensor_msgs::Imu::ConstPtr& msg);
 
   void SetFixedCovariance(const fuse_core::Matrix6d& covariance);
 
-	inline int getBufferSize() { return msg_time_buffer_.size(); }
+	inline int getBufferSize() { return imu_data_buffer_.size(); }
 
 private:
 	Params params_;
 	bool use_fixed_imu_noise_covariance_{false};
+	fuse_core::Matrix6d imu_noise_covariance_;
+	use_core::Vector3d gravitational_acceleration_;
 
-  std::vector<ros::Time> msg_time_buffer_;
-  std::vector<fuse_core::Vector3d> angular_velocity_buffer_;
-  std::vector<fuse_core::Vector3d> linear_acceleration_buffer_;
-  std::vector<fuse_core::Matrix6d> imu_noise_buffer_;
-
-  fuse_core::Matrix6d imu_noise_covariance_;
-  fuse_core::Vector3d gravitational_acceleration_;
+	std::vector<ImuData> imu_data_buffer_;
 
   fuse_variables::Orientation3DStamped::SharedPtr R_i_;
   fuse_variables::VelocityLinear3DStamped::SharedPtr V_i_;
