@@ -8,7 +8,7 @@ namespace beam_parameters { namespace models {
  * @brief Defines the set of parameters required by the Imu3D class
  */
 struct Imu3DParams : public FrameToFrameParameterBase {
- public:
+public:
   /**
    * @brief Method for loading parameter values from ROS.
    *
