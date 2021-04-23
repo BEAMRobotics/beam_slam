@@ -87,6 +87,7 @@ add_library(
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
+  src/frame_initializers/graph_frame_initializer.cpp
 )
 
 ## Specify libraries to link a library or executable target against
