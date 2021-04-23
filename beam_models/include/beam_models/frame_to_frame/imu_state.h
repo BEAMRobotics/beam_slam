@@ -12,6 +12,8 @@ namespace beam_models { namespace frame_to_frame {
 
 class ImuState {
 public:
+  using Ptr = std::shared_ptr<ImuState>;
+
   ImuState() = default;
 
   ImuState(const ros::Time& time) : stamp_(time) {
@@ -21,6 +23,19 @@ public:
     this->SetOrientation(1, 0, 0, 0);
     this->SetBiasAcceleration(0, 0, 0);
     this->SetBiasGyroscope(0, 0, 0);
+  }
+
+  ImuState(const ros::Time& time, const double& bias_acceleration_init,
+           const double& bias_gyroscope_init)
+      : stamp_(time) {
+    this->InstantiateFuseVariables();
+    this->SetPosition(0, 0, 0);
+    this->SetVelocity(0, 0, 0);
+    this->SetOrientation(1, 0, 0, 0);
+    this->SetBiasAcceleration(bias_acceleration_init, bias_acceleration_init, 
+                              bias_acceleration_init);
+    this->SetBiasGyroscope(bias_gyroscope_init, bias_gyroscope_init, 
+                           bias_gyroscope_init);
   }
 
   ImuState(const ros::Time& time, const Eigen::Matrix4d& T_WORLD_IMU,
@@ -69,6 +84,18 @@ public:
       return true;
     }
     return false;
+  }
+
+  void InstantiateFuseVariables(const ros::Time& time) {
+    position_ = fuse_variables::Position3DStamped(time, fuse_core::uuid::NIL);
+    velocity_ =
+        fuse_variables::VelocityLinear3DStamped(time, fuse_core::uuid::NIL);
+    orientation_ =
+        fuse_variables::Orientation3DStamped(time, fuse_core::uuid::NIL);
+    bias_acceleration_ =
+        beam_variables::ImuBiasStamped(time, fuse_core::uuid::NIL);
+    bias_gyroscope_ =
+        beam_variables::ImuBiasStamped(time, fuse_core::uuid::NIL);
   }
 
   void InstantiateFuseVariables() {
@@ -152,6 +179,12 @@ public:
     orientation_.z() = orientation.z();
   }
 
+  void SetBiasAcceleration(const double& ba_init) {
+    bias_acceleration_.x() = ba_init;
+    bias_acceleration_.y() = ba_init;
+    bias_acceleration_.z() = ba_init;
+  }
+
   void SetBiasAcceleration(const double& x, const double& y, const double& z) {
     bias_acceleration_.x() = x;
     bias_acceleration_.y() = y;
@@ -162,6 +195,12 @@ public:
     bias_acceleration_.x() = bias_acceleration[0];
     bias_acceleration_.y() = bias_acceleration[1];
     bias_acceleration_.z() = bias_acceleration[2];
+  }
+
+  void SetBiasGyroscope(const double& bg_init) {
+    bias_gyroscope_.x() = bg_init;
+    bias_gyroscope_.y() = bg_init;
+    bias_gyroscope_.z() = bg_init;
   }
 
   void SetBiasGyroscope(const double& x, const double& y, const double& z) {
@@ -201,6 +240,8 @@ public:
            << "  - y: " << bias_gyroscope_.y() << "\n"
            << "  - z: " << bias_gyroscope_.z() << "\n";
   }
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 private:
   int updates_{0};
