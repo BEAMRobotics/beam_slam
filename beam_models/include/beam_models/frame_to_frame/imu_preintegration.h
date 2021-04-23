@@ -3,7 +3,7 @@
 #include <sensor_msgs/Imu.h>
 
 #include <beam_constraints/frame_to_frame/imu_state_3d_stamped_transaction.h>
-#include <beam_variables/imu_bias_stamped.h>
+#include <beam_models/frame_to_frame/imu_state.h>
 
 namespace beam_models { namespace frame_to_frame {
 
@@ -20,7 +20,6 @@ public:
     double initial_imu_acceleration_bias;
     double initial_imu_gyroscope_bias;
 		std::string source{"IMUPREINTERATION"};
-		const fuse_core::UUID& device_id = fuse_core::uuid::NIL;
   };
 
 	struct ImuData {
@@ -61,12 +60,7 @@ private:
 	fuse_core::Vector3d gravitational_acceleration_;
 
 	std::vector<ImuData> imu_data_buffer_;
-
-  fuse_variables::Orientation3DStamped::SharedPtr R_i_;
-  fuse_variables::VelocityLinear3DStamped::SharedPtr V_i_;
-  fuse_variables::Position3DStamped::SharedPtr P_i_;
-  beam_variables::ImuBiasStamped::SharedPtr Ba_i_;
-  beam_variables::ImuBiasStamped::SharedPtr Bg_i_;
+  ImuState imu_state_i_;
 };
 
 }} // namespace beam_models::frame_to_frame
