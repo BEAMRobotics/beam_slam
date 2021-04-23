@@ -10,7 +10,7 @@ ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
   gravitational_acceleration_ << 0, 0, -params_.gravitational_acceleration;
 }
 
-void ImuPreintegration::populateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
+void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
   ImuData imu_data;
   imu_data.time = msg->header.stamp;
   imu_data.linear_acceleration[0] = msg->linear_acceleration.x;

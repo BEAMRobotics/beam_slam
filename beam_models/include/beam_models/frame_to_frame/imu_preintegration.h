@@ -39,15 +39,15 @@ public:
 
   ~ImuPreintegration() = default;
 
-	void clearBuffer() { imu_data_buffer_.clear(); }
+	void ClearBuffer() { imu_data_buffer_.clear(); }
 
-	void reserveBuffer() { imu_data_buffer_.reserve(params_.buffer_size); }
+	void ReserveBuffer() { imu_data_buffer_.reserve(params_.buffer_size); }
 
-	void populateBuffer(const sensor_msgs::Imu::ConstPtr& msg);
+	void PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg);
 
   void SetFixedCovariance(const fuse_core::Matrix6d& covariance);
 
-	inline int getBufferSize() { return imu_data_buffer_.size(); }
+	inline int GetBufferSize() { return imu_data_buffer_.size(); }
 
 	beam_constraints::frame_to_frame::ImuState3DStampedTransaction
       RegisterNewImuPreintegrationFactor();

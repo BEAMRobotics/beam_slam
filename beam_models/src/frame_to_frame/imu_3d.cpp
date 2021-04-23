@@ -35,18 +35,18 @@ void Imu3D::onInit() {
     }
     imu_preintegration_->SetFixedCovariance(covariance);
   }
-  imu_preintegration_->reserveBuffer();
+  imu_preintegration_->ReserveBuffer();
 }
 
 void Imu3D::onStart() {
-  imu_preintegration_->clearBuffer();
+  imu_preintegration_->ClearBuffer();
   subscriber_ = node_handle_.subscribe(
       base_params_->subscriber_topic, params_.queue_size,
       &ThrottledCallback::callback, &throttled_callback_);
 };
 
 void Imu3D::onStop() {
-  imu_preintegration_->clearBuffer();
+  imu_preintegration_->ClearBuffer();
   subscriber_.shutdown();
 }
 
@@ -54,9 +54,9 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
 Imu3D::GenerateTransaction(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_DEBUG("Received incoming imu message");
 
-  imu_preintegration_->populateBuffer(msg);
+  imu_preintegration_->PopulateBuffer(msg);
 
-  if (imu_preintegration_->getBufferSize() == params_.buffer_size) {
+  if (imu_preintegration_->GetBufferSize() == params_.buffer_size) {
     // perform Imu preintegration
   }
 
