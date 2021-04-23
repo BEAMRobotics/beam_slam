@@ -45,8 +45,11 @@ Imu3D::GenerateTransaction(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_DEBUG("Received incoming imu message");
 
   imu_preintegration_->PopulateBuffer(msg);
-  imu_preintegration_->PopulateBuffer(msg);
 
+  if (imu_preintegration_->GetBufferSize() == params_.buffer_size) {
+    imu_preintegration_->RegisterNewImuPreintegrationFactor();
+    imu_preintegration_->ClearBuffer();
+  }
 }
 
 }}  // namespace frame_to_frame
