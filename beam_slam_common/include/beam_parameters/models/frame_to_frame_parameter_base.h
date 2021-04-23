@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/lexical_cast.hpp>
+#include <fuse_core/parameter.h>
 #include <ros/node_handle.h>
 
 #include <beam_common/sensor_config.h>
