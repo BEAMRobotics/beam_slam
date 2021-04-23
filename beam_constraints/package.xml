@@ -23,6 +23,11 @@
   <depend>fuse_core</depend>
   <depend>fuse_graphs</depend>
   <depend>fuse_variables</depend>
+  <depend>fuse_constraints</depend>
+  <depend>beam_slam_common</depend>
+
+  <test_depend>roslint</test_depend>
+  <test_depend>rostest</test_depend>
 
   <export>
     <fuse_core plugin="${prefix}/fuse_plugins.xml" />

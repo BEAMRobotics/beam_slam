@@ -1,7 +1,22 @@
 <library path="lib/libbeam_constraints">
+
+  <class type="beam_constraints::frame_to_frame::RelativePoseWithVelocity3DStampedConstraint" base_class_type="fuse_core::Constraint">
+    <description>
+      A constraint that represents a measurement on the difference between two 3D poses with velocities
+    </description>
+  </class>
+
+  <class type="beam_constraints::global::AbsolutePoseWithVelocity3DStampedConstraint" base_class_type="fuse_core::Constraint">
+    <description>
+      A constraint that represents either prior information about a 3D pose with velocity, or a direct measurement of the 3D pose 
+			with velocity.
+    </description>
+  </class>
+
   <class type="beam_constraints::Unicycle3DStateKinematicConstraint" base_class_type="fuse_core::Constraint">
     <description>
       A class that represents a kinematic constraint between 3D states at two different times.
     </description>
   </class>
+
 </library>

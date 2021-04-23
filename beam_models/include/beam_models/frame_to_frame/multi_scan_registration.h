@@ -6,11 +6,17 @@
 #include <beam_matching/Matcher.h>
 #include <beam_utils/pointclouds.h>
 
+#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <beam_models/frame_to_frame/scan_pose.h>
 
 static bool tmp_{true};
 
 namespace beam_models { namespace frame_to_frame {
+
+template <typename ConstraintType, typename PriorType>
+using TransactionBase =
+    beam_constraints::frame_to_frame::FrameToFrameTransactionBase<
+        ConstraintType, PriorType>;
 
 class MultiScanRegistration {
 public:
@@ -31,7 +37,8 @@ public:
 
   void SetFixedCovariance(const Eigen::Matrix<double, 6, 6>& covariance);
 
-  fuse_core::Transaction::SharedPtr RegisterNewScan(const ScanPose& new_scan);
+  beam_constraints::frame_to_frame::Pose3DStampedTransaction
+      RegisterNewScan(const ScanPose& new_scan);
 
   void UpdateScanPoses(fuse_core::Graph::ConstSharedPtr graph_msg);
 
@@ -60,15 +67,13 @@ private:
   bool PassedThreshold(const Eigen::Matrix4d& T_measured,
                        const Eigen::Matrix4d& T_estimated);
 
-  void AddPrior(const ScanPose& scan,
-                fuse_core::Transaction::SharedPtr transaction);
-
   std::list<ScanPose> reference_clouds_;
 
   std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
   Params params_;
   Eigen::Matrix<double, 6, 6> covariance_;
   bool use_fixed_covariance_{false};
+  double pose_prior_noise_{1e-9};
 
   // Extra debugging tools: these must be set here, not in the config file
   bool output_scan_registration_results_{false};

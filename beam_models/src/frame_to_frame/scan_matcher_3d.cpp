@@ -17,15 +17,11 @@ PLUGINLIB_EXPORT_CLASS(beam_models::frame_to_frame::ScanMatcher3D,
 namespace beam_models { namespace frame_to_frame {
 
 ScanMatcher3D::ScanMatcher3D()
-    : fuse_core::AsyncSensorModel(1),
-      device_id_(fuse_core::uuid::NIL),
-      throttled_callback_(
-          std::bind(&ScanMatcher3D::process, this, std::placeholders::_1)) {}
+    : FrameToFrameSensorModelBase() {}
 
 void ScanMatcher3D::onInit() {
-  // Read settings from the parameter sever
-  device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
-  params_.loadFromROS(private_node_handle_);
+  InitiateBaseClass(private_node_handle_);
+  params_.loadExtraParams(private_node_handle_);
 
   // init scan registration
   std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher;
@@ -72,23 +68,6 @@ void ScanMatcher3D::onInit() {
     multi_scan_registration_->SetFixedCovariance(covariance);
   }
 
-  // init frame initializer
-  if (params_.frame_initializer_type == "ODOMETRY") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            params_.frame_initializer_info, 100, params_.pointcloud_frame, true,
-            30);
-  } else if (params_.frame_initializer_type == "POSEFILE") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
-            params_.frame_initializer_info, params_.pointcloud_frame);
-  } else {
-    const std::string error =
-        "frame_initializer_type invalid. Options: ODOMETRY, POSEFILE";
-    ROS_FATAL_STREAM(error);
-    throw std::runtime_error(error);
-  }
-
   // if outputting scans, clear folder
   if (!params_.scan_output_directory.empty()) {
     if (boost::filesystem::is_directory(params_.scan_output_directory)) {
@@ -106,12 +85,6 @@ void ScanMatcher3D::onInit() {
   }
 }
 
-void ScanMatcher3D::onStart() {
-  pointcloud_subscriber_ = node_handle_.subscribe(
-      params_.pointcloud_topic, 10, &PointCloudThrottledCallback::callback,
-      &throttled_callback_);
-}
-
 void ScanMatcher3D::onStop() {
   // if output set, save scans before stopping
   if (!params_.scan_output_directory.empty()) {
@@ -123,10 +96,12 @@ void ScanMatcher3D::onStop() {
     }
   }
   active_clouds_.clear();
-  pointcloud_subscriber_.shutdown();
+  subscriber_.shutdown();
 }
 
-void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
+beam_constraints::frame_to_frame::Pose3DStampedTransaction
+    ScanMatcher3D::GenerateTransaction(
+        const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
   PointCloudPtr cloud_current_tmp = beam::ROSToPCL(*msg);
   PointCloudPtr cloud_current = boost::make_shared<PointCloud>();
@@ -140,7 +115,8 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT;
   if (!frame_initializer_->GetEstimatedPose(msg->header.stamp,
                                             T_WORLD_CLOUDCURRENT)) {
-    return;
+    return beam_constraints::frame_to_frame::Pose3DStampedTransaction(
+        msg->header.stamp);
   }
 
   ScanPose current_scan_pose(msg->header.stamp, T_WORLD_CLOUDCURRENT,
@@ -152,14 +128,7 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   }
 
   // build transaction of registration measurements
-  fuse_core::Transaction::SharedPtr transaction =
-      multi_scan_registration_->RegisterNewScan(current_scan_pose);
-
-  // Send the transaction object to the plugin's parent
-  if (transaction != nullptr) {
-    ROS_DEBUG("Sending transaction");
-    sendTransaction(transaction);
-  }
+  return multi_scan_registration_->RegisterNewScan(current_scan_pose);
 }
 
 void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {

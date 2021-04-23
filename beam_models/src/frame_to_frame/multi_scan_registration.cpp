@@ -1,9 +1,13 @@
 #include <beam_models/frame_to_frame/multi_scan_registration.h>
 
-#include <beam_common/sensor_proc.h>
-#include <beam_matching/Matchers.h>
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/transaction.h>
+
+#include <beam_matching/Matchers.h>
+
+#include <beam_common/sensor_proc.h>
+#include <beam_common/utils.h>
+#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 namespace beam_models { namespace frame_to_frame {
 
@@ -29,23 +33,28 @@ void MultiScanRegistration::SetFixedCovariance(
   use_fixed_covariance_ = true;
 }
 
-fuse_core::Transaction::SharedPtr
+beam_constraints::frame_to_frame::Pose3DStampedTransaction
     MultiScanRegistration::RegisterNewScan(const ScanPose& new_scan) {
-  // Create a transaction object
-  auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(new_scan.Stamp());
-  ScanPose sp_tmp = new_scan;
-  auto pos = fuse_variables::Position3DStamped::make_shared(sp_tmp.Position());
-  auto _or =
-      fuse_variables::Orientation3DStamped::make_shared(sp_tmp.Orientation());
-  transaction->addVariable(pos, true);
-  transaction->addVariable(_or, true);
-  transaction->addInvolvedStamp(new_scan.Stamp());
+  beam_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
+		new_scan.Stamp());
+
+  // add pose variables for new scan
+  transaction.AddPoseVariables(new_scan.Position(), new_scan.Orientation(),
+                               new_scan.Stamp());
 
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
     reference_clouds_.push_front(new_scan);
-    if (params_.fix_first_scan) { AddPrior(new_scan, transaction); }
+    if (params_.fix_first_scan) {
+      // build covariance
+      fuse_core::Matrix6d prior_covariance;
+      prior_covariance.setIdentity();
+      prior_covariance = prior_covariance * pose_prior_noise_;
+
+      // add prior
+      transaction.AddPosePrior(new_scan.Position(), new_scan.Orientation(),
+                               prior_covariance, "FIRST_SCAN_PRIOR");
+    }
     return transaction;
   }
 
@@ -71,28 +80,25 @@ fuse_core::Transaction::SharedPtr
       continue;
     }
 
-    // Convert measurement to fuse variable
-    Eigen::Matrix3d R = T_CLOUDREF_CLOUDCURRENT.block(0, 0, 3, 3);
-    Eigen::Quaterniond q(R);
-    fuse_core::Vector7d pose_relative_mean;
-    pose_relative_mean << T_CLOUDREF_CLOUDCURRENT(0, 3),
-        T_CLOUDREF_CLOUDCURRENT(1, 3), T_CLOUDREF_CLOUDCURRENT(2, 3), q.w(),
-        q.x(), q.y(), q.z();
+    // add measurement to transaction
+    fuse_variables::Position3DStamped position_relative;
+    fuse_variables::Orientation3DStamped orientation_relative;
+    beam_common::EigenTransformToFusePose(
+        T_CLOUDREF_CLOUDCURRENT, position_relative, orientation_relative);
+    transaction.AddPoseConstraint(
+        ref_iter->Position(), new_scan.Position(), ref_iter->Orientation(),
+        new_scan.Orientation(), position_relative, orientation_relative,
+        covariance, params_.source);
 
-    // create and add constraint
-    auto constraint =
-        fuse_constraints::RelativePose3DStampedConstraint::make_shared(
-            params_.source, ref_iter->Position(), ref_iter->Orientation(),
-            (new_scan.Position()), (new_scan.Orientation()), pose_relative_mean,
-            covariance);
-
-    transaction->addConstraint(constraint, true);
     num_constraints++;
   }
 
-  // if no constraints were added for this scan, then remove don't add variable
-  // or constraint
-  if (num_constraints == 0) { return nullptr; }
+  // if no constraints were added for this scan, send empty transaction (don't
+  // add scan to graph)
+  if (num_constraints == 0) {
+    return beam_constraints::frame_to_frame::Pose3DStampedTransaction(
+        new_scan.Stamp());
+  }
 
   // add cloud to reference cloud list and remove last
   if (reference_clouds_.size() == params_.num_neighbors) {
@@ -268,22 +274,6 @@ ScanPose MultiScanRegistration::GetScan(const ros::Time& t, bool& success) {
 
 void MultiScanRegistration::PrintScanDetails(std::ostream& stream) {
   for (auto iter = Begin(); iter != End(); iter++) { iter->Print(stream); }
-}
-
-void MultiScanRegistration::AddPrior(
-    const ScanPose& scan, fuse_core::Transaction::SharedPtr transaction) {
-  fuse_core::Vector7d mean;
-  mean << scan.Position().x(), scan.Position().y(), scan.Position().z(),
-      scan.Orientation().w(), scan.Orientation().x(), scan.Orientation().y(),
-      scan.Orientation().z();
-  fuse_core::Matrix6d prior_covariance;
-  prior_covariance.setIdentity();
-  prior_covariance = prior_covariance * 0.0000000001;
-  auto prior =
-      std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-          "FIRST_SCAN_PRIOR", scan.Position(), scan.Orientation(), mean,
-          prior_covariance);
-  transaction->addConstraint(prior, true);
 }
 
 }} // namespace beam_models::frame_to_frame
