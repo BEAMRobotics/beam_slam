@@ -17,6 +17,8 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 
+#include <beam_variables/imu_bias_stamped.h>
+
 namespace beam_constraints { namespace global {
 
 /**
@@ -34,21 +36,23 @@ public:
 
   AbsoluteImuState3DStampedConstraint(
       const std::string& source,
-      const fuse_variables::Position3DStamped& position,
-      const fuse_variables::VelocityLinear3DStamped& velocity,
       const fuse_variables::Orientation3DStamped& orientation,
-      const Eigen::Matrix<double, 10, 1>& mean,
-      const fuse_core::Matrix9d& covariance);
+      const fuse_variables::VelocityLinear3DStamped& velocity, 
+      const fuse_variables::Position3DStamped& position,
+      const beam_variables::ImuBiasStamped& accelbias,
+      const beam_variables::ImuBiasStamped& gyrobias,
+      const Eigen::Matrix<double, 16, 1>& mean,
+      const Eigen::Matrix<double, 15, 15>& covariance);
 
   virtual ~AbsoluteImuState3DStampedConstraint() = default;
 
-  const Eigen::Matrix<double, 10, 1>& mean() const { return mean_; }
+  const Eigen::Matrix<double, 16, 1>& mean() const { return mean_; }
 
-  const fuse_core::Matrix9d& sqrtInformation() const {
+  const Eigen::Matrix<double, 15, 15>& sqrtInformation() const {
     return sqrt_information_;
   }
 
-  fuse_core::Matrix9d covariance() const {
+  Eigen::Matrix<double, 15, 15> covariance() const {
     return (sqrt_information_.transpose() * sqrt_information_).inverse();
   }
 
@@ -56,9 +60,9 @@ public:
 
   ceres::CostFunction* costFunction() const override;
 
- protected:
-  Eigen::Matrix<double, 10, 1> mean_;
-  fuse_core::Matrix9d sqrt_information_;
+protected:
+  Eigen::Matrix<double, 16, 1> mean_;
+  Eigen::Matrix<double, 15, 15> sqrt_information_;
 
 private:
   friend class boost::serialization::access;
