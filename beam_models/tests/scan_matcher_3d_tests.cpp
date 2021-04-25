@@ -349,13 +349,13 @@ TEST_CASE("Test scan registration - vanilla icp") {
 
   Eigen::Matrix4d T_S1_S2_initial =
       beam::InvertTransform(data_.T_WORLD_S1) * data_.T_WORLD_S2_pert;
-  PointCloudPtr S2_RefFEst = boost::make_shared<PointCloud>();
+  PointCloudPtr S2_RefFEst = std::make_shared<PointCloud>();
   pcl::transformPointCloud(SP2_pert.Cloud(), *S2_RefFEst,
                            Eigen::Affine3d(T_S1_S2_initial));
 
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> matcher;
   matcher.setInputSource(S2_RefFEst);
-  matcher.setInputTarget(boost::make_shared<PointCloud>(SP1.Cloud()));
+  matcher.setInputTarget(std::make_shared<PointCloud>(SP1.Cloud()));
   matcher.setMaximumIterations(50);
   matcher.setTransformationEpsilon(1e-8);
   matcher.setMaxCorrespondenceDistance(1);
@@ -391,14 +391,14 @@ TEST_CASE("Test simple 2 node FG with perturbed pose and scan registration") {
   //
   Eigen::Matrix4d T_S1_S2_init =
       beam::InvertTransform(data_.T_WORLD_S1) * data_.T_WORLD_S2_pert;
-  PointCloudPtr S2_RefFEst = boost::make_shared<PointCloud>();
+  PointCloudPtr S2_RefFEst = std::make_shared<PointCloud>();
   pcl::transformPointCloud(SP2_pert.Cloud(), *S2_RefFEst,
                            Eigen::Affine3d(T_S1_S2_init));
 
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
   matcher->SetRef(S2_RefFEst);
-  matcher->SetTarget(boost::make_shared<PointCloud>(SP1.Cloud()));
+  matcher->SetTarget(std::make_shared<PointCloud>(SP1.Cloud()));
   matcher->Match();
   matcher->EstimateInfo();
 

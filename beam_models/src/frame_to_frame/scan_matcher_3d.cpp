@@ -106,7 +106,7 @@ beam_constraints::frame_to_frame::Pose3DStampedTransaction
         const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
   PointCloudPtr cloud_current_tmp = beam::ROSToPCL(*msg);
-  PointCloudPtr cloud_current = boost::make_shared<PointCloud>();
+  PointCloudPtr cloud_current = std::make_shared<PointCloud>();
 
   Eigen::Vector3f scan_voxel_size(params_.downsample_size,
                                   params_.downsample_size,
