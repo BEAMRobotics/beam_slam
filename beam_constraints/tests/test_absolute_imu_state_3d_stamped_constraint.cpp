@@ -183,7 +183,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
   parameter_blocks.push_back(position_variable->data());
   parameter_blocks.push_back(acceleration_bias_variable->data());
   parameter_blocks.push_back(gyroscope_bias_variable->data());
-
+  
   problem.AddResidualBlock(constraint->costFunction(),
                            constraint->lossFunction(), parameter_blocks);
 

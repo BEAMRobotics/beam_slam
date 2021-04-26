@@ -203,17 +203,17 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
   mean_accel_bias_origin << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d cov_accel_bias_origin = fuse_core::Matrix3d::Identity();
   auto prior_accel_bias =
-      beam_constraints::global::AbsoluteImuBiasStampedConstraint::make_shared(
+      beam_constraints::global::AbsoluteImuBias3DStampedConstraint::make_shared(
           "test", *accelbias1, mean_accel_bias_origin, cov_accel_bias_origin);
 
   fuse_core::Vector3d mean_gyro_bias_origin;
   mean_gyro_bias_origin << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d cov_gyro_bias_origin = fuse_core::Matrix3d::Identity();
   auto prior_gyro_bias =
-      beam_constraints::global::AbsoluteImuBiasStampedConstraint::make_shared(
+      beam_constraints::global::AbsoluteImuBias3DStampedConstraint::make_shared(
           "test", *gyrobias1, mean_gyro_bias_origin, cov_gyro_bias_origin);
 
-  // Create a relative pose with velocity constraint, assuming:
+  // Create a relative imu state constraint, assuming:
   // 1) a +1m change in position in the x direction
   // 2) a +1m/s change in velocity in the x direction
   // 2) a +0.1m/^2 change in accleration bias in the x direction

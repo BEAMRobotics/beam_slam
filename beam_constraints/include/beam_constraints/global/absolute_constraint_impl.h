@@ -2,6 +2,8 @@
 
 #include <ceres/normal_prior.h>
 
+#include <beam_variables/imu_bias_stamped.h>
+
 namespace beam_constraints { namespace global {
 
 template <class Variable>
@@ -100,5 +102,12 @@ inline std::string
     AbsoluteConstraint3D<fuse_variables::AccelerationLinear3DStamped>::type()
         const {
   return "fuse_constraints::AbsoluteAccelerationLinear3DStampedConstraint";
+}
+
+template <>
+inline std::string
+    AbsoluteConstraint3D<beam_variables::ImuBiasStamped>::type()
+        const {
+  return "fuse_constraints::AbsoluteImuBias3DStampedConstraint";
 }
 }} // namespace beam_constraints::global

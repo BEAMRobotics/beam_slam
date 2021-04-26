@@ -164,7 +164,7 @@ using AbsoluteVelocityLinear3DStampedConstraint =
     AbsoluteConstraint3D<fuse_variables::VelocityLinear3DStamped>;
 using AbsoluteAccelerationLinear3DStampedConstraint =
     AbsoluteConstraint3D<fuse_variables::AccelerationLinear3DStamped>;
-using AbsoluteImuBiasStampedConstraint =
+using AbsoluteImuBias3DStampedConstraint =
     AbsoluteConstraint3D<beam_variables::ImuBiasStamped>;
 
 }} // namespace beam_constraints::global
@@ -179,4 +179,4 @@ BOOST_CLASS_EXPORT_KEY(
 BOOST_CLASS_EXPORT_KEY(
     beam_constraints::global::AbsoluteAccelerationLinear3DStampedConstraint);
 BOOST_CLASS_EXPORT_KEY(
-    beam_constraints::global::AbsoluteImuBiasStampedConstraint);
+    beam_constraints::global::AbsoluteImuBias3DStampedConstraint);
