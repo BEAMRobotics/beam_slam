@@ -66,23 +66,23 @@ bool NormalPriorImuState3DCostFunctor::operator()(const T* const orientation,
   orientation_functor_(orientation, &residual[0]);
 
   // Compute the velocity error
-  residual[4] = velocity[0] - T(b_(4));
-  residual[5] = velocity[1] - T(b_(5));
-  residual[6] = velocity[2] - T(b_(6));
+  residual[3] = velocity[0] - T(b_(4));
+  residual[4] = velocity[1] - T(b_(5));
+  residual[5] = velocity[2] - T(b_(6));
 
   // Compute the position error
-  residual[7] = position[0] - T(b_(7));
-  residual[8] = position[1] - T(b_(8));
-  residual[9] = position[2] - T(b_(9));
+  residual[6] = position[0] - T(b_(7));
+  residual[7] = position[1] - T(b_(8));
+  residual[8] = position[2] - T(b_(9));
 
   // Compute the acceleration bias error
-  residual[10] = accelbias[0] - T(b_(10));
-  residual[11] = accelbias[1] - T(b_(11));
-  residual[12] = accelbias[2] - T(b_(12));
+  residual[9] = accelbias[0] - T(b_(10));
+  residual[10] = accelbias[1] - T(b_(11));
+  residual[11] = accelbias[2] - T(b_(12));
 
   // Compute the gyroscope bias error
-  residual[13] = gyrobias[0] - T(b_(13));
-  residual[14] = gyrobias[1] - T(b_(14));
+  residual[12] = gyrobias[0] - T(b_(13));
+  residual[13] = gyrobias[1] - T(b_(14));
   residual[14] = gyrobias[2] - T(b_(15));
 
   // Scale the residuals by the square root information matrix to account for

@@ -98,19 +98,19 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
   residual[5] = velocity_delta_rotated[2] - T(b_[6]);
 
   // Compute the next three residual terms as (position_delta - b)
-  residual[0] = position_delta_rotated[0] - T(b_[7]);
-  residual[1] = position_delta_rotated[1] - T(b_[8]);
-  residual[2] = position_delta_rotated[2] - T(b_[9]);
+  residual[6] = position_delta_rotated[0] - T(b_[7]);
+  residual[7] = position_delta_rotated[1] - T(b_[8]);
+  residual[8] = position_delta_rotated[2] - T(b_[9]);
 
   // Compute the next three residual terms as (bias_accel_delta - b)
-  residual[10] = bias_accel_delta[0] - T(b_[10]);
-  residual[11] = bias_accel_delta[1] - T(b_[11]);
-  residual[12] = bias_accel_delta[2] - T(b_[12]);
+  residual[9] = bias_accel_delta[0] - T(b_[10]);
+  residual[10] = bias_accel_delta[1] - T(b_[11]);
+  residual[11] = bias_accel_delta[2] - T(b_[12]);
 
   // Compute the next three residual terms as (bias_gyro_delta - b)
-  residual[13] = bias_gyro_delta[0] - T(b_[13]);
-  residual[14] = bias_gyro_delta[1] - T(b_[14]);
-  residual[15] = bias_gyro_delta[2] - T(b_[15]);
+  residual[12] = bias_gyro_delta[0] - T(b_[13]);
+  residual[13] = bias_gyro_delta[1] - T(b_[14]);
+  residual[14] = bias_gyro_delta[2] - T(b_[15]);
 
   // Map it to Eigen, and weight it
   Eigen::Map<Eigen::Matrix<T, 15, 1>> residual_map(residual);
