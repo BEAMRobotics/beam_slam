@@ -17,25 +17,23 @@ public:
   ImuState() = default;
 
   ImuState(const ros::Time& time) : stamp_(time) {
-    this->InstantiateFuseVariables();
-    this->SetPosition(0, 0, 0);
-    this->SetVelocity(0, 0, 0);
-    this->SetOrientation(1, 0, 0, 0);
-    this->SetBiasAcceleration(0, 0, 0);
-    this->SetBiasGyroscope(0, 0, 0);
+    InstantiateFuseVariables();
+    SetOrientation(1, 0, 0, 0);  
+    SetVelocity(0, 0, 0);       
+    SetPosition(0, 0, 0);
+    SetBiasAcceleration(0, 0, 0);
+    SetBiasGyroscope(0, 0, 0);
   }
 
   ImuState(const ros::Time& time, const double& bias_acceleration_init,
            const double& bias_gyroscope_init)
       : stamp_(time) {
-    this->InstantiateFuseVariables();
-    this->SetPosition(0, 0, 0);
-    this->SetVelocity(0, 0, 0);
-    this->SetOrientation(1, 0, 0, 0);
-    this->SetBiasAcceleration(bias_acceleration_init, bias_acceleration_init, 
-                              bias_acceleration_init);
-    this->SetBiasGyroscope(bias_gyroscope_init, bias_gyroscope_init, 
-                           bias_gyroscope_init);
+    InstantiateFuseVariables();
+    SetOrientation(1, 0, 0, 0);
+    SetVelocity(0, 0, 0);
+    SetPosition(0, 0, 0);
+    SetBiasAcceleration(bias_acceleration_init);
+    SetBiasGyroscope(bias_gyroscope_init);
   }
 
   ImuState(const ros::Time& time, const Eigen::Matrix4d& T_WORLD_IMU,
@@ -43,39 +41,39 @@ public:
            const fuse_core::Vector3d& bias_acceleration,
            const fuse_core::Vector3d& bias_gyroscope)
       : stamp_(time) {
-    this->InstantiateFuseVariables();
+    InstantiateFuseVariables();
     beam_common::EigenTransformToFusePose(T_WORLD_IMU, position_, orientation_);
-    this->SetVelocity(velocity);
-    this->SetBiasAcceleration(bias_acceleration);
-    this->SetBiasGyroscope(bias_gyroscope);
+    SetVelocity(velocity);
+    SetBiasAcceleration(bias_acceleration);
+    SetBiasGyroscope(bias_gyroscope);
   }
 
-  ImuState(const ros::Time& time, const fuse_core::Vector3d& position,
+  ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation, 
            const fuse_core::Vector3d& velocity,
-           const Eigen::Quaterniond& orientation,
+           const fuse_core::Vector3d& position,
            const fuse_core::Vector3d& bias_acceleration,
            const fuse_core::Vector3d& bias_gyroscope)
       : stamp_(time) {
-    this->InstantiateFuseVariables();
-    this->SetPosition(position);
-    this->SetVelocity(velocity);
-    this->SetOrientation(orientation);
-    this->SetBiasAcceleration(bias_acceleration);
-    this->SetBiasGyroscope(bias_gyroscope);
+    InstantiateFuseVariables();
+    SetOrientation(orientation);
+    SetVelocity(velocity);
+    SetPosition(position);    
+    SetBiasAcceleration(bias_acceleration);
+    SetBiasGyroscope(bias_gyroscope);
   }
 
   bool Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
-    if (graph_msg->variableExists(position_.uuid()) &&
+    if (graph_msg->variableExists(orientation_.uuid()) &&
         graph_msg->variableExists(velocity_.uuid()) &&
-        graph_msg->variableExists(orientation_.uuid()) &&
+        graph_msg->variableExists(position_.uuid()) &&
         graph_msg->variableExists(bias_acceleration_.uuid()) &&
         graph_msg->variableExists(bias_gyroscope_.uuid())) {
+      orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+          graph_msg->getVariable(orientation_.uuid()));   
+      velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+          graph_msg->getVariable(velocity_.uuid()));     
       position_ = dynamic_cast<const fuse_variables::Position3DStamped&>(
           graph_msg->getVariable(position_.uuid()));
-      velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
-          graph_msg->getVariable(velocity_.uuid()));
-      orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-          graph_msg->getVariable(orientation_.uuid()));
       bias_acceleration_ = dynamic_cast<const beam_variables::ImuBiasStamped&>(
           graph_msg->getVariable(bias_acceleration_.uuid()));
       bias_gyroscope_ = dynamic_cast<const beam_variables::ImuBiasStamped&>(
@@ -87,11 +85,11 @@ public:
   }
 
   void InstantiateFuseVariables(const ros::Time& time) {
-    position_ = fuse_variables::Position3DStamped(time, fuse_core::uuid::NIL);
-    velocity_ =
-        fuse_variables::VelocityLinear3DStamped(time, fuse_core::uuid::NIL);
     orientation_ =
         fuse_variables::Orientation3DStamped(time, fuse_core::uuid::NIL);
+    velocity_ =
+        fuse_variables::VelocityLinear3DStamped(time, fuse_core::uuid::NIL);    
+    position_ = fuse_variables::Position3DStamped(time, fuse_core::uuid::NIL);
     bias_acceleration_ =
         beam_variables::ImuBiasStamped(time, fuse_core::uuid::NIL);
     bias_gyroscope_ =
@@ -99,11 +97,11 @@ public:
   }
 
   void InstantiateFuseVariables() {
-    position_ = fuse_variables::Position3DStamped(stamp_, fuse_core::uuid::NIL);
-    velocity_ =
-        fuse_variables::VelocityLinear3DStamped(stamp_, fuse_core::uuid::NIL);
     orientation_ =
-        fuse_variables::Orientation3DStamped(stamp_, fuse_core::uuid::NIL);
+        fuse_variables::Orientation3DStamped(stamp_, fuse_core::uuid::NIL); 
+    velocity_ =
+        fuse_variables::VelocityLinear3DStamped(stamp_, fuse_core::uuid::NIL);           
+    position_ = fuse_variables::Position3DStamped(stamp_, fuse_core::uuid::NIL);
     bias_acceleration_ =
         beam_variables::ImuBiasStamped(stamp_, fuse_core::uuid::NIL);
     bias_gyroscope_ =
@@ -120,13 +118,13 @@ public:
 
   ros::Time Stamp() const { return stamp_; }
 
-  fuse_variables::Position3DStamped Position() const { return position_; }
-
-  fuse_variables::VelocityLinear3DStamped Velocity() const { return velocity_; }
-
   fuse_variables::Orientation3DStamped Orientation() const {
     return orientation_;
   }
+
+  fuse_variables::VelocityLinear3DStamped Velocity() const { return velocity_; }
+
+  fuse_variables::Position3DStamped Position() const { return position_; }
 
   beam_variables::ImuBiasStamped BiasAcceleration() const {
     return bias_acceleration_;
@@ -138,30 +136,6 @@ public:
 
   void Set_T_WORLD_IMU(const Eigen::Matrix4d& T_WORLD_IMU) {
     beam_common::EigenTransformToFusePose(T_WORLD_IMU, position_, orientation_);
-  }
-
-  void SetPosition(const double& x, const double& y, const double& z) {
-    position_.x() = x;
-    position_.y() = y;
-    position_.z() = z;
-  }
-
-  void SetPosition(const fuse_core::Vector3d& position) {
-    position_.x() = position[0];
-    position_.y() = position[1];
-    position_.z() = position[2];
-  }
-
-  void SetVelocity(const double& x, const double& y, const double& z) {
-    velocity_.x() = x;
-    velocity_.y() = y;
-    velocity_.z() = z;
-  }
-
-  void SetVelocity(const fuse_core::Vector3d& velocity) {
-    velocity_.x() = velocity[0];
-    velocity_.y() = velocity[1];
-    velocity_.z() = velocity[2];
   }
 
   void SetOrientation(const double& w, const double& x, const double& y,
@@ -177,6 +151,30 @@ public:
     orientation_.x() = orientation.x();
     orientation_.y() = orientation.y();
     orientation_.z() = orientation.z();
+  }
+
+  void SetVelocity(const double& x, const double& y, const double& z) {
+    velocity_.x() = x;
+    velocity_.y() = y;
+    velocity_.z() = z;
+  }
+
+  void SetVelocity(const fuse_core::Vector3d& velocity) {
+    velocity_.x() = velocity[0];
+    velocity_.y() = velocity[1];
+    velocity_.z() = velocity[2];
+  }
+
+  void SetPosition(const double& x, const double& y, const double& z) {
+    position_.x() = x;
+    position_.y() = y;
+    position_.z() = z;
+  }
+
+  void SetPosition(const fuse_core::Vector3d& position) {
+    position_.x() = position[0];
+    position_.y() = position[1];
+    position_.z() = position[2];
   }
 
   void SetBiasAcceleration(const double& ba_init) {
