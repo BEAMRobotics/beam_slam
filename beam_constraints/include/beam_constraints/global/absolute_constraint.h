@@ -14,6 +14,8 @@
 #include <boost/serialization/export.hpp>
 #include <ceres/cost_function.h>
 
+#include <beam_variables/imu_bias_stamped.h>
+
 namespace beam_constraints { namespace global {
 
 /**
@@ -162,6 +164,8 @@ using AbsoluteVelocityLinear3DStampedConstraint =
     AbsoluteConstraint3D<fuse_variables::VelocityLinear3DStamped>;
 using AbsoluteAccelerationLinear3DStampedConstraint =
     AbsoluteConstraint3D<fuse_variables::AccelerationLinear3DStamped>;
+using AbsoluteImuBiasStampedConstraint =
+    AbsoluteConstraint3D<beam_variables::ImuBiasStamped>;
 
 }} // namespace beam_constraints::global
 
@@ -174,3 +178,5 @@ BOOST_CLASS_EXPORT_KEY(
     beam_constraints::global::AbsoluteVelocityLinear3DStampedConstraint);
 BOOST_CLASS_EXPORT_KEY(
     beam_constraints::global::AbsoluteAccelerationLinear3DStampedConstraint);
+BOOST_CLASS_EXPORT_KEY(
+    beam_constraints::global::AbsoluteImuBiasStampedConstraint);
