@@ -54,7 +54,9 @@ public:
   }
 
   fuse_core::Transaction::SharedPtr GetTransaction() {
-    if (transaction_->empty()) { return nullptr; }
+    if (transaction_->empty()) {
+      return nullptr;
+    }
     return transaction_;
   }
 
@@ -185,10 +187,30 @@ public:
         override_variables_);
   }
 
+  void AddImuStatePrior(const fuse_variables::Orientation3DStamped& orientation,
+                        const fuse_variables::VelocityLinear3DStamped& velocity,
+                        const fuse_variables::Position3DStamped& position,
+                        const beam_variables::ImuBiasStamped& accelbias,
+                        const beam_variables::ImuBiasStamped& gyrobias,
+                        const Eigen::Matrix<double, 15, 15>& prior_covariance,
+                        const std::string& prior_source = "NULL") {
+    Eigen::Matrix<double, 16, 1> mean;
+    mean << orientation.w(), orientation.x(), orientation.y(), orientation.z(),
+        velocity.x(), velocity.y(), velocity.z(), position.x(), position.y(),
+        position.z(), accelbias.x(), accelbias.y(), accelbias.z(), gyrobias.x(),
+        gyrobias.y(), gyrobias.z();
+
+    auto prior = std::make_shared<
+        beam_constraints::global::AbsoluteImuState3DStampedConstraint>(
+        prior_source, orientation, velocity, position, accelbias, gyrobias,
+        mean, prior_covariance);
+    transaction_->addConstraint(prior, override_constraints_);
+  }
+
 protected:
   fuse_core::Transaction::SharedPtr transaction_;
   bool override_constraints_;
   bool override_variables_;
 };
 
-}} // namespace beam_constraints::frame_to_frame
+}}  // namespace beam_constraints::frame_to_frame
