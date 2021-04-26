@@ -17,7 +17,7 @@ void Imu3D::onInit() {
 
   // init imu preintegration
   ImuPreintegration::Params imu_preintegration_params{
-      .buffer_size = params_.buffer_size,
+      .max_buffer_time = params_.max_buffer_time,
       .gravitational_acceleration = params_.gravitational_acceleration,
       .initial_imu_acceleration_bias = params_.initial_imu_acceleration_bias,
       .initial_imu_gyroscope_bias = params_.initial_imu_gyroscope_bias};
@@ -25,7 +25,6 @@ void Imu3D::onInit() {
       std::make_unique<ImuPreintegration>(imu_preintegration_params);
 
   imu_preintegration_->SetFixedCovariance(params_.imu_noise_covariance);
-  imu_preintegration_->ReserveBuffer();
 }
 
 void Imu3D::onStart() {
@@ -46,7 +45,7 @@ Imu3D::GenerateTransaction(const sensor_msgs::Imu::ConstPtr& msg) {
 
   imu_preintegration_->PopulateBuffer(msg);
 
-  if (imu_preintegration_->GetBufferSize() == params_.buffer_size) {
+  if (imu_preintegration_->GetBufferTime() >= params_.max_buffer_time) {
     imu_preintegration_->RegisterNewImuPreintegrationFactor();
     imu_preintegration_->ClearBuffer();
   }

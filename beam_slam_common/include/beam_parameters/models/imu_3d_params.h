@@ -16,7 +16,7 @@ public:
    */
   void loadExtraParams(const ros::NodeHandle& nh) final {
     nh.getParam("queue_size", queue_size);
-    nh.getParam("buffer_size", buffer_size);
+    nh.getParam("max_buffer_time", max_buffer_time);
     nh.getParam("gravitational_acceleration", gravitational_acceleration);
     nh.getParam("initial_imu_acceleration_bias", initial_imu_acceleration_bias);
     nh.getParam("initial_imu_gyroscope_bias", initial_imu_gyroscope_bias);
@@ -25,7 +25,7 @@ public:
   }
 
   int queue_size{50};
-  int buffer_size{50};
+  double max_buffer_time{1.00};
   double gravitational_acceleration{9.80665};
   double initial_imu_acceleration_bias{1.0e-05};
   double initial_imu_gyroscope_bias{1.0e-05};

@@ -122,16 +122,44 @@ public:
     return orientation_;
   }
 
+  Eigen::Quaterniond OrientationQuat() const {
+    Eigen::Quaterniond q(orientation_.w(), orientation_.x(), orientation_.y(), 
+                         orientation_.z());
+    return q;
+  }
+
   fuse_variables::VelocityLinear3DStamped Velocity() const { return velocity_; }
 
+  fuse_core::Vector3d VelocityVec() const { 
+    fuse_core::Vector3d v(velocity_.x(), velocity_.y(), velocity_.z());
+    return v; 
+  }
+
   fuse_variables::Position3DStamped Position() const { return position_; }
+
+  fuse_core::Vector3d PositionVec() const { 
+    fuse_core::Vector3d p(position_.x(), position_.y(), position_.z());
+    return p; 
+  }
 
   beam_variables::ImuBiasStamped BiasAcceleration() const {
     return bias_acceleration_;
   }
 
+  fuse_core::Vector3d BiasAccelerationVec() const { 
+    fuse_core::Vector3d ba(bias_acceleration_.x(), bias_acceleration_.y(), 
+                           bias_acceleration_.z());
+    return ba; 
+  }
+
   beam_variables::ImuBiasStamped BiasGyroscope() const {
     return bias_gyroscope_;
+  }
+
+  fuse_core::Vector3d BiasGyroscopeVec() const { 
+    fuse_core::Vector3d bg(bias_gyroscope_.x(), bias_gyroscope_.y(), 
+                           bias_gyroscope_.z());
+    return bg; 
   }
 
   void Set_T_WORLD_IMU(const Eigen::Matrix4d& T_WORLD_IMU) {
