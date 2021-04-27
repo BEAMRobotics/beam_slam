@@ -5,7 +5,7 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS utils matching filtering)
+find_package(beam REQUIRED COMPONENTS calibration cv utils matching filtering)
 
 find_package(
   catkin REQUIRED
@@ -93,6 +93,7 @@ add_library(
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
   src/frame_initializers/graph_frame_initializer.cpp
+  src/camera_to_camera/camera.cpp
 )
 
 ## Specify libraries to link a library or executable target against
@@ -104,6 +105,8 @@ target_link_libraries(
     beam::matching
     beam::filtering
     beam::mapping
+    beam::calibration
+    beam::cv
 )
 add_dependencies(
   ${PROJECT_NAME}
