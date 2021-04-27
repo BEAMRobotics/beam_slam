@@ -100,8 +100,8 @@ public:
       return;
     }
 
-    PointCloudPtr cloud_initial = boost::make_shared<PointCloud>();
-    PointCloudPtr cloud_final = boost::make_shared<PointCloud>();
+    PointCloudPtr cloud_initial = std::make_shared<PointCloud>();
+    PointCloudPtr cloud_final = std::make_shared<PointCloud>();
 
     pcl::transformPointCloud(pointcloud_, *cloud_initial,
                              T_WORLD_CLOUD_initial_);

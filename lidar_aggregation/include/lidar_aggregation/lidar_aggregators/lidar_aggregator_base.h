@@ -11,13 +11,13 @@
 struct LidarChunk {
   PointCloudPtr cloud;
   ros::Time time;
-  LidarChunk() { cloud = boost::make_shared<PointCloud>(); }
+  LidarChunk() { cloud = std::make_shared<PointCloud>(); }
 };
 
 struct LidarAggregate {
   PointCloudPtr cloud;
   ros::Time time;
-  LidarAggregate() { cloud = boost::make_shared<PointCloud>(); }
+  LidarAggregate() { cloud = std::make_shared<PointCloud>(); }
 };
 
 class LidarAggregatorBase {

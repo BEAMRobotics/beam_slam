@@ -18,7 +18,7 @@ MultiScanRegistration::MultiScanRegistration(
   // if outputting results, clear output folder:
   if (!output_scan_registration_results_) { return; }
 
-  coord_frame_ = boost::make_shared<PointCloudCol>();
+  coord_frame_ = std::make_shared<PointCloudCol>();
   *coord_frame_ = beam::CreateFrameCol();
 
   if (boost::filesystem::is_directory(tmp_output_path_)) {
@@ -36,7 +36,11 @@ void MultiScanRegistration::SetFixedCovariance(
 beam_constraints::frame_to_frame::Pose3DStampedTransaction
     MultiScanRegistration::RegisterNewScan(const ScanPose& new_scan) {
   beam_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
+<<<<<<< HEAD
 		new_scan.Stamp());
+=======
+      new_scan.Stamp());
+>>>>>>> d773eb4571e47cb458d114974e9bd858520b69fe
 
   // add pose variables for new scan
   transaction.AddPoseVariables(new_scan.Position(), new_scan.Orientation(),
@@ -109,7 +113,7 @@ beam_constraints::frame_to_frame::Pose3DStampedTransaction
   return transaction;
 }
 
-bool MultiScanRegistration::PassedThreshold(
+bool MultiScanRegistration::PassedRegThreshold(
     const Eigen::Matrix4d& T_measured, const Eigen::Matrix4d& T_estimated) {
   Eigen::Matrix3d R1 = T_measured.block(0, 0, 3, 3);
   Eigen::Matrix3d R2 = T_estimated.block(0, 0, 3, 3);
@@ -174,22 +178,20 @@ void MultiScanRegistration::RemoveMissingScans(
 bool MultiScanRegistration::MatchScans(
     const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
     Eigen::Matrix4d& T_CLOUD1_CLOUD2, Eigen::Matrix<double, 6, 6>& covariance) {
-  const PointCloud& cloud1 = scan_pose_1.Cloud();
-  const PointCloud& cloud2 = scan_pose_2.Cloud();
-  Eigen::Matrix4d T_WORLD_CLOUD1 = scan_pose_1.T_WORLD_CLOUD();
-  Eigen::Matrix4d T_WORLD_CLOUD2 = scan_pose_2.T_WORLD_CLOUD();
-
   Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
-      beam::InvertTransform(T_WORLD_CLOUD1) * T_WORLD_CLOUD2;
+      beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
+      scan_pose_2.T_WORLD_CLOUD();
+
+  if (!PassedMinMotion(T_CLOUD1_CLOUD2_init)) { return false; }
 
   // transform cloud2 into cloud1 frame
   PointCloud cloud2_RefFInit;
-  pcl::transformPointCloud(cloud2, cloud2_RefFInit,
+  pcl::transformPointCloud(scan_pose_2.Cloud(), cloud2_RefFInit,
                            Eigen::Affine3d(T_CLOUD1_CLOUD2_init));
 
   // match clouds
-  matcher_->SetRef(boost::make_shared<PointCloud>(cloud2_RefFInit));
-  matcher_->SetTarget(boost::make_shared<PointCloud>(cloud1));
+  matcher_->SetRef(std::make_shared<PointCloud>(cloud2_RefFInit));
+  matcher_->SetTarget(std::make_shared<PointCloud>(scan_pose_1.Cloud()));
   if (!matcher_->Match()) {
     ROS_ERROR("Failed scan matching. Skipping measurement.");
     return false;
@@ -199,22 +201,23 @@ bool MultiScanRegistration::MatchScans(
   T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
 
   if (output_scan_registration_results_) {
-    PointCloudPtr cloud_ref = boost::make_shared<PointCloud>();
-    *cloud_ref = cloud1;
-    PointCloudPtr cloud_ref_world = boost::make_shared<PointCloud>();
-    PointCloudPtr cloud_cur_initial_world = boost::make_shared<PointCloud>();
-    PointCloudPtr cloud_cur_aligned_world = boost::make_shared<PointCloud>();
+    PointCloudPtr cloud_ref = std::make_shared<PointCloud>();
+    *cloud_ref = scan_pose_1.Cloud();
+    PointCloudPtr cloud_ref_world = std::make_shared<PointCloud>();
+    PointCloudPtr cloud_cur_initial_world = std::make_shared<PointCloud>();
+    PointCloudPtr cloud_cur_aligned_world = std::make_shared<PointCloud>();
 
-    const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT = T_WORLD_CLOUD2;
-    const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = T_WORLD_CLOUD1;
+    const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
+        scan_pose_2.T_WORLD_CLOUD();
+    const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_WORLD_CLOUD();
     Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
         T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
 
     pcl::transformPointCloud(*cloud_ref, *cloud_ref_world,
                              T_WORLD_CLOUDREF_INIT);
-    pcl::transformPointCloud(cloud2, *cloud_cur_initial_world,
+    pcl::transformPointCloud(scan_pose_2.Cloud(), *cloud_cur_initial_world,
                              T_WORLD_CLOUDCURRENT_INIT);
-    pcl::transformPointCloud(cloud2, *cloud_cur_aligned_world,
+    pcl::transformPointCloud(scan_pose_2.Cloud(), *cloud_cur_aligned_world,
                              T_WORLD_CLOUDCURRENT_OPT);
 
     PointCloudColPtr cloud_ref_world_col =
@@ -243,9 +246,9 @@ bool MultiScanRegistration::MatchScans(
     ROS_INFO("Saved scan registration results to %s", filename.c_str());
   }
 
-  if (!PassedThreshold(T_CLOUD1_CLOUD2,
-                       beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
-                           scan_pose_2.T_WORLD_CLOUD())) {
+  if (!PassedRegThreshold(T_CLOUD1_CLOUD2,
+                          beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
+                              scan_pose_2.T_WORLD_CLOUD())) {
     ROS_ERROR("Failed scan matcher transform threshold check. Skipping "
               "measurement.");
     return false;
@@ -259,6 +262,21 @@ bool MultiScanRegistration::MatchScans(
   }
 
   return true;
+}
+
+bool MultiScanRegistration::PassedMinMotion(
+    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
+  // check translation
+  if (T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm() >= params_.min_motion_trans_m) {
+    return true;
+  }
+
+  // check rotation
+  Eigen::Matrix3d R = T_CLOUD1_CLOUD2.block(0, 0, 3, 3);
+  if (Eigen::AngleAxis<double>(R).angle() >= params_.min_motion_rot_rad) {
+    return true;
+  }
+  return false;
 }
 
 ScanPose MultiScanRegistration::GetScan(const ros::Time& t, bool& success) {
