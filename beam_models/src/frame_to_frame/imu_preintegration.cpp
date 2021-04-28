@@ -60,7 +60,7 @@ double ImuPreintegration::GetBufferTime() {
   }
 }
 
-void ImuPreintegration::Propagate(fuse_core::Matrix3d& delta_R_ij,
+void ImuPreintegration::Integrate(fuse_core::Matrix3d& delta_R_ij,
                                   fuse_core::Vector3d& delta_V_ij,
                                   fuse_core::Vector3d& delta_P_ij,
                                   fuse_core::Matrix9d& Covariance_ij) {
@@ -121,6 +121,24 @@ void ImuPreintegration::Propagate(fuse_core::Matrix3d& delta_R_ij,
   }
 }
 
+void ImuPreintegration::PredictState(ImuState& imu_state, const double& del_t,
+                                     const fuse_core::Matrix3d& delta_R_ij, 
+                                     const fuse_core::Vector3d& delta_V_ij, 
+                                     const fuse_core::Vector3d& delta_P_ij) {
+
+  fuse_core::Matrix3d R_i = imu_state.OrientationQuat().toRotationMatrix();
+
+  fuse_core::Matrix3d R_j = R_i * delta_R_ij; 
+  fuse_core::Vector3d V_j = imu_state.VelocityVec() + gravitational_acceleration_ * del_t + R_i * delta_V_ij;
+  fuse_core::Vector3d P_j = imu_state.PositionVec() + imu_state.VelocityVec() * del_t + 0.5 * gravitational_acceleration_ * del_t * del_t + R_i * delta_P_ij;
+
+  Eigen::Quaterniond R_j_quat(R_j);
+
+  imu_state.SetOrientation(R_j_quat);
+  imu_state.SetVelocity(V_j);
+  imu_state.SetPosition(P_j);
+}
+
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
 ImuPreintegration::RegisterNewImuPreintegrationFactor() {
   // determine first time, last time, and duration of window
@@ -134,15 +152,15 @@ ImuPreintegration::RegisterNewImuPreintegrationFactor() {
 
   // set first imu state at origin
   if (first_window_) {
+    imu_state_i_.InstantiateFuseVariables(t_i,
+                                          params_.initial_imu_acceleration_bias, 
+                                          params_.initial_imu_gyroscope_bias );
+
     Eigen::Quaterniond R_i_quat_init(Eigen::Quaterniond::FromTwoVectors(
         imu_data_buffer_.front().linear_acceleration,
         Eigen::Vector3d::UnitZ()));
-    imu_state_i_.InstantiateFuseVariables(t_i);
+
     imu_state_i_.SetOrientation(R_i_quat_init);
-    imu_state_i_.SetVelocity(0, 0, 0);
-    imu_state_i_.SetPosition(0, 0, 0);
-    imu_state_i_.SetBiasAcceleration(params_.initial_imu_acceleration_bias);
-    imu_state_i_.SetBiasGyroscope(params_.initial_imu_gyroscope_bias);
 
     Eigen::Matrix<double, 15, 15> imu_state_prior_covariance;
     imu_state_prior_covariance.setIdentity();
@@ -162,8 +180,11 @@ ImuPreintegration::RegisterNewImuPreintegrationFactor() {
   fuse_core::Vector3d delta_V_ij;
   fuse_core::Vector3d delta_P_ij;
   fuse_core::Matrix9d Covariance_ij;
+  Integrate(delta_R_ij, delta_V_ij, delta_P_ij, Covariance_ij);
 
-  Propagate(delta_R_ij, delta_V_ij, delta_P_ij, Covariance_ij);
+  ImuState imu_state_j(t_j);
+  PredictState(imu_state_j, del_t_ij, delta_R_ij, delta_V_ij, delta_P_ij);
+
 }
 
 }}  // namespace beam_models::frame_to_frame

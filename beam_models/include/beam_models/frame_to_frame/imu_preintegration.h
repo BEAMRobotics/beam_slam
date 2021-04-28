@@ -47,10 +47,15 @@ public:
 
   double GetBufferTime();
   
-  void Propagate(fuse_core::Matrix3d& delta_R_ij,
+  void Integrate(fuse_core::Matrix3d& delta_R_ij,
                  fuse_core::Vector3d& delta_V_ij,
                  fuse_core::Vector3d& delta_P_ij,
                  fuse_core::Matrix9d& Covariance_ij);
+
+  void PredictState(ImuState& imu_state, const double& del_t, 
+                    const fuse_core::Matrix3d& delta_R_ij, 
+                    const fuse_core::Vector3d& delta_V_ij, 
+                    const fuse_core::Vector3d& delta_P_ij);               
 
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   RegisterNewImuPreintegrationFactor();
