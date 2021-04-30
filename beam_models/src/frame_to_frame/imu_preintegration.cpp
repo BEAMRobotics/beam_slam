@@ -122,15 +122,17 @@ void ImuPreintegration::Integrate(fuse_core::Matrix3d& delta_R_ij,
 }
 
 void ImuPreintegration::PredictState(ImuState& imu_state, const double& del_t,
-                                     const fuse_core::Matrix3d& delta_R_ij, 
-                                     const fuse_core::Vector3d& delta_V_ij, 
+                                     const fuse_core::Matrix3d& delta_R_ij,
+                                     const fuse_core::Vector3d& delta_V_ij,
                                      const fuse_core::Vector3d& delta_P_ij) {
-
   fuse_core::Matrix3d R_i = imu_state.OrientationQuat().toRotationMatrix();
-
-  fuse_core::Matrix3d R_j = R_i * delta_R_ij; 
-  fuse_core::Vector3d V_j = imu_state.VelocityVec() + gravitational_acceleration_ * del_t + R_i * delta_V_ij;
-  fuse_core::Vector3d P_j = imu_state.PositionVec() + imu_state.VelocityVec() * del_t + 0.5 * gravitational_acceleration_ * del_t * del_t + R_i * delta_P_ij;
+  fuse_core::Matrix3d R_j = R_i * delta_R_ij;
+  fuse_core::Vector3d V_j = imu_state.VelocityVec() +
+                            gravitational_acceleration_ * del_t +
+                            R_i * delta_V_ij;
+  fuse_core::Vector3d P_j =
+      imu_state.PositionVec() + imu_state.VelocityVec() * del_t +
+      0.5 * gravitational_acceleration_ * del_t * del_t + R_i * delta_P_ij;
 
   Eigen::Quaterniond R_j_quat(R_j);
 
@@ -152,9 +154,9 @@ ImuPreintegration::RegisterNewImuPreintegrationFactor() {
 
   // set first imu state at origin
   if (first_window_) {
-    imu_state_i_.InstantiateFuseVariables(t_i,
-                                          params_.initial_imu_acceleration_bias, 
-                                          params_.initial_imu_gyroscope_bias );
+    imu_state_i_.InstantiateFuseVariables(t_i);
+    imu_state_i_.SetBiasAcceleration(params_.initial_imu_acceleration_bias);
+    imu_state_i_.SetBiasGyroscope(params_.initial_imu_gyroscope_bias);
 
     Eigen::Quaterniond R_i_quat_init(Eigen::Quaterniond::FromTwoVectors(
         imu_data_buffer_.front().linear_acceleration,
@@ -183,8 +185,10 @@ ImuPreintegration::RegisterNewImuPreintegrationFactor() {
   Integrate(delta_R_ij, delta_V_ij, delta_P_ij, Covariance_ij);
 
   ImuState imu_state_j(t_j);
+  imu_state_j.SetBiasAcceleration(imu_state_i_.BiasAccelerationVec());
+  imu_state_j.SetBiasGyroscope(imu_state_i_.BiasGyroscopeVec());
   PredictState(imu_state_j, del_t_ij, delta_R_ij, delta_V_ij, delta_P_ij);
-
 }
 
-}}  // namespace beam_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace beam_models

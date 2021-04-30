@@ -94,6 +94,7 @@ public:
         beam_variables::ImuBiasStamped(time, fuse_core::uuid::NIL);
     bias_gyroscope_ =
         beam_variables::ImuBiasStamped(time, fuse_core::uuid::NIL);
+    stamp_ = time;    
   }
 
   void InstantiateFuseVariables() {
@@ -272,9 +273,9 @@ public:
 private:
   int updates_{0};
   ros::Time stamp_;
-  fuse_variables::Position3DStamped position_;
-  fuse_variables::VelocityLinear3DStamped velocity_;
   fuse_variables::Orientation3DStamped orientation_;
+  fuse_variables::VelocityLinear3DStamped velocity_;
+  fuse_variables::Position3DStamped position_;
   beam_variables::ImuBiasStamped bias_acceleration_;
   beam_variables::ImuBiasStamped bias_gyroscope_;
 };
