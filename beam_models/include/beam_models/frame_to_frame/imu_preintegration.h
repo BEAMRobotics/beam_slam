@@ -15,27 +15,45 @@ using TransactionBase =
 class ImuPreintegration {
 public:
   struct Params {
-    double max_buffer_time;
-    double gravitational_acceleration;
-    double initial_imu_acceleration_bias;
-    double initial_imu_gyroscope_bias;
+    double gravitational_acceleration{9.80665};
+    Eigen::Matrix3d cov_w{Eigen::Matrix3d::Identity() * 1.5e-03};
+    Eigen::Matrix3d cov_a{Eigen::Matrix3d::Identity() * 4.0e-03};
+    Eigen::Matrix3d cov_bg{Eigen::Matrix3d::Identity() * 3.5e-05};
+    Eigen::Matrix3d cov_ba{Eigen::Matrix3d::Identity() * 6.5e-05};
     std::string source{"IMUPREINTEGRATION"};
   };
 
   struct ImuData {
     ros::Time time;
-    fuse_core::Vector3d linear_acceleration;
     fuse_core::Vector3d angular_velocity;
-    fuse_core::Matrix6d noise_covariance;
+    fuse_core::Vector3d linear_acceleration;
 
     ImuData() {
       linear_acceleration.setZero();
       angular_velocity.setZero();
-      noise_covariance.setZero();
     }
   };
 
+  struct Delta {
+    double t;
+    Eigen::Quaterniond q;
+    Eigen::Vector3d p;
+    Eigen::Vector3d v;
+    Eigen::Matrix<double, 15, 15> cov; // ordered in q, p, v, bg, ba
+  };
+
+  struct Jacobian {
+    Eigen::Matrix3d dq_dbg;
+    Eigen::Matrix3d dp_dbg;
+    Eigen::Matrix3d dp_dba;
+    Eigen::Matrix3d dv_dbg;
+    Eigen::Matrix3d dv_dba;
+  };
+
   ImuPreintegration(const Params& params);
+
+  ImuPreintegration(const Params& params, const Eigen::Vector3d& init_ba,
+                    const Eigen::Vector3d& init_bg);
 
   ~ImuPreintegration() = default;
 
@@ -43,33 +61,42 @@ public:
 
   void PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg);
 
-  void SetFixedCovariance(const fuse_core::Matrix6d& covariance);
+  void ResetMotionEstimate();
 
-  double GetBufferTime();
-  
-  void Integrate(fuse_core::Matrix3d& delta_R_ij,
-                 fuse_core::Vector3d& delta_V_ij,
-                 fuse_core::Vector3d& delta_P_ij,
-                 fuse_core::Matrix9d& Covariance_ij);
+  void SetStart(const ros::Time& t_start, const Eigen::Quaterniond& orientation,
+                const Eigen::Vector3d& position);
 
-  void PredictState(ImuState& imu_state, const double& del_t, 
-                    const fuse_core::Matrix3d& delta_R_ij, 
-                    const fuse_core::Vector3d& delta_V_ij, 
-                    const fuse_core::Vector3d& delta_P_ij);               
+  void Increment(double dt, const ImuData& data, bool compute_jacobian,
+                 bool compute_covariance);
+
+  bool Integrate(double t, bool compute_jacobian, bool compute_covariance);
+
+  void PredictState(ImuState& imu_state);
 
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   RegisterNewImuPreintegrationFactor();
 
 private:
+  enum ErrorStateLocation {
+    ES_Q = 0,
+    ES_P = 3,
+    ES_V = 6,
+    ES_BG = 9,
+    ES_BA = 12,
+    ES_SIZE = 15
+  };
+
   Params params_;
-  bool first_window_{true};
-  bool use_fixed_imu_noise_covariance_{false};
   double imu_state_prior_noise_{1e-9};
-  fuse_core::Matrix6d imu_noise_covariance_;
   fuse_core::Vector3d gravitational_acceleration_;
 
+  Delta delta;
+  Jacobian jacobian;
   std::vector<ImuData> imu_data_buffer_;
+
   ImuState imu_state_i_;
+  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};
+  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};
 };
 
 }}  // namespace beam_models::frame_to_frame

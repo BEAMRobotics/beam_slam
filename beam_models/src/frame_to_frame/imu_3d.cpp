@@ -17,14 +17,9 @@ void Imu3D::onInit() {
 
   // init imu preintegration
   ImuPreintegration::Params imu_preintegration_params{
-      .max_buffer_time = params_.max_buffer_time,
-      .gravitational_acceleration = params_.gravitational_acceleration,
-      .initial_imu_acceleration_bias = params_.initial_imu_acceleration_bias,
-      .initial_imu_gyroscope_bias = params_.initial_imu_gyroscope_bias};
+      .gravitational_acceleration = params_.gravitational_acceleration};
   imu_preintegration_ =
       std::make_unique<ImuPreintegration>(imu_preintegration_params);
-
-  imu_preintegration_->SetFixedCovariance(params_.imu_noise_covariance);
 }
 
 void Imu3D::onStart() {
@@ -43,12 +38,13 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
 Imu3D::GenerateTransaction(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_DEBUG("Received incoming imu message");
 
-  imu_preintegration_->PopulateBuffer(msg);
+  // need to refactor using Jake's interface
 
-  if (imu_preintegration_->GetBufferTime() >= params_.max_buffer_time) {
-    imu_preintegration_->RegisterNewImuPreintegrationFactor();
-    imu_preintegration_->ClearBuffer();
-  }
+  // imu_preintegration_->PopulateBuffer(msg);
+  // if (imu_preintegration_->GetBufferTime() >= params_.max_buffer_time) {
+  //   imu_preintegration_->RegisterNewImuPreintegrationFactor();
+  //   imu_preintegration_->ClearBuffer();
+  // }
 }
 
 }}  // namespace frame_to_frame
