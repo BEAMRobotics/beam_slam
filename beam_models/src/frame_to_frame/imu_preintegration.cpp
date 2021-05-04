@@ -28,6 +28,10 @@ void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
   imu_data_buffer_.emplace_back(imu_data);
 }
 
+void ImuPreintegration::PopulateBuffer(const ImuData& imu_data) {
+  imu_data_buffer_.emplace_back(imu_data);
+};
+
 void ImuPreintegration::ResetMotionEstimate() {
   delta.t = 0;
   delta.q.setIdentity();
@@ -43,26 +47,28 @@ void ImuPreintegration::ResetMotionEstimate() {
 
 void ImuPreintegration::SetStart(const ros::Time& t_start, 
                                  const Eigen::Quaterniond& orientation,
-                                 const Eigen::Vector3d& position) {
-  int counter = 0;
-  while (t_start.toSec() > imu_data_buffer_.at(counter).time.toSec()) {
-    counter++;
-
-    if (counter == imu_data_buffer_.size()) {
-      // throw error
-      break;
+                                 const Eigen::Vector3d& velocity,
+                                 const Eigen::Vector3d& position) { 
+  if (t_start.toSec() > imu_data_buffer_.front().time.toSec()) {
+    int counter = 0;
+    while (t_start.toSec() > imu_data_buffer_.at(counter).time.toSec()) {
+      counter++;
+      if (counter == imu_data_buffer_.size()) {
+        // throw error
+        break;
+      }
     }
-  }
 
-  imu_data_buffer_.erase(imu_data_buffer_.begin(),
-                         imu_data_buffer_.begin() + counter);
+    imu_data_buffer_.erase(imu_data_buffer_.begin(),
+                           imu_data_buffer_.begin() + counter);
+  }
 
   imu_state_i_.InstantiateFuseVariables(t_start);
   imu_state_i_.SetOrientation(orientation);
   imu_state_i_.SetPosition(position);
-  imu_state_i_.SetVelocity(0,0,0);
+  imu_state_i_.SetVelocity(velocity);
   imu_state_i_.SetBiasAcceleration(ba_);
-  imu_state_i_.SetBiasGyroscope(bg_);                     
+  imu_state_i_.SetBiasGyroscope(bg_);
 }
 
 void ImuPreintegration::Increment(double dt, const ImuData& data,
@@ -131,7 +137,7 @@ bool ImuPreintegration::Integrate(double t, bool compute_jacobian,
   return true;
 }
 
-void ImuPreintegration::PredictState(ImuState& imu_state) {
+ImuState ImuPreintegration::PredictState(ImuState& imu_state) {
   fuse_core::Matrix3d R_i = imu_state.OrientationQuat().toRotationMatrix();
   fuse_core::Matrix3d R_j = R_i * delta.q.matrix();
   fuse_core::Vector3d V_j = imu_state.VelocityVec() +
@@ -143,9 +149,16 @@ void ImuPreintegration::PredictState(ImuState& imu_state) {
 
   Eigen::Quaterniond R_j_quat(R_j);
 
-  imu_state.SetOrientation(R_j_quat);
-  imu_state.SetVelocity(V_j);
-  imu_state.SetPosition(P_j);
+  ros::Time t_new = imu_state.Stamp() + ros::Duration(delta.t);
+
+  ImuState new_imu_state(t_new);
+  new_imu_state.SetOrientation(R_j_quat);
+  new_imu_state.SetVelocity(V_j);
+  new_imu_state.SetPosition(P_j);
+  new_imu_state.SetBiasAcceleration(imu_state.BiasAccelerationVec());
+  new_imu_state.SetBiasGyroscope(imu_state.BiasGyroscopeVec());
+
+  return new_imu_state;
 }
 
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction

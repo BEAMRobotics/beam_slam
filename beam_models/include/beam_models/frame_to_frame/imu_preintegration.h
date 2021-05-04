@@ -61,17 +61,24 @@ public:
 
   void PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg);
 
+  void PopulateBuffer(const ImuData& imu_data);
+
   void ResetMotionEstimate();
 
-  void SetStart(const ros::Time& t_start, const Eigen::Quaterniond& orientation,
-                const Eigen::Vector3d& position);
+  void SetStart(
+      const ros::Time& t_start = ros::Time(0),  
+      const Eigen::Quaterniond& orientation = Eigen::Quaterniond::Identity(),
+      const Eigen::Vector3d& velocity = Eigen::Vector3d::Zero(),
+      const Eigen::Vector3d& position = Eigen::Vector3d::Zero());
+
+  ImuState GetImuState() const { return imu_state_i_; }    
 
   void Increment(double dt, const ImuData& data, bool compute_jacobian,
                  bool compute_covariance);
 
   bool Integrate(double t, bool compute_jacobian, bool compute_covariance);
 
-  void PredictState(ImuState& imu_state);
+  ImuState PredictState(ImuState& imu_state);
 
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   RegisterNewImuPreintegrationFactor();
