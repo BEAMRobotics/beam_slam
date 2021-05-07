@@ -35,7 +35,6 @@ find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
-find_package(teaserpp REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS
