@@ -6,7 +6,7 @@
 #include <sensor_msgs/Imu.h>
 // beam_slam
 #include <beam_constraints/camera_to_camera/visual_constraint.h>
-//#include <beam_models/camera_to_camera/vio_initializer.h>
+#include <beam_models/camera_to_camera/vio_initializer.h>
 #include <beam_parameters/models/camera_params.h>
 #include <beam_variables/position_3d.h>
 // fuse
@@ -70,14 +70,13 @@ protected:
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
 private:
-
   /**
    * @brief Converts ros image message to opencv image
    */
   cv::Mat extractImage(const sensor_msgs::Image& msg);
 
 protected:
-  //std::shared_ptr<beam_models::camera_to_camera::VIOInitializer> initializer_;
+  std::shared_ptr<beam_models::camera_to_camera::VIOInitializer> initializer_;
   uint64_t img_num_ = 0;
   // loadable camera parameters
   beam_parameters::models::CameraParams params_;
@@ -107,6 +106,6 @@ protected:
   std::string position_3d_stamped_type_ = "fuse_variables::Position3DStamped";
   std::string orientation_3d_stamped_type_ =
       "fuse_variables::Orientation3DStamped";
-  bool init_mode = true;
+  bool initialization_passed_ = false;
 };
 }} // namespace beam_models::camera_to_camera

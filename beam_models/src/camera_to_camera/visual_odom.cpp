@@ -42,16 +42,13 @@ void VisualOdom::onInit() {
   // subscribe to imu topic
   imu_subscriber_ = private_node_handle_.subscribe(
       params_.imu_topic, 1000, &VisualOdom::processIMU, this);
-
-  std::cout << params_.image_topic << std::endl;
-  std::cout << params_.imu_topic << std::endl;
   // make initializer
-  // Eigen::Matrix4d T_body_cam;
-  // Eigen::Matrix4d T_body_imu;
-  // Eigen::Vector4d imu_intrinsics;
-  // initializer_ =
-  //     std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
-  //         tracker_, cam_model_, T_body_cam, T_body_imu, imu_intrinsics);
+  Eigen::Matrix4d T_body_cam = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d T_body_imu = Eigen::Matrix4d::Identity();
+  Eigen::Vector4d imu_intrinsics{0.0001874, 0.00186, 0.0000266, 0.000433};
+  initializer_ =
+      std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
+          tracker_, cam_model_, T_body_cam, T_body_imu, imu_intrinsics);
 }
 
 void VisualOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -59,34 +56,37 @@ void VisualOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
   image_buffer_.push(*msg);
   sensor_msgs::Image img_msg = image_buffer_.front();
   ros::Time img_time = img_msg.header.stamp;
-  // push imu messages for the previous front of the images
+  /**************************************************************************
+   *              Add IMU messages to buffer or initializer                 *
+   **************************************************************************/
   while (imu_buffer_.front().header.stamp < img_time && !imu_buffer_.empty()) {
-    if (img_num_ > 0) {
-      sensor_msgs::Imu imu_msg = imu_buffer_.front();
-      ros::Time imu_time = imu_msg.header.stamp;
-      std::cout << "IMU msg push: " << imu_time << std::endl;
-      Eigen::Vector3d ang_vel{imu_msg.angular_velocity.x,
-                              imu_msg.angular_velocity.y,
-                              imu_msg.angular_velocity.z};
-      Eigen::Vector3d lin_accel{imu_msg.linear_acceleration.x,
-                                imu_msg.linear_acceleration.y,
-                                imu_msg.linear_acceleration.z};
-      // process imu data
-      if (init_mode) {
-        // initializer_->AddIMU(ang_vel, lin_accel, imu_time);
-      } else {
-        // preintegrator.PopulateBuffer(msg);
-      }
+    // just throw out imu messages before the first image
+    // if (img_num_ > 0) {
+    sensor_msgs::Imu imu_msg = imu_buffer_.front();
+    ros::Time imu_time = imu_msg.header.stamp;
+    Eigen::Vector3d ang_vel{imu_msg.angular_velocity.x,
+                            imu_msg.angular_velocity.y,
+                            imu_msg.angular_velocity.z};
+    Eigen::Vector3d lin_accel{imu_msg.linear_acceleration.x,
+                              imu_msg.linear_acceleration.y,
+                              imu_msg.linear_acceleration.z};
+    if (!initialization_passed_) {
+      initializer_->AddIMU(ang_vel, lin_accel, imu_time);
+    } else {
+      // preintegrator.PopulateBuffer(msg);
     }
+    //}
     imu_buffer_.pop();
   }
+  /**************************************************************************
+   *                    Add Image to map or initializer                     *
+   **************************************************************************/
   if (!imu_buffer_.empty()) {
     img_num_++;
-    std::cout << "IMAGE msg push: " << img_time << std::endl;
-    // process image data
-    if (init_mode) {
-      // init_mode = initializer_->AddImage(this->extractImage(img_msg),
-      // img_time);
+    if (!initialization_passed_) {
+      initialization_passed_ =
+          initializer_->AddImage(this->extractImage(img_msg), img_time);
+      std::cout << "IMAGE msg push: " << img_time << std::endl;
       // preintegrator.SetStart(img_time);
     } else {
       // this->RegisterFrame(cur_img, cur_time)
