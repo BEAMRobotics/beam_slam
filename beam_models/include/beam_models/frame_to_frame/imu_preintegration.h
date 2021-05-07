@@ -49,8 +49,7 @@ public:
 
   void PopulateBuffer(const ImuData& imu_data);
 
-  void SetStart(const ros::Time& t_start,
-                fuse_variables::Orientation3DStamped::SharedPtr orientation,
+  void SetStart(fuse_variables::Orientation3DStamped::SharedPtr orientation,
                 fuse_variables::Position3DStamped::SharedPtr position,
                 fuse_variables::VelocityLinear3DStamped::SharedPtr velocity);
 
@@ -59,15 +58,14 @@ public:
   ImuState PredictState(const PreIntegrator& pre_integrator, ImuState& imu_state);
 
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-  GetIMUPreintegrationTransaction(
-      const ros::Time& t_now,
+  RegisterNewImuPreintegratedFactor(
       fuse_variables::Orientation3DStamped::SharedPtr orientation,
       fuse_variables::Position3DStamped::SharedPtr position);
 
 private:
   Params params_;
   Eigen::Vector3d g_; 
-  Eigen::Vector3d TEST{Eigen::Vector3d::Zero()};
+  bool first_window_{true};
 
   ImuState imu_state_i_;
   std::vector<ImuData> imu_data_buffer_;

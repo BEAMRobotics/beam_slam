@@ -28,8 +28,6 @@
   <depend>cv_bridge</depend>
   <depend>slamtools</depend>
 
-  <depend>slamtools</depend>
-
   <depend>fuse_constraints</depend>
   <depend>fuse_core</depend>
   <depend>fuse_graphs</depend>

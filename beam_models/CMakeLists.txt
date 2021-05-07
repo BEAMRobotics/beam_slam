@@ -37,7 +37,7 @@ find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
-find_package(teaserpp REQUIRED)
+# find_package(teaserpp REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS
@@ -103,7 +103,7 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
-    #${slamtools_LIBRARIES}
+    # ${slamtools_LIBRARIES}
     beam::utils
     beam::matching
     beam::filtering

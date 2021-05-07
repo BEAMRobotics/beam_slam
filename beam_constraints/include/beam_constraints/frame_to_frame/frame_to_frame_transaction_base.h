@@ -207,6 +207,56 @@ public:
     transaction_->addConstraint(prior, override_constraints_);
   }
 
+  void AddImuStateConstraint(
+      const fuse_variables::Orientation3DStamped& orientation1,
+      const fuse_variables::Orientation3DStamped& orientation2,
+      const fuse_variables::VelocityLinear3DStamped& velocity1,
+      const fuse_variables::VelocityLinear3DStamped& velocity2,
+      const fuse_variables::Position3DStamped& position1,
+      const fuse_variables::Position3DStamped& position2,
+      const beam_variables::ImuBiasStamped& accelbias1,
+      const beam_variables::ImuBiasStamped& accelbias2,
+      const beam_variables::ImuBiasStamped& gyrobias1,
+      const beam_variables::ImuBiasStamped& gyrobias2,
+      const Eigen::Matrix<double, 16, 1>& delta,
+      const Eigen::Matrix<double, 15, 15>& covariance,
+      const std::string& source = "NULL") {
+    // build and add constraint
+    auto constraint =
+        beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint::
+            make_shared(source, orientation1, velocity1, position1, accelbias1,
+                        gyrobias1, orientation2, velocity2, position2,
+                        accelbias2, gyrobias2, delta, covariance);
+    transaction_->addConstraint(constraint, override_constraints_);
+  }
+
+  void AddImuStateVariables(
+      const fuse_variables::Orientation3DStamped& orientation,
+      const fuse_variables::Position3DStamped& position,
+      const fuse_variables::VelocityLinear3DStamped& velocity,
+      const beam_variables::ImuBiasStamped& gyrobias,
+      const beam_variables::ImuBiasStamped& accelbias,
+      const ros::Time& stamp) {
+    transaction_->addInvolvedStamp(stamp);
+
+    // add to transaction
+    transaction_->addVariable(
+        fuse_variables::Orientation3DStamped::make_shared(orientation),
+        override_variables_);
+    transaction_->addVariable(
+        fuse_variables::Position3DStamped::make_shared(position),
+        override_variables_);
+    transaction_->addVariable(
+        fuse_variables::VelocityLinear3DStamped::make_shared(velocity),
+        override_variables_);    
+    transaction_->addVariable(
+        beam_variables::ImuBiasStamped::make_shared(gyrobias),
+        override_variables_);
+    transaction_->addVariable(
+        beam_variables::ImuBiasStamped::make_shared(accelbias),
+        override_variables_);          
+  }
+
 protected:
   fuse_core::Transaction::SharedPtr transaction_;
   bool override_constraints_;
