@@ -36,11 +36,7 @@ void MultiScanRegistration::SetFixedCovariance(
 beam_constraints::frame_to_frame::Pose3DStampedTransaction
     MultiScanRegistration::RegisterNewScan(const ScanPose& new_scan) {
   beam_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
-<<<<<<< HEAD
-		new_scan.Stamp());
-=======
       new_scan.Stamp());
->>>>>>> d773eb4571e47cb458d114974e9bd858520b69fe
 
   // add pose variables for new scan
   transaction.AddPoseVariables(new_scan.Position(), new_scan.Orientation(),
