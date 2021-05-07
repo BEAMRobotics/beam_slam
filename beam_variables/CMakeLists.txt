@@ -36,6 +36,7 @@ add_compile_options(-Wall -Werror)
 ## beam_variables library
 add_library(${PROJECT_NAME}
   src/imu_bias_stamped.cpp
+  src/position_3d.cpp
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}

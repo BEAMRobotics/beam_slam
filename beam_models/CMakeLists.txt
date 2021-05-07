@@ -5,8 +5,7 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS utils matching filtering)
-
+find_package(beam REQUIRED COMPONENTS calibration cv utils matching filtering)
 find_package(
   catkin REQUIRED
   COMPONENTS
@@ -30,20 +29,22 @@ find_package(
     tf2_ros
     beam_constraints
     beam_slam_common
-    beam_variables)
+		beam_variables
+    cv_bridge
+    slamtools)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
+find_package(teaserpp REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS
     include
   LIBRARIES
     ${PROJECT_NAME}
-  CATKIN_DEPENDS
-    fuse_core
+  CATKIN_DEPENDS 
     fuse_graphs
     fuse_models
     fuse_publishers
@@ -62,6 +63,8 @@ catkin_package(
     beam_constraints
     beam_slam_common
 		beam_variables
+    cv_bridge
+    slamtools
   DEPENDS
     Boost
     CERES
@@ -92,6 +95,7 @@ add_library(
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
+  src/camera_to_camera/visual_odom.cpp
 )
 
 ## Specify libraries to link a library or executable target against
@@ -99,10 +103,13 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
+    #${slamtools_LIBRARIES}
     beam::utils
     beam::matching
     beam::filtering
     beam::mapping
+    beam::calibration
+    beam::cv
 )
 add_dependencies(
   ${PROJECT_NAME}

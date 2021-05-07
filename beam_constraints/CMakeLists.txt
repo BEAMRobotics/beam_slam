@@ -6,6 +6,7 @@ set(build_depends
   fuse_graphs
   fuse_variables
   fuse_constraints
+  beam_variables
   geometry_msgs
   pluginlib
   roscpp
@@ -15,6 +16,8 @@ set(build_depends
   beam_slam_common
   beam_variables
 )
+
+find_package(beam REQUIRED COMPONENTS calibration)
 
 find_package(catkin REQUIRED COMPONENTS
   ${build_depends}
@@ -51,6 +54,7 @@ add_library(${PROJECT_NAME}
   src/global/absolute_constraint.cpp
   src/global/absolute_imu_state_3d_stamped_constraint.cpp
   src/motion/unicycle_3d_state_kinematic_constraint.cpp
+  src/camera_to_camera/visual_constraint.cpp
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
@@ -66,6 +70,7 @@ target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${CERES_LIBRARIES}
   ${EIGEN3_LIBRARIES}
+  beam::calibration
 )
 
 ##########

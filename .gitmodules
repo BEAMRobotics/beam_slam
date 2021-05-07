@@ -1,0 +1,4 @@
+
+[submodule "dependencies/slamtools"]
+	path = dependencies/slamtools
+	url = git@github.com:BEAMRobotics/slamtools.git

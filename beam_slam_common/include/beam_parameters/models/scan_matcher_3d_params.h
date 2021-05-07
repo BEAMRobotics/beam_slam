@@ -4,6 +4,8 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <ros/param.h>
 
+#include <beam_utils/angles.h>
+
 #include <beam_parameters/models/frame_to_frame_parameter_base.h>
 
 namespace beam_parameters { namespace models {
@@ -24,6 +26,10 @@ public:
     getParam<float>(nh, "downsample_size", downsample_size, 0.03);
     getParam<double>(nh, "outlier_threshold_t", outlier_threshold_t, 0.03);
     getParam<double>(nh, "outlier_threshold_r", outlier_threshold_r, 30);
+    getParam<double>(nh, "min_motion_trans_m", min_motion_trans_m, 0);
+    double min_motion_rot_deg;
+    getParam<double>(nh, "min_motion_rot_deg", min_motion_rot_deg, 0);
+    min_motion_rot_rad = beam::Deg2Rad(min_motion_rot_deg);
     getParam<bool>(nh, "fix_first_scan", fix_first_scan, false);
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           "");
@@ -55,6 +61,8 @@ public:
   float downsample_size;
   double outlier_threshold_t;
   double outlier_threshold_r;
+  double min_motion_trans_m;
+  double min_motion_rot_rad;
   double lag_duration;
   bool fix_first_scan;
   std::string matcher_params_path;

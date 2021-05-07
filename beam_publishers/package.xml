@@ -12,6 +12,7 @@
   <license>Proprietary</license>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>libbeam</build_depend>
 
   <depend>fuse_core</depend>
   <depend>fuse_variables</depend>
