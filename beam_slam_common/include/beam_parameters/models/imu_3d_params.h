@@ -17,22 +17,24 @@ public:
   void loadExtraParams(const ros::NodeHandle& nh) final {
     nh.getParam("queue_size", queue_size);
     nh.getParam("gravitational_acceleration", gravitational_acceleration);
-    gyro_noise_covariance = fuse_core::getCovarianceDiagonalParam<3>(
+    nh.getParam("prior_noise", prior_noise);
+    cov_gyro_noise = fuse_core::getCovarianceDiagonalParam<3>(
         nh, "accel_noise_covariance", 1.5e-03);    
-    accel_noise_covariance = fuse_core::getCovarianceDiagonalParam<3>(
+    cov_accel_noise = fuse_core::getCovarianceDiagonalParam<3>(
         nh, "accel_noise_covariance", 4.0e-03);
-    gyro_bias_covariance = fuse_core::getCovarianceDiagonalParam<3>(
+    cov_gyro_bias = fuse_core::getCovarianceDiagonalParam<3>(
         nh, "accel_noise_covariance", 3.5e-05);        
-    accel_bias_covariance = fuse_core::getCovarianceDiagonalParam<3>(
+    cov_accel_bias = fuse_core::getCovarianceDiagonalParam<3>(
         nh, "accel_noise_covariance", 6.5e-05);
   }
 
-  int queue_size{50};
+  int queue_size{300};
   double gravitational_acceleration{9.80665};
-  fuse_core::Matrix3d gyro_noise_covariance;  
-  fuse_core::Matrix3d accel_noise_covariance;
-  fuse_core::Matrix3d gyro_bias_covariance;
-  fuse_core::Matrix3d accel_bias_covariance;
+  double prior_noise{1e-9};
+  fuse_core::Matrix3d cov_gyro_noise;  
+  fuse_core::Matrix3d cov_accel_noise;
+  fuse_core::Matrix3d cov_gyro_bias;
+  fuse_core::Matrix3d cov_accel_bias;
 };
 
 }}  // namespace beam_parameters::models

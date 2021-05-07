@@ -30,7 +30,7 @@ find_package(
     tf2_ros
     beam_constraints
     beam_slam_common
-		beam_variables)
+    beam_variables)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -127,17 +127,17 @@ target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_tests
     Catch2::Catch2
 )
 
-add_executable(${PROJECT_NAME}_imu_preintegration_tests
-  tests/imu_preintegration_tests.cpp
-)
-target_include_directories(${PROJECT_NAME}_imu_preintegration_tests
-  PUBLIC
-    include
-)
-target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
-    ${PROJECT_NAME}
-    Catch2::Catch2
-)
+# add_executable(${PROJECT_NAME}_imu_preintegration_tests
+#   tests/imu_preintegration_tests.cpp
+# )
+# target_include_directories(${PROJECT_NAME}_imu_preintegration_tests
+#   PUBLIC
+#     include
+# )
+# target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
+#     ${PROJECT_NAME}
+#     Catch2::Catch2
+# )
 
 #[[
 
