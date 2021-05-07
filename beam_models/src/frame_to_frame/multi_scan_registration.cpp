@@ -18,7 +18,7 @@ MultiScanRegistration::MultiScanRegistration(
   // if outputting results, clear output folder:
   if (!output_scan_registration_results_) { return; }
 
-  coord_frame_ = boost::make_shared<PointCloudCol>();
+  coord_frame_ = std::make_shared<PointCloudCol>();
   *coord_frame_ = beam::CreateFrameCol();
 
   if (boost::filesystem::is_directory(tmp_output_path_)) {
@@ -186,8 +186,8 @@ bool MultiScanRegistration::MatchScans(
                            Eigen::Affine3d(T_CLOUD1_CLOUD2_init));
 
   // match clouds
-  matcher_->SetRef(boost::make_shared<PointCloud>(cloud2_RefFInit));
-  matcher_->SetTarget(boost::make_shared<PointCloud>(scan_pose_1.Cloud()));
+  matcher_->SetRef(std::make_shared<PointCloud>(cloud2_RefFInit));
+  matcher_->SetTarget(std::make_shared<PointCloud>(scan_pose_1.Cloud()));
   if (!matcher_->Match()) {
     ROS_ERROR("Failed scan matching. Skipping measurement.");
     return false;
@@ -197,11 +197,11 @@ bool MultiScanRegistration::MatchScans(
   T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
 
   if (output_scan_registration_results_) {
-    PointCloudPtr cloud_ref = boost::make_shared<PointCloud>();
+    PointCloudPtr cloud_ref = std::make_shared<PointCloud>();
     *cloud_ref = scan_pose_1.Cloud();
-    PointCloudPtr cloud_ref_world = boost::make_shared<PointCloud>();
-    PointCloudPtr cloud_cur_initial_world = boost::make_shared<PointCloud>();
-    PointCloudPtr cloud_cur_aligned_world = boost::make_shared<PointCloud>();
+    PointCloudPtr cloud_ref_world = std::make_shared<PointCloud>();
+    PointCloudPtr cloud_cur_initial_world = std::make_shared<PointCloud>();
+    PointCloudPtr cloud_cur_aligned_world = std::make_shared<PointCloud>();
 
     const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
         scan_pose_2.T_WORLD_CLOUD();
