@@ -188,21 +188,21 @@ public:
   }
 
   void AddImuStatePrior(const fuse_variables::Orientation3DStamped& orientation,
-                        const fuse_variables::VelocityLinear3DStamped& velocity,
                         const fuse_variables::Position3DStamped& position,
+                        const fuse_variables::VelocityLinear3DStamped& velocity,
+                        const beam_variables::ImuBiasStamped& gyrobias,                       
                         const beam_variables::ImuBiasStamped& accelbias,
-                        const beam_variables::ImuBiasStamped& gyrobias,
                         const Eigen::Matrix<double, 15, 15>& prior_covariance,
                         const std::string& prior_source = "NULL") {
     Eigen::Matrix<double, 16, 1> mean;
     mean << orientation.w(), orientation.x(), orientation.y(), orientation.z(),
-        velocity.x(), velocity.y(), velocity.z(), position.x(), position.y(),
-        position.z(), accelbias.x(), accelbias.y(), accelbias.z(), gyrobias.x(),
-        gyrobias.y(), gyrobias.z();
+        position.x(), position.y(), position.z(), velocity.x(), velocity.y(),
+        velocity.z(), gyrobias.x(), gyrobias.y(), gyrobias.z(), accelbias.x(),
+        accelbias.y(), accelbias.z();
 
     auto prior = std::make_shared<
         beam_constraints::global::AbsoluteImuState3DStampedConstraint>(
-        prior_source, orientation, velocity, position, accelbias, gyrobias,
+        prior_source, orientation, position, velocity, gyrobias, accelbias,
         mean, prior_covariance);
     transaction_->addConstraint(prior, override_constraints_);
   }
@@ -210,23 +210,23 @@ public:
   void AddImuStateConstraint(
       const fuse_variables::Orientation3DStamped& orientation1,
       const fuse_variables::Orientation3DStamped& orientation2,
-      const fuse_variables::VelocityLinear3DStamped& velocity1,
-      const fuse_variables::VelocityLinear3DStamped& velocity2,
       const fuse_variables::Position3DStamped& position1,
       const fuse_variables::Position3DStamped& position2,
-      const beam_variables::ImuBiasStamped& accelbias1,
-      const beam_variables::ImuBiasStamped& accelbias2,
+      const fuse_variables::VelocityLinear3DStamped& velocity1,
+      const fuse_variables::VelocityLinear3DStamped& velocity2,
       const beam_variables::ImuBiasStamped& gyrobias1,
       const beam_variables::ImuBiasStamped& gyrobias2,
+      const beam_variables::ImuBiasStamped& accelbias1,
+      const beam_variables::ImuBiasStamped& accelbias2,
       const Eigen::Matrix<double, 16, 1>& delta,
       const Eigen::Matrix<double, 15, 15>& covariance,
       const std::string& source = "NULL") {
     // build and add constraint
     auto constraint =
         beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint::
-            make_shared(source, orientation1, velocity1, position1, accelbias1,
-                        gyrobias1, orientation2, velocity2, position2,
-                        accelbias2, gyrobias2, delta, covariance);
+            make_shared(source, orientation1, position1, velocity1, gyrobias1,
+                        accelbias1, orientation2, position2, velocity2,
+                        gyrobias2, accelbias2, delta, covariance);
     transaction_->addConstraint(constraint, override_constraints_);
   }
 
