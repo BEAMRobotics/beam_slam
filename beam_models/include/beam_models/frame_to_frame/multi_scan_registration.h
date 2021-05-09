@@ -5,21 +5,25 @@
 
 #include <beam_matching/Matcher.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_matching/loam/LoamPointCloud.h>
 
 #include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <beam_models/frame_to_frame/scan_pose.h>
 
 static bool tmp_{true};
 
-namespace beam_models { namespace frame_to_frame {
+namespace beam_models {
+namespace frame_to_frame {
+
+using namespace beam_matching;
 
 template <typename ConstraintType, typename PriorType>
 using TransactionBase =
     beam_constraints::frame_to_frame::FrameToFrameTransactionBase<
         ConstraintType, PriorType>;
 
-class MultiScanRegistration {
-public:
+class MultiScanRegistrationBase {
+ public:
   struct Params {
     int num_neighbors;
     double outlier_threshold_t;
@@ -31,16 +35,16 @@ public:
     bool fix_first_scan{false};
   };
 
-  MultiScanRegistration(
-      std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher,
-      const Params& params);
+  MultiScanRegistrationBase() = default;
 
-  ~MultiScanRegistration() = default;
+  MultiScanRegistrationBase(const Params& params);
+
+  ~MultiScanRegistrationBase() = default;
 
   void SetFixedCovariance(const Eigen::Matrix<double, 6, 6>& covariance);
 
-  beam_constraints::frame_to_frame::Pose3DStampedTransaction
-      RegisterNewScan(const ScanPose& new_scan);
+  beam_constraints::frame_to_frame::Pose3DStampedTransaction RegisterNewScan(
+      const ScanPose& new_scan);
 
   void UpdateScanPoses(fuse_core::Graph::ConstSharedPtr graph_msg);
 
@@ -61,11 +65,12 @@ public:
 
   void PrintScanDetails(std::ostream& stream = std::cout);
 
-private:
-  bool MatchScans(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-                  Eigen::Matrix4d& T_CLOUD1_CLOUD2,
-                  Eigen::Matrix<double, 6, 6>& covariance);
+  virtual bool MatchScans(const ScanPose& scan_pose_1,
+                          const ScanPose& scan_pose_2,
+                          Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+                          Eigen::Matrix<double, 6, 6>& covariance) = 0;
 
+ protected:
   bool PassedMinMotion(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   bool PassedRegThreshold(const Eigen::Matrix4d& T_measured,
@@ -73,7 +78,6 @@ private:
 
   std::list<ScanPose> reference_clouds_;
 
-  std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
   Params params_;
   Eigen::Matrix<double, 6, 6> covariance_;
   bool use_fixed_covariance_{false};
@@ -87,4 +91,31 @@ private:
   PointCloudColPtr coord_frame_;
 };
 
-}} // namespace beam_models::frame_to_frame
+class MultiScanLoamRegistration : public MultiScanRegistrationBase {
+ public:
+  MultiScanLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
+                            const Params& params);
+
+  bool MatchScans(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
+                  Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+                  Eigen::Matrix<double, 6, 6>& covariance) override;
+
+ private:
+  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher_;
+};
+
+class MultiScanRegistration : public MultiScanRegistrationBase {
+ public:
+  MultiScanRegistration(std::unique_ptr<Matcher<PointCloudPtr>> matcher,
+                        const Params& params);
+
+  bool MatchScans(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
+                  Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+                  Eigen::Matrix<double, 6, 6>& covariance) override;
+
+ private:
+  std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
+};
+
+}  // namespace frame_to_frame
+}  // namespace beam_models

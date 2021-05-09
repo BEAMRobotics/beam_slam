@@ -14,38 +14,16 @@
 PLUGINLIB_EXPORT_CLASS(beam_models::frame_to_frame::ScanMatcher3D,
                        fuse_core::SensorModel)
 
-namespace beam_models { namespace frame_to_frame {
+namespace beam_models {
+namespace frame_to_frame {
 
-ScanMatcher3D::ScanMatcher3D()
-    : FrameToFrameSensorModelBase() {}
+using namespace beam_matching;
+
+ScanMatcher3D::ScanMatcher3D() : FrameToFrameSensorModelBase() {}
 
 void ScanMatcher3D::onInit() {
   InitiateBaseClass(private_node_handle_);
   params_.loadExtraParams(private_node_handle_);
-
-  // init scan registration
-  std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher;
-  if (params_.type == "ICP") {
-    std::string config_path =
-        beam::LibbeamRoot() + "beam_matching/config/icp.json";
-    beam_matching::IcpMatcherParams matcher_params(config_path);
-    matcher = std::make_unique<beam_matching::IcpMatcher>(matcher_params);
-  } else if (params_.type == "GICP") {
-    std::string config_path =
-        beam::LibbeamRoot() + "beam_matching/config/gicp.json";
-    beam_matching::GicpMatcherParams matcher_params(config_path);
-    matcher = std::make_unique<beam_matching::GicpMatcher>(matcher_params);
-  } else if (params_.type == "NDT") {
-    std::string config_path =
-        beam::LibbeamRoot() + "beam_matching/config/ndt.json";
-    beam_matching::NdtMatcherParams matcher_params(config_path);
-    matcher = std::make_unique<beam_matching::NdtMatcher>(matcher_params);
-  } else {
-    const std::string error =
-        "scan matcher type invalid. Options: ICP, GICP, NDT.";
-    ROS_FATAL_STREAM(error);
-    throw std::runtime_error(error);
-  }
 
   MultiScanRegistration::Params scan_reg_params{
       .num_neighbors = params_.num_neighbors,
@@ -56,8 +34,41 @@ void ScanMatcher3D::onInit() {
       .source = name(),
       .lag_duration = params_.lag_duration,
       .fix_first_scan = params_.fix_first_scan};
-  multi_scan_registration_ = std::make_unique<MultiScanRegistration>(
-      std::move(matcher), scan_reg_params);
+
+  // init scan registration
+  std::string config_path = beam::LibbeamRoot() + "beam_matching/config/";
+  if (params_.type == "ICP") {
+    IcpMatcherParams matcher_params(config_path += "icp.json");
+    std::unique_ptr<Matcher<PointCloudPtr>> matcher;
+    matcher = std::make_unique<IcpMatcher>(matcher_params);
+    multi_scan_registration_ = std::make_unique<MultiScanRegistration>(
+        std::move(matcher), scan_reg_params);
+  } else if (params_.type == "GICP") {
+    GicpMatcherParams matcher_params(config_path += "gicp.json");
+    std::unique_ptr<Matcher<PointCloudPtr>> matcher;
+    matcher = std::make_unique<GicpMatcher>(matcher_params);
+    multi_scan_registration_ = std::make_unique<MultiScanRegistration>(
+        std::move(matcher), scan_reg_params);
+  } else if (params_.type == "NDT") {
+    NdtMatcherParams matcher_params(config_path += "ndt.json");
+    std::unique_ptr<Matcher<PointCloudPtr>> matcher;
+    matcher = std::make_unique<NdtMatcher>(matcher_params);
+    multi_scan_registration_ = std::make_unique<MultiScanRegistration>(
+        std::move(matcher), scan_reg_params);
+  } else if (params_.type == "LOAM") {
+    std::shared_ptr<LoamParams> matcher_params =
+        std::make_shared<LoamParams>(config_path += "loam.json");
+    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
+    matcher = std::make_unique<LoamMatcher>(*matcher_params);
+    feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
+    multi_scan_registration_ = std::make_unique<MultiScanLoamRegistration>(
+        std::move(matcher), scan_reg_params);
+  } else {
+    const std::string error =
+        "scan matcher type invalid. Options: ICP, GICP, NDT, LOAM";
+    ROS_FATAL_STREAM(error);
+    throw std::runtime_error(error);
+  }
 
   // set covariance if not set to zero in config
   if (std::accumulate(params_.matcher_noise_diagonal.begin(),
@@ -102,8 +113,8 @@ void ScanMatcher3D::onStop() {
 }
 
 beam_constraints::frame_to_frame::Pose3DStampedTransaction
-    ScanMatcher3D::GenerateTransaction(
-        const sensor_msgs::PointCloud2::ConstPtr& msg) {
+ScanMatcher3D::GenerateTransaction(
+    const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
   PointCloudPtr cloud_current_tmp = beam::ROSToPCL(*msg);
   PointCloudPtr cloud_current = std::make_shared<PointCloud>();
@@ -122,7 +133,7 @@ beam_constraints::frame_to_frame::Pose3DStampedTransaction
   }
 
   ScanPose current_scan_pose(msg->header.stamp, T_WORLD_CLOUDCURRENT,
-                             *cloud_current);
+                             *cloud_current, feature_extractor_);
 
   // if outputting scans, add to the active list
   if (!params_.scan_output_directory.empty() || output_graph_updates_) {
@@ -162,7 +173,9 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     active_clouds_.erase(i++);
   }
 
-  if (!output_graph_updates_) { return; }
+  if (!output_graph_updates_) {
+    return;
+  }
   std::string curent_path = graph_updates_path_ + "U" +
                             std::to_string(updates_) + "_" + update_time + "/";
   boost::filesystem::create_directory(curent_path);
@@ -173,4 +186,5 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   }
 }
 
-}} // namespace beam_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace beam_models

@@ -2,6 +2,7 @@
 
 #include <beam_utils/math.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_matching/loam/LoamFeatureExtractor.h>
 
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>
@@ -9,14 +10,15 @@
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
 
-namespace beam_models { namespace frame_to_frame {
+namespace beam_models {
+namespace frame_to_frame {
 
 class ScanPose {
-public:
-  ScanPose() = default;
-
+ public:
   ScanPose(const ros::Time& time, const Eigen::Matrix4d& T_WORLD_CLOUD,
-           const PointCloud& pc)
+           const PointCloud& pc,
+           const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
+               feature_extractor = nullptr)
       : stamp_(time), pointcloud_(pc), T_WORLD_CLOUD_initial_(T_WORLD_CLOUD) {
     // create fuse variables
     position_ = fuse_variables::Position3DStamped(time, fuse_core::uuid::NIL);
@@ -33,6 +35,11 @@ public:
     orientation_.y() = q.y();
     orientation_.z() = q.z();
     orientation_.w() = q.w();
+
+    if (feature_extractor != nullptr) {
+      cloud_type_ = "LOAMPOINTCLOUD";
+      loampointcloud_ = feature_extractor->ExtractFeatures(pc);
+    }
   }
 
   bool Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
@@ -75,10 +82,15 @@ public:
 
   PointCloud Cloud() const { return pointcloud_; }
 
+  beam_matching::LoamPointCloud LoamCloud() const { return loampointcloud_; }
+
   ros::Time Stamp() const { return stamp_; }
+
+  std::string Type() const { return cloud_type_; }
 
   void Print(std::ostream& stream = std::cout) const {
     stream << "  Stamp: " << stamp_ << "\n"
+           << "  Cloud Type: " << cloud_type_ << "\n"
            << "  Cloud size: " << pointcloud_.size() << "\n"
            << "  Number of Updates: " << updates_ << "\n"
            << "  Position:\n"
@@ -128,18 +140,31 @@ public:
                                 *cloud_final_col);
     }
 
+    if (cloud_type_ == "LOAMPOINTCLOUD") {
+      loampointcloud_.Save(save_path, false);
+    }
+
     ROS_DEBUG("Saved cloud with stamp: %.5f", stamp_.toSec());
   }
 
-  const Eigen::Matrix4d T_WORLD_CLOUD_INIT() const { return T_WORLD_CLOUD_initial_; }
+  const Eigen::Matrix4d T_WORLD_CLOUD_INIT() const {
+    return T_WORLD_CLOUD_initial_;
+  }
 
-protected:
+ protected:
   ros::Time stamp_;
   int updates_{0};
   fuse_variables::Position3DStamped position_;
   fuse_variables::Orientation3DStamped orientation_;
   PointCloud pointcloud_;
+  beam_matching::LoamPointCloud loampointcloud_;
   const Eigen::Matrix4d T_WORLD_CLOUD_initial_;
+
+  /** This is mainly used to determine if the loam pointcloud is polutated or
+   * not. If so, we can run loam scan registration. Options: PCLPOINTCLOUD,
+   * LOAMPOINTCLOUD */
+  std::string cloud_type_{"PCLPOINTCLOUD"};
 };
 
-}} // namespace beam_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace beam_models
