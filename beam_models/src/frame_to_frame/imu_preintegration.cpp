@@ -100,13 +100,22 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     return transaction;
   }
 
-  // get iterator to desired time stamp
-  auto it = std::find_if(imu_data_buffer_.begin(), imu_data_buffer_.end(),
-                         [&t_now](const ImuPreintegration::ImuData& data) {
-                           return data.t_ros == t_now;
-                         });
+  // get iterator to first time stamp after desired time stamp. This points 
+  // to the end of the window
+  auto it_after =
+      std::find_if(imu_data_buffer_.begin(), imu_data_buffer_.end(),
+                   [&t_now](const ImuPreintegration::ImuData& data) {
+                     return data.t_ros > t_now;
+                   });
 
-  if (it == imu_data_buffer_.end()) {
+  if (std::distance(imu_data_buffer_.begin(), it_after) <= 2) {
+    ROS_ERROR_STREAM(
+        "Requested time must allow window size of two or more imu "
+        "measurements. No transaction has been generated.");
+    return transaction;
+  }
+
+  if (it_after == imu_data_buffer_.end()) {
     ROS_ERROR_STREAM(
         "Requested time does not exist within imu buffer. No transaction has "
         "been generated.");
@@ -133,7 +142,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     first_window_ = false;
   }
 
-  // instantiate PreIntegrator class to containerize imu measurments 
+  // instantiate PreIntegrator class to containerize imu measurments
   std::shared_ptr<PreIntegrator> pre_integrator_ij;
   pre_integrator_ij->cov_w = params_.cov_gyro_noise;
   pre_integrator_ij->cov_a = params_.cov_accel_noise;
@@ -142,38 +151,38 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   // over desired window of imu measurements, perform preintegration
   pre_integrator_ij->data.insert(pre_integrator_ij->data.end(),
-                                 imu_data_buffer_.begin(), it);
+                                 imu_data_buffer_.begin(), it_after);
   pre_integrator_ij->integrate(t_now.toSec(), imu_state_i_.BiasGyroscopeVec(),
                                imu_state_i_.BiasAccelerationVec(), true, true);
 
-  // adjust IMU buffer
-  imu_data_buffer_.erase(imu_data_buffer_.begin(), it);
+  // clear buffer of measurements passed to preintegrator class
+  imu_data_buffer_.erase(imu_data_buffer_.begin(), it_after);
 
-  // predict state at end of window using this pseudo measurement
+  // predict state at end of window using integrated imu measurements
   ImuState imu_state_j = PredictState(*pre_integrator_ij, imu_state_i_);
 
   // update orientation and position of predicted imu state with arguments
   imu_state_j.SetOrientation(orientation->data());
   imu_state_j.SetPosition(position->data());
 
-  // generate relative transaction
+  // containerize state change as determined by preintegrator class
   Eigen::Matrix<double, 16, 1> delta_ij;
   delta_ij.setZero();
   delta_ij << pre_integrator_ij->delta.q.w(), pre_integrator_ij->delta.q.vec(),
       pre_integrator_ij->delta.p, pre_integrator_ij->delta.v;
 
-  // generate relative constraint between imu states
+  // generate relative constraints between imu states
   transaction.AddImuStateConstraint(
-      imu_state_i_.Orientation(), imu_state_j.Orientation(), imu_state_i_.Position(),
-      imu_state_j.Position(), imu_state_i_.Velocity(), imu_state_j.Velocity(),
-      imu_state_i_.BiasGyroscope(), imu_state_j.BiasGyroscope(),
-      imu_state_i_.BiasAcceleration(), imu_state_j.BiasAcceleration(), delta_ij,
-      pre_integrator_ij->delta.cov);
+      imu_state_i_.Orientation(), imu_state_j.Orientation(),
+      imu_state_i_.Position(), imu_state_j.Position(), imu_state_i_.Velocity(),
+      imu_state_j.Velocity(), imu_state_i_.BiasGyroscope(),
+      imu_state_j.BiasGyroscope(), imu_state_i_.BiasAcceleration(),
+      imu_state_j.BiasAcceleration(), delta_ij, pre_integrator_ij->delta.cov);
 
   transaction.AddImuStateVariables(
-      imu_state_j.Orientation(), imu_state_j.Position(),
-      imu_state_j.Velocity(), imu_state_j.BiasGyroscope(),
-      imu_state_j.BiasAcceleration(), imu_state_j.Stamp());
+      imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),
+      imu_state_j.BiasGyroscope(), imu_state_j.BiasAcceleration(),
+      imu_state_j.Stamp());
 
   // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
