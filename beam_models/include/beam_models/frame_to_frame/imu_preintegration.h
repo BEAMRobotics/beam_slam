@@ -30,6 +30,7 @@ public:
     ros::Time t_ros; // ros time
 
     ImuData() {
+      t_ros = ros::Time(0);
       t = 0; // time (s)
       w.setZero(); // gyro (rad/s)
       a.setZero(); // accel (m/s^2)

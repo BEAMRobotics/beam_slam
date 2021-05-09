@@ -5,7 +5,6 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 
-#include <beam_common/utils.h>
 #include <beam_variables/imu_bias_stamped.h>
 
 namespace beam_models { namespace frame_to_frame {
@@ -92,13 +91,6 @@ public:
     return q;
   }
 
-  fuse_variables::VelocityLinear3DStamped Velocity() const { return velocity_; }
-
-  fuse_core::Vector3d VelocityVec() const { 
-    fuse_core::Vector3d v(velocity_.x(), velocity_.y(), velocity_.z());
-    return v; 
-  }
-
   fuse_variables::Position3DStamped Position() const { return position_; }
 
   fuse_core::Vector3d PositionVec() const { 
@@ -106,14 +98,11 @@ public:
     return p; 
   }
 
-  beam_variables::ImuBiasStamped BiasAcceleration() const {
-    return bias_acceleration_;
-  }
+  fuse_variables::VelocityLinear3DStamped Velocity() const { return velocity_; }
 
-  Eigen::Vector3d BiasAccelerationVec() const { 
-    Eigen::Vector3d ba(bias_acceleration_.x(), bias_acceleration_.y(), 
-                           bias_acceleration_.z());
-    return ba; 
+  fuse_core::Vector3d VelocityVec() const { 
+    fuse_core::Vector3d v(velocity_.x(), velocity_.y(), velocity_.z());
+    return v; 
   }
 
   beam_variables::ImuBiasStamped BiasGyroscope() const {
@@ -124,6 +113,16 @@ public:
     Eigen::Vector3d bg(bias_gyroscope_.x(), bias_gyroscope_.y(), 
                            bias_gyroscope_.z());
     return bg; 
+  }
+
+  beam_variables::ImuBiasStamped BiasAcceleration() const {
+    return bias_acceleration_;
+  }
+
+  Eigen::Vector3d BiasAccelerationVec() const { 
+    Eigen::Vector3d ba(bias_acceleration_.x(), bias_acceleration_.y(), 
+                           bias_acceleration_.z());
+    return ba; 
   }
 
   void SetOrientation(const double& w, const double& x, const double& y,
@@ -148,24 +147,6 @@ public:
     orientation_.z() = orientation[3];
   }
 
-  void SetVelocity(const double& x, const double& y, const double& z) {
-    velocity_.x() = x;
-    velocity_.y() = y;
-    velocity_.z() = z;
-  }
-
-  void SetVelocity(const Eigen::Vector3d& velocity) {
-    velocity_.x() = velocity[0];
-    velocity_.y() = velocity[1];
-    velocity_.z() = velocity[2];
-  }
-
-  void SetVelocity(const double* velocity) {
-    velocity_.x() = velocity[0];
-    velocity_.y() = velocity[1];
-    velocity_.z() = velocity[2];
-  }  
-
   void SetPosition(const double& x, const double& y, const double& z) {
     position_.x() = x;
     position_.y() = y;
@@ -183,6 +164,24 @@ public:
     position_.y() = position[1];
     position_.z() = position[2];
   }
+
+  void SetVelocity(const double& x, const double& y, const double& z) {
+    velocity_.x() = x;
+    velocity_.y() = y;
+    velocity_.z() = z;
+  }
+
+  void SetVelocity(const Eigen::Vector3d& velocity) {
+    velocity_.x() = velocity[0];
+    velocity_.y() = velocity[1];
+    velocity_.z() = velocity[2];
+  }
+
+  void SetVelocity(const double* velocity) {
+    velocity_.x() = velocity[0];
+    velocity_.y() = velocity[1];
+    velocity_.z() = velocity[2];
+  }  
 
   void SetBiasGyroscope(const double& x, const double& y, const double& z) {
     bias_gyroscope_.x() = x;
