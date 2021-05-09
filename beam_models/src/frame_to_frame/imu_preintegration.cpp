@@ -133,8 +133,14 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     first_window_ = false;
   }
 
-  // over desired window of imu measurements, perform preintegration
+  // instantiate PreIntegrator class to containerize imu measurments 
   std::shared_ptr<PreIntegrator> pre_integrator_ij;
+  pre_integrator_ij->cov_w = params_.cov_gyro_noise;
+  pre_integrator_ij->cov_a = params_.cov_accel_noise;
+  pre_integrator_ij->cov_bg = params_.cov_gyro_bias;
+  pre_integrator_ij->cov_ba = params_.cov_accel_bias;
+
+  // over desired window of imu measurements, perform preintegration
   pre_integrator_ij->data.insert(pre_integrator_ij->data.end(),
                                  imu_data_buffer_.begin(), it);
   pre_integrator_ij->integrate(t_now.toSec(), imu_state_i_.BiasGyroscopeVec(),
