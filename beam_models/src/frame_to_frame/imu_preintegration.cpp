@@ -85,7 +85,7 @@ ImuState ImuPreintegration::PredictState(const PreIntegrator& pre_integrator,
 
   Eigen::Quaterniond R_j_quat(R_j);
   ros::Time t_new = imu_state.Stamp() + ros::Duration(pre_integrator.delta.t);
-  ImuState new_imu_state(t_new, R_j_quat, V_j, P_j,
+  ImuState new_imu_state(t_new, R_j_quat, P_j, V_j,
                          imu_state.BiasGyroscopeVec(),
                          imu_state.BiasAccelerationVec());
   return new_imu_state;
@@ -154,6 +154,10 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // predict state at end of window using this pseudo measurement
   ImuState imu_state_j = PredictState(*pre_integrator_ij, imu_state_i_);
 
+  // update orientation and position of predicted imu state with arguments
+  imu_state_j.SetOrientation(orientation->data());
+  imu_state_j.SetPosition(position->data());
+
   // generate relative transaction
   Eigen::Matrix<double, 16, 1> delta_ij;
   delta_ij.setZero();
@@ -162,8 +166,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   // generate relative constraint between imu states
   transaction.AddImuStateConstraint(
-      imu_state_i_.Orientation(), *orientation, imu_state_i_.Position(),
-      *position, imu_state_i_.Velocity(), imu_state_j.Velocity(),
+      imu_state_i_.Orientation(), imu_state_j.Orientation(), imu_state_i_.Position(),
+      imu_state_j.Position(), imu_state_i_.Velocity(), imu_state_j.Velocity(),
       imu_state_i_.BiasGyroscope(), imu_state_j.BiasGyroscope(),
       imu_state_i_.BiasAcceleration(), imu_state_j.BiasAcceleration(), delta_ij,
       pre_integrator_ij->delta.cov);
