@@ -16,15 +16,7 @@ ImuPreintegration::ImuPreintegration(const Params& params,
 }
 
 void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
-  ImuData imu_data;
-  imu_data.t_ros = msg->header.stamp;
-  imu_data.t = msg->header.stamp.toSec();
-  imu_data.w[0] = msg->angular_velocity.x;
-  imu_data.w[1] = msg->angular_velocity.y;
-  imu_data.w[2] = msg->angular_velocity.z;
-  imu_data.a[0] = msg->linear_acceleration.x;
-  imu_data.a[1] = msg->linear_acceleration.y;
-  imu_data.a[2] = msg->linear_acceleration.z;
+  ImuData imu_data(msg);
   imu_data_buffer_.emplace_back(imu_data);
 }
 

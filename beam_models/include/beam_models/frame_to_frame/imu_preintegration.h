@@ -35,6 +35,17 @@ public:
       w.setZero(); // gyro (rad/s)
       a.setZero(); // accel (m/s^2)
     }
+
+    ImuData(const sensor_msgs::Imu::ConstPtr& msg) {
+      t_ros = msg->header.stamp;
+      t = msg->header.stamp.toSec();
+      w[0] = msg->angular_velocity.x;
+      w[1] = msg->angular_velocity.y;
+      w[2] = msg->angular_velocity.z;
+      a[0] = msg->linear_acceleration.x;
+      a[1] = msg->linear_acceleration.y;
+      a[2] = msg->linear_acceleration.z;
+    }
   };
 
   ImuPreintegration(const Params& params);
