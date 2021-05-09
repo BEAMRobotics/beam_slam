@@ -37,15 +37,15 @@ public:
   RelativeImuState3DStampedConstraint(
       const std::string& source,
       const fuse_variables::Orientation3DStamped& orientation1,
-      const fuse_variables::VelocityLinear3DStamped& velocity1,
       const fuse_variables::Position3DStamped& position1,
-      const beam_variables::ImuBiasStamped& accelbias1,
+      const fuse_variables::VelocityLinear3DStamped& velocity1,
       const beam_variables::ImuBiasStamped& gyrobias1,
+      const beam_variables::ImuBiasStamped& accelbias1,
       const fuse_variables::Orientation3DStamped& orientation2,
-      const fuse_variables::VelocityLinear3DStamped& velocity2,
       const fuse_variables::Position3DStamped& position2,
-      const beam_variables::ImuBiasStamped& accelbias2,
+      const fuse_variables::VelocityLinear3DStamped& velocity2,
       const beam_variables::ImuBiasStamped& gyrobias2,
+      const beam_variables::ImuBiasStamped& accelbias2,
       const Eigen::Matrix<double, 16, 1>& delta,
       const Eigen::Matrix<double, 15, 15>& covariance);
 

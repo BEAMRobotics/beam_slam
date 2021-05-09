@@ -21,24 +21,24 @@ public:
 
     orientation1 = fuse_variables::Orientation3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
+    position1 = fuse_variables::Position3DStamped::make_shared(
+        ros::Time(1234, 5678), device_id);        
     velocity1 = fuse_variables::VelocityLinear3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
-    position1 = fuse_variables::Position3DStamped::make_shared(
+    gyrobias1 = beam_variables::ImuBiasStamped::make_shared(
         ros::Time(1234, 5678), device_id);
     accelbias1 = beam_variables::ImuBiasStamped::make_shared(
-        ros::Time(1234, 5678), device_id);
-    gyrobias1 = beam_variables::ImuBiasStamped::make_shared(
         ros::Time(1234, 5678), device_id);
 
     orientation2 = fuse_variables::Orientation3DStamped::make_shared(
         ros::Time(1235, 5678), device_id);
+    position2 = fuse_variables::Position3DStamped::make_shared(
+        ros::Time(1235, 5678), device_id);    
     velocity2 = fuse_variables::VelocityLinear3DStamped::make_shared(
         ros::Time(1235, 5678), device_id);
-    position2 = fuse_variables::Position3DStamped::make_shared(
-        ros::Time(1235, 5678), device_id);
-    accelbias2 = beam_variables::ImuBiasStamped::make_shared(
-        ros::Time(1234, 5678), device_id);
     gyrobias2 = beam_variables::ImuBiasStamped::make_shared(
+        ros::Time(1234, 5678), device_id);
+    accelbias2 = beam_variables::ImuBiasStamped::make_shared(
         ros::Time(1234, 5678), device_id);
 
     delta << 0.988, 0.094, 0.079, 0.094, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 0.1, 0.2,
@@ -66,20 +66,20 @@ public:
 
     relative_imu_state_constraint = std::make_shared<
         beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint>(
-        "test", *orientation1, *velocity1, *position1, *accelbias1, *gyrobias1,
-        *orientation2, *velocity2, *position2, *accelbias2, *gyrobias2, delta,
+        "test", *orientation1, *position1, *velocity1, *gyrobias1, *accelbias1,
+        *orientation2, *position2, *velocity2, *gyrobias2, *accelbias2, delta,
         cov);
   }
   fuse_variables::Orientation3DStamped::SharedPtr orientation1;
-  fuse_variables::VelocityLinear3DStamped::SharedPtr velocity1;
   fuse_variables::Position3DStamped::SharedPtr position1;
-  beam_variables::ImuBiasStamped::SharedPtr accelbias1;
+  fuse_variables::VelocityLinear3DStamped::SharedPtr velocity1;
   beam_variables::ImuBiasStamped::SharedPtr gyrobias1;
+  beam_variables::ImuBiasStamped::SharedPtr accelbias1;
   fuse_variables::Orientation3DStamped::SharedPtr orientation2;
-  fuse_variables::VelocityLinear3DStamped::SharedPtr velocity2;
   fuse_variables::Position3DStamped::SharedPtr position2;
-  beam_variables::ImuBiasStamped::SharedPtr accelbias2;
+  fuse_variables::VelocityLinear3DStamped::SharedPtr velocity2;
   beam_variables::ImuBiasStamped::SharedPtr gyrobias2;
+  beam_variables::ImuBiasStamped::SharedPtr accelbias2;
 
   Eigen::Matrix<double, 16, 1> delta;
   Eigen::Matrix<double, 15, 15> cov;
@@ -126,29 +126,29 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
   orientation1->y() = -0.189;
   orientation1->z() = 0.239;
 
-  auto velocity1 = fuse_variables::VelocityLinear3DStamped::make_shared(
-      ros::Time(1, 0), fuse_core::uuid::generate("spra"));
-  velocity1->x() = 1.5;
-  velocity1->y() = -3.0;
-  velocity1->z() = 10.0;
-
   auto position1 = fuse_variables::Position3DStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   position1->x() = 1.5;
   position1->y() = -3.0;
   position1->z() = 10.0;
 
-  auto accelbias1 = beam_variables::ImuBiasStamped::make_shared(
+  auto velocity1 = fuse_variables::VelocityLinear3DStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
-  accelbias1->x() = 0.15;
-  accelbias1->y() = -0.30;
-  accelbias1->z() = 1.0;
+  velocity1->x() = 1.5;
+  velocity1->y() = -3.0;
+  velocity1->z() = 10.0;
 
   auto gyrobias1 = beam_variables::ImuBiasStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   gyrobias1->x() = 0.15;
   gyrobias1->y() = -0.30;
   gyrobias1->z() = 1.0;
+
+  auto accelbias1 = beam_variables::ImuBiasStamped::make_shared(
+      ros::Time(1, 0), fuse_core::uuid::generate("spra"));
+  accelbias1->x() = 0.15;
+  accelbias1->y() = -0.30;
+  accelbias1->z() = 1.0;
 
   // Create imu state 2
   auto orientation2 = fuse_variables::Orientation3DStamped::make_shared(
@@ -158,29 +158,29 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
   orientation2->y() = 0.145;
   orientation2->z() = -0.269;
 
-  auto velocity2 = fuse_variables::VelocityLinear3DStamped::make_shared(
-      ros::Time(2, 0), fuse_core::uuid::generate("spra"));
-  velocity2->x() = -1.5;
-  velocity2->y() = 3.0;
-  velocity2->z() = -10.0;
-
   auto position2 = fuse_variables::Position3DStamped::make_shared(
       ros::Time(2, 0), fuse_core::uuid::generate("spra"));
   position2->x() = -1.5;
   position2->y() = 3.0;
   position2->z() = -10.0;
 
-  auto accelbias2 = beam_variables::ImuBiasStamped::make_shared(
-      ros::Time(1, 0), fuse_core::uuid::generate("spra"));
-  accelbias2->x() = 0.15;
-  accelbias2->y() = -0.30;
-  accelbias2->z() = 1.0;
+  auto velocity2 = fuse_variables::VelocityLinear3DStamped::make_shared(
+      ros::Time(2, 0), fuse_core::uuid::generate("spra"));
+  velocity2->x() = -1.5;
+  velocity2->y() = 3.0;
+  velocity2->z() = -10.0;
 
   auto gyrobias2 = beam_variables::ImuBiasStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   gyrobias2->x() = 0.15;
   gyrobias2->y() = -0.30;
   gyrobias2->z() = 1.0;
+
+  auto accelbias2 = beam_variables::ImuBiasStamped::make_shared(
+      ros::Time(1, 0), fuse_core::uuid::generate("spra"));
+  accelbias2->x() = 0.15;
+  accelbias2->y() = -0.30;
+  accelbias2->z() = 1.0;
 
   // Create an absolute pose constraint at the origin
   fuse_core::Vector7d mean_pose_origin;
@@ -199,13 +199,6 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
           make_shared("test", *velocity1, mean_vel_origin, cov_vel_origin);
 
   // Create an absolute imu bias constraint at the origin
-  fuse_core::Vector3d mean_accel_bias_origin;
-  mean_accel_bias_origin << 0.0, 0.0, 0.0;
-  fuse_core::Matrix3d cov_accel_bias_origin = fuse_core::Matrix3d::Identity();
-  auto prior_accel_bias =
-      beam_constraints::global::AbsoluteImuBias3DStampedConstraint::make_shared(
-          "test", *accelbias1, mean_accel_bias_origin, cov_accel_bias_origin);
-
   fuse_core::Vector3d mean_gyro_bias_origin;
   mean_gyro_bias_origin << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d cov_gyro_bias_origin = fuse_core::Matrix3d::Identity();
@@ -213,11 +206,19 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
       beam_constraints::global::AbsoluteImuBias3DStampedConstraint::make_shared(
           "test", *gyrobias1, mean_gyro_bias_origin, cov_gyro_bias_origin);
 
+  fuse_core::Vector3d mean_accel_bias_origin;
+  mean_accel_bias_origin << 0.0, 0.0, 0.0;
+  fuse_core::Matrix3d cov_accel_bias_origin = fuse_core::Matrix3d::Identity();
+  auto prior_accel_bias =
+      beam_constraints::global::AbsoluteImuBias3DStampedConstraint::make_shared(
+          "test", *accelbias1, mean_accel_bias_origin, cov_accel_bias_origin);
+
   // Create a relative imu state constraint, assuming:
   // 1) a +1m change in position in the x direction
   // 2) a +1m/s change in velocity in the x direction
-  // 2) a +0.1m/^2 change in accleration bias in the x direction
-  // 2) a +0.1w change in gyro bias in the x direction
+  // 3) a +0.1w change in gyro bias in the x direction
+  // 4) a +0.1m/^2 change in accleration bias in the x direction
+  
   Eigen::Matrix<double, 16, 1> mean_delta;
   mean_delta << 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.1, 0.0, 0.0,
       0.1, 0.0, 0.0;
@@ -225,9 +226,9 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
   cov_delta.setIdentity();
   auto relative_imu_state = beam_constraints::frame_to_frame::
       RelativeImuState3DStampedConstraint::make_shared(
-          "test", *orientation1, *velocity1, *position1, *accelbias1,
-          *gyrobias1, *orientation2, *velocity2, *position2, *accelbias2,
-          *gyrobias2, mean_delta, cov_delta);
+          "test", *orientation1, *position1, *velocity1, *gyrobias1,
+          *accelbias1, *orientation2, *position2, *velocity2, *gyrobias2,
+          *accelbias2, mean_delta, cov_delta);
 
   // Build the problem
   ceres::Problem::Options problem_options;
@@ -236,25 +237,25 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
 
   problem.AddParameterBlock(orientation1->data(), orientation1->size(),
                             orientation1->localParameterization());
+  problem.AddParameterBlock(position1->data(), position1->size(),
+                            position1->localParameterization());                            
   problem.AddParameterBlock(velocity1->data(), velocity1->size(),
                             velocity1->localParameterization());
-  problem.AddParameterBlock(position1->data(), position1->size(),
-                            position1->localParameterization());
-  problem.AddParameterBlock(accelbias1->data(), accelbias1->size(),
-                            accelbias1->localParameterization());
   problem.AddParameterBlock(gyrobias1->data(), gyrobias1->size(),
                             gyrobias1->localParameterization());
+  problem.AddParameterBlock(accelbias1->data(), accelbias1->size(),
+                            accelbias1->localParameterization());
 
   problem.AddParameterBlock(orientation2->data(), orientation2->size(),
                             orientation2->localParameterization());
+  problem.AddParameterBlock(position2->data(), position2->size(),
+                            position2->localParameterization());                            
   problem.AddParameterBlock(velocity2->data(), velocity2->size(),
                             velocity2->localParameterization());
-  problem.AddParameterBlock(position2->data(), position2->size(),
-                            position2->localParameterization());
-  problem.AddParameterBlock(accelbias2->data(), accelbias2->size(),
-                            accelbias2->localParameterization());
   problem.AddParameterBlock(gyrobias2->data(), gyrobias2->size(),
                             gyrobias2->localParameterization());
+  problem.AddParameterBlock(accelbias2->data(), accelbias2->size(),
+                            accelbias2->localParameterization());
 
   std::vector<double *> prior_pose_parameter_blocks;
   prior_pose_parameter_blocks.push_back(position1->data());
@@ -269,29 +270,29 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
                            prior_velocity->lossFunction(),
                            prior_velocity_parameter_blocks);
 
-  std::vector<double *> prior_accel_bias_parameter_blocks;
-  prior_accel_bias_parameter_blocks.push_back(accelbias1->data());
-  problem.AddResidualBlock(prior_accel_bias->costFunction(),
-                           prior_accel_bias->lossFunction(),
-                           prior_accel_bias_parameter_blocks);
-
   std::vector<double *> prior_gyro_bias_parameter_blocks;
   prior_gyro_bias_parameter_blocks.push_back(gyrobias1->data());
   problem.AddResidualBlock(prior_gyro_bias->costFunction(),
                            prior_gyro_bias->lossFunction(),
                            prior_gyro_bias_parameter_blocks);
 
+  std::vector<double *> prior_accel_bias_parameter_blocks;
+  prior_accel_bias_parameter_blocks.push_back(accelbias1->data());
+  problem.AddResidualBlock(prior_accel_bias->costFunction(),
+                           prior_accel_bias->lossFunction(),
+                           prior_accel_bias_parameter_blocks);
+
   std::vector<double *> relative_imu_state_parameter_blocks;
   relative_imu_state_parameter_blocks.push_back(orientation1->data());
+  relative_imu_state_parameter_blocks.push_back(position1->data());  
   relative_imu_state_parameter_blocks.push_back(velocity1->data());
-  relative_imu_state_parameter_blocks.push_back(position1->data());
-  relative_imu_state_parameter_blocks.push_back(accelbias1->data());
   relative_imu_state_parameter_blocks.push_back(gyrobias1->data());
+  relative_imu_state_parameter_blocks.push_back(accelbias1->data());
   relative_imu_state_parameter_blocks.push_back(orientation2->data());
-  relative_imu_state_parameter_blocks.push_back(velocity2->data());
   relative_imu_state_parameter_blocks.push_back(position2->data());
-  relative_imu_state_parameter_blocks.push_back(accelbias2->data());
+  relative_imu_state_parameter_blocks.push_back(velocity2->data());
   relative_imu_state_parameter_blocks.push_back(gyrobias2->data());
+  relative_imu_state_parameter_blocks.push_back(accelbias2->data());  
   problem.AddResidualBlock(relative_imu_state->costFunction(),
                            relative_imu_state->lossFunction(),
                            relative_imu_state_parameter_blocks);
@@ -306,53 +307,53 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
   EXPECT_NEAR(0.0, orientation1->x(), 1.0e-3);
   EXPECT_NEAR(0.0, orientation1->y(), 1.0e-3);
   EXPECT_NEAR(0.0, orientation1->z(), 1.0e-3);
-  EXPECT_NEAR(0.0, velocity1->x(), 1.0e-5);
-  EXPECT_NEAR(0.0, velocity1->y(), 1.0e-5);
-  EXPECT_NEAR(0.0, velocity1->z(), 1.0e-5);
   EXPECT_NEAR(0.0, position1->x(), 1.0e-5);
   EXPECT_NEAR(0.0, position1->y(), 1.0e-5);
   EXPECT_NEAR(0.0, position1->z(), 1.0e-5);
-  EXPECT_NEAR(0.0, accelbias1->x(), 1.0e-5);
-  EXPECT_NEAR(0.0, accelbias1->y(), 1.0e-5);
-  EXPECT_NEAR(0.0, accelbias1->z(), 1.0e-5);
+  EXPECT_NEAR(0.0, velocity1->x(), 1.0e-5);
+  EXPECT_NEAR(0.0, velocity1->y(), 1.0e-5);
+  EXPECT_NEAR(0.0, velocity1->z(), 1.0e-5);
   EXPECT_NEAR(0.0, gyrobias1->x(), 1.0e-5);
   EXPECT_NEAR(0.0, gyrobias1->y(), 1.0e-5);
   EXPECT_NEAR(0.0, gyrobias1->z(), 1.0e-5);
+  EXPECT_NEAR(0.0, accelbias1->x(), 1.0e-5);
+  EXPECT_NEAR(0.0, accelbias1->y(), 1.0e-5);
+  EXPECT_NEAR(0.0, accelbias1->z(), 1.0e-5);
   EXPECT_NEAR(1.0, orientation2->w(), 1.0e-3);
   EXPECT_NEAR(0.0, orientation2->x(), 1.0e-3);
   EXPECT_NEAR(0.0, orientation2->y(), 1.0e-3);
   EXPECT_NEAR(0.0, orientation2->z(), 1.0e-3);
+  EXPECT_NEAR(1.0, position2->x(), 1.0e-5);
+  EXPECT_NEAR(0.0, position2->y(), 1.0e-5);
+  EXPECT_NEAR(0.0, position2->z(), 1.0e-5);  
   EXPECT_NEAR(1.0, velocity2->x(), 1.0e-5);
   EXPECT_NEAR(0.0, velocity2->y(), 1.0e-5);
   EXPECT_NEAR(0.0, velocity2->z(), 1.0e-5);
-  EXPECT_NEAR(1.0, position2->x(), 1.0e-5);
-  EXPECT_NEAR(0.0, position2->y(), 1.0e-5);
-  EXPECT_NEAR(0.0, position2->z(), 1.0e-5);
-  EXPECT_NEAR(0.1, accelbias2->x(), 1.0e-5);
-  EXPECT_NEAR(0.0, accelbias2->y(), 1.0e-5);
-  EXPECT_NEAR(0.0, accelbias2->z(), 1.0e-5);
   EXPECT_NEAR(0.1, gyrobias2->x(), 1.0e-5);
   EXPECT_NEAR(0.0, gyrobias2->y(), 1.0e-5);
   EXPECT_NEAR(0.0, gyrobias2->z(), 1.0e-5);
+  EXPECT_NEAR(0.1, accelbias2->x(), 1.0e-5);
+  EXPECT_NEAR(0.0, accelbias2->y(), 1.0e-5);
+  EXPECT_NEAR(0.0, accelbias2->z(), 1.0e-5);
 
   // Compute the marginal covariance for imu state 1
   {
     std::vector<std::pair<const double *, const double *>> covariance_blocks;
     covariance_blocks.emplace_back(orientation1->data(), orientation1->data());
-    covariance_blocks.emplace_back(orientation1->data(), velocity1->data());
     covariance_blocks.emplace_back(orientation1->data(), position1->data());
-    covariance_blocks.emplace_back(orientation1->data(), accelbias1->data());
+    covariance_blocks.emplace_back(orientation1->data(), velocity1->data());
     covariance_blocks.emplace_back(orientation1->data(), gyrobias1->data());
-    covariance_blocks.emplace_back(velocity1->data(), velocity1->data());
-    covariance_blocks.emplace_back(velocity1->data(), position1->data());
-    covariance_blocks.emplace_back(velocity1->data(), accelbias1->data());
-    covariance_blocks.emplace_back(velocity1->data(), gyrobias1->data());
+    covariance_blocks.emplace_back(orientation1->data(), accelbias1->data());
     covariance_blocks.emplace_back(position1->data(), position1->data());
-    covariance_blocks.emplace_back(position1->data(), accelbias1->data());
+    covariance_blocks.emplace_back(position1->data(), velocity1->data());
     covariance_blocks.emplace_back(position1->data(), gyrobias1->data());
-    covariance_blocks.emplace_back(accelbias1->data(), accelbias1->data());
-    covariance_blocks.emplace_back(accelbias1->data(), gyrobias1->data());
+    covariance_blocks.emplace_back(position1->data(), accelbias1->data());
+    covariance_blocks.emplace_back(velocity1->data(), velocity1->data());
+    covariance_blocks.emplace_back(velocity1->data(), gyrobias1->data());
+    covariance_blocks.emplace_back(velocity1->data(), accelbias1->data());
     covariance_blocks.emplace_back(gyrobias1->data(), gyrobias1->data());
+    covariance_blocks.emplace_back(gyrobias1->data(), accelbias1->data());
+    covariance_blocks.emplace_back(accelbias1->data(), accelbias1->data());
 
     ceres::Covariance::Options cov_options;
     ceres::Covariance covariance(cov_options);
@@ -363,75 +364,75 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
     covariance.GetCovarianceBlockInTangentSpace(
         orientation1->data(), orientation1->data(), cov_or_or.data());
 
+    fuse_core::MatrixXd cov_or_pos(orientation1->localSize(),
+                                   position1->localSize());
+    covariance.GetCovarianceBlockInTangentSpace(
+        orientation1->data(), position1->data(), cov_or_pos.data());
+
     fuse_core::MatrixXd cov_or_vel(orientation1->localSize(),
                                    velocity1->localSize());
     covariance.GetCovarianceBlockInTangentSpace(
         orientation1->data(), velocity1->data(), cov_or_vel.data());
 
-    fuse_core::MatrixXd cov_or_pos(orientation1->localSize(),
-                                   position1->localSize());
+    fuse_core::MatrixXd cov_or_bg(orientation1->localSize(),
+                                  gyrobias1->localSize());
     covariance.GetCovarianceBlockInTangentSpace(
-        orientation1->data(), position1->data(), cov_or_pos.data());
+        orientation1->data(), gyrobias1->data(), cov_or_bg.data());        
 
     fuse_core::MatrixXd cov_or_ba(orientation1->localSize(),
                                   accelbias1->localSize());
     covariance.GetCovarianceBlockInTangentSpace(
         orientation1->data(), accelbias1->data(), cov_or_ba.data());
 
-    fuse_core::MatrixXd cov_or_bg(orientation1->localSize(),
-                                  gyrobias1->localSize());
-    covariance.GetCovarianceBlockInTangentSpace(
-        orientation1->data(), gyrobias1->data(), cov_or_bg.data());
-
-    fuse_core::MatrixXd cov_vel_vel(velocity1->size(), velocity1->size());
-    covariance.GetCovarianceBlock(velocity1->data(), velocity1->data(),
-                                  cov_vel_vel.data());
-
-    fuse_core::MatrixXd cov_vel_pos(velocity1->size(), position1->size());
-    covariance.GetCovarianceBlock(velocity1->data(), position1->data(),
-                                  cov_vel_pos.data());
-
-    fuse_core::MatrixXd cov_vel_ba(velocity1->size(), accelbias1->size());
-    covariance.GetCovarianceBlock(velocity1->data(), accelbias1->data(),
-                                  cov_vel_ba.data());
-
-    fuse_core::MatrixXd cov_vel_bg(velocity1->size(), gyrobias1->size());
-    covariance.GetCovarianceBlock(velocity1->data(), gyrobias1->data(),
-                                  cov_vel_bg.data());
-
     fuse_core::MatrixXd cov_pos_pos(position1->size(), position1->size());
     covariance.GetCovarianceBlock(position1->data(), position1->data(),
                                   cov_pos_pos.data());
 
-    fuse_core::MatrixXd cov_pos_ba(position1->size(), accelbias1->size());
-    covariance.GetCovarianceBlock(position1->data(), accelbias1->data(),
-                                  cov_pos_ba.data());
+    fuse_core::MatrixXd cov_pos_vel(position1->size(), velocity1->size());
+    covariance.GetCovarianceBlock(position1->data(), velocity1->data(),
+                                  cov_pos_vel.data());  
 
     fuse_core::MatrixXd cov_pos_bg(position1->size(), gyrobias1->size());
     covariance.GetCovarianceBlock(position1->data(), gyrobias1->data(),
                                   cov_pos_bg.data());
 
-    fuse_core::MatrixXd cov_ba_ba(accelbias1->size(), accelbias1->size());
-    covariance.GetCovarianceBlock(accelbias1->data(), accelbias1->data(),
-                                  cov_ba_ba.data());
+    fuse_core::MatrixXd cov_pos_ba(position1->size(), accelbias1->size());
+    covariance.GetCovarianceBlock(position1->data(), accelbias1->data(),
+                                  cov_pos_ba.data());
 
-    fuse_core::MatrixXd cov_ba_bg(accelbias1->size(), gyrobias1->size());
-    covariance.GetCovarianceBlock(accelbias1->data(), gyrobias1->data(),
-                                  cov_ba_bg.data());
+    fuse_core::MatrixXd cov_vel_vel(velocity1->size(), velocity1->size());
+    covariance.GetCovarianceBlock(velocity1->data(), velocity1->data(),
+                                  cov_vel_vel.data());
+
+    fuse_core::MatrixXd cov_vel_bg(velocity1->size(), gyrobias1->size());
+    covariance.GetCovarianceBlock(velocity1->data(), gyrobias1->data(),
+                                  cov_vel_bg.data());
+
+    fuse_core::MatrixXd cov_vel_ba(velocity1->size(), accelbias1->size());
+    covariance.GetCovarianceBlock(velocity1->data(), accelbias1->data(),
+                                  cov_vel_ba.data());
 
     fuse_core::MatrixXd cov_bg_bg(gyrobias1->size(), gyrobias1->size());
     covariance.GetCovarianceBlock(gyrobias1->data(), gyrobias1->data(),
                                   cov_bg_bg.data());
 
+    fuse_core::MatrixXd cov_bg_ba(gyrobias1->size(), accelbias1->size());
+    covariance.GetCovarianceBlock(gyrobias1->data(), accelbias1->data(),
+                                  cov_bg_ba.data());                                                           
+
+    fuse_core::MatrixXd cov_ba_ba(accelbias1->size(), accelbias1->size());
+    covariance.GetCovarianceBlock(accelbias1->data(), accelbias1->data(),
+                                  cov_ba_ba.data());
+
     // Assemble the full covariance from the covariance blocks
     Eigen::Matrix<double, 15, 15> actual_covariance;
-    actual_covariance << cov_or_or, cov_or_vel, cov_or_pos, cov_or_ba,
-        cov_or_bg, cov_or_vel.transpose(), cov_vel_vel, cov_vel_pos, cov_vel_ba,
-        cov_vel_bg, cov_or_pos.transpose(), cov_vel_pos.transpose(),
-        cov_pos_pos, cov_pos_ba, cov_pos_bg, cov_or_ba.transpose(),
-        cov_vel_ba.transpose(), cov_pos_ba.transpose(), cov_ba_ba, cov_ba_bg,
-        cov_or_bg.transpose(), cov_vel_bg.transpose(), cov_pos_bg.transpose(),
-        cov_ba_bg.transpose(), cov_bg_bg;
+    actual_covariance << cov_or_or, cov_or_pos, cov_or_vel, cov_or_bg,
+        cov_or_ba, cov_or_pos.transpose(), cov_pos_pos, cov_pos_vel, cov_pos_bg,
+        cov_pos_ba, cov_or_vel.transpose(), cov_pos_vel.transpose(),
+        cov_vel_vel, cov_vel_bg, cov_vel_ba, cov_or_bg.transpose(),
+        cov_pos_bg.transpose(), cov_vel_bg.transpose(), cov_bg_bg, cov_bg_ba,
+        cov_or_ba.transpose(), cov_pos_ba.transpose(), cov_vel_ba.transpose(),
+        cov_bg_ba.transpose(), cov_ba_ba;
 
     // Define the expected covariance
     Eigen::Matrix<double, 15, 15> expected_covariance;
@@ -444,20 +445,20 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
   {
     std::vector<std::pair<const double *, const double *>> covariance_blocks;
     covariance_blocks.emplace_back(orientation2->data(), orientation2->data());
-    covariance_blocks.emplace_back(orientation2->data(), velocity2->data());
     covariance_blocks.emplace_back(orientation2->data(), position2->data());
-    covariance_blocks.emplace_back(orientation2->data(), accelbias2->data());
+    covariance_blocks.emplace_back(orientation2->data(), velocity2->data());
     covariance_blocks.emplace_back(orientation2->data(), gyrobias2->data());
-    covariance_blocks.emplace_back(velocity2->data(), velocity2->data());
-    covariance_blocks.emplace_back(velocity2->data(), position2->data());
-    covariance_blocks.emplace_back(velocity2->data(), accelbias2->data());
-    covariance_blocks.emplace_back(velocity2->data(), gyrobias2->data());
+    covariance_blocks.emplace_back(orientation2->data(), accelbias2->data());
     covariance_blocks.emplace_back(position2->data(), position2->data());
-    covariance_blocks.emplace_back(position2->data(), accelbias2->data());
+    covariance_blocks.emplace_back(position2->data(), velocity2->data());
     covariance_blocks.emplace_back(position2->data(), gyrobias2->data());
-    covariance_blocks.emplace_back(accelbias2->data(), accelbias2->data());
-    covariance_blocks.emplace_back(accelbias2->data(), gyrobias2->data());
+    covariance_blocks.emplace_back(position2->data(), accelbias2->data());
+    covariance_blocks.emplace_back(velocity2->data(), velocity2->data());
+    covariance_blocks.emplace_back(velocity2->data(), gyrobias2->data());
+    covariance_blocks.emplace_back(velocity2->data(), accelbias2->data());
     covariance_blocks.emplace_back(gyrobias2->data(), gyrobias2->data());
+    covariance_blocks.emplace_back(gyrobias2->data(), accelbias2->data());
+    covariance_blocks.emplace_back(accelbias2->data(), accelbias2->data());
 
     ceres::Covariance::Options cov_options;
     ceres::Covariance covariance(cov_options);
@@ -468,75 +469,75 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
     covariance.GetCovarianceBlockInTangentSpace(
         orientation2->data(), orientation2->data(), cov_or_or.data());
 
-    fuse_core::MatrixXd cov_or_vel(orientation2->localSize(),
-                                   velocity2->localSize());
-    covariance.GetCovarianceBlockInTangentSpace(
-        orientation2->data(), velocity2->data(), cov_or_vel.data());
-
     fuse_core::MatrixXd cov_or_pos(orientation2->localSize(),
                                    position2->localSize());
     covariance.GetCovarianceBlockInTangentSpace(
         orientation2->data(), position2->data(), cov_or_pos.data());
 
-    fuse_core::MatrixXd cov_or_ba(orientation2->localSize(),
-                                  accelbias2->localSize());
+    fuse_core::MatrixXd cov_or_vel(orientation2->localSize(),
+                                   velocity2->localSize());
     covariance.GetCovarianceBlockInTangentSpace(
-        orientation2->data(), accelbias2->data(), cov_or_ba.data());
+        orientation2->data(), velocity2->data(), cov_or_vel.data());
 
     fuse_core::MatrixXd cov_or_bg(orientation2->localSize(),
                                   gyrobias2->localSize());
     covariance.GetCovarianceBlockInTangentSpace(
         orientation2->data(), gyrobias2->data(), cov_or_bg.data());
 
-    fuse_core::MatrixXd cov_vel_vel(velocity2->size(), velocity2->size());
-    covariance.GetCovarianceBlock(velocity2->data(), velocity2->data(),
-                                  cov_vel_vel.data());
-
-    fuse_core::MatrixXd cov_vel_pos(velocity2->size(), position2->size());
-    covariance.GetCovarianceBlock(velocity2->data(), position2->data(),
-                                  cov_vel_pos.data());
-
-    fuse_core::MatrixXd cov_vel_ba(velocity2->size(), accelbias2->size());
-    covariance.GetCovarianceBlock(velocity2->data(), accelbias2->data(),
-                                  cov_vel_ba.data());
-
-    fuse_core::MatrixXd cov_vel_bg(velocity2->size(), gyrobias2->size());
-    covariance.GetCovarianceBlock(velocity2->data(), gyrobias2->data(),
-                                  cov_vel_bg.data());
+    fuse_core::MatrixXd cov_or_ba(orientation2->localSize(),
+                                  accelbias2->localSize());
+    covariance.GetCovarianceBlockInTangentSpace(
+        orientation2->data(), accelbias2->data(), cov_or_ba.data());
 
     fuse_core::MatrixXd cov_pos_pos(position2->size(), position2->size());
     covariance.GetCovarianceBlock(position2->data(), position2->data(),
                                   cov_pos_pos.data());
 
+    fuse_core::MatrixXd cov_pos_vel(position2->size(), velocity2->size());
+    covariance.GetCovarianceBlock(position2->data(), velocity2->data(),
+                                  cov_pos_vel.data());
+
+    fuse_core::MatrixXd cov_pos_bg(position2->size(), gyrobias2->size());
+    covariance.GetCovarianceBlock(position2->data(), gyrobias2->data(),
+                                  cov_pos_bg.data());                                  
+
     fuse_core::MatrixXd cov_pos_ba(position2->size(), accelbias2->size());
     covariance.GetCovarianceBlock(position2->data(), accelbias2->data(),
                                   cov_pos_ba.data());
 
-    fuse_core::MatrixXd cov_pos_bg(position2->size(), gyrobias2->size());
-    covariance.GetCovarianceBlock(position2->data(), gyrobias2->data(),
-                                  cov_pos_bg.data());
+    fuse_core::MatrixXd cov_vel_vel(velocity2->size(), velocity2->size());
+    covariance.GetCovarianceBlock(velocity2->data(), velocity2->data(),
+                                  cov_vel_vel.data());
 
-    fuse_core::MatrixXd cov_ba_ba(accelbias2->size(), accelbias2->size());
-    covariance.GetCovarianceBlock(accelbias2->data(), accelbias2->data(),
-                                  cov_ba_ba.data());
+    fuse_core::MatrixXd cov_vel_bg(velocity2->size(), gyrobias2->size());
+    covariance.GetCovarianceBlock(velocity2->data(), gyrobias2->data(),
+                                  cov_vel_bg.data());
 
-    fuse_core::MatrixXd cov_ba_bg(accelbias2->size(), gyrobias2->size());
-    covariance.GetCovarianceBlock(accelbias2->data(), gyrobias2->data(),
-                                  cov_ba_bg.data());
+    fuse_core::MatrixXd cov_vel_ba(velocity2->size(), accelbias2->size());
+    covariance.GetCovarianceBlock(velocity2->data(), accelbias2->data(),
+                                  cov_vel_ba.data());
 
     fuse_core::MatrixXd cov_bg_bg(gyrobias2->size(), gyrobias2->size());
     covariance.GetCovarianceBlock(gyrobias2->data(), gyrobias2->data(),
                                   cov_bg_bg.data());
 
+    fuse_core::MatrixXd cov_bg_ba(gyrobias2->size(), accelbias2->size());
+    covariance.GetCovarianceBlock(gyrobias2->data(), accelbias2->data(),
+                                  cov_bg_ba.data());                                  
+
+    fuse_core::MatrixXd cov_ba_ba(accelbias2->size(), accelbias2->size());
+    covariance.GetCovarianceBlock(accelbias2->data(), accelbias2->data(),
+                                  cov_ba_ba.data());
+
     // Assemble the full covariance from the covariance blocks
     Eigen::Matrix<double, 15, 15> actual_covariance;
-    actual_covariance << cov_or_or, cov_or_vel, cov_or_pos, cov_or_ba,
-        cov_or_bg, cov_or_vel.transpose(), cov_vel_vel, cov_vel_pos, cov_vel_ba,
-        cov_vel_bg, cov_or_pos.transpose(), cov_vel_pos.transpose(),
-        cov_pos_pos, cov_pos_ba, cov_pos_bg, cov_or_ba.transpose(),
-        cov_vel_ba.transpose(), cov_pos_ba.transpose(), cov_ba_ba, cov_ba_bg,
-        cov_or_bg.transpose(), cov_vel_bg.transpose(), cov_pos_bg.transpose(),
-        cov_ba_bg.transpose(), cov_bg_bg;
+    actual_covariance << cov_or_or, cov_or_pos, cov_or_vel, cov_or_bg,
+        cov_or_ba, cov_or_pos.transpose(), cov_pos_pos, cov_pos_vel, cov_pos_bg,
+        cov_pos_ba, cov_or_vel.transpose(), cov_pos_vel.transpose(),
+        cov_vel_vel, cov_vel_bg, cov_vel_ba, cov_or_bg.transpose(),
+        cov_pos_bg.transpose(), cov_vel_bg.transpose(), cov_bg_bg, cov_bg_ba,
+        cov_or_ba.transpose(), cov_pos_ba.transpose(), cov_vel_ba.transpose(),
+        cov_bg_ba.transpose(), cov_ba_ba;
 
     // clang-format off
     // Define the expected covariance
@@ -566,10 +567,10 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
 TEST(RelativeImuState3DStampedConstraint, Serialization) {
   // Construct a constraint
   beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint
-      expected("test", *(data_.orientation1), *(data_.velocity1),
-               *(data_.position1), *(data_.accelbias1), *(data_.gyrobias1),
-               *(data_.orientation2), *(data_.velocity2), *(data_.position2),
-               *(data_.accelbias2), *(data_.gyrobias2), data_.delta, data_.cov);
+      expected("test", *(data_.orientation1), *(data_.position1),
+               *(data_.velocity1), *(data_.gyrobias1), *(data_.accelbias1),
+               *(data_.orientation2), *(data_.position2), *(data_.velocity2),
+               *(data_.gyrobias2), *(data_.accelbias2), data_.delta, data_.cov);
 
   // Serialize the constraint into an archive
   std::stringstream stream;

@@ -13,16 +13,16 @@ namespace beam_constraints { namespace global {
 AbsoluteImuState3DStampedConstraint::AbsoluteImuState3DStampedConstraint(
     const std::string& source,
     const fuse_variables::Orientation3DStamped& orientation,
-    const fuse_variables::VelocityLinear3DStamped& velocity,
     const fuse_variables::Position3DStamped& position,
-    const beam_variables::ImuBiasStamped& accelbias,
+    const fuse_variables::VelocityLinear3DStamped& velocity,
     const beam_variables::ImuBiasStamped& gyrobias,
+    const beam_variables::ImuBiasStamped& accelbias,
     const Eigen::Matrix<double, 16, 1>& mean,
     const Eigen::Matrix<double, 15, 15>& covariance)
     : fuse_core::Constraint(
           source,
-          {orientation.uuid(), velocity.uuid(), position.uuid(),
-           accelbias.uuid(), gyrobias.uuid()}),  // NOLINT(whitespace/braces)
+          {orientation.uuid(), position.uuid(), velocity.uuid(),
+           gyrobias.uuid(), accelbias.uuid()}),  // NOLINT(whitespace/braces)
       mean_(mean),
       sqrt_information_(covariance.inverse().llt().matrixU()) {}
 
@@ -31,10 +31,10 @@ void AbsoluteImuState3DStampedConstraint::print(std::ostream& stream) const {
          << "  source: " << source() << "\n"
          << "  uuid: " << uuid() << "\n"
          << "  orientation variable: " << variables().at(0) << "\n"
-         << "  velocity variable: " << variables().at(1) << "\n"
-         << "  position variable: " << variables().at(2) << "\n"
-         << "  accelbias variable: " << variables().at(3) << "\n"
-         << "  gyrobias variable:: " << variables().at(4) << "\n"
+         << "  position variable: " << variables().at(1) << "\n"
+         << "  velocity variable: " << variables().at(2) << "\n"
+         << "  gyrobias variable: " << variables().at(3) << "\n"
+         << "  accelbias variable:: " << variables().at(4) << "\n"
          << "  mean: " << mean().transpose() << "\n"
          << "  sqrt_info: " << sqrtInformation() << "\n";
 

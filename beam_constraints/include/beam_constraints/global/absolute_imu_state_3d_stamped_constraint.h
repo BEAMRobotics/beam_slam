@@ -37,10 +37,10 @@ public:
   AbsoluteImuState3DStampedConstraint(
       const std::string& source,
       const fuse_variables::Orientation3DStamped& orientation,
-      const fuse_variables::VelocityLinear3DStamped& velocity, 
       const fuse_variables::Position3DStamped& position,
-      const beam_variables::ImuBiasStamped& accelbias,
+      const fuse_variables::VelocityLinear3DStamped& velocity, 
       const beam_variables::ImuBiasStamped& gyrobias,
+      const beam_variables::ImuBiasStamped& accelbias,
       const Eigen::Matrix<double, 16, 1>& mean,
       const Eigen::Matrix<double, 15, 15>& covariance);
 

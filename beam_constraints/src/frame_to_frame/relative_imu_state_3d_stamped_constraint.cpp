@@ -12,22 +12,22 @@ namespace beam_constraints { namespace frame_to_frame {
 RelativeImuState3DStampedConstraint::RelativeImuState3DStampedConstraint(
     const std::string& source,
     const fuse_variables::Orientation3DStamped& orientation1,
-    const fuse_variables::VelocityLinear3DStamped& velocity1,
     const fuse_variables::Position3DStamped& position1,
-    const beam_variables::ImuBiasStamped& accelbias1,
+    const fuse_variables::VelocityLinear3DStamped& velocity1,
     const beam_variables::ImuBiasStamped& gyrobias1,
+    const beam_variables::ImuBiasStamped& accelbias1,
     const fuse_variables::Orientation3DStamped& orientation2,
-    const fuse_variables::VelocityLinear3DStamped& velocity2,
     const fuse_variables::Position3DStamped& position2,
-    const beam_variables::ImuBiasStamped& accelbias2,
+    const fuse_variables::VelocityLinear3DStamped& velocity2,
     const beam_variables::ImuBiasStamped& gyrobias2,
+    const beam_variables::ImuBiasStamped& accelbias2,
     const Eigen::Matrix<double, 16, 1>& delta,
     const Eigen::Matrix<double, 15, 15>& covariance)
     : fuse_core::Constraint(
-          source, {orientation1.uuid(), velocity1.uuid(), position1.uuid(),
-                   accelbias1.uuid(), gyrobias1.uuid(), orientation2.uuid(),
-                   velocity2.uuid(), position2.uuid(), accelbias2.uuid(),
-                   gyrobias2.uuid()}),  // NOLINT(whitespace/braces)
+          source, {orientation1.uuid(), position1.uuid(), velocity1.uuid(),
+                   gyrobias1.uuid(), accelbias1.uuid(), orientation2.uuid(),
+                   position2.uuid(), velocity2.uuid(), gyrobias2.uuid(),
+                   accelbias2.uuid()}),  // NOLINT(whitespace/braces)
       delta_(delta),
       sqrt_information_(covariance.inverse().llt().matrixU()) {}
 
@@ -36,15 +36,15 @@ void RelativeImuState3DStampedConstraint::print(std::ostream& stream) const {
          << "  source: " << source() << "\n"
          << "  uuid: " << uuid() << "\n"
          << "  orientation1 variable: " << variables().at(0) << "\n"
-         << "  velocity1 variable: " << variables().at(1) << "\n"
-         << "  position1 variable: " << variables().at(2) << "\n"
-         << "  accelbias1 variable: " << variables().at(3) << "\n"
-         << "  gyrobias1 variable: " << variables().at(4) << "\n"
+         << "  position1 variable: " << variables().at(1) << "\n"
+         << "  velocity1 variable: " << variables().at(2) << "\n"
+         << "  gyrobias1 variable: " << variables().at(3) << "\n"
+         << "  accelbias1 variable: " << variables().at(4) << "\n"
          << "  orientation2 variable: " << variables().at(5) << "\n"
-         << "  velocity2 variable: " << variables().at(6) << "\n"
-         << "  position2 variable: " << variables().at(7) << "\n"
-         << "  accelbias2 variable: " << variables().at(8) << "\n"
-         << "  gyrobias2 variable: " << variables().at(9) << "\n"
+         << "  position2 variable: " << variables().at(6) << "\n"
+         << "  velocity2 variable: " << variables().at(7) << "\n"
+         << "  gyrobias2 variable: " << variables().at(8) << "\n"
+         << "  accelbias2 variable: " << variables().at(9) << "\n"
          << "  delta: " << delta().transpose() << "\n"
          << "  sqrt_info: " << sqrtInformation() << "\n";
 }
