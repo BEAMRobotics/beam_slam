@@ -54,6 +54,11 @@ void ImuPreintegration::SetStart(
     imu_data_buffer_.erase(imu_data_buffer_.begin(),
                            imu_data_buffer_.begin() + counter);
   }
+  ROS_INFO_STREAM("ImuPreintegration::SetStart");
+  ROS_INFO_STREAM("imu buffer start time: " << imu_data_buffer_.front().t
+                                            << " sec");
+  ROS_INFO_STREAM("imu buffer end time: " << imu_data_buffer_.back().t
+                                          << " sec");
 
   imu_state_i_.InstantiateFuseVariables(t_start);
   imu_state_i_.SetOrientation(orientation->data());
@@ -65,18 +70,17 @@ void ImuPreintegration::SetStart(
 
 ImuState ImuPreintegration::PredictState(const PreIntegrator& pre_integrator,
                                          ImuState& imu_state) {
+  double delta_t = pre_integrator.delta.t;
   Eigen::Matrix3d R_i = imu_state.OrientationQuat().toRotationMatrix();
   Eigen::Matrix3d R_j = R_i * pre_integrator.delta.q.matrix();
-  Eigen::Vector3d V_j = imu_state.VelocityVec() + g_ * pre_integrator.delta.t +
-                        R_i * pre_integrator.delta.v;
+  Eigen::Vector3d V_j =
+      imu_state.VelocityVec() + g_ * delta_t + R_i * pre_integrator.delta.v;
   Eigen::Vector3d P_j =
-      imu_state.PositionVec() +
-      imu_state.VelocityVec() * pre_integrator.delta.t +
-      0.5 * g_ * pre_integrator.delta.t * pre_integrator.delta.t +
-      R_i * pre_integrator.delta.p;
+      imu_state.PositionVec() + imu_state.VelocityVec() * delta_t +
+      0.5 * g_ * delta_t * delta_t + R_i * pre_integrator.delta.p;
 
   Eigen::Quaterniond R_j_quat(R_j);
-  ros::Time t_new = imu_state.Stamp() + ros::Duration(pre_integrator.delta.t);
+  ros::Time t_new = imu_state.Stamp() + ros::Duration(delta_t);
   ImuState new_imu_state(t_new, R_j_quat, P_j, V_j,
                          imu_state.BiasGyroscopeVec(),
                          imu_state.BiasAccelerationVec());
@@ -88,7 +92,12 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     fuse_variables::Orientation3DStamped::SharedPtr orientation,
     fuse_variables::Position3DStamped::SharedPtr position) {
   ros::Time t_now = orientation->stamp();
-  std::cout << "t_now: " << t_now << std::endl;
+  ROS_INFO_STREAM(
+      "beam_constraints::frame_to_frame::ImuState3DStampedTransaction");
+  ROS_INFO_STREAM("imu buffer end time: " << imu_data_buffer_.back().t
+                                          << " sec");
+  ROS_INFO_STREAM("Requested end time of window: " << t_now << " sec");
+
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 
@@ -101,8 +110,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     return transaction;
   }
 
-  // get iterator to first time stamp after desired time stamp. This points
-  // to the end of the window
+  // get iterator to first time stamp greater than or equalt to desired time
+  // stamp. This points to the end of the window
   auto it_after =
       std::find_if(imu_data_buffer_.begin(), imu_data_buffer_.end(),
                    [&t_now](const ImuPreintegration::ImuData& data) {
@@ -145,7 +154,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     first_window_ = false;
   }
 
-  // instantiate PreIntegrator class to containerize imu measurments
+  // instantiate PreIntegrator class to encapsulate imu measurments
   std::shared_ptr<PreIntegrator> pre_integrator_ij =
       std::make_shared<PreIntegrator>();
   pre_integrator_ij->cov_w = params_.cov_gyro_noise;
@@ -158,19 +167,36 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
                                  imu_data_buffer_.begin(), it_after);
   pre_integrator_ij->integrate(t_now.toSec(), imu_state_i_.BiasGyroscopeVec(),
                                imu_state_i_.BiasAccelerationVec(), true, true);
-
-  std::cout << "data.front().t" << pre_integrator_ij->data.front().t << std::endl;
-  std::cout << "data.back().t" << pre_integrator_ij->data.back().t << std::endl;
+  ROS_INFO_STREAM("start time of preintegration window: "
+                  << pre_integrator_ij->data.front().t << " sec");
+  ROS_INFO_STREAM("end time of preintegration window: "
+                  << pre_integrator_ij->data.back().t << " sec");
 
   // clear buffer of measurements passed to preintegrator class
   imu_data_buffer_.erase(imu_data_buffer_.begin(), it_after);
+  ROS_INFO_STREAM("preintegrated imu measurements cleared from imu buffer");
+  ROS_INFO_STREAM("new start time of imu buffer: " << imu_data_buffer_.front().t
+                                                   << " sec");
 
   // predict state at end of window using integrated imu measurements
   ImuState imu_state_j = PredictState(*pre_integrator_ij, imu_state_i_);
 
+  ROS_INFO_STREAM("calculated motion deltas");
+  ROS_INFO_STREAM("  t: " << pre_integrator_ij->delta.t);
+  ROS_INFO_STREAM("  orientation.w: " << pre_integrator_ij->delta.q.w());
+  ROS_INFO_STREAM("  orientation.x: " << pre_integrator_ij->delta.q.x());
+  ROS_INFO_STREAM("  orientation.y: " << pre_integrator_ij->delta.q.y());
+  ROS_INFO_STREAM("  orientation.z: " << pre_integrator_ij->delta.q.z());
+  ROS_INFO_STREAM("  position.x: " << pre_integrator_ij->delta.p[0]);
+  ROS_INFO_STREAM("  position.y: " << pre_integrator_ij->delta.p[1]);
+  ROS_INFO_STREAM("  position.z: " << pre_integrator_ij->delta.p[2]);
+  ROS_INFO_STREAM("  velocity.x: " << pre_integrator_ij->delta.v[0]);
+  ROS_INFO_STREAM("  velocity.y: " << pre_integrator_ij->delta.v[1]);
+  ROS_INFO_STREAM("  velocity.z: " << pre_integrator_ij->delta.v[2]);
+
   // update orientation and position of predicted imu state with arguments
-  imu_state_j.SetOrientation(orientation->data());
-  imu_state_j.SetPosition(position->data());
+  // imu_state_j.SetOrientation(orientation->data()); <------ MAKE SURE TO
+  // HANDLE NULLPTR imu_state_j.SetPosition(position->data());
 
   // containerize state change as determined by preintegrator class
   Eigen::Matrix<double, 16, 1> delta_ij;
