@@ -38,10 +38,10 @@ void VisualOdom::onInit() {
       std::make_shared<beam_cv::FASTDetector>(300);
   // subscribe to image topic
   image_subscriber_ = private_node_handle_.subscribe(
-      params_.image_topic, 100, &VisualOdom::processImage, this);
+      params_.image_topic, 1000, &VisualOdom::processImage, this);
   // subscribe to imu topic
   imu_subscriber_ = private_node_handle_.subscribe(
-      params_.imu_topic, 1000, &VisualOdom::processIMU, this);
+      params_.imu_topic, 10000, &VisualOdom::processIMU, this);
   // make initializer
   Eigen::Matrix4d T_body_cam = Eigen::Matrix4d::Identity();
   Eigen::Matrix4d T_body_imu = Eigen::Matrix4d::Identity();
@@ -60,8 +60,6 @@ void VisualOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
    *              Add IMU messages to buffer or initializer                 *
    **************************************************************************/
   while (imu_buffer_.front().header.stamp < img_time && !imu_buffer_.empty()) {
-    // just throw out imu messages before the first image
-    // if (img_num_ > 0) {
     sensor_msgs::Imu imu_msg = imu_buffer_.front();
     ros::Time imu_time = imu_msg.header.stamp;
     Eigen::Vector3d ang_vel{imu_msg.angular_velocity.x,
@@ -75,7 +73,6 @@ void VisualOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     } else {
       // preintegrator.PopulateBuffer(msg);
     }
-    //}
     imu_buffer_.pop();
   }
   /**************************************************************************
@@ -86,9 +83,9 @@ void VisualOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     if (!initialization_passed_) {
       initialization_passed_ =
           initializer_->AddImage(this->extractImage(img_msg), img_time);
-      std::cout << "IMAGE msg push: " << img_time << std::endl;
       // preintegrator.SetStart(img_time);
     } else {
+      std::cout << "Image added at: " << img_time << std::endl;
       // this->RegisterFrame(cur_img, cur_time)
     }
     image_buffer_.pop();

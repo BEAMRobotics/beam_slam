@@ -64,6 +64,8 @@ public:
 
   Eigen::Matrix3d imu_accel_random_walk() const { return accl_random_walk; }
 
+  size_t init_map_frames() const { return 8; }
+
 private:
   Eigen::Matrix3d K;
   Eigen::Quaterniond q_cam2body;
@@ -76,4 +78,4 @@ private:
   Eigen::Matrix3d accl_random_walk;
 };
 
-}}
+}} // namespace beam_models::camera_to_camera

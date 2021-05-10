@@ -45,14 +45,12 @@ public:
 
   bool AddImage(cv::Mat cur_img, ros::Time cur_time) {
     this->current_frame_time_ = cur_time;
-    // build opencv image
-    double t = cur_time.toSec();
     std::shared_ptr<OpenCvImage> img = std::make_shared<OpenCvImage>(cur_img);
     img->correct_distortion(rectifier_);
-    img->preprocess();
-    img->t = t;
-    // set the frames image
+    //img->preprocess();
+    img->t = cur_time.toSec();
     pending_frame_->image = img;
+
     initializer_->append_frame(std::move(this->pending_frame_));
     if (std::unique_ptr<SlidingWindow> sw = initializer_->init()) {
       sliding_window_.swap(sw);
@@ -65,9 +63,8 @@ public:
 
   void AddIMU(Eigen::Vector3d ang_vel, Eigen::Vector3d lin_accel,
               ros::Time cur_time) {
-    double t = cur_time.toSec();
     IMUData imu_data;
-    imu_data.t = t;
+    imu_data.t = cur_time.toSec();
     imu_data.w = ang_vel;
     imu_data.a = lin_accel;
     pending_frame_->preintegration.data.push_back(imu_data);
@@ -115,6 +112,7 @@ protected:
 
   std::unique_ptr<Frame> pending_frame_;
   bool is_initialized = false;
+  int img_num_ = 0;
 };
 
 }} // namespace beam_models::camera_to_camera
