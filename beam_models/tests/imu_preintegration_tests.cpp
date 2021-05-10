@@ -14,6 +14,8 @@
 
 using namespace beam_models::frame_to_frame;
 
+static const double GRAVITY = 9.81;
+
 TEST(ImuPreintegration, ZeroNoiseZeroBias) {
   // set intrinsic noise of imu to zero
   Eigen::Matrix3d zero_intrinsic_noise{Eigen::Matrix3d::Zero()};
@@ -24,7 +26,7 @@ TEST(ImuPreintegration, ZeroNoiseZeroBias) {
   params.cov_accel_bias = zero_intrinsic_noise;
 
   // set gravitional acceleration according to the basalt library
-  params.gravitational_acceleration = 9.81;
+  params.gravitational_acceleration = GRAVITY;
 
   // instantiate preintegration class with zero noise. By default,
   // bias terms (i.e. bg, ba) are set to zero
@@ -65,7 +67,6 @@ TEST(ImuPreintegration, ZeroNoiseZeroBias) {
 
     // populate buffer
     imu_preintegration.PopulateBuffer(imu_data);
-    std::cout << t_ns / 1e9 << std::endl;
   }
 
   // get pose and velocity of imu wrt world at start of simulation
@@ -159,7 +160,6 @@ TEST(ImuPreintegration, ZeroNoiseZeroBias) {
 
   // get end imu state
   ImuState end_imu_state = imu_preintegration.GetImuState();
-  end_imu_state.Print();
 
   // check
   EXPECT_EQ(end_imu_state.Stamp(), end_time);
