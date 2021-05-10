@@ -15,8 +15,7 @@ namespace frame_to_frame {
 using namespace beam_matching;
 
 MultiScanRegistration::MultiScanRegistration(
-    std::unique_ptr<Matcher<PointCloudPtr>> matcher,
-    const Params& params)
+    std::unique_ptr<Matcher<PointCloudPtr>> matcher, const Params& params)
     : matcher_(std::move(matcher)), MultiScanRegistrationBase(params) {
   // if outputting results, clear output folder:
   if (!output_scan_registration_results_) {
@@ -46,7 +45,7 @@ bool MultiScanRegistration::MatchScans(
   // transform cloud2 into cloud1 frame
   PointCloud cloud2_RefFInit;
   pcl::transformPointCloud(scan_pose_2.Cloud(), cloud2_RefFInit,
-                           Eigen::Affine3d(T_CLOUD1_CLOUD2_init));
+                           T_CLOUD1_CLOUD2_init);
   matcher_->SetRef(std::make_shared<PointCloud>(cloud2_RefFInit));
   matcher_->SetTarget(std::make_shared<PointCloud>(scan_pose_1.Cloud()));
 
@@ -59,51 +58,7 @@ bool MultiScanRegistration::MatchScans(
   Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher_->GetResult().matrix();
   T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
 
-  if (output_scan_registration_results_) {
-    PointCloudPtr cloud_ref = std::make_shared<PointCloud>();
-    *cloud_ref = scan_pose_1.Cloud();
-    PointCloudPtr cloud_ref_world = std::make_shared<PointCloud>();
-    PointCloudPtr cloud_cur_initial_world = std::make_shared<PointCloud>();
-    PointCloudPtr cloud_cur_aligned_world = std::make_shared<PointCloud>();
-
-    const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
-        scan_pose_2.T_WORLD_CLOUD();
-    const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_WORLD_CLOUD();
-    Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
-        T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
-
-    pcl::transformPointCloud(*cloud_ref, *cloud_ref_world,
-                             T_WORLD_CLOUDREF_INIT);
-    pcl::transformPointCloud(scan_pose_2.Cloud(), *cloud_cur_initial_world,
-                             T_WORLD_CLOUDCURRENT_INIT);
-    pcl::transformPointCloud(scan_pose_2.Cloud(), *cloud_cur_aligned_world,
-                             T_WORLD_CLOUDCURRENT_OPT);
-
-    PointCloudColPtr cloud_ref_world_col =
-        beam::ColorPointCloud(cloud_ref_world, 0, 0, 255);
-    PointCloudColPtr cloud_cur_initial_world_col =
-        beam::ColorPointCloud(cloud_cur_initial_world, 255, 0, 0);
-    PointCloudColPtr cloud_cur_aligned_world_col =
-        beam::ColorPointCloud(cloud_cur_aligned_world, 0, 255, 0);
-
-    cloud_ref_world_col = beam::AddFrameToCloud(
-        cloud_ref_world_col, coord_frame_, T_WORLD_CLOUDREF_INIT);
-    cloud_cur_initial_world_col = beam::AddFrameToCloud(
-        cloud_cur_initial_world_col, coord_frame_, T_WORLD_CLOUDCURRENT_INIT);
-    cloud_cur_aligned_world_col = beam::AddFrameToCloud(
-        cloud_cur_aligned_world_col, coord_frame_, T_WORLD_CLOUDCURRENT_OPT);
-
-    double t = scan_pose_1.Stamp().toSec();
-    std::string filename = current_scan_path_ + std::to_string(t);
-
-    pcl::io::savePCDFileASCII(filename + "_ref.pcd", *cloud_ref_world_col);
-    pcl::io::savePCDFileASCII(filename + "_cur_init.pcd",
-                              *cloud_cur_initial_world_col);
-    pcl::io::savePCDFileASCII(filename + "_cur_alig.pcd",
-                              *cloud_cur_aligned_world_col);
-
-    ROS_INFO("Saved scan registration results to %s", filename.c_str());
-  }
+  OutputResults(scan_pose_1, scan_pose_2, T_CLOUD1_CLOUD2);
 
   if (!PassedRegThreshold(T_CLOUD1_CLOUD2,
                           beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
@@ -124,10 +79,59 @@ bool MultiScanRegistration::MatchScans(
   return true;
 }
 
+void MultiScanRegistration::OutputResults(
+    const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
+    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
+  if (!output_scan_registration_results_) {
+    return;
+  }
+
+  PointCloudPtr cloud_ref = std::make_shared<PointCloud>();
+  *cloud_ref = scan_pose_1.Cloud();
+  PointCloudPtr cloud_ref_world = std::make_shared<PointCloud>();
+  PointCloudPtr cloud_cur_initial_world = std::make_shared<PointCloud>();
+  PointCloudPtr cloud_cur_aligned_world = std::make_shared<PointCloud>();
+
+  const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
+      scan_pose_2.T_WORLD_CLOUD();
+  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_WORLD_CLOUD();
+  Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
+      T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
+
+  pcl::transformPointCloud(*cloud_ref, *cloud_ref_world, T_WORLD_CLOUDREF_INIT);
+  pcl::transformPointCloud(scan_pose_2.Cloud(), *cloud_cur_initial_world,
+                           T_WORLD_CLOUDCURRENT_INIT);
+  pcl::transformPointCloud(scan_pose_2.Cloud(), *cloud_cur_aligned_world,
+                           T_WORLD_CLOUDCURRENT_OPT);
+
+  PointCloudColPtr cloud_ref_world_col =
+      beam::ColorPointCloud(cloud_ref_world, 0, 0, 255);
+  PointCloudColPtr cloud_cur_initial_world_col =
+      beam::ColorPointCloud(cloud_cur_initial_world, 255, 0, 0);
+  PointCloudColPtr cloud_cur_aligned_world_col =
+      beam::ColorPointCloud(cloud_cur_aligned_world, 0, 255, 0);
+
+  cloud_ref_world_col = beam::AddFrameToCloud(cloud_ref_world_col, coord_frame_,
+                                              T_WORLD_CLOUDREF_INIT);
+  cloud_cur_initial_world_col = beam::AddFrameToCloud(
+      cloud_cur_initial_world_col, coord_frame_, T_WORLD_CLOUDCURRENT_INIT);
+  cloud_cur_aligned_world_col = beam::AddFrameToCloud(
+      cloud_cur_aligned_world_col, coord_frame_, T_WORLD_CLOUDCURRENT_OPT);
+
+  double t = scan_pose_1.Stamp().toSec();
+  std::string filename = current_scan_path_ + std::to_string(t);
+
+  pcl::io::savePCDFileASCII(filename + "_ref.pcd", *cloud_ref_world_col);
+  pcl::io::savePCDFileASCII(filename + "_cur_init.pcd",
+                            *cloud_cur_initial_world_col);
+  pcl::io::savePCDFileASCII(filename + "_cur_alig.pcd",
+                            *cloud_cur_aligned_world_col);
+
+  ROS_INFO("Saved scan registration results to %s", filename.c_str());
+}
+
 MultiScanLoamRegistration::MultiScanLoamRegistration(
-    std::unique_ptr<Matcher<LoamPointCloudPtr>>
-        matcher,
-    const Params& params)
+    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher, const Params& params)
     : matcher_(std::move(matcher)), MultiScanRegistrationBase(params) {
   // if outputting results, clear output folder:
   if (!output_scan_registration_results_) {
@@ -153,8 +157,7 @@ bool MultiScanLoamRegistration::MatchScans(
 
   LoamPointCloud cloud2_RefFInit = scan_pose_2.LoamCloud();
   cloud2_RefFInit.TransformPointCloud(T_CLOUD1_CLOUD2_init);
-  matcher_->SetRef(
-      std::make_shared<LoamPointCloud>(cloud2_RefFInit));
+  matcher_->SetRef(std::make_shared<LoamPointCloud>(cloud2_RefFInit));
   matcher_->SetTarget(
       std::make_shared<LoamPointCloud>(scan_pose_1.LoamCloud()));
 
@@ -167,36 +170,7 @@ bool MultiScanLoamRegistration::MatchScans(
   Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher_->GetResult().matrix();
   T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
 
-  if (output_scan_registration_results_) {
-    LoamPointCloudPtr cloud_ref_world =
-        std::make_shared<LoamPointCloud>(
-            scan_pose_1.LoamCloud());
-    LoamPointCloudPtr cloud_cur_initial_world =
-        std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
-    LoamPointCloudPtr cloud_cur_aligned_world =
-        std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
-
-    const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
-        scan_pose_2.T_WORLD_CLOUD();
-    const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_WORLD_CLOUD();
-    Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
-        T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
-
-    cloud_ref_world->TransformPointCloud(T_WORLD_CLOUDREF_INIT);
-    cloud_cur_initial_world->TransformPointCloud(T_WORLD_CLOUDCURRENT_INIT);
-    cloud_cur_aligned_world->TransformPointCloud(T_WORLD_CLOUDCURRENT_OPT);
-
-    double t = scan_pose_1.Stamp().toSec();
-    std::string filename = current_scan_path_ + std::to_string(t);
-
-    ROS_INFO("Saved scan registration results to %s", filename.c_str());
-    boost::filesystem::create_directory(filename + "_ref/");
-    cloud_ref_world->Save(filename + "_ref/", true);
-    boost::filesystem::create_directory(filename + "_ref/");
-    cloud_cur_initial_world->Save(filename + "_cur_init/", true);
-    boost::filesystem::create_directory(filename + "_cur_alig/");
-    cloud_cur_aligned_world->Save(filename + "_cur_alig/", true);
-  }
+  OutputResults(scan_pose_1, scan_pose_2, T_CLOUD1_CLOUD2);
 
   if (!PassedRegThreshold(T_CLOUD1_CLOUD2,
                           beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
@@ -215,6 +189,42 @@ bool MultiScanLoamRegistration::MatchScans(
   }
 
   return true;
+}
+
+void MultiScanLoamRegistration::OutputResults(
+    const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
+    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
+  if (!output_scan_registration_results_) {
+    return;
+  }
+
+  LoamPointCloudPtr cloud_ref_world =
+      std::make_shared<LoamPointCloud>(scan_pose_1.LoamCloud());
+  LoamPointCloudPtr cloud_cur_initial_world =
+      std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
+  LoamPointCloudPtr cloud_cur_aligned_world =
+      std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
+
+  const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
+      scan_pose_2.T_WORLD_CLOUD();
+  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_WORLD_CLOUD();
+  Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
+      T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
+
+  cloud_ref_world->TransformPointCloud(T_WORLD_CLOUDREF_INIT);
+  cloud_cur_initial_world->TransformPointCloud(T_WORLD_CLOUDCURRENT_INIT);
+  cloud_cur_aligned_world->TransformPointCloud(T_WORLD_CLOUDCURRENT_OPT);
+
+  double t = scan_pose_1.Stamp().toSec();
+  std::string filename = current_scan_path_ + std::to_string(t);
+
+  ROS_INFO("Saved scan registration results to %s", filename.c_str());
+  boost::filesystem::create_directory(filename + "_ref/");
+  cloud_ref_world->Save(filename + "_ref/", true);
+  boost::filesystem::create_directory(filename + "_cur_init/");
+  cloud_cur_initial_world->Save(filename + "_cur_init/", true);
+  boost::filesystem::create_directory(filename + "_cur_alig/");
+  cloud_cur_aligned_world->Save(filename + "_cur_alig/", true);
 }
 
 void MultiScanRegistrationBase::SetFixedCovariance(

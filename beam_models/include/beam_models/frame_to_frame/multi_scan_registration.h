@@ -101,6 +101,9 @@ class MultiScanLoamRegistration : public MultiScanRegistrationBase {
                   Eigen::Matrix<double, 6, 6>& covariance) override;
 
  private:
+  void OutputResults(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
+                     const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
+
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher_;
 };
 
@@ -114,6 +117,9 @@ class MultiScanRegistration : public MultiScanRegistrationBase {
                   Eigen::Matrix<double, 6, 6>& covariance) override;
 
  private:
+  void OutputResults(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
+                     const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
+
   std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
 };
 

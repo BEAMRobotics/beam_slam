@@ -141,7 +141,9 @@ class ScanPose {
     }
 
     if (cloud_type_ == "LOAMPOINTCLOUD") {
-      loampointcloud_.Save(save_path, false);
+      beam_matching::LoamPointCloud loam_cloud_transformed = loampointcloud_;
+      loam_cloud_transformed.TransformPointCloud(this->T_WORLD_CLOUD());
+      loam_cloud_transformed.Save(save_path, true);
     }
 
     ROS_DEBUG("Saved cloud with stamp: %.5f", stamp_.toSec());
