@@ -33,8 +33,8 @@ void ImuPreintegration::SetStart(
       position->stamp() != velocity->stamp()) {
     ROS_FATAL_STREAM(
         "Fuse variables must share a common time stamp "
-        "When initializing source: "
-        << params_.source);
+        "When initializing source ["
+        << params_.source << "]");
   }
 
   ros::Time t_start = orientation->stamp();
@@ -88,7 +88,6 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     fuse_variables::Orientation3DStamped::SharedPtr orientation,
     fuse_variables::Position3DStamped::SharedPtr position) {
   ros::Time t_now = orientation->stamp();
-
   std::cout << "t_now: " << t_now << std::endl;
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);

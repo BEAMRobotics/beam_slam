@@ -15,6 +15,7 @@ set(build_depends
   tf2_ros
   beam_slam_common
   beam_variables
+  slamtools
 )
 
 find_package(beam REQUIRED COMPONENTS calibration)
@@ -86,7 +87,7 @@ if(CATKIN_ENABLE_TESTING)
   roslint_cpp()
   roslint_add_test()
 
-  # Absolute Pose With Velocity 3D Stamped Constraint Tests
+  # Absolute Imu State Stamped Constraint Tests
   catkin_add_gtest(test_absolute_imu_state_3d_stamped_constraint
     tests/test_absolute_imu_state_3d_stamped_constraint.cpp
   )
@@ -110,7 +111,7 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD_REQUIRED YES
   )
 
-  # Relative Pose With Velocity 3D Stamped Constraint Tests
+  # Relative Imu State 3D Stamped Constraint Tests
   catkin_add_gtest(test_relative_imu_state_3d_stamped_constraint
     tests/test_relative_imu_state_3d_stamped_constraint.cpp
   )
