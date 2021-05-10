@@ -88,6 +88,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     fuse_variables::Orientation3DStamped::SharedPtr orientation,
     fuse_variables::Position3DStamped::SharedPtr position) {
   ros::Time t_now = orientation->stamp();
+
+  std::cout << "t_now: " << t_now << std::endl;
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 
@@ -95,30 +97,32 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   if (orientation->stamp() != position->stamp()) {
     ROS_ERROR_STREAM(
         "Fuse variables must share a common time stamp when generating a "
-        "transaction for source: "
-        << params_.source << "No transaction has been generated.");
+        "transaction for source ["
+        << params_.source << "] No transaction has been generated.");
     return transaction;
   }
 
-  // get iterator to first time stamp after desired time stamp. This points 
+  // get iterator to first time stamp after desired time stamp. This points
   // to the end of the window
   auto it_after =
       std::find_if(imu_data_buffer_.begin(), imu_data_buffer_.end(),
                    [&t_now](const ImuPreintegration::ImuData& data) {
-                     return data.t_ros > t_now;
+                     return data.t_ros >= t_now;
                    });
 
   if (std::distance(imu_data_buffer_.begin(), it_after) <= 2) {
-    ROS_ERROR_STREAM(
-        "Requested time must allow window size of two or more imu "
-        "measurements. No transaction has been generated.");
+    ROS_ERROR_STREAM("Requested time ["
+                     << t_now
+                     << " sec] must allow window size of two or more imu "
+                        "measurements. No transaction has been generated.");
     return transaction;
   }
 
   if (it_after == imu_data_buffer_.end()) {
-    ROS_ERROR_STREAM(
-        "Requested time does not exist within imu buffer. No transaction has "
-        "been generated.");
+    ROS_ERROR_STREAM("Requested time ["
+                     << t_now
+                     << " sec] does not exist within imu buffer. No "
+                        "transaction has been generated.");
     return transaction;
   }
 
@@ -143,7 +147,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   }
 
   // instantiate PreIntegrator class to containerize imu measurments
-  std::shared_ptr<PreIntegrator> pre_integrator_ij;
+  std::shared_ptr<PreIntegrator> pre_integrator_ij =
+      std::make_shared<PreIntegrator>();
   pre_integrator_ij->cov_w = params_.cov_gyro_noise;
   pre_integrator_ij->cov_a = params_.cov_accel_noise;
   pre_integrator_ij->cov_bg = params_.cov_gyro_bias;
@@ -154,6 +159,9 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
                                  imu_data_buffer_.begin(), it_after);
   pre_integrator_ij->integrate(t_now.toSec(), imu_state_i_.BiasGyroscopeVec(),
                                imu_state_i_.BiasAccelerationVec(), true, true);
+
+  std::cout << "data.front().t" << pre_integrator_ij->data.front().t << std::endl;
+  std::cout << "data.back().t" << pre_integrator_ij->data.back().t << std::endl;
 
   // clear buffer of measurements passed to preintegrator class
   imu_data_buffer_.erase(imu_data_buffer_.begin(), it_after);
@@ -167,9 +175,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   // containerize state change as determined by preintegrator class
   Eigen::Matrix<double, 16, 1> delta_ij;
-  delta_ij.setZero();
   delta_ij << pre_integrator_ij->delta.q.w(), pre_integrator_ij->delta.q.vec(),
-      pre_integrator_ij->delta.p, pre_integrator_ij->delta.v;
+      pre_integrator_ij->delta.p, pre_integrator_ij->delta.v, 0, 0, 0, 0, 0, 0;
 
   // generate relative constraints between imu states
   transaction.AddImuStateConstraint(

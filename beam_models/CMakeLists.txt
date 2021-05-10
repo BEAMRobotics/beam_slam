@@ -134,32 +134,24 @@ target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_tests
     Catch2::Catch2
 )
 
-# add_executable(${PROJECT_NAME}_imu_preintegration_tests
-#   tests/imu_preintegration_tests.cpp
-# )
-# target_include_directories(${PROJECT_NAME}_imu_preintegration_tests
-#   PUBLIC
-#     include
-# )
-# target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
-#     ${PROJECT_NAME}
-#     Catch2::Catch2
-# )
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
 
-#[[
+  # Lint tests
+  roslint_add_test()
 
-# Model tests
-catkin_add_gtest(test_unicycle_2d
-  test/test_unicycle_2d.cpp
-)
-target_link_libraries(test_unicycle_2d
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${CERES_LIBRARIES}
-)
-set_target_properties(test_unicycle_2d
-  PROPERTIES
-    CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-)
-#]]
+  # Model tests
+  catkin_add_gtest(imu_preintegration_tests
+    tests/imu_preintegration_tests.cpp
+  )
+  target_link_libraries(imu_preintegration_tests
+    ${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+    ${CERES_LIBRARIES}
+  )
+  set_target_properties(imu_preintegration_tests
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
+endif()

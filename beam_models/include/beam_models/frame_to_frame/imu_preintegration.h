@@ -27,7 +27,9 @@ public:
 
   // wrap IMUData from slamtools
   struct ImuData : public IMUData {
-    ros::Time t_ros; // ros time
+    ros::Time t_ros;
+
+    ImuData() = default;
 
     ImuData(const sensor_msgs::Imu::ConstPtr& msg) {
       t_ros = msg->header.stamp;
