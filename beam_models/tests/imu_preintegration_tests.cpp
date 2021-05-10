@@ -153,12 +153,11 @@ TEST(ImuPreintegration, ZeroNoiseZeroBias) {
   end_position->y() = end_position_vec[1];
   end_position->z() = end_position_vec[2];
 
-  // generate transaction. This allows for the assessment of the PreIntegrator
-  // class from slamtools, which has been incorporated into the
-  // ImuPreintegration class
+  // generate transaction to perform imu preintegration
   auto transaction = imu_preintegration.RegisterNewImuPreintegratedFactor(
       end_orientation, end_position);
 
+  // get end imu state
   ImuState end_imu_state = imu_preintegration.GetImuState();
   end_imu_state.Print();
 
