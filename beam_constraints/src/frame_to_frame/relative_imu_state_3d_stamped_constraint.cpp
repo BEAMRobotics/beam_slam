@@ -22,7 +22,8 @@ RelativeImuState3DStampedConstraint::RelativeImuState3DStampedConstraint(
     const beam_variables::ImuBiasStamped& gyrobias2,
     const beam_variables::ImuBiasStamped& accelbias2,
     const Eigen::Matrix<double, 16, 1>& delta,
-    const Eigen::Matrix<double, 15, 15>& covariance)
+    const Eigen::Matrix<double, 15, 15>& covariance,
+    const std::shared_ptr<PreIntegrator> pre_integrator)
     : fuse_core::Constraint(
           source, {orientation1.uuid(), position1.uuid(), velocity1.uuid(),
                    gyrobias1.uuid(), accelbias1.uuid(), orientation2.uuid(),
