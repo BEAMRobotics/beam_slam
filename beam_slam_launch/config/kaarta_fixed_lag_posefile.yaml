@@ -36,10 +36,11 @@ unicycle_3d:
   buffer_length: 100000
 
 scan_matcher_3d:
-  type: 'ICP' # Options: ICP, NDT, GICP (TODO: LIBPOINTMATCHER, TEASER, LOAM)
+  type: 'LOAM' # Options: ICP, NDT, GICP, LOAM (TODO: LIBPOINTMATCHER, TEASER)
+  matcher_params_path: '/home/nick/config/slam/loam.json' # Defaults to params in libbeam
   differential: false # Default: false
   queue_size: 10 # Subscriber queue size. Default: 10
-  downsample_size: 0.05 # voxel size (m) for downsample filter. Default: 0.03
+  downsample_size: 0 # voxel size (m) for downsample filter. Default: 0.03. Set to 0 for no downsampling
   outlier_threshold_t: 0.3 # reject scan registration measurements that surpass this translation (m). Set to zero to ignore. Default: 0.5
   outlier_threshold_r: 20 # reject scan registration measurements that surpass this rotation (deg). Set to zero to ignore. Default: 30
   min_motion_trans_m: 0 # will only register scans with initial translation estimate greater than this. Default: 0
@@ -48,8 +49,7 @@ scan_matcher_3d:
   sensor_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
-  num_neighbors: 10 # how many neighboring scans to register against
-  matcher_params_path: '/home/nick/config/slam/icp.json' # Defaults to params in libbeam
+  num_neighbors: 5 # how many neighboring scans to register against
   fix_first_scan: true # set this to true if no ignition is used
   # scan_output_directory: '' # Outputs scans as PCD files IFF not empty
   scan_output_directory: '/home/nick/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty

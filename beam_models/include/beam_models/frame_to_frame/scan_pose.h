@@ -4,6 +4,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/loam/LoamFeatureExtractor.h>
 
+#include <boost/filesystem.hpp>
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
@@ -106,6 +107,12 @@ class ScanPose {
 
   void Save(const std::string& save_path, bool to_world_frame = true,
             bool add_frame = true) {
+    if (!boost::filesystem::exists(save_path)) {
+      ROS_ERROR("Cannot save cloud, directory does not exist: %s",
+                save_path.c_str());
+      return;
+    }
+
     std::string file_name_prefix = save_path + std::to_string(stamp_.toSec());
     if (!to_world_frame) {
       pcl::io::savePCDFileASCII(file_name_prefix + ".pcd", pointcloud_);
@@ -125,28 +132,42 @@ class ScanPose {
         beam::ColorPointCloud(cloud_final, 0, 255, 0);
 
     if (add_frame) {
-      PointCloudColPtr cloud_initial_col_ =
+      cloud_initial_col =
           beam::AddFrameToCloud(cloud_initial_col, T_WORLD_CLOUD_initial_);
-      PointCloudColPtr cloud_final_col_ =
+      cloud_final_col =
           beam::AddFrameToCloud(cloud_final_col, this->T_WORLD_CLOUD());
-      pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
-                                *cloud_initial_col_);
-      pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd",
-                                *cloud_final_col_);
-    } else {
-      pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
-                                *cloud_initial_col);
-      pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd",
-                                *cloud_final_col);
+    }
+    pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
+                              *cloud_initial_col);
+    pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd",
+                              *cloud_final_col);
+
+    ROS_INFO("Saved cloud with stamp: %.5f", stamp_.toSec());
+  }
+
+  void SaveLoamCloud(const std::string& save_path, bool to_world_frame = true,
+                     bool add_frame = true) {
+    if (cloud_type_ != "LOAMPOINTCLOUD") {
+      ROS_WARN("Scan pose has no LOAM pointcloud, not saving cloud.");
+      return;
     }
 
-    if (cloud_type_ == "LOAMPOINTCLOUD") {
-      beam_matching::LoamPointCloud loam_cloud_transformed = loampointcloud_;
-      loam_cloud_transformed.TransformPointCloud(this->T_WORLD_CLOUD());
-      loam_cloud_transformed.Save(save_path, true);
+    if (!boost::filesystem::exists(save_path)) {
+      ROS_ERROR("Cannot save cloud, directory does not exist: %s",
+                save_path.c_str());
+      return;
     }
 
-    ROS_DEBUG("Saved cloud with stamp: %.5f", stamp_.toSec());
+    std::string file_name_prefix = save_path + std::to_string(stamp_.toSec());
+    boost::filesystem::create_directories(file_name_prefix);
+    if (!to_world_frame) {
+      loampointcloud_.Save(file_name_prefix, true);
+      return;
+    }
+
+    beam_matching::LoamPointCloud loam_cloud_transformed = loampointcloud_;
+    loam_cloud_transformed.TransformPointCloud(this->T_WORLD_CLOUD());
+    loam_cloud_transformed.Save(file_name_prefix, true);
   }
 
   const Eigen::Matrix4d T_WORLD_CLOUD_INIT() const {

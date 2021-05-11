@@ -36,28 +36,50 @@ void ScanMatcher3D::onInit() {
       .fix_first_scan = params_.fix_first_scan};
 
   // init scan registration
-  std::string config_path = beam::LibbeamRoot() + "beam_matching/config/";
+  std::string default_config_path =
+      beam::LibbeamRoot() + "beam_matching/config/";
   if (params_.type == "ICP") {
-    IcpMatcherParams matcher_params(config_path += "icp.json");
+    IcpMatcherParams matcher_params;
+    if (params_.matcher_params_path.empty()) {
+      matcher_params = IcpMatcherParams(default_config_path += "icp.json");
+    } else {
+      matcher_params = IcpMatcherParams(params_.matcher_params_path);
+    }
     std::unique_ptr<Matcher<PointCloudPtr>> matcher;
     matcher = std::make_unique<IcpMatcher>(matcher_params);
     multi_scan_registration_ = std::make_unique<MultiScanRegistration>(
         std::move(matcher), scan_reg_params);
   } else if (params_.type == "GICP") {
-    GicpMatcherParams matcher_params(config_path += "gicp.json");
+    GicpMatcherParams matcher_params;
+    if (params_.matcher_params_path.empty()) {
+      matcher_params = GicpMatcherParams(default_config_path += "gicp.json");
+    } else {
+      matcher_params = GicpMatcherParams(params_.matcher_params_path);
+    }
     std::unique_ptr<Matcher<PointCloudPtr>> matcher;
     matcher = std::make_unique<GicpMatcher>(matcher_params);
     multi_scan_registration_ = std::make_unique<MultiScanRegistration>(
         std::move(matcher), scan_reg_params);
   } else if (params_.type == "NDT") {
-    NdtMatcherParams matcher_params(config_path += "ndt.json");
+    NdtMatcherParams matcher_params;
+    if (params_.matcher_params_path.empty()) {
+      matcher_params = NdtMatcherParams(default_config_path += "ndt.json");
+    } else {
+      matcher_params = NdtMatcherParams(params_.matcher_params_path);
+    }
     std::unique_ptr<Matcher<PointCloudPtr>> matcher;
     matcher = std::make_unique<NdtMatcher>(matcher_params);
     multi_scan_registration_ = std::make_unique<MultiScanRegistration>(
         std::move(matcher), scan_reg_params);
   } else if (params_.type == "LOAM") {
-    std::shared_ptr<LoamParams> matcher_params =
-        std::make_shared<LoamParams>(config_path += "loam.json");
+    std::shared_ptr<LoamParams> matcher_params;
+    if (params_.matcher_params_path.empty()) {
+      matcher_params =
+          std::make_shared<LoamParams>(default_config_path += "loam.json");
+    } else {
+      matcher_params =
+          std::make_shared<LoamParams>(params_.matcher_params_path);
+    }
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
     matcher = std::make_unique<LoamMatcher>(*matcher_params);
     feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
@@ -116,14 +138,15 @@ beam_constraints::frame_to_frame::Pose3DStampedTransaction
 ScanMatcher3D::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
-  PointCloudPtr cloud_current_tmp = beam::ROSToPCL(*msg);
-  PointCloudPtr cloud_current = std::make_shared<PointCloud>();
+  PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
 
-  Eigen::Vector3f scan_voxel_size(params_.downsample_size,
-                                  params_.downsample_size,
-                                  params_.downsample_size);
-  beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
-  downsampler.Filter(*cloud_current_tmp, *cloud_current);
+  if (params_.downsample_size > 0) {
+    Eigen::Vector3f scan_voxel_size(params_.downsample_size,
+                                    params_.downsample_size,
+                                    params_.downsample_size);
+    beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
+    downsampler.Filter(*cloud_current, *cloud_current);
+  }
 
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT;
   if (!frame_initializer_->GetEstimatedPose(msg->header.stamp,
