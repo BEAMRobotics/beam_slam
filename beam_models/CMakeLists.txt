@@ -110,17 +110,28 @@ add_dependencies(
 #############
 ## Testing ##
 #############
+add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
+  tests/scan_matcher_3d_tests.cpp)
+target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
+  ${PROJECT_NAME}
+  gtest_main
+  beam::utils)
+add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
+         COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
 
-add_executable(${PROJECT_NAME}_scan_matcher_3d_tests
+
+#[[
+add_executable(${PROJECT_NAME}_icp_tests
+  tests/icp_tests.cpp
+)
+
+catkin_add_gtest(${PROJECT_NAME}_scan_matcher_3d_gtests
   tests/scan_matcher_3d_tests.cpp
 )
-target_include_directories(${PROJECT_NAME}_scan_matcher_3d_tests
-  PUBLIC
-    include
-)
-target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_tests
-    ${PROJECT_NAME}
-    Catch2::Catch2
+target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  ${CERES_LIBRARIES}
 )
 
 #[[

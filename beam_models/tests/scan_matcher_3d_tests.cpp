@@ -1,9 +1,8 @@
-#define CATCH_CONFIG_MAIN
+#include <gtest/gtest.h>
 
 #include <ctime>
 #include <random>
 
-#include <catch2/catch.hpp>
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/constraint.h>
 #include <fuse_core/uuid.h>
@@ -17,10 +16,14 @@
 #include <beam_utils/pointclouds.h>
 
 #include <beam_common/sensor_proc.h>
+#include <beam_common/utils.h>
 #include <beam_models/frame_to_frame/scan_matcher_3d.h>
 
+using namespace beam_models;
+using namespace frame_to_frame;
+
 class Data {
-public:
+ public:
   Data() {
     // read input cloud
     std::string current_file = "scan_matcher_3d_tests.cpp";
@@ -97,7 +100,7 @@ public:
     matcher_params.res = 0;
 
     // create prior that will be used in optimization
-    beam_models::frame_to_frame::ScanPose SP_TMP(ros::Time(0), T_WORLD_S1, S1);
+    ScanPose SP_TMP(ros::Time(0), T_WORLD_S1, S1);
 
     fuse_core::Vector7d mean;
     mean << SP_TMP.Position().x(), SP_TMP.Position().y(), SP_TMP.Position().z(),
@@ -142,12 +145,12 @@ void OutputTransformInformation(const Eigen::Matrix4d& T,
             << beam::Rad2Deg(beam::WrapToPi(rpy[2])) << "]\n";
 }
 
-fuse_constraints::RelativePose3DStampedConstraint::SharedPtr
-    CreateConstraint(const fuse_variables::Position3DStamped& position1,
-                     const fuse_variables::Orientation3DStamped& orientation1,
-                     const fuse_variables::Position3DStamped& position2,
-                     const fuse_variables::Orientation3DStamped& orientation2,
-                     const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
+fuse_constraints::RelativePose3DStampedConstraint::SharedPtr CreateConstraint(
+    const fuse_variables::Position3DStamped& position1,
+    const fuse_variables::Orientation3DStamped& orientation1,
+    const fuse_variables::Position3DStamped& position2,
+    const fuse_variables::Orientation3DStamped& orientation2,
+    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
   // convert rotation matrix to quaternion
   Eigen::Matrix3d R = T_CLOUD1_CLOUD2.block(0, 0, 3, 3);
   Eigen::Quaterniond q(R);
@@ -189,9 +192,9 @@ int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
   return counter;
 }
 
-std::vector<fuse_core::UUID>
-    AddVariables(const fuse_core::Transaction::SharedPtr& transaction,
-                 fuse_graphs::HashGraph& graph) {
+std::vector<fuse_core::UUID> AddVariables(
+    const fuse_core::Transaction::SharedPtr& transaction,
+    fuse_graphs::HashGraph& graph) {
   fuse_variables::Position3DStamped dummy_position;
   fuse_variables::Orientation3DStamped dummy_orientation;
   std::vector<fuse_core::UUID> uuids;
@@ -220,40 +223,31 @@ std::vector<fuse_core::UUID>
 bool VectorsEqual(double* v1, double* v2, int vsize) {
   double precision = 0.001;
   for (int i = 0; i < vsize; i++) {
-    if (std::abs(v1[i] - v2[i]) > precision) { return false; }
+    if (std::abs(v1[i] - v2[i]) > precision) {
+      return false;
+    }
   }
   return true;
 }
 
-TEST_CASE("Test scan pose") {
+TEST(ScanPose, IO) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
 
   Eigen::Matrix4d T_WORLD_S2_ = SP2.T_WORLD_CLOUD();
   Eigen::Matrix4d T_WORLD_S1_ = SP1.T_WORLD_CLOUD();
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      REQUIRE(data_.T_WORLD_S1(i, j) ==
-              Approx(T_WORLD_S1_(i, j)).epsilon(0.0001));
-      REQUIRE(data_.T_WORLD_S2(i, j) ==
-              Approx(T_WORLD_S2_(i, j)).epsilon(0.0001));
-    }
-  }
-  REQUIRE(SP1.Cloud().size() == data_.S1.size());
-  REQUIRE(SP2.Cloud().size() == data_.S2.size());
-  REQUIRE(SP1.Stamp() == ros::Time(0));
-  REQUIRE(SP2.Stamp() == ros::Time(1));
+  EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S1, T_WORLD_S1_, 0.1, 0.001));
+  EXPECT_EQ(SP1.Cloud().size(), data_.S1.size());
+  EXPECT_EQ(SP2.Cloud().size(), data_.S2.size());
+  EXPECT_EQ(SP1.Stamp(), ros::Time(0));
+  EXPECT_EQ(SP2.Stamp(), ros::Time(1));
 }
 
-TEST_CASE("Test simple 2 node FG") {
+TEST(ScanPose, 2NodeFG) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -281,24 +275,20 @@ TEST_CASE("Test simple 2 node FG") {
   graph.optimize();
 
   for (int i = 0; i < 3; i++) {
-    REQUIRE(p1->data()[i] == SP1.Position().data()[i]);
-    REQUIRE(p2->data()[i] == SP2.Position().data()[i]);
+    EXPECT_TRUE(p1->data()[i] == SP1.Position().data()[i]);
+    EXPECT_TRUE(p2->data()[i] == SP2.Position().data()[i]);
   }
   for (int i = 0; i < 4; i++) {
-    REQUIRE(o1->data()[i] == SP1.Orientation().data()[i]);
-    REQUIRE(o2->data()[i] == SP2.Orientation().data()[i]);
+    EXPECT_TRUE(o1->data()[i] == SP1.Orientation().data()[i]);
+    EXPECT_TRUE(o2->data()[i] == SP2.Orientation().data()[i]);
   }
 }
 
-TEST_CASE("Test simple 2 node FG with perturbed pose") {
+TEST(ScanPose, 2NodeFGPert) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
-
-  beam_models::frame_to_frame::ScanPose SP2_pert(
-      ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -328,24 +318,20 @@ TEST_CASE("Test simple 2 node FG with perturbed pose") {
   graph.optimize();
 
   for (int i = 0; i < 3; i++) {
-    REQUIRE(std::abs(SP1.Position().data()[i] - p1->data()[i]) < 0.001);
-    REQUIRE(std::abs(SP2.Position().data()[i] - p2->data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP1.Position().data()[i] - p1->data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP2.Position().data()[i] - p2->data()[i]) < 0.001);
   }
   for (int i = 0; i < 4; i++) {
-    REQUIRE(std::abs(SP1.Orientation().data()[i] - o1->data()[i]) < 0.001);
-    REQUIRE(std::abs(SP2.Orientation().data()[i] - o2->data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP1.Orientation().data()[i] - o1->data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP2.Orientation().data()[i] - o2->data()[i]) < 0.001);
   }
 }
 
-TEST_CASE("Test scan registration - vanilla icp") {
+TEST(ScanPose, ScanRegistrationICP) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
-
-  beam_models::frame_to_frame::ScanPose SP2_pert(
-      ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
 
   Eigen::Matrix4d T_S1_S2_initial =
       beam::InvertTransform(data_.T_WORLD_S1) * data_.T_WORLD_S2_pert;
@@ -371,18 +357,14 @@ TEST_CASE("Test scan registration - vanilla icp") {
   pcl::transformPointCloud(SP2_pert.Cloud(), S2_RefFOpt2, T_S1_S2_opt);
 
   // check final transform is close to original
-  REQUIRE(data_.T_S1_S2.norm() == Approx(T_S1_S2_opt.norm()).epsilon(0.0001));
+  EXPECT_NEAR(data_.T_S1_S2.norm(), T_S1_S2_opt.norm(), 0.001);
 }
 
-TEST_CASE("Test simple 2 node FG with perturbed pose and scan registration") {
+TEST(ScanPose, ScanRegistrationPGPert) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
-
-  beam_models::frame_to_frame::ScanPose SP2_pert(
-      ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
 
   // run scan registration
   // * (1) transform second scan into estimated scan 1 frame
@@ -409,8 +391,8 @@ TEST_CASE("Test simple 2 node FG with perturbed pose and scan registration") {
   Eigen::Matrix4d T_W_S2_opt = data_.T_WORLD_S1 * T_S1_S2_opt;
 
   // check final transform is close to original
-  REQUIRE(data_.T_S1_S2.norm() == Approx(T_S1_S2_opt.norm()).epsilon(0.0001));
-  REQUIRE(data_.T_WORLD_S2.norm() == Approx(T_W_S2_opt.norm()).epsilon(0.0001));
+  EXPECT_NEAR(data_.T_S1_S2.norm(), T_S1_S2_opt.norm(), 0.001);
+  EXPECT_NEAR(data_.T_WORLD_S2.norm(), T_W_S2_opt.norm(), 0.001);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -441,43 +423,37 @@ TEST_CASE("Test simple 2 node FG with perturbed pose and scan registration") {
   graph.optimize();
 
   for (int i = 0; i < 3; i++) {
-    REQUIRE(std::abs(SP1.Position().data()[i] - p1->data()[i]) < 0.001);
-    REQUIRE(std::abs(SP2.Position().data()[i] - p2->data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP1.Position().data()[i] - p1->data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP2.Position().data()[i] - p2->data()[i]) < 0.001);
   }
   for (int i = 0; i < 4; i++) {
-    REQUIRE(std::abs(SP1.Orientation().data()[i] - o1->data()[i]) < 0.001);
-    REQUIRE(std::abs(SP2.Orientation().data()[i] - o2->data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP1.Orientation().data()[i] - o1->data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP2.Orientation().data()[i] - o2->data()[i]) < 0.001);
   }
 }
 
-TEST_CASE("Test multi scan registration with two scans") {
+TEST(MultiScanRegistration, 2Scans) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
-
-  beam_models::frame_to_frame::ScanPose SP2_pert(
-      ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-  beam_models::frame_to_frame::MultiScanRegistration::Params scan_reg_params{
-      .num_neighbors = 1,
-      .outlier_threshold_t = 1,
-      .outlier_threshold_r = 30,
-      .min_motion_trans_m = 0,
-      .min_motion_rot_rad = 0,
-      .source = "TEST",
-      .lag_duration = 100,
-      .fix_first_scan = false};
+  MultiScanRegistration::Params scan_reg_params{.num_neighbors = 1,
+                                                .outlier_threshold_t = 1,
+                                                .outlier_threshold_r = 30,
+                                                .min_motion_trans_m = 0,
+                                                .min_motion_rot_rad = 0,
+                                                .source = "TEST",
+                                                .lag_duration = 100,
+                                                .fix_first_scan = false};
 
-  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
-      multi_scan_registration =
-          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
-              std::move(matcher), scan_reg_params);
+  std::unique_ptr<MultiScanRegistration> multi_scan_registration =
+      std::make_unique<MultiScanRegistration>(std::move(matcher),
+                                              scan_reg_params);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
@@ -490,8 +466,8 @@ TEST_CASE("Test multi scan registration with two scans") {
       multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
 
   // validate stamps
-  REQUIRE(transaction1->stamp() == SP1.Stamp());
-  REQUIRE(transaction2->stamp() == SP2.Stamp());
+  EXPECT_EQ(transaction1->stamp(), SP1.Stamp());
+  EXPECT_EQ(transaction2->stamp(), SP2.Stamp());
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -499,25 +475,25 @@ TEST_CASE("Test multi scan registration with two scans") {
   // add variables and validate uuids for each transaction
   std::vector<fuse_core::UUID> uuids;
   uuids = AddVariables(transaction1, graph);
-  REQUIRE(uuids.size() == 2);
+  EXPECT_EQ(uuids.size(), 2);
   for (auto uuid : uuids) {
     bool should_be_true =
         uuid == SP1.Position().uuid() || uuid == SP1.Orientation().uuid();
-    REQUIRE(should_be_true);
+    EXPECT_TRUE(should_be_true);
   }
   uuids = AddVariables(transaction2, graph);
-  REQUIRE(uuids.size() == 2);
+  EXPECT_EQ(uuids.size(), 2);
   for (auto uuid : uuids) {
     bool should_be_true =
         uuid == SP2.Position().uuid() || uuid == SP2.Orientation().uuid();
-    REQUIRE(should_be_true);
+    EXPECT_TRUE(should_be_true);
   }
 
   // add constraints and validate for each transaction
   int counter{0};
   counter += AddConstraints(transaction1, graph);
   counter += AddConstraints(transaction2, graph);
-  REQUIRE(counter == 1);
+  EXPECT_EQ(counter, 1);
 
   // Add prior on first pose
   graph.addConstraint(data_.prior);
@@ -536,48 +512,39 @@ TEST_CASE("Test multi scan registration with two scans") {
       graph.getVariable(SP2.Orientation().uuid()));
 
   for (int i = 0; i < 3; i++) {
-    REQUIRE(std::abs(SP1.Position().data()[i] - p1.data()[i]) < 0.001);
-    REQUIRE(std::abs(SP2.Position().data()[i] - p2.data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP1.Position().data()[i] - p1.data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP2.Position().data()[i] - p2.data()[i]) < 0.001);
   }
   for (int i = 0; i < 4; i++) {
-    REQUIRE(std::abs(SP1.Orientation().data()[i] - o1.data()[i]) < 0.001);
-    REQUIRE(std::abs(SP2.Orientation().data()[i] - o2.data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP1.Orientation().data()[i] - o1.data()[i]) < 0.001);
+    EXPECT_TRUE(std::abs(SP2.Orientation().data()[i] - o2.data()[i]) < 0.001);
   }
 }
 
-TEST_CASE("Test multi scan registration with three scans") {
+TEST(MultiScanRegistration, 3Scans) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
-  beam_models::frame_to_frame::ScanPose SP3(ros::Time(2), data_.T_WORLD_S3,
-                                            data_.S3);
-
-  beam_models::frame_to_frame::ScanPose SP2_pert(
-      ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
-
-  beam_models::frame_to_frame::ScanPose SP3_pert(
-      ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+  ScanPose SP3_pert(ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-  beam_models::frame_to_frame::MultiScanRegistration::Params scan_reg_params{
-      .num_neighbors = 3,
-      .outlier_threshold_t = 1,
-      .outlier_threshold_r = 30,
-      .min_motion_trans_m = 0,
-      .min_motion_rot_rad = 0,
-      .source = "TEST",
-      .lag_duration = 100,
-      .fix_first_scan = false};
+  MultiScanRegistration::Params scan_reg_params{.num_neighbors = 3,
+                                                .outlier_threshold_t = 1,
+                                                .outlier_threshold_r = 30,
+                                                .min_motion_trans_m = 0,
+                                                .min_motion_rot_rad = 0,
+                                                .source = "TEST",
+                                                .lag_duration = 100,
+                                                .fix_first_scan = false};
 
-  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
-      multi_scan_registration =
-          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
-              std::move(matcher), scan_reg_params);
+  std::unique_ptr<MultiScanRegistration> multi_scan_registration =
+      std::make_unique<MultiScanRegistration>(std::move(matcher),
+                                              scan_reg_params);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
@@ -592,9 +559,9 @@ TEST_CASE("Test multi scan registration with three scans") {
       multi_scan_registration->RegisterNewScan(SP3_pert).GetTransaction();
 
   // validate stamps
-  REQUIRE(transaction1->stamp() == SP1.Stamp());
-  REQUIRE(transaction2->stamp() == SP2.Stamp());
-  REQUIRE(transaction3->stamp() == SP3.Stamp());
+  EXPECT_EQ(transaction1->stamp(), SP1.Stamp());
+  EXPECT_EQ(transaction2->stamp(), SP2.Stamp());
+  EXPECT_EQ(transaction3->stamp(), SP3.Stamp());
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -602,25 +569,25 @@ TEST_CASE("Test multi scan registration with three scans") {
   // add variables and validate uuids for each transaction
   std::vector<fuse_core::UUID> uuids;
   uuids = AddVariables(transaction1, graph);
-  REQUIRE(uuids.size() == 2);
+  EXPECT_EQ(uuids.size(), 2);
   for (auto uuid : uuids) {
     bool should_be_true =
         uuid == SP1.Position().uuid() || uuid == SP1.Orientation().uuid();
-    REQUIRE(should_be_true);
+    EXPECT_TRUE(should_be_true);
   }
   uuids = AddVariables(transaction2, graph);
-  REQUIRE(uuids.size() == 2);
+  EXPECT_EQ(uuids.size(), 2);
   for (auto uuid : uuids) {
     bool should_be_true =
         uuid == SP2.Position().uuid() || uuid == SP2.Orientation().uuid();
-    REQUIRE(should_be_true);
+    EXPECT_TRUE(should_be_true);
   }
   uuids = AddVariables(transaction3, graph);
-  REQUIRE(uuids.size() == 2);
+  EXPECT_EQ(uuids.size(), 2);
   for (auto uuid : uuids) {
     bool should_be_true =
         uuid == SP3.Position().uuid() || uuid == SP3.Orientation().uuid();
-    REQUIRE(should_be_true);
+    EXPECT_TRUE(should_be_true);
   }
 
   // add constraints and validate for each transaction
@@ -628,7 +595,7 @@ TEST_CASE("Test multi scan registration with three scans") {
   counter += AddConstraints(transaction1, graph);
   counter += AddConstraints(transaction2, graph);
   counter += AddConstraints(transaction3, graph);
-  REQUIRE(counter == 3);
+  EXPECT_EQ(counter, 3);
 
   // Add prior on first pose
   graph.addConstraint(data_.prior);
@@ -650,47 +617,39 @@ TEST_CASE("Test multi scan registration with three scans") {
   auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(SP3.Orientation().uuid()));
 
-  REQUIRE(VectorsEqual(SP1.Position().data(), p1.data(), 3));
-  REQUIRE(VectorsEqual(SP1.Orientation().data(), o1.data(), 4));
-  REQUIRE(VectorsEqual(SP2.Position().data(), p2.data(), 3));
-  REQUIRE(VectorsEqual(SP2.Orientation().data(), o2.data(), 4));
-  REQUIRE(VectorsEqual(SP3.Position().data(), p3.data(), 3));
-  REQUIRE(VectorsEqual(SP3.Orientation().data(), o3.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP1.Position().data(), p1.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP1.Orientation().data(), o1.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP2.Position().data(), p2.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP2.Orientation().data(), o2.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP3.Position().data(), p3.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP3.Orientation().data(), o3.data(), 4));
 }
 
-TEST_CASE("Test multi scan registration transactions and updates") {
+TEST(MultiScanRegistration, TransactionsAndUpdates) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
-  beam_models::frame_to_frame::ScanPose SP3(ros::Time(2), data_.T_WORLD_S3,
-                                            data_.S3);
-
-  beam_models::frame_to_frame::ScanPose SP2_pert(
-      ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
-
-  beam_models::frame_to_frame::ScanPose SP3_pert(
-      ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+  ScanPose SP3_pert(ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-  beam_models::frame_to_frame::MultiScanRegistration::Params scan_reg_params{
+  MultiScanRegistration::Params scan_reg_params{
       .num_neighbors = 3,
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
       .min_motion_trans_m = 0,
       .min_motion_rot_rad = 0,
       .source = "TEST",
-      .lag_duration = 0, // should still work with 0
+      .lag_duration = 0,  // should still work with 0
       .fix_first_scan = false};
 
-  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
-      multi_scan_registration =
-          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
-              std::move(matcher), scan_reg_params);
+  std::unique_ptr<MultiScanRegistration> multi_scan_registration =
+      std::make_unique<MultiScanRegistration>(std::move(matcher),
+                                              scan_reg_params);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
@@ -706,23 +665,23 @@ TEST_CASE("Test multi scan registration transactions and updates") {
   graph->update(*transaction1);
   graph->addConstraint(data_.prior);
   graph->optimize();
-  REQUIRE(graph->variableExists(SP1.Position().uuid()));
-  REQUIRE(!graph->variableExists(SP2_pert.Position().uuid()));
-  REQUIRE(!graph->variableExists(SP3_pert.Position().uuid()));
+  EXPECT_TRUE(graph->variableExists(SP1.Position().uuid()));
+  EXPECT_TRUE(!graph->variableExists(SP2_pert.Position().uuid()));
+  EXPECT_TRUE(!graph->variableExists(SP3_pert.Position().uuid()));
   auto transaction2 =
       multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
   graph->update(*transaction2);
   graph->optimize();
-  REQUIRE(graph->variableExists(SP1.Position().uuid()));
-  REQUIRE(graph->variableExists(SP2_pert.Position().uuid()));
-  REQUIRE(!graph->variableExists(SP3_pert.Position().uuid()));
+  EXPECT_TRUE(graph->variableExists(SP1.Position().uuid()));
+  EXPECT_TRUE(graph->variableExists(SP2_pert.Position().uuid()));
+  EXPECT_TRUE(!graph->variableExists(SP3_pert.Position().uuid()));
   auto transaction3 =
       multi_scan_registration->RegisterNewScan(SP3_pert).GetTransaction();
   graph->update(*transaction3);
   graph->optimize();
-  REQUIRE(graph->variableExists(SP1.Position().uuid()));
-  REQUIRE(graph->variableExists(SP2_pert.Position().uuid()));
-  REQUIRE(graph->variableExists(SP3_pert.Position().uuid()));
+  EXPECT_TRUE(graph->variableExists(SP1.Position().uuid()));
+  EXPECT_TRUE(graph->variableExists(SP2_pert.Position().uuid()));
+  EXPECT_TRUE(graph->variableExists(SP3_pert.Position().uuid()));
 
   // Check results
   auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
@@ -739,59 +698,52 @@ TEST_CASE("Test multi scan registration transactions and updates") {
   auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph->getVariable(SP3.Orientation().uuid()));
 
-  REQUIRE(VectorsEqual(SP1.Position().data(), p1.data(), 3));
-  REQUIRE(VectorsEqual(SP1.Orientation().data(), o1.data(), 4));
-  REQUIRE(VectorsEqual(SP2.Position().data(), p2.data(), 3));
-  REQUIRE(VectorsEqual(SP2.Orientation().data(), o2.data(), 4));
-  REQUIRE(VectorsEqual(SP3.Position().data(), p3.data(), 3));
-  REQUIRE(VectorsEqual(SP3.Orientation().data(), o3.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP1.Position().data(), p1.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP1.Orientation().data(), o1.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP2.Position().data(), p2.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP2.Orientation().data(), o2.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP3.Position().data(), p3.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP3.Orientation().data(), o3.data(), 4));
 
   // test updating scan poses from graph msg
 
   auto SP1_ = multi_scan_registration->GetScan(SP1.Stamp());
   auto SP2_ = multi_scan_registration->GetScan(SP2.Stamp());
   auto SP3_ = multi_scan_registration->GetScan(SP3.Stamp());
-  REQUIRE(SP1_.Updates() == 0);
-  REQUIRE(!VectorsEqual(SP2.Position().data(), SP2_.Position().data(), 3));
-  REQUIRE(
+  EXPECT_TRUE(SP1_.Updates() == 0);
+  EXPECT_TRUE(!VectorsEqual(SP2.Position().data(), SP2_.Position().data(), 3));
+  EXPECT_TRUE(
       !VectorsEqual(SP2.Orientation().data(), SP2_.Orientation().data(), 4));
-  REQUIRE(SP2_.Updates() == 0);
-  REQUIRE(!VectorsEqual(SP3.Position().data(), SP3_.Position().data(), 3));
-  REQUIRE(
+  EXPECT_TRUE(SP2_.Updates() == 0);
+  EXPECT_TRUE(!VectorsEqual(SP3.Position().data(), SP3_.Position().data(), 3));
+  EXPECT_TRUE(
       !VectorsEqual(SP3.Orientation().data(), SP3_.Orientation().data(), 4));
-  REQUIRE(SP3_.Updates() == 0);
+  EXPECT_TRUE(SP3_.Updates() == 0);
   multi_scan_registration->UpdateScanPoses(graph);
   auto SP1__ = multi_scan_registration->GetScan(SP1.Stamp());
   auto SP2__ = multi_scan_registration->GetScan(SP2.Stamp());
   auto SP3__ = multi_scan_registration->GetScan(SP3.Stamp());
-  REQUIRE(VectorsEqual(SP1.Position().data(), SP1__.Position().data(), 3));
-  REQUIRE(
+  EXPECT_TRUE(VectorsEqual(SP1.Position().data(), SP1__.Position().data(), 3));
+  EXPECT_TRUE(
       VectorsEqual(SP1.Orientation().data(), SP1__.Orientation().data(), 4));
-  REQUIRE(SP1__.Updates() == 1);
-  REQUIRE(VectorsEqual(SP2.Position().data(), SP2__.Position().data(), 3));
-  REQUIRE(
+  EXPECT_TRUE(SP1__.Updates() == 1);
+  EXPECT_TRUE(VectorsEqual(SP2.Position().data(), SP2__.Position().data(), 3));
+  EXPECT_TRUE(
       VectorsEqual(SP2.Orientation().data(), SP2__.Orientation().data(), 4));
-  REQUIRE(SP2__.Updates() == 1);
-  REQUIRE(VectorsEqual(SP3.Position().data(), SP3__.Position().data(), 3));
-  REQUIRE(
+  EXPECT_TRUE(SP2__.Updates() == 1);
+  EXPECT_TRUE(VectorsEqual(SP3.Position().data(), SP3__.Position().data(), 3));
+  EXPECT_TRUE(
       VectorsEqual(SP3.Orientation().data(), SP3__.Orientation().data(), 4));
-  REQUIRE(SP3__.Updates() == 1);
+  EXPECT_TRUE(SP3__.Updates() == 1);
 }
 
-TEST_CASE("Test multi scan registration with different num_neighbors") {
+TEST(MultiScanRegistration, NumNeighbours) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
-  beam_models::frame_to_frame::ScanPose SP3(ros::Time(2), data_.T_WORLD_S3,
-                                            data_.S3);
-
-  beam_models::frame_to_frame::ScanPose SP2_pert(
-      ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
-
-  beam_models::frame_to_frame::ScanPose SP3_pert(
-      ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+  ScanPose SP3_pert(ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher1 =
@@ -799,35 +751,31 @@ TEST_CASE("Test multi scan registration with different num_neighbors") {
   std::unique_ptr<beam_matching::IcpMatcher> matcher2 =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-  beam_models::frame_to_frame::MultiScanRegistration::Params scan_reg_params1{
-      .num_neighbors = 1,
-      .outlier_threshold_t = 1,
-      .outlier_threshold_r = 30,
-      .min_motion_trans_m = 0,
-      .min_motion_rot_rad = 0,
-      .source = "TEST",
-      .lag_duration = 100,
-      .fix_first_scan = false};
+  MultiScanRegistration::Params scan_reg_params1{.num_neighbors = 1,
+                                                 .outlier_threshold_t = 1,
+                                                 .outlier_threshold_r = 30,
+                                                 .min_motion_trans_m = 0,
+                                                 .min_motion_rot_rad = 0,
+                                                 .source = "TEST",
+                                                 .lag_duration = 100,
+                                                 .fix_first_scan = false};
 
-  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
-      multi_scan_registration1 =
-          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
-              std::move(matcher1), scan_reg_params1);
+  std::unique_ptr<MultiScanRegistration> multi_scan_registration1 =
+      std::make_unique<MultiScanRegistration>(std::move(matcher1),
+                                              scan_reg_params1);
 
-  beam_models::frame_to_frame::MultiScanRegistration::Params scan_reg_params2{
-      .num_neighbors = 2,
-      .outlier_threshold_t = 1,
-      .outlier_threshold_r = 30,
-      .min_motion_trans_m = 0,
-      .min_motion_rot_rad = 0,
-      .source = "TEST",
-      .lag_duration = 100,
-      .fix_first_scan = true};
+  MultiScanRegistration::Params scan_reg_params2{.num_neighbors = 2,
+                                                 .outlier_threshold_t = 1,
+                                                 .outlier_threshold_r = 30,
+                                                 .min_motion_trans_m = 0,
+                                                 .min_motion_rot_rad = 0,
+                                                 .source = "TEST",
+                                                 .lag_duration = 100,
+                                                 .fix_first_scan = true};
 
-  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
-      multi_scan_registration2 =
-          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
-              std::move(matcher2), scan_reg_params2);
+  std::unique_ptr<MultiScanRegistration> multi_scan_registration2 =
+      std::make_unique<MultiScanRegistration>(std::move(matcher2),
+                                              scan_reg_params2);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
@@ -868,7 +816,7 @@ TEST_CASE("Test multi scan registration with different num_neighbors") {
        iter++) {
     counter1++;
   }
-  REQUIRE(counter1 == 2);
+  EXPECT_TRUE(counter1 == 2);
 
   auto constraints_added2 = graph2->getConstraints();
   int counter2 = 0;
@@ -876,7 +824,7 @@ TEST_CASE("Test multi scan registration with different num_neighbors") {
        iter++) {
     counter2++;
   }
-  REQUIRE(counter1 == 2);
+  EXPECT_TRUE(counter1 == 2);
 
   // Add prior on first pose for just the first case
   graph1->addConstraint(data_.prior);
@@ -899,12 +847,12 @@ TEST_CASE("Test multi scan registration with different num_neighbors") {
   auto o13 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph1->getVariable(SP3.Orientation().uuid()));
 
-  REQUIRE(VectorsEqual(SP1.Position().data(), p11.data(), 3));
-  REQUIRE(VectorsEqual(SP1.Orientation().data(), o11.data(), 4));
-  REQUIRE(VectorsEqual(SP2.Position().data(), p12.data(), 3));
-  REQUIRE(VectorsEqual(SP2.Orientation().data(), o12.data(), 4));
-  REQUIRE(VectorsEqual(SP3.Position().data(), p13.data(), 3));
-  REQUIRE(VectorsEqual(SP3.Orientation().data(), o13.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP1.Position().data(), p11.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP1.Orientation().data(), o11.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP2.Position().data(), p12.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP2.Orientation().data(), o12.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP3.Position().data(), p13.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP3.Orientation().data(), o13.data(), 4));
 
   auto p21 = dynamic_cast<const fuse_variables::Position3DStamped&>(
       graph2->getVariable(SP1.Position().uuid()));
@@ -920,40 +868,35 @@ TEST_CASE("Test multi scan registration with different num_neighbors") {
   auto o23 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph2->getVariable(SP3.Orientation().uuid()));
 
-  REQUIRE(VectorsEqual(SP1.Position().data(), p21.data(), 3));
-  REQUIRE(VectorsEqual(SP1.Orientation().data(), o21.data(), 4));
-  REQUIRE(VectorsEqual(SP2.Position().data(), p22.data(), 3));
-  REQUIRE(VectorsEqual(SP2.Orientation().data(), o22.data(), 4));
-  REQUIRE(VectorsEqual(SP3.Position().data(), p23.data(), 3));
-  REQUIRE(VectorsEqual(SP3.Orientation().data(), o23.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP1.Position().data(), p21.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP1.Orientation().data(), o21.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP2.Position().data(), p22.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP2.Orientation().data(), o22.data(), 4));
+  EXPECT_TRUE(VectorsEqual(SP3.Position().data(), p23.data(), 3));
+  EXPECT_TRUE(VectorsEqual(SP3.Orientation().data(), o23.data(), 4));
 }
 
-TEST_CASE("Test multi scan registration with different registration cases") {
+TEST(MultiScanRegistration, RegistrationCases) {
   // create scan poses
-  beam_models::frame_to_frame::ScanPose SP1(ros::Time(0), data_.T_WORLD_S1,
-                                            data_.S1);
-  beam_models::frame_to_frame::ScanPose SP2(ros::Time(1), data_.T_WORLD_S2,
-                                            data_.S2);
-  beam_models::frame_to_frame::ScanPose SP3(ros::Time(2), data_.T_WORLD_S3,
-                                            data_.S3);
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
+  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-  beam_models::frame_to_frame::MultiScanRegistration::Params scan_reg_params{
-      .num_neighbors = 5,
-      .outlier_threshold_t = 1,
-      .outlier_threshold_r = 30,
-      .min_motion_trans_m = 0,
-      .min_motion_rot_rad = 0,
-      .source = "TEST",
-      .lag_duration = 100,
-      .fix_first_scan = true};
-  std::unique_ptr<beam_models::frame_to_frame::MultiScanRegistration>
-      multi_scan_registration =
-          std::make_unique<beam_models::frame_to_frame::MultiScanRegistration>(
-              std::move(matcher), scan_reg_params);
+  MultiScanRegistration::Params scan_reg_params{.num_neighbors = 5,
+                                                .outlier_threshold_t = 1,
+                                                .outlier_threshold_r = 30,
+                                                .min_motion_trans_m = 0,
+                                                .min_motion_rot_rad = 0,
+                                                .source = "TEST",
+                                                .lag_duration = 100,
+                                                .fix_first_scan = true};
+  std::unique_ptr<MultiScanRegistration> multi_scan_registration =
+      std::make_unique<MultiScanRegistration>(std::move(matcher),
+                                              scan_reg_params);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
@@ -980,14 +923,161 @@ TEST_CASE("Test multi scan registration with different registration cases") {
   perturb << -45, 30, 90, 10, -10, 8;
   Eigen::Matrix4d T_WORLD_S4_pert =
       beam::PerturbTransformDegM(data_.T_WORLD_S3, perturb);
-  beam_models::frame_to_frame::ScanPose SP4_BADINIT(ros::Time(3),
-                                                    T_WORLD_S4_pert, data_.S3);
-  beam_models::frame_to_frame::ScanPose SP4_EMPTY(ros::Time(3), T_WORLD_S4_pert,
-                                                  PointCloud());
+  ScanPose SP4_BADINIT(ros::Time(3), T_WORLD_S4_pert, data_.S3);
+  ScanPose SP4_EMPTY(ros::Time(3), T_WORLD_S4_pert, PointCloud());
   auto transactionNULL1 =
       multi_scan_registration->RegisterNewScan(SP4_BADINIT).GetTransaction();
   auto transactionNULL2 =
       multi_scan_registration->RegisterNewScan(SP4_EMPTY).GetTransaction();
-  REQUIRE(transactionNULL1 == nullptr);
-  REQUIRE(transactionNULL2 == nullptr);
+  EXPECT_TRUE(transactionNULL1 == nullptr);
+  EXPECT_TRUE(transactionNULL2 == nullptr);
+}
+
+TEST(MultiScanLoamRegistration, 2Scans) {
+  data_ = Data();
+
+  // init scan registration
+  std::shared_ptr<LoamParams> matcher_params = std::make_shared<LoamParams>();
+  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
+  matcher = std::make_unique<LoamMatcher>(*matcher_params);
+  std::shared_ptr<LoamFeatureExtractor> feature_extractor =
+      std::make_shared<LoamFeatureExtractor>(matcher_params);
+  
+  // create scan poses
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1, feature_extractor);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2, feature_extractor);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2, feature_extractor);
+
+  MultiScanRegistration::Params scan_reg_params{
+      .num_neighbors = 1,
+      .outlier_threshold_t = 1,
+      .outlier_threshold_r = 30,
+      .min_motion_trans_m = 0,
+      .min_motion_rot_rad = 0,
+      .source = "TEST",
+      .lag_duration = 0,  // should still work with 0
+      .fix_first_scan = false};
+
+  std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
+      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
+                                              scan_reg_params);
+
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+  multi_scan_registration->SetFixedCovariance(covariance);
+
+  auto transaction1 =
+      multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
+  auto transaction2 =
+      multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
+
+  // Create the graph
+  fuse_graphs::HashGraph graph;
+
+  // add transactions
+  graph.update(*transaction1);
+  graph.update(*transaction2);
+
+  // Add prior on first pose
+  graph.addConstraint(data_.prior);
+
+  // Optimize the constraints and variables.
+  graph.optimize();
+
+  auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph.getVariable(SP1.Position().uuid()));
+  auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph.getVariable(SP2.Position().uuid()));
+
+  auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph.getVariable(SP1.Orientation().uuid()));
+  auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph.getVariable(SP2.Orientation().uuid()));
+
+  Eigen::Matrix4d T_WORLD_S1_mea = beam_common::FusePoseToEigenTransform(p1, o1);
+  Eigen::Matrix4d T_WORLD_S2_mea = beam_common::FusePoseToEigenTransform(p2, o2);
+  
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, data_.T_WORLD_S1, 1, 0.03));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, data_.T_WORLD_S2, 1, 0.03));
+}
+
+TEST(MultiScanLoamRegistration, 3Scans) {
+  // init scan registration
+  std::shared_ptr<LoamParams> matcher_params = std::make_shared<LoamParams>();
+  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
+  matcher = std::make_unique<LoamMatcher>(*matcher_params);
+  std::shared_ptr<LoamFeatureExtractor> feature_extractor =
+      std::make_shared<LoamFeatureExtractor>(matcher_params);
+
+  // create scan poses
+  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1, feature_extractor);
+  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2, feature_extractor);
+  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3, feature_extractor);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2,
+                    feature_extractor);
+  ScanPose SP3_pert(ros::Time(2), data_.T_WORLD_S3_pert, data_.S3,
+                    feature_extractor);
+  //   SP1.Save("/home/nick/tmp/loam_scan_registration/sp1/");
+  //   SP2.Save("/home/nick/tmp/loam_scan_registration/sp2/");
+  //   SP3.Save("/home/nick/tmp/loam_scan_registration/sp3/");
+
+  // init scan registration
+  MultiScanRegistration::Params scan_reg_params{
+      .num_neighbors = 3,
+      .outlier_threshold_t = 1,
+      .outlier_threshold_r = 30,
+      .min_motion_trans_m = 0,
+      .min_motion_rot_rad = 0,
+      .source = "TEST",
+      .lag_duration = 0,  // should still work with 0
+      .fix_first_scan = false};
+
+  std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
+      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
+                                                  scan_reg_params);
+
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+  multi_scan_registration->SetFixedCovariance(covariance);
+
+  // Create the graph
+  fuse_core::Graph::SharedPtr graph = fuse_graphs::HashGraph::make_shared();
+
+  // add transactions
+  auto transaction1 =
+      multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
+  auto transaction2 =
+      multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
+  auto transaction3 =
+      multi_scan_registration->RegisterNewScan(SP3_pert).GetTransaction();
+  graph->update(*transaction1);
+  graph->update(*transaction2);
+  graph->update(*transaction3);
+  graph->addConstraint(data_.prior);
+  graph->optimize();
+
+  // Check results
+  auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph->getVariable(SP1.Position().uuid()));
+  auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph->getVariable(SP2.Position().uuid()));
+  auto p3 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph->getVariable(SP3.Position().uuid()));
+
+  auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph->getVariable(SP1.Orientation().uuid()));
+  auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph->getVariable(SP2.Orientation().uuid()));
+  auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph->getVariable(SP3.Orientation().uuid()));
+
+  Eigen::Matrix4d T_WORLD_S1_mea = beam_common::FusePoseToEigenTransform(p1, o1);
+  Eigen::Matrix4d T_WORLD_S2_mea = beam_common::FusePoseToEigenTransform(p2, o2);
+  Eigen::Matrix4d T_WORLD_S3_mea = beam_common::FusePoseToEigenTransform(p3, o3);
+  
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, data_.T_WORLD_S1, 1, 0.03));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, data_.T_WORLD_S2, 1, 0.03));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S3_mea, data_.T_WORLD_S3, 1, 0.03));
 }
