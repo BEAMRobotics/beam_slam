@@ -18,12 +18,11 @@ static const double GRAVITY = 9.81;
 
 TEST(ImuPreintegration, ZeroNoiseZeroBias) {
   // set intrinsic noise of imu to zero
-  Eigen::Matrix3d zero_intrinsic_noise{Eigen::Matrix3d::Zero()};
   ImuPreintegration::Params params;
-  params.cov_gyro_noise = zero_intrinsic_noise;
-  params.cov_accel_noise = zero_intrinsic_noise;
-  params.cov_gyro_bias = zero_intrinsic_noise;
-  params.cov_accel_bias = zero_intrinsic_noise;
+  params.cov_gyro_noise.setZero();
+  params.cov_accel_noise.setZero();
+  params.cov_gyro_bias.setZero();
+  params.cov_accel_bias.setZero();
 
   // set gravitional acceleration according to the basalt library
   params.gravitational_acceleration = GRAVITY;
@@ -34,23 +33,22 @@ TEST(ImuPreintegration, ZeroNoiseZeroBias) {
 
   // generate random ground truth trajectory of imu using splines
   int num_knots = 15;               // number of knots in spline curve
-  int64_t start_time_ns = 0;        // set start time to 0 seconds
-  int64_t time_interval_ns = 10e9;  // 10 seconds btw each knot
-  int64_t time_duration = 20e9;  // relative duration of simulation from start
-  int64_t time_simulation_ns =
+  double start_time_ns = 0;        // set start time to 0 seconds
+  double time_interval_ns = 10e9;  // 10 seconds btw each knot
+  double time_duration = 20e9;  // relative duration of simulation from start
+  double time_simulation_ns =
       start_time_ns + time_duration;  // absolute time of simulation
 
-  // generate spline curve of fifth order.
+  // generate spline curve of any order.
   basalt::Se3Spline<5> gt_spline(time_interval_ns, start_time_ns);
   gt_spline.genRandomTrajectory(num_knots);
 
   // from ground truth spline curve, get pose and derivative relationships
   // necessary to create synthetic imu measurements with zero noise and zero
   // bias
-  int64_t dt_ns = 1e7;  // assume data at 100 Hz
-  static const Eigen::Vector3d gravity(0, 0,
-                                       -params.gravitational_acceleration);
-  for (int64_t t_ns = start_time_ns; t_ns < time_simulation_ns + dt_ns;
+  double dt_ns = 1e5;  // assume data at 100 Hz
+  static const Eigen::Vector3d gravity(0, 0, -GRAVITY);
+  for (double t_ns = start_time_ns; t_ns < time_simulation_ns + dt_ns;
        t_ns += dt_ns) {
     // get rotational velocity and linear acceleration at sample rate
     Sophus::SE3d pose = gt_spline.pose(t_ns);
@@ -65,7 +63,7 @@ TEST(ImuPreintegration, ZeroNoiseZeroBias) {
     imu_data.w = rot_vel_body;  // [rad/sec]
     imu_data.a = accel_body;    // [m/sec^2]
 
-    // populate buffer
+    // populate buffers
     imu_preintegration.PopulateBuffer(imu_data);
   }
 
@@ -134,8 +132,8 @@ TEST(ImuPreintegration, ZeroNoiseZeroBias) {
 
   // set end time and state of imu preintegration
   ros::Time end_time = ros::Time(time_simulation_ns / 1e9);
-  Eigen::Matrix3d end_orientation_mat = start_pose.so3().matrix();
-  Eigen::Vector3d end_position_vec = start_pose.translation();
+  Eigen::Matrix3d end_orientation_mat = end_pose.so3().matrix();
+  Eigen::Vector3d end_position_vec = end_pose.translation();
   Eigen::Quaterniond end_orientation_quat(end_orientation_mat);
 
   // set end of imu preintegration. This requires us to pass two fuse
@@ -154,11 +152,66 @@ TEST(ImuPreintegration, ZeroNoiseZeroBias) {
   end_position->y() = end_position_vec[1];
   end_position->z() = end_position_vec[2];
 
+  // calculate relative change-in-motion ground truth
+  double delta_t = ros::Duration(end_time - start_time).toSec();
+  Eigen::Matrix3d R_i = start_orientation_quat.toRotationMatrix();
+  Eigen::Matrix3d delta_R =
+      R_i.transpose() * end_orientation_quat.toRotationMatrix();
+  Eigen::Vector3d delta_V =
+      R_i.transpose() *
+      (end_velocity_vec - start_velocity_vec - gravity * delta_t);
+  Eigen::Vector3d delta_P =
+      R_i.transpose() *
+      (end_position_vec - start_position_vec - start_velocity_vec * delta_t -
+       0.5 * gravity * delta_t * delta_t);
+
+  // populate Preintegrator class from Slamtools
+  PreIntegrator pre_integrator_gt;
+  pre_integrator_gt.delta.t = delta_t;
+  pre_integrator_gt.delta.q = delta_R;
+  pre_integrator_gt.delta.p = delta_P;
+  pre_integrator_gt.delta.v = delta_V;
+  Eigen::Quaterniond delta_R_quat(delta_R);
+
+  ROS_INFO_STREAM("GROUND TRUTH motion deltas");
+  ROS_INFO_STREAM("  t: " << delta_t);
+  ROS_INFO_STREAM("  orientation.w: " << delta_R_quat.w());
+  ROS_INFO_STREAM("  orientation.x: " << delta_R_quat.x());
+  ROS_INFO_STREAM("  orientation.y: " << delta_R_quat.y());
+  ROS_INFO_STREAM("  orientation.z: " << delta_R_quat.z());
+  ROS_INFO_STREAM("  position.x: " << delta_P[0]);
+  ROS_INFO_STREAM("  position.y: " << delta_P[1]);
+  ROS_INFO_STREAM("  position.z: " << delta_P[2]);
+  ROS_INFO_STREAM("  velocity.x: " << delta_V[0]);
+  ROS_INFO_STREAM("  velocity.y: " << delta_V[1]);
+  ROS_INFO_STREAM("  velocity.z: " << delta_V[2]);
+
+  // predict end state using relative change-in-motion ground truth
+  ImuState end_imu_state_pred =
+      imu_preintegration.PredictState(pre_integrator_gt, start_imu_state);
+
+  // check
+  EXPECT_EQ(end_imu_state_pred.Stamp(), end_time);
+  EXPECT_NEAR(end_imu_state_pred.OrientationQuat().w(),
+              end_orientation_quat.w(), 1e6);
+  EXPECT_NEAR(end_imu_state_pred.OrientationQuat().x(),
+              end_orientation_quat.x(), 1e6);
+  EXPECT_NEAR(end_imu_state_pred.OrientationQuat().y(),
+              end_orientation_quat.y(), 1e6);
+  EXPECT_NEAR(end_imu_state_pred.OrientationQuat().z(),
+              end_orientation_quat.z(), 1e6);
+  EXPECT_NEAR(end_imu_state_pred.PositionVec()[0], end_position_vec[0], 1e6);
+  EXPECT_NEAR(end_imu_state_pred.PositionVec()[1], end_position_vec[1], 1e6);
+  EXPECT_NEAR(end_imu_state_pred.PositionVec()[2], end_position_vec[2], 1e6);
+  EXPECT_NEAR(end_imu_state_pred.VelocityVec()[0], end_velocity_vec[0], 1e6);
+  EXPECT_NEAR(end_imu_state_pred.VelocityVec()[1], end_velocity_vec[1], 1e6);
+  EXPECT_NEAR(end_imu_state_pred.VelocityVec()[2], end_velocity_vec[2], 1e6); 
+
   // generate transaction to perform imu preintegration
   auto transaction = imu_preintegration.RegisterNewImuPreintegratedFactor(
       end_orientation, end_position);
 
-  // get end imu state
+  // get end imu state from preintegration
   ImuState end_imu_state = imu_preintegration.GetImuState();
 
   // check
@@ -181,3 +234,5 @@ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
+
