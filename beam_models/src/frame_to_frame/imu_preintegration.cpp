@@ -69,7 +69,7 @@ void ImuPreintegration::SetStart(
 }
 
 ImuState ImuPreintegration::PredictState(const PreIntegrator& pre_integrator,
-                                         ImuState& imu_state) {
+                                         const ImuState& imu_state) {
   double delta_t = pre_integrator.delta.t;
   Eigen::Matrix3d R_i = imu_state.OrientationQuat().toRotationMatrix();
   Eigen::Matrix3d R_j = R_i * pre_integrator.delta.q.matrix();

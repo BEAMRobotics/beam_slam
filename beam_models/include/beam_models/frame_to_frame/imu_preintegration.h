@@ -62,7 +62,8 @@ public:
 
   ImuState GetImuState() const { return imu_state_i_; }
 
-  ImuState PredictState(const PreIntegrator& pre_integrator, ImuState& imu_state);
+  ImuState PredictState(const PreIntegrator& pre_integrator, 
+                        const ImuState& imu_state);
 
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   RegisterNewImuPreintegratedFactor(
