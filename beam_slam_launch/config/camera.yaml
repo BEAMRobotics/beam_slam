@@ -1,6 +1,6 @@
 sensor_models:
   - name: 'camera'
-    type: 'beam_models::camera_to_camera::VisualOdom'
+    type: 'beam_models::camera_to_camera::VisualInertialOdom'
     motion_models: ['unicycle_3d']
   - name: 'ignition2d'
     type: 'fuse_models::Unicycle2DIgnition'
@@ -48,11 +48,11 @@ unicycle_3d:
   buffer_length: 100000
 
 camera:
-  cam_intrinsics_path: "/home/jake/data/VIO/euroc.json"
-  image_topic: "/cam0/image_raw"
-  imu_topic: "/imu0"
+  cam_intrinsics_path: "/home/jake/data/LVI_data/intrinsics.json"
+  image_topic: "/camera/image_raw/compressed"
+  imu_topic: "/imu_raw"
   window_size: 100
-  robot_extrinsics: "/home/jake/data/VIO/kaarta/extrinsics.json"
+  robot_extrinsics: "/home/jake/data/LVI_data/extrinsics.json"
   imu_intrinsics: [1, 1, 1, 1]
 
 #path_pub:

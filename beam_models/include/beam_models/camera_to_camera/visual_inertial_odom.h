@@ -17,13 +17,13 @@
 
 namespace beam_models { namespace camera_to_camera {
 
-class VisualOdom : public fuse_core::AsyncSensorModel {
+class VisualInertialOdom : public fuse_core::AsyncSensorModel {
 public:
-  SMART_PTR_DEFINITIONS(VisualOdom);
+  SMART_PTR_DEFINITIONS(VisualInertialOdom);
 
-  VisualOdom();
+  VisualInertialOdom();
 
-  ~VisualOdom() override = default;
+  ~VisualInertialOdom() override = default;
 
   /**
    * @brief Callback for image processing, this callback will add visual
@@ -71,13 +71,36 @@ protected:
 
 private:
   /**
+   * @brief Creates initial variables for the map
+   */
+  std::shared_ptr<fuse_core::Transaction> InitializeMap(ros::Time cur_time);
+
+  /**
    * @brief Converts ros image message to opencv image
    */
-  cv::Mat extractImage(const sensor_msgs::Image& msg);
+  cv::Mat ExtractImage(const sensor_msgs::Image& msg);
+
+  /**
+   * @brief Helper function to add constraints for already existing landmarks
+   * @param track feature track of current image
+   */
+  fuse_variables::Orientation3DStamped::SharedPtr
+      GetCameraOrientation(const ros::Time& stamp);
+
+  /**
+   * @brief Helper function to add constraints for already existing landmarks
+   * @param track feature track of current image
+   */
+  fuse_variables::Position3DStamped::SharedPtr
+      GetCameraPosition(const ros::Time& stamp);
+
+  /**
+   * @brief Helper function to add constraints for already existing landmarks
+   * @param track feature track of current image
+   */
+  fuse_variables::Position3D::SharedPtr GetLandmark(uint64_t landmark_id);
 
 protected:
-  std::shared_ptr<beam_models::camera_to_camera::VIOInitializer> initializer_;
-  uint64_t img_num_ = 0;
   // loadable camera parameters
   beam_parameters::models::CameraParams params_;
   // topic subscribers and buffers
@@ -88,7 +111,8 @@ protected:
   // computer vision objects
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
-  // local maps for when graph doesnt have most up to date variables
+  std::shared_ptr<VIOInitializer> initializer_;
+  // these store the most up to date variables for in between optimizations
   std::unordered_map<double, fuse_variables::Orientation3DStamped::SharedPtr>
       tracker_orientations_;
   std::unordered_map<double, fuse_variables::Position3DStamped::SharedPtr>
@@ -97,15 +121,8 @@ protected:
       landmark_positions_;
   fuse_core::Graph::ConstSharedPtr graph_;
   bool graph_initialized = false;
-  // keyframe info
-  fuse_variables::Orientation3DStamped::SharedPtr cur_kf_orientation_;
-  fuse_variables::Position3DStamped::SharedPtr cur_kf_position_;
-  // variable types for uuid generations
+  // most recent keyframe timestamp
+  ros::Time cur_kf_time_;
   std::string source_ = "VO";
-  std::string position_3d_type_ = "fuse_variables::Position3D";
-  std::string position_3d_stamped_type_ = "fuse_variables::Position3DStamped";
-  std::string orientation_3d_stamped_type_ =
-      "fuse_variables::Orientation3DStamped";
-  bool initialization_passed_ = false;
 };
 }} // namespace beam_models::camera_to_camera
