@@ -229,15 +229,15 @@ public:
 
   void preprocess() { clahe()->apply(image, image); }
 
-  void correct_distortion(
-      std::shared_ptr<beam_calibration::UndistortImages> rectifier) {
-    image = rectifier->ConvertImage<uchar>(image);
-  }
-
   void resize(double scale) {
     cv::Mat outImg;
     cv::resize(image, outImg, cv::Size(), scale, scale, cv::INTER_LINEAR);
     image = outImg;
+  }
+
+  void correct_distortion(
+      std::shared_ptr<beam_calibration::UndistortImages> rectifier) {
+    image = rectifier->ConvertImage<uchar>(image);
   }
 
   cv::Mat image;

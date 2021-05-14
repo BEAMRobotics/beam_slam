@@ -72,23 +72,20 @@ private:
   std::unique_ptr<Frame> CreateFrame();
 
 protected:
-  // beam/slamtools variables
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_calibration::UndistortImages> rectifier_;
+  std::shared_ptr<CameraConfig> config_;
   std::unique_ptr<SlidingWindow> sliding_window_;
   std::unique_ptr<VigInitializer> initializer_;
-  std::shared_ptr<beam_models::camera_to_camera::CameraConfig> config_;
   std::unique_ptr<Frame> pending_frame_;
 
-  bool is_initialized_;
-  int img_num_;
-  int window_size_;
+  bool is_initialized_ = false;
+  int img_num_ = 0;
+  double resize_scale_;
+  double rectify_scale_;
 
   std::unordered_map<double, Eigen::Matrix4d> tracker_poses_;
   std::queue<ros::Time> frame_time_queue_;
-
-  double resize_scale_;
-  double rectify_scale_;
 };
 
 }} // namespace beam_models::camera_to_camera

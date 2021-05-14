@@ -8,46 +8,50 @@ VIOInitializer::VIOInitializer(
     Eigen::Vector4d imu_intrinsics, double rectify_scale) {
   this->rectify_scale_ = rectify_scale;
   this->resize_scale_ = 1 / this->rectify_scale_;
-  // deep copy camera model and update intrinscis to account for rectification
+
   this->cam_model_ = input_cam_model->Clone();
-  // Eigen::VectorXd intrinsics = this->cam_model_->GetIntrinsics();
-  // intrinsics[0] = intrinsics[0] * this->resize_scale_;
-  // intrinsics[1] = intrinsics[1] * this->resize_scale_;
-  // intrinsics[2] = cam_model_->GetWidth() / 2;
-  // intrinsics[3] = cam_model_->GetHeight() / 2;
-  // this->cam_model_->SetIntrinsics(intrinsics);
-  // create config
-  this->config_ = std::make_shared<beam_models::camera_to_camera::CameraConfig>(
-      this->cam_model_, T_body_cam, T_body_imu, imu_intrinsics);
-  this->window_size_ = this->config_->init_map_frames();
-  this->is_initialized_ = false;
-  this->img_num_ = 0;
+  Eigen::VectorXd intrinsics = this->cam_model_->GetIntrinsics();
+  intrinsics[0] = intrinsics[0] * this->resize_scale_;
+  intrinsics[1] = intrinsics[1] * this->resize_scale_;
+  intrinsics[2] = cam_model_->GetWidth() / 2;
+  intrinsics[3] = cam_model_->GetHeight() / 2;
+  this->cam_model_->SetIntrinsics(intrinsics);
+
+  this->config_ = std::make_shared<CameraConfig>(this->cam_model_, T_body_cam,
+                                                 T_body_imu, imu_intrinsics);
+
+  // Eigen::Vector2i image_size_out(
+  //     this->rectify_scale_ * this->cam_model_->GetHeight(),
+  //     this->rectify_scale_ * this->cam_model_->GetWidth());
+
   // create image rectifier
-  Eigen::Vector2i image_size_in;
-  image_size_in << this->cam_model_->GetHeight(), this->cam_model_->GetWidth();
-  Eigen::Vector2i image_size_out;
-  image_size_out << this->rectify_scale_ * this->cam_model_->GetHeight(),
-      this->rectify_scale_ * this->cam_model_->GetWidth();
+  Eigen::Vector2i image_size(input_cam_model->GetHeight(),
+                             input_cam_model->GetWidth());
   this->rectifier_ = std::make_shared<beam_calibration::UndistortImages>(
-      input_cam_model, image_size_in, image_size_in);
+      input_cam_model, image_size, image_size);
   // create initializer
-  this->initializer_ = std::make_unique<VigInitializer>(this->config_);
+  this->initializer_ = std::make_unique<VigInitializer>(config_);
   this->pending_frame_ = this->CreateFrame();
 }
 
 bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
+  img_num_++;
+  // construct slamtools image objects
   std::shared_ptr<OpenCvImage> img = std::make_shared<OpenCvImage>(cur_img);
   img->correct_distortion(rectifier_);
   if (this->resize_scale_ != 1.0) { img->resize(this->resize_scale_); }
   img->t = cur_time.toSec();
   pending_frame_->image = img;
-  initializer_->append_frame(std::move(this->pending_frame_));
+  // add the timestamp to the queue
   this->frame_time_queue_.push(cur_time);
-  img_num_++;
+  // add the frame to the initializer
+  initializer_->append_frame(std::move(this->pending_frame_));
+  // attempt initialization
   if (std::unique_ptr<SlidingWindow> sw = initializer_->init()) {
     sliding_window_.swap(sw);
     is_initialized_ = true;
-    for (int i = 0; i < this->window_size_; i++) {
+    ROS_INFO("VIO Initialization Success.");
+    for (int i = 0; i < this->config_->init_map_frames(); i++) {
       ros::Time time = frame_time_queue_.front();
       // get frame pose from sliding window
       Frame* f = sliding_window_->get_frame(i);
@@ -62,11 +66,13 @@ bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
       // remove image from the queue
       frame_time_queue_.pop();
     }
-    ROS_INFO("VIO Initialization Success.");
+
     return true;
   }
   this->pending_frame_ = this->CreateFrame();
-  if (img_num_ > this->window_size_) { this->frame_time_queue_.pop(); }
+  if (img_num_ > this->config_->init_map_frames()) {
+    this->frame_time_queue_.pop();
+  }
   return false;
 }
 
@@ -86,7 +92,7 @@ std::unordered_map<double, Eigen::Matrix4d> VIOInitializer::GetPoses() {
 void VIOInitializer::GetBiases(Eigen::Vector3d& g, Eigen::Vector3d& bg,
                                Eigen::Vector3d& ba) {
   if (is_initialized_) {
-    Frame* f = sliding_window_->get_frame(this->window_size_ - 1);
+    Frame* f = sliding_window_->get_frame(this->config_->init_map_frames() - 1);
     MotionState m = f->motion;
     g = m.v;
     bg = m.bg;

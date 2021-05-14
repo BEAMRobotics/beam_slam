@@ -14,7 +14,6 @@
 // libbeam
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/tracker/Tracker.h>
-#include <beam_calibration/ConvertCameraModel.h>
 
 namespace beam_models { namespace camera_to_camera {
 
@@ -72,34 +71,34 @@ protected:
 
 private:
   /**
-   * @brief Creates initial variables for the map
+   * @brief Converts ros image message to opencv image
    */
-  std::shared_ptr<fuse_core::Transaction> InitializeMap(ros::Time cur_time);
+  std::shared_ptr<fuse_core::Transaction> initMap(ros::Time cur_time);
 
   /**
    * @brief Converts ros image message to opencv image
    */
-  cv::Mat ExtractImage(const sensor_msgs::Image& msg);
+  cv::Mat extractImage(const sensor_msgs::Image& msg);
 
   /**
    * @brief Helper function to add constraints for already existing landmarks
    * @param track feature track of current image
    */
   fuse_variables::Orientation3DStamped::SharedPtr
-      GetCameraOrientation(const ros::Time& stamp);
+      getCameraOrientation(const ros::Time& stamp);
 
   /**
    * @brief Helper function to add constraints for already existing landmarks
    * @param track feature track of current image
    */
   fuse_variables::Position3DStamped::SharedPtr
-      GetCameraPosition(const ros::Time& stamp);
+      getCameraPosition(const ros::Time& stamp);
 
   /**
    * @brief Helper function to add constraints for already existing landmarks
    * @param track feature track of current image
    */
-  fuse_variables::Position3D::SharedPtr GetLandmark(uint64_t landmark_id);
+  fuse_variables::Position3D::SharedPtr getLandmark(uint64_t landmark_id);
 
 protected:
   int img_num_ = 0;
@@ -127,4 +126,5 @@ protected:
   ros::Time cur_kf_time_;
   std::string source_ = "VO";
 };
+
 }} // namespace beam_models::camera_to_camera
