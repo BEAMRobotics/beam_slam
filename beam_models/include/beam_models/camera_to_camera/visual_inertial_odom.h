@@ -7,13 +7,14 @@
 // beam_slam
 #include <beam_constraints/camera_to_camera/visual_constraint.h>
 #include <beam_models/camera_to_camera/vio_initializer.h>
-#include <beam_parameters/models/camera_params.h>
+#include <beam_parameters/models/vio_params.h>
 #include <beam_variables/position_3d.h>
 // fuse
 #include <fuse_core/async_sensor_model.h>
 // libbeam
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/tracker/Tracker.h>
+#include <beam_calibration/ConvertCameraModel.h>
 
 namespace beam_models { namespace camera_to_camera {
 
@@ -101,8 +102,9 @@ private:
   fuse_variables::Position3D::SharedPtr GetLandmark(uint64_t landmark_id);
 
 protected:
+  int img_num_ = 0;
   // loadable camera parameters
-  beam_parameters::models::CameraParams params_;
+  beam_parameters::models::VIOParams params_;
   // topic subscribers and buffers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;

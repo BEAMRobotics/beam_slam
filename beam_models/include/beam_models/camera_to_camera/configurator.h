@@ -64,7 +64,13 @@ public:
 
   Eigen::Matrix3d imu_accel_random_walk() const { return accl_random_walk; }
 
-  size_t init_map_frames() const { return 8; }
+  size_t init_map_frames() const { return 16; }
+
+  size_t min_raw_matches() const { return 50; }
+
+  double min_raw_parallax() const { return 10; }
+
+  size_t min_raw_triangulation() const { return 20; }
 
 private:
   Eigen::Matrix3d K;

@@ -27,9 +27,9 @@ public:
   /**
    * @brief Custom Constructor
    */
-  VIOInitializer(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+  VIOInitializer(std::shared_ptr<beam_calibration::CameraModel> input_cam_model,
                  Eigen::Matrix4d T_body_cam, Eigen::Matrix4d T_body_imu,
-                 Eigen::Vector4d imu_intrinsics);
+                 Eigen::Vector4d imu_intrinsics, double rectify_scale = 1.0);
 
   /**
    * @brief Adds an image to the initializer, returns pass or fail
@@ -86,6 +86,9 @@ protected:
 
   std::unordered_map<double, Eigen::Matrix4d> tracker_poses_;
   std::queue<ros::Time> frame_time_queue_;
+
+  double resize_scale_;
+  double rectify_scale_;
 };
 
 }} // namespace beam_models::camera_to_camera

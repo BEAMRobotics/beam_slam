@@ -234,6 +234,12 @@ public:
     image = rectifier->ConvertImage<uchar>(image);
   }
 
+  void resize(double scale) {
+    cv::Mat outImg;
+    cv::resize(image, outImg, cv::Size(), scale, scale, cv::INTER_LINEAR);
+    image = outImg;
+  }
+
   cv::Mat image;
 
 private:

@@ -3,32 +3,44 @@
 namespace beam_models { namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
-    std::shared_ptr<beam_calibration::CameraModel> cam_model,
+    std::shared_ptr<beam_calibration::CameraModel> input_cam_model,
     Eigen::Matrix4d T_body_cam, Eigen::Matrix4d T_body_imu,
-    Eigen::Vector4d imu_intrinsics) {
-  this->cam_model_ = cam_model;
+    Eigen::Vector4d imu_intrinsics, double rectify_scale) {
+  this->rectify_scale_ = rectify_scale;
+  this->resize_scale_ = 1 / this->rectify_scale_;
+  // deep copy camera model and update intrinscis to account for rectification
+  this->cam_model_ = input_cam_model->Clone();
+  // Eigen::VectorXd intrinsics = this->cam_model_->GetIntrinsics();
+  // intrinsics[0] = intrinsics[0] * this->resize_scale_;
+  // intrinsics[1] = intrinsics[1] * this->resize_scale_;
+  // intrinsics[2] = cam_model_->GetWidth() / 2;
+  // intrinsics[3] = cam_model_->GetHeight() / 2;
+  // this->cam_model_->SetIntrinsics(intrinsics);
+  // create config
   this->config_ = std::make_shared<beam_models::camera_to_camera::CameraConfig>(
-      cam_model, T_body_cam, T_body_imu, imu_intrinsics);
+      this->cam_model_, T_body_cam, T_body_imu, imu_intrinsics);
   this->window_size_ = this->config_->init_map_frames();
   this->is_initialized_ = false;
   this->img_num_ = 0;
   // create image rectifier
-  Eigen::Vector2i image_size;
-  image_size << cam_model->GetHeight(), cam_model->GetWidth();
+  Eigen::Vector2i image_size_in;
+  image_size_in << this->cam_model_->GetHeight(), this->cam_model_->GetWidth();
+  Eigen::Vector2i image_size_out;
+  image_size_out << this->rectify_scale_ * this->cam_model_->GetHeight(),
+      this->rectify_scale_ * this->cam_model_->GetWidth();
   this->rectifier_ = std::make_shared<beam_calibration::UndistortImages>(
-      cam_model, image_size, image_size);
+      input_cam_model, image_size_in, image_size_in);
   // create initializer
-  this->initializer_ = std::make_unique<VigInitializer>(config_);
+  this->initializer_ = std::make_unique<VigInitializer>(this->config_);
   this->pending_frame_ = this->CreateFrame();
 }
 
 bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
   std::shared_ptr<OpenCvImage> img = std::make_shared<OpenCvImage>(cur_img);
   img->correct_distortion(rectifier_);
-  if (img_num_ == 0) { cv::imwrite("/home/jake/im.jpg", img->image); }
+  if (this->resize_scale_ != 1.0) { img->resize(this->resize_scale_); }
   img->t = cur_time.toSec();
   pending_frame_->image = img;
-
   initializer_->append_frame(std::move(this->pending_frame_));
   this->frame_time_queue_.push(cur_time);
   img_num_++;
