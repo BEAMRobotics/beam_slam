@@ -31,7 +31,8 @@ find_package(
     beam_slam_common
 		beam_variables
     cv_bridge
-    slamtools)
+    slamtools
+    basalt)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -65,6 +66,7 @@ catkin_package(
 		beam_variables
     cv_bridge
     slamtools
+    basalt
   DEPENDS
     Boost
     CERES
@@ -136,6 +138,7 @@ target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_tests
 
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
+  find_package(basalt REQUIRED)
 
   # Lint tests
   roslint_add_test()

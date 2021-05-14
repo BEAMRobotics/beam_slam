@@ -34,27 +34,27 @@ TEST(ImuPreintegration, ZeroNoiseZeroBias) {
   // generate random ground truth trajectory of imu using splines
   int num_knots = 15;               // number of knots in spline curve
   double start_time_ns = 0;        // set start time to 0 seconds
-  double time_interval_ns = 10e9;  // 10 seconds btw each knot
-  double time_duration = 20e9;  // relative duration of simulation from start
+  double time_interval_ns = 1e9;  // 10 seconds btw each knot
+  double time_duration = 2e9;  // relative duration of simulation from start
   double time_simulation_ns =
       start_time_ns + time_duration;  // absolute time of simulation
 
-  // generate spline curve of any order.
+  // generate spline curve of second order.
   basalt::Se3Spline<5> gt_spline(time_interval_ns, start_time_ns);
   gt_spline.genRandomTrajectory(num_knots);
 
   // from ground truth spline curve, get pose and derivative relationships
   // necessary to create synthetic imu measurements with zero noise and zero
   // bias
-  double dt_ns = 1e5;  // assume data at 100 Hz
+  double dt_ns = 1e6;  // assume data at 100 Hz
   static const Eigen::Vector3d gravity(0, 0, -GRAVITY);
   for (double t_ns = start_time_ns; t_ns < time_simulation_ns + dt_ns;
        t_ns += dt_ns) {
     // get rotational velocity and linear acceleration at sample rate
-    Sophus::SE3d pose = gt_spline.pose(t_ns);
-    Eigen::Vector3d rot_vel_body = gt_spline.rotVelBody(t_ns);
+    Sophus::SE3d pose = gt_spline.pose(t_ns + dt_ns/2);
+    Eigen::Vector3d rot_vel_body = gt_spline.rotVelBody(t_ns + dt_ns/2);
     Eigen::Vector3d accel_body =
-        pose.so3().inverse() * (gt_spline.transAccelWorld(t_ns) - gravity);
+        pose.so3().inverse() * (gt_spline.transAccelWorld(t_ns + dt_ns/2) - gravity);
 
     // populate imu data type with synthetic readings
     ImuPreintegration::ImuData imu_data;
