@@ -25,28 +25,23 @@ void ImuPreintegration::PopulateBuffer(const ImuData& imu_data) {
 }
 
 void ImuPreintegration::SetStart(
+    const ros::Time& t_start,
     fuse_variables::Orientation3DStamped::SharedPtr orientation,
     fuse_variables::Position3DStamped::SharedPtr position,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
-  if (orientation->stamp() != position->stamp() ||
-      orientation->stamp() != velocity->stamp() ||
-      position->stamp() != velocity->stamp()) {
-    ROS_FATAL_STREAM(
-        "Fuse variables must share a common time stamp "
-        "When initializing source ["
-        << params_.source << "]");
-  }
+  std::string msg =
+      "Requested start time falls outside the buffer of imu measurements.";
 
-  ros::Time t_start = orientation->stamp();
+  if (t_start.toSec() < imu_data_buffer_.front().t) {
+    ROS_FATAL_STREAM(msg);
+  }
 
   if (t_start.toSec() > imu_data_buffer_.front().t) {
     int counter = 0;
     while (t_start.toSec() > imu_data_buffer_.at(counter).t) {
       ++counter;
       if (counter == imu_data_buffer_.size()) {
-        ROS_FATAL_STREAM(
-            "Requested start time falls outside the buffer of imu "
-            "measurements.");
+        ROS_FATAL_STREAM(msg);
         break;
       }
     }
@@ -54,16 +49,27 @@ void ImuPreintegration::SetStart(
     imu_data_buffer_.erase(imu_data_buffer_.begin(),
                            imu_data_buffer_.begin() + counter);
   }
-  ROS_INFO_STREAM("ImuPreintegration::SetStart");
-  ROS_INFO_STREAM("imu buffer start time: " << imu_data_buffer_.front().t
-                                            << " sec");
-  ROS_INFO_STREAM("imu buffer end time: " << imu_data_buffer_.back().t
-                                          << " sec");
 
   imu_state_i_.InstantiateFuseVariables(t_start);
-  imu_state_i_.SetOrientation(orientation->data());
-  imu_state_i_.SetPosition(position->data());
-  imu_state_i_.SetVelocity(velocity->data());
+
+  if (orientation == nullptr) {
+    imu_state_i_.SetOrientation(1, 0, 0, 0);
+  } else {
+    imu_state_i_.SetOrientation(orientation->data());
+  }
+
+  if (position == nullptr) {
+    imu_state_i_.SetPosition(0, 0, 0);
+  } else {
+    imu_state_i_.SetPosition(position->data());
+  }
+
+  if (velocity == nullptr) {
+    imu_state_i_.SetVelocity(0, 0, 0);
+  } else {
+    imu_state_i_.SetVelocity(velocity->data());
+  }
+
   imu_state_i_.SetBiasGyroscope(bg_);
   imu_state_i_.SetBiasAcceleration(ba_);
 }
@@ -92,12 +98,6 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     fuse_variables::Orientation3DStamped::SharedPtr orientation,
     fuse_variables::Position3DStamped::SharedPtr position) {
   ros::Time t_now = orientation->stamp();
-  ROS_INFO_STREAM(
-      "beam_constraints::frame_to_frame::ImuState3DStampedTransaction");
-  ROS_INFO_STREAM("imu buffer end time: " << imu_data_buffer_.back().t
-                                          << " sec");
-  ROS_INFO_STREAM("Requested end time of window: " << t_now << " sec");
-
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 
@@ -222,4 +222,4 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   return transaction;
 }
 
-}}  // namespace beam_models::frame_to_frame
+}}  // namespace beam_modelsframe_to_frame

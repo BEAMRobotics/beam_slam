@@ -14,7 +14,7 @@ using TransactionBase =
         ConstraintType, PriorType>;
 
 class ImuPreintegration {
-public:
+ public:
   struct Params {
     double gravitational_acceleration{9.80665};
     double prior_noise{1e-9};
@@ -56,13 +56,15 @@ public:
 
   void PopulateBuffer(const ImuData& imu_data);
 
-  void SetStart(fuse_variables::Orientation3DStamped::SharedPtr orientation,
-                fuse_variables::Position3DStamped::SharedPtr position,
-                fuse_variables::VelocityLinear3DStamped::SharedPtr velocity);
+  void SetStart(
+      const ros::Time& t_start,
+      fuse_variables::Orientation3DStamped::SharedPtr orientation = nullptr,
+      fuse_variables::Position3DStamped::SharedPtr position = nullptr,
+      fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
 
   ImuState GetImuState() const { return imu_state_i_; }
 
-  ImuState PredictState(const PreIntegrator& pre_integrator, 
+  ImuState PredictState(const PreIntegrator& pre_integrator,
                         const ImuState& imu_state);
 
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
@@ -70,9 +72,9 @@ public:
       fuse_variables::Orientation3DStamped::SharedPtr orientation,
       fuse_variables::Position3DStamped::SharedPtr position);
 
-private:
+ private:
   Params params_;
-  Eigen::Vector3d g_; 
+  Eigen::Vector3d g_;
   bool first_window_{true};
 
   ImuState imu_state_i_;
@@ -81,4 +83,4 @@ private:
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};
 };
 
-}}  // namespace beam_models::frame_to_frame
+}}  // namespace beam_models::frame_to_frame 
