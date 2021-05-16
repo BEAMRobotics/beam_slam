@@ -69,8 +69,9 @@ class ImuPreintegration {
 
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   RegisterNewImuPreintegratedFactor(
-      fuse_variables::Orientation3DStamped::SharedPtr orientation,
-      fuse_variables::Position3DStamped::SharedPtr position);
+      const ros::Time& t_now,
+      fuse_variables::Orientation3DStamped::SharedPtr orientation = nullptr,
+      fuse_variables::Position3DStamped::SharedPtr position = nullptr);
 
  private:
   Params params_;

@@ -95,23 +95,12 @@ ImuState ImuPreintegration::PredictState(const PreIntegrator& pre_integrator,
 
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
 ImuPreintegration::RegisterNewImuPreintegratedFactor(
+    const ros::Time& t_now,
     fuse_variables::Orientation3DStamped::SharedPtr orientation,
     fuse_variables::Position3DStamped::SharedPtr position) {
-  ros::Time t_now = orientation->stamp();
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 
-  // ensure consistant time stamps
-  if (orientation->stamp() != position->stamp()) {
-    ROS_ERROR_STREAM(
-        "Fuse variables must share a common time stamp when generating a "
-        "transaction for source ["
-        << params_.source << "] No transaction has been generated.");
-    return transaction;
-  }
-
-  // get iterator to first time stamp greater than or equalt to desired time
-  // stamp. This points to the end of the window
   auto it_after =
       std::find_if(imu_data_buffer_.begin(), imu_data_buffer_.end(),
                    [&t_now](const ImuPreintegration::ImuData& data) {
@@ -167,36 +156,21 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
                                  imu_data_buffer_.begin(), it_after);
   pre_integrator_ij->integrate(t_now.toSec(), imu_state_i_.BiasGyroscopeVec(),
                                imu_state_i_.BiasAccelerationVec(), true, true);
-  ROS_INFO_STREAM("start time of preintegration window: "
-                  << pre_integrator_ij->data.front().t << " sec");
-  ROS_INFO_STREAM("end time of preintegration window: "
-                  << pre_integrator_ij->data.back().t << " sec");
 
   // clear buffer of measurements passed to preintegrator class
   imu_data_buffer_.erase(imu_data_buffer_.begin(), it_after);
-  ROS_INFO_STREAM("preintegrated imu measurements cleared from imu buffer");
-  ROS_INFO_STREAM("new start time of imu buffer: " << imu_data_buffer_.front().t
-                                                   << " sec");
 
   // predict state at end of window using integrated imu measurements
   ImuState imu_state_j = PredictState(*pre_integrator_ij, imu_state_i_);
 
-  ROS_INFO_STREAM("calculated motion deltas");
-  ROS_INFO_STREAM("  t: " << pre_integrator_ij->delta.t);
-  ROS_INFO_STREAM("  orientation.w: " << pre_integrator_ij->delta.q.w());
-  ROS_INFO_STREAM("  orientation.x: " << pre_integrator_ij->delta.q.x());
-  ROS_INFO_STREAM("  orientation.y: " << pre_integrator_ij->delta.q.y());
-  ROS_INFO_STREAM("  orientation.z: " << pre_integrator_ij->delta.q.z());
-  ROS_INFO_STREAM("  position.x: " << pre_integrator_ij->delta.p[0]);
-  ROS_INFO_STREAM("  position.y: " << pre_integrator_ij->delta.p[1]);
-  ROS_INFO_STREAM("  position.z: " << pre_integrator_ij->delta.p[2]);
-  ROS_INFO_STREAM("  velocity.x: " << pre_integrator_ij->delta.v[0]);
-  ROS_INFO_STREAM("  velocity.y: " << pre_integrator_ij->delta.v[1]);
-  ROS_INFO_STREAM("  velocity.z: " << pre_integrator_ij->delta.v[2]);
-
   // update orientation and position of predicted imu state with arguments
-  // imu_state_j.SetOrientation(orientation->data()); <------ MAKE SURE TO
-  // HANDLE NULLPTR imu_state_j.SetPosition(position->data());
+  if (orientation != nullptr) {
+    imu_state_j.SetOrientation(orientation->data());
+  }
+
+  if (position != nullptr) {
+    imu_state_j.SetPosition(position->data());
+  }
 
   // containerize state change as determined by preintegrator class
   Eigen::Matrix<double, 16, 1> delta_ij;
