@@ -52,22 +52,22 @@ void ImuPreintegration::SetStart(
 
   imu_state_i_.InstantiateFuseVariables(t_start);
 
-  if (orientation == nullptr) {
-    imu_state_i_.SetOrientation(1, 0, 0, 0);
-  } else {
+  if (orientation != nullptr) {
     imu_state_i_.SetOrientation(orientation->data());
+  } else {
+    imu_state_i_.SetOrientation(1, 0, 0, 0);
   }
 
-  if (position == nullptr) {
-    imu_state_i_.SetPosition(0, 0, 0);
-  } else {
+  if (position != nullptr) {
     imu_state_i_.SetPosition(position->data());
+  } else {
+    imu_state_i_.SetPosition(0, 0, 0);
   }
 
-  if (velocity == nullptr) {
-    imu_state_i_.SetVelocity(0, 0, 0);
-  } else {
+  if (velocity != nullptr) {
     imu_state_i_.SetVelocity(velocity->data());
+  } else {
+    imu_state_i_.SetVelocity(0, 0, 0);
   }
 
   imu_state_i_.SetBiasGyroscope(bg_);
@@ -77,18 +77,20 @@ void ImuPreintegration::SetStart(
 ImuState ImuPreintegration::PredictState(const PreIntegrator& pre_integrator,
                                          const ImuState& imu_state) {
   double delta_t = pre_integrator.delta.t;
-  Eigen::Matrix3d R_i = imu_state.OrientationQuat().toRotationMatrix();
-  Eigen::Matrix3d R_j = R_i * pre_integrator.delta.q.matrix();
-  Eigen::Vector3d V_j =
-      imu_state.VelocityVec() + g_ * delta_t + R_i * pre_integrator.delta.v;
-  Eigen::Vector3d P_j =
+  Eigen::Matrix3d start_orientation =
+      imu_state.OrientationQuat().toRotationMatrix();
+  Eigen::Matrix3d end_orientation =
+      start_orientation * pre_integrator.delta.q.matrix();
+  Eigen::Vector3d end_velocity = imu_state.VelocityVec() + g_ * delta_t +
+                                 start_orientation * pre_integrator.delta.v;
+  Eigen::Vector3d end_position =
       imu_state.PositionVec() + imu_state.VelocityVec() * delta_t +
-      0.5 * g_ * delta_t * delta_t + R_i * pre_integrator.delta.p;
+      0.5 * g_ * delta_t * delta_t + start_orientation * pre_integrator.delta.p;
 
-  Eigen::Quaterniond R_j_quat(R_j);
+  Eigen::Quaterniond end_orientation_quat(end_orientation);
   ros::Time t_new = imu_state.Stamp() + ros::Duration(delta_t);
-  ImuState new_imu_state(t_new, R_j_quat, P_j, V_j,
-                         imu_state.BiasGyroscopeVec(),
+  ImuState new_imu_state(t_new, end_orientation_quat, end_position,
+                         end_velocity, imu_state.BiasGyroscopeVec(),
                          imu_state.BiasAccelerationVec());
   return new_imu_state;
 }
@@ -196,4 +198,4 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   return transaction;
 }
 
-}}  // namespace beam_modelsframe_to_frame
+}}  // namespace beam_models::frame_to_frame
