@@ -17,7 +17,8 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 
-#include <beam_variables/imu_bias_stamped.h>
+#include <beam_variables/imu_bias_gyro_3d_stamped.h>
+#include <beam_variables/imu_bias_accel_3d_stamped.h>
 #include <slamtools/preintegrator.h>
 
 namespace beam_constraints { namespace frame_to_frame {
@@ -40,13 +41,13 @@ public:
       const fuse_variables::Orientation3DStamped& orientation1,
       const fuse_variables::Position3DStamped& position1,
       const fuse_variables::VelocityLinear3DStamped& velocity1,
-      const beam_variables::ImuBiasStamped& gyrobias1,
-      const beam_variables::ImuBiasStamped& accelbias1,
+      const beam_variables::ImuBiasGyro3DStamped& gyrobias1,
+      const beam_variables::ImuBiasAccel3DStamped& accelbias1,
       const fuse_variables::Orientation3DStamped& orientation2,
       const fuse_variables::Position3DStamped& position2,
       const fuse_variables::VelocityLinear3DStamped& velocity2,
-      const beam_variables::ImuBiasStamped& gyrobias2,
-      const beam_variables::ImuBiasStamped& accelbias2,
+      const beam_variables::ImuBiasGyro3DStamped& gyrobias2,
+      const beam_variables::ImuBiasAccel3DStamped& accelbias2,
       const Eigen::Matrix<double, 16, 1>& delta,
       const Eigen::Matrix<double, 15, 15>& covariance,
       const std::shared_ptr<PreIntegrator> pre_integrator = nullptr);

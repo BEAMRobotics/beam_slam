@@ -17,7 +17,8 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 
-#include <beam_variables/imu_bias_stamped.h>
+#include <beam_variables/imu_bias_gyro_3d_stamped.h>
+#include <beam_variables/imu_bias_accel_3d_stamped.h>
 
 namespace beam_constraints { namespace global {
 
@@ -39,8 +40,8 @@ public:
       const fuse_variables::Orientation3DStamped& orientation,
       const fuse_variables::Position3DStamped& position,
       const fuse_variables::VelocityLinear3DStamped& velocity, 
-      const beam_variables::ImuBiasStamped& gyrobias,
-      const beam_variables::ImuBiasStamped& accelbias,
+      const beam_variables::ImuBiasGyro3DStamped& gyrobias,
+      const beam_variables::ImuBiasAccel3DStamped& accelbias,
       const Eigen::Matrix<double, 16, 1>& mean,
       const Eigen::Matrix<double, 15, 15>& covariance);
 

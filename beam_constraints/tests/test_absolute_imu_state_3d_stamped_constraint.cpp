@@ -23,9 +23,9 @@ public:
         ros::Time(1234, 5678), device_id);        
     velocity1 = fuse_variables::VelocityLinear3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
-    gyrobias1 = beam_variables::ImuBiasStamped::make_shared(
+    gyrobias1 = beam_variables::ImuBiasGyro3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
-    accelbias1 = beam_variables::ImuBiasStamped::make_shared(
+    accelbias1 = beam_variables::ImuBiasAccel3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
 
     mean << 1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 0.1, 0.2, 0.3,
@@ -60,8 +60,8 @@ public:
   fuse_variables::Orientation3DStamped::SharedPtr orientation1;
   fuse_variables::Position3DStamped::SharedPtr position1;
   fuse_variables::VelocityLinear3DStamped::SharedPtr velocity1;
-  beam_variables::ImuBiasStamped::SharedPtr gyrobias1;
-  beam_variables::ImuBiasStamped::SharedPtr accelbias1;
+  beam_variables::ImuBiasGyro3DStamped::SharedPtr gyrobias1;
+  beam_variables::ImuBiasAccel3DStamped::SharedPtr accelbias1;
 
   Eigen::Matrix<double, 16, 1> mean;
   Eigen::Matrix<double, 15, 15> cov;
@@ -115,13 +115,13 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
   velocity_variable->y() = -3.0;
   velocity_variable->z() = 10.0;
 
-  auto gyroscope_bias_variable = beam_variables::ImuBiasStamped::make_shared(
+  auto gyroscope_bias_variable = beam_variables::ImuBiasGyro3DStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   gyroscope_bias_variable->x() = 0.15;
   gyroscope_bias_variable->y() = -0.30;
   gyroscope_bias_variable->z() = 1.0;
 
-  auto acceleration_bias_variable = beam_variables::ImuBiasStamped::make_shared(
+  auto acceleration_bias_variable = beam_variables::ImuBiasAccel3DStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   acceleration_bias_variable->x() = 0.15;
   acceleration_bias_variable->y() = -0.30;

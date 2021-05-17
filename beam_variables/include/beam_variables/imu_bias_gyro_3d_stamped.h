@@ -15,13 +15,13 @@
 namespace beam_variables {
 
 /**
- * @brief Variable representing IMU bias (Bx, By, Bz) at a specific time and for
- * a specific piece of hardware (e.g., robot)
+ * @brief Variable representing IMU gyroscopic bias (Bgx, Bgy, Bgz) at a
+ * specific time and for a specific piece of hardware (e.g., robot)
  */
-class ImuBiasStamped : public fuse_variables::FixedSizeVariable<3>,
-                       public fuse_variables::Stamped {
+class ImuBiasGyro3DStamped : public fuse_variables::FixedSizeVariable<3>,
+                             public fuse_variables::Stamped {
 public:
-  FUSE_VARIABLE_DEFINITIONS(ImuBiasStamped);
+  FUSE_VARIABLE_DEFINITIONS(ImuBiasGyro3DStamped);
 
   /**
    * @brief Can be used to directly index variables in the data array
@@ -31,7 +31,7 @@ public:
   /**
    * @brief Default constructor
    */
-  ImuBiasStamped() = default;
+  ImuBiasGyro3DStamped() = default;
 
   /**
    * @brief Construct an IMU bias at a specific point in time.
@@ -40,7 +40,7 @@ public:
    * @param[in] device_id An optional device id, for use when variables
    * originate from multiple robots or devices
    */
-  explicit ImuBiasStamped(
+  explicit ImuBiasGyro3DStamped(
       const ros::Time& stamp,
       const fuse_core::UUID& device_id = fuse_core::uuid::NIL);
 
@@ -104,4 +104,4 @@ private:
 
 }  // namespace beam_variables
 
-BOOST_CLASS_EXPORT_KEY(beam_variables::ImuBiasStamped);
+BOOST_CLASS_EXPORT_KEY(beam_variables::ImuBiasGyro3DStamped);

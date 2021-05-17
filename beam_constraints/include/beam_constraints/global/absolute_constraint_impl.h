@@ -2,7 +2,8 @@
 
 #include <ceres/normal_prior.h>
 
-#include <beam_variables/imu_bias_stamped.h>
+#include <beam_variables/imu_bias_gyro_3d_stamped.h>
+#include <beam_variables/imu_bias_accel_3d_stamped.h>
 
 namespace beam_constraints { namespace global {
 
@@ -106,8 +107,16 @@ inline std::string
 
 template <>
 inline std::string
-    AbsoluteConstraint3D<beam_variables::ImuBiasStamped>::type()
+    AbsoluteConstraint3D<beam_variables::ImuBiasGyro3DStamped>::type()
         const {
-  return "fuse_constraints::AbsoluteImuBias3DStampedConstraint";
+  return "fuse_constraints::AbsoluteImuBiasGyro3DStampedConstraint";
 }
+
+template <>
+inline std::string
+    AbsoluteConstraint3D<beam_variables::ImuBiasAccel3DStamped>::type()
+        const {
+  return "fuse_constraints::AbsoluteImuBiasAccel3DStampedConstraint";
+}
+
 }} // namespace beam_constraints::global

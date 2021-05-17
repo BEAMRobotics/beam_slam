@@ -5,7 +5,8 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 
-#include <beam_variables/imu_bias_stamped.h>
+#include <beam_variables/imu_bias_gyro_3d_stamped.h>
+#include <beam_variables/imu_bias_accel_3d_stamped.h>
 
 namespace beam_models { namespace frame_to_frame {
 
@@ -50,9 +51,9 @@ public:
           graph_msg->getVariable(position_.uuid()));       
       velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
           graph_msg->getVariable(velocity_.uuid()));     
-      bias_gyroscope_ = dynamic_cast<const beam_variables::ImuBiasStamped&>(
+      bias_gyroscope_ = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
           graph_msg->getVariable(bias_gyroscope_.uuid()));
-      bias_acceleration_ = dynamic_cast<const beam_variables::ImuBiasStamped&>(
+      bias_acceleration_ = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
           graph_msg->getVariable(bias_acceleration_.uuid()));
       updates_++;
       return true;
@@ -62,14 +63,14 @@ public:
 
   void InstantiateFuseVariables() {
     orientation_ =
-        fuse_variables::Orientation3DStamped(stamp_, fuse_core::uuid::NIL);
+        fuse_variables::Orientation3DStamped(stamp_, fuse_core::uuid::NIL);  
     position_ = fuse_variables::Position3DStamped(stamp_, fuse_core::uuid::NIL);        
     velocity_ =
         fuse_variables::VelocityLinear3DStamped(stamp_, fuse_core::uuid::NIL); 
     bias_gyroscope_ =
-        beam_variables::ImuBiasStamped(stamp_, fuse_core::uuid::NIL);                  
+        beam_variables::ImuBiasGyro3DStamped(stamp_, fuse_core::uuid::NIL);                  
     bias_acceleration_ =
-        beam_variables::ImuBiasStamped(stamp_, fuse_core::uuid::NIL);
+        beam_variables::ImuBiasAccel3DStamped(stamp_, fuse_core::uuid::NIL);
   }
 
   void InstantiateFuseVariables(const ros::Time& time) {
@@ -105,7 +106,7 @@ public:
     return v; 
   }
 
-  beam_variables::ImuBiasStamped BiasGyroscope() const {
+  beam_variables::ImuBiasGyro3DStamped BiasGyroscope() const {
     return bias_gyroscope_;
   }
 
@@ -115,7 +116,7 @@ public:
     return bg; 
   }
 
-  beam_variables::ImuBiasStamped BiasAcceleration() const {
+  beam_variables::ImuBiasAccel3DStamped BiasAcceleration() const {
     return bias_acceleration_;
   }
 
@@ -253,8 +254,8 @@ private:
   fuse_variables::Orientation3DStamped orientation_;
   fuse_variables::Position3DStamped position_;
   fuse_variables::VelocityLinear3DStamped velocity_;
-  beam_variables::ImuBiasStamped bias_gyroscope_;
-  beam_variables::ImuBiasStamped bias_acceleration_;
+  beam_variables::ImuBiasGyro3DStamped bias_gyroscope_;
+  beam_variables::ImuBiasAccel3DStamped bias_acceleration_;
 };
 
 }}  // namespace beam_models::frame_to_frame
