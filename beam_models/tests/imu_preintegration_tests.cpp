@@ -15,7 +15,7 @@ using namespace beam_constraints::global;
 static const double GRAVITY = 9.81;
 static const Eigen::Vector3d GRAVITY_VEC(0, 0, -GRAVITY);
 
-void CalculateRelativeMotion(const ImuState& I1, const ImuState& I2,
+void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
                              const Eigen::Vector3d& gravity,
                              Eigen::Quaterniond& delta_q,
                              Eigen::Vector3d& delta_p,
@@ -24,15 +24,15 @@ void CalculateRelativeMotion(const ImuState& I1, const ImuState& I2,
   delta_p.setZero();
   delta_v.setZero();
 
-  double delta_t = ros::Duration(I2.Stamp() - I1.Stamp()).toSec();
+  double delta_t = ros::Duration(IS2.Stamp() - IS1.Stamp()).toSec();
   Eigen::Matrix3d q1RotTrans =
-      I1.OrientationQuat().toRotationMatrix().transpose();
-  delta_q = q1RotTrans * I2.OrientationQuat().toRotationMatrix();
+      IS1.OrientationQuat().toRotationMatrix().transpose();
+  delta_q = q1RotTrans * IS2.OrientationQuat().toRotationMatrix();
   delta_v =
-      q1RotTrans * (I2.VelocityVec() - I1.VelocityVec() - gravity * delta_t);
+      q1RotTrans * (IS2.VelocityVec() - IS1.VelocityVec() - gravity * delta_t);
   delta_p = q1RotTrans *
-            (I2.PositionVec() - I1.PositionVec() - I1.VelocityVec() * delta_t -
-             0.5 * gravity * delta_t * delta_t);
+            (IS2.PositionVec() - IS1.PositionVec() -
+             IS1.VelocityVec() * delta_t - 0.5 * gravity * delta_t * delta_t);
 }
 
 RelativeImuState3DStampedConstraint::SharedPtr CreateConstraint(
@@ -135,10 +135,142 @@ std::vector<fuse_core::UUID> AddVariables(
   return uuids;
 }
 
+TEST(ImuPreintegration, ImuState) {
+  // create arbitrary state values
+  Eigen::Quaterniond q_quat{Eigen::Quaterniond::UnitRandom()};
+  Eigen::Vector3d p_vec{1, 2, 3};
+  Eigen::Vector3d v_vec{0.1, 0.2, 0.3};
+  Eigen::Vector3d bg_vec{0.001, 0.002, 0.003};
+  Eigen::Vector3d ba_vec{0.0001, 0.0002, 0.0003};
+
+  // instantiate class
+  ImuState IS1(ros::Time(0), q_quat, p_vec, v_vec, bg_vec, ba_vec);
+
+  // check fuse/beam variables getters
+  EXPECT_EQ(IS1.Stamp(), ros::Time(0));
+  EXPECT_EQ(IS1.Orientation().data()[0], q_quat.w());
+  EXPECT_EQ(IS1.Orientation().data()[1], q_quat.x());
+  EXPECT_EQ(IS1.Orientation().data()[2], q_quat.y());
+  EXPECT_EQ(IS1.Orientation().data()[3], q_quat.z());
+  EXPECT_EQ(IS1.Position().data()[0], p_vec[0]);
+  EXPECT_EQ(IS1.Position().data()[1], p_vec[1]);
+  EXPECT_EQ(IS1.Position().data()[2], p_vec[2]);
+  EXPECT_EQ(IS1.Velocity().data()[0], v_vec[0]);
+  EXPECT_EQ(IS1.Velocity().data()[1], v_vec[1]);
+  EXPECT_EQ(IS1.Velocity().data()[2], v_vec[2]); 
+  EXPECT_EQ(IS1.BiasGyroscope().data()[0], bg_vec[0]);
+  EXPECT_EQ(IS1.BiasGyroscope().data()[1], bg_vec[1]);
+  EXPECT_EQ(IS1.BiasGyroscope().data()[2], bg_vec[2]);
+  EXPECT_EQ(IS1.BiasAcceleration().data()[0], ba_vec[0]);
+  EXPECT_EQ(IS1.BiasAcceleration().data()[1], ba_vec[1]);
+  EXPECT_EQ(IS1.BiasAcceleration().data()[2], ba_vec[2]);
+  
+  // check quaternion/vector getters
+  EXPECT_EQ(IS1.OrientationQuat().w(), q_quat.w());
+  EXPECT_EQ(IS1.OrientationQuat().vec(), q_quat.vec());
+  EXPECT_EQ(IS1.PositionVec(), p_vec);
+  EXPECT_EQ(IS1.VelocityVec(), v_vec);
+  EXPECT_EQ(IS1.BiasGyroscopeVec(), bg_vec);
+  EXPECT_EQ(IS1.BiasAccelerationVec(), ba_vec);
+
+  ImuState IS2(ros::Time(1));
+
+  // check default state values
+  EXPECT_EQ(IS2.Stamp(), ros::Time(1));
+  EXPECT_EQ(IS2.Orientation().data()[0], 1);
+  EXPECT_EQ(IS2.Orientation().data()[1], 0);
+  EXPECT_EQ(IS2.Orientation().data()[2], 0);
+  EXPECT_EQ(IS2.Orientation().data()[3], 0);
+  EXPECT_EQ(IS2.Position().data()[0], 0);
+  EXPECT_EQ(IS2.Position().data()[1], 0);
+  EXPECT_EQ(IS2.Position().data()[2], 0);
+  EXPECT_EQ(IS2.Velocity().data()[0], 0);
+  EXPECT_EQ(IS2.Velocity().data()[1], 0);
+  EXPECT_EQ(IS2.Velocity().data()[2], 0); 
+  EXPECT_EQ(IS2.BiasGyroscope().data()[0], 0);
+  EXPECT_EQ(IS2.BiasGyroscope().data()[1], 0);
+  EXPECT_EQ(IS2.BiasGyroscope().data()[2], 0);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[0], 0);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[1], 0);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[2], 0);  
+
+  // check quaternion/vector setters
+  IS2.SetOrientation(q_quat);
+  IS2.SetPosition(p_vec);
+  IS2.SetVelocity(v_vec);
+  IS2.SetBiasGyroscope(bg_vec);
+  IS2.SetBiasAcceleration(ba_vec);
+
+  EXPECT_EQ(IS2.Orientation().data()[0], q_quat.w());
+  EXPECT_EQ(IS2.Orientation().data()[1], q_quat.x());
+  EXPECT_EQ(IS2.Orientation().data()[2], q_quat.y());
+  EXPECT_EQ(IS2.Orientation().data()[3], q_quat.z());
+  EXPECT_EQ(IS2.Position().data()[0], p_vec[0]);
+  EXPECT_EQ(IS2.Position().data()[1], p_vec[1]);
+  EXPECT_EQ(IS2.Position().data()[2], p_vec[2]);
+  EXPECT_EQ(IS2.Velocity().data()[0], v_vec[0]);
+  EXPECT_EQ(IS2.Velocity().data()[1], v_vec[1]);
+  EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]); 
+  EXPECT_EQ(IS2.BiasGyroscope().data()[0], bg_vec[0]);
+  EXPECT_EQ(IS2.BiasGyroscope().data()[1], bg_vec[1]);
+  EXPECT_EQ(IS2.BiasGyroscope().data()[2], bg_vec[2]);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[0], ba_vec[0]);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[1], ba_vec[1]);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[2], ba_vec[2]);
+
+  // check array setters
+  IS2.SetOrientation(IS1.Orientation().data());
+  IS2.SetPosition(IS1.Position().data());
+  IS2.SetVelocity(IS1.Velocity().data());
+  IS2.SetBiasGyroscope(IS1.BiasGyroscope().data());
+  IS2.SetBiasAcceleration(IS1.BiasAcceleration().data());
+
+  EXPECT_EQ(IS2.Orientation().data()[0], q_quat.w());
+  EXPECT_EQ(IS2.Orientation().data()[1], q_quat.x());
+  EXPECT_EQ(IS2.Orientation().data()[2], q_quat.y());
+  EXPECT_EQ(IS2.Orientation().data()[3], q_quat.z());
+  EXPECT_EQ(IS2.Position().data()[0], p_vec[0]);
+  EXPECT_EQ(IS2.Position().data()[1], p_vec[1]);
+  EXPECT_EQ(IS2.Position().data()[2], p_vec[2]);
+  EXPECT_EQ(IS2.Velocity().data()[0], v_vec[0]);
+  EXPECT_EQ(IS2.Velocity().data()[1], v_vec[1]);
+  EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]); 
+  EXPECT_EQ(IS2.BiasGyroscope().data()[0], bg_vec[0]);
+  EXPECT_EQ(IS2.BiasGyroscope().data()[1], bg_vec[1]);
+  EXPECT_EQ(IS2.BiasGyroscope().data()[2], bg_vec[2]);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[0], ba_vec[0]);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[1], ba_vec[1]);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[2], ba_vec[2]);
+
+  // check scalar setters
+  IS2.SetOrientation(q_quat.w(), q_quat.x(), q_quat.y(), q_quat.z());
+  IS2.SetPosition(p_vec[0], p_vec[1], p_vec[2]);
+  IS2.SetVelocity(v_vec[0], v_vec[1], v_vec[2]);
+  IS2.SetBiasGyroscope(bg_vec[0], bg_vec[1], bg_vec[2]);
+  IS2.SetBiasAcceleration(ba_vec[0], ba_vec[1], ba_vec[2]);
+
+  EXPECT_EQ(IS2.Orientation().data()[0], q_quat.w());
+  EXPECT_EQ(IS2.Orientation().data()[1], q_quat.x());
+  EXPECT_EQ(IS2.Orientation().data()[2], q_quat.y());
+  EXPECT_EQ(IS2.Orientation().data()[3], q_quat.z());
+  EXPECT_EQ(IS2.Position().data()[0], p_vec[0]);
+  EXPECT_EQ(IS2.Position().data()[1], p_vec[1]);
+  EXPECT_EQ(IS2.Position().data()[2], p_vec[2]);
+  EXPECT_EQ(IS2.Velocity().data()[0], v_vec[0]);
+  EXPECT_EQ(IS2.Velocity().data()[1], v_vec[1]);
+  EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]); 
+  EXPECT_EQ(IS2.BiasGyroscope().data()[0], bg_vec[0]);
+  EXPECT_EQ(IS2.BiasGyroscope().data()[1], bg_vec[1]);
+  EXPECT_EQ(IS2.BiasGyroscope().data()[2], bg_vec[2]);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[0], ba_vec[0]);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[1], ba_vec[1]);
+  EXPECT_EQ(IS2.BiasAcceleration().data()[2], ba_vec[2]);
+}
+
 TEST(ImuPreintegration, Simple2StateFG) {
   // create two imu states
-  ImuState imu_state_1(ros::Time(0));
-  ImuState imu_state_2(ros::Time(1));
+  ImuState IS1(ros::Time(0));
+  ImuState IS2(ros::Time(1));
 
   double max_pose_rot{20};
   double max_pose_trans{1};
@@ -147,7 +279,7 @@ TEST(ImuPreintegration, Simple2StateFG) {
 
   Eigen::Matrix4d T_WORLD_I1;
   beam::QuaternionAndTranslationToTransformMatrix(
-      imu_state_1.OrientationQuat(), imu_state_1.PositionVec(), T_WORLD_I1);
+      IS1.OrientationQuat(), IS1.PositionVec(), T_WORLD_I1);
 
   Eigen::VectorXd perturb(6);
   perturb << beam::randf(max_pose_rot, -max_pose_rot),
@@ -162,43 +294,37 @@ TEST(ImuPreintegration, Simple2StateFG) {
   Eigen::Vector3d p2_vec;
   beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_I2, q2_quat, p2_vec);
 
-  imu_state_2.SetOrientation(q2_quat);
-  imu_state_2.SetPosition(p2_vec);
-  imu_state_2.SetVelocity(0.1*p2_vec); // scale position to get some velocity
+  IS2.SetOrientation(q2_quat);
+  IS2.SetPosition(p2_vec);
+  IS2.SetVelocity(0.1 * p2_vec);  // scale position to get some velocity
 
   // Create the graph
   fuse_graphs::HashGraph graph;
 
   // Add variables
   fuse_variables::Orientation3DStamped::SharedPtr o1 =
-      fuse_variables::Orientation3DStamped::make_shared(
-          imu_state_1.Orientation());
+      fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
   fuse_variables::Position3DStamped::SharedPtr p1 =
-      fuse_variables::Position3DStamped::make_shared(imu_state_1.Position());
+      fuse_variables::Position3DStamped::make_shared(IS1.Position());
   fuse_variables::VelocityLinear3DStamped::SharedPtr v1 =
-      fuse_variables::VelocityLinear3DStamped::make_shared(
-          imu_state_1.Velocity());
+      fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
   beam_variables::ImuBiasGyro3DStamped::SharedPtr bg1 =
-      beam_variables::ImuBiasGyro3DStamped::make_shared(
-          imu_state_1.BiasGyroscope());
+      beam_variables::ImuBiasGyro3DStamped::make_shared(IS1.BiasGyroscope());
   beam_variables::ImuBiasAccel3DStamped::SharedPtr ba1 =
       beam_variables::ImuBiasAccel3DStamped::make_shared(
-          imu_state_1.BiasAcceleration());
+          IS1.BiasAcceleration());
 
   fuse_variables::Orientation3DStamped::SharedPtr o2 =
-      fuse_variables::Orientation3DStamped::make_shared(
-          imu_state_2.Orientation());
+      fuse_variables::Orientation3DStamped::make_shared(IS2.Orientation());
   fuse_variables::Position3DStamped::SharedPtr p2 =
-      fuse_variables::Position3DStamped::make_shared(imu_state_2.Position());
+      fuse_variables::Position3DStamped::make_shared(IS2.Position());
   fuse_variables::VelocityLinear3DStamped::SharedPtr v2 =
-      fuse_variables::VelocityLinear3DStamped::make_shared(
-          imu_state_2.Velocity());
+      fuse_variables::VelocityLinear3DStamped::make_shared(IS2.Velocity());
   beam_variables::ImuBiasGyro3DStamped::SharedPtr bg2 =
-      beam_variables::ImuBiasGyro3DStamped::make_shared(
-          imu_state_2.BiasGyroscope());
+      beam_variables::ImuBiasGyro3DStamped::make_shared(IS2.BiasGyroscope());
   beam_variables::ImuBiasAccel3DStamped::SharedPtr ba2 =
       beam_variables::ImuBiasAccel3DStamped::make_shared(
-          imu_state_2.BiasAcceleration());
+          IS2.BiasAcceleration());
 
   graph.addVariable(o1);
   graph.addVariable(p1);
@@ -216,7 +342,7 @@ TEST(ImuPreintegration, Simple2StateFG) {
   Eigen::Vector3d delta_p;
   Eigen::Vector3d delta_v;
   Eigen::Vector3d zero_gravity{Eigen::Vector3d::Zero()};
-  CalculateRelativeMotion(imu_state_1, imu_state_2, zero_gravity, delta_q, delta_p, delta_v);
+  CalculateRelativeMotion(IS1, IS2, zero_gravity, delta_q, delta_p, delta_v);
 
   // create delta
   Eigen::Matrix<double, 16, 1> delta;
@@ -235,16 +361,16 @@ TEST(ImuPreintegration, Simple2StateFG) {
   // Optimize the constraints and variables.
   graph.optimize();
   for (int i = 0; i < 4; i++) {
-    EXPECT_TRUE(o1->data()[i] == imu_state_1.Orientation().data()[i]);
-    EXPECT_TRUE(o2->data()[i] == imu_state_2.Orientation().data()[i]);
+    EXPECT_TRUE(o1->data()[i] == IS1.Orientation().data()[i]);
+    EXPECT_TRUE(o2->data()[i] == IS2.Orientation().data()[i]);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_TRUE(p1->data()[i] == imu_state_1.Position().data()[i]);
-    EXPECT_TRUE(p2->data()[i] == imu_state_2.Position().data()[i]);
+    EXPECT_TRUE(p1->data()[i] == IS1.Position().data()[i]);
+    EXPECT_TRUE(p2->data()[i] == IS2.Position().data()[i]);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_TRUE(v1->data()[i] == imu_state_1.Velocity().data()[i]);
-    EXPECT_TRUE(v2->data()[i] == imu_state_2.Velocity().data()[i]);
+    EXPECT_TRUE(v1->data()[i] == IS1.Velocity().data()[i]);
+    EXPECT_TRUE(v2->data()[i] == IS2.Velocity().data()[i]);
   }
 }
 
