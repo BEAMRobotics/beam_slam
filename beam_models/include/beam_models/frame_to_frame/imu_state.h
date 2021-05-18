@@ -27,6 +27,18 @@ public:
 
   ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation, 
            const fuse_core::Vector3d& position,
+           const fuse_core::Vector3d& velocity)
+      : stamp_(time) {
+    InstantiateFuseVariables();
+    SetOrientation(orientation);
+    SetPosition(position);
+    SetVelocity(velocity);
+    SetBiasGyroscope(0, 0, 0);      
+    SetBiasAcceleration(0, 0, 0);
+  }
+
+  ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation, 
+           const fuse_core::Vector3d& position,
            const fuse_core::Vector3d& velocity,
            const fuse_core::Vector3d& bias_gyroscope,
            const fuse_core::Vector3d& bias_acceleration)
