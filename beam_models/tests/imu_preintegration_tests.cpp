@@ -6,12 +6,55 @@
 #include <fuse_graphs/hash_graph.h>
 
 #include <beam_models/frame_to_frame/imu_preintegration.h>
+#include <beam_utils/math.h>
 
 using namespace beam_models::frame_to_frame;
 using namespace beam_constraints::frame_to_frame;
 using namespace beam_constraints::global;
 
 static const double GRAVITY = 9.81;
+static const Eigen::Vector3d GRAVITY_VEC(0, 0, -GRAVITY);
+
+void CalculateRelativeMotion(const ImuState& I1, const ImuState& I2,
+                             const Eigen::Vector3d& gravity,
+                             Eigen::Quaterniond& delta_q,
+                             Eigen::Vector3d& delta_p,
+                             Eigen::Vector3d& delta_v) {
+  delta_q.setIdentity();
+  delta_p.setZero();
+  delta_v.setZero();
+
+  double delta_t = ros::Duration(I2.Stamp() - I1.Stamp()).toSec();
+  Eigen::Matrix3d q1RotTrans =
+      I1.OrientationQuat().toRotationMatrix().transpose();
+  delta_q = q1RotTrans * I2.OrientationQuat().toRotationMatrix();
+  delta_v =
+      q1RotTrans * (I2.VelocityVec() - I1.VelocityVec() - gravity * delta_t);
+  delta_p = q1RotTrans *
+            (I2.PositionVec() - I1.PositionVec() - I1.VelocityVec() * delta_t -
+             0.5 * gravity * delta_t * delta_t);
+}
+
+RelativeImuState3DStampedConstraint::SharedPtr CreateConstraint(
+    const fuse_variables::Orientation3DStamped& orientation1,
+    const fuse_variables::Position3DStamped& position1,
+    const fuse_variables::VelocityLinear3DStamped& velocity1,
+    const beam_variables::ImuBiasGyro3DStamped& gyrobias1,
+    const beam_variables::ImuBiasAccel3DStamped& accelbias1,
+    const fuse_variables::Orientation3DStamped& orientation2,
+    const fuse_variables::Position3DStamped& position2,
+    const fuse_variables::VelocityLinear3DStamped& velocity2,
+    const beam_variables::ImuBiasGyro3DStamped& gyrobias2,
+    const beam_variables::ImuBiasAccel3DStamped& accelbias2,
+    const Eigen::Matrix<double, 16, 1>& delta,
+    const Eigen::Matrix<double, 15, 15>& covariance) {
+  // Create a relative imu state constraint
+  auto constraint = RelativeImuState3DStampedConstraint::make_shared(
+      "SOURCE", orientation1, position1, velocity1, gyrobias1, accelbias1,
+      orientation2, position2, velocity2, gyrobias2, accelbias2, delta,
+      covariance);
+  return constraint;
+}
 
 int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
                    fuse_graphs::HashGraph& graph) {
@@ -92,6 +135,119 @@ std::vector<fuse_core::UUID> AddVariables(
   return uuids;
 }
 
+TEST(ImuPreintegration, Simple2StateFG) {
+  // create two imu states
+  ImuState imu_state_1(ros::Time(0));
+  ImuState imu_state_2(ros::Time(1));
+
+  double max_pose_rot{20};
+  double max_pose_trans{1};
+  double max_pert_rot{10};
+  double max_pert_trans{0.05};
+
+  Eigen::Matrix4d T_WORLD_I1;
+  beam::QuaternionAndTranslationToTransformMatrix(
+      imu_state_1.OrientationQuat(), imu_state_1.PositionVec(), T_WORLD_I1);
+
+  Eigen::VectorXd perturb(6);
+  perturb << beam::randf(max_pose_rot, -max_pose_rot),
+      beam::randf(max_pose_rot, -max_pose_rot),
+      beam::randf(max_pose_rot, -max_pose_rot),
+      beam::randf(max_pose_trans, -max_pose_trans),
+      beam::randf(max_pose_trans, -max_pose_trans),
+      beam::randf(max_pose_trans, -max_pose_trans);
+  Eigen::Matrix4d T_WORLD_I2 = beam::PerturbTransformDegM(T_WORLD_I1, perturb);
+
+  Eigen::Quaterniond q2_quat;
+  Eigen::Vector3d p2_vec;
+  beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_I2, q2_quat, p2_vec);
+
+  imu_state_2.SetOrientation(q2_quat);
+  imu_state_2.SetPosition(p2_vec);
+  imu_state_2.SetVelocity(0.1*p2_vec); // scale position to get some velocity
+
+  // Create the graph
+  fuse_graphs::HashGraph graph;
+
+  // Add variables
+  fuse_variables::Orientation3DStamped::SharedPtr o1 =
+      fuse_variables::Orientation3DStamped::make_shared(
+          imu_state_1.Orientation());
+  fuse_variables::Position3DStamped::SharedPtr p1 =
+      fuse_variables::Position3DStamped::make_shared(imu_state_1.Position());
+  fuse_variables::VelocityLinear3DStamped::SharedPtr v1 =
+      fuse_variables::VelocityLinear3DStamped::make_shared(
+          imu_state_1.Velocity());
+  beam_variables::ImuBiasGyro3DStamped::SharedPtr bg1 =
+      beam_variables::ImuBiasGyro3DStamped::make_shared(
+          imu_state_1.BiasGyroscope());
+  beam_variables::ImuBiasAccel3DStamped::SharedPtr ba1 =
+      beam_variables::ImuBiasAccel3DStamped::make_shared(
+          imu_state_1.BiasAcceleration());
+
+  fuse_variables::Orientation3DStamped::SharedPtr o2 =
+      fuse_variables::Orientation3DStamped::make_shared(
+          imu_state_2.Orientation());
+  fuse_variables::Position3DStamped::SharedPtr p2 =
+      fuse_variables::Position3DStamped::make_shared(imu_state_2.Position());
+  fuse_variables::VelocityLinear3DStamped::SharedPtr v2 =
+      fuse_variables::VelocityLinear3DStamped::make_shared(
+          imu_state_2.Velocity());
+  beam_variables::ImuBiasGyro3DStamped::SharedPtr bg2 =
+      beam_variables::ImuBiasGyro3DStamped::make_shared(
+          imu_state_2.BiasGyroscope());
+  beam_variables::ImuBiasAccel3DStamped::SharedPtr ba2 =
+      beam_variables::ImuBiasAccel3DStamped::make_shared(
+          imu_state_2.BiasAcceleration());
+
+  graph.addVariable(o1);
+  graph.addVariable(p1);
+  graph.addVariable(v1);
+  graph.addVariable(bg1);
+  graph.addVariable(ba1);
+
+  graph.addVariable(o2);
+  graph.addVariable(p2);
+  graph.addVariable(v2);
+  graph.addVariable(bg2);
+  graph.addVariable(ba2);
+
+  Eigen::Quaterniond delta_q;
+  Eigen::Vector3d delta_p;
+  Eigen::Vector3d delta_v;
+  Eigen::Vector3d zero_gravity{Eigen::Vector3d::Zero()};
+  CalculateRelativeMotion(imu_state_1, imu_state_2, zero_gravity, delta_q, delta_p, delta_v);
+
+  // create delta
+  Eigen::Matrix<double, 16, 1> delta;
+  delta << delta_q.w(), delta_q.vec(), delta_p, delta_v, 0, 0, 0, 0, 0, 0;
+
+  // create covariance
+  Eigen::Matrix<double, 15, 15> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+
+  // Add constraint
+  auto constraint = CreateConstraint(*o1, *p1, *v1, *bg1, *ba1, *o2, *p2, *v2,
+                                     *bg2, *ba2, delta, covariance);
+  graph.addConstraint(constraint);
+
+  // Optimize the constraints and variables.
+  graph.optimize();
+  for (int i = 0; i < 4; i++) {
+    EXPECT_TRUE(o1->data()[i] == imu_state_1.Orientation().data()[i]);
+    EXPECT_TRUE(o2->data()[i] == imu_state_2.Orientation().data()[i]);
+  }
+  for (int i = 0; i < 3; i++) {
+    EXPECT_TRUE(p1->data()[i] == imu_state_1.Position().data()[i]);
+    EXPECT_TRUE(p2->data()[i] == imu_state_2.Position().data()[i]);
+  }
+  for (int i = 0; i < 3; i++) {
+    EXPECT_TRUE(v1->data()[i] == imu_state_1.Velocity().data()[i]);
+    EXPECT_TRUE(v2->data()[i] == imu_state_2.Velocity().data()[i]);
+  }
+}
+
 TEST(ImuPreintegration, BaseFunctionality) {
   // set intrinsic noise of imu to zero
   ImuPreintegration::Params params;
@@ -121,10 +277,11 @@ TEST(ImuPreintegration, BaseFunctionality) {
 
   // from ground truth spline curve, get pose and derivative relationships
   // necessary to create synthetic imu measurements with zero noise and zero
-  // bias
+  // bias. Publish imu measurements outside of requested window to ensure proper
+  // window allignment in ImuPreintegration class
   double dt_ns = 1e7;  // assume data at 100 Hz
   static const Eigen::Vector3d gravity(0, 0, -GRAVITY);
-  for (double t_ns = start_time_ns; t_ns < time_simulation_ns + dt_ns;
+  for (double t_ns = start_time_ns; t_ns < time_simulation_ns + 5 * dt_ns;
        t_ns += dt_ns) {
     // get rotational velocity and linear acceleration at sample rate
     Sophus::SE3d pose = gt_spline.pose(t_ns + dt_ns / 2);
@@ -213,22 +370,6 @@ TEST(ImuPreintegration, BaseFunctionality) {
   Eigen::Vector3d end_position_vec = end_pose.translation();
   Eigen::Quaterniond end_orientation_quat(end_orientation_mat);
 
-  // set end of imu preintegration. This requires us to pass two fuse
-  // variables, which for testing purposes will match the ground truth of
-  // the spline curve at the end of the simulation
-  fuse_variables::Orientation3DStamped::SharedPtr end_orientation =
-      fuse_variables::Orientation3DStamped::make_shared(end_time, device_id);
-  end_orientation->w() = end_orientation_quat.w();
-  end_orientation->x() = end_orientation_quat.x();
-  end_orientation->y() = end_orientation_quat.y();
-  end_orientation->z() = end_orientation_quat.z();
-
-  fuse_variables::Position3DStamped::SharedPtr end_position =
-      fuse_variables::Position3DStamped::make_shared(end_time, device_id);
-  end_position->x() = end_position_vec[0];
-  end_position->y() = end_position_vec[1];
-  end_position->z() = end_position_vec[2];
-
   // calculate relative change-in-motion ground truth
   double delta_t = ros::Duration(end_time - start_time).toSec();
   Eigen::Matrix3d R_i = start_orientation_quat.toRotationMatrix();
@@ -279,20 +420,17 @@ TEST(ImuPreintegration, BaseFunctionality) {
 
   // check
   EXPECT_EQ(end_imu_state.Stamp(), end_time);
-  EXPECT_NEAR(end_imu_state.Orientation().data()[0], end_orientation->data()[0],
+  EXPECT_NEAR(end_imu_state.Orientation().data()[0], end_orientation_quat.w(),
               1e-6);
-  EXPECT_NEAR(end_imu_state.Orientation().data()[1], end_orientation->data()[1],
+  EXPECT_NEAR(end_imu_state.Orientation().data()[1], end_orientation_quat.x(),
               1e-6);
-  EXPECT_NEAR(end_imu_state.Orientation().data()[2], end_orientation->data()[2],
+  EXPECT_NEAR(end_imu_state.Orientation().data()[2], end_orientation_quat.y(),
               1e-6);
-  EXPECT_NEAR(end_imu_state.Orientation().data()[3], end_orientation->data()[3],
+  EXPECT_NEAR(end_imu_state.Orientation().data()[3], end_orientation_quat.z(),
               1e-6);
-  EXPECT_NEAR(end_imu_state.Position().data()[0], end_position->data()[0],
-              1e-3);
-  EXPECT_NEAR(end_imu_state.Position().data()[1], end_position->data()[1],
-              1e-3);
-  EXPECT_NEAR(end_imu_state.Position().data()[2], end_position->data()[2],
-              1e-4);
+  EXPECT_NEAR(end_imu_state.Position().data()[0], end_position_vec[0], 1e-3);
+  EXPECT_NEAR(end_imu_state.Position().data()[1], end_position_vec[1], 1e-3);
+  EXPECT_NEAR(end_imu_state.Position().data()[2], end_position_vec[2], 1e-4);
   EXPECT_NEAR(end_imu_state.Velocity().data()[0], end_velocity_vec[0], 1e-3);
   EXPECT_NEAR(end_imu_state.Velocity().data()[1], end_velocity_vec[1], 1e-3);
   EXPECT_NEAR(end_imu_state.Velocity().data()[2], end_velocity_vec[2], 1e-4);
@@ -306,9 +444,10 @@ TEST(ImuPreintegration, BaseFunctionality) {
   EXPECT_TRUE(transaction.GetTransaction()->stamp() == end_imu_state.Stamp());
 
   // add variables and validate uuids for each transaction
-  std::vector<fuse_core::UUID> transaction_uuids;
-  transaction_uuids = AddVariables(transaction.GetTransaction(), graph);
-  EXPECT_TRUE(transaction_uuids.size() == 10);
+  std::vector<fuse_core::UUID> transaction_variable_uuids;
+  transaction_variable_uuids =
+      AddVariables(transaction.GetTransaction(), graph);
+  EXPECT_TRUE(transaction_variable_uuids.size() == 10);
 
   std::vector<fuse_core::UUID> state_uuids;
   state_uuids.emplace_back(start_imu_state.Orientation().uuid());
@@ -322,9 +461,10 @@ TEST(ImuPreintegration, BaseFunctionality) {
   state_uuids.emplace_back(end_imu_state.BiasGyroscope().uuid());
   state_uuids.emplace_back(end_imu_state.BiasAcceleration().uuid());
 
-  std::sort(transaction_uuids.begin(), transaction_uuids.end());
+  std::sort(transaction_variable_uuids.begin(),
+            transaction_variable_uuids.end());
   std::sort(state_uuids.begin(), state_uuids.end());
-  EXPECT_TRUE(transaction_uuids == state_uuids);
+  EXPECT_TRUE(transaction_variable_uuids == state_uuids);
 
   // // add constraints and validate for each transaction
   int counter{0};
@@ -343,7 +483,6 @@ TEST(ImuPreintegration, BaseFunctionality) {
   //     graph.getVariable(start_imu_state.Position().uuid()));
   // auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
   //     graph.getVariable(end_imu_state.Position().uuid()));
-
   // auto v1 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
   //     graph.getVariable(start_imu_state.Velocity().uuid()));
   // auto v2 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
