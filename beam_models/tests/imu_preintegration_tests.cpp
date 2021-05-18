@@ -24,16 +24,126 @@ void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
   delta_p.setZero();
   delta_v.setZero();
 
-  double delta_t = ros::Duration(IS2.Stamp() - IS1.Stamp()).toSec();
+  double dt = ros::Duration(IS2.Stamp() - IS1.Stamp()).toSec();
   Eigen::Matrix3d q1RotTrans =
       IS1.OrientationQuat().toRotationMatrix().transpose();
   delta_q = q1RotTrans * IS2.OrientationQuat().toRotationMatrix();
-  delta_v =
-      q1RotTrans * (IS2.VelocityVec() - IS1.VelocityVec() - gravity * delta_t);
-  delta_p = q1RotTrans *
-            (IS2.PositionVec() - IS1.PositionVec() -
-             IS1.VelocityVec() * delta_t - 0.5 * gravity * delta_t * delta_t);
+  delta_v = q1RotTrans * (IS2.VelocityVec() - IS1.VelocityVec() - gravity * dt);
+  delta_p = q1RotTrans * (IS2.PositionVec() - IS1.PositionVec() -
+                          IS1.VelocityVec() * dt - 0.5 * gravity * dt * dt);
 }
+
+class Data {
+ public:
+  Data() {
+    // set time of simulation and gravity vector
+    double time_simulation_ns = start_time_ns + time_duration;
+    gravity << 0, 0, -gravitational_acceleration;
+
+    // set times of imu states
+    t1_ros = ros::Time(start_time_ns * 1e-9);
+    t2_ros = ros::Time((start_time_ns + time_simulation_ns) * 0.5 * 1e-9);
+    t3_ros = ros::Time(time_simulation_ns * 1e-9);
+
+    // generate spline
+    basalt::Se3Spline<5> gt_spline(time_interval_ns, start_time_ns);
+    gt_spline.genRandomTrajectory(num_knots);
+
+    // create synthetic imu measurements
+    for (double t_ns = start_time_ns; t_ns < time_simulation_ns + dt_ns;
+         t_ns += dt_ns) {
+      // get state info in middle of interval
+      Sophus::SE3d pose = gt_spline.pose(t_ns + dt_ns / 2);
+      Eigen::Vector3d rot_vel_body = gt_spline.rotVelBody(t_ns + dt_ns / 2);
+      Eigen::Vector3d accel_body =
+          pose.so3().inverse() *
+          (gt_spline.transAccelWorld(t_ns + dt_ns / 2) - gravity);
+
+      // assign info to start of interval in imu data
+      ImuPreintegration::ImuData imu_data;
+      imu_data.t_ros = ros::Time(t_ns / 1e9);
+      imu_data.t = t_ns / 1e9;    // [sec]
+      imu_data.w = rot_vel_body;  // [rad/sec]
+      imu_data.a = accel_body;    // [m/sec^2]
+
+      imu_data_gt.emplace_back(imu_data);
+    }
+
+    // set Imu State 1
+    Sophus::SE3d pose1 = gt_spline.pose(t1_ros.toNSec());
+    Eigen::Matrix3d q1_mat = pose1.so3().matrix();
+    q1_quat = q1_mat;
+    p1_vec = pose1.translation();
+    v1_vec = gt_spline.transVelWorld(t1_ros.toNSec());
+    ImuState IS1_temp(t1_ros, q1_quat, p1_vec, v1_vec);
+    IS1 = std::move(IS1_temp);
+
+    // set Imu State 2
+    Sophus::SE3d pose2 = gt_spline.pose(t2_ros.toNSec());
+    Eigen::Matrix3d q2_mat = pose2.so3().matrix();
+    q2_quat = q2_mat;
+    p2_vec = pose2.translation();
+    v2_vec = gt_spline.transVelWorld(t2_ros.toNSec());
+    ImuState IS2_temp(t2_ros, q2_quat, p2_vec, v2_vec);
+    IS2 = std::move(IS2_temp);
+
+    // set Imu State 3
+    Sophus::SE3d pose3 = gt_spline.pose(t3_ros.toNSec());
+    Eigen::Matrix3d q3_mat = pose3.so3().matrix();
+    q3_quat = q3_mat;
+    p3_vec = pose3.translation();
+    v3_vec = gt_spline.transVelWorld(t3_ros.toNSec());
+    ImuState IS3_temp(t3_ros, q3_quat, p3_vec, v3_vec);
+    IS3 = std::move(IS3_temp);
+
+    // calculate relative motion deltas between states
+    CalculateRelativeMotion(IS1, IS2, gravity, delta_q_12, delta_p_12,
+                            delta_v_12);
+    CalculateRelativeMotion(IS2, IS3, gravity, delta_q_23, delta_p_23,
+                            delta_v_23);
+  }
+
+  // spline parameters
+  int num_knots{15};
+  double start_time_ns{0};
+  double time_interval_ns{10e9};
+  double time_duration{20e9};
+  double dt_ns{1e7};
+  double gravitational_acceleration{9.81};
+
+  Eigen::Vector3d gravity;
+  std::vector<ImuPreintegration::ImuData> imu_data_gt;
+
+  // Imu State 1
+  ImuState IS1;
+  ros::Time t1_ros;
+  Eigen::Quaterniond q1_quat;
+  Eigen::Vector3d p1_vec;
+  Eigen::Vector3d v1_vec;
+
+  // Imu State 2
+  ImuState IS2;
+  ros::Time t2_ros;
+  Eigen::Quaterniond q2_quat;
+  Eigen::Vector3d p2_vec;
+  Eigen::Vector3d v2_vec;
+
+  // Imu State 3
+  ImuState IS3;
+  ros::Time t3_ros;
+  Eigen::Quaterniond q3_quat;
+  Eigen::Vector3d p3_vec;
+  Eigen::Vector3d v3_vec;
+
+  // Imu State Deltas
+  Eigen::Quaterniond delta_q_12;
+  Eigen::Vector3d delta_p_12;
+  Eigen::Vector3d delta_v_12;
+
+  Eigen::Quaterniond delta_q_23;
+  Eigen::Vector3d delta_p_23;
+  Eigen::Vector3d delta_v_23;
+};
 
 RelativeImuState3DStampedConstraint::SharedPtr CreateConstraint(
     const fuse_variables::Orientation3DStamped& orientation1,
@@ -157,14 +267,14 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS1.Position().data()[2], p_vec[2]);
   EXPECT_EQ(IS1.Velocity().data()[0], v_vec[0]);
   EXPECT_EQ(IS1.Velocity().data()[1], v_vec[1]);
-  EXPECT_EQ(IS1.Velocity().data()[2], v_vec[2]); 
+  EXPECT_EQ(IS1.Velocity().data()[2], v_vec[2]);
   EXPECT_EQ(IS1.BiasGyroscope().data()[0], bg_vec[0]);
   EXPECT_EQ(IS1.BiasGyroscope().data()[1], bg_vec[1]);
   EXPECT_EQ(IS1.BiasGyroscope().data()[2], bg_vec[2]);
   EXPECT_EQ(IS1.BiasAcceleration().data()[0], ba_vec[0]);
   EXPECT_EQ(IS1.BiasAcceleration().data()[1], ba_vec[1]);
   EXPECT_EQ(IS1.BiasAcceleration().data()[2], ba_vec[2]);
-  
+
   // check quaternion/vector getters
   EXPECT_EQ(IS1.OrientationQuat().w(), q_quat.w());
   EXPECT_EQ(IS1.OrientationQuat().vec(), q_quat.vec());
@@ -186,13 +296,13 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS2.Position().data()[2], 0);
   EXPECT_EQ(IS2.Velocity().data()[0], 0);
   EXPECT_EQ(IS2.Velocity().data()[1], 0);
-  EXPECT_EQ(IS2.Velocity().data()[2], 0); 
+  EXPECT_EQ(IS2.Velocity().data()[2], 0);
   EXPECT_EQ(IS2.BiasGyroscope().data()[0], 0);
   EXPECT_EQ(IS2.BiasGyroscope().data()[1], 0);
   EXPECT_EQ(IS2.BiasGyroscope().data()[2], 0);
   EXPECT_EQ(IS2.BiasAcceleration().data()[0], 0);
   EXPECT_EQ(IS2.BiasAcceleration().data()[1], 0);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[2], 0);  
+  EXPECT_EQ(IS2.BiasAcceleration().data()[2], 0);
 
   // check quaternion/vector setters
   IS2.SetOrientation(q_quat);
@@ -210,7 +320,7 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS2.Position().data()[2], p_vec[2]);
   EXPECT_EQ(IS2.Velocity().data()[0], v_vec[0]);
   EXPECT_EQ(IS2.Velocity().data()[1], v_vec[1]);
-  EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]); 
+  EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]);
   EXPECT_EQ(IS2.BiasGyroscope().data()[0], bg_vec[0]);
   EXPECT_EQ(IS2.BiasGyroscope().data()[1], bg_vec[1]);
   EXPECT_EQ(IS2.BiasGyroscope().data()[2], bg_vec[2]);
@@ -234,7 +344,7 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS2.Position().data()[2], p_vec[2]);
   EXPECT_EQ(IS2.Velocity().data()[0], v_vec[0]);
   EXPECT_EQ(IS2.Velocity().data()[1], v_vec[1]);
-  EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]); 
+  EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]);
   EXPECT_EQ(IS2.BiasGyroscope().data()[0], bg_vec[0]);
   EXPECT_EQ(IS2.BiasGyroscope().data()[1], bg_vec[1]);
   EXPECT_EQ(IS2.BiasGyroscope().data()[2], bg_vec[2]);
@@ -258,7 +368,7 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS2.Position().data()[2], p_vec[2]);
   EXPECT_EQ(IS2.Velocity().data()[0], v_vec[0]);
   EXPECT_EQ(IS2.Velocity().data()[1], v_vec[1]);
-  EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]); 
+  EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]);
   EXPECT_EQ(IS2.BiasGyroscope().data()[0], bg_vec[0]);
   EXPECT_EQ(IS2.BiasGyroscope().data()[1], bg_vec[1]);
   EXPECT_EQ(IS2.BiasGyroscope().data()[2], bg_vec[2]);
@@ -272,6 +382,7 @@ TEST(ImuPreintegration, Simple2StateFG) {
   ImuState IS1(ros::Time(0));
   ImuState IS2(ros::Time(1));
 
+  // perturb pose
   double max_pose_rot{20};
   double max_pose_trans{1};
   double max_pert_rot{10};
@@ -294,9 +405,19 @@ TEST(ImuPreintegration, Simple2StateFG) {
   Eigen::Vector3d p2_vec;
   beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_I2, q2_quat, p2_vec);
 
+  // assume new velocity
+  Eigen::Vector3d v2_vec{0.1, 0.2, 0.3};
+
+  // assume small change in gyro and accel bias
+  Eigen::Vector3d delta_bg{4e-5, 5e-5, 6e-5};
+  Eigen::Vector3d delta_ba{1e-5, 2e-5, 3e-5};
+
+  // set updated state
   IS2.SetOrientation(q2_quat);
   IS2.SetPosition(p2_vec);
-  IS2.SetVelocity(0.1 * p2_vec);  // scale position to get some velocity
+  IS2.SetVelocity(v2_vec);
+  IS2.SetBiasGyroscope(delta_bg);
+  IS2.SetBiasAcceleration(delta_ba);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -338,6 +459,8 @@ TEST(ImuPreintegration, Simple2StateFG) {
   graph.addVariable(bg2);
   graph.addVariable(ba2);
 
+  // calculate relative motion, taking gravity as the zero vector as imu
+  // measurments are not used for estimation
   Eigen::Quaterniond delta_q;
   Eigen::Vector3d delta_p;
   Eigen::Vector3d delta_v;
@@ -346,7 +469,7 @@ TEST(ImuPreintegration, Simple2StateFG) {
 
   // create delta
   Eigen::Matrix<double, 16, 1> delta;
-  delta << delta_q.w(), delta_q.vec(), delta_p, delta_v, 0, 0, 0, 0, 0, 0;
+  delta << delta_q.w(), delta_q.vec(), delta_p, delta_v, delta_bg, delta_ba;
 
   // create covariance
   Eigen::Matrix<double, 15, 15> covariance;
@@ -371,6 +494,14 @@ TEST(ImuPreintegration, Simple2StateFG) {
   for (int i = 0; i < 3; i++) {
     EXPECT_TRUE(v1->data()[i] == IS1.Velocity().data()[i]);
     EXPECT_TRUE(v2->data()[i] == IS2.Velocity().data()[i]);
+  }
+  for (int i = 0; i < 3; i++) {
+    EXPECT_TRUE(bg1->data()[i] == IS1.BiasGyroscope().data()[i]);
+    EXPECT_TRUE(bg2->data()[i] == IS2.BiasGyroscope().data()[i]);
+  }
+  for (int i = 0; i < 3; i++) {
+    EXPECT_TRUE(ba1->data()[i] == IS1.BiasAcceleration().data()[i]);
+    EXPECT_TRUE(ba2->data()[i] == IS2.BiasAcceleration().data()[i]);
   }
 }
 
