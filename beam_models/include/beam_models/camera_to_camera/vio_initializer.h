@@ -50,7 +50,7 @@ public:
   /**
    * @brief Returns the map of poses in sliding window
    */
-  std::unordered_map<double, Eigen::Matrix4d> GetPoses();
+  std::map<unsigned long, Eigen::Matrix4d> GetPoses();
 
   /**
    * @brief Fills the estimated bias parameters
@@ -84,7 +84,7 @@ protected:
   double resize_scale_;
   double rectify_scale_;
 
-  std::unordered_map<double, Eigen::Matrix4d> tracker_poses_;
+  std::map<unsigned long, Eigen::Matrix4d> tracker_poses_;
   std::queue<ros::Time> frame_time_queue_;
 };
 

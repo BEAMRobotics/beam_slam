@@ -66,6 +66,10 @@ public:
 
   size_t init_map_frames() const { return 8; }
 
+  size_t max_init_raw_frames() const { return (init_map_frames() - 1) * 3 + 1; }
+
+  size_t min_init_raw_frames() const { return (init_map_frames() - 1) * 2 + 1; }
+
 private:
   Eigen::Matrix3d K;
   Eigen::Quaterniond q_cam2body;

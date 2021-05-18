@@ -5,10 +5,9 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 // beam_slam
-#include <beam_constraints/camera_to_camera/visual_constraint.h>
 #include <beam_models/camera_to_camera/vio_initializer.h>
+#include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_parameters/models/vio_params.h>
-#include <beam_variables/position_3d.h>
 // fuse
 #include <fuse_core/async_sensor_model.h>
 // libbeam
@@ -73,7 +72,13 @@ private:
   /**
    * @brief Converts ros image message to opencv image
    */
-  std::shared_ptr<fuse_core::Transaction> initMap(ros::Time cur_time);
+  void registerFrame(const ros::Time& img_time,
+                     std::shared_ptr<fuse_core::Transaction> transaction);
+
+  /**
+   * @brief Converts ros image message to opencv image
+   */
+  std::shared_ptr<fuse_core::Transaction> initMap();
 
   /**
    * @brief Converts ros image message to opencv image
@@ -81,24 +86,9 @@ private:
   cv::Mat extractImage(const sensor_msgs::Image& msg);
 
   /**
-   * @brief Helper function to add constraints for already existing landmarks
-   * @param track feature track of current image
+   * @brief Converts ros image message to opencv image
    */
-  fuse_variables::Orientation3DStamped::SharedPtr
-      getCameraOrientation(const ros::Time& stamp);
-
-  /**
-   * @brief Helper function to add constraints for already existing landmarks
-   * @param track feature track of current image
-   */
-  fuse_variables::Position3DStamped::SharedPtr
-      getCameraPosition(const ros::Time& stamp);
-
-  /**
-   * @brief Helper function to add constraints for already existing landmarks
-   * @param track feature track of current image
-   */
-  fuse_variables::Position3D::SharedPtr getLandmark(uint64_t landmark_id);
+  beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
 
 protected:
   int img_num_ = 0;
@@ -109,19 +99,12 @@ protected:
   ros::Subscriber imu_subscriber_;
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
+  std::queue<sensor_msgs::Imu> temp_imu_buffer_;
   // computer vision objects
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<VIOInitializer> initializer_;
-  // these store the most up to date variables for in between optimizations
-  std::unordered_map<double, fuse_variables::Orientation3DStamped::SharedPtr>
-      tracker_orientations_;
-  std::unordered_map<double, fuse_variables::Position3DStamped::SharedPtr>
-      tracker_positions_;
-  std::unordered_map<uint64_t, fuse_variables::Position3D::SharedPtr>
-      landmark_positions_;
-  fuse_core::Graph::ConstSharedPtr graph_;
-  bool graph_initialized = false;
+  std::shared_ptr<VisualMap> visual_map_;
   // most recent keyframe timestamp
   ros::Time cur_kf_time_;
   std::string source_ = "VO";

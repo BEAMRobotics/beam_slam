@@ -48,11 +48,11 @@ unicycle_3d:
   buffer_length: 100000
 
 VIO:
-  cam_intrinsics_path: "/home/jake/data/euroc/intrinsics.json"
+  cam_intrinsics_path: "/home/jake/data/VIO/euroc/intrinsics.json"
   image_topic: "/cam0/image_raw"
   imu_topic: "/imu0"
   window_size: 100
-  robot_extrinsics: "/home/jake/data/LVI_data/extrinsics.json"
+  robot_extrinsics: "/home/jake/data/euroc/LVI_data/extrinsics.json"
   # gryo noise, accel noise, gryo walk, accel walk
   imu_intrinsics: [1.6968e-04, 2.0000e-3 , 1.9393e-05, 3.0000e-3]
 

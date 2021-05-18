@@ -20,15 +20,14 @@ VIOInitializer::VIOInitializer(
   this->config_ = std::make_shared<CameraConfig>(this->cam_model_, T_body_cam,
                                                  T_body_imu, imu_intrinsics);
 
-  // Eigen::Vector2i image_size_out(
-  //     this->rectify_scale_ * this->cam_model_->GetHeight(),
-  //     this->rectify_scale_ * this->cam_model_->GetWidth());
-
+  Eigen::Vector2i image_size_out(
+      this->rectify_scale_ * this->cam_model_->GetHeight(),
+      this->rectify_scale_ * this->cam_model_->GetWidth());
   // create image rectifier
   Eigen::Vector2i image_size(input_cam_model->GetHeight(),
                              input_cam_model->GetWidth());
   this->rectifier_ = std::make_shared<beam_calibration::UndistortImages>(
-      input_cam_model, image_size, image_size);
+      input_cam_model, image_size, image_size_out);
   // create initializer
   this->initializer_ = std::make_unique<VigInitializer>(config_);
   this->pending_frame_ = this->CreateFrame();
@@ -46,11 +45,12 @@ bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
   this->frame_time_queue_.push(cur_time);
   // add the frame to the initializer
   initializer_->append_frame(std::move(this->pending_frame_));
+  //std::cout << "Appended frame at: " << cur_time << std::endl;
   // attempt initialization
   if (std::unique_ptr<SlidingWindow> sw = initializer_->init()) {
     sliding_window_.swap(sw);
     is_initialized_ = true;
-    ROS_INFO("VIO Initialization Success.");
+    ROS_INFO("VIO Initialization Success. Returning.");
     for (int i = 0; i < this->config_->init_map_frames(); i++) {
       ros::Time time = frame_time_queue_.front();
       // get frame pose from sliding window
@@ -62,11 +62,10 @@ bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
       T.block<3, 3>(0, 0) = q.normalized().toRotationMatrix();
       T.block<3, 1>(0, 3) = p.transpose();
       // add frame pose to map
-      tracker_poses_[time.toSec()] = T;
+      tracker_poses_[time.toNSec()] = T;
       // remove image from the queue
       frame_time_queue_.pop();
     }
-
     return true;
   }
   this->pending_frame_ = this->CreateFrame();
@@ -85,7 +84,7 @@ void VIOInitializer::AddIMU(Eigen::Vector3d ang_vel, Eigen::Vector3d lin_accel,
   pending_frame_->preintegration.data.push_back(imu_data);
 }
 
-std::unordered_map<double, Eigen::Matrix4d> VIOInitializer::GetPoses() {
+std::map<unsigned long, Eigen::Matrix4d> VIOInitializer::GetPoses() {
   if (is_initialized_) return tracker_poses_;
 }
 
