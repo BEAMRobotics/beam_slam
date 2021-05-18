@@ -70,13 +70,18 @@ protected:
 
 private:
   /**
-   * @brief Converts ros image message to opencv image
+   * @brief Registers a frame against the current map
+   * @param img_time timestamp of the image to register (must have previously
+   * been added to the tracker)
+   * @return the transaction containing the frame information
    */
-  void registerFrame(const ros::Time& img_time,
-                     std::shared_ptr<fuse_core::Transaction> transaction);
+  std::shared_ptr<fuse_core::Transaction>
+      registerFrame(const ros::Time& img_time);
 
   /**
-   * @brief Converts ros image message to opencv image
+   * @brief Initializes the map with values in the initializer after it has
+   * succeeded
+   * @return the transaction containing all map init information
    */
   std::shared_ptr<fuse_core::Transaction> initMap();
 
@@ -86,7 +91,8 @@ private:
   cv::Mat extractImage(const sensor_msgs::Image& msg);
 
   /**
-   * @brief Converts ros image message to opencv image
+   * @brief Triangulates a feature track
+   * @return the 3d location of the feature
    */
   beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
 

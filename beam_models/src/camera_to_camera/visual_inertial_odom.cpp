@@ -103,21 +103,22 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         sendTransaction(init_transaction);
         // send messages in temp imu buffer to preint object
         // register the current frame against the map
-        auto frame_transaction = fuse_core::Transaction::make_shared();
-        this->registerFrame(img_time, frame_transaction);
+        auto frame_transaction = this->registerFrame(img_time);
+        sendTransaction(init_transaction);
       } else {
         std::queue<sensor_msgs::Imu>().swap(temp_imu_buffer_);
       }
     } else {
       // register the current frame against the map
-      auto transaction = fuse_core::Transaction::make_shared();
-      this->registerFrame(img_time, transaction);
+      auto transaction = this->registerFrame(img_time);
+      sendTransaction(transaction);
     }
     image_buffer_.pop();
   }
 }
 
 void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
+  // indiscriminantly push imu messages onto its buffer
   imu_buffer_.push(*msg);
 }
 
@@ -144,17 +145,17 @@ std::shared_ptr<fuse_core::Transaction> VisualInertialOdom::initMap() {
   // find landmarks in the frame
   std::vector<uint64_t> lm_ids = tracker_->GetLandmarkIDsInImage(cur_time);
   for (int i = 0; i < lm_ids.size(); i++) {
-    uint64_t landmark_id = lm_ids[i];
+    uint64_t id = lm_ids[i];
     // get landmark track
-    beam_cv::FeatureTrack track = tracker_->GetTrack(landmark_id);
+    beam_cv::FeatureTrack track = tracker_->GetTrack(id);
     // get pixel of this landmark in the current image
-    Eigen::Vector2d pixel_measurement = tracker_->Get(cur_time, landmark_id);
+    Eigen::Vector2d pixel_measurement = tracker_->Get(cur_time, id);
     // triangulate the track and add to transaction
     beam::opt<Eigen::Vector3d> point = this->triangulate(track);
     if (point.has_value()) {
       num_lm++;
-      this->visual_map_->addLandmark(point.value(), landmark_id, transaction);
-      this->visual_map_->addConstraint(cur_time, landmark_id, pixel_measurement,
+      this->visual_map_->addLandmark(point.value(), id, transaction);
+      this->visual_map_->addConstraint(cur_time, id, pixel_measurement,
                                        transaction);
     }
   }
@@ -165,9 +166,8 @@ std::shared_ptr<fuse_core::Transaction> VisualInertialOdom::initMap() {
   return transaction;
 }
 
-void VisualInertialOdom::registerFrame(
-    const ros::Time& img_time,
-    std::shared_ptr<fuse_core::Transaction> transaction) {
+std::shared_ptr<fuse_core::Transaction>
+    VisualInertialOdom::registerFrame(const ros::Time& img_time) {
   /*
   1. Get relative pose estimate from preintegrator
   2. Start keyframe decision:
@@ -197,6 +197,14 @@ cv::Mat VisualInertialOdom::extractImage(const sensor_msgs::Image& msg) {
 
 beam::opt<Eigen::Vector3d>
     VisualInertialOdom::triangulate(beam_cv::FeatureTrack track) {
+  // first check if its already been triangulated
+  uint64_t id = track[0].landmark_id;
+  fuse_variables::Position3D::SharedPtr lm = this->visual_map_->getLandmark(id);
+  if (lm) {
+    Eigen::Vector3d p(lm->data());
+    return p;
+  }
+  // if it hasnt then manually triangulate
   if (track.size() >= 2) {
     std::vector<Eigen::Matrix4d> T_cam_world_v;
     std::vector<Eigen::Vector2i> pixels;
@@ -209,7 +217,8 @@ beam::opt<Eigen::Vector3d>
         Eigen::Vector3d position(p->data());
         Eigen::Quaterniond orientation(q->data());
         Eigen::Matrix4d T;
-        beam::QuaternionAndTranslationToTransformMatrix(orientation, position, T);
+        beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
+                                                        T);
         pixels.push_back(measurement.value.cast<int>());
         T_cam_world_v.push_back(T);
       }
