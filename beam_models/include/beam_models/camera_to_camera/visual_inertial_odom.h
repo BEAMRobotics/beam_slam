@@ -106,17 +106,17 @@ private:
    */
   bool isKeyframe(const ros::Time& img_time,
                   std::vector<uint32_t>& common_landmarks,
-                  const double avg_parallax_threshold = 15.0,
+                  const double avg_parallax_threshold = 20.0,
                   const uint16_t common_track_threshold = 30.0);
 
 protected:
   int img_num_{};
-  int modulo_{};
   // loadable camera parameters
   beam_parameters::models::VIOParams params_;
   // topic subscribers and buffers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
+  ros::Publisher track_image_publisher_;
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
   std::queue<sensor_msgs::Imu> temp_imu_buffer_;

@@ -10,6 +10,11 @@
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/matchers/Matchers.h>
 
+// pcl
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(beam_models::camera_to_camera::VisualInertialOdom,
                        fuse_core::SensorModel)
@@ -23,6 +28,7 @@ void VisualInertialOdom::onInit() {
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   params_.loadFromROS(private_node_handle_);
+  img_num_ = 0;
   /***********************************************************
    *        Load camera model and Create Map object          *
    ***********************************************************/
@@ -35,15 +41,13 @@ void VisualInertialOdom::onInit() {
    ***********************************************************/
   std::shared_ptr<beam_cv::Matcher> matcher =
       std::make_shared<beam_cv::FLANNMatcher>(beam_cv::FLANN::KDTree, 0.8, true,
-                                              true, cv::FM_RANSAC, 1);
+                                              true, cv::FM_RANSAC, 5);
   std::shared_ptr<beam_cv::Descriptor> descriptor =
       std::make_shared<beam_cv::ORBDescriptor>();
   std::shared_ptr<beam_cv::Detector> detector =
-      std::make_shared<beam_cv::FASTDetector>(300);
+      std::make_shared<beam_cv::FASTDetector>(700);
   this->tracker_ = std::make_shared<beam_cv::Tracker>(
       detector, descriptor, matcher, params_.window_size);
-  modulo_ = (int)(params_.image_hz / 5);
-  img_num_ = 0;
   /***********************************************************
    *                  Subscribe to topics                    *
    ***********************************************************/
@@ -51,6 +55,9 @@ void VisualInertialOdom::onInit() {
       params_.image_topic, 1000, &VisualInertialOdom::processImage, this);
   imu_subscriber_ = private_node_handle_.subscribe(
       params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
+
+  track_image_publisher_ =
+      private_node_handle_.advertise<sensor_msgs::Image>("tracker_image", 100);
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
@@ -98,20 +105,20 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     tracker_->AddImage(image, img_time);
     if (!initializer_->Initialized()) {
       if (initializer_->AddImage(image, img_time)) {
-        // this transaction adds the first pose, adds the initial map points and
-        // initializes the preintegrator object
+        // this transaction adds the first pose, adds the initial map points
+        // and initializes the preintegrator object
         auto init_transaction = this->initMap();
         sendTransaction(init_transaction);
         // send messages in temp imu buffer to preint object
         // register the current frame against the map
-        auto frame_transaction = this->registerFrame(img_time);
+        // auto frame_transaction = this->registerFrame(img_time);
         // sendTransaction(init_transaction);
       } else {
         std::queue<sensor_msgs::Imu>().swap(temp_imu_buffer_);
       }
     } else {
       // register the current frame against the map
-      auto transaction = this->registerFrame(img_time);
+      // auto transaction = this->registerFrame(img_time);
       // sendTransaction(transaction);
     }
     image_buffer_.pop();
@@ -130,6 +137,8 @@ void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 void VisualInertialOdom::onStop() {}
 
 std::shared_ptr<fuse_core::Transaction> VisualInertialOdom::initMap() {
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1(
+      new pcl::PointCloud<pcl::PointXYZRGB>);
   auto transaction = fuse_core::Transaction::make_shared();
   // get poses from initialization and add to transaction
   std::map<unsigned long, Eigen::Matrix4d> poses = initializer_->GetPoses();
@@ -140,33 +149,73 @@ std::shared_ptr<fuse_core::Transaction> VisualInertialOdom::initMap() {
     beam::TransformMatrixToQuaternionAndTranslation(pose.second, q, p);
     this->visual_map_->addOrientation(q, cur_kf_time_, transaction);
     this->visual_map_->addPosition(p, cur_kf_time_, transaction);
+    pcl::PointXYZRGB point;
+    point.x = p[0];
+    point.y = p[1];
+    point.z = p[2];
+    point.r = 255;
+    point.g = 0;
+    point.b = 0;
+    cloud1->points.push_back(point);
   }
-  int num_lm = 0;
-  // find landmarks in the frame
-  std::vector<uint32_t> lm_ids = tracker_->GetLandmarkIDsInImage(cur_kf_time_);
-  for (int i = 0; i < lm_ids.size(); i++) {
-    uint32_t id = lm_ids[i];
-    // get landmark track
-    beam_cv::FeatureTrack track = tracker_->GetTrack(id);
-    // get pixel of this landmark in the current image
-    Eigen::Vector2d pixel_measurement = tracker_->Get(cur_kf_time_, id);
-    // triangulate the track and add to transaction
-    beam::opt<Eigen::Vector3d> point = this->triangulate(track);
-    if (point.has_value()) {
-      num_lm++;
-      this->visual_map_->addLandmark(point.value(), id, transaction);
-      this->visual_map_->addConstraint(cur_kf_time_, id, pixel_measurement,
-                                       transaction);
+  pcl::io::savePCDFileBinary("/home/jake/poses.pcd", *cloud1);
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2(
+      new pcl::PointCloud<pcl::PointXYZRGB>);
+  for (auto& pose : poses) {
+    cur_kf_time_.fromNSec(pose.first);
+    std::vector<uint32_t> lm_ids =
+        tracker_->GetLandmarkIDsInImage(cur_kf_time_);
+    for (int i = 0; i < lm_ids.size(); i++) {
+      uint32_t id = lm_ids[i];
+      // get landmark track
+      beam_cv::FeatureTrack track = tracker_->GetTrack(id);
+      // get pixel of this landmark in the current image
+      Eigen::Vector2d pixel_measurement = tracker_->Get(cur_kf_time_, id);
+      // triangulate the track and add to transaction
+      beam::opt<Eigen::Vector3d> point = this->triangulate(track);
+      if (point.has_value()) {
+        this->visual_map_->addLandmark(point.value(), id, transaction);
+        pcl::PointXYZRGB p;
+        p.x = point.value()[0];
+        p.y = point.value()[1];
+        p.z = point.value()[2];
+        p.r = 255;
+        p.g = 255;
+        p.b = 255;
+        cloud2->points.push_back(p);
+      }
     }
   }
-  ROS_INFO("%d Initialized Map Points.", num_lm);
-  // Initialize imu preintegrator class
-  Eigen::Vector3d g, bg, ba;
-  initializer_->GetBiases(g, bg, ba);
-  fuse_variables::Orientation3DStamped::SharedPtr kf_orientation =
-      this->visual_map_->getOrientation(cur_kf_time_);
-  fuse_variables::Position3DStamped::SharedPtr kf_position =
-      this->visual_map_->getPosition(cur_kf_time_);
+  pcl::io::savePCDFileBinary("/home/jake/landmarks.pcd", *cloud2);
+
+  // int num_lm = 0;
+  // // find landmarks in the frame
+  // std::vector<uint32_t> lm_ids =
+  // tracker_->GetLandmarkIDsInImage(cur_kf_time_); for (int i = 0; i <
+  // lm_ids.size(); i++) {
+  //   uint32_t id = lm_ids[i];
+  //   // get landmark track
+  //   beam_cv::FeatureTrack track = tracker_->GetTrack(id);
+  //   // get pixel of this landmark in the current image
+  //   Eigen::Vector2d pixel_measurement = tracker_->Get(cur_kf_time_, id);
+  //   // triangulate the track and add to transaction
+  //   beam::opt<Eigen::Vector3d> point = this->triangulate(track);
+  //   if (point.has_value()) {
+  //     num_lm++;
+  //     this->visual_map_->addLandmark(point.value(), id, transaction);
+  //     this->visual_map_->addConstraint(cur_kf_time_, id, pixel_measurement,
+  //                                      transaction);
+  //   }
+  // }
+  // ROS_INFO("%d Initialized Map Points.", num_lm);
+  // // Initialize imu preintegrator class
+  // Eigen::Vector3d g, bg, ba;
+  // initializer_->GetBiases(g, bg, ba);
+  // fuse_variables::Orientation3DStamped::SharedPtr kf_orientation =
+  //     this->visual_map_->getOrientation(cur_kf_time_);
+  // fuse_variables::Position3DStamped::SharedPtr kf_position =
+  //     this->visual_map_->getPosition(cur_kf_time_);
   return transaction;
 }
 
