@@ -32,6 +32,10 @@ void ImuPreintegration::SetStart(
   std::string msg =
       "Requested start time falls outside the buffer of imu measurements.";
 
+  if (imu_data_buffer_.empty()) {
+    ROS_FATAL_STREAM("imu buffer must be populated");
+  }
+
   if (t_start.toSec() < imu_data_buffer_.front().t) {
     ROS_FATAL_STREAM(msg);
   }
@@ -76,21 +80,19 @@ void ImuPreintegration::SetStart(
 
 ImuState ImuPreintegration::PredictState(const PreIntegrator& pre_integrator,
                                          const ImuState& imu_state) {
-  double delta_t = pre_integrator.delta.t;
-  Eigen::Matrix3d start_orientation =
-      imu_state.OrientationQuat().toRotationMatrix();
-  Eigen::Matrix3d end_orientation =
-      start_orientation * pre_integrator.delta.q.matrix();
-  Eigen::Vector3d end_velocity = imu_state.VelocityVec() + g_ * delta_t +
-                                 start_orientation * pre_integrator.delta.v;
-  Eigen::Vector3d end_position =
-      imu_state.PositionVec() + imu_state.VelocityVec() * delta_t +
-      0.5 * g_ * delta_t * delta_t + start_orientation * pre_integrator.delta.p;
+  double dt = pre_integrator.delta.t;
+  Eigen::Matrix3d or_curr = imu_state.OrientationQuat().toRotationMatrix();
+  Eigen::Matrix3d or_new_mat = or_curr * pre_integrator.delta.q.matrix();
+  Eigen::Vector3d vel_new =
+      imu_state.VelocityVec() + g_ * dt + or_curr * pre_integrator.delta.v;
+  Eigen::Vector3d pos_new = imu_state.PositionVec() +
+                            imu_state.VelocityVec() * dt + 0.5 * g_ * dt * dt +
+                            or_curr * pre_integrator.delta.p;
 
-  Eigen::Quaterniond end_orientation_quat(end_orientation);
-  ros::Time t_new = imu_state.Stamp() + ros::Duration(delta_t);
-  ImuState new_imu_state(t_new, end_orientation_quat, end_position,
-                         end_velocity, imu_state.BiasGyroscopeVec(),
+  Eigen::Quaterniond or_new(or_new_mat);
+  ros::Time t_new = imu_state.Stamp() + ros::Duration(dt);
+  ImuState new_imu_state(t_new, or_new, pos_new, vel_new,
+                         imu_state.BiasGyroscopeVec(),
                          imu_state.BiasAccelerationVec());
   return new_imu_state;
 }

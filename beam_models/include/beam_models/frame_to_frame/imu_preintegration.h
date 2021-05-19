@@ -14,7 +14,7 @@ using TransactionBase =
         ConstraintType, PriorType>;
 
 class ImuPreintegration {
- public:
+public:
   struct Params {
     double gravitational_acceleration{9.80665};
     double prior_noise{1e-9};
