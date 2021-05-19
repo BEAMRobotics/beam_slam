@@ -96,8 +96,22 @@ private:
    */
   beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
 
+  /**
+   * @brief Determines if a frame at a given time is a keyframe, and returns
+   * common landmarks between the given frame and the current keyframe
+   * @param img_time time of image to check
+   * @param[out] common_landmarks landmarks seen in given frame and keyframe
+   * @param avg_parallax_threshold threshold of the parallax between images
+   * @param common_track_threshold number of matches required to pass
+   */
+  bool isKeyframe(const ros::Time& img_time,
+                  std::vector<uint32_t>& common_landmarks,
+                  const double avg_parallax_threshold = 15.0,
+                  const uint16_t common_track_threshold = 30.0);
+
 protected:
-  int img_num_ = 0;
+  int img_num_{};
+  int modulo_{};
   // loadable camera parameters
   beam_parameters::models::VIOParams params_;
   // topic subscribers and buffers

@@ -39,7 +39,7 @@ public:
    * @brief Helper function to get a landmark by id
    * @param track feature track of current image
    */
-  fuse_variables::Position3D::SharedPtr getLandmark(uint64_t landmark_id);
+  fuse_variables::Position3D::SharedPtr getLandmark(uint32_t landmark_id);
 
   /**
    * @brief Helper function to add a new orientation variable to a transaction
@@ -59,14 +59,14 @@ public:
    * @brief Helper function to add a new landmark variable to a transaction
    * @param track feature track of current image
    */
-  void addLandmark(const Eigen::Vector3d& p, uint64_t id,
+  void addLandmark(const Eigen::Vector3d& p, uint32_t id,
                    std::shared_ptr<fuse_core::Transaction> transaction);
 
   /**
    * @brief Helper function to add a new landmark variable to a transaction
    * @param track feature track of current image
    */
-  void addConstraint(const ros::Time& img_time, uint64_t lm_id,
+  void addConstraint(const ros::Time& img_time, uint32_t lm_id,
                      const Eigen::Vector2d& pixel,
                      std::shared_ptr<fuse_core::Transaction> transaction);
 
@@ -82,7 +82,7 @@ protected:
       orientations_;
   std::unordered_map<uint64_t, fuse_variables::Position3DStamped::SharedPtr>
       positions_;
-  std::unordered_map<uint64_t, fuse_variables::Position3D::SharedPtr>
+  std::unordered_map<uint32_t, fuse_variables::Position3D::SharedPtr>
       landmark_positions_;
   fuse_core::Graph::ConstSharedPtr graph_;
   bool graph_initialized = false;

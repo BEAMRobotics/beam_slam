@@ -55,7 +55,7 @@ bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
       ros::Time time = frame_time_queue_.front();
       // get frame pose from sliding window
       Frame* f = sliding_window_->get_frame(i);
-      PoseState pose = f->pose;
+      PoseState pose = f->get_pose(f->camera);
       Eigen::Quaterniond q = pose.q;
       Eigen::Vector3d p = pose.p;
       Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
@@ -93,7 +93,7 @@ void VIOInitializer::GetBiases(Eigen::Vector3d& g, Eigen::Vector3d& bg,
   if (is_initialized_) {
     Frame* f = sliding_window_->get_frame(this->config_->init_map_frames() - 1);
     MotionState m = f->motion;
-    g = m.v;
+    g = f->external_gravity;
     bg = m.bg;
     ba = m.ba;
   }

@@ -67,7 +67,7 @@ fuse_variables::Position3DStamped::SharedPtr
 }
 
 fuse_variables::Position3D::SharedPtr
-    VisualMap::getLandmark(uint64_t landmark_id) {
+    VisualMap::getLandmark(uint32_t landmark_id) {
   std::string position_3d_type = "fuse_variables::Position3D";
   fuse_variables::Position3D::SharedPtr landmark =
       fuse_variables::Position3D::make_shared();
@@ -120,7 +120,7 @@ void VisualMap::addPosition(
 }
 
 void VisualMap::addLandmark(
-    const Eigen::Vector3d& p, uint64_t id,
+    const Eigen::Vector3d& p, uint32_t id,
     std::shared_ptr<fuse_core::Transaction> transaction) {
   fuse_variables::Position3D::SharedPtr landmark =
       fuse_variables::Position3D::make_shared(std::to_string(id).c_str());
@@ -132,7 +132,7 @@ void VisualMap::addLandmark(
 }
 
 void VisualMap::addConstraint(
-    const ros::Time& img_time, uint64_t lm_id, const Eigen::Vector2d& pixel,
+    const ros::Time& img_time, uint32_t lm_id, const Eigen::Vector2d& pixel,
     std::shared_ptr<fuse_core::Transaction> transaction) {
   fuse_variables::Position3D::SharedPtr lm = this->getLandmark(lm_id);
   fuse_variables::Position3DStamped::SharedPtr cam_pos =

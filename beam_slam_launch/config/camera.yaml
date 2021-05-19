@@ -50,6 +50,7 @@ unicycle_3d:
 VIO:
   cam_intrinsics_path: "/home/jake/data/VIO/euroc/intrinsics.json"
   image_topic: "/cam0/image_raw"
+  image_hz: 20
   imu_topic: "/imu0"
   window_size: 100
   robot_extrinsics: "/home/jake/data/euroc/LVI_data/extrinsics.json"
