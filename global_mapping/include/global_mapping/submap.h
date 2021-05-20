@@ -1,9 +1,10 @@
 #pragma once
 
-#include <beam_common/scan_pose.h>
+
 #include <beam_utils/pointclouds.h>
 #include <beam_containers/LandmarkContainer.h>
 #include <global_mapping/LandmarkMeasurement.h>
+#include <beam_common/scan_pose.h>
 
 #include <map>
 
@@ -18,7 +19,7 @@ namespace global_mapping {
 using pose_allocator = Eigen::aligned_allocator<Eigen::Matrix4d>;
 
 class Submap {
-public:
+ public:
   /**
    * @brief constructor that requires a pose and stamp for the submap.
    * @param T_WORLD_SUBMAP pose in matrix form
@@ -32,8 +33,7 @@ public:
    * @param orientation R_WORLD_SUBMAP
    * @param stamp timestamp associated with the submap pose
    */
-  Submap(const ros::Time& stamp,
-         const fuse_variables::Position3DStamped& position,
+  Submap(const ros::Time& stamp, const fuse_variables::Position3DStamped& position,
          const fuse_variables::Orientation3DStamped& orientation);
 
   /**
@@ -104,9 +104,9 @@ public:
    * @param type type of lidar points. See description in LidarMeasurement.msg
    */
   void AddLidarMeasurement(const PointCloud& cloud,
-                           const Eigen::Matrix4d& T_WORLD_FRAME,
-                           const ros::Time& stamp, int sensor_id,
-                           int measurement_id, int type);
+                            const Eigen::Matrix4d& T_WORLD_FRAME,
+                            const ros::Time& stamp, int sensor_id,
+                            int measurement_id, int type);
 
   /**
    * @brief add a set of trajectory measurements associated with some frame
@@ -184,11 +184,11 @@ public:
    */
   void Print(std::ostream& stream = std::cout);
 
-private:
+ private:
   ros::Time stamp_;
   int graph_updates_{0};
-  fuse_variables::Position3DStamped position_;       // t_WORLD_SUBMAP
-  fuse_variables::Orientation3DStamped orientation_; // R_WORLD_SUBMAP
+  fuse_variables::Position3DStamped position_;        // t_WORLD_SUBMAP
+  fuse_variables::Orientation3DStamped orientation_;  // R_WORLD_SUBMAP
   Eigen::Matrix4d T_WORLD_SUBMAP_initial_;
   std::map<double, beam_common::ScanPose> scans_poses_; // <time, scan pose>
 
