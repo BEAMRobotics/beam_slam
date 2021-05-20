@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <beam_utils/pointclouds.h>
 #include <beam_containers/LandmarkContainer.h>
 #include <global_mapping/LandmarkMeasurement.h>
@@ -199,4 +198,4 @@ class Submap {
   std::map<uint64_t, Eigen::Vector3d> landmark_positions_; // <id, position>
 };
 
-} // namespace global_mapping
+}  // namespace global_mapping
