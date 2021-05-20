@@ -13,6 +13,7 @@ namespace beam_models {
 namespace frame_to_frame {
 
 using namespace beam_matching;
+using namespace beam_common;
 
 MultiScanRegistration::MultiScanRegistration(
     std::unique_ptr<Matcher<PointCloudPtr>> matcher, const Params& params)
@@ -35,8 +36,8 @@ bool MultiScanRegistration::MatchScans(
     const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
     Eigen::Matrix4d& T_CLOUD1_CLOUD2, Eigen::Matrix<double, 6, 6>& covariance) {
   Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
-      beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
-      scan_pose_2.T_WORLD_CLOUD();
+      beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
+      scan_pose_2.T_REFFRAME_CLOUD();
 
   if (!PassedMinMotion(T_CLOUD1_CLOUD2_init)) {
     return false;
@@ -61,8 +62,8 @@ bool MultiScanRegistration::MatchScans(
   OutputResults(scan_pose_1, scan_pose_2, T_CLOUD1_CLOUD2);
 
   if (!PassedRegThreshold(T_CLOUD1_CLOUD2,
-                          beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
-                              scan_pose_2.T_WORLD_CLOUD())) {
+                          beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
+                              scan_pose_2.T_REFFRAME_CLOUD())) {
     ROS_ERROR(
         "Failed scan matcher transform threshold check. Skipping "
         "measurement.");
@@ -93,8 +94,8 @@ void MultiScanRegistration::OutputResults(
   PointCloudPtr cloud_cur_aligned_world = std::make_shared<PointCloud>();
 
   const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
-      scan_pose_2.T_WORLD_CLOUD();
-  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_WORLD_CLOUD();
+      scan_pose_2.T_REFFRAME_CLOUD();
+  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_REFFRAME_CLOUD();
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
       T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
 
@@ -148,8 +149,8 @@ bool MultiScanLoamRegistration::MatchScans(
     const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
     Eigen::Matrix4d& T_CLOUD1_CLOUD2, Eigen::Matrix<double, 6, 6>& covariance) {
   Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
-      beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
-      scan_pose_2.T_WORLD_CLOUD();
+      beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
+      scan_pose_2.T_REFFRAME_CLOUD();
 
   if (!PassedMinMotion(T_CLOUD1_CLOUD2_init)) {
     return false;
@@ -173,8 +174,8 @@ bool MultiScanLoamRegistration::MatchScans(
   OutputResults(scan_pose_1, scan_pose_2, T_CLOUD1_CLOUD2);
 
   if (!PassedRegThreshold(T_CLOUD1_CLOUD2,
-                          beam::InvertTransform(scan_pose_1.T_WORLD_CLOUD()) *
-                              scan_pose_2.T_WORLD_CLOUD())) {
+                          beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
+                              scan_pose_2.T_REFFRAME_CLOUD())) {
     ROS_ERROR(
         "Failed scan matcher transform threshold check. Skipping "
         "measurement.");
@@ -206,8 +207,8 @@ void MultiScanLoamRegistration::OutputResults(
       std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
 
   const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
-      scan_pose_2.T_WORLD_CLOUD();
-  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_WORLD_CLOUD();
+      scan_pose_2.T_REFFRAME_CLOUD();
+  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_REFFRAME_CLOUD();
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
       T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
 

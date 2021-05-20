@@ -1,0 +1,5 @@
+{
+    "submap_size_m": 10,
+    "loop_closure_type": "EUCDISTICP",
+    "loop_closure_config": ""
+  }

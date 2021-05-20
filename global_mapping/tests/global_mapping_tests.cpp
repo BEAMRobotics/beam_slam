@@ -4,6 +4,7 @@
 
 using namespace global_mapping;
 
-TEST(TestClassName, TestCase) {
+TEST(GlobalMap, ArrayToEigenTransform) {
+  // TEST THIS FUNCTION!!!
   EXPECT_TRUE(true);
 }
