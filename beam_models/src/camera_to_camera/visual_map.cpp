@@ -1,5 +1,6 @@
 #include <beam_constraints/camera_to_camera/visual_constraint.h>
 #include <beam_models/camera_to_camera/visual_map.h>
+#include <beam_utils/math.h>
 
 namespace beam_models { namespace camera_to_camera {
 
@@ -66,8 +67,24 @@ fuse_variables::Position3DStamped::SharedPtr
   return nullptr;
 }
 
+beam::opt<Eigen::Matrix4d> VisualMap::getPose(const ros::Time& stamp) {
+  fuse_variables::Position3DStamped::SharedPtr p =
+      this->getPosition(measurement.time_point);
+  fuse_variables::Orientation3DStamped::SharedPtr q =
+      this->getOrientation(measurement.time_point);
+  if (p && q) {
+    Eigen::Vector3d position(p->data());
+    Eigen::Quaterniond orientation(q->data());
+    Eigen::Matrix4d T;
+    beam::QuaternionAndTranslationToTransformMatrix(orientation, position, T);
+    return T;
+  } else {
+    return {};
+  }
+}
+
 fuse_variables::Position3D::SharedPtr
-    VisualMap::getLandmark(uint32_t landmark_id) {
+    VisualMap::getLandmark(uint64_t landmark_id) {
   std::string position_3d_type = "fuse_variables::Position3D";
   fuse_variables::Position3D::SharedPtr landmark =
       fuse_variables::Position3D::make_shared();
@@ -119,8 +136,17 @@ void VisualMap::addPosition(
   positions_[cur_time.toNSec()] = position;
 }
 
+void VisualMap::addPose(const Eigen::Matrix4d& pose, const ros::Time& cur_time,
+                        std::shared_ptr<fuse_core::Transaction> transaction) {
+  Eigen::Quaterniond q;
+  Eigen::Vector3d p;
+  beam::TransformMatrixToQuaternionAndTranslation(pose, q, p);
+  this->addOrientation(q, img_time, transaction);
+  this->addPosition(p, img_time, transaction);
+}
+
 void VisualMap::addLandmark(
-    const Eigen::Vector3d& p, uint32_t id,
+    const Eigen::Vector3d& p, uint64_t id,
     std::shared_ptr<fuse_core::Transaction> transaction) {
   fuse_variables::Position3D::SharedPtr landmark =
       fuse_variables::Position3D::make_shared(std::to_string(id).c_str());
@@ -132,7 +158,7 @@ void VisualMap::addLandmark(
 }
 
 void VisualMap::addConstraint(
-    const ros::Time& img_time, uint32_t lm_id, const Eigen::Vector2d& pixel,
+    const ros::Time& img_time, uint64_t lm_id, const Eigen::Vector2d& pixel,
     std::shared_ptr<fuse_core::Transaction> transaction) {
   fuse_variables::Position3D::SharedPtr lm = this->getLandmark(lm_id);
   fuse_variables::Position3DStamped::SharedPtr cam_pos =
@@ -145,7 +171,12 @@ void VisualMap::addConstraint(
   transaction->addConstraint(vis_constraint);
 }
 
-void VisualMap::updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
+void VisualMap::updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg,
+                            const ros::Time& oldest_time) {
+  /*
+   * 1. go through all maps and remove items that have a time older than oldest
+   * time
+   */
   this->graph_ = std::move(graph_msg);
   if (!graph_initialized) graph_initialized = true;
 }

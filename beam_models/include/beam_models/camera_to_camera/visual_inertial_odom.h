@@ -105,7 +105,7 @@ private:
    * @param common_track_threshold number of matches required to pass
    */
   bool isKeyframe(const ros::Time& img_time,
-                  std::vector<uint32_t>& common_landmarks,
+                  std::vector<uint32_t>& common_landmarks,Eigen::Matrix4d & imu_pose,
                   const double avg_parallax_threshold = 20.0,
                   const uint16_t common_track_threshold = 30.0);
 
