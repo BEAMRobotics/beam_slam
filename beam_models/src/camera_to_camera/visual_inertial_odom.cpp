@@ -263,6 +263,7 @@ bool VisualInertialOdom::isKeyframe(const ros::Time& img_time,
       Eigen::Vector2d keyframe_pixel = tracker_->Get(cur_kf_time_, id);
       Eigen::Vector2d cur_frame_pixel = tracker_->Get(img_time, id);
       common_tracks++;
+      common_landmarks.push_back(id);
       double distance = beam::distance(keyframe_pixel, cur_frame_pixel);
       parallaxes.push_back(distance);
     } catch (const std::out_of_range& oor) {}
