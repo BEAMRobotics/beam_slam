@@ -67,7 +67,7 @@ void GlobalMap::AddCameraMeasurement(const CameraMeasurement& measurement) {
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    // submaps_.push_back(Submap(T_WORLD_FRAME, measurement.stamp));
+    submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME));
   }
 
   std::vector<LandmarkMeasurement> landmarks;
@@ -90,7 +90,7 @@ void GlobalMap::AddLidarMeasurement(const LidarMeasurement& measurement) {
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    // submaps_.push_back(Submap(T_WORLD_FRAME, measurement.stamp));
+    submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME));
   }
 
   PointCloud cloud;
@@ -110,7 +110,7 @@ void GlobalMap::AddTrajectoryMeasurement(
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    // submaps_.push_back(Submap(T_WORLD_FRAME, measurement.stamp));
+    submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME));
   }
 
   std::vector<Eigen::Matrix4d, pose_allocator> poses;
@@ -158,7 +158,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
   //   return;
   // }
 
-  fuse_core::Transaction::SharedPtr transaction = std::make_shared<fuse_core::Transaction>();
+  fuse_core::Transaction::SharedPtr transaction =
+      std::make_shared<fuse_core::Transaction>();
   // for (int matched_index : matched_indices) {
   //   auto new_transaction = loop_closure_->GetConstraint(
   //       submaps_[matched_index], submaps_[current_index]);
@@ -241,11 +242,11 @@ Eigen::Matrix4d GlobalMap::VectorToEigenTransform(const std::vector<float>& v) {
   }
 }
 
-void GlobalMap::SaveTrajectoryFile(const std::string& output_path){
+void GlobalMap::SaveTrajectoryFile(const std::string& output_path) {
   // TODO
 }
 
-void GlobalMap::SaveTrajectoryCloud(const std::string& output_path){
+void GlobalMap::SaveTrajectoryCloud(const std::string& output_path) {
   // TODO
 }
 
