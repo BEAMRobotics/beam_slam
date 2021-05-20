@@ -5,7 +5,7 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS utils matching filtering cv calibration)
+find_package(beam REQUIRED COMPONENTS utils matching filtering cv calibration containers)
 
 find_package(
   catkin REQUIRED
@@ -113,6 +113,7 @@ target_link_libraries(
     beam::mapping
     beam::cv
     beam::calibration
+    beam::containers
 )
 add_dependencies(
   ${PROJECT_NAME}
