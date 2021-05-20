@@ -1,6 +1,8 @@
 #pragma once
 
 #include <beam_utils/pointclouds.h>
+#include <beam_containers/LandmarkContainer.h>
+#include <beam_calibration/CameraModel.h>
 #include <global_mapping/LandmarkMeasurement.h>
 #include <beam_common/scan_pose.h>
 
@@ -189,6 +191,12 @@ class Submap {
   fuse_variables::Orientation3DStamped orientation_;  // R_WORLD_SUBMAP
   Eigen::Matrix4d T_WORLD_SUBMAP_initial_;
   std::map<double, beam_common::ScanPose> scans_poses_; // <time, scan pose>
+
+  std::shared_ptr<beam_calibration::CameraModel> cam_model_;
+  beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement>
+      landmarks_;
+  std::map<uint64_t, Eigen::Matrix4d> keyframe_poses_; // <time, pose>
+  std::map<uint64_t, Eigen::Vector3d> landmark_positions_; // <id, position>
 };
 
 }  // namespace global_mapping
