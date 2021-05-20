@@ -200,6 +200,7 @@ std::shared_ptr<fuse_core::Transaction>
         keypoints[id] = tracker_->Get(img_time, id);
       }
     }
+    std::cout << landmarks.size() << std::endl;
     // get pose of keyframe
     if (landmarks.size() > 20) {
       // add pose from pnp
@@ -252,29 +253,19 @@ bool VisualInertialOdom::isKeyframe(const ros::Time& img_time,
   // here to reduce duplicate code
   common_landmarks.clear();
   bool is_keyframe = false;
-  // get landmark ids in this frame and the last keyframe
-  std::vector<uint64_t> current_frame_lm_ids =
-      tracker_->GetLandmarkIDsInImage(img_time);
-  std::vector<uint64_t> keyframe_ids =
-      tracker_->GetLandmarkIDsInImage(cur_kf_time_);
-  // get the associated keypoints in each image
-  std::map<uint64_t, Eigen::Vector2d> cur_frame_keypoints, keyframe_keypoints;
-  for (auto& id : current_frame_lm_ids) {
-    cur_frame_keypoints[id] = tracker_->Get(img_time, id);
-  }
-  for (auto& id : keyframe_ids) {
-    keyframe_keypoints[id] = tracker_->Get(cur_kf_time_, id);
-  }
-  // compute the parallax
+  // compute average parallax and common tracks
   uint16_t common_tracks = 0;
   std::vector<double> parallaxes;
-  for (auto& kp : cur_frame_keypoints) {
-    if (keyframe_keypoints.find(kp.first) != keyframe_keypoints.end()) {
-      common_landmarks.push_back(kp.first);
-      common_tracks += 1;
-      double distance = beam::distance(kp.second, keyframe_keypoints[kp.first]);
+  std::vector<uint64_t> landmarks =
+      tracker_->GetLandmarkIDsInWindow(cur_kf_time_, img_time);
+  for (auto& id : landmarks) {
+    try {
+      Eigen::Vector2d keyframe_pixel = tracker_->Get(cur_kf_time_, id);
+      Eigen::Vector2d cur_frame_pixel = tracker_->Get(img_time, id);
+      common_tracks++;
+      double distance = beam::distance(keyframe_pixel, cur_frame_pixel);
       parallaxes.push_back(distance);
-    }
+    } catch (const std::out_of_range& oor) {}
   }
   std::sort(parallaxes.begin(), parallaxes.end());
   double avg_parallax = parallaxes[parallaxes.size() / 2];
