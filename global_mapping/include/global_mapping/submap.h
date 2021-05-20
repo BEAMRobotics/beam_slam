@@ -2,6 +2,7 @@
 
 #include <beam_utils/pointclouds.h>
 #include <beam_containers/LandmarkContainer.h>
+#include <beam_calibration/CameraModel.h>
 #include <global_mapping/LandmarkMeasurement.h>
 #include <beam_common/scan_pose.h>
 
