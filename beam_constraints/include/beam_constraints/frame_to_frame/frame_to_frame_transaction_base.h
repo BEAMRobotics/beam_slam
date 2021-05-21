@@ -220,13 +220,14 @@ public:
       const beam_variables::ImuBiasAccel3DStamped& accelbias2,
       const Eigen::Matrix<double, 16, 1>& delta,
       const Eigen::Matrix<double, 15, 15>& covariance,
+      const std::shared_ptr<PreIntegrator> pre_integrator,
       const std::string& source = "NULL") {
     // build and add constraint
     auto constraint =
         beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint::
             make_shared(source, orientation1, position1, velocity1, gyrobias1,
                         accelbias1, orientation2, position2, velocity2,
-                        gyrobias2, accelbias2, delta, covariance);
+                        gyrobias2, accelbias2, delta, covariance, pre_integrator);
     transaction_->addConstraint(constraint, override_constraints_);
   }
 
