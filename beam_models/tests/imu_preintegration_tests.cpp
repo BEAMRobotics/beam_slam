@@ -12,9 +12,6 @@ using namespace beam_models::frame_to_frame;
 using namespace beam_constraints::frame_to_frame;
 using namespace beam_constraints::global;
 
-static const double GRAVITY = 9.81;
-static const Eigen::Vector3d GRAVITY_VEC(0, 0, -GRAVITY);
-
 void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
                              Eigen::Quaterniond& delta_q,
                              Eigen::Vector3d& delta_p, Eigen::Vector3d& delta_v,
@@ -70,6 +67,18 @@ public:
       imu_data.a = lin_accel_body;  // [m/sec^2]
 
       imu_data_gt.emplace_back(imu_data);
+
+      // get ground truth pose every second
+      if (t_ns % int64_t(1e9) == 0 && t_ns > start_time_ns &&
+          t_ns < time_simulation_ns) {
+        Eigen::Matrix3d q_k_mat = gt_spline.pose(t_ns).so3().matrix();
+        Eigen::Vector3d p_k_vec = gt_spline.pose(t_ns).translation();
+        Eigen::Quaterniond q_k_quat(q_k_mat);
+        Eigen::Matrix4d T_WORLD_IMU_k;
+        beam::QuaternionAndTranslationToTransformMatrix(q_k_quat, p_k_vec,
+                                                        T_WORLD_IMU_k);
+        pose_gt.emplace_back(T_WORLD_IMU_k);
+      }
     }
 
     // set Imu State 1
@@ -119,6 +128,7 @@ public:
 
   Eigen::Vector3d gravity;
   std::vector<ImuPreintegration::ImuData> imu_data_gt;
+  std::vector<Eigen::Matrix4d> pose_gt;
 
   // Imu State 1
   ImuState IS1;
@@ -302,13 +312,16 @@ void ExpectImuStateEq(const ImuState& IS1, const ImuState& IS2) {
   EXPECT_NEAR(IS1.PositionVec()[2], IS2.PositionVec()[2], 1e-12);
   EXPECT_NEAR(IS1.VelocityVec()[0], IS2.VelocityVec()[0], 1e-12);
   EXPECT_NEAR(IS1.VelocityVec()[1], IS2.VelocityVec()[1], 1e-12);
-  EXPECT_NEAR(IS1.VelocityVec()[2], IS2.VelocityVec()[2], 1e-12);    
+  EXPECT_NEAR(IS1.VelocityVec()[2], IS2.VelocityVec()[2], 1e-12);
   EXPECT_NEAR(IS1.BiasGyroscopeVec()[0], IS2.BiasGyroscopeVec()[0], 1e-12);
   EXPECT_NEAR(IS1.BiasGyroscopeVec()[1], IS2.BiasGyroscopeVec()[1], 1e-12);
   EXPECT_NEAR(IS1.BiasGyroscopeVec()[2], IS2.BiasGyroscopeVec()[2], 1e-12);
-  EXPECT_NEAR(IS1.BiasAccelerationVec()[0], IS2.BiasAccelerationVec()[0], 1e-12);
-  EXPECT_NEAR(IS1.BiasAccelerationVec()[1], IS2.BiasAccelerationVec()[1], 1e-12);
-  EXPECT_NEAR(IS1.BiasAccelerationVec()[2], IS2.BiasAccelerationVec()[2], 1e-12);
+  EXPECT_NEAR(IS1.BiasAccelerationVec()[0], IS2.BiasAccelerationVec()[0],
+              1e-12);
+  EXPECT_NEAR(IS1.BiasAccelerationVec()[1], IS2.BiasAccelerationVec()[1],
+              1e-12);
+  EXPECT_NEAR(IS1.BiasAccelerationVec()[2], IS2.BiasAccelerationVec()[2],
+              1e-12);
 }
 
 void ExpectImuStateNear(const ImuState& IS1, const ImuState& IS2) {
@@ -322,13 +335,33 @@ void ExpectImuStateNear(const ImuState& IS1, const ImuState& IS2) {
   EXPECT_NEAR(IS1.PositionVec()[2], IS2.PositionVec()[2], 1e-4);
   EXPECT_NEAR(IS1.VelocityVec()[0], IS2.VelocityVec()[0], 1e-3);
   EXPECT_NEAR(IS1.VelocityVec()[1], IS2.VelocityVec()[1], 1e-3);
-  EXPECT_NEAR(IS1.VelocityVec()[2], IS2.VelocityVec()[2], 1e-4);    
+  EXPECT_NEAR(IS1.VelocityVec()[2], IS2.VelocityVec()[2], 1e-4);
   EXPECT_NEAR(IS1.BiasGyroscopeVec()[0], IS2.BiasGyroscopeVec()[0], 1e-9);
   EXPECT_NEAR(IS1.BiasGyroscopeVec()[1], IS2.BiasGyroscopeVec()[1], 1e-9);
   EXPECT_NEAR(IS1.BiasGyroscopeVec()[2], IS2.BiasGyroscopeVec()[2], 1e-9);
   EXPECT_NEAR(IS1.BiasAccelerationVec()[0], IS2.BiasAccelerationVec()[0], 1e-9);
   EXPECT_NEAR(IS1.BiasAccelerationVec()[1], IS2.BiasAccelerationVec()[1], 1e-9);
   EXPECT_NEAR(IS1.BiasAccelerationVec()[2], IS2.BiasAccelerationVec()[2], 1e-9);
+}
+
+void ExpectTransformsNear(const Eigen::Matrix4d& T1,
+                          const Eigen::Matrix4d& T2) {
+  Eigen::Quaterniond q1;
+  Eigen::Vector3d p1;
+
+  Eigen::Quaterniond q2;
+  Eigen::Vector3d p2;
+
+  beam::TransformMatrixToQuaternionAndTranslation(T1, q1, p1);
+  beam::TransformMatrixToQuaternionAndTranslation(T2, q2, p2);
+
+  EXPECT_NEAR(q1.w(), q2.w(), 1e-6);
+  EXPECT_NEAR(q1.x(), q2.x(), 1e-6);
+  EXPECT_NEAR(q1.y(), q2.y(), 1e-6);
+  EXPECT_NEAR(q1.z(), q2.z(), 1e-6);
+  EXPECT_NEAR(p1[0], p2[0], 1e-3);
+  EXPECT_NEAR(p1[1], p2[1], 1e-3);
+  EXPECT_NEAR(p1[2], p2[2], 1e-4);
 }
 
 TEST(ImuPreintegration, ImuState) {
@@ -609,7 +642,7 @@ TEST(ImuPreintegration, BaseFunctionality) {
   v_start->y() = IS1.VelocityVec()[1];
   v_start->z() = IS1.VelocityVec()[2];
 
-  // check default 
+  // check default
   imu_preintegration.SetStart(t_start);
   ImuState IS_default(t_start);
   ImuState IS_start_default = imu_preintegration.GetImuState();
@@ -638,81 +671,75 @@ TEST(ImuPreintegration, BaseFunctionality) {
   pre_integrator_23.delta.p = data.delta_p_23;
   pre_integrator_23.delta.v = data.delta_v_23;
 
-  // predict middle and end imu state using relative change-in-motion ground truth
+  // predict middle and end imu state using relative change-in-motion ground
+  // truth
   ImuState IS_middle_predict =
       imu_preintegration.PredictState(pre_integrator_12, IS_start);
   ImuState IS_end_predict =
-      imu_preintegration.PredictState(pre_integrator_23, IS_middle_predict);      
+      imu_preintegration.PredictState(pre_integrator_23, IS_middle_predict);
 
   // check
   ExpectImuStateEq(IS_middle_predict, IS2);
   ExpectImuStateEq(IS_end_predict, IS3);
 
   /*
+  GetPose() functionality
+  */
+
+  for (int i = 1; i - 1 < data.pose_gt.size(); ++i) {
+    ExpectTransformsNear(imu_preintegration.GetPose(ros::Time(i)),
+                         data.pose_gt[i - 1]);
+  }
+
+  /*
   PredictState() functionality
   */
 
-  // // generate transaction to perform imu preintegration
-  // auto transaction =
-  //     imu_preintegration.RegisterNewImuPreintegratedFactor(end_time);
+  // generate transaction to perform imu preintegration
+  ros::Time t_end = IS3.Stamp();
+  auto transaction =
+      imu_preintegration.RegisterNewImuPreintegratedFactor(t_end);
 
-  // // get end imu state from preintegration
-  // ImuState end_imu_state = imu_preintegration.GetImuState();
+  // get end imu state from preintegration
+  ImuState IS_end = imu_preintegration.GetImuState();
 
-  // // check
-  // EXPECT_EQ(end_imu_state.Stamp(), end_time);
-  // EXPECT_NEAR(end_imu_state.Orientation().data()[0], end_orientation_quat.w(),
-  //             1e-6);
-  // EXPECT_NEAR(end_imu_state.Orientation().data()[1], end_orientation_quat.x(),
-  //             1e-6);
-  // EXPECT_NEAR(end_imu_state.Orientation().data()[2], end_orientation_quat.y(),
-  //             1e-6);
-  // EXPECT_NEAR(end_imu_state.Orientation().data()[3], end_orientation_quat.z(),
-  //             1e-6);
-  // EXPECT_NEAR(end_imu_state.Position().data()[0], end_position_vec[0], 1e-3);
-  // EXPECT_NEAR(end_imu_state.Position().data()[1], end_position_vec[1], 1e-3);
-  // EXPECT_NEAR(end_imu_state.Position().data()[2], end_position_vec[2], 1e-4);
-  // EXPECT_NEAR(end_imu_state.Velocity().data()[0], end_velocity_vec[0], 1e-3);
-  // EXPECT_NEAR(end_imu_state.Velocity().data()[1], end_velocity_vec[1], 1e-3);
-  // EXPECT_NEAR(end_imu_state.Velocity().data()[2], end_velocity_vec[2], 1e-4);
-  // EXPECT_EQ(end_imu_state.BiasGyroscopeVec(), Eigen::Vector3d::Zero());
-  // EXPECT_EQ(end_imu_state.BiasAccelerationVec(), Eigen::Vector3d::Zero());
+  // check
+  ExpectImuStateNear(IS_end, IS3);
 
-  // // Create the graph
-  // fuse_graphs::HashGraph graph;
+  // Create the graph
+  fuse_graphs::HashGraph graph;
 
-  // // validate stamps
-  // EXPECT_TRUE(transaction.GetTransaction()->stamp() == end_imu_state.Stamp());
+  // validate stamps
+  EXPECT_TRUE(transaction.GetTransaction()->stamp() == IS_end.Stamp());
 
-  // // add variables and validate uuids for each transaction
-  // std::vector<fuse_core::UUID> transaction_variable_uuids;
-  // transaction_variable_uuids =
-  //     AddVariables(transaction.GetTransaction(), graph);
-  // EXPECT_TRUE(transaction_variable_uuids.size() == 10);
+  // add variables and validate uuids for each transaction
+  std::vector<fuse_core::UUID> transaction_variable_uuids;
+  transaction_variable_uuids = AddVariables(transaction.GetTransaction(), graph);
+  EXPECT_TRUE(transaction_variable_uuids.size() == 10);
 
-  // std::vector<fuse_core::UUID> state_uuids;
-  // state_uuids.emplace_back(IS_start.Orientation().uuid());
-  // state_uuids.emplace_back(IS_start.Position().uuid());
-  // state_uuids.emplace_back(IS_start.Velocity().uuid());
-  // state_uuids.emplace_back(IS_start.BiasGyroscope().uuid());
-  // state_uuids.emplace_back(IS_start.BiasAcceleration().uuid());
-  // state_uuids.emplace_back(end_imu_state.Orientation().uuid());
-  // state_uuids.emplace_back(end_imu_state.Position().uuid());
-  // state_uuids.emplace_back(end_imu_state.Velocity().uuid());
-  // state_uuids.emplace_back(end_imu_state.BiasGyroscope().uuid());
-  // state_uuids.emplace_back(end_imu_state.BiasAcceleration().uuid());
+  std::vector<fuse_core::UUID> state_uuids;
+  state_uuids.emplace_back(IS_start.Orientation().uuid());
+  state_uuids.emplace_back(IS_start.Position().uuid());
+  state_uuids.emplace_back(IS_start.Velocity().uuid());
+  state_uuids.emplace_back(IS_start.BiasGyroscope().uuid());
+  state_uuids.emplace_back(IS_start.BiasAcceleration().uuid());
+  state_uuids.emplace_back(IS_end.Orientation().uuid());
+  state_uuids.emplace_back(IS_end.Position().uuid());
+  state_uuids.emplace_back(IS_end.Velocity().uuid());
+  state_uuids.emplace_back(IS_end.BiasGyroscope().uuid());
+  state_uuids.emplace_back(IS_end.BiasAcceleration().uuid());
 
-  // std::sort(transaction_variable_uuids.begin(),
-  //           transaction_variable_uuids.end());
-  // std::sort(state_uuids.begin(), state_uuids.end());
-  // EXPECT_TRUE(transaction_variable_uuids == state_uuids);
+  std::sort(transaction_variable_uuids.begin(),
+            transaction_variable_uuids.end());
+  std::sort(state_uuids.begin(), state_uuids.end());
+  EXPECT_TRUE(transaction_variable_uuids == state_uuids);
 
-  // // // add constraints and validate for each transaction
-  // int counter{0};
-  // counter += AddConstraints(transaction.GetTransaction(), graph);
-  // EXPECT_TRUE(counter == 2);
+  // // add constraints and validate for each transaction
+  int counter{0};
+  counter += AddConstraints(transaction.GetTransaction(), graph);
+  EXPECT_TRUE(counter == 2);
 
-  // // Optimize the constraints and variables.
+  // Optimize the constraints and variables.
   // graph.optimize();
 
   // auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <queue>
+
 #include <sensor_msgs/Imu.h>
 #include <slamtools/preintegrator.h>
 
@@ -50,7 +52,7 @@ public:
 
   ~ImuPreintegration() = default;
 
-  void ClearBuffer() { imu_data_buffer_.clear(); }
+  void ClearBuffer();
 
   void PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg);
 
@@ -65,7 +67,9 @@ public:
   ImuState GetImuState() const { return imu_state_i_; }
 
   ImuState PredictState(const PreIntegrator& pre_integrator,
-                        const ImuState& imu_state);
+                        const ImuState& imu_state_curr);
+
+  Eigen::Matrix4d GetPose(const ros::Time& t_now);
 
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   RegisterNewImuPreintegratedFactor(
@@ -73,15 +77,24 @@ public:
       fuse_variables::Orientation3DStamped::SharedPtr orientation = nullptr,
       fuse_variables::Position3DStamped::SharedPtr position = nullptr);
 
- private:
+private:
+  void SetPreintegrator();
+
+  void ResetPreintegrator();
+
+  Eigen::Matrix<double, 16, 1> CalculateRelativeChange(
+      const ImuState& imu_state_curr);
+
   Params params_;
   Eigen::Vector3d g_;
   bool first_window_{true};
 
-  ImuState imu_state_i_;
-  std::vector<ImuData> imu_data_buffer_;
+  ImuState imu_state_i_;                 // first key frame
+  ImuState imu_state_k_;                 // intermediate frame
+  PreIntegrator pre_integrator_ij;       // Preintegrate between key frames
+  std::queue<ImuData> imu_data_buffer_;  // store imu data
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};
 };
 
-}}  // namespace beam_models::frame_to_frame 
+}}  // namespace beam_models::frame_to_frame
