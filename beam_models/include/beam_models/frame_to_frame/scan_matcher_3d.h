@@ -33,9 +33,13 @@ protected:
 
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
-  std::list<ScanPose> active_clouds_; // only needed if you want to output the
-                                      // final clouds or graph updates
-  std::unique_ptr<MultiScanRegistration> multi_scan_registration_;
+  /** only needed if you want to output the final clouds or graph updates */
+  std::list<ScanPose> active_clouds_; 
+
+  /** Only needed if using LoamMatcher */
+  std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_{nullptr};
+
+  std::unique_ptr<MultiScanRegistrationBase> multi_scan_registration_;
 
   // Extra debugging tools: these must be set here, not in the config file
   beam_parameters::models::ScanMatcher3DParams params_;
