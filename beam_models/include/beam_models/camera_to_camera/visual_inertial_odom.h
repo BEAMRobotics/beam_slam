@@ -105,9 +105,9 @@ private:
    * @param common_track_threshold number of matches required to pass
    */
   bool isKeyframe(const ros::Time& img_time,
-                  std::vector<uint32_t>& common_landmarks,Eigen::Matrix4d & imu_pose,
-                  const double avg_parallax_threshold = 20.0,
-                  const uint16_t common_track_threshold = 30.0);
+                  std::vector<uint64_t>& common_landmarks,
+                  Eigen::Matrix4d& imu_pose,
+                  const uint16_t common_track_threshold = 100.0);
 
 protected:
   int img_num_{};
@@ -116,7 +116,6 @@ protected:
   // topic subscribers and buffers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
-  ros::Publisher track_image_publisher_;
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
   std::queue<sensor_msgs::Imu> temp_imu_buffer_;

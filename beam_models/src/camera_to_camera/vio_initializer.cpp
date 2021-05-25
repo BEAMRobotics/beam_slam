@@ -45,7 +45,6 @@ bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
   this->frame_time_queue_.push(cur_time);
   // add the frame to the initializer
   initializer_->append_frame(std::move(this->pending_frame_));
-  //std::cout << "Appended frame at: " << cur_time << std::endl;
   // attempt initialization
   if (std::unique_ptr<SlidingWindow> sw = initializer_->init()) {
     sliding_window_.swap(sw);

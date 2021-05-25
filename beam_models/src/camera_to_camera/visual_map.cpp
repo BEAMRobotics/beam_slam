@@ -69,9 +69,9 @@ fuse_variables::Position3DStamped::SharedPtr
 
 beam::opt<Eigen::Matrix4d> VisualMap::getPose(const ros::Time& stamp) {
   fuse_variables::Position3DStamped::SharedPtr p =
-      this->getPosition(measurement.time_point);
+      this->getPosition(stamp);
   fuse_variables::Orientation3DStamped::SharedPtr q =
-      this->getOrientation(measurement.time_point);
+      this->getOrientation(stamp);
   if (p && q) {
     Eigen::Vector3d position(p->data());
     Eigen::Quaterniond orientation(q->data());
@@ -141,8 +141,8 @@ void VisualMap::addPose(const Eigen::Matrix4d& pose, const ros::Time& cur_time,
   Eigen::Quaterniond q;
   Eigen::Vector3d p;
   beam::TransformMatrixToQuaternionAndTranslation(pose, q, p);
-  this->addOrientation(q, img_time, transaction);
-  this->addPosition(p, img_time, transaction);
+  this->addOrientation(q, cur_time, transaction);
+  this->addPosition(p, cur_time, transaction);
 }
 
 void VisualMap::addLandmark(

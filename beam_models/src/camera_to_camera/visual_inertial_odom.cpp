@@ -36,12 +36,11 @@ void VisualInertialOdom::onInit() {
    *              Initialize tracker variables               *
    ***********************************************************/
   std::shared_ptr<beam_cv::Matcher> matcher =
-      std::make_shared<beam_cv::FLANNMatcher>(beam_cv::FLANN::KDTree, 0.8,
-                                              false, true, cv::FM_RANSAC, 5);
+      std::make_shared<beam_cv::BFMatcher>(cv::NORM_HAMMING);
   std::shared_ptr<beam_cv::Descriptor> descriptor =
       std::make_shared<beam_cv::ORBDescriptor>();
   std::shared_ptr<beam_cv::Detector> detector =
-      std::make_shared<beam_cv::ORBDetector>(500);
+      std::make_shared<beam_cv::ORBDetector>();
   this->tracker_ = std::make_shared<beam_cv::Tracker>(
       detector, descriptor, matcher, params_.window_size);
   /***********************************************************
@@ -51,8 +50,6 @@ void VisualInertialOdom::onInit() {
       params_.image_topic, 1000, &VisualInertialOdom::processImage, this);
   imu_subscriber_ = private_node_handle_.subscribe(
       params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
-  track_image_publisher_ =
-      private_node_handle_.advertise<sensor_msgs::Image>("tracker_image", 100);
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
@@ -68,6 +65,7 @@ void VisualInertialOdom::onInit() {
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
+  // if (img_num_ % 2 == 0) {
   // get message info
   image_buffer_.push(*msg);
   sensor_msgs::Image img_msg = image_buffer_.front();
@@ -97,27 +95,32 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
    **************************************************************************/
   if (!imu_buffer_.empty()) {
     cv::Mat image = this->extractImage(img_msg);
-    tracker_->AddImage(image, img_time);
     if (!initializer_->Initialized()) {
       if (initializer_->AddImage(image, img_time)) {
         // this transaction adds the first pose, adds the initial map points
         // and initializes the preintegrator object
         auto init_transaction = this->initMap();
         sendTransaction(init_transaction);
+        tracker_->AddImage(image, img_time);
         // send messages in temp imu buffer to preint object
         // register the current frame against the map
         auto frame_transaction = this->registerFrame(img_time);
-        // sendTransaction(init_transaction);
+        sendTransaction(init_transaction);
       } else {
+        tracker_->AddImage(image, img_time);
         std::queue<sensor_msgs::Imu>().swap(temp_imu_buffer_);
       }
     } else {
+      // add check here for movement (using imu preint) and time passing
+      tracker_->AddImage(image, img_time);
       // register the current frame against the map
       auto transaction = this->registerFrame(img_time);
-      // sendTransaction(transaction);
+      sendTransaction(transaction);
     }
     image_buffer_.pop();
   }
+  //}
+  // img_num_++;
 }
 
 void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -148,7 +151,7 @@ std::shared_ptr<fuse_core::Transaction> VisualInertialOdom::initMap() {
     this->visual_map_->addPose(pose.second, cur_kf_time_, transaction);
   }
   /******************************************************
-   * Add landmarks and constraints to the last frame    *
+   *           Add landmarks and constraints            *
    ******************************************************/
   int num_lm = 0;
   std::vector<uint64_t> lm_ids = tracker_->GetLandmarkIDsInImage(cur_kf_time_);
@@ -167,7 +170,8 @@ std::shared_ptr<fuse_core::Transaction> VisualInertialOdom::initMap() {
                                        transaction);
     }
   }
-  ROS_INFO("%d Initialized Map Points.", num_lm);
+
+  ROS_INFO("Initialized Map Points: %d", num_lm);
   /******************************************************
    *           Initialize the IMU Preintegrator         *
    ******************************************************/
@@ -189,27 +193,22 @@ std::shared_ptr<fuse_core::Transaction>
   if (this->isKeyframe(img_time, common_landmarks, imu_pose_est)) {
     ROS_INFO("New Keyframe Added.");
     // get keypoints
-    std::map<uint64_t, Eigen::Vector3d> landmarks;
-    std::map<uint64_t, Eigen::Vector2d> keypoints;
+    std::vector<Eigen::Vector2i> pixels;
+    std::vector<Eigen::Vector3d> points;
     for (auto& id : common_landmarks) {
       fuse_variables::Position3D::SharedPtr lm =
           this->visual_map_->getLandmark(id);
       if (lm) {
         Eigen::Vector3d p(lm->data());
-        landmarks[id] = p;
-        keypoints[id] = tracker_->Get(img_time, id);
+        points.push_back(p);
+        pixels.push_back(tracker_->Get(img_time, id).cast<int>());
       }
     }
-    std::cout << landmarks.size() << std::endl;
+
+    ROS_INFO("Available Map Points: %d", points.size());
     // get pose of keyframe
-    if (landmarks.size() > 20) {
+    if (points.size() > 20) {
       // add pose from pnp
-      std::vector<Eigen::Vector2i> pixels;
-      std::vector<Eigen::Vector3d> points;
-      for (auto& id : landmarks) {
-        pixels.push_back(keypoints[id].cast<int>());
-        points.push_back(landmarks[id]);
-      }
       Eigen::Matrix4d T = beam_cv::AbsolutePoseEstimator::RANSACEstimator(
           this->cam_model_, pixels, points);
       this->visual_map_->addPose(T, img_time, transaction);
@@ -217,24 +216,30 @@ std::shared_ptr<fuse_core::Transaction>
       // add pose from imu
       this->visual_map_->addPose(imu_pose_est, img_time, transaction);
     }
+    int new_points = 0;
+
     // add landmarks/visual constraints
     for (auto& id : common_landmarks) {
+      fuse_variables::Position3D::SharedPtr lm =
+          this->visual_map_->getLandmark(id);
       // if the landmark hasnt been triangulated then triangulate it
-      if (landmarks.find(id) == landmarks.end()) {
+      if (!lm) {
         beam_cv::FeatureTrack track = tracker_->GetTrack(id);
         beam::opt<Eigen::Vector3d> point = this->triangulate(track);
         if (point.has_value()) {
-          this->visual_map->addLandmark(point.value, id, transaction);
+          new_points++;
+          this->visual_map_->addLandmark(point.value(), id, transaction);
+          this->visual_map_->addConstraint(
+              img_time, id, tracker_->Get(img_time, id), transaction);
+          this->visual_map_->addConstraint(
+              cur_kf_time_, id, tracker_->Get(cur_kf_time_, id), transaction);
         }
-        this->visual_map_->addConstraint(
-            img_time, id, tracker_->Get(img_time, id), transaction);
-        this->visual_map_->addConstraint(
-            cur_kf_time_, id, tracker_->Get(cur_kf_time_, id), transaction);
       } else {
         this->visual_map_->addConstraint(
             img_time, id, tracker_->Get(img_time, id), transaction);
       }
     }
+    ROS_INFO("New Map Points: %d", new_points);
     cur_kf_time_ = img_time;
   }
   return transaction;
@@ -243,7 +248,6 @@ std::shared_ptr<fuse_core::Transaction>
 bool VisualInertialOdom::isKeyframe(const ros::Time& img_time,
                                     std::vector<uint64_t>& common_landmarks,
                                     Eigen::Matrix4d& imu_pose,
-                                    const double avg_parallax_threshold,
                                     const uint16_t common_track_threshold) {
   // get pose estimate from imu
   imu_pose = Eigen::Matrix4d::Identity();
@@ -251,39 +255,29 @@ bool VisualInertialOdom::isKeyframe(const ros::Time& img_time,
   double translational_movement = 0.01;
   // we return the commmon landmarks between this image and the last keyframe
   // here to reduce duplicate code
-  common_landmarks.clear();
   bool is_keyframe = false;
-  // compute average parallax and common tracks
+  // compute common tracks between current frame and the last keyframe
   uint16_t common_tracks = 0;
-  std::vector<double> parallaxes;
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInWindow(cur_kf_time_, img_time);
   for (auto& id : landmarks) {
     try {
       Eigen::Vector2d keyframe_pixel = tracker_->Get(cur_kf_time_, id);
       Eigen::Vector2d cur_frame_pixel = tracker_->Get(img_time, id);
-      common_tracks++;
       common_landmarks.push_back(id);
-      double distance = beam::distance(keyframe_pixel, cur_frame_pixel);
-      parallaxes.push_back(distance);
+      common_tracks++;
     } catch (const std::out_of_range& oor) {}
   }
-  std::sort(parallaxes.begin(), parallaxes.end());
-  double avg_parallax = parallaxes[parallaxes.size() / 2];
-  ROS_INFO("Average Parallax: %f, Common Tracks: %d", avg_parallax,
-           (int)common_tracks);
-  // if parallax and common tracks pass the thresholds then this is a keyframe
+  ROS_INFO("Common Tracks: %d", (int)common_tracks);
+  // if parallax and common tracks pass the thresholds then this is a kf
   if (common_tracks < common_track_threshold && translational_movement > 0) {
     is_keyframe = true;
-  } else if (avg_parallax >= avg_parallax_threshold &&
-             translational_movement > 0) {
-    is_keyframe = true;
   } else {
-    // if a certain amount of time has elapsed and either tracks have been lost
-    // or there has been no movement, we decide it is a keyframe
+    /* if a certain amount of time has elapsed and either tracks have been
+    lost or there has been no movement, we decide it is a keyframe*/
     ros::Duration elapsed = img_time - cur_kf_time_;
     ros::Duration window_size_in_seconds(
-        (params_.window_size / params_.image_hz) / 4.0);
+        (params_.window_size / params_.image_hz) / 10.0);
     if (elapsed > window_size_in_seconds) { is_keyframe = true; }
   }
   return is_keyframe;
@@ -291,14 +285,6 @@ bool VisualInertialOdom::isKeyframe(const ros::Time& img_time,
 
 beam::opt<Eigen::Vector3d>
     VisualInertialOdom::triangulate(beam_cv::FeatureTrack track) {
-  // first check if it has already been triangulated
-  uint64_t id = track[0].landmark_id;
-  fuse_variables::Position3D::SharedPtr lm = this->visual_map_->getLandmark(id);
-  if (lm) {
-    Eigen::Vector3d p(lm->data());
-    return p;
-  }
-  // if not then triangulate
   if (track.size() >= 2) {
     std::vector<Eigen::Matrix4d> T_cam_world_v;
     std::vector<Eigen::Vector2i> pixels;
