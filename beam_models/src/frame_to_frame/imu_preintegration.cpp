@@ -90,7 +90,7 @@ void ImuPreintegration::SetStart(
   imu_state_i_.SetBiasGyroscope(bg_);
   imu_state_i_.SetBiasAcceleration(ba_);
 
-  // copy start imu state to initialize kth state between keyframes
+  // copy start imu state to initialize kth frame between keyframes
   imu_state_k_ = imu_state_i_;
 }
 
@@ -180,15 +180,15 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   // generate prior constraint at start
   if (first_window_) {
-    Eigen::Matrix<double, 15, 15> imu_state_prior_covariance;
-    imu_state_prior_covariance.setIdentity();
-    imu_state_prior_covariance *= params_.prior_noise;
+    Eigen::Matrix<double, 15, 15> prior_covariance;
+    prior_covariance.setIdentity();
+    prior_covariance *= params_.prior_noise;
 
     transaction.AddImuStatePrior(
         imu_state_i_.Orientation(), imu_state_i_.Position(),
         imu_state_i_.Velocity(), imu_state_i_.BiasGyroscope(),
-        imu_state_i_.BiasAcceleration(), imu_state_prior_covariance,
-        params_.source);
+        imu_state_i_.BiasAcceleration(), prior_covariance,
+        "FIRST_IMU_STATE_PRIOR");
 
     transaction.AddImuStateVariables(
         imu_state_i_.Orientation(), imu_state_i_.Position(),
@@ -226,14 +226,21 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // make preintegrator a shared pointer for constraint
   auto pre_integrator = std::make_shared<PreIntegrator>(pre_integrator_ij);
 
-  // generate relative constraints between imu states
+  // Determine covariance and ensure non-zero
+  Eigen::Matrix<double, 15, 15> covariance_ij;
+  covariance_ij = pre_integrator_ij.delta.cov;
+  if (covariance_ij.isZero(1e-9)) {
+    covariance_ij.setIdentity();
+    covariance_ij *= params_.prior_noise;
+  }
+
+  // generate relative constraints between key frames
   transaction.AddImuStateConstraint(
       imu_state_i_.Orientation(), imu_state_j.Orientation(),
       imu_state_i_.Position(), imu_state_j.Position(), imu_state_i_.Velocity(),
       imu_state_j.Velocity(), imu_state_i_.BiasGyroscope(),
       imu_state_j.BiasGyroscope(), imu_state_i_.BiasAcceleration(),
-      imu_state_j.BiasAcceleration(), delta_ij, pre_integrator_ij.delta.cov,
-      pre_integrator);
+      imu_state_j.BiasAcceleration(), delta_ij, covariance_ij, pre_integrator);
 
   transaction.AddImuStateVariables(
       imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),

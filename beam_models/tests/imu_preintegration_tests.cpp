@@ -34,7 +34,7 @@ void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
 }
 
 class Data {
- public:
+public:
   Data() {
     // set time of simulation and gravity vector
     int64_t time_simulation_ns = start_time_ns + time_duration;
@@ -215,7 +215,7 @@ AbsoluteImuState3DStampedConstraint::SharedPtr CreatePriorConstraint(
 
   Eigen::Matrix<double, 15, 15> prior_covariance;
   prior_covariance.setIdentity();
-  prior_covariance = prior_covariance * 1e-9;
+  prior_covariance *= 1e-9;
 
   auto prior = AbsoluteImuState3DStampedConstraint::make_shared(
       "SOURCE", orientation, position, velocity, gyrobias, accelbias, mean,
@@ -261,7 +261,6 @@ std::vector<fuse_core::UUID> AddVariables(
   beam_variables::ImuBiasAccel3DStamped dummy_imu_bias_accel;
   std::vector<fuse_core::UUID> uuids;
   auto added_variables = transaction->addedVariables();
-
   for (auto iter = added_variables.begin(); iter != added_variables.end();
        iter++) {
     if (iter->type() == dummy_orientation.type()) {
@@ -402,6 +401,7 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS1.BiasGyroscopeVec(), bg_vec);
   EXPECT_EQ(IS1.BiasAccelerationVec(), ba_vec);
 
+  // instantiate class with default state values
   ImuState IS2(ros::Time(1));
 
   // check default state values
@@ -546,14 +546,15 @@ TEST(ImuPreintegration, Simple2StateFG) {
   graph.addVariable(bg2);
   graph.addVariable(ba2);
 
+  // calculate relative state detla
   Eigen::Matrix<double, 16, 1> delta = CalculateRelativeStateDelta(IS1, IS2);
 
   // create covariance
   Eigen::Matrix<double, 15, 15> covariance;
   covariance.setIdentity();
-  covariance = covariance * 0.1;
+  covariance *= 0.1;
 
-  // Add constraint
+  // Add relative constraint
   auto constraint = CreateRelativeConstraint(
       *o1, *p1, *v1, *bg1, *ba1, *o2, *p2, *v2, *bg2, *ba2, delta, covariance);
   graph.addConstraint(constraint);
@@ -613,6 +614,8 @@ TEST(ImuPreintegration, BaseFunctionality) {
   ImuState IS1 = data.IS1;
   ImuState IS2 = data.IS2;
   ImuState IS3 = data.IS3;
+
+  // get start and end times
   ros::Time t_start = IS1.Stamp();
   ros::Time t_end = IS3.Stamp();
 
@@ -686,7 +689,7 @@ TEST(ImuPreintegration, BaseFunctionality) {
   /*
   CalculateRelativeChange() functionality
   */
-
+  
   ExpectImuStateEq(imu_preintegration.GetImuState(), IS1);
   auto delta_start_end = imu_preintegration.CalculateRelativeChange(IS3);
   EXPECT_TRUE(delta_start_end.isApprox(CalculateRelativeStateDelta(IS1, IS3), 1e-6));
@@ -714,17 +717,16 @@ TEST(ImuPreintegration, BaseFunctionality) {
   // check
   ExpectImuStateNear(IS_end, IS3);
 
-  // Create the graph
-  fuse_graphs::HashGraph graph;
-
   // validate stamps
   EXPECT_TRUE(transaction->stamp() == IS_end.Stamp());
 
+  // Create the graph
+  fuse_graphs::HashGraph graph;
+
   // add variables and validate uuids for each transaction
-  std::vector<fuse_core::UUID> transaction_variable_uuids;
-  transaction_variable_uuids =
-      AddVariables(transaction, graph);
-  EXPECT_TRUE(transaction_variable_uuids.size() == 10);
+  std::vector<fuse_core::UUID> transaction_uuids;
+  transaction_uuids = AddVariables(transaction, graph);
+  EXPECT_TRUE(transaction_uuids.size() == 10);
 
   std::vector<fuse_core::UUID> state_uuids;
   state_uuids.emplace_back(IS_start.Orientation().uuid());
@@ -738,18 +740,17 @@ TEST(ImuPreintegration, BaseFunctionality) {
   state_uuids.emplace_back(IS_end.BiasGyroscope().uuid());
   state_uuids.emplace_back(IS_end.BiasAcceleration().uuid());
 
-  std::sort(transaction_variable_uuids.begin(),
-            transaction_variable_uuids.end());
+  std::sort(transaction_uuids.begin(), transaction_uuids.end());
   std::sort(state_uuids.begin(), state_uuids.end());
-  EXPECT_TRUE(transaction_variable_uuids == state_uuids);
+  EXPECT_TRUE(transaction_uuids == state_uuids);
 
-  // // add constraints and validate for each transaction
+  // // add constraints and validate for transaction
   int counter{0};
   counter += AddConstraints(transaction, graph);
   EXPECT_TRUE(counter == 2);
 
-  // Optimize the constraints and variables.
-  // graph.optimize();
+  //Optimize the constraints and variables.
+  graph.optimize();
 
   // auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
   //     graph.getVariable(IS_start.Orientation().uuid()));
