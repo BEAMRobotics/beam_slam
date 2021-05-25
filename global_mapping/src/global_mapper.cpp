@@ -14,20 +14,31 @@ GlobalMapper::GlobalMapper()
       throttled_callback_(
           std::bind(&GlobalMapper::process, this, std::placeholders::_1)) {}
 
-void GlobalMapper::process(const SlamChunk::ConstPtr& msg) {
-  global_map_.AddCameraMeasurement(msg->camera_measurement);
-  global_map_.AddLidarMeasurement(msg->lidar_measurement);
-  global_map_.AddTrajectoryMeasurement(msg->trajectory_measurement);
+void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
+  global_map_->AddCameraMeasurement(msg->camera_measurement);
+  global_map_->AddLidarMeasurement(msg->lidar_measurement);
+  global_map_->AddTrajectoryMeasurement(msg->trajectory_measurement);
   fuse_core::Transaction::SharedPtr transaction =
-      global_map_.FindLoopClosures();
+      global_map_->FindLoopClosures();
   ROS_DEBUG("Sending transaction.");
   sendTransaction(transaction);
 }
 
 void GlobalMapper::onInit() {
   params_.loadFromROS(private_node_handle_);
+  ExtrinsicsLookup::Params extrinsics_params{
+      .imu_frame = params_.imu_frame,
+      .camera_frame = params_.camera_frame,
+      .lidar_frame = params_.lidar_frame,
+      .static_extrinsics = params_.static_extrinsics};
+  std::shared_ptr<ExtrinsicsLookup> extrinsics =
+      std::make_shared<ExtrinsicsLookup>(extrinsics_params);
+
   if (!params_.global_mapper_config.empty()) {
-    global_map_ = GlobalMap(params_.global_mapper_config);
+    global_map_ =
+        std::make_unique<GlobalMap>(extrinsics, params_.global_mapper_config);
+  } else {
+    global_map_ = std::make_unique<GlobalMap>(extrinsics);
   }
 }
 
@@ -36,22 +47,22 @@ void GlobalMapper::onStart() {
 }
 
 void GlobalMapper::onStop() {
-  global_map_.SaveTrajectoryFile(params_.output_path);
-  if(params_.save_trajectory_cloud){
-    global_map_.SaveTrajectoryCloud(params_.output_path);
+  global_map_->SaveTrajectoryFiles(params_.output_path);
+  if (params_.save_trajectory_cloud) {
+    global_map_->SaveTrajectoryClouds(params_.output_path);
   }
   if (params_.save_submaps) {
-    global_map_.SaveLidarSubmaps(params_.output_path);
-    global_map_.SaveKeypointSubmaps(params_.output_path);
+    global_map_->SaveLidarSubmaps(params_.output_path);
+    global_map_->SaveKeypointSubmaps(params_.output_path);
   }
   if (params_.save_final_map) {
-    global_map_.SaveFullLidarMap(params_.output_path);
-    global_map_.SaveFullKeypointMap(params_.output_path);
+    global_map_->SaveFullLidarMap(params_.output_path);
+    global_map_->SaveFullKeypointMap(params_.output_path);
   }
 }
 
 void GlobalMapper::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  global_map_.UpdateSubmapPoses(graph_msg);
+  global_map_->UpdateSubmapPoses(graph_msg);
 }
 
 }  // namespace global_mapping

@@ -20,13 +20,23 @@ public:
      getParam<bool>(nh, "save_submaps", save_submaps, false);
      getParam<bool>(nh, "save_final_map", save_final_map, false);
      getParam<bool>(nh, "save_trajectory_cloud", save_trajectory_cloud, false);
+
+    // get extrinsics params from global namespace
+    ros::param::get("~imu_frame", imu_frame);
+    ros::param::get("~lidar_frame", lidar_frame);
+    ros::param::get("~camera_frame", camera_frame);
+    ros::param::get("~static_extrinsics", static_extrinsics);
   }
 
   std::string global_mapper_config;
   std::string output_path;
+  std::string imu_frame;
+  std::string lidar_frame;
+  std::string camera_frame;
   bool save_submaps;
   bool save_final_map;
   bool save_trajectory_cloud;
+  bool static_extrinsics{true};
 
 };
 

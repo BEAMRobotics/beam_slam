@@ -2,8 +2,9 @@
 
 #include <beam_utils/pointclouds.h>
 #include <beam_containers/LandmarkContainer.h>
+#include <beam_containers/LandmarkMeasurement.h>
 #include <beam_calibration/CameraModel.h>
-#include <global_mapping/LandmarkMeasurement.h>
+#include <global_mapping/LandmarkMeasurementMsg.h>
 #include <beam_common/scan_pose.h>
 
 #include <map>
@@ -17,9 +18,25 @@
 namespace global_mapping {
 
 using pose_allocator = Eigen::aligned_allocator<Eigen::Matrix4d>;
+using namespace beam_common;
 
+/**
+ * @brief class for holding and performing operation on locally consistent SLAM
+ * data chunks.
+ *
+ * NOTE: All data should be expressed in one "baselink" sensor frame
+ * (usually set to camera frame), and with respect to the submap frame (not
+ * world frame). This is made to be used in conjuction with GlobalMap which
+ * allows for the relative pose of the submaps to be changed without affecting
+ * the local consistency of the data in the submaps.
+ */
 class Submap {
  public:
+  struct PoseStamped {
+    ros::Time stamp;
+    Eigen::Matrix4d T_SUBMAP_SENSOR;
+  };
+
   /**
    * @brief constructor that requires a pose and stamp for the submap.
    * @param T_WORLD_SUBMAP pose in matrix form
@@ -33,7 +50,8 @@ class Submap {
    * @param orientation R_WORLD_SUBMAP
    * @param stamp timestamp associated with the submap pose
    */
-  Submap(const ros::Time& stamp, const fuse_variables::Position3DStamped& position,
+  Submap(const ros::Time& stamp,
+         const fuse_variables::Position3DStamped& position,
          const fuse_variables::Orientation3DStamped& orientation);
 
   /**
@@ -87,7 +105,7 @@ class Submap {
    * @param sensor_id used to lookup transforms
    * @param measurement_id id of this specific measurement (image)
    */
-  void AddCameraMeasurement(const std::vector<LandmarkMeasurement>& landmarks,
+  void AddCameraMeasurement(const std::vector<LandmarkMeasurementMsg>& landmarks,
                             const Eigen::Matrix4d& T_WORLD_FRAME,
                             const ros::Time& stamp, int sensor_id,
                             int measurement_id);
@@ -104,9 +122,9 @@ class Submap {
    * @param type type of lidar points. See description in LidarMeasurement.msg
    */
   void AddLidarMeasurement(const PointCloud& cloud,
-                            const Eigen::Matrix4d& T_WORLD_FRAME,
-                            const ros::Time& stamp, int sensor_id,
-                            int measurement_id, int type);
+                           const Eigen::Matrix4d& T_WORLD_FRAME,
+                           const ros::Time& stamp, int sensor_id,
+                           int measurement_id, int type);
 
   /**
    * @brief add a set of trajectory measurements associated with some frame
@@ -178,6 +196,20 @@ class Submap {
   PointCloud GetLidarPointsInWorldFrame();
 
   /**
+   * @brief return a vector of stamped poses for all camera keyframes and their
+   * attached sub-trajectories
+   * @param return vectors of stamped poses
+   */
+  std::vector<PoseStamped> GetCameraTrajectory();
+
+  /**
+   * @brief return a vector of stamped poses for all lidar keyframes and their
+   * attached sub-trajectories
+   * @param return vectors of stamped poses
+   */
+  std::vector<PoseStamped> GetLidarTrajectory();
+
+  /**
    * @brief print relevant information about what is currently contained in this
    * submap. Example: pose, number of lidar scans and keypoints, etc...
    * @param stream input stream
@@ -185,18 +217,24 @@ class Submap {
   void Print(std::ostream& stream = std::cout);
 
  private:
+  // general submap data
   ros::Time stamp_;
   int graph_updates_{0};
   fuse_variables::Position3DStamped position_;        // t_WORLD_SUBMAP
   fuse_variables::Orientation3DStamped orientation_;  // R_WORLD_SUBMAP
   Eigen::Matrix4d T_WORLD_SUBMAP_initial_;
-  std::map<double, beam_common::ScanPose> scans_poses_; // <time, scan pose>
 
+  // lidar data
+  std::map<uint64_t, ScanPose> lidar_keyframe_poses_;  // <time,ScanPose>
+  std::map<uint64_t, PoseStamped> lidar_subframe_poses_;
+
+  // camera data
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
+  std::map<uint64_t, Eigen::Matrix4d> camera_keyframe_poses_;  // <time, pose>
+  std::map<uint64_t, PoseStamped> camera_subframe_poses_;
+  //   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;  // <id, position>
   beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement>
       landmarks_;
-  std::map<uint64_t, Eigen::Matrix4d> keyframe_poses_; // <time, pose>
-  std::map<uint64_t, Eigen::Vector3d> landmark_positions_; // <id, position>
 };
 
 }  // namespace global_mapping

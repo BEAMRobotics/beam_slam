@@ -15,4 +15,4 @@ float32[] T_WORLD_FRAME
 uint32 size
 
 # all landmarks detected in this image
-LandmarkMeasurement[] landmarks 
+LandmarkMeasurementMsg[] landmarks 

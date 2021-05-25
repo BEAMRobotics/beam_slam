@@ -4,7 +4,7 @@
 #include <fuse_core/uuid.h>
 #include <fuse_models/common/throttled_callback.h>
 
-#include <global_mapping/SlamChunk.h>
+#include <global_mapping/SlamChunkMsg.h>
 #include <global_mapping/global_map.h>
 #include <beam_parameters/models/global_mapper_params.h>
 
@@ -29,7 +29,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   /**
    * @brief TODO
    */
-  void process(const SlamChunk::ConstPtr& msg);
+  void process(const SlamChunkMsg::ConstPtr& msg);
 
  private:
   /**
@@ -54,10 +54,10 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
 
   fuse_core::UUID device_id_;  //!< The UUID of this device
   beam_parameters::models::GlobalMapperParams params_;
-  GlobalMap global_map_;
+  std::unique_ptr<GlobalMap> global_map_;
 
   using ThrottledCallback =
-      fuse_models::common::ThrottledCallback<SlamChunk>;
+      fuse_models::common::ThrottledCallback<SlamChunkMsg>;
   ThrottledCallback throttled_callback_;
 };
 

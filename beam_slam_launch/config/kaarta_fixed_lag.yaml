@@ -4,6 +4,7 @@ lag_duration: 20
 imu_frame: "IMU"
 lidar_frame: "velodyne"
 camera_frame: "camera"
+static_extrinsics: true
 
 sensor_models:
   - name: 'scan_matcher_3d'
@@ -49,6 +50,7 @@ scan_matcher_3d:
   min_motion_trans_m: 0.10 # will only register scans with initial translation estimate greater than this. Default: 0
   min_motion_rot_deg: 10 # will only register scans with initial rotation estimate greater than this. Default: 0. Note: we use an OR statement for min motion between this and the last parameter
   subscriber_topic: '/kaarta/aggregates'
+  sensor_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'ODOMETRY' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/integrated_to_init' # for ODOMETRY: topic, for POSEFILE: path
   num_neighbors: 7 # how many neighboring scans to register against

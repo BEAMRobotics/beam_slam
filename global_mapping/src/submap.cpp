@@ -40,19 +40,21 @@ int Submap::Updates() { return graph_updates_; }
 ros::Time Submap::Stamp() { return stamp_; }
 
 void Submap::AddCameraMeasurement(
-    const std::vector<LandmarkMeasurement>& landmarks,
+    const std::vector<LandmarkMeasurementMsg>& landmarks,
     const Eigen::Matrix4d& T_WORLD_FRAME, const ros::Time& stamp, int sensor_id,
     int measurement_id) {
-  //
+  // TODO: convert to proper submap frame
 }
 
 void Submap::AddLidarMeasurement(const PointCloud& cloud,
                                  const Eigen::Matrix4d& T_WORLD_FRAME,
                                  const ros::Time& stamp, int sensor_id,
                                  int measurement_id, int type) {
+  // TODO: convert to proper submap frame
+
   // Check if stamp already exists (we may be adding partial scans)
-  auto iter = scans_poses_.find(stamp.toSec());
-  if (iter != scans_poses_.end()) {
+  auto iter = lidar_keyframe_poses_.find(stamp.toNSec());
+  if (iter != lidar_keyframe_poses_.end()) {
     // Stamp exists: add cloud to the corresponding submap
 
     // if it's a normal cloud, we can just add it
@@ -80,8 +82,8 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     beam_common::ScanPose new_scan_pose(stamp, T_WORLD_FRAME);
     if (type == 0) {
       new_scan_pose.AddPointCloud(cloud, false);
-      scans_poses_.insert(std::pair<double, beam_common::ScanPose>(
-          stamp.toSec(), new_scan_pose));
+      lidar_keyframe_poses_.insert(std::pair<uint64_t, beam_common::ScanPose>(
+          stamp.toNSec(), new_scan_pose));
       return;
     }
 
@@ -98,8 +100,8 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
       return;
     }
     new_scan_pose.AddPointCloud(new_loam_cloud, false);
-    scans_poses_.insert(
-        std::pair<double, beam_common::ScanPose>(stamp.toSec(), new_scan_pose));
+    lidar_keyframe_poses_.insert(std::pair<uint64_t, beam_common::ScanPose>(
+        stamp.toNSec(), new_scan_pose));
   }
 }
 
@@ -107,7 +109,7 @@ void Submap::AddTrajectoryMeasurement(
     const std::vector<Eigen::Matrix4d, pose_allocator>& poses,
     const std::vector<ros::Time>& stamps, const Eigen::Matrix4d& T_WORLD_FRAME,
     const ros::Time& stamp, int sensor_id, int measurement_id) {
-  //
+  // TODO: convert to proper submap frame
 }
 
 bool Submap::UpdatePose(fuse_core::Graph::ConstSharedPtr graph_msg) {
@@ -158,6 +160,8 @@ void Submap::Print(std::ostream& stream) {
          << "  - y: " << orientation_.y() << "\n"
          << "  - z: " << orientation_.z() << "\n"
          << "  - w: " << orientation_.w() << "\n";
+
+  // TODO: add more info to the print (e.g. lidar and cam measurements)
 }
 
 }  // namespace global_mapping

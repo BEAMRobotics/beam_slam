@@ -149,17 +149,15 @@ void ScanPose::Save(const std::string& save_path, bool to_reference_frame,
     return;
   }
 
-  PointCloudPtr cloud_initial = std::make_shared<PointCloud>();
-  PointCloudPtr cloud_final = std::make_shared<PointCloud>();
-
-  pcl::transformPointCloud(pointcloud_, *cloud_initial,
+  PointCloud cloud_initial;
+  PointCloud cloud_final;
+  pcl::transformPointCloud(pointcloud_, cloud_initial,
                            T_REFFRAME_CLOUD_initial_);
-  pcl::transformPointCloud(pointcloud_, *cloud_final, this->T_REFFRAME_CLOUD());
+  pcl::transformPointCloud(pointcloud_, cloud_final, this->T_REFFRAME_CLOUD());
 
-  PointCloudColPtr cloud_initial_col =
+  PointCloudCol cloud_initial_col =
       beam::ColorPointCloud(cloud_initial, 255, 0, 0);
-  PointCloudColPtr cloud_final_col =
-      beam::ColorPointCloud(cloud_final, 0, 255, 0);
+  PointCloudCol cloud_final_col = beam::ColorPointCloud(cloud_final, 0, 255, 0);
 
   if (add_frame) {
     cloud_initial_col =
@@ -168,8 +166,8 @@ void ScanPose::Save(const std::string& save_path, bool to_reference_frame,
         beam::AddFrameToCloud(cloud_final_col, this->T_REFFRAME_CLOUD());
   }
   pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
-                            *cloud_initial_col);
-  pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd", *cloud_final_col);
+                            cloud_initial_col);
+  pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd", cloud_final_col);
 
   ROS_INFO("Saved cloud with stamp: %.5f", stamp_.toSec());
 }

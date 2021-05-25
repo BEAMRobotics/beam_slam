@@ -1,11 +1,18 @@
 #include <global_mapping/global_map.h>
-// #include <global_mapping/loop_closures.h>
+
+#include <chrono>
+#include <ctime>
 
 #include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
 #include <pcl/io/pcd_io.h>
 
+// #include <global_mapping/loop_closures.h>
+
 #include <beam_utils/log.h>
+#include <beam_utils/time.h>
+#include <beam_utils/pointclouds.h>
+#include <beam_mapping/Poses.h>
 
 namespace global_mapping {
 
@@ -18,7 +25,20 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   loop_closure_config = J["loop_closure_config"];
 }
 
-GlobalMap::GlobalMap(const std::string& config_path) {
+GlobalMap::GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics)
+    : extrinsics_(extrinsics) {
+  Setup();
+}
+
+GlobalMap::GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
+                     const Params& params)
+    : extrinsics_(extrinsics), params_(params) {
+  Setup();
+}
+
+GlobalMap::GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
+                     const std::string& config_path)
+    : extrinsics_(extrinsics) {
   if (!boost::filesystem::exists(config_path)) {
     BEAM_ERROR(
         "GlobalMap config file not found, using default parameters. Input: {}",
@@ -29,10 +49,14 @@ GlobalMap::GlobalMap(const std::string& config_path) {
   if (!config_path.empty()) {
     params_.LoadJson(config_path);
   }
-  InitiateLoopClosure();
+  Setup();
 }
 
-void GlobalMap::InitiateLoopClosure() {
+void GlobalMap::Setup() {
+  baselink_frame_ = extrinsics_->params.camera_frame;
+  world_frame_ = "world";
+
+  // initiate loop closure
   std::string& type = params_.loop_closure_type;
 
   // if (type == "EUCDISTICP") {
@@ -54,11 +78,10 @@ void GlobalMap::InitiateLoopClosure() {
   // }
 }
 
-void GlobalMap::AddCameraMeasurement(const CameraMeasurement& measurement) {
+void GlobalMap::AddCameraMeasurement(const CameraMeasurementMsg& measurement) {
   if (measurement.size == 0) {
     return;
   }
-  // float T[measurement.size] = {0};
   std::vector<float> T;
   T = measurement.T_WORLD_FRAME;
   Eigen::Matrix4d T_WORLD_FRAME =
@@ -70,7 +93,7 @@ void GlobalMap::AddCameraMeasurement(const CameraMeasurement& measurement) {
     submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME));
   }
 
-  std::vector<LandmarkMeasurement> landmarks;
+  std::vector<LandmarkMeasurementMsg> landmarks;
   for (int i = 0; i < measurement.size; i++) {
     landmarks.push_back(measurement.landmarks[i]);
   }
@@ -80,7 +103,7 @@ void GlobalMap::AddCameraMeasurement(const CameraMeasurement& measurement) {
       measurement.measurement_id);
 }
 
-void GlobalMap::AddLidarMeasurement(const LidarMeasurement& measurement) {
+void GlobalMap::AddLidarMeasurement(const LidarMeasurementMsg& measurement) {
   if (measurement.size == 0) {
     return;
   }
@@ -100,7 +123,7 @@ void GlobalMap::AddLidarMeasurement(const LidarMeasurement& measurement) {
 }
 
 void GlobalMap::AddTrajectoryMeasurement(
-    const TrajectoryMeasurement& measurement) {
+    const TrajectoryMeasurementMsg& measurement) {
   if (measurement.size == 0) {
     return;
   }
@@ -242,12 +265,99 @@ Eigen::Matrix4d GlobalMap::VectorToEigenTransform(const std::vector<float>& v) {
   }
 }
 
-void GlobalMap::SaveTrajectoryFile(const std::string& output_path) {
-  // TODO
+void GlobalMap::SaveTrajectoryFiles(const std::string& output_path) {
+  std::string date = beam::ConvertTimeToDate(std::chrono::system_clock::now());
+
+  // Get camera trajectory
+  beam_mapping::Poses poses_camera;
+  poses_camera.SetPoseFileDate(date);
+  poses_camera.SetFixedFrame(world_frame_);
+  poses_camera.SetMovingFrame(baselink_frame_);
+  for (auto& submap : submaps_) {
+    Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
+    for (auto& pose_stamped : submap.GetCameraTrajectory()) {
+      Eigen::Matrix4d& T_SUBMAP_SENSOR = pose_stamped.T_SUBMAP_SENSOR;
+      Eigen::Matrix4d T_WORLD_SENSOR = T_WORLD_SUBMAP * T_SUBMAP_SENSOR;
+      poses_camera.AddSingleTimeStamp(pose_stamped.stamp);
+      poses_camera.AddSinglePose(Eigen::Affine3d(T_WORLD_SENSOR));
+    }
+  }
+  std::string output_file_camera =
+      output_path + "global_map_camera_trajectory.json";
+  poses_camera.WriteToJSON(output_file_camera);
+
+  // Get lidar trajectory
+  beam_mapping::Poses poses_lidar;
+  poses_lidar.SetPoseFileDate(date);
+  poses_lidar.SetFixedFrame(world_frame_);
+  poses_lidar.SetMovingFrame(baselink_frame_);
+  for (auto& submap : submaps_) {
+    Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
+    for (auto& pose_stamped : submap.GetLidarTrajectory()) {
+      Eigen::Matrix4d& T_SUBMAP_SENSOR = pose_stamped.T_SUBMAP_SENSOR;
+      Eigen::Matrix4d T_WORLD_SENSOR = T_WORLD_SUBMAP * T_SUBMAP_SENSOR;
+      poses_lidar.AddSingleTimeStamp(pose_stamped.stamp);
+      poses_lidar.AddSinglePose(Eigen::Affine3d(T_WORLD_SENSOR));
+    }
+  }
+  std::string output_file_lidar =
+      output_path + "global_map_lidar_trajectory.json";
+  poses_lidar.WriteToJSON(output_file_lidar);
 }
 
-void GlobalMap::SaveTrajectoryCloud(const std::string& output_path) {
-  // TODO
+void GlobalMap::SaveTrajectoryClouds(const std::string& output_path) {
+  // get camera trajectory
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud_camera;
+  for (auto& submap : submaps_) {
+    Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
+    for (auto& pose_stamped : submap.GetCameraTrajectory()) {
+      Eigen::Matrix4d& T_SUBMAP_SENSOR = pose_stamped.T_SUBMAP_SENSOR;
+      Eigen::Vector4d p(0, 0, 0, 1);
+      p = T_WORLD_SUBMAP * T_SUBMAP_SENSOR * p;
+      pcl::PointXYZRGBL point;
+      point.x = p[0];
+      point.y = p[1];
+      point.z = p[2];
+      point.label = pose_stamped.stamp.toSec();
+      cloud_camera.push_back(point);
+    }
+  }
+  std::string output_file_camera =
+      output_path + "global_map_camera_trajectory.pcd";
+  pcl::io::savePCDFileASCII(output_file_camera, cloud_camera);
+
+  // get lidar trajectory
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud_lidar;
+  for (auto& submap : submaps_) {
+    Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
+    for (auto& pose_stamped : submap.GetLidarTrajectory()) {
+      Eigen::Matrix4d& T_SUBMAP_SENSOR = pose_stamped.T_SUBMAP_SENSOR;
+      Eigen::Vector4d p(0, 0, 0, 1);
+      p = T_WORLD_SUBMAP * T_SUBMAP_SENSOR * p;
+      pcl::PointXYZRGBL point;
+      point.x = p[0];
+      point.y = p[1];
+      point.z = p[2];
+      point.label = pose_stamped.stamp.toSec();
+      cloud_lidar.push_back(point);
+    }
+  }
+  std::string output_file_lidar =
+      output_path + "global_map_lidar_trajectory.pcd";
+  pcl::io::savePCDFileASCII(output_file_lidar, cloud_lidar);
+}
+
+void GlobalMap::SaveSubmapFrames(const std::string& output_path) {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  for (auto& submap : submaps_) {
+    pcl::PointCloud<pcl::PointXYZRGBL> frame =
+        beam::CreateFrameCol(submap.Stamp());
+    pcl::PointCloud<pcl::PointXYZRGBL> frame_transformed;
+    pcl::transformPointCloud(frame, frame_transformed, submap.T_WORLD_SUBMAP());
+    cloud += frame_transformed;
+  }
+  std::string output_file = output_path + "global_map_submap_poses.pcd";
+  pcl::io::savePCDFileASCII(output_file, cloud);
 }
 
 }  // namespace global_mapping

@@ -5,10 +5,11 @@
 #include <beam_utils/pointclouds.h>
 
 #include <global_mapping/submap.h>
-#include <global_mapping/CameraMeasurement.h>
-#include <global_mapping/LidarMeasurement.h>
-#include <global_mapping/TrajectoryMeasurement.h>
-#include <global_mapping/LandmarkMeasurement.h>
+#include <global_mapping/CameraMeasurementMsg.h>
+#include <global_mapping/LidarMeasurementMsg.h>
+#include <global_mapping/TrajectoryMeasurementMsg.h>
+#include <global_mapping/LandmarkMeasurementMsg.h>
+#include <beam_common/extrinsics_lookup.h>
 // #include <global_mapping/loop_closure.h>
 
 namespace global_mapping {
@@ -51,10 +52,26 @@ class GlobalMap {
   };
 
   /**
-   * @brief constructor that takes an optional path to config file.
+   * @brief constructor requiring only a pointer to an extrinsics lookup object
+   * @param extrinsics object for looking up extrinsics
+   */
+  GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics);
+
+  /**
+   * @brief constructor that also takes a params struct.
+   * @param extrinsics object for looking up extrinsics
+   * @param params see struct above
+   */
+  GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
+            const Params& params);
+
+  /**
+   * @brief constructor that also takes a path to config file.
+   * @param extrinsics object for looking up extrinsics
    * @param config_path full path to json config file
    */
-  GlobalMap(const std::string& config_path = "");
+  GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
+            const std::string& config_path);
 
   /**
    * @brief default destructor
@@ -63,15 +80,17 @@ class GlobalMap {
 
   /**
    * @brief add a camera measurement to the appropriate submap
-   * @param measurement camera measurement to add
+   * @param measurement camera measurement to add.
+   * NOTE: All data should be in baselink_frame_ already
    */
-  void AddCameraMeasurement(const CameraMeasurement& measurement);
+  void AddCameraMeasurement(const CameraMeasurementMsg& measurement);
 
   /**
    * @brief add a lidar measurement to the appropriate submap
    * @param measurement lidar measurement to add
+   * NOTE: All data should be in baselink_frame_ already
    */
-  void AddLidarMeasurement(const LidarMeasurement& measurement);
+  void AddLidarMeasurement(const LidarMeasurementMsg& measurement);
 
   /**
    * @brief add a trajectory measurement to the appropriate submap. This is
@@ -81,8 +100,9 @@ class GlobalMap {
    * between them, we may want to add relative poses from the IMU
    * (preintegration)
    * @param measurement trajectory measurement to add
+   * NOTE: All transforms should be from baselink_frame_ to world_frame_
    */
-  void AddTrajectoryMeasurement(const TrajectoryMeasurement& measurement);
+  void AddTrajectoryMeasurement(const TrajectoryMeasurementMsg& measurement);
 
   /**
    * @brief Get loop closure measurements by comparing the current submap to all
@@ -132,20 +152,26 @@ class GlobalMap {
    * @brief saves the trajectory as a posefile
    * @param output_path where to save the trajectory
    */
-  void SaveTrajectoryFile(const std::string& output_path);
+  void SaveTrajectoryFiles(const std::string& output_path);
 
   /**
    * @brief saves the trajectory as a pointcloud
    * @param output_path where to save the trajectory
    */
-  void SaveTrajectoryCloud(const std::string& output_path);
-  
+  void SaveTrajectoryClouds(const std::string& output_path);
+
+  /**
+   * @brief saves the pose of each submap as a pointcloud with RGB frames
+   * @param output_path where to save the pointcloud
+   */
+  void SaveSubmapFrames(const std::string& output_path);
 
  private:
   /**
-   * @brief initiates the loop closure pointer
+   * @brief setup general things needed when class is instatiated, such as
+   * initiating the loop closure pointer
    */
-  void InitiateLoopClosure();
+  void Setup();
 
   /**
    * @brief Get the appropriate submap id that a new measurement should be added
@@ -165,7 +191,14 @@ class GlobalMap {
 
   Params params_;
   std::vector<Submap> submaps_;
+  std::shared_ptr<ExtrinsicsLookup> extrinsics_;
   //   std::unique_ptr<LoopClosureBase> loop_closure_;
+
+  // All poses will be stored w.r.t to these frame. By default, baselink is set
+  // to camera frame stored in extrinsics_ and world frame is set to "world".
+  // See Setup()
+  std::string baselink_frame_;
+  std::string world_frame_;
 };
 
 }  // namespace global_mapping

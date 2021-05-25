@@ -5,7 +5,7 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS utils matching filtering cv calibration containers)
+find_package(beam REQUIRED COMPONENTS utils matching filtering cv calibration containers mapping)
 
 find_package(
   catkin REQUIRED
@@ -42,11 +42,11 @@ add_message_files(
   DIRECTORY
     msg
   FILES
-    LandmarkMeasurement.msg
-    CameraMeasurement.msg    
-    LidarMeasurement.msg
-    TrajectoryMeasurement.msg
-    SlamChunk.msg
+    LandmarkMeasurementMsg.msg
+    CameraMeasurementMsg.msg    
+    LidarMeasurementMsg.msg
+    TrajectoryMeasurementMsg.msg
+    SlamChunkMsg.msg
 )
 
 generate_messages()
@@ -114,6 +114,7 @@ target_link_libraries(
     beam::cv
     beam::calibration
     beam::containers
+    beam::mapping
 )
 add_dependencies(
   ${PROJECT_NAME}
