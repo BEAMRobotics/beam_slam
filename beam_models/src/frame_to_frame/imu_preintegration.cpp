@@ -221,7 +221,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   }
 
   // calculate relative change in imu state between key frames
-  auto delta_ij = CalculateRelativeChange(imu_state_j);  
+  auto delta_ij = CalculateRelativeChange(imu_state_j);
 
   // make preintegrator a shared pointer for constraint
   auto pre_integrator = std::make_shared<PreIntegrator>(pre_integrator_ij);
@@ -240,7 +240,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
       imu_state_j.BiasGyroscope(), imu_state_j.BiasAcceleration(),
       imu_state_j.Stamp());
 
-  // set state predicted state to previous state
+  // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
 
   ResetPreintegrator();

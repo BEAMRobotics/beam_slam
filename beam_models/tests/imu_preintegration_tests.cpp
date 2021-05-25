@@ -34,7 +34,7 @@ void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
 }
 
 class Data {
-public:
+ public:
   Data() {
     // set time of simulation and gravity vector
     int64_t time_simulation_ns = start_time_ns + time_duration;
@@ -613,6 +613,8 @@ TEST(ImuPreintegration, BaseFunctionality) {
   ImuState IS1 = data.IS1;
   ImuState IS2 = data.IS2;
   ImuState IS3 = data.IS3;
+  ros::Time t_start = IS1.Stamp();
+  ros::Time t_end = IS3.Stamp();
 
   /*
   SetStart() functionality
@@ -620,7 +622,6 @@ TEST(ImuPreintegration, BaseFunctionality) {
 
   // set start of imu preintegration. This requires us to pass three fuse
   // variables, which for testing purposes will match IS1
-  ros::Time t_start = IS1.Stamp();
   fuse_core::UUID device_id = fuse_core::uuid::generate(params.source);
 
   fuse_variables::Orientation3DStamped::SharedPtr o_start =
@@ -683,22 +684,29 @@ TEST(ImuPreintegration, BaseFunctionality) {
   ExpectImuStateEq(IS_end_predict, IS3);
 
   /*
+  CalculateRelativeChange() functionality
+  */
+
+  ExpectImuStateEq(imu_preintegration.GetImuState(), IS1);
+  auto delta_start_end = imu_preintegration.CalculateRelativeChange(IS3);
+  EXPECT_TRUE(delta_start_end.isApprox(CalculateRelativeStateDelta(IS1, IS3), 1e-6));
+
+  /*
   GetPose() functionality
   */
 
   for (int i = 1; i - 1 < data.pose_gt.size(); ++i) {
     ExpectTransformsNear(imu_preintegration.GetPose(ros::Time(i)),
-                         data.pose_gt[i - 1]);
+                         data.pose_gt[i - 1]);               
   }
 
   /*
-  PredictState() functionality
+  RegisterNewImuPreintegratedFactor() functionality
   */
 
   // generate transaction to perform imu preintegration
-  ros::Time t_end = IS3.Stamp();
-  auto transaction =
-      imu_preintegration.RegisterNewImuPreintegratedFactor(t_end);
+  auto transaction = imu_preintegration.RegisterNewImuPreintegratedFactor(t_end)
+                         .GetTransaction();
 
   // get end imu state from preintegration
   ImuState IS_end = imu_preintegration.GetImuState();
@@ -710,11 +718,12 @@ TEST(ImuPreintegration, BaseFunctionality) {
   fuse_graphs::HashGraph graph;
 
   // validate stamps
-  EXPECT_TRUE(transaction.GetTransaction()->stamp() == IS_end.Stamp());
+  EXPECT_TRUE(transaction->stamp() == IS_end.Stamp());
 
   // add variables and validate uuids for each transaction
   std::vector<fuse_core::UUID> transaction_variable_uuids;
-  transaction_variable_uuids = AddVariables(transaction.GetTransaction(), graph);
+  transaction_variable_uuids =
+      AddVariables(transaction, graph);
   EXPECT_TRUE(transaction_variable_uuids.size() == 10);
 
   std::vector<fuse_core::UUID> state_uuids;
@@ -736,7 +745,7 @@ TEST(ImuPreintegration, BaseFunctionality) {
 
   // // add constraints and validate for each transaction
   int counter{0};
-  counter += AddConstraints(transaction.GetTransaction(), graph);
+  counter += AddConstraints(transaction, graph);
   EXPECT_TRUE(counter == 2);
 
   // Optimize the constraints and variables.

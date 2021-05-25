@@ -69,6 +69,9 @@ public:
   ImuState PredictState(const PreIntegrator& pre_integrator,
                         const ImuState& imu_state_curr);
 
+  Eigen::Matrix<double, 16, 1> CalculateRelativeChange(
+    const ImuState& imu_state_curr);                      
+
   Eigen::Matrix4d GetPose(const ros::Time& t_now);
 
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
@@ -81,9 +84,6 @@ private:
   void SetPreintegrator();
 
   void ResetPreintegrator();
-
-  Eigen::Matrix<double, 16, 1> CalculateRelativeChange(
-      const ImuState& imu_state_curr);
 
   Params params_;
   Eigen::Vector3d g_;
