@@ -88,12 +88,13 @@ class ExtrinsicsLookup {
    */
   bool GetT_LIDAR_IMU(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));
 
+  Params params;
+  
  private:
  bool GetTransform(Eigen::Matrix4d& T, const std::string& to_frame,
                               const std::string& from_frame,
                               const ros::Time& time);
 
-  Params params_;
   tf::TransformListener tf_listener_;
 
   Eigen::Matrix4d T_LIDAR_IMU_;
