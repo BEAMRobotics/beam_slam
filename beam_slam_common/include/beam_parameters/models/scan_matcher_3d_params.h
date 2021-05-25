@@ -34,9 +34,10 @@ public:
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           "");
     nh.param("matcher_noise_diagonal", matcher_noise_diagonal, matcher_noise_diagonal);
-    
-    // get lag_duration from global namespace
+
+    // get lag_duration && sensor frame from global namespace
     ros::param::get("~lag_duration", lag_duration);
+    ros::param::get("~lidar_frame", sensor_frame);
 
     // need custom message for matcher_params_path
     if (!nh.getParam("matcher_params_path", matcher_params_path)) {
@@ -65,6 +66,7 @@ public:
   double min_motion_rot_rad;
   double lag_duration;
   bool fix_first_scan;
+  std::string sensor_frame
   std::string matcher_params_path;
   std::string scan_output_directory;
 };

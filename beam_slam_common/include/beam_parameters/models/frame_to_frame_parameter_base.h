@@ -45,11 +45,9 @@ public:
     getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
                           frame_initializer_info);
     getParamRequired<std::string>(nh, "subscriber_topic", subscriber_topic);
-    getParamRequired<std::string>(nh, "sensor_frame", sensor_frame);
   }
   
   std::string subscriber_topic;
-  std::string sensor_frame;
   std::string frame_initializer_type{"ODOMETRY"};
   std::string frame_initializer_info{""};
 
