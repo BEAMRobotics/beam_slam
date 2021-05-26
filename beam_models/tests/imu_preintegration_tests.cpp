@@ -8,9 +8,9 @@
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 #include <beam_utils/math.h>
 
-using namespace beam_models::frame_to_frame;
 using namespace beam_constraints::frame_to_frame;
 using namespace beam_constraints::global;
+using namespace beam_models::frame_to_frame;
 
 void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
                              Eigen::Quaterniond& delta_q,

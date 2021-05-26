@@ -5,8 +5,8 @@
 #include <sensor_msgs/Imu.h>
 #include <slamtools/preintegrator.h>
 
-#include <beam_common/imu_state.h>
 #include <beam_constraints/frame_to_frame/imu_state_3d_stamped_transaction.h>
+#include <beam_models/frame_to_frame/imu_state.h>
 
 namespace beam_models { namespace frame_to_frame {
 
