@@ -172,9 +172,8 @@ Eigen::Matrix<double, 16, 1> CalculateRelativeStateDelta(const ImuState& IS1,
   CalculateRelativeMotion(IS1, IS2, delta_q, delta_p, delta_v, dummy_gravity,
                           false);
 
-  Eigen::Vector3d delta_bg = IS2.BiasGyroscopeVec() - IS1.BiasGyroscopeVec();
-  Eigen::Vector3d delta_ba =
-      IS2.BiasAccelerationVec() - IS1.BiasAccelerationVec();
+  Eigen::Vector3d delta_bg = IS2.GyroBiasVec() - IS1.GyroBiasVec();
+  Eigen::Vector3d delta_ba = IS2.AccelBiasVec() - IS1.AccelBiasVec();
 
   Eigen::Matrix<double, 16, 1> delta;
   delta << delta_q.w(), delta_q.vec(), delta_p, delta_v, delta_bg, delta_ba;
@@ -312,15 +311,12 @@ void ExpectImuStateEq(const ImuState& IS1, const ImuState& IS2) {
   EXPECT_NEAR(IS1.VelocityVec()[0], IS2.VelocityVec()[0], 1e-12);
   EXPECT_NEAR(IS1.VelocityVec()[1], IS2.VelocityVec()[1], 1e-12);
   EXPECT_NEAR(IS1.VelocityVec()[2], IS2.VelocityVec()[2], 1e-12);
-  EXPECT_NEAR(IS1.BiasGyroscopeVec()[0], IS2.BiasGyroscopeVec()[0], 1e-12);
-  EXPECT_NEAR(IS1.BiasGyroscopeVec()[1], IS2.BiasGyroscopeVec()[1], 1e-12);
-  EXPECT_NEAR(IS1.BiasGyroscopeVec()[2], IS2.BiasGyroscopeVec()[2], 1e-12);
-  EXPECT_NEAR(IS1.BiasAccelerationVec()[0], IS2.BiasAccelerationVec()[0],
-              1e-12);
-  EXPECT_NEAR(IS1.BiasAccelerationVec()[1], IS2.BiasAccelerationVec()[1],
-              1e-12);
-  EXPECT_NEAR(IS1.BiasAccelerationVec()[2], IS2.BiasAccelerationVec()[2],
-              1e-12);
+  EXPECT_NEAR(IS1.GyroBiasVec()[0], IS2.GyroBiasVec()[0], 1e-12);
+  EXPECT_NEAR(IS1.GyroBiasVec()[1], IS2.GyroBiasVec()[1], 1e-12);
+  EXPECT_NEAR(IS1.GyroBiasVec()[2], IS2.GyroBiasVec()[2], 1e-12);
+  EXPECT_NEAR(IS1.AccelBiasVec()[0], IS2.AccelBiasVec()[0], 1e-12);
+  EXPECT_NEAR(IS1.AccelBiasVec()[1], IS2.AccelBiasVec()[1], 1e-12);
+  EXPECT_NEAR(IS1.AccelBiasVec()[2], IS2.AccelBiasVec()[2], 1e-12);
 }
 
 void ExpectImuStateNear(const ImuState& IS1, const ImuState& IS2) {
@@ -335,12 +331,12 @@ void ExpectImuStateNear(const ImuState& IS1, const ImuState& IS2) {
   EXPECT_NEAR(IS1.VelocityVec()[0], IS2.VelocityVec()[0], 1e-3);
   EXPECT_NEAR(IS1.VelocityVec()[1], IS2.VelocityVec()[1], 1e-3);
   EXPECT_NEAR(IS1.VelocityVec()[2], IS2.VelocityVec()[2], 1e-4);
-  EXPECT_NEAR(IS1.BiasGyroscopeVec()[0], IS2.BiasGyroscopeVec()[0], 1e-9);
-  EXPECT_NEAR(IS1.BiasGyroscopeVec()[1], IS2.BiasGyroscopeVec()[1], 1e-9);
-  EXPECT_NEAR(IS1.BiasGyroscopeVec()[2], IS2.BiasGyroscopeVec()[2], 1e-9);
-  EXPECT_NEAR(IS1.BiasAccelerationVec()[0], IS2.BiasAccelerationVec()[0], 1e-9);
-  EXPECT_NEAR(IS1.BiasAccelerationVec()[1], IS2.BiasAccelerationVec()[1], 1e-9);
-  EXPECT_NEAR(IS1.BiasAccelerationVec()[2], IS2.BiasAccelerationVec()[2], 1e-9);
+  EXPECT_NEAR(IS1.GyroBiasVec()[0], IS2.GyroBiasVec()[0], 1e-9);
+  EXPECT_NEAR(IS1.GyroBiasVec()[1], IS2.GyroBiasVec()[1], 1e-9);
+  EXPECT_NEAR(IS1.GyroBiasVec()[2], IS2.GyroBiasVec()[2], 1e-9);
+  EXPECT_NEAR(IS1.AccelBiasVec()[0], IS2.AccelBiasVec()[0], 1e-9);
+  EXPECT_NEAR(IS1.AccelBiasVec()[1], IS2.AccelBiasVec()[1], 1e-9);
+  EXPECT_NEAR(IS1.AccelBiasVec()[2], IS2.AccelBiasVec()[2], 1e-9);
 }
 
 void ExpectTransformsNear(const Eigen::Matrix4d& T1,
@@ -386,20 +382,20 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS1.Velocity().data()[0], v_vec[0]);
   EXPECT_EQ(IS1.Velocity().data()[1], v_vec[1]);
   EXPECT_EQ(IS1.Velocity().data()[2], v_vec[2]);
-  EXPECT_EQ(IS1.BiasGyroscope().data()[0], bg_vec[0]);
-  EXPECT_EQ(IS1.BiasGyroscope().data()[1], bg_vec[1]);
-  EXPECT_EQ(IS1.BiasGyroscope().data()[2], bg_vec[2]);
-  EXPECT_EQ(IS1.BiasAcceleration().data()[0], ba_vec[0]);
-  EXPECT_EQ(IS1.BiasAcceleration().data()[1], ba_vec[1]);
-  EXPECT_EQ(IS1.BiasAcceleration().data()[2], ba_vec[2]);
+  EXPECT_EQ(IS1.GyroBias().data()[0], bg_vec[0]);
+  EXPECT_EQ(IS1.GyroBias().data()[1], bg_vec[1]);
+  EXPECT_EQ(IS1.GyroBias().data()[2], bg_vec[2]);
+  EXPECT_EQ(IS1.AccelBias().data()[0], ba_vec[0]);
+  EXPECT_EQ(IS1.AccelBias().data()[1], ba_vec[1]);
+  EXPECT_EQ(IS1.AccelBias().data()[2], ba_vec[2]);
 
   // check quaternion/vector getters
   EXPECT_EQ(IS1.OrientationQuat().w(), q_quat.w());
   EXPECT_EQ(IS1.OrientationQuat().vec(), q_quat.vec());
   EXPECT_EQ(IS1.PositionVec(), p_vec);
   EXPECT_EQ(IS1.VelocityVec(), v_vec);
-  EXPECT_EQ(IS1.BiasGyroscopeVec(), bg_vec);
-  EXPECT_EQ(IS1.BiasAccelerationVec(), ba_vec);
+  EXPECT_EQ(IS1.GyroBiasVec(), bg_vec);
+  EXPECT_EQ(IS1.AccelBiasVec(), ba_vec);
 
   // instantiate class with default state values
   ImuState IS2(ros::Time(1));
@@ -416,19 +412,19 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS2.Velocity().data()[0], 0);
   EXPECT_EQ(IS2.Velocity().data()[1], 0);
   EXPECT_EQ(IS2.Velocity().data()[2], 0);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[0], 0);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[1], 0);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[2], 0);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[0], 0);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[1], 0);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[2], 0);
+  EXPECT_EQ(IS2.GyroBias().data()[0], 0);
+  EXPECT_EQ(IS2.GyroBias().data()[1], 0);
+  EXPECT_EQ(IS2.GyroBias().data()[2], 0);
+  EXPECT_EQ(IS2.AccelBias().data()[0], 0);
+  EXPECT_EQ(IS2.AccelBias().data()[1], 0);
+  EXPECT_EQ(IS2.AccelBias().data()[2], 0);
 
   // check quaternion/vector setters
   IS2.SetOrientation(q_quat);
   IS2.SetPosition(p_vec);
   IS2.SetVelocity(v_vec);
-  IS2.SetBiasGyroscope(bg_vec);
-  IS2.SetBiasAcceleration(ba_vec);
+  IS2.SetGyroBias(bg_vec);
+  IS2.SetAccelBias(ba_vec);
 
   EXPECT_EQ(IS2.Orientation().data()[0], q_quat.w());
   EXPECT_EQ(IS2.Orientation().data()[1], q_quat.x());
@@ -440,19 +436,19 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS2.Velocity().data()[0], v_vec[0]);
   EXPECT_EQ(IS2.Velocity().data()[1], v_vec[1]);
   EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[0], bg_vec[0]);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[1], bg_vec[1]);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[2], bg_vec[2]);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[0], ba_vec[0]);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[1], ba_vec[1]);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[2], ba_vec[2]);
+  EXPECT_EQ(IS2.GyroBias().data()[0], bg_vec[0]);
+  EXPECT_EQ(IS2.GyroBias().data()[1], bg_vec[1]);
+  EXPECT_EQ(IS2.GyroBias().data()[2], bg_vec[2]);
+  EXPECT_EQ(IS2.AccelBias().data()[0], ba_vec[0]);
+  EXPECT_EQ(IS2.AccelBias().data()[1], ba_vec[1]);
+  EXPECT_EQ(IS2.AccelBias().data()[2], ba_vec[2]);
 
   // check array setters
   IS2.SetOrientation(IS1.Orientation().data());
   IS2.SetPosition(IS1.Position().data());
   IS2.SetVelocity(IS1.Velocity().data());
-  IS2.SetBiasGyroscope(IS1.BiasGyroscope().data());
-  IS2.SetBiasAcceleration(IS1.BiasAcceleration().data());
+  IS2.SetGyroBias(IS1.GyroBias().data());
+  IS2.SetAccelBias(IS1.AccelBias().data());
 
   EXPECT_EQ(IS2.Orientation().data()[0], q_quat.w());
   EXPECT_EQ(IS2.Orientation().data()[1], q_quat.x());
@@ -464,19 +460,19 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS2.Velocity().data()[0], v_vec[0]);
   EXPECT_EQ(IS2.Velocity().data()[1], v_vec[1]);
   EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[0], bg_vec[0]);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[1], bg_vec[1]);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[2], bg_vec[2]);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[0], ba_vec[0]);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[1], ba_vec[1]);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[2], ba_vec[2]);
+  EXPECT_EQ(IS2.GyroBias().data()[0], bg_vec[0]);
+  EXPECT_EQ(IS2.GyroBias().data()[1], bg_vec[1]);
+  EXPECT_EQ(IS2.GyroBias().data()[2], bg_vec[2]);
+  EXPECT_EQ(IS2.AccelBias().data()[0], ba_vec[0]);
+  EXPECT_EQ(IS2.AccelBias().data()[1], ba_vec[1]);
+  EXPECT_EQ(IS2.AccelBias().data()[2], ba_vec[2]);
 
   // check scalar setters
   IS2.SetOrientation(q_quat.w(), q_quat.x(), q_quat.y(), q_quat.z());
   IS2.SetPosition(p_vec[0], p_vec[1], p_vec[2]);
   IS2.SetVelocity(v_vec[0], v_vec[1], v_vec[2]);
-  IS2.SetBiasGyroscope(bg_vec[0], bg_vec[1], bg_vec[2]);
-  IS2.SetBiasAcceleration(ba_vec[0], ba_vec[1], ba_vec[2]);
+  IS2.SetGyroBias(bg_vec[0], bg_vec[1], bg_vec[2]);
+  IS2.SetAccelBias(ba_vec[0], ba_vec[1], ba_vec[2]);
 
   EXPECT_EQ(IS2.Orientation().data()[0], q_quat.w());
   EXPECT_EQ(IS2.Orientation().data()[1], q_quat.x());
@@ -488,12 +484,12 @@ TEST(ImuPreintegration, ImuState) {
   EXPECT_EQ(IS2.Velocity().data()[0], v_vec[0]);
   EXPECT_EQ(IS2.Velocity().data()[1], v_vec[1]);
   EXPECT_EQ(IS2.Velocity().data()[2], v_vec[2]);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[0], bg_vec[0]);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[1], bg_vec[1]);
-  EXPECT_EQ(IS2.BiasGyroscope().data()[2], bg_vec[2]);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[0], ba_vec[0]);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[1], ba_vec[1]);
-  EXPECT_EQ(IS2.BiasAcceleration().data()[2], ba_vec[2]);
+  EXPECT_EQ(IS2.GyroBias().data()[0], bg_vec[0]);
+  EXPECT_EQ(IS2.GyroBias().data()[1], bg_vec[1]);
+  EXPECT_EQ(IS2.GyroBias().data()[2], bg_vec[2]);
+  EXPECT_EQ(IS2.AccelBias().data()[0], ba_vec[0]);
+  EXPECT_EQ(IS2.AccelBias().data()[1], ba_vec[1]);
+  EXPECT_EQ(IS2.AccelBias().data()[2], ba_vec[2]);
 }
 
 TEST(ImuPreintegration, Simple2StateFG) {
@@ -503,8 +499,8 @@ TEST(ImuPreintegration, Simple2StateFG) {
   ImuState IS2 = data.IS2;
 
   // assume small change in gyro and accel bias
-  IS2.SetBiasGyroscope(4e-5, 5e-5, 6e-5);
-  IS2.SetBiasAcceleration(1e-5, 2e-5, 3e-5);
+  IS2.SetGyroBias(4e-5, 5e-5, 6e-5);
+  IS2.SetAccelBias(1e-5, 2e-5, 3e-5);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -517,10 +513,9 @@ TEST(ImuPreintegration, Simple2StateFG) {
   fuse_variables::VelocityLinear3DStamped::SharedPtr v1 =
       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
   beam_variables::ImuBiasGyro3DStamped::SharedPtr bg1 =
-      beam_variables::ImuBiasGyro3DStamped::make_shared(IS1.BiasGyroscope());
+      beam_variables::ImuBiasGyro3DStamped::make_shared(IS1.GyroBias());
   beam_variables::ImuBiasAccel3DStamped::SharedPtr ba1 =
-      beam_variables::ImuBiasAccel3DStamped::make_shared(
-          IS1.BiasAcceleration());
+      beam_variables::ImuBiasAccel3DStamped::make_shared(IS1.AccelBias());
 
   fuse_variables::Orientation3DStamped::SharedPtr o2 =
       fuse_variables::Orientation3DStamped::make_shared(IS2.Orientation());
@@ -529,10 +524,9 @@ TEST(ImuPreintegration, Simple2StateFG) {
   fuse_variables::VelocityLinear3DStamped::SharedPtr v2 =
       fuse_variables::VelocityLinear3DStamped::make_shared(IS2.Velocity());
   beam_variables::ImuBiasGyro3DStamped::SharedPtr bg2 =
-      beam_variables::ImuBiasGyro3DStamped::make_shared(IS2.BiasGyroscope());
+      beam_variables::ImuBiasGyro3DStamped::make_shared(IS2.GyroBias());
   beam_variables::ImuBiasAccel3DStamped::SharedPtr ba2 =
-      beam_variables::ImuBiasAccel3DStamped::make_shared(
-          IS2.BiasAcceleration());
+      beam_variables::ImuBiasAccel3DStamped::make_shared(IS2.AccelBias());
 
   graph.addVariable(o1);
   graph.addVariable(p1);
@@ -574,12 +568,12 @@ TEST(ImuPreintegration, Simple2StateFG) {
     EXPECT_EQ(v2->data()[i], IS2.Velocity().data()[i]);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_EQ(bg1->data()[i], IS1.BiasGyroscope().data()[i]);
-    EXPECT_EQ(bg2->data()[i], IS2.BiasGyroscope().data()[i]);
+    EXPECT_EQ(bg1->data()[i], IS1.GyroBias().data()[i]);
+    EXPECT_EQ(bg2->data()[i], IS2.GyroBias().data()[i]);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_EQ(ba1->data()[i], IS1.BiasAcceleration().data()[i]);
-    EXPECT_EQ(ba2->data()[i], IS2.BiasAcceleration().data()[i]);
+    EXPECT_EQ(ba1->data()[i], IS1.AccelBias().data()[i]);
+    EXPECT_EQ(ba2->data()[i], IS2.AccelBias().data()[i]);
   }
 }
 
@@ -721,13 +715,13 @@ TEST(ImuPreintegration, BaseFunctionality) {
   state_uuids.emplace_back(IS_start.Orientation().uuid());
   state_uuids.emplace_back(IS_start.Position().uuid());
   state_uuids.emplace_back(IS_start.Velocity().uuid());
-  state_uuids.emplace_back(IS_start.BiasGyroscope().uuid());
-  state_uuids.emplace_back(IS_start.BiasAcceleration().uuid());
+  state_uuids.emplace_back(IS_start.GyroBias().uuid());
+  state_uuids.emplace_back(IS_start.AccelBias().uuid());
   state_uuids.emplace_back(IS_end.Orientation().uuid());
   state_uuids.emplace_back(IS_end.Position().uuid());
   state_uuids.emplace_back(IS_end.Velocity().uuid());
-  state_uuids.emplace_back(IS_end.BiasGyroscope().uuid());
-  state_uuids.emplace_back(IS_end.BiasAcceleration().uuid());
+  state_uuids.emplace_back(IS_end.GyroBias().uuid());
+  state_uuids.emplace_back(IS_end.AccelBias().uuid());
 
   std::sort(transaction_uuids.begin(), transaction_uuids.end());
   std::sort(state_uuids.begin(), state_uuids.end());
@@ -755,13 +749,13 @@ TEST(ImuPreintegration, BaseFunctionality) {
   auto v3 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
       graph.getVariable(IS_end.Velocity().uuid()));
   auto bg1 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
-      graph.getVariable(IS_start.BiasGyroscope().uuid()));
+      graph.getVariable(IS_start.GyroBias().uuid()));
   auto bg3 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
-      graph.getVariable(IS_end.BiasGyroscope().uuid()));
+      graph.getVariable(IS_end.GyroBias().uuid()));
   auto ba1 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
-      graph.getVariable(IS_start.BiasAcceleration().uuid()));
+      graph.getVariable(IS_start.AccelBias().uuid()));
   auto ba3 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
-      graph.getVariable(IS_end.BiasAcceleration().uuid()));
+      graph.getVariable(IS_end.AccelBias().uuid()));
 
   // check
   for (int i = 0; i < 4; i++) {
@@ -784,12 +778,12 @@ TEST(ImuPreintegration, BaseFunctionality) {
   EXPECT_NEAR(v3.data()[2], IS3.Velocity().data()[2], 1e-4);
 
   for (int i = 0; i < 3; i++) {
-    EXPECT_NEAR(bg1.data()[i], IS1.BiasGyroscope().data()[i], 1e-9);
-    EXPECT_NEAR(bg3.data()[i], IS3.BiasGyroscope().data()[i], 1e-9);
+    EXPECT_NEAR(bg1.data()[i], IS1.GyroBias().data()[i], 1e-9);
+    EXPECT_NEAR(bg3.data()[i], IS3.GyroBias().data()[i], 1e-9);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_NEAR(ba1.data()[i], IS1.BiasAcceleration().data()[i], 1e-9);
-    EXPECT_NEAR(ba3.data()[i], IS3.BiasAcceleration().data()[i], 1e-9);
+    EXPECT_NEAR(ba1.data()[i], IS1.AccelBias().data()[i], 1e-9);
+    EXPECT_NEAR(ba3.data()[i], IS3.AccelBias().data()[i], 1e-9);
   }
 }
 
@@ -880,17 +874,17 @@ TEST(ImuPreintegration, MultipleTransactions) {
   auto v3 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
       graph.getVariable(IS3.Velocity().uuid()));
   auto bg1 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
-      graph.getVariable(IS1.BiasGyroscope().uuid()));
+      graph.getVariable(IS1.GyroBias().uuid()));
   auto bg2 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
-      graph.getVariable(IS2.BiasGyroscope().uuid()));
+      graph.getVariable(IS2.GyroBias().uuid()));
   auto bg3 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
-      graph.getVariable(IS3.BiasGyroscope().uuid()));
+      graph.getVariable(IS3.GyroBias().uuid()));
   auto ba1 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
-      graph.getVariable(IS1.BiasAcceleration().uuid()));
+      graph.getVariable(IS1.AccelBias().uuid()));
   auto ba2 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
-      graph.getVariable(IS2.BiasAcceleration().uuid()));
+      graph.getVariable(IS2.AccelBias().uuid()));
   auto ba3 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
-      graph.getVariable(IS3.BiasAcceleration().uuid()));
+      graph.getVariable(IS3.AccelBias().uuid()));
 
   // check
   for (int i = 0; i < 4; i++) {
@@ -918,14 +912,14 @@ TEST(ImuPreintegration, MultipleTransactions) {
   EXPECT_NEAR(v3.data()[2], IS3.Velocity().data()[2], 1e-4);
 
   for (int i = 0; i < 3; i++) {
-    EXPECT_NEAR(bg1.data()[i], IS1.BiasGyroscope().data()[i], 1e-9);
-    EXPECT_NEAR(bg2.data()[i], IS2.BiasGyroscope().data()[i], 1e-9);
-    EXPECT_NEAR(bg3.data()[i], IS3.BiasGyroscope().data()[i], 1e-9);
+    EXPECT_NEAR(bg1.data()[i], IS1.GyroBias().data()[i], 1e-9);
+    EXPECT_NEAR(bg2.data()[i], IS2.GyroBias().data()[i], 1e-9);
+    EXPECT_NEAR(bg3.data()[i], IS3.GyroBias().data()[i], 1e-9);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_NEAR(ba1.data()[i], IS1.BiasAcceleration().data()[i], 1e-9);
-    EXPECT_NEAR(ba2.data()[i], IS2.BiasAcceleration().data()[i], 1e-9);
-    EXPECT_NEAR(ba3.data()[i], IS3.BiasAcceleration().data()[i], 1e-9);
+    EXPECT_NEAR(ba1.data()[i], IS1.AccelBias().data()[i], 1e-9);
+    EXPECT_NEAR(ba2.data()[i], IS2.AccelBias().data()[i], 1e-9);
+    EXPECT_NEAR(ba3.data()[i], IS3.AccelBias().data()[i], 1e-9);
   }
 }
 

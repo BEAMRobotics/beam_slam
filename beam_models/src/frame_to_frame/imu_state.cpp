@@ -1,4 +1,4 @@
-#include <beam_common/imu_state.h>
+#include <beam_models/frame_to_frame/imu_state.h>
 
 namespace beam_models { namespace frame_to_frame {
 
@@ -241,4 +241,4 @@ void ImuState::InstantiateVariables() {
       beam_variables::ImuBiasAccel3DStamped(stamp_, fuse_core::uuid::NIL);
 }
 
-}  // namespace beam_models::frame_to_frame
+}}  // namespace beam_models::frame_to_frame

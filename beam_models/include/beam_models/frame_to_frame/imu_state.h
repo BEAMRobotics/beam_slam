@@ -13,11 +13,14 @@ namespace beam_models { namespace frame_to_frame {
 
 class ImuState {
 public:
-  ImuState() = delete;
+  /**
+   * @brief default constructor
+   */
+  ImuState() = default;
 
   /**
-   * @brief default constructor. Orientation is set to identity, while all other
-   * variables are set to zero.
+   * @brief constructor when inputting time. Orientation is set to identity,
+   * while all other variables are set to zero.
    * @param time timestamp for this imu state
    */
   ImuState(const ros::Time& time);

@@ -81,8 +81,8 @@ void ImuPreintegration::SetStart(
     imu_state_i.SetVelocity(velocity->data());
   }
 
-  imu_state_i.SetBiasGyroscope(bg_);
-  imu_state_i.SetBiasAcceleration(ba_);
+  imu_state_i.SetGyroBias(bg_);
+  imu_state_i.SetAccelBias(ba_);
 
   imu_state_i_ = std::move(imu_state_i);
 
@@ -106,8 +106,8 @@ ImuState ImuPreintegration::PredictState(const PreIntegrator& pre_integrator,
   Eigen::Quaterniond or_new(or_new_mat);
   ros::Time t_new = imu_state_curr.Stamp() + ros::Duration(dt);
   ImuState imu_state_new(t_new, or_new, pos_new, vel_new,
-                         imu_state_curr.BiasGyroscopeVec(),
-                         imu_state_curr.BiasAccelerationVec());
+                         imu_state_curr.GyroBiasVec(),
+                         imu_state_curr.AccelBiasVec());
   return imu_state_new;
 }
 
@@ -126,9 +126,9 @@ Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
   Eigen::Vector3d vel_delta = or_curr_rot_trans * (imu_state_new.VelocityVec() -
                                                    imu_state_i_.VelocityVec());
   Eigen::Vector3d bias_gyro_delta =
-      imu_state_new.BiasGyroscopeVec() - imu_state_i_.BiasGyroscopeVec();
+      imu_state_new.GyroBiasVec() - imu_state_i_.GyroBiasVec();
   Eigen::Vector3d bias_accel_delta =
-      imu_state_new.BiasAccelerationVec() - imu_state_i_.BiasAccelerationVec();
+      imu_state_new.AccelBiasVec() - imu_state_i_.AccelBiasVec();
 
   Eigen::Matrix<double, 16, 1> delta;
   delta << or_delta.w(), or_delta.vec(), pos_delta, vel_delta, bias_gyro_delta,
@@ -152,8 +152,8 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
 
   // integrate between frames
   pre_integrator_interval.integrate(
-      t_now.toSec(), imu_state_i_.BiasGyroscopeVec(),
-      imu_state_i_.BiasAccelerationVec(), false, false);
+      t_now.toSec(), imu_state_i_.GyroBiasVec(),
+      imu_state_i_.AccelBiasVec(), false, false);
 
   // predict state at end of window using integrated imu measurements
   ImuState imu_state_k = PredictState(pre_integrator_interval, imu_state_k_);
@@ -182,14 +182,14 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
     transaction.AddImuStatePrior(
         imu_state_i_.Orientation(), imu_state_i_.Position(),
-        imu_state_i_.Velocity(), imu_state_i_.BiasGyroscope(),
-        imu_state_i_.BiasAcceleration(), prior_covariance,
+        imu_state_i_.Velocity(), imu_state_i_.GyroBias(),
+        imu_state_i_.AccelBias(), prior_covariance,
         "FIRST_IMU_STATE_PRIOR");
 
     transaction.AddImuStateVariables(
         imu_state_i_.Orientation(), imu_state_i_.Position(),
-        imu_state_i_.Velocity(), imu_state_i_.BiasGyroscope(),
-        imu_state_i_.BiasAcceleration(), imu_state_i_.Stamp());
+        imu_state_i_.Velocity(), imu_state_i_.GyroBias(),
+        imu_state_i_.AccelBias(), imu_state_i_.Stamp());
 
     first_window_ = false;
   }
@@ -201,8 +201,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   }
 
   // integrate between key frames
-  pre_integrator_ij.integrate(t_now.toSec(), imu_state_i_.BiasGyroscopeVec(),
-                              imu_state_i_.BiasAccelerationVec(), true, true);
+  pre_integrator_ij.integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
+                              imu_state_i_.AccelBiasVec(), true, true);
 
   // predict state at end of window using integrated imu measurements
   ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_);
@@ -233,13 +233,13 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   transaction.AddImuStateConstraint(
       imu_state_i_.Orientation(), imu_state_j.Orientation(),
       imu_state_i_.Position(), imu_state_j.Position(), imu_state_i_.Velocity(),
-      imu_state_j.Velocity(), imu_state_i_.BiasGyroscope(),
-      imu_state_j.BiasGyroscope(), imu_state_i_.BiasAcceleration(),
-      imu_state_j.BiasAcceleration(), delta_ij, covariance_ij, pre_integrator);
+      imu_state_j.Velocity(), imu_state_i_.GyroBias(),
+      imu_state_j.GyroBias(), imu_state_i_.AccelBias(),
+      imu_state_j.AccelBias(), delta_ij, covariance_ij, pre_integrator);
 
   transaction.AddImuStateVariables(
       imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),
-      imu_state_j.BiasGyroscope(), imu_state_j.BiasAcceleration(),
+      imu_state_j.GyroBias(), imu_state_j.AccelBias(),
       imu_state_j.Stamp());
 
   // move predicted state to previous state
