@@ -53,7 +53,6 @@ VIO:
   image_hz: 20
   imu_topic: "/imu0"
   window_size: 100
-  robot_extrinsics: "/home/jake/data/euroc/LVI_data/extrinsics.json"
   # gryo noise, accel noise, gryo walk, accel walk
   imu_intrinsics: [1.6968e-04, 2.0000e-3 , 1.9393e-05, 3.0000e-3]
 

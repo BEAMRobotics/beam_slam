@@ -65,7 +65,6 @@ void VisualInertialOdom::onInit() {
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
-  // if (img_num_ % 2 == 0) {
   // get message info
   image_buffer_.push(*msg);
   sensor_msgs::Image img_msg = image_buffer_.front();
@@ -86,6 +85,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       temp_imu_buffer_.push(imu_msg);
       initializer_->AddIMU(ang_vel, lin_accel, imu_time);
     } else {
+      // add to frame initializer
       // preintegrator.PopulateBuffer(msg);
     }
     imu_buffer_.pop();
@@ -102,7 +102,8 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         auto init_transaction = this->initMap();
         sendTransaction(init_transaction);
         tracker_->AddImage(image, img_time);
-        // send messages in temp imu buffer to preint object
+        // send messages in temp imu buffer to preint object/frame initializer
+        // get pose estimate and pass to frame register
         // register the current frame against the map
         auto frame_transaction = this->registerFrame(img_time);
         sendTransaction(init_transaction);
@@ -111,7 +112,18 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         std::queue<sensor_msgs::Imu>().swap(temp_imu_buffer_);
       }
     } else {
-      // add check here for movement (using imu preint) and time passing
+      /* Keyframe check:
+       *  1. Get pose estimate from frame initializer (graph + imu preint)
+       *  2. Determine if enough translational movement has occured, OR time
+       *     has passed since the last keyframe
+       *  3. Check blurriness score of image, and make sure not to add blurry images
+       *  https://www.pyimagesearch.com/2015/09/07/blur-detection-with-opencv/
+       *  4. Use custom tracker add image function, if it return true, then do
+       * registerframe
+       *  5. Otherwise, do normal pnp or pose refinement and store pose
+       *
+       */
+
       tracker_->AddImage(image, img_time);
       // register the current frame against the map
       auto transaction = this->registerFrame(img_time);
@@ -119,8 +131,6 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     }
     image_buffer_.pop();
   }
-  //}
-  // img_num_++;
 }
 
 void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {

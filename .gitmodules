@@ -1,0 +1,3 @@
+[submodule "dependencies/basalt-headers-mirror"]
+	path = dependencies/basalt-headers-mirror
+	url = git@github.com:BEAMRobotics/basalt-headers-mirror.git
