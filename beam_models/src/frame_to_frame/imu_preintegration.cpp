@@ -223,16 +223,15 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // calculate relative change in imu state between key frames
   auto delta_ij = CalculateRelativeChange(imu_state_j);
 
-  // make preintegrator a shared pointer for constraint
-  auto pre_integrator = std::make_shared<PreIntegrator>(pre_integrator_ij);
-
   // Determine covariance and ensure non-zero
-  Eigen::Matrix<double, 15, 15> covariance_ij;
-  covariance_ij = pre_integrator_ij.delta.cov;
+  Eigen::Matrix<double, 15, 15> covariance_ij{pre_integrator_ij.delta.cov};
   if (covariance_ij.isZero(1e-9)) {
     covariance_ij.setIdentity();
     covariance_ij *= params_.prior_noise;
   }
+
+  // make preintegrator a shared pointer for constraint
+  auto pre_integrator = std::make_shared<PreIntegrator>(pre_integrator_ij);
 
   // generate relative constraints between key frames
   transaction.AddImuStateConstraint(

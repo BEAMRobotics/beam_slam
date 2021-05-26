@@ -562,24 +562,24 @@ TEST(ImuPreintegration, Simple2StateFG) {
   // Optimize the constraints and variables.
   graph.optimize();
   for (int i = 0; i < 4; i++) {
-    EXPECT_TRUE(o1->data()[i] == IS1.Orientation().data()[i]);
-    EXPECT_TRUE(o2->data()[i] == IS2.Orientation().data()[i]);
+    EXPECT_EQ(o1->data()[i], IS1.Orientation().data()[i]);
+    EXPECT_EQ(o2->data()[i], IS2.Orientation().data()[i]);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_TRUE(p1->data()[i] == IS1.Position().data()[i]);
-    EXPECT_TRUE(p2->data()[i] == IS2.Position().data()[i]);
+    EXPECT_EQ(p1->data()[i], IS1.Position().data()[i]);
+    EXPECT_EQ(p2->data()[i], IS2.Position().data()[i]);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_TRUE(v1->data()[i] == IS1.Velocity().data()[i]);
-    EXPECT_TRUE(v2->data()[i] == IS2.Velocity().data()[i]);
+    EXPECT_EQ(v1->data()[i], IS1.Velocity().data()[i]);
+    EXPECT_EQ(v2->data()[i], IS2.Velocity().data()[i]);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_TRUE(bg1->data()[i] == IS1.BiasGyroscope().data()[i]);
-    EXPECT_TRUE(bg2->data()[i] == IS2.BiasGyroscope().data()[i]);
+    EXPECT_EQ(bg1->data()[i], IS1.BiasGyroscope().data()[i]);
+    EXPECT_EQ(bg2->data()[i], IS2.BiasGyroscope().data()[i]);
   }
   for (int i = 0; i < 3; i++) {
-    EXPECT_TRUE(ba1->data()[i] == IS1.BiasAcceleration().data()[i]);
-    EXPECT_TRUE(ba2->data()[i] == IS2.BiasAcceleration().data()[i]);
+    EXPECT_EQ(ba1->data()[i], IS1.BiasAcceleration().data()[i]);
+    EXPECT_EQ(ba2->data()[i], IS2.BiasAcceleration().data()[i]);
   }
 }
 
@@ -689,10 +689,11 @@ TEST(ImuPreintegration, BaseFunctionality) {
   /*
   CalculateRelativeChange() functionality
   */
-  
+
   ExpectImuStateEq(imu_preintegration.GetImuState(), IS1);
   auto delta_start_end = imu_preintegration.CalculateRelativeChange(IS3);
-  EXPECT_TRUE(delta_start_end.isApprox(CalculateRelativeStateDelta(IS1, IS3), 1e-6));
+  EXPECT_TRUE(
+      delta_start_end.isApprox(CalculateRelativeStateDelta(IS1, IS3), 1e-6));
 
   /*
   GetPose() functionality
@@ -700,7 +701,7 @@ TEST(ImuPreintegration, BaseFunctionality) {
 
   for (int i = 1; i - 1 < data.pose_gt.size(); ++i) {
     ExpectTransformsNear(imu_preintegration.GetPose(ros::Time(i)),
-                         data.pose_gt[i - 1]);               
+                         data.pose_gt[i - 1]);
   }
 
   /*
@@ -744,37 +745,56 @@ TEST(ImuPreintegration, BaseFunctionality) {
   std::sort(state_uuids.begin(), state_uuids.end());
   EXPECT_TRUE(transaction_uuids == state_uuids);
 
-  // // add constraints and validate for transaction
+  // add constraints and validate for transaction
   int counter{0};
   counter += AddConstraints(transaction, graph);
   EXPECT_TRUE(counter == 2);
 
-  //Optimize the constraints and variables.
+  // optimize the constraints and variables.
   graph.optimize();
 
-  // auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-  //     graph.getVariable(IS_start.Orientation().uuid()));
-  // auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-  //     graph.getVariable(end_imu_state.Orientation().uuid()));
+  auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph.getVariable(IS_start.Orientation().uuid()));
+  auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph.getVariable(IS_end.Orientation().uuid()));
+  auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph.getVariable(IS_start.Position().uuid()));
+  auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph.getVariable(IS_end.Position().uuid()));
+  auto v1 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+      graph.getVariable(IS_start.Velocity().uuid()));
+  auto v2 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+      graph.getVariable(IS_end.Velocity().uuid()));
+  auto bg1 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+      graph.getVariable(IS_start.BiasGyroscope().uuid()));
+  auto bg2 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+      graph.getVariable(IS_end.BiasGyroscope().uuid()));
+  auto ba1 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+      graph.getVariable(IS_start.BiasAcceleration().uuid()));
+  auto ba2 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+      graph.getVariable(IS_end.BiasAcceleration().uuid()));
 
-  // auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
-  //     graph.getVariable(IS_start.Position().uuid()));
-  // auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
-  //     graph.getVariable(end_imu_state.Position().uuid()));
-  // auto v1 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
-  //     graph.getVariable(IS_start.Velocity().uuid()));
-  // auto v2 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
-  //     graph.getVariable(end_imu_state.Velocity().uuid()));
+  for (int i = 0; i < 4; i++) {
+    EXPECT_NEAR(o1.data()[i], IS1.Orientation().data()[i], 1e-6);
+    EXPECT_NEAR(o2.data()[i], IS3.Orientation().data()[i], 1e-6);
+  }
 
-  // auto bg1 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
-  //     graph.getVariable(IS_start.BiasGyroscope().uuid()));
-  // auto bg2 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
-  //     graph.getVariable(end_imu_state.BiasGyroscope().uuid()));
+  EXPECT_NEAR(p1.data()[0], IS1.Position().data()[0], 1e-3);
+  EXPECT_NEAR(p1.data()[1], IS1.Position().data()[1], 1e-3);
+  EXPECT_NEAR(p1.data()[2], IS1.Position().data()[2], 1e-4);
 
-  // auto ba1 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
-  //     graph.getVariable(IS_start.BiasAcceleration().uuid()));
-  // auto ba2 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
-  //     graph.getVariable(end_imu_state.BiasAcceleration().uuid()));
+  EXPECT_NEAR(v1.data()[0], IS1.Velocity().data()[0], 1e-3);
+  EXPECT_NEAR(v1.data()[1], IS1.Velocity().data()[1], 1e-3);
+  EXPECT_NEAR(v1.data()[2], IS1.Velocity().data()[2], 1e-4);
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NEAR(bg1.data()[i], IS1.BiasGyroscope().data()[i], 1e-9);
+    EXPECT_NEAR(bg2.data()[i], IS3.BiasGyroscope().data()[i], 1e-9);
+  }
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NEAR(ba1.data()[i], IS1.BiasAcceleration().data()[i], 1e-9);
+    EXPECT_NEAR(ba2.data()[i], IS3.BiasAcceleration().data()[i], 1e-9);
+  }
 }
 
 int main(int argc, char** argv) {
