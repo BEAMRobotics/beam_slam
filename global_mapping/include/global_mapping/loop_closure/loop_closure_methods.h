@@ -1,0 +1,2 @@
+#include <global_mapping/loop_closure/loop_closure_candidate_search_eucdist.h>
+#include <global_mapping/loop_closure/loop_closure_refinement_scan_registration.h>

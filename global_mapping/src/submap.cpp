@@ -4,8 +4,9 @@
 
 namespace global_mapping {
 
-Submap::Submap(const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP)
-    : stamp_(stamp) {
+Submap::Submap(const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP,
+               const std::shared_ptr<ExtrinsicsLookup>& extrinsics)
+    : stamp_(stamp), extrinsics_(extrinsics) {
   // create fuse variables
   position_ = fuse_variables::Position3DStamped(stamp, fuse_core::uuid::NIL);
   orientation_ =
@@ -18,8 +19,12 @@ Submap::Submap(const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP)
 
 Submap::Submap(const ros::Time& stamp,
                const fuse_variables::Position3DStamped& position,
-               const fuse_variables::Orientation3DStamped& orientation)
-    : position_(position), orientation_(orientation), stamp_(stamp) {}
+               const fuse_variables::Orientation3DStamped& orientation,
+               const std::shared_ptr<ExtrinsicsLookup>& extrinsics)
+    : position_(position),
+      orientation_(orientation),
+      stamp_(stamp),
+      extrinsics_(extrinsics) {}
 
 fuse_variables::Position3DStamped Submap::Position() { return position_; }
 

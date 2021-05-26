@@ -7,7 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <pcl/io/pcd_io.h>
 
-// #include <global_mapping/loop_closures.h>
+#include <global_mapping/loop_closure/loop_closure_methods.h>
 
 #include <beam_utils/log.h>
 #include <beam_utils/time.h>
@@ -21,8 +21,11 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   std::ifstream file(config_path);
   file >> J;
   submap_size = J["submap_size_m"];
-  loop_closure_type = J["loop_closure_type"];
-  loop_closure_config = J["loop_closure_config"];
+  loop_closure_candidate_search_type = J["loop_closure_candidate_search_type"];
+  loop_closure_refinement_type = J["loop_closure_refinement_type"];
+  loop_closure_candidate_search_config =
+      J["loop_closure_candidate_search_config"];
+  loop_closure_refinement_config = J["loop_closure_refinement_config"];
 }
 
 GlobalMap::GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics)
@@ -56,26 +59,37 @@ void GlobalMap::Setup() {
   baselink_frame_ = extrinsics_->params.camera_frame;
   world_frame_ = "world";
 
-  // initiate loop closure
-  std::string& type = params_.loop_closure_type;
+  // initiate loop closure candidate search
+  if (params_.loop_closure_candidate_search_type == "EUCDISTICP") {
+    loop_closure_candidate_search_ =
+        std::make_unique<LoopClosureCandidateSearchEucDist>(
+            params_.loop_closure_candidate_search_config);
+  } else {
+    BEAM_ERROR(
+        "Invalid loop closure candidate search type. Using default: EUCDIST");
+    loop_closure_candidate_search_ =
+        std::make_unique<LoopClosureCandidateSearchEucDist>(
+            params_.loop_closure_candidate_search_config);
+  }
 
-  // if (type == "EUCDISTICP") {
-  //   loop_closure_ =
-  //       std::make_unique<EucDistIcpLoopClosure>(params_.loop_closure_config);
-  // } else if (type == "EUCDISTGICP") {
-  //   loop_closure_ =
-  //       std::make_unique<EucDistGicpLoopClosure>(params_.loop_closure_config);
-  // } else if (type == "EUCDISTNDT") {
-  //   loop_closure_ =
-  //       std::make_unique<EucDistNdtLoopClosure>(params_.loop_closure_config);
-  // } else if (type == "EUCDISTLOAM") {
-  //   loop_closure_ =
-  //       std::make_unique<EucDistLoamLoopClosure>(params_.loop_closure_config);
-  // } else {
-  //   BEAM_ERROR("Invalid loop closure type. Using default: EUCDISTICP");
-  //   loop_closure_ =
-  //       std::make_unique<EucDistIcpLoopClosure>(params_.loop_closure_config);
-  // }
+  // initiate loop closure refinement
+  if (params_.loop_closure_refinement_type == "ICP") {
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
+        params_.loop_closure_refinement_config);
+  } else if (params_.loop_closure_refinement_type == "GICP") {
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementGicp>(
+        params_.loop_closure_refinement_config);
+  } else if (params_.loop_closure_refinement_type == "NDT") {
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementNdt>(
+        params_.loop_closure_refinement_config);
+  } else if (params_.loop_closure_refinement_type == "LOAM") {
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementLoam>(
+        params_.loop_closure_refinement_config);
+  } else {
+    BEAM_ERROR("Invalid loop closure refinement type. Using default: ICP");
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
+        params_.loop_closure_refinement_config);
+  }
 }
 
 void GlobalMap::AddCameraMeasurement(const CameraMeasurementMsg& measurement) {
@@ -90,17 +104,12 @@ void GlobalMap::AddCameraMeasurement(const CameraMeasurementMsg& measurement) {
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME));
-  }
-
-  std::vector<LandmarkMeasurementMsg> landmarks;
-  for (int i = 0; i < measurement.size; i++) {
-    landmarks.push_back(measurement.landmarks[i]);
+    submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME, extrinsics_));
   }
 
   submaps_[submap_id].AddCameraMeasurement(
-      landmarks, T_WORLD_FRAME, measurement.stamp, measurement.sensor_id,
-      measurement.measurement_id);
+      measurement.landmarks, T_WORLD_FRAME, measurement.stamp,
+      measurement.sensor_id, measurement.measurement_id);
 }
 
 void GlobalMap::AddLidarMeasurement(const LidarMeasurementMsg& measurement) {
@@ -113,7 +122,7 @@ void GlobalMap::AddLidarMeasurement(const LidarMeasurementMsg& measurement) {
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME));
+    submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME, extrinsics_));
   }
 
   PointCloud cloud;
@@ -133,7 +142,7 @@ void GlobalMap::AddTrajectoryMeasurement(
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME));
+    submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME, extrinsics_));
   }
 
   std::vector<Eigen::Matrix4d, pose_allocator> poses;
@@ -143,12 +152,13 @@ void GlobalMap::AddTrajectoryMeasurement(
     for (int j = 0; j < 12; j++) {
       current_pose.push_back(measurement.poses[12 * i + j]);
     }
-    poses.push_back(VectorToEigenTransform(current_pose));
+    Eigen::Matrix4d T_WORLD_FRAME = VectorToEigenTransform(current_pose);
+
+    // Convert to
+    poses.push_back(T_WORLD_FRAME);
     stamps.push_back(ros::Time(measurement.stamps[i]));
   }
 
-  // TODO: make sure ALL Add***Measurement() functions convert from the local
-  // mapper world frame to the global mapper world frame
   submaps_[submap_id].AddTrajectoryMeasurement(
       poses, stamps, T_WORLD_FRAME, measurement.stamp, measurement.sensor_id,
       measurement.measurement_id);
@@ -174,20 +184,24 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_FRAME) {
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
-  // int current_index = submaps_.size() - 1;
-  // std::vector<int> matched_indices;
-  // if (!loop_closure_->CandidateSearch(submaps_, current_index,
-  //                                     matched_indices)) {
-  //   return;
-  // }
+  int current_index = submaps_.size() - 1;
+  std::vector<int> matched_indices;
+  std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
+  loop_closure_candidate_search_->FindLoopClosureCandidates(
+      submaps_, current_index, matched_indices, Ts_MATCH_QUERY);
+
+  if (matched_indices.size() == 0) {
+    return nullptr;
+  }
 
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
-  // for (int matched_index : matched_indices) {
-  //   auto new_transaction = loop_closure_->GetConstraint(
-  //       submaps_[matched_index], submaps_[current_index]);
-  //   transaction->merge(new_transaction);
-  // }
+  for (int matched_index : matched_indices) {
+    fuse_core::Transaction::SharedPtr new_transaction =
+        loop_closure_refinement_->GenerateTransaction(submaps_[matched_index],
+                                                      submaps_[current_index]);
+    transaction->merge(*new_transaction);
+  }
   return transaction;
 }
 

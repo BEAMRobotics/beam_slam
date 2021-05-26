@@ -1,5 +1,7 @@
 {
     "submap_size_m": 10,
-    "loop_closure_type": "EUCDISTICP",
-    "loop_closure_config": ""
+    "loop_closure_candidate_search_type": "EUCDIST",
+    "loop_closure_refinement_type": "ICP",
+    "loop_closure_candidate_search_config": "",
+    "loop_closure_refinement_config": ""
   }

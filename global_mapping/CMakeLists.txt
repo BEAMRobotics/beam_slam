@@ -100,6 +100,7 @@ add_library(
   src/global_mapper.cpp
   src/global_map.cpp
   src/submap.cpp
+  src/loop_closure/loop_closure_candidate_search_eucdist.cpp
 )
 
 ## Specify libraries to link a library or executable target against

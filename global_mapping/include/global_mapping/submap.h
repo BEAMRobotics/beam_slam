@@ -1,12 +1,5 @@
 #pragma once
 
-#include <beam_utils/pointclouds.h>
-#include <beam_containers/LandmarkContainer.h>
-#include <beam_containers/LandmarkMeasurement.h>
-#include <beam_calibration/CameraModel.h>
-#include <global_mapping/LandmarkMeasurementMsg.h>
-#include <beam_common/scan_pose.h>
-
 #include <map>
 
 #include <boost/filesystem.hpp>
@@ -14,6 +7,14 @@
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 #include <ros/time.h>
+
+#include <beam_utils/pointclouds.h>
+#include <beam_containers/LandmarkContainer.h>
+#include <beam_containers/LandmarkMeasurement.h>
+#include <beam_calibration/CameraModel.h>
+#include <global_mapping/LandmarkMeasurementMsg.h>
+#include <beam_common/scan_pose.h>
+#include <beam_common/extrinsics_lookup.h>
 
 namespace global_mapping {
 
@@ -42,7 +43,8 @@ class Submap {
    * @param T_WORLD_SUBMAP pose in matrix form
    * @param stamp timestamp associated with the submap pose
    */
-  Submap(const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP);
+  Submap(const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP,
+         const std::shared_ptr<ExtrinsicsLookup>& extrinsics);
 
   /**
    * @brief constructor that requires a pose and stamp for the submap.
@@ -52,10 +54,11 @@ class Submap {
    */
   Submap(const ros::Time& stamp,
          const fuse_variables::Position3DStamped& position,
-         const fuse_variables::Orientation3DStamped& orientation);
+         const fuse_variables::Orientation3DStamped& orientation,
+         const std::shared_ptr<ExtrinsicsLookup>& extrinsics);
 
   /**
-   * @brief default constructor
+   * @brief default destructor
    */
   ~Submap() = default;
 
@@ -105,10 +108,10 @@ class Submap {
    * @param sensor_id used to lookup transforms
    * @param measurement_id id of this specific measurement (image)
    */
-  void AddCameraMeasurement(const std::vector<LandmarkMeasurementMsg>& landmarks,
-                            const Eigen::Matrix4d& T_WORLD_FRAME,
-                            const ros::Time& stamp, int sensor_id,
-                            int measurement_id);
+  void AddCameraMeasurement(
+      const std::vector<LandmarkMeasurementMsg>& landmarks,
+      const Eigen::Matrix4d& T_WORLD_FRAME, const ros::Time& stamp,
+      int sensor_id, int measurement_id);
 
   /**
    * @brief add a set of lidar measurements associated with one scan
@@ -222,6 +225,7 @@ class Submap {
   int graph_updates_{0};
   fuse_variables::Position3DStamped position_;        // t_WORLD_SUBMAP
   fuse_variables::Orientation3DStamped orientation_;  // R_WORLD_SUBMAP
+  std::shared_ptr<ExtrinsicsLookup> extrinsics_;
   Eigen::Matrix4d T_WORLD_SUBMAP_initial_;
 
   // lidar data
@@ -232,7 +236,8 @@ class Submap {
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::map<uint64_t, Eigen::Matrix4d> camera_keyframe_poses_;  // <time, pose>
   std::map<uint64_t, PoseStamped> camera_subframe_poses_;
-  //   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;  // <id, position>
+  //   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;  // <id,
+  //   position>
   beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement>
       landmarks_;
 };

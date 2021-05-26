@@ -1,3 +1,10 @@
+# global parameters: These will be used in multiple locations
+optimization_frequency: 15
+imu_frame: "IMU"
+lidar_frame: "velodyne"
+camera_frame: "camera"
+static_extrinsics: true
+
 sensor_models:
   - name: 'global_mapper'
     type: 'global_mapping::GlobalMapper'
@@ -21,8 +28,6 @@ solver_options:
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
-
-optimization_frequency: 15
 
 unicycle_3d:
   process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,

@@ -10,7 +10,8 @@
 #include <global_mapping/TrajectoryMeasurementMsg.h>
 #include <global_mapping/LandmarkMeasurementMsg.h>
 #include <beam_common/extrinsics_lookup.h>
-// #include <global_mapping/loop_closure.h>
+#include <global_mapping/loop_closure/loop_closure_candidate_search_base.h>
+#include <global_mapping/loop_closure/loop_closure_refinement_base.h>
 
 namespace global_mapping {
 
@@ -32,20 +33,26 @@ class GlobalMap {
 
     /** String describing the loop closure type to use.
      * Options:
-     * - EUCDISTICP: Euclidean distance candidate search plus ICP scan
-     * registration
-     * - EUCDISTGICP: Euclidean distance candidate search plus GICP scan
-     * registration
-     * - EUCDISTNDT: Euclidean distance candidate search plus NDT scan
-     * registration
-     * - EUCDISTLOAM: Euclidean distance candidate search plus LOAM scan
-     * registration
+     * - EUCDIST: Euclidean distance candidate search.
      */
-    std::string loop_closure_type{"EUCDISTICP"};
+    std::string loop_closure_candidate_search_type{"EUCDIST"};
 
-    /** Full path to config file for loop closure. If blank, it will use default
+    /** String describing the loop closure refinement type to use.
+     * Options:
+     * - ICP: ICP scan registration with lidar data
+     * - GICP: GICP scan registration with lidar data
+     * - NDT: NDT scan registration on lidar data
+     * - LOAM: LOAM scan registration
+     */
+    std::string loop_closure_refinement_type{"ICP"};
+
+    /** Full path to config file for loop closure candidate search. If blank, it will use default
      * parameters.*/
-    std::string loop_closure_config{""};
+    std::string loop_closure_candidate_search_config{""};
+
+    /** Full path to config file for loop closure refinement. If blank, it will use default
+     * parameters.*/
+    std::string loop_closure_refinement_config{""};
 
     /** Loads config settings from a json file. */
     void LoadJson(const std::string& config_path);
@@ -192,7 +199,8 @@ class GlobalMap {
   Params params_;
   std::vector<Submap> submaps_;
   std::shared_ptr<ExtrinsicsLookup> extrinsics_;
-  //   std::unique_ptr<LoopClosureBase> loop_closure_;
+  std::unique_ptr<LoopClosureCandidateSearchBase> loop_closure_candidate_search_;
+  std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
 
   // All poses will be stored w.r.t to these frame. By default, baselink is set
   // to camera frame stored in extrinsics_ and world frame is set to "world".
