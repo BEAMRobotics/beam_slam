@@ -25,9 +25,9 @@ public:
         ros::Time(1234, 5678), device_id);
     velocity1 = fuse_variables::VelocityLinear3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
-    gyrobias1 = beam_variables::ImuBiasGyro3DStamped::make_shared(
+    gyrobias1 = beam_variables::GyroscopeBias3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
-    accelbias1 = beam_variables::ImuBiasAccel3DStamped::make_shared(
+    accelbias1 = beam_variables::AccelerationBias3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
 
     orientation2 = fuse_variables::Orientation3DStamped::make_shared(
@@ -36,9 +36,9 @@ public:
         ros::Time(1235, 5678), device_id);
     velocity2 = fuse_variables::VelocityLinear3DStamped::make_shared(
         ros::Time(1235, 5678), device_id);
-    gyrobias2 = beam_variables::ImuBiasGyro3DStamped::make_shared(
+    gyrobias2 = beam_variables::GyroscopeBias3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
-    accelbias2 = beam_variables::ImuBiasAccel3DStamped::make_shared(
+    accelbias2 = beam_variables::AccelerationBias3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
 
     delta << 0.988, 0.094, 0.079, 0.094, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 0.1, 0.2,
@@ -73,13 +73,13 @@ public:
   fuse_variables::Orientation3DStamped::SharedPtr orientation1;
   fuse_variables::Position3DStamped::SharedPtr position1;
   fuse_variables::VelocityLinear3DStamped::SharedPtr velocity1;
-  beam_variables::ImuBiasGyro3DStamped::SharedPtr gyrobias1;
-  beam_variables::ImuBiasAccel3DStamped::SharedPtr accelbias1;
+  beam_variables::GyroscopeBias3DStamped::SharedPtr gyrobias1;
+  beam_variables::AccelerationBias3DStamped::SharedPtr accelbias1;
   fuse_variables::Orientation3DStamped::SharedPtr orientation2;
   fuse_variables::Position3DStamped::SharedPtr position2;
   fuse_variables::VelocityLinear3DStamped::SharedPtr velocity2;
-  beam_variables::ImuBiasGyro3DStamped::SharedPtr gyrobias2;
-  beam_variables::ImuBiasAccel3DStamped::SharedPtr accelbias2;
+  beam_variables::GyroscopeBias3DStamped::SharedPtr gyrobias2;
+  beam_variables::AccelerationBias3DStamped::SharedPtr accelbias2;
 
   Eigen::Matrix<double, 16, 1> delta;
   Eigen::Matrix<double, 15, 15> cov;
@@ -138,13 +138,13 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
   velocity1->y() = -3.0;
   velocity1->z() = 10.0;
 
-  auto gyrobias1 = beam_variables::ImuBiasGyro3DStamped::make_shared(
+  auto gyrobias1 = beam_variables::GyroscopeBias3DStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   gyrobias1->x() = 0.15;
   gyrobias1->y() = -0.30;
   gyrobias1->z() = 1.0;
 
-  auto accelbias1 = beam_variables::ImuBiasAccel3DStamped::make_shared(
+  auto accelbias1 = beam_variables::AccelerationBias3DStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   accelbias1->x() = 0.15;
   accelbias1->y() = -0.30;
@@ -170,13 +170,13 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
   velocity2->y() = 3.0;
   velocity2->z() = -10.0;
 
-  auto gyrobias2 = beam_variables::ImuBiasGyro3DStamped::make_shared(
+  auto gyrobias2 = beam_variables::GyroscopeBias3DStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   gyrobias2->x() = 0.15;
   gyrobias2->y() = -0.30;
   gyrobias2->z() = 1.0;
 
-  auto accelbias2 = beam_variables::ImuBiasAccel3DStamped::make_shared(
+  auto accelbias2 = beam_variables::AccelerationBias3DStamped::make_shared(
       ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   accelbias2->x() = 0.15;
   accelbias2->y() = -0.30;
@@ -203,14 +203,14 @@ TEST(RelativeImuState3DStampedConstraint, Optimization) {
   mean_gyro_bias_origin << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d cov_gyro_bias_origin = fuse_core::Matrix3d::Identity();
   auto prior_gyro_bias = beam_constraints::global::
-      AbsoluteImuBiasGyro3DStampedConstraint::make_shared(
+      AbsoluteGyroBias3DStampedConstraint::make_shared(
           "test", *gyrobias1, mean_gyro_bias_origin, cov_gyro_bias_origin);
 
   fuse_core::Vector3d mean_accel_bias_origin;
   mean_accel_bias_origin << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d cov_accel_bias_origin = fuse_core::Matrix3d::Identity();
   auto prior_accel_bias = beam_constraints::global::
-      AbsoluteImuBiasAccel3DStampedConstraint::make_shared(
+      AbsoluteAccelBias3DStampedConstraint::make_shared(
           "test", *accelbias1, mean_accel_bias_origin, cov_accel_bias_origin);
 
   // Create a relative imu state constraint, assuming:

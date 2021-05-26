@@ -49,9 +49,9 @@ bool ImuState::Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
         graph_msg->getVariable(position_.uuid()));
     velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
         graph_msg->getVariable(velocity_.uuid()));
-    gyrobias_ = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+    gyrobias_ = dynamic_cast<const beam_variables::GyroscopeBias3DStamped&>(
         graph_msg->getVariable(gyrobias_.uuid()));
-    accelbias_ = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+    accelbias_ = dynamic_cast<const beam_variables::AccelerationBias3DStamped&>(
         graph_msg->getVariable(accelbias_.uuid()));
     updates_++;
     return true;
@@ -91,7 +91,7 @@ Eigen::Vector3d ImuState::VelocityVec() const {
   return v;
 }
 
-beam_variables::ImuBiasGyro3DStamped ImuState::GyroBias() const {
+beam_variables::GyroscopeBias3DStamped ImuState::GyroBias() const {
   return gyrobias_;
 }
 
@@ -100,7 +100,7 @@ Eigen::Vector3d ImuState::GyroBiasVec() const {
   return bg;
 }
 
-beam_variables::ImuBiasAccel3DStamped ImuState::AccelBias() const {
+beam_variables::AccelerationBias3DStamped ImuState::AccelBias() const {
   return accelbias_;
 }
 
@@ -236,9 +236,9 @@ void ImuState::InstantiateVariables() {
   velocity_ =
       fuse_variables::VelocityLinear3DStamped(stamp_, fuse_core::uuid::NIL);
   gyrobias_ =
-      beam_variables::ImuBiasGyro3DStamped(stamp_, fuse_core::uuid::NIL);
+      beam_variables::GyroscopeBias3DStamped(stamp_, fuse_core::uuid::NIL);
   accelbias_ =
-      beam_variables::ImuBiasAccel3DStamped(stamp_, fuse_core::uuid::NIL);
+      beam_variables::AccelerationBias3DStamped(stamp_, fuse_core::uuid::NIL);
 }
 
 }}  // namespace beam_models::frame_to_frame

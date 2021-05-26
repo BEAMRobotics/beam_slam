@@ -184,13 +184,13 @@ RelativeImuState3DStampedConstraint::SharedPtr CreateRelativeConstraint(
     const fuse_variables::Orientation3DStamped& orientation1,
     const fuse_variables::Position3DStamped& position1,
     const fuse_variables::VelocityLinear3DStamped& velocity1,
-    const beam_variables::ImuBiasGyro3DStamped& gyrobias1,
-    const beam_variables::ImuBiasAccel3DStamped& accelbias1,
+    const beam_variables::GyroscopeBias3DStamped& gyrobias1,
+    const beam_variables::AccelerationBias3DStamped& accelbias1,
     const fuse_variables::Orientation3DStamped& orientation2,
     const fuse_variables::Position3DStamped& position2,
     const fuse_variables::VelocityLinear3DStamped& velocity2,
-    const beam_variables::ImuBiasGyro3DStamped& gyrobias2,
-    const beam_variables::ImuBiasAccel3DStamped& accelbias2,
+    const beam_variables::GyroscopeBias3DStamped& gyrobias2,
+    const beam_variables::AccelerationBias3DStamped& accelbias2,
     const Eigen::Matrix<double, 16, 1>& delta,
     const Eigen::Matrix<double, 15, 15>& covariance) {
   auto constraint = RelativeImuState3DStampedConstraint::make_shared(
@@ -204,8 +204,8 @@ AbsoluteImuState3DStampedConstraint::SharedPtr CreatePriorConstraint(
     const fuse_variables::Orientation3DStamped& orientation,
     const fuse_variables::Position3DStamped& position,
     const fuse_variables::VelocityLinear3DStamped& velocity,
-    const beam_variables::ImuBiasGyro3DStamped& gyrobias,
-    const beam_variables::ImuBiasAccel3DStamped& accelbias) {
+    const beam_variables::GyroscopeBias3DStamped& gyrobias,
+    const beam_variables::AccelerationBias3DStamped& accelbias) {
   Eigen::Matrix<double, 16, 1> mean;
   mean << orientation.w(), orientation.x(), orientation.y(), orientation.z(),
       position.x(), position.y(), position.z(), velocity.x(), velocity.y(),
@@ -256,8 +256,8 @@ std::vector<fuse_core::UUID> AddVariables(
   fuse_variables::Orientation3DStamped dummy_orientation;
   fuse_variables::Position3DStamped dummy_position;
   fuse_variables::VelocityLinear3DStamped dummy_velocity;
-  beam_variables::ImuBiasGyro3DStamped dummy_imu_bias_gyro;
-  beam_variables::ImuBiasAccel3DStamped dummy_imu_bias_accel;
+  beam_variables::GyroscopeBias3DStamped dummy_imu_bias_gyro;
+  beam_variables::AccelerationBias3DStamped dummy_imu_bias_accel;
   std::vector<fuse_core::UUID> uuids;
   auto added_variables = transaction->addedVariables();
   for (auto iter = added_variables.begin(); iter != added_variables.end();
@@ -281,15 +281,15 @@ std::vector<fuse_core::UUID> AddVariables(
       graph.addVariable(var_ptr);
     } else if (iter->type() == dummy_imu_bias_gyro.type()) {
       auto var =
-          dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(*iter);
+          dynamic_cast<const beam_variables::GyroscopeBias3DStamped&>(*iter);
       fuse_core::Variable::SharedPtr var_ptr =
-          beam_variables::ImuBiasGyro3DStamped::make_shared(var);
+          beam_variables::GyroscopeBias3DStamped::make_shared(var);
       graph.addVariable(var_ptr);
     } else if (iter->type() == dummy_imu_bias_accel.type()) {
       auto var =
-          dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(*iter);
+          dynamic_cast<const beam_variables::AccelerationBias3DStamped&>(*iter);
       fuse_core::Variable::SharedPtr var_ptr =
-          beam_variables::ImuBiasAccel3DStamped::make_shared(var);
+          beam_variables::AccelerationBias3DStamped::make_shared(var);
       graph.addVariable(var_ptr);
     } else {
       return uuids;
@@ -512,10 +512,10 @@ TEST(ImuPreintegration, Simple2StateFG) {
       fuse_variables::Position3DStamped::make_shared(IS1.Position());
   fuse_variables::VelocityLinear3DStamped::SharedPtr v1 =
       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
-  beam_variables::ImuBiasGyro3DStamped::SharedPtr bg1 =
-      beam_variables::ImuBiasGyro3DStamped::make_shared(IS1.GyroBias());
-  beam_variables::ImuBiasAccel3DStamped::SharedPtr ba1 =
-      beam_variables::ImuBiasAccel3DStamped::make_shared(IS1.AccelBias());
+  beam_variables::GyroscopeBias3DStamped::SharedPtr bg1 =
+      beam_variables::GyroscopeBias3DStamped::make_shared(IS1.GyroBias());
+  beam_variables::AccelerationBias3DStamped::SharedPtr ba1 =
+      beam_variables::AccelerationBias3DStamped::make_shared(IS1.AccelBias());
 
   fuse_variables::Orientation3DStamped::SharedPtr o2 =
       fuse_variables::Orientation3DStamped::make_shared(IS2.Orientation());
@@ -523,10 +523,10 @@ TEST(ImuPreintegration, Simple2StateFG) {
       fuse_variables::Position3DStamped::make_shared(IS2.Position());
   fuse_variables::VelocityLinear3DStamped::SharedPtr v2 =
       fuse_variables::VelocityLinear3DStamped::make_shared(IS2.Velocity());
-  beam_variables::ImuBiasGyro3DStamped::SharedPtr bg2 =
-      beam_variables::ImuBiasGyro3DStamped::make_shared(IS2.GyroBias());
-  beam_variables::ImuBiasAccel3DStamped::SharedPtr ba2 =
-      beam_variables::ImuBiasAccel3DStamped::make_shared(IS2.AccelBias());
+  beam_variables::GyroscopeBias3DStamped::SharedPtr bg2 =
+      beam_variables::GyroscopeBias3DStamped::make_shared(IS2.GyroBias());
+  beam_variables::AccelerationBias3DStamped::SharedPtr ba2 =
+      beam_variables::AccelerationBias3DStamped::make_shared(IS2.AccelBias());
 
   graph.addVariable(o1);
   graph.addVariable(p1);
@@ -748,13 +748,13 @@ TEST(ImuPreintegration, BaseFunctionality) {
       graph.getVariable(IS_start.Velocity().uuid()));
   auto v3 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
       graph.getVariable(IS_end.Velocity().uuid()));
-  auto bg1 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+  auto bg1 = dynamic_cast<const beam_variables::GyroscopeBias3DStamped&>(
       graph.getVariable(IS_start.GyroBias().uuid()));
-  auto bg3 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+  auto bg3 = dynamic_cast<const beam_variables::GyroscopeBias3DStamped&>(
       graph.getVariable(IS_end.GyroBias().uuid()));
-  auto ba1 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+  auto ba1 = dynamic_cast<const beam_variables::AccelerationBias3DStamped&>(
       graph.getVariable(IS_start.AccelBias().uuid()));
-  auto ba3 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+  auto ba3 = dynamic_cast<const beam_variables::AccelerationBias3DStamped&>(
       graph.getVariable(IS_end.AccelBias().uuid()));
 
   // check
@@ -873,17 +873,17 @@ TEST(ImuPreintegration, MultipleTransactions) {
       graph.getVariable(IS2.Velocity().uuid()));
   auto v3 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
       graph.getVariable(IS3.Velocity().uuid()));
-  auto bg1 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+  auto bg1 = dynamic_cast<const beam_variables::GyroscopeBias3DStamped&>(
       graph.getVariable(IS1.GyroBias().uuid()));
-  auto bg2 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+  auto bg2 = dynamic_cast<const beam_variables::GyroscopeBias3DStamped&>(
       graph.getVariable(IS2.GyroBias().uuid()));
-  auto bg3 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+  auto bg3 = dynamic_cast<const beam_variables::GyroscopeBias3DStamped&>(
       graph.getVariable(IS3.GyroBias().uuid()));
-  auto ba1 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+  auto ba1 = dynamic_cast<const beam_variables::AccelerationBias3DStamped&>(
       graph.getVariable(IS1.AccelBias().uuid()));
-  auto ba2 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+  auto ba2 = dynamic_cast<const beam_variables::AccelerationBias3DStamped&>(
       graph.getVariable(IS2.AccelBias().uuid()));
-  auto ba3 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+  auto ba3 = dynamic_cast<const beam_variables::AccelerationBias3DStamped&>(
       graph.getVariable(IS3.AccelBias().uuid()));
 
   // check

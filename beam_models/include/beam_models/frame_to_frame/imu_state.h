@@ -6,8 +6,8 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 
-#include <beam_variables/imu_bias_gyro_3d_stamped.h>
-#include <beam_variables/imu_bias_accel_3d_stamped.h>
+#include <beam_variables/accel_bias_3d_stamped.h>
+#include <beam_variables/gyro_bias_3d_stamped.h>
 
 namespace beam_models { namespace frame_to_frame {
 
@@ -112,7 +112,7 @@ public:
    * @brief return the current estimate of the gyroscope bias
    * @return gyroscope bias beam variable
    */
-  beam_variables::ImuBiasGyro3DStamped GyroBias() const;
+  beam_variables::GyroscopeBias3DStamped GyroBias() const;
 
   /**
    * @brief return the current estimate of the gyroscope bias
@@ -124,7 +124,7 @@ public:
    * @brief return the current estimate of the acceleration bias
    * @return acceleration bias beam variable
    */
-  beam_variables::ImuBiasAccel3DStamped AccelBias() const;
+  beam_variables::AccelerationBias3DStamped AccelBias() const;
 
   /**
    * @brief return the current estimate of the acceleration bias
@@ -226,8 +226,8 @@ private:
   fuse_variables::Orientation3DStamped orientation_;
   fuse_variables::Position3DStamped position_;
   fuse_variables::VelocityLinear3DStamped velocity_;
-  beam_variables::ImuBiasGyro3DStamped gyrobias_;
-  beam_variables::ImuBiasAccel3DStamped accelbias_;
+  beam_variables::GyroscopeBias3DStamped gyrobias_;
+  beam_variables::AccelerationBias3DStamped accelbias_;
 };
 
 }}  // namespace beam_models::frame_to_frame

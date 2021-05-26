@@ -1,4 +1,4 @@
-#include <beam_variables/imu_bias_accel_3d_stamped.h>
+#include <beam_variables/accel_bias_3d_stamped.h>
 
 #include <ostream>
 
@@ -11,13 +11,13 @@
 
 namespace beam_variables {
 
-ImuBiasAccel3DStamped::ImuBiasAccel3DStamped(const ros::Time& stamp,
-                                             const fuse_core::UUID& device_id)
+AccelerationBias3DStamped::AccelerationBias3DStamped(
+    const ros::Time& stamp, const fuse_core::UUID& device_id)
     : FixedSizeVariable(
           fuse_core::uuid::generate(detail::type(), stamp, device_id)),
       Stamped(stamp, device_id) {}
 
-void ImuBiasAccel3DStamped::print(std::ostream& stream) const {
+void AccelerationBias3DStamped::print(std::ostream& stream) const {
   stream << type() << ":\n"
          << "  uuid: " << uuid() << "\n"
          << "  device_id: " << deviceId() << "\n"
@@ -31,6 +31,6 @@ void ImuBiasAccel3DStamped::print(std::ostream& stream) const {
 
 }  // namespace beam_variables
 
-BOOST_CLASS_EXPORT_IMPLEMENT(beam_variables::ImuBiasAccel3DStamped);
-PLUGINLIB_EXPORT_CLASS(beam_variables::ImuBiasAccel3DStamped,
+BOOST_CLASS_EXPORT_IMPLEMENT(beam_variables::AccelerationBias3DStamped);
+PLUGINLIB_EXPORT_CLASS(beam_variables::AccelerationBias3DStamped,
                        fuse_core::Variable);

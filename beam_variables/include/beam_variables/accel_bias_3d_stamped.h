@@ -18,10 +18,10 @@ namespace beam_variables {
  * @brief Variable representing IMU acceleration bias (Bax, Bay, Baz) at a
  * specific time and for a specific piece of hardware (e.g., robot)
  */
-class ImuBiasAccel3DStamped : public fuse_variables::FixedSizeVariable<3>,
-                             public fuse_variables::Stamped {
+class AccelerationBias3DStamped : public fuse_variables::FixedSizeVariable<3>,
+                                  public fuse_variables::Stamped {
 public:
-  FUSE_VARIABLE_DEFINITIONS(ImuBiasAccel3DStamped);
+  FUSE_VARIABLE_DEFINITIONS(AccelerationBias3DStamped);
 
   /**
    * @brief Can be used to directly index variables in the data array
@@ -31,7 +31,7 @@ public:
   /**
    * @brief Default constructor
    */
-  ImuBiasAccel3DStamped() = default;
+  AccelerationBias3DStamped() = default;
 
   /**
    * @brief Construct an IMU bias at a specific point in time.
@@ -40,7 +40,7 @@ public:
    * @param[in] device_id An optional device id, for use when variables
    * originate from multiple robots or devices
    */
-  explicit ImuBiasAccel3DStamped(
+  explicit AccelerationBias3DStamped(
       const ros::Time& stamp,
       const fuse_core::UUID& device_id = fuse_core::uuid::NIL);
 
@@ -104,4 +104,4 @@ private:
 
 }  // namespace beam_variables
 
-BOOST_CLASS_EXPORT_KEY(beam_variables::ImuBiasAccel3DStamped);
+BOOST_CLASS_EXPORT_KEY(beam_variables::AccelerationBias3DStamped);

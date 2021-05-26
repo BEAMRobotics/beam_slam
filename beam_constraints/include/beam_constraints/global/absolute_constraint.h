@@ -14,8 +14,8 @@
 #include <boost/serialization/export.hpp>
 #include <ceres/cost_function.h>
 
-#include <beam_variables/imu_bias_gyro_3d_stamped.h>
-#include <beam_variables/imu_bias_accel_3d_stamped.h>
+#include <beam_variables/accel_bias_3d_stamped.h>
+#include <beam_variables/gyro_bias_3d_stamped.h>
 
 namespace beam_constraints { namespace global {
 
@@ -165,10 +165,10 @@ using AbsoluteVelocityLinear3DStampedConstraint =
     AbsoluteConstraint3D<fuse_variables::VelocityLinear3DStamped>;
 using AbsoluteAccelerationLinear3DStampedConstraint =
     AbsoluteConstraint3D<fuse_variables::AccelerationLinear3DStamped>;
-using AbsoluteImuBiasGyro3DStampedConstraint =
-    AbsoluteConstraint3D<beam_variables::ImuBiasGyro3DStamped>;
-using AbsoluteImuBiasAccel3DStampedConstraint =
-    AbsoluteConstraint3D<beam_variables::ImuBiasAccel3DStamped>;    
+using AbsoluteGyroBias3DStampedConstraint =
+    AbsoluteConstraint3D<beam_variables::GyroscopeBias3DStamped>;
+using AbsoluteAccelBias3DStampedConstraint =
+    AbsoluteConstraint3D<beam_variables::AccelerationBias3DStamped>;    
 
 }} // namespace beam_constraints::global
 
@@ -182,6 +182,6 @@ BOOST_CLASS_EXPORT_KEY(
 BOOST_CLASS_EXPORT_KEY(
     beam_constraints::global::AbsoluteAccelerationLinear3DStampedConstraint);
 BOOST_CLASS_EXPORT_KEY(
-    beam_constraints::global::AbsoluteImuBiasGyro3DStampedConstraint);
+    beam_constraints::global::AbsoluteGyroBias3DStampedConstraint);
 BOOST_CLASS_EXPORT_KEY(
-    beam_constraints::global::AbsoluteImuBiasAccel3DStampedConstraint);    
+    beam_constraints::global::AbsoluteAccelBias3DStampedConstraint);    

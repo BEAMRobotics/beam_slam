@@ -20,12 +20,12 @@ public:
     orientation1 = fuse_variables::Orientation3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
     position1 = fuse_variables::Position3DStamped::make_shared(
-        ros::Time(1234, 5678), device_id);        
+        ros::Time(1234, 5678), device_id);
     velocity1 = fuse_variables::VelocityLinear3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
-    gyrobias1 = beam_variables::ImuBiasGyro3DStamped::make_shared(
+    gyrobias1 = beam_variables::GyroscopeBias3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
-    accelbias1 = beam_variables::ImuBiasAccel3DStamped::make_shared(
+    accelbias1 = beam_variables::AccelerationBias3DStamped::make_shared(
         ros::Time(1234, 5678), device_id);
 
     mean << 1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 0.1, 0.2, 0.3,
@@ -53,15 +53,15 @@ public:
 
     absolute_imu_state_constraint = std::make_shared<
         beam_constraints::global::AbsoluteImuState3DStampedConstraint>(
-        "test", *orientation1, *position1, *velocity1, *gyrobias1, *accelbias1, 
+        "test", *orientation1, *position1, *velocity1, *gyrobias1, *accelbias1,
         mean, cov);
   }
 
   fuse_variables::Orientation3DStamped::SharedPtr orientation1;
   fuse_variables::Position3DStamped::SharedPtr position1;
   fuse_variables::VelocityLinear3DStamped::SharedPtr velocity1;
-  beam_variables::ImuBiasGyro3DStamped::SharedPtr gyrobias1;
-  beam_variables::ImuBiasAccel3DStamped::SharedPtr accelbias1;
+  beam_variables::GyroscopeBias3DStamped::SharedPtr gyrobias1;
+  beam_variables::AccelerationBias3DStamped::SharedPtr accelbias1;
 
   Eigen::Matrix<double, 16, 1> mean;
   Eigen::Matrix<double, 15, 15> cov;
@@ -115,14 +115,16 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
   velocity_variable->y() = -3.0;
   velocity_variable->z() = 10.0;
 
-  auto gyroscope_bias_variable = beam_variables::ImuBiasGyro3DStamped::make_shared(
-      ros::Time(1, 0), fuse_core::uuid::generate("spra"));
+  auto gyroscope_bias_variable =
+      beam_variables::GyroscopeBias3DStamped::make_shared(
+          ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   gyroscope_bias_variable->x() = 0.15;
   gyroscope_bias_variable->y() = -0.30;
   gyroscope_bias_variable->z() = 1.0;
 
-  auto acceleration_bias_variable = beam_variables::ImuBiasAccel3DStamped::make_shared(
-      ros::Time(1, 0), fuse_core::uuid::generate("spra"));
+  auto acceleration_bias_variable =
+      beam_variables::AccelerationBias3DStamped::make_shared(
+          ros::Time(1, 0), fuse_core::uuid::generate("spra"));
   acceleration_bias_variable->x() = 0.15;
   acceleration_bias_variable->y() = -0.30;
   acceleration_bias_variable->z() = 1.0;
@@ -166,20 +168,20 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
                             orientation_variable->localParameterization());
   problem.AddParameterBlock(position_variable->data(),
                             position_variable->size(),
-                            position_variable->localParameterization());                            
+                            position_variable->localParameterization());
   problem.AddParameterBlock(velocity_variable->data(),
                             velocity_variable->size(),
                             velocity_variable->localParameterization());
   problem.AddParameterBlock(gyroscope_bias_variable->data(),
                             gyroscope_bias_variable->size(),
                             gyroscope_bias_variable->localParameterization());
-  problem.AddParameterBlock(acceleration_bias_variable->data(),
-                            acceleration_bias_variable->size(),
-                            acceleration_bias_variable->localParameterization());
+  problem.AddParameterBlock(
+      acceleration_bias_variable->data(), acceleration_bias_variable->size(),
+      acceleration_bias_variable->localParameterization());
 
   std::vector<double *> parameter_blocks;
   parameter_blocks.push_back(orientation_variable->data());
-  parameter_blocks.push_back(position_variable->data());  
+  parameter_blocks.push_back(position_variable->data());
   parameter_blocks.push_back(velocity_variable->data());
   parameter_blocks.push_back(gyroscope_bias_variable->data());
   parameter_blocks.push_back(acceleration_bias_variable->data());
@@ -209,7 +211,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
   EXPECT_NEAR(0.1, acceleration_bias_variable->x(), 1.0e-5);
   EXPECT_NEAR(0.2, acceleration_bias_variable->y(), 1.0e-5);
   EXPECT_NEAR(0.3, acceleration_bias_variable->z(), 1.0e-5);
- 
+
   // Compute the covariance
   std::vector<std::pair<const double *, const double *> > covariance_blocks;
   covariance_blocks.emplace_back(orientation_variable->data(),
@@ -273,9 +275,9 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
 
   fuse_core::MatrixXd cov_or_ba(orientation_variable->localSize(),
                                 acceleration_bias_variable->localSize());
-  covariance.GetCovarianceBlockInTangentSpace(orientation_variable->data(),
-                                              acceleration_bias_variable->data(),
-                                              cov_or_ba.data());
+  covariance.GetCovarianceBlockInTangentSpace(
+      orientation_variable->data(), acceleration_bias_variable->data(),
+      cov_or_ba.data());
 
   fuse_core::MatrixXd cov_pos_pos(position_variable->size(),
                                   position_variable->size());

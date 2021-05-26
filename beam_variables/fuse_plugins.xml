@@ -1,12 +1,12 @@
 <library path="lib/libbeam_variables">
-  <class type="beam_variables::ImuBiasGyro3DStamped" base_class_type="fuse_core::Variable">
+  <class type="beam_variables::GyroBias3DStamped" base_class_type="fuse_core::Variable">
     <description>
-    	Variable representing IMU gyroscopic bias (Bgx, Bgy, Bgz) at a specific time, with a specific piece of hardware.
+    	Variable representing gyroscopic bias (Bgx, Bgy, Bgz) at a specific time, with a specific piece of hardware.
     </description>
   </class>
-  <class type="beam_variables::ImuBiasAccel3DStamped" base_class_type="fuse_core::Variable">
+  <class type="beam_variables::AccelBias3DStamped" base_class_type="fuse_core::Variable">
     <description>
-    	Variable representing IMU acceleration bias (Bax, Bay, Baz) at a specific time, with a specific piece of hardware.
+    	Variable representing acceleration bias (Bax, Bay, Baz) at a specific time, with a specific piece of hardware.
     </description>
   </class>
 </library>

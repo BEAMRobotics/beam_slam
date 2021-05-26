@@ -190,8 +190,8 @@ public:
   void AddImuStatePrior(const fuse_variables::Orientation3DStamped& orientation,
                         const fuse_variables::Position3DStamped& position,
                         const fuse_variables::VelocityLinear3DStamped& velocity,
-                        const beam_variables::ImuBiasGyro3DStamped& gyrobias,                       
-                        const beam_variables::ImuBiasAccel3DStamped& accelbias,
+                        const beam_variables::GyroscopeBias3DStamped& gyrobias,                       
+                        const beam_variables::AccelerationBias3DStamped& accelbias,
                         const Eigen::Matrix<double, 15, 15>& prior_covariance,
                         const std::string& prior_source = "NULL") {
     Eigen::Matrix<double, 16, 1> mean;
@@ -214,10 +214,10 @@ public:
       const fuse_variables::Position3DStamped& position2,
       const fuse_variables::VelocityLinear3DStamped& velocity1,
       const fuse_variables::VelocityLinear3DStamped& velocity2,
-      const beam_variables::ImuBiasGyro3DStamped& gyrobias1,
-      const beam_variables::ImuBiasGyro3DStamped& gyrobias2,
-      const beam_variables::ImuBiasAccel3DStamped& accelbias1,
-      const beam_variables::ImuBiasAccel3DStamped& accelbias2,
+      const beam_variables::GyroscopeBias3DStamped& gyrobias1,
+      const beam_variables::GyroscopeBias3DStamped& gyrobias2,
+      const beam_variables::AccelerationBias3DStamped& accelbias1,
+      const beam_variables::AccelerationBias3DStamped& accelbias2,
       const Eigen::Matrix<double, 16, 1>& delta,
       const Eigen::Matrix<double, 15, 15>& covariance,
       const std::shared_ptr<PreIntegrator> pre_integrator,
@@ -235,8 +235,8 @@ public:
       const fuse_variables::Orientation3DStamped& orientation,
       const fuse_variables::Position3DStamped& position,
       const fuse_variables::VelocityLinear3DStamped& velocity,
-      const beam_variables::ImuBiasGyro3DStamped& gyrobias,
-      const beam_variables::ImuBiasAccel3DStamped& accelbias,
+      const beam_variables::GyroscopeBias3DStamped& gyrobias,
+      const beam_variables::AccelerationBias3DStamped& accelbias,
       const ros::Time& stamp) {
     transaction_->addInvolvedStamp(stamp);
 
@@ -251,10 +251,10 @@ public:
         fuse_variables::VelocityLinear3DStamped::make_shared(velocity),
         override_variables_);    
     transaction_->addVariable(
-        beam_variables::ImuBiasGyro3DStamped::make_shared(gyrobias),
+        beam_variables::GyroscopeBias3DStamped::make_shared(gyrobias),
         override_variables_);
     transaction_->addVariable(
-        beam_variables::ImuBiasAccel3DStamped::make_shared(accelbias),
+        beam_variables::AccelerationBias3DStamped::make_shared(accelbias),
         override_variables_);          
   }
 
