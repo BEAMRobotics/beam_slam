@@ -68,7 +68,7 @@ public:
 
       imu_data_gt.emplace_back(imu_data);
 
-      // get ground truth pose every second
+      // get ground truth pose every second between start and end exclusive
       if (t_ns % int64_t(1e9) == 0 && t_ns > start_time_ns &&
           t_ns < time_simulation_ns) {
         Eigen::Matrix3d q_k_mat = gt_spline.pose(t_ns).so3().matrix();
@@ -120,11 +120,11 @@ public:
 
   // spline parameters
   int num_knots = 15;
-  int64_t start_time_ns = 0;
-  int64_t time_interval_ns = 10e9;
-  int64_t time_duration = 20e9;
-  int64_t dt_ns = 1e7;
-  double gravitational_acceleration{9.81};
+  int64_t start_time_ns = 0;                // [nano sec]
+  int64_t time_interval_ns = 10e9;          // [nano sec]
+  int64_t time_duration = 20e9;             // [nano sec]
+  int64_t dt_ns = 1e7;                      // [nano sec]
+  double gravitational_acceleration{9.81};  // [m/sec^2]
 
   Eigen::Vector3d gravity;
   std::vector<ImuPreintegration::ImuData> imu_data_gt;
@@ -151,7 +151,7 @@ public:
   Eigen::Vector3d p3_vec;
   Eigen::Vector3d v3_vec;
 
-  // Imu State Deltas
+  // Imu State deltas
   double delta_t_12;
   Eigen::Quaterniond delta_q_12;
   Eigen::Vector3d delta_p_12;
@@ -588,6 +588,9 @@ TEST(ImuPreintegration, BaseFunctionality) {
   ImuPreintegration Class set-up
   */
 
+  // declare data
+  Data data;
+
   // set intrinsic noise of imu to zero
   ImuPreintegration::Params params;
   params.cov_gyro_noise.setZero();
@@ -596,7 +599,6 @@ TEST(ImuPreintegration, BaseFunctionality) {
   params.cov_accel_bias.setZero();
 
   // set gravitional acceleration according to data class
-  Data data;
   params.gravitational_acceleration = data.gravitational_acceleration;
 
   // instantiate preintegration class with zero noise. By default,
@@ -604,8 +606,8 @@ TEST(ImuPreintegration, BaseFunctionality) {
   ImuPreintegration imu_preintegration = ImuPreintegration(params);
 
   // populate ImuPreintegration with synthetic imu measurements
-  for (ImuPreintegration::ImuData n : data.imu_data_gt)
-    imu_preintegration.PopulateBuffer(n);
+  for (ImuPreintegration::ImuData msg : data.imu_data_gt)
+    imu_preintegration.PopulateBuffer(msg);
 
   // create three imu states where:
   // 1) IS1 is the imu state at the start of simulation
@@ -625,26 +627,12 @@ TEST(ImuPreintegration, BaseFunctionality) {
 
   // set start of imu preintegration. This requires us to pass three fuse
   // variables, which for testing purposes will match IS1
-  fuse_core::UUID device_id = fuse_core::uuid::generate(params.source);
-
   fuse_variables::Orientation3DStamped::SharedPtr o_start =
-      fuse_variables::Orientation3DStamped::make_shared(t_start, device_id);
-  o_start->w() = IS1.OrientationQuat().w();
-  o_start->x() = IS1.OrientationQuat().x();
-  o_start->y() = IS1.OrientationQuat().y();
-  o_start->z() = IS1.OrientationQuat().z();
-
+      fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
   fuse_variables::Position3DStamped::SharedPtr p_start =
-      fuse_variables::Position3DStamped::make_shared(t_start, device_id);
-  p_start->x() = IS1.PositionVec()[0];
-  p_start->y() = IS1.PositionVec()[1];
-  p_start->z() = IS1.PositionVec()[2];
-
+      fuse_variables::Position3DStamped::make_shared(IS1.Position());
   fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
-      fuse_variables::VelocityLinear3DStamped::make_shared(t_start, device_id);
-  v_start->x() = IS1.VelocityVec()[0];
-  v_start->y() = IS1.VelocityVec()[1];
-  v_start->z() = IS1.VelocityVec()[2];
+      fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
 
   // check default
   imu_preintegration.SetStart(t_start);
@@ -699,7 +687,7 @@ TEST(ImuPreintegration, BaseFunctionality) {
   GetPose() functionality
   */
 
-  for (int i = 1; i - 1 < data.pose_gt.size(); ++i) {
+  for (int i = 1; i - 1 < data.pose_gt.size(); i++) {
     ExpectTransformsNear(imu_preintegration.GetPose(ros::Time(i)),
                          data.pose_gt[i - 1]);
   }
@@ -753,47 +741,191 @@ TEST(ImuPreintegration, BaseFunctionality) {
   // optimize the constraints and variables.
   graph.optimize();
 
+  // get variables from graph
   auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(IS_start.Orientation().uuid()));
-  auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+  auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(IS_end.Orientation().uuid()));
   auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
       graph.getVariable(IS_start.Position().uuid()));
-  auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+  auto p3 = dynamic_cast<const fuse_variables::Position3DStamped&>(
       graph.getVariable(IS_end.Position().uuid()));
   auto v1 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
       graph.getVariable(IS_start.Velocity().uuid()));
-  auto v2 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+  auto v3 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
       graph.getVariable(IS_end.Velocity().uuid()));
   auto bg1 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
       graph.getVariable(IS_start.BiasGyroscope().uuid()));
-  auto bg2 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+  auto bg3 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
       graph.getVariable(IS_end.BiasGyroscope().uuid()));
   auto ba1 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
       graph.getVariable(IS_start.BiasAcceleration().uuid()));
-  auto ba2 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+  auto ba3 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
       graph.getVariable(IS_end.BiasAcceleration().uuid()));
 
+  // check
   for (int i = 0; i < 4; i++) {
     EXPECT_NEAR(o1.data()[i], IS1.Orientation().data()[i], 1e-6);
-    EXPECT_NEAR(o2.data()[i], IS3.Orientation().data()[i], 1e-6);
+    EXPECT_NEAR(o3.data()[i], IS3.Orientation().data()[i], 1e-6);
   }
 
-  EXPECT_NEAR(p1.data()[0], IS1.Position().data()[0], 1e-3);
-  EXPECT_NEAR(p1.data()[1], IS1.Position().data()[1], 1e-3);
+  for (int i = 0; i < 2; i++) {
+    EXPECT_NEAR(p1.data()[i], IS1.Position().data()[i], 1e-3);
+    EXPECT_NEAR(p3.data()[i], IS3.Position().data()[i], 1e-3);
+  }
   EXPECT_NEAR(p1.data()[2], IS1.Position().data()[2], 1e-4);
+  EXPECT_NEAR(p3.data()[2], IS3.Position().data()[2], 1e-4);
 
-  EXPECT_NEAR(v1.data()[0], IS1.Velocity().data()[0], 1e-3);
-  EXPECT_NEAR(v1.data()[1], IS1.Velocity().data()[1], 1e-3);
+  for (int i = 0; i < 2; i++) {
+    EXPECT_NEAR(v1.data()[i], IS1.Velocity().data()[i], 1e-3);
+    EXPECT_NEAR(v3.data()[i], IS3.Velocity().data()[i], 1e-3);
+  }
   EXPECT_NEAR(v1.data()[2], IS1.Velocity().data()[2], 1e-4);
+  EXPECT_NEAR(v3.data()[2], IS3.Velocity().data()[2], 1e-4);
 
   for (int i = 0; i < 3; i++) {
     EXPECT_NEAR(bg1.data()[i], IS1.BiasGyroscope().data()[i], 1e-9);
-    EXPECT_NEAR(bg2.data()[i], IS3.BiasGyroscope().data()[i], 1e-9);
+    EXPECT_NEAR(bg3.data()[i], IS3.BiasGyroscope().data()[i], 1e-9);
   }
   for (int i = 0; i < 3; i++) {
     EXPECT_NEAR(ba1.data()[i], IS1.BiasAcceleration().data()[i], 1e-9);
-    EXPECT_NEAR(ba2.data()[i], IS3.BiasAcceleration().data()[i], 1e-9);
+    EXPECT_NEAR(ba3.data()[i], IS3.BiasAcceleration().data()[i], 1e-9);
+  }
+}
+
+TEST(ImuPreintegration, MultipleTransactions) {
+  // declare data
+  Data data;
+
+  // set intrinsic noise of imu to zero
+  ImuPreintegration::Params params;
+  params.cov_gyro_noise.setZero();
+  params.cov_accel_noise.setZero();
+  params.cov_gyro_bias.setZero();
+  params.cov_accel_bias.setZero();
+
+  // set gravitional acceleration according to data class
+  params.gravitational_acceleration = data.gravitational_acceleration;
+
+  // instantiate preintegration class with zero noise.
+  ImuPreintegration imu_preintegration = ImuPreintegration(params);
+
+  // populate ImuPreintegration with synthetic imu measurements
+  for (ImuPreintegration::ImuData msg : data.imu_data_gt)
+    imu_preintegration.PopulateBuffer(msg);
+
+  // create three imu states where:
+  // 1) IS1 is the imu state at the start of simulation
+  // 2) IS2 is the imu state in the middle of the simulation
+  // 3) IS3 is the imu state at the end of the simulation
+  ImuState IS1 = data.IS1;
+  ImuState IS2 = data.IS2;
+  ImuState IS3 = data.IS3;
+
+  // get start and end times
+  ros::Time t_start = IS1.Stamp();
+  ros::Time t_middle = IS2.Stamp();
+  ros::Time t_end = IS3.Stamp();
+
+  // set start
+  fuse_variables::Orientation3DStamped::SharedPtr o_start =
+      fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
+  fuse_variables::Position3DStamped::SharedPtr p_start =
+      fuse_variables::Position3DStamped::make_shared(IS1.Position());
+  fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
+      fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
+  imu_preintegration.SetStart(t_start, o_start, p_start, v_start);
+
+  // for testing, call GetPose() from start to middle
+  for (int i = t_start.toSec() + 1; i - 1 < t_middle.toSec(); i++) {
+    Eigen::Matrix4d dummy_T_WORLD_IMU =
+        imu_preintegration.GetPose(ros::Time(i));
+  }
+
+  // generate transactions, taking start, middle, and end as key frames
+  auto transaction1 =
+      imu_preintegration.RegisterNewImuPreintegratedFactor(t_middle)
+          .GetTransaction();
+  auto transaction2 =
+      imu_preintegration.RegisterNewImuPreintegratedFactor(t_end)
+          .GetTransaction();
+
+  // create graph
+  fuse_graphs::HashGraph graph;
+
+  // add transactions
+  graph.update(*transaction1);
+  graph.optimize();
+
+  graph.update(*transaction2);
+  graph.optimize();
+
+  // get variables from graph
+  auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph.getVariable(IS1.Orientation().uuid()));
+  auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph.getVariable(IS2.Orientation().uuid()));
+  auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph.getVariable(IS3.Orientation().uuid()));
+  auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph.getVariable(IS1.Position().uuid()));
+  auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph.getVariable(IS2.Position().uuid()));
+  auto p3 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph.getVariable(IS3.Position().uuid()));
+  auto v1 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+      graph.getVariable(IS1.Velocity().uuid()));
+  auto v2 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+      graph.getVariable(IS2.Velocity().uuid()));
+  auto v3 = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+      graph.getVariable(IS3.Velocity().uuid()));
+  auto bg1 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+      graph.getVariable(IS1.BiasGyroscope().uuid()));
+  auto bg2 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+      graph.getVariable(IS2.BiasGyroscope().uuid()));
+  auto bg3 = dynamic_cast<const beam_variables::ImuBiasGyro3DStamped&>(
+      graph.getVariable(IS3.BiasGyroscope().uuid()));
+  auto ba1 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+      graph.getVariable(IS1.BiasAcceleration().uuid()));
+  auto ba2 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+      graph.getVariable(IS2.BiasAcceleration().uuid()));
+  auto ba3 = dynamic_cast<const beam_variables::ImuBiasAccel3DStamped&>(
+      graph.getVariable(IS3.BiasAcceleration().uuid()));
+
+  // check
+  for (int i = 0; i < 4; i++) {
+    EXPECT_NEAR(o1.data()[i], IS1.Orientation().data()[i], 1e-6);
+    EXPECT_NEAR(o2.data()[i], IS2.Orientation().data()[i], 1e-6);
+    EXPECT_NEAR(o3.data()[i], IS3.Orientation().data()[i], 1e-6);
+  }
+
+  for (int i = 0; i < 2; i++) {
+    EXPECT_NEAR(p1.data()[i], IS1.Position().data()[i], 1e-3);
+    EXPECT_NEAR(p2.data()[i], IS2.Position().data()[i], 1e-3);
+    EXPECT_NEAR(p3.data()[i], IS3.Position().data()[i], 1e-3);
+  }
+  EXPECT_NEAR(p1.data()[2], IS1.Position().data()[2], 1e-4);
+  EXPECT_NEAR(p2.data()[2], IS2.Position().data()[2], 1e-4);
+  EXPECT_NEAR(p3.data()[2], IS3.Position().data()[2], 1e-4);
+
+  for (int i = 0; i < 2; i++) {
+    EXPECT_NEAR(v1.data()[i], IS1.Velocity().data()[i], 1e-3);
+    EXPECT_NEAR(v2.data()[i], IS2.Velocity().data()[i], 1e-3);
+    EXPECT_NEAR(v3.data()[i], IS3.Velocity().data()[i], 1e-3);
+  }
+  EXPECT_NEAR(v1.data()[2], IS1.Velocity().data()[2], 1e-4);
+  EXPECT_NEAR(v2.data()[2], IS2.Velocity().data()[2], 1e-4);
+  EXPECT_NEAR(v3.data()[2], IS3.Velocity().data()[2], 1e-4);
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NEAR(bg1.data()[i], IS1.BiasGyroscope().data()[i], 1e-9);
+    EXPECT_NEAR(bg2.data()[i], IS2.BiasGyroscope().data()[i], 1e-9);
+    EXPECT_NEAR(bg3.data()[i], IS3.BiasGyroscope().data()[i], 1e-9);
+  }
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NEAR(ba1.data()[i], IS1.BiasAcceleration().data()[i], 1e-9);
+    EXPECT_NEAR(ba2.data()[i], IS2.BiasAcceleration().data()[i], 1e-9);
+    EXPECT_NEAR(ba3.data()[i], IS3.BiasAcceleration().data()[i], 1e-9);
   }
 }
 
