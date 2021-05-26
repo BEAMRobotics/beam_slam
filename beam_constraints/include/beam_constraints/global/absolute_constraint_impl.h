@@ -2,6 +2,9 @@
 
 #include <ceres/normal_prior.h>
 
+#include <beam_variables/accel_bias_3d_stamped.h>
+#include <beam_variables/gyro_bias_3d_stamped.h>
+
 namespace beam_constraints { namespace global {
 
 template <class Variable>
@@ -101,4 +104,19 @@ inline std::string
         const {
   return "fuse_constraints::AbsoluteAccelerationLinear3DStampedConstraint";
 }
+
+template <>
+inline std::string
+    AbsoluteConstraint3D<beam_variables::GyroscopeBias3DStamped>::type()
+        const {
+  return "fuse_constraints::AbsoluteGyroBias3DStampedConstraint";
+}
+
+template <>
+inline std::string
+    AbsoluteConstraint3D<beam_variables::AccelerationBias3DStamped>::type()
+        const {
+  return "fuse_constraints::AbsoluteAccelBias3DStampedConstraint";
+}
+
 }} // namespace beam_constraints::global

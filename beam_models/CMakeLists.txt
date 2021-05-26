@@ -5,8 +5,7 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS utils matching filtering)
-
+find_package(beam REQUIRED COMPONENTS calibration cv utils matching filtering)
 find_package(
   catkin REQUIRED
   COMPONENTS
@@ -29,7 +28,11 @@ find_package(
     tf2_geometry_msgs
     tf2_ros
     beam_constraints
-    beam_slam_common)
+    beam_slam_common
+		beam_variables
+    cv_bridge
+    slamtools
+    basalt)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -41,8 +44,7 @@ catkin_package(
     include
   LIBRARIES
     ${PROJECT_NAME}
-  CATKIN_DEPENDS
-    fuse_core
+  CATKIN_DEPENDS 
     fuse_graphs
     fuse_models
     fuse_publishers
@@ -60,6 +62,10 @@ catkin_package(
     tf2_ros
     beam_constraints
     beam_slam_common
+		beam_variables
+    cv_bridge
+    slamtools
+    basalt
   DEPENDS
     Boost
     CERES
@@ -85,9 +91,13 @@ add_library(
   src/frame_to_frame/frame_to_frame_sensor_model_base.cpp
   src/frame_to_frame/scan_matcher_3d.cpp
   src/frame_to_frame/multi_scan_registration.cpp
+	src/frame_to_frame/imu_3d.cpp
+	src/frame_to_frame/imu_preintegration.cpp
+  src/frame_to_frame/imu_state.cpp
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
+  src/camera_to_camera/visual_odom.cpp
 )
 
 ## Specify libraries to link a library or executable target against
@@ -95,10 +105,13 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
+    # ${slamtools_LIBRARIES}
     beam::utils
     beam::matching
     beam::filtering
     beam::mapping
+    beam::calibration
+    beam::cv
 )
 add_dependencies(
   ${PROJECT_NAME}
@@ -134,20 +147,25 @@ target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests
   ${CERES_LIBRARIES}
 )
 
-#[[
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  find_package(basalt REQUIRED)
 
-# Model tests
-catkin_add_gtest(test_unicycle_2d
-  test/test_unicycle_2d.cpp
-)
-target_link_libraries(test_unicycle_2d
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${CERES_LIBRARIES}
-)
-set_target_properties(test_unicycle_2d
-  PROPERTIES
-    CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-)
-#]]
+  # Lint tests
+  roslint_add_test()
+
+  # Model tests
+  catkin_add_gtest(imu_preintegration_tests
+    tests/imu_preintegration_tests.cpp
+  )
+  target_link_libraries(imu_preintegration_tests
+    ${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+    ${CERES_LIBRARIES}
+  )
+  set_target_properties(imu_preintegration_tests
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
+endif()

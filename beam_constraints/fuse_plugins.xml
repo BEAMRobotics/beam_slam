@@ -1,7 +1,21 @@
 <library path="lib/libbeam_constraints">
+
+  <class type="beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
+    <description>
+      A constraint that represents a measurement on the difference between two 3D imu states
+    </description>
+  </class>
+
+  <class type="beam_constraints::global::AbsoluteImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
+    <description>
+      A constraint that represents either prior information about a 3D imu state, or a direct measurement of the 3D imu state.
+    </description>
+  </class>
+
   <class type="beam_constraints::Unicycle3DStateKinematicConstraint" base_class_type="fuse_core::Constraint">
     <description>
       A class that represents a kinematic constraint between 3D states at two different times.
     </description>
   </class>
+
 </library>
