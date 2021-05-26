@@ -107,7 +107,6 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
-    # ${slamtools_LIBRARIES}
     beam::utils
     beam::matching
     beam::filtering
