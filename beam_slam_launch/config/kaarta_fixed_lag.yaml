@@ -36,7 +36,8 @@ unicycle_3d:
   buffer_length: 100000
 
 scan_matcher_3d:
-  type: 'ICP' # Options: ICP, NDT, GICP (TODO: LIBPOINTMATCHER, TEASER, LOAM)
+  type: 'ICP' # Options: ICP, NDT, GICP, LOAM (TODO: LIBPOINTMATCHER, TEASER)
+  matcher_params_path: '/home/nick/config/slam/icp.json' # Defaults to params in libbeam
   differential: false # Default: false
   downsample_size: 0.05 # voxel size (m) for downsample filter. Default: 0.03
   outlier_threshold_t: 0.3 # reject scan registration measurements that surpass this translation (m). Set to zero to ignore. Default: 0.5
@@ -48,7 +49,6 @@ scan_matcher_3d:
   frame_initializer_type: 'ODOMETRY' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/integrated_to_init' # for ODOMETRY: topic, for POSEFILE: path
   num_neighbors: 7 # how many neighboring scans to register against
-  matcher_params_path: '/home/nick/config/slam/icp.json' # Defaults to params in libbeam
   matcher_noise_diagonal: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01] # fixed covariance diagonal for matcher results. Set all to zero to use pre-computer covariance from matcher (NOT TESTED)
   fix_first_scan: true # set this to true if no ignition is used
   # scan_output_directory: '' # Outputs scans as PCD files IFF not empty
