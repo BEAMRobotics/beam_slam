@@ -1,15 +1,14 @@
 <library path="lib/libbeam_constraints">
 
-  <class type="beam_constraints::frame_to_frame::RelativePoseWithVelocity3DStampedConstraint" base_class_type="fuse_core::Constraint">
+  <class type="beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
     <description>
-      A constraint that represents a measurement on the difference between two 3D poses with velocities
+      A constraint that represents a measurement on the difference between two 3D imu states
     </description>
   </class>
 
-  <class type="beam_constraints::global::AbsolutePoseWithVelocity3DStampedConstraint" base_class_type="fuse_core::Constraint">
+  <class type="beam_constraints::global::AbsoluteImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
     <description>
-      A constraint that represents either prior information about a 3D pose with velocity, or a direct measurement of the 3D pose 
-			with velocity.
+      A constraint that represents either prior information about a 3D imu state, or a direct measurement of the 3D imu state.
     </description>
   </class>
 

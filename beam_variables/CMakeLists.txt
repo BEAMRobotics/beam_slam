@@ -35,7 +35,8 @@ add_compile_options(-Wall -Werror)
 
 ## beam_variables library
 add_library(${PROJECT_NAME}
-  src/imu_bias_stamped.cpp
+  src/accel_bias_3d_stamped.cpp
+  src/gyro_bias_3d_stamped.cpp
   src/position_3d.cpp
 )
 add_dependencies(${PROJECT_NAME}

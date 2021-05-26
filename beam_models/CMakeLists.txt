@@ -31,7 +31,8 @@ find_package(
     beam_slam_common
 		beam_variables
     cv_bridge
-    slamtools)
+    slamtools
+    basalt)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -64,6 +65,7 @@ catkin_package(
 		beam_variables
     cv_bridge
     slamtools
+    basalt
   DEPENDS
     Boost
     CERES
@@ -91,6 +93,7 @@ add_library(
   src/frame_to_frame/multi_scan_registration.cpp
 	src/frame_to_frame/imu_3d.cpp
 	src/frame_to_frame/imu_preintegration.cpp
+  src/frame_to_frame/imu_state.cpp
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
@@ -104,7 +107,7 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
-    #${slamtools_LIBRARIES}
+    # ${slamtools_LIBRARIES}
     beam::utils
     beam::matching
     beam::filtering
@@ -146,20 +149,25 @@ target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests
   ${CERES_LIBRARIES}
 )
 
-#[[
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  find_package(basalt REQUIRED)
 
-# Model tests
-catkin_add_gtest(test_unicycle_2d
-  test/test_unicycle_2d.cpp
-)
-target_link_libraries(test_unicycle_2d
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${CERES_LIBRARIES}
-)
-set_target_properties(test_unicycle_2d
-  PROPERTIES
-    CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-)
-#]]
+  # Lint tests
+  roslint_add_test()
+
+  # Model tests
+  catkin_add_gtest(imu_preintegration_tests
+    tests/imu_preintegration_tests.cpp
+  )
+  target_link_libraries(imu_preintegration_tests
+    ${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+    ${CERES_LIBRARIES}
+  )
+  set_target_properties(imu_preintegration_tests
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
+endif()

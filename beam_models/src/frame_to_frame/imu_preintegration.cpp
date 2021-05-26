@@ -1,138 +1,253 @@
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 
 #include <fuse_core/transaction.h>
-#include <manif/manif.h>
 
-namespace beam_models {
-namespace frame_to_frame {
+#include <beam_utils/math.h>
+
+namespace beam_models { namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
-  gravitational_acceleration_ << 0, 0, -params_.gravitational_acceleration;
+  g_ << 0, 0, -params_.gravitational_acceleration;
+  SetPreintegrator();
 }
 
-void ImuPreintegration::populateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
-  ImuData imu_data;
-  imu_data.time = msg->header.stamp;
-  imu_data.linear_acceleration[0] = msg->linear_acceleration.x;
-  imu_data.linear_acceleration[1] = msg->linear_acceleration.y;
-  imu_data.linear_acceleration[2] = msg->linear_acceleration.z;
-  imu_data.angular_velocity[0] = msg->angular_velocity.x;
-  imu_data.angular_velocity[1] = msg->angular_velocity.y;
-  imu_data.angular_velocity[2] = msg->angular_velocity.z;
+ImuPreintegration::ImuPreintegration(const Params& params,
+                                     const Eigen::Vector3d& init_bg,
+                                     const Eigen::Vector3d& init_ba)
+    : params_(params), bg_(init_bg), ba_(init_ba) {
+  g_ << 0, 0, -params_.gravitational_acceleration;
+  SetPreintegrator();
+}
 
-  if (!use_fixed_imu_noise_covariance_) {
-    imu_data.noise_covariance.block<3, 3>(0, 0)
-        << msg->angular_velocity_covariance[0],
-        msg->angular_velocity_covariance[1],
-        msg->angular_velocity_covariance[2],
-        msg->angular_velocity_covariance[3],
-        msg->angular_velocity_covariance[4],
-        msg->angular_velocity_covariance[5],
-        msg->angular_velocity_covariance[6],
-        msg->angular_velocity_covariance[7],
-        msg->angular_velocity_covariance[8];
-    imu_data.noise_covariance.block<3, 3>(3, 3)
-        << msg->linear_acceleration_covariance[0],
-        msg->linear_acceleration_covariance[1],
-        msg->linear_acceleration_covariance[2],
-        msg->linear_acceleration_covariance[3],
-        msg->linear_acceleration_covariance[4],
-        msg->linear_acceleration_covariance[5],
-        msg->linear_acceleration_covariance[6],
-        msg->linear_acceleration_covariance[7],
-        msg->linear_acceleration_covariance[8];
+void ImuPreintegration::ClearBuffer() {
+  for (size_t i = 0; i < imu_data_buffer_.size(); ++i) imu_data_buffer_.pop();
+}
+
+void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
+  ImuData imu_data(msg);
+  imu_data_buffer_.push(imu_data);
+}
+
+void ImuPreintegration::PopulateBuffer(const ImuData& imu_data) {
+  imu_data_buffer_.push(imu_data);
+}
+
+void ImuPreintegration::SetPreintegrator() {
+  pre_integrator_ij.cov_w = params_.cov_gyro_noise;
+  pre_integrator_ij.cov_a = params_.cov_accel_noise;
+  pre_integrator_ij.cov_bg = params_.cov_gyro_bias;
+  pre_integrator_ij.cov_ba = params_.cov_accel_bias;
+}
+
+void ImuPreintegration::ResetPreintegrator() {
+  pre_integrator_ij.reset();
+  pre_integrator_ij.data.clear();
+}
+
+void ImuPreintegration::SetStart(
+    const ros::Time& t_start,
+    fuse_variables::Orientation3DStamped::SharedPtr orientation,
+    fuse_variables::Position3DStamped::SharedPtr position,
+    fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
+  // adjust imu buffer
+  if (imu_data_buffer_.empty()) {
+    ROS_FATAL_STREAM("imu buffer must be populated");
   }
 
-  imu_data_buffer_.emplace_back(imu_data);
+  if (t_start.toSec() < imu_data_buffer_.front().t) {
+    ROS_FATAL_STREAM("Requested start must have at least imu msg prior");
+  }
+
+  while (t_start.toSec() > imu_data_buffer_.front().t) {
+    imu_data_buffer_.pop();
+  }
+
+  if (imu_data_buffer_.empty()) {
+    ROS_FATAL_STREAM("Requested start falls outside of imu buffer");
+  }
+
+  // set imu state
+  ImuState imu_state_i(t_start);
+
+  if (orientation != nullptr) {
+    imu_state_i.SetOrientation(orientation->data());
+  }
+
+  if (position != nullptr) {
+    imu_state_i.SetPosition(position->data());
+  }
+
+  if (velocity != nullptr) {
+    imu_state_i.SetVelocity(velocity->data());
+  }
+
+  imu_state_i.SetGyroBias(bg_);
+  imu_state_i.SetAccelBias(ba_);
+
+  imu_state_i_ = std::move(imu_state_i);
+
+  // copy start imu state to initialize kth frame between keyframes
+  imu_state_k_ = imu_state_i_;
 }
 
-// void
-// ImuPreintegration::setFirstFrame(beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-// transaction) {
-//   R_i_ = fuse_variables::Orientation3DStamped::make_shared(
-//       imu_data_buffer_.at(0).time, params_.device_id);
-//   V_i_ = fuse_variables::VelocityLinear3DStamped::make_shared(
-//       imu_data_buffer_.at(0).time, params_.device_id);
-//   P_i_ = fuse_variables::Position3DStamped::make_shared(
-//       imu_data_buffer_.at(0).time, params_.device_id);
-//   Ba_i_ = beam_variables::ImuBiasStamped::make_shared(
-//       imu_data_buffer_.at(0).time, params_.device_id);
-//   Bg_i_ = beam_variables::ImuBiasStamped::make_shared(
-//       imu_data_buffer_.at(0).time, params_.device_id);
+ImuState ImuPreintegration::PredictState(const PreIntegrator& pre_integrator,
+                                         const ImuState& imu_state_curr) {
+  // calculate new states
+  double dt = pre_integrator.delta.t;
+  Eigen::Matrix3d or_curr = imu_state_curr.OrientationQuat().toRotationMatrix();
+  Eigen::Matrix3d or_new_mat = or_curr * pre_integrator.delta.q.matrix();
+  Eigen::Vector3d vel_new =
+      imu_state_curr.VelocityVec() + g_ * dt + or_curr * pre_integrator.delta.v;
+  Eigen::Vector3d pos_new =
+      imu_state_curr.PositionVec() + imu_state_curr.VelocityVec() * dt +
+      0.5 * g_ * dt * dt + or_curr * pre_integrator.delta.p;
 
-//   Eigen::Quaterniond R_i_quat_init(Eigen::Quaterniond::FromTwoVectors(
-//       imu_data_buffer_.at(0).linear_acceleration, Eigen::Vector3d::UnitZ()));
+  // instantiate new imu state
+  Eigen::Quaterniond or_new(or_new_mat);
+  ros::Time t_new = imu_state_curr.Stamp() + ros::Duration(dt);
+  ImuState imu_state_new(t_new, or_new, pos_new, vel_new,
+                         imu_state_curr.GyroBiasVec(),
+                         imu_state_curr.AccelBiasVec());
+  return imu_state_new;
+}
 
-//   R_i_->w() = R_i_quat_init.w();
-//   R_i_->x() = R_i_quat_init.x();
-//   R_i_->y() = R_i_quat_init.y();
-//   R_i_->z() = R_i_quat_init.z();
+Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
+    const ImuState& imu_state_new) {
+  Eigen::Matrix3d or_curr_rot_trans = imu_state_i_.OrientationQuat()
+                                          .normalized()
+                                          .toRotationMatrix()
+                                          .transpose();
+  Eigen::Matrix3d or_delta_mat =
+      or_curr_rot_trans *
+      imu_state_new.OrientationQuat().normalized().toRotationMatrix();
+  Eigen::Quaterniond or_delta(or_delta_mat);
+  Eigen::Vector3d pos_delta = or_curr_rot_trans * (imu_state_new.PositionVec() -
+                                                   imu_state_i_.PositionVec());
+  Eigen::Vector3d vel_delta = or_curr_rot_trans * (imu_state_new.VelocityVec() -
+                                                   imu_state_i_.VelocityVec());
+  Eigen::Vector3d bias_gyro_delta =
+      imu_state_new.GyroBiasVec() - imu_state_i_.GyroBiasVec();
+  Eigen::Vector3d bias_accel_delta =
+      imu_state_new.AccelBiasVec() - imu_state_i_.AccelBiasVec();
 
-//   V_i_->x() = 0;
-//   V_i_->y() = 0;
-//   V_i_->z() = 0;
+  Eigen::Matrix<double, 16, 1> delta;
+  delta << or_delta.w(), or_delta.vec(), pos_delta, vel_delta, bias_gyro_delta,
+      bias_accel_delta;
+  return delta;
+}
 
-//   P_i_->x() = 0;
-//   P_i_->y() = 0;
-//   P_i_->z() = 0;
+Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
+  // encapsulate imu measurments between frames
+  PreIntegrator pre_integrator_interval;
 
-//   Ba_i_->x() = params_.initial_imu_acceleration_bias;
-//   Ba_i_->y() = params_.initial_imu_acceleration_bias;
-//   Ba_i_->z() = params_.initial_imu_acceleration_bias;
+  if (t_now.toSec() < imu_data_buffer_.front().t)
+    ROS_FATAL_STREAM("Requested pose falls outside of imu buffer");
 
-//   Bg_i_->x() = params_.initial_imu_gyroscope_bias;
-//   Bg_i_->y() = params_.initial_imu_gyroscope_bias;
-//   Bg_i_->z() = params_.initial_imu_gyroscope_bias;
+  // Populate integrators
+  while (t_now.toSec() > imu_data_buffer_.front().t) {
+    pre_integrator_interval.data.emplace_back(imu_data_buffer_.front());
+    pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
+    imu_data_buffer_.pop();
+  }
 
-//   // Generate absolute constraint at origin
-//   Eigen::Matrix<double, 10, 1> absolute_imu_state_mean;
-//   absolute_imu_state_mean << P_i_->x(), P_i_->y(), P_i_->z(), V_i_->x(),
-//       V_i_->y(), V_i_->z(), R_i_->w(), R_i_->x(), R_i_->y(), R_i_->z();
-//   fuse_core::Matrix6d absolute_imu_state_covariance =
-//       fuse_core::Matrix9d::Identity();
+  // integrate between frames
+  pre_integrator_interval.integrate(
+      t_now.toSec(), imu_state_i_.GyroBiasVec(),
+      imu_state_i_.AccelBiasVec(), false, false);
 
-//   auto absolute_imu_state_constraint =
-//       beam_constraints::global::AbsoluteImuState3DStampedConstraint::
-//           make_shared(params_.source, *P_i_, *V_i_, *R_i_,
-//                       absolute_imu_state_mean,
-//                       absolute_imu_state_covariance);
+  // predict state at end of window using integrated imu measurements
+  ImuState imu_state_k = PredictState(pre_integrator_interval, imu_state_k_);
+  imu_state_k_ = std::move(imu_state_k);
 
-//   transaction.AddConstraint(absolute_imu_state_constraint);
-// }
+  Eigen::Matrix4d T_WORLD_ISk;
+  beam::QuaternionAndTranslationToTransformMatrix(
+      imu_state_k_.OrientationQuat(), imu_state_k_.PositionVec(), T_WORLD_ISk);
 
-void ImuPreintegration::SetFixedCovariance(
-    const fuse_core::Matrix6d& covariance) {
-  imu_noise_covariance_ = covariance;
-  use_fixed_imu_noise_covariance_ = true;
+  return T_WORLD_ISk;
 }
 
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-ImuPreintegration::RegisterNewImuPreintegrationFactor() {
+ImuPreintegration::RegisterNewImuPreintegratedFactor(
+    const ros::Time& t_now,
+    fuse_variables::Orientation3DStamped::SharedPtr orientation,
+    fuse_variables::Position3DStamped::SharedPtr position) {
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
-      imu_data_buffer_.back().time);
+      t_now);
 
-  //   // --- State Initialisation
+  // generate prior constraint at start
+  if (first_window_) {
+    Eigen::Matrix<double, 15, 15> prior_covariance;
+    prior_covariance.setIdentity();
+    prior_covariance *= params_.prior_noise;
 
-  //   // Initialize fuse variables at the start of the first window
-  //   if (first_window_) {
-  //     setFirstFrame();
-  //     first_window_ = false;
-  //   }
+    transaction.AddImuStatePrior(
+        imu_state_i_.Orientation(), imu_state_i_.Position(),
+        imu_state_i_.Velocity(), imu_state_i_.GyroBias(),
+        imu_state_i_.AccelBias(), prior_covariance,
+        "FIRST_IMU_STATE_PRIOR");
 
-  //   // Determine first time, last time, and duration of window
-  //   ros::Time t_i = imu_data_buffer_.at(0).time;
-  //   ros::Time t_j = imu_data_buffer_.back().time;
-  //   double del_t_ij = ros::Duration(t_j - t_i).toSec();
+    transaction.AddImuStateVariables(
+        imu_state_i_.Orientation(), imu_state_i_.Position(),
+        imu_state_i_.Velocity(), imu_state_i_.GyroBias(),
+        imu_state_i_.AccelBias(), imu_state_i_.Stamp());
 
-  //   // Declare fuse variables at end of window for relative motion estimation
-  //   auto R_j =
-  //       fuse_variables::Orientation3DStamped::make_shared(t_j,
-  //       params_.device_id);
-  //   auto V_j = fuse_variables::VelocityLinear3DStamped::make_shared(
-  //       t_j, params_.device_id);
-  //   auto P_j =
-  //       fuse_variables::Position3DStamped::make_shared(t_j,
-  //       params_.device_id);
+    first_window_ = false;
+  }
+
+  // Populate integrator
+  while (t_now.toSec() > imu_data_buffer_.front().t) {
+    pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
+    imu_data_buffer_.pop();
+  }
+
+  // integrate between key frames
+  pre_integrator_ij.integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
+                              imu_state_i_.AccelBiasVec(), true, true);
+
+  // predict state at end of window using integrated imu measurements
+  ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_);
+
+  // update orientation and position of predicted imu state with arguments
+  if (orientation != nullptr) {
+    imu_state_j.SetOrientation(orientation->data());
+  }
+
+  if (position != nullptr) {
+    imu_state_j.SetPosition(position->data());
+  }
+
+  // calculate relative change in imu state between key frames
+  auto delta_ij = CalculateRelativeChange(imu_state_j);
+
+  // Determine covariance and ensure non-zero
+  Eigen::Matrix<double, 15, 15> covariance_ij{pre_integrator_ij.delta.cov};
+  if (covariance_ij.isZero(1e-9)) {
+    covariance_ij.setIdentity();
+    covariance_ij *= params_.prior_noise;
+  }
+
+  // make preintegrator a shared pointer for constraint
+  auto pre_integrator = std::make_shared<PreIntegrator>(pre_integrator_ij);
+
+  // generate relative constraints between key frames
+  transaction.AddImuStateConstraint(
+      imu_state_i_.Orientation(), imu_state_j.Orientation(),
+      imu_state_i_.Position(), imu_state_j.Position(), imu_state_i_.Velocity(),
+      imu_state_j.Velocity(), imu_state_i_.GyroBias(),
+      imu_state_j.GyroBias(), imu_state_i_.AccelBias(),
+      imu_state_j.AccelBias(), delta_ij, covariance_ij, pre_integrator);
+
+  transaction.AddImuStateVariables(
+      imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),
+      imu_state_j.GyroBias(), imu_state_j.AccelBias(),
+      imu_state_j.Stamp());
+
+  // move predicted state to previous state
+  imu_state_i_ = std::move(imu_state_j);
+
+  ResetPreintegrator();
+
+  return transaction;
 }
 
-}} // namespace beam_models::frame_to_frame
+}}  // namespace beam_models::frame_to_frame

@@ -15,20 +15,26 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadExtraParams(const ros::NodeHandle& nh) final {
-		nh.getParam("queue_size", queue_size);
-    nh.getParam("buffer_size", buffer_size);
+    nh.getParam("queue_size", queue_size);
     nh.getParam("gravitational_acceleration", gravitational_acceleration);
-    nh.getParam("initial_imu_acceleration_bias", initial_imu_acceleration_bias);
-    nh.getParam("initial_imu_gyroscope_bias", initial_imu_gyroscope_bias);
-    nh.getParam("imu_noise_diagonal", imu_noise_diagonal);
+    nh.getParam("prior_noise", prior_noise);
+    cov_gyro_noise = fuse_core::getCovarianceDiagonalParam<3>(
+        nh, "accel_noise_covariance", 1.5e-03);    
+    cov_accel_noise = fuse_core::getCovarianceDiagonalParam<3>(
+        nh, "accel_noise_covariance", 4.0e-03);
+    cov_gyro_bias = fuse_core::getCovarianceDiagonalParam<3>(
+        nh, "accel_noise_covariance", 3.5e-05);        
+    cov_accel_bias = fuse_core::getCovarianceDiagonalParam<3>(
+        nh, "accel_noise_covariance", 6.5e-05);
   }
 
-  std::vector<double> imu_noise_diagonal{0, 0, 0, 0, 0, 0};
-  int queue_size{50};
-  int buffer_size{50};
+  int queue_size{300};
   double gravitational_acceleration{9.80665};
-  double initial_imu_acceleration_bias{1.0e-05};
-  double initial_imu_gyroscope_bias{1.0e-05};
+  double prior_noise{1e-9};
+  fuse_core::Matrix3d cov_gyro_noise;  
+  fuse_core::Matrix3d cov_accel_noise;
+  fuse_core::Matrix3d cov_gyro_bias;
+  fuse_core::Matrix3d cov_accel_bias;
 };
 
-}} // namespace beam_parameters::models
+}}  // namespace beam_parameters::models

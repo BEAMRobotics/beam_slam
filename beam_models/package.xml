@@ -27,6 +27,7 @@
   <depend>tf2_ros</depend>
   <depend>cv_bridge</depend>
   <depend>slamtools</depend>
+  <depend>basalt</depend>
 
   <depend>fuse_constraints</depend>
   <depend>fuse_core</depend>
@@ -44,6 +45,9 @@
   <build_depend>libbeam</build_depend>
 
   <exec_depend>message_runtime</exec_depend>
+
+  <test_depend>rostest</test_depend>
+  <test_depend>basalt</test_depend>
 
   <export>
     <fuse_core plugin="${prefix}/fuse_plugins.xml" />

@@ -54,7 +54,9 @@ public:
   }
 
   fuse_core::Transaction::SharedPtr GetTransaction() {
-    if (transaction_->empty()) { return nullptr; }
+    if (transaction_->empty()) {
+      return nullptr;
+    }
     return transaction_;
   }
 
@@ -185,10 +187,81 @@ public:
         override_variables_);
   }
 
+  void AddImuStatePrior(const fuse_variables::Orientation3DStamped& orientation,
+                        const fuse_variables::Position3DStamped& position,
+                        const fuse_variables::VelocityLinear3DStamped& velocity,
+                        const beam_variables::GyroscopeBias3DStamped& gyrobias,                       
+                        const beam_variables::AccelerationBias3DStamped& accelbias,
+                        const Eigen::Matrix<double, 15, 15>& prior_covariance,
+                        const std::string& prior_source = "NULL") {
+    Eigen::Matrix<double, 16, 1> mean;
+    mean << orientation.w(), orientation.x(), orientation.y(), orientation.z(),
+        position.x(), position.y(), position.z(), velocity.x(), velocity.y(),
+        velocity.z(), gyrobias.x(), gyrobias.y(), gyrobias.z(), accelbias.x(),
+        accelbias.y(), accelbias.z();
+
+    auto prior = std::make_shared<
+        beam_constraints::global::AbsoluteImuState3DStampedConstraint>(
+        prior_source, orientation, position, velocity, gyrobias, accelbias,
+        mean, prior_covariance);
+    transaction_->addConstraint(prior, override_constraints_);
+  }
+
+  void AddImuStateConstraint(
+      const fuse_variables::Orientation3DStamped& orientation1,
+      const fuse_variables::Orientation3DStamped& orientation2,
+      const fuse_variables::Position3DStamped& position1,
+      const fuse_variables::Position3DStamped& position2,
+      const fuse_variables::VelocityLinear3DStamped& velocity1,
+      const fuse_variables::VelocityLinear3DStamped& velocity2,
+      const beam_variables::GyroscopeBias3DStamped& gyrobias1,
+      const beam_variables::GyroscopeBias3DStamped& gyrobias2,
+      const beam_variables::AccelerationBias3DStamped& accelbias1,
+      const beam_variables::AccelerationBias3DStamped& accelbias2,
+      const Eigen::Matrix<double, 16, 1>& delta,
+      const Eigen::Matrix<double, 15, 15>& covariance,
+      const std::shared_ptr<PreIntegrator> pre_integrator,
+      const std::string& source = "NULL") {
+    // build and add constraint
+    auto constraint =
+        beam_constraints::frame_to_frame::RelativeImuState3DStampedConstraint::
+            make_shared(source, orientation1, position1, velocity1, gyrobias1,
+                        accelbias1, orientation2, position2, velocity2,
+                        gyrobias2, accelbias2, delta, covariance, pre_integrator);
+    transaction_->addConstraint(constraint, override_constraints_);
+  }
+
+  void AddImuStateVariables(
+      const fuse_variables::Orientation3DStamped& orientation,
+      const fuse_variables::Position3DStamped& position,
+      const fuse_variables::VelocityLinear3DStamped& velocity,
+      const beam_variables::GyroscopeBias3DStamped& gyrobias,
+      const beam_variables::AccelerationBias3DStamped& accelbias,
+      const ros::Time& stamp) {
+    transaction_->addInvolvedStamp(stamp);
+
+    // add to transaction
+    transaction_->addVariable(
+        fuse_variables::Orientation3DStamped::make_shared(orientation),
+        override_variables_);
+    transaction_->addVariable(
+        fuse_variables::Position3DStamped::make_shared(position),
+        override_variables_);
+    transaction_->addVariable(
+        fuse_variables::VelocityLinear3DStamped::make_shared(velocity),
+        override_variables_);    
+    transaction_->addVariable(
+        beam_variables::GyroscopeBias3DStamped::make_shared(gyrobias),
+        override_variables_);
+    transaction_->addVariable(
+        beam_variables::AccelerationBias3DStamped::make_shared(accelbias),
+        override_variables_);          
+  }
+
 protected:
   fuse_core::Transaction::SharedPtr transaction_;
   bool override_constraints_;
   bool override_variables_;
 };
 
-}} // namespace beam_constraints::frame_to_frame
+}}  // namespace beam_constraints::frame_to_frame

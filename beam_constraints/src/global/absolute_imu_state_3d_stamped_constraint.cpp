@@ -12,14 +12,17 @@ namespace beam_constraints { namespace global {
 
 AbsoluteImuState3DStampedConstraint::AbsoluteImuState3DStampedConstraint(
     const std::string& source,
+    const fuse_variables::Orientation3DStamped& orientation,
     const fuse_variables::Position3DStamped& position,
     const fuse_variables::VelocityLinear3DStamped& velocity,
-    const fuse_variables::Orientation3DStamped& orientation,
-    const Eigen::Matrix<double, 10, 1>& mean,
-    const fuse_core::Matrix9d& covariance)
-    : fuse_core::Constraint(source,
-                            {position.uuid(), velocity.uuid(),
-                             orientation.uuid()}),  // NOLINT(whitespace/braces)
+    const beam_variables::GyroscopeBias3DStamped& gyrobias,
+    const beam_variables::AccelerationBias3DStamped& accelbias,
+    const Eigen::Matrix<double, 16, 1>& mean,
+    const Eigen::Matrix<double, 15, 15>& covariance)
+    : fuse_core::Constraint(
+          source,
+          {orientation.uuid(), position.uuid(), velocity.uuid(),
+           gyrobias.uuid(), accelbias.uuid()}),  // NOLINT(whitespace/braces)
       mean_(mean),
       sqrt_information_(covariance.inverse().llt().matrixU()) {}
 
@@ -27,9 +30,11 @@ void AbsoluteImuState3DStampedConstraint::print(std::ostream& stream) const {
   stream << type() << "\n"
          << "  source: " << source() << "\n"
          << "  uuid: " << uuid() << "\n"
-         << "  position variable: " << variables().at(0) << "\n"
-         << "  velocity variable: " << variables().at(1) << "\n"
-         << "  orientation variable: " << variables().at(2) << "\n"
+         << "  orientation variable: " << variables().at(0) << "\n"
+         << "  position variable: " << variables().at(1) << "\n"
+         << "  velocity variable: " << variables().at(2) << "\n"
+         << "  gyrobias variable: " << variables().at(3) << "\n"
+         << "  accelbias variable:: " << variables().at(4) << "\n"
          << "  mean: " << mean().transpose() << "\n"
          << "  sqrt_info: " << sqrtInformation() << "\n";
 
@@ -40,8 +45,8 @@ void AbsoluteImuState3DStampedConstraint::print(std::ostream& stream) const {
 }
 
 ceres::CostFunction* AbsoluteImuState3DStampedConstraint::costFunction() const {
-  return new ceres::AutoDiffCostFunction<NormalPriorImuState3DCostFunctor, 9, 3,
-                                         3, 4>(
+  return new ceres::AutoDiffCostFunction<NormalPriorImuState3DCostFunctor, 15,
+                                         4, 3, 3, 3, 3>(
       new NormalPriorImuState3DCostFunctor(sqrt_information_, mean_));
 }
 

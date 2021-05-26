@@ -17,6 +17,10 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 
+#include <beam_variables/accel_bias_3d_stamped.h>
+#include <beam_variables/gyro_bias_3d_stamped.h>
+#include <slamtools/preintegrator.h>
+
 namespace beam_constraints { namespace frame_to_frame {
 
 /**
@@ -27,31 +31,36 @@ namespace beam_constraints { namespace frame_to_frame {
  * measurement uncertainty/covariance.
  */
 class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
- public:
+public:
   FUSE_CONSTRAINT_DEFINITIONS_WITH_EIGEN(RelativeImuState3DStampedConstraint);
 
   RelativeImuState3DStampedConstraint() = default;
 
   RelativeImuState3DStampedConstraint(
       const std::string& source,
+      const fuse_variables::Orientation3DStamped& orientation1,
       const fuse_variables::Position3DStamped& position1,
       const fuse_variables::VelocityLinear3DStamped& velocity1,
-      const fuse_variables::Orientation3DStamped& orientation1,
+      const beam_variables::GyroscopeBias3DStamped& gyrobias1,
+      const beam_variables::AccelerationBias3DStamped& accelbias1,
+      const fuse_variables::Orientation3DStamped& orientation2,
       const fuse_variables::Position3DStamped& position2,
       const fuse_variables::VelocityLinear3DStamped& velocity2,
-      const fuse_variables::Orientation3DStamped& orientation2,
-      const Eigen::Matrix<double, 10, 1>& delta,
-      const fuse_core::Matrix9d& covariance);
+      const beam_variables::GyroscopeBias3DStamped& gyrobias2,
+      const beam_variables::AccelerationBias3DStamped& accelbias2,
+      const Eigen::Matrix<double, 16, 1>& delta,
+      const Eigen::Matrix<double, 15, 15>& covariance,
+      const std::shared_ptr<PreIntegrator> pre_integrator = nullptr);
 
   virtual ~RelativeImuState3DStampedConstraint() = default;
 
-  const Eigen::Matrix<double, 10, 1>& delta() const { return delta_; }
+  const Eigen::Matrix<double, 16, 1>& delta() const { return delta_; }
 
-  const fuse_core::Matrix9d& sqrtInformation() const {
+  const Eigen::Matrix<double, 15, 15>& sqrtInformation() const {
     return sqrt_information_;
   }
 
-  fuse_core::Matrix9d covariance() const {
+  Eigen::Matrix<double, 15, 15> covariance() const {
     return (sqrt_information_.transpose() * sqrt_information_).inverse();
   }
 
@@ -59,11 +68,11 @@ class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
 
   ceres::CostFunction* costFunction() const override;
 
- protected:
-  Eigen::Matrix<double, 10, 1> delta_;
-  fuse_core::Matrix9d sqrt_information_;
+protected:
+  Eigen::Matrix<double, 16, 1> delta_;
+  Eigen::Matrix<double, 15, 15> sqrt_information_;
 
- private:
+private:
   friend class boost::serialization::access;
 
   template <class Archive>
