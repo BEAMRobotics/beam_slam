@@ -12,8 +12,6 @@ namespace beam_models { namespace frame_to_frame {
 
 class ImuState {
 public:
-  using Ptr = std::shared_ptr<ImuState>;
-
   ImuState() = default;
 
   ImuState(const ros::Time& time) : stamp_(time) {
@@ -71,23 +69,6 @@ public:
       return true;
     }
     return false;
-  }
-
-  void InstantiateFuseVariables() {
-    orientation_ =
-        fuse_variables::Orientation3DStamped(stamp_, fuse_core::uuid::NIL);  
-    position_ = fuse_variables::Position3DStamped(stamp_, fuse_core::uuid::NIL);        
-    velocity_ =
-        fuse_variables::VelocityLinear3DStamped(stamp_, fuse_core::uuid::NIL); 
-    bias_gyroscope_ =
-        beam_variables::ImuBiasGyro3DStamped(stamp_, fuse_core::uuid::NIL);                  
-    bias_acceleration_ =
-        beam_variables::ImuBiasAccel3DStamped(stamp_, fuse_core::uuid::NIL);
-  }
-
-  void InstantiateFuseVariables(const ros::Time& time) {
-    stamp_ = time;   
-    InstantiateFuseVariables();
   }
 
   inline int Updates() const { return updates_; }
@@ -258,9 +239,19 @@ public:
            << "  - z: " << bias_acceleration_.z() << "\n";
   }
 
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
 private:
+  void InstantiateFuseVariables() {
+    orientation_ =
+        fuse_variables::Orientation3DStamped(stamp_, fuse_core::uuid::NIL);  
+    position_ = fuse_variables::Position3DStamped(stamp_, fuse_core::uuid::NIL);        
+    velocity_ =
+        fuse_variables::VelocityLinear3DStamped(stamp_, fuse_core::uuid::NIL); 
+    bias_gyroscope_ =
+        beam_variables::ImuBiasGyro3DStamped(stamp_, fuse_core::uuid::NIL);                  
+    bias_acceleration_ =
+        beam_variables::ImuBiasAccel3DStamped(stamp_, fuse_core::uuid::NIL);
+  }
+
   int updates_{0};
   ros::Time stamp_;
   fuse_variables::Orientation3DStamped orientation_;

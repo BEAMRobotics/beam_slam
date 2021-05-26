@@ -6,7 +6,7 @@
 #include <slamtools/preintegrator.h>
 
 #include <beam_constraints/frame_to_frame/imu_state_3d_stamped_transaction.h>
-#include <beam_models/frame_to_frame/imu_state.h>
+#include <beam_common/imu_state.h>
 
 namespace beam_models { namespace frame_to_frame {
 
@@ -64,13 +64,13 @@ public:
       fuse_variables::Position3DStamped::SharedPtr position = nullptr,
       fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
 
-  ImuState GetImuState() const { return imu_state_i_; }
-
   ImuState PredictState(const PreIntegrator& pre_integrator,
                         const ImuState& imu_state_curr);
 
   Eigen::Matrix<double, 16, 1> CalculateRelativeChange(
-    const ImuState& imu_state_curr);                      
+    const ImuState& imu_state_curr);    
+
+  ImuState GetImuState() const { return imu_state_i_; }                    
 
   Eigen::Matrix4d GetPose(const ros::Time& t_now);
 

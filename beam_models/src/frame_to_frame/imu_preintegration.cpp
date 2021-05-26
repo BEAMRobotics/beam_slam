@@ -67,28 +67,24 @@ void ImuPreintegration::SetStart(
   }
 
   // set imu state
-  imu_state_i_.InstantiateFuseVariables(t_start);
+  ImuState imu_state_i(t_start);
 
   if (orientation != nullptr) {
-    imu_state_i_.SetOrientation(orientation->data());
-  } else {
-    imu_state_i_.SetOrientation(1, 0, 0, 0);
+    imu_state_i.SetOrientation(orientation->data());
   }
 
   if (position != nullptr) {
-    imu_state_i_.SetPosition(position->data());
-  } else {
-    imu_state_i_.SetPosition(0, 0, 0);
+    imu_state_i.SetPosition(position->data());
   }
 
   if (velocity != nullptr) {
-    imu_state_i_.SetVelocity(velocity->data());
-  } else {
-    imu_state_i_.SetVelocity(0, 0, 0);
+    imu_state_i.SetVelocity(velocity->data());
   }
 
-  imu_state_i_.SetBiasGyroscope(bg_);
-  imu_state_i_.SetBiasAcceleration(ba_);
+  imu_state_i.SetBiasGyroscope(bg_);
+  imu_state_i.SetBiasAcceleration(ba_);
+
+  imu_state_i_ = std::move(imu_state_i);
 
   // copy start imu state to initialize kth frame between keyframes
   imu_state_k_ = imu_state_i_;
