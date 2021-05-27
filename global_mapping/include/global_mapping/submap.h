@@ -66,37 +66,37 @@ class Submap {
    * @brief get current position estimate
    * @return t_WORLD_SUBMAP
    */
-  fuse_variables::Position3DStamped Position();
+  fuse_variables::Position3DStamped Position() const;
 
   /**
    * @brief get current orientation estimate
    * @return R_WORLD_SUBMAP
    */
-  fuse_variables::Orientation3DStamped Orientation();
+  fuse_variables::Orientation3DStamped Orientation() const;
 
   /**
    * @brief get current transform estimate
    * @return T_WORLD_SUBMAP
    */
-  Eigen::Matrix4d T_WORLD_SUBMAP();
+  Eigen::Matrix4d T_WORLD_SUBMAP() const;
 
   /**
    * @brief get initial pose estimate in matrix form
    * @return T_WORLD_SUBMAP
    */
-  Eigen::Matrix4d T_WORLD_SUBMAP_INIT();
+  Eigen::Matrix4d T_WORLD_SUBMAP_INIT() const;
 
   /**
    * @brief get the number of pose updates from a pose graph optimization
    * @return number of updates
    */
-  int Updates();
+  int Updates() const;
 
   /**
    * @brief get current time associated with the submap pose
    * @return stamp
    */
-  ros::Time Stamp();
+  ros::Time Stamp() const;
 
   /**
    * @brief add a set of camera measurements associated with one image frame

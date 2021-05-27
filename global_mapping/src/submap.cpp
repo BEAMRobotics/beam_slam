@@ -26,23 +26,23 @@ Submap::Submap(const ros::Time& stamp,
       stamp_(stamp),
       extrinsics_(extrinsics) {}
 
-fuse_variables::Position3DStamped Submap::Position() { return position_; }
+fuse_variables::Position3DStamped Submap::Position() const { return position_; }
 
-fuse_variables::Orientation3DStamped Submap::Orientation() {
+fuse_variables::Orientation3DStamped Submap::Orientation() const {
   return orientation_;
 }
 
-Eigen::Matrix4d Submap::T_WORLD_SUBMAP() {
+Eigen::Matrix4d Submap::T_WORLD_SUBMAP() const {
   return beam_common::FusePoseToEigenTransform(position_, orientation_);
 }
 
-Eigen::Matrix4d Submap::T_WORLD_SUBMAP_INIT() {
+Eigen::Matrix4d Submap::T_WORLD_SUBMAP_INIT() const {
   return T_WORLD_SUBMAP_initial_;
 }
 
-int Submap::Updates() { return graph_updates_; }
+int Submap::Updates() const { return graph_updates_; }
 
-ros::Time Submap::Stamp() { return stamp_; }
+ros::Time Submap::Stamp() const { return stamp_; }
 
 void Submap::AddCameraMeasurement(
     const std::vector<LandmarkMeasurementMsg>& landmarks,

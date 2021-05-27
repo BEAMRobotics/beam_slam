@@ -24,8 +24,8 @@ inline void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
 }
 
 inline Eigen::Matrix4d FusePoseToEigenTransform(
-    fuse_variables::Position3DStamped& p,
-    fuse_variables::Orientation3DStamped& o) {
+    const fuse_variables::Position3DStamped& p,
+    const fuse_variables::Orientation3DStamped& o) {
   Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
   
   // add position
