@@ -97,7 +97,9 @@ add_library(
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
-  src/camera_to_camera/visual_odom.cpp
+  src/camera_to_camera/visual_inertial_odom.cpp
+  src/camera_to_camera/vio_initializer.cpp
+  src/camera_to_camera/visual_map.cpp
 )
 
 ## Specify libraries to link a library or executable target against
@@ -105,7 +107,6 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
-    # ${slamtools_LIBRARIES}
     beam::utils
     beam::matching
     beam::filtering
@@ -123,31 +124,17 @@ add_dependencies(
 #############
 ## Testing ##
 #############
-add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
-  tests/scan_matcher_3d_tests.cpp)
-target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
-  ${PROJECT_NAME}
-  gtest_main
-  beam::utils)
-add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
-         COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
-
-
-#[[
-add_executable(${PROJECT_NAME}_icp_tests
-  tests/icp_tests.cpp
-)
-
-catkin_add_gtest(${PROJECT_NAME}_scan_matcher_3d_gtests
-  tests/scan_matcher_3d_tests.cpp
-)
-target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${CERES_LIBRARIES}
-)
-
 if(CATKIN_ENABLE_TESTING)
+  add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
+    tests/scan_matcher_3d_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils)
+  add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
+          COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
+
+
   find_package(rostest REQUIRED)
   find_package(basalt REQUIRED)
 
@@ -169,3 +156,4 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD_REQUIRED YES
   )
 endif()
+
