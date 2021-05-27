@@ -9,6 +9,8 @@ This repo contains beam's lidar-camera-inertial SLAM code. All other SLAM code i
 * fuse: https://github.com/locusrobotics/fuse (kinetic-devel branch)
 * tf2_2d: https://github.com/locusrobotics/tf2_2d.git
 * qwt: sudo apt-get install libqwt-dev
+* slamtools: https://github.com/BEAMRobotics/slamtools
+* basalt: https://github.com/BEAMRobotics/basalt-headers-mirror
 
 ## Known issues:
 
