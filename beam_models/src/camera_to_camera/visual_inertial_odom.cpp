@@ -72,21 +72,20 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
   /**************************************************************************
    *              Add IMU messages to buffer or initializer                 *
    **************************************************************************/
-  while (imu_buffer_.front().header.stamp < img_time && !imu_buffer_.empty()) {
+  while (imu_buffer_.front().header.stamp <= img_time && !imu_buffer_.empty()) {
     sensor_msgs::Imu imu_msg = imu_buffer_.front();
     ros::Time imu_time = imu_msg.header.stamp;
-    Eigen::Vector3d ang_vel{imu_msg.angular_velocity.x,
-                            imu_msg.angular_velocity.y,
-                            imu_msg.angular_velocity.z};
-    Eigen::Vector3d lin_accel{imu_msg.linear_acceleration.x,
-                              imu_msg.linear_acceleration.y,
-                              imu_msg.linear_acceleration.z};
     if (!initializer_->Initialized()) {
       temp_imu_buffer_.push(imu_msg);
+      Eigen::Vector3d ang_vel{imu_msg.angular_velocity.x,
+                              imu_msg.angular_velocity.y,
+                              imu_msg.angular_velocity.z};
+      Eigen::Vector3d lin_accel{imu_msg.linear_acceleration.x,
+                                imu_msg.linear_acceleration.y,
+                                imu_msg.linear_acceleration.z};
       initializer_->AddIMU(ang_vel, lin_accel, imu_time);
     } else {
-      // add to frame initializer
-      // preintegrator.PopulateBuffer(msg);
+      imu_preint_->PopulateBuffer(imu_msg);
     }
     imu_buffer_.pop();
   }
@@ -102,11 +101,18 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         auto init_transaction = this->initMap();
         sendTransaction(init_transaction);
         tracker_->AddImage(image, img_time);
-        // send messages in temp imu buffer to preint object/frame initializer
         // get pose estimate and pass to frame register
+        std::cout << "New frame time: " << img_time << std::endl;
+        Eigen::Matrix4d imu_pose_est = imu_preint_->GetPose(img_time);
+        std::cout << "Pose at " << cur_kf_time_ << "(from vio init)"
+                  << std::endl;
+        std::cout << this->visual_map_->getPose(cur_kf_time_).value()
+                  << std::endl;
+        std::cout << "Pose at " << img_time << "(from imu preint)" << std::endl;
+        std::cout << imu_pose_est << std::endl;
         // register the current frame against the map
-        auto frame_transaction = this->registerFrame(img_time);
-        sendTransaction(init_transaction);
+        // auto frame_transaction = this->registerFrame(img_time);
+        // sendTransaction(init_transaction);
       } else {
         tracker_->AddImage(image, img_time);
         std::queue<sensor_msgs::Imu>().swap(temp_imu_buffer_);
@@ -116,7 +122,8 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
        *  1. Get pose estimate from frame initializer (graph + imu preint)
        *  2. Determine if enough translational movement has occured, OR time
        *     has passed since the last keyframe
-       *  3. Check blurriness score of image, and make sure not to add blurry images
+       *  3. Check blurriness score of image, and make sure not to add blurry
+       * images
        *  https://www.pyimagesearch.com/2015/09/07/blur-detection-with-opencv/
        *  4. Use custom tracker add image function, if it return true, then do
        * registerframe
@@ -124,10 +131,10 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
        *
        */
 
-      tracker_->AddImage(image, img_time);
+      // tracker_->AddImage(image, img_time);
       // register the current frame against the map
-      auto transaction = this->registerFrame(img_time);
-      sendTransaction(transaction);
+      // auto transaction = this->registerFrame(img_time);
+      // sendTransaction(transaction);
     }
     image_buffer_.pop();
   }
@@ -185,12 +192,27 @@ std::shared_ptr<fuse_core::Transaction> VisualInertialOdom::initMap() {
   /******************************************************
    *           Initialize the IMU Preintegrator         *
    ******************************************************/
-  Eigen::Vector3d g, bg, ba;
-  initializer_->GetBiases(g, bg, ba);
-  fuse_variables::Orientation3DStamped::SharedPtr kf_orientation =
-      this->visual_map_->getOrientation(cur_kf_time_);
-  fuse_variables::Position3DStamped::SharedPtr kf_position =
-      this->visual_map_->getPosition(cur_kf_time_);
+  Eigen::Vector3d v, bg, ba;
+  initializer_->GetBiases(v, bg, ba);
+  fuse_variables::VelocityLinear3DStamped::SharedPtr velocity =
+      fuse_variables::VelocityLinear3DStamped::make_shared(cur_kf_time_);
+  velocity->x() = v[0];
+  velocity->y() = v[1];
+  velocity->z() = v[2];
+  beam_models::frame_to_frame::ImuPreintegration::Params imu_params;
+  imu_preint_ =
+      std::make_shared<beam_models::frame_to_frame::ImuPreintegration>(
+          imu_params, bg, ba);
+  std::cout << "Start time: " << cur_kf_time_ << std::endl;
+  while (temp_imu_buffer_.size() > 0) {
+    std::cout << "IMU message time: " << temp_imu_buffer_.front().header.stamp
+              << std::endl;
+    imu_preint_->PopulateBuffer(temp_imu_buffer_.front());
+    temp_imu_buffer_.pop();
+  }
+  imu_preint_->SetStart(cur_kf_time_,
+                        this->visual_map_->getOrientation(cur_kf_time_),
+                        this->visual_map_->getPosition(cur_kf_time_), velocity);
   return transaction;
 }
 

@@ -54,11 +54,11 @@ public:
 
   /**
    * @brief Fills the estimated bias parameters
-   * @param g gravity vector
+   * @param v velocity
    * @param bg gyro bias
    * @param bas accelerometer bias
    */
-  void GetBiases(Eigen::Vector3d& g, Eigen::Vector3d& bg, Eigen::Vector3d& ba);
+  void GetBiases(Eigen::Vector3d& v, Eigen::Vector3d& bg, Eigen::Vector3d& ba);
 
   /**
    * @brief Returns the current state

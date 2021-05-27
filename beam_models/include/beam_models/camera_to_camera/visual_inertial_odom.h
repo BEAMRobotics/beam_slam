@@ -8,6 +8,7 @@
 #include <beam_models/camera_to_camera/vio_initializer.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_parameters/models/vio_params.h>
+#include <beam_models/frame_to_frame/imu_preintegration.h>
 // fuse
 #include <fuse_core/async_sensor_model.h>
 // libbeam
@@ -124,6 +125,7 @@ protected:
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<VIOInitializer> initializer_;
   std::shared_ptr<VisualMap> visual_map_;
+  std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
   // most recent keyframe timestamp
   ros::Time cur_kf_time_;
   std::string source_ = "VO";

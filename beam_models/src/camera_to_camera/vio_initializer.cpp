@@ -87,12 +87,12 @@ std::map<unsigned long, Eigen::Matrix4d> VIOInitializer::GetPoses() {
   if (is_initialized_) return tracker_poses_;
 }
 
-void VIOInitializer::GetBiases(Eigen::Vector3d& g, Eigen::Vector3d& bg,
+void VIOInitializer::GetBiases(Eigen::Vector3d& v, Eigen::Vector3d& bg,
                                Eigen::Vector3d& ba) {
   if (is_initialized_) {
     Frame* f = sliding_window_->get_frame(this->config_->init_map_frames() - 1);
     MotionState m = f->motion;
-    g = f->external_gravity;
+    v = m.v;
     bg = m.bg;
     ba = m.ba;
   }
