@@ -8,6 +8,7 @@
 #include <pcl/io/pcd_io.h>
 
 #include <global_mapping/loop_closure/loop_closure_methods.h>
+#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 #include <beam_utils/log.h>
 #include <beam_utils/time.h>
@@ -26,6 +27,31 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   loop_closure_candidate_search_config =
       J["loop_closure_candidate_search_config"];
   loop_closure_refinement_config = J["loop_closure_refinement_config"];
+
+  std::vector<double> vec;
+  Eigen::VectorXd vec_eig(6);
+  for (const auto& value : J["local_mapper_covariance_diag"]) {
+    vec.push_back(value.get<double>());
+  }
+  if (vec.size() != 6) {
+    BEAM_ERROR(
+        "Invalid local mapper covariance diagonal (6 values required). Using "
+        "default.");
+    vec_eig << 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3;
+    local_mapper_covariance = vec_eig.asDiagonal();
+  }
+  vec.clear();
+
+  for (const auto& value : J["loop_closure_covariance_diag"]) {
+    vec.push_back(value.get<double>());
+  }
+  if (vec.size() != 6) {
+    BEAM_ERROR(
+        "Invalid loop closure covariance diagonal (6 values required). Using "
+        "default.");
+    vec_eig << 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3;
+    loop_closure_covariance = vec_eig.asDiagonal();
+  }
 }
 
 GlobalMap::GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics)
@@ -92,9 +118,12 @@ void GlobalMap::Setup() {
   }
 }
 
-void GlobalMap::AddCameraMeasurement(const CameraMeasurementMsg& measurement) {
+fuse_core::Transaction::SharedPtr GlobalMap::AddCameraMeasurement(
+    const CameraMeasurementMsg& measurement) {
+  fuse_core::Transaction::SharedPtr new_transaction = nullptr;
+
   if (measurement.size == 0) {
-    return;
+    return new_transaction;
   }
   std::vector<float> T;
   T = measurement.T_WORLD_FRAME;
@@ -105,16 +134,27 @@ void GlobalMap::AddCameraMeasurement(const CameraMeasurementMsg& measurement) {
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
     submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME, extrinsics_));
+    new_transaction = InitiateNewSubmapPose();
+    fuse_core::Transaction::SharedPtr loop_closure_transaction =
+        FindLoopClosures();
+    if (loop_closure_transaction != nullptr) {
+      new_transaction->merge(*loop_closure_transaction);
+    }
   }
 
   submaps_[submap_id].AddCameraMeasurement(
       measurement.landmarks, T_WORLD_FRAME, measurement.stamp,
       measurement.sensor_id, measurement.measurement_id);
+
+  return new_transaction;
 }
 
-void GlobalMap::AddLidarMeasurement(const LidarMeasurementMsg& measurement) {
+fuse_core::Transaction::SharedPtr GlobalMap::AddLidarMeasurement(
+    const LidarMeasurementMsg& measurement) {
+  fuse_core::Transaction::SharedPtr new_transaction = nullptr;
+
   if (measurement.size == 0) {
-    return;
+    return new_transaction;
   }
   Eigen::Matrix4d T_WORLD_FRAME =
       VectorToEigenTransform(measurement.T_WORLD_FRAME);
@@ -123,18 +163,28 @@ void GlobalMap::AddLidarMeasurement(const LidarMeasurementMsg& measurement) {
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
     submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME, extrinsics_));
+    new_transaction = InitiateNewSubmapPose();
+    fuse_core::Transaction::SharedPtr loop_closure_transaction =
+        FindLoopClosures();
+    if (loop_closure_transaction != nullptr) {
+      new_transaction->merge(*loop_closure_transaction);
+    }
   }
 
   PointCloud cloud;
   submaps_[submap_id].AddLidarMeasurement(
       cloud, T_WORLD_FRAME, measurement.stamp, measurement.sensor_id,
       measurement.measurement_id, measurement.type);
+
+  return new_transaction;
 }
 
-void GlobalMap::AddTrajectoryMeasurement(
+fuse_core::Transaction::SharedPtr GlobalMap::AddTrajectoryMeasurement(
     const TrajectoryMeasurementMsg& measurement) {
+  fuse_core::Transaction::SharedPtr new_transaction = nullptr;
+
   if (measurement.size == 0) {
-    return;
+    return new_transaction;
   }
   Eigen::Matrix4d T_WORLD_FRAME =
       VectorToEigenTransform(measurement.T_WORLD_FRAME);
@@ -143,6 +193,12 @@ void GlobalMap::AddTrajectoryMeasurement(
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
     submaps_.push_back(Submap(measurement.stamp, T_WORLD_FRAME, extrinsics_));
+    new_transaction = InitiateNewSubmapPose();
+    fuse_core::Transaction::SharedPtr loop_closure_transaction =
+        FindLoopClosures();
+    if (loop_closure_transaction != nullptr) {
+      new_transaction->merge(*loop_closure_transaction);
+    }
   }
 
   std::vector<Eigen::Matrix4d, pose_allocator> poses;
@@ -162,6 +218,8 @@ void GlobalMap::AddTrajectoryMeasurement(
   submaps_[submap_id].AddTrajectoryMeasurement(
       poses, stamps, T_WORLD_FRAME, measurement.stamp, measurement.sensor_id,
       measurement.measurement_id);
+
+  return new_transaction;
 }
 
 int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_FRAME) {
@@ -183,8 +241,28 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_FRAME) {
   }
 }
 
+fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
+  const Submap& current_submap = submaps_[submaps_.size() - 1];
+  const Submap& previous_submap = submaps_[submaps_.size() - 2];
+  beam_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction(
+      current_submap.Stamp());
+
+  new_transaction.AddPoseVariables(current_submap.Position(),
+                                   current_submap.Orientation(),
+                                   current_submap.Stamp());
+  Eigen::Matrix4d T_PREVIOUS_CURRENT =
+      beam::InvertTransform(previous_submap.T_WORLD_SUBMAP()) *
+      current_submap.T_WORLD_SUBMAP();
+  std::string source = "LOCALMAPPER";
+  new_transaction.AddPoseConstraint(
+      previous_submap.T_WORLD_SUBMAP(), current_submap.T_WORLD_SUBMAP(),
+      previous_submap.Stamp(), current_submap.Stamp(), T_PREVIOUS_CURRENT,
+      params_.local_mapper_covariance, source);
+  return new_transaction.GetTransaction();
+}
+
 fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
-  int current_index = submaps_.size() - 1;
+  int current_index = submaps_.size() - 2;
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
   loop_closure_candidate_search_->FindLoopClosureCandidates(
@@ -196,10 +274,11 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
 
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
-  for (int matched_index : matched_indices) {
+  for (int i = 0; i < matched_indices.size(); i++) {
     fuse_core::Transaction::SharedPtr new_transaction =
-        loop_closure_refinement_->GenerateTransaction(submaps_[matched_index],
-                                                      submaps_[current_index]);
+        loop_closure_refinement_->GenerateTransaction(
+            submaps_[matched_indices[i]], submaps_[current_index],
+            Ts_MATCH_QUERY[i]);
     transaction->merge(*new_transaction);
   }
   return transaction;

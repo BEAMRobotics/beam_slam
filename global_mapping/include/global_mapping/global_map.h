@@ -46,13 +46,20 @@ class GlobalMap {
      */
     std::string loop_closure_refinement_type{"ICP"};
 
-    /** Full path to config file for loop closure candidate search. If blank, it will use default
-     * parameters.*/
+    /** Full path to config file for loop closure candidate search. If blank, it
+     * will use default parameters.*/
     std::string loop_closure_candidate_search_config{""};
 
-    /** Full path to config file for loop closure refinement. If blank, it will use default
-     * parameters.*/
+    /** Full path to config file for loop closure refinement. If blank, it will
+     * use default parameters.*/
     std::string loop_closure_refinement_config{""};
+
+    /** covariance matrix from binary factors between scan poses which are added
+     * from the local mapper results*/
+    Eigen::Matrix<double, 6, 6> local_mapper_covariance;
+
+    /** covariance matrix from binary factors between loop closures*/
+    Eigen::Matrix<double, 6, 6> loop_closure_covariance;
 
     /** Loads config settings from a json file. */
     void LoadJson(const std::string& config_path);
@@ -86,38 +93,56 @@ class GlobalMap {
   ~GlobalMap() = default;
 
   /**
-   * @brief add a camera measurement to the appropriate submap
+   * @brief add a camera measurement to the appropriate submap and returns a
+   * transaction if a new submap is generated. This transaction will contain a
+   * constraint between the new submap and the previous, and then initiate a
+   * loop closure check on the previous submap to see if a loop closure
+   * constraints can also be added to the transaction.
    * @param measurement camera measurement to add.
    * NOTE: All data should be in baselink_frame_ already
    */
-  void AddCameraMeasurement(const CameraMeasurementMsg& measurement);
+  fuse_core::Transaction::SharedPtr AddCameraMeasurement(
+      const CameraMeasurementMsg& measurement);
 
   /**
-   * @brief add a lidar measurement to the appropriate submap
+   * @brief add a lidar measurement to the appropriate submap  and returns a
+   * transaction if a new submap is generated. This transaction will contain a
+   * constraint between the new submap and the previous, and then initiate a
+   * loop closure check on the previous submap to see if a loop closure
+   * constraints can also be added to the transaction.
    * @param measurement lidar measurement to add
    * NOTE: All data should be in baselink_frame_ already
    */
-  void AddLidarMeasurement(const LidarMeasurementMsg& measurement);
+  fuse_core::Transaction::SharedPtr AddLidarMeasurement(
+      const LidarMeasurementMsg& measurement);
 
   /**
-   * @brief add a trajectory measurement to the appropriate submap. This is
-   * usually used to add a trajectory coming from higher rate sensore to fill
-   * the gap between lower rate sensors. Example: camera keyframes and lidar
-   * keyframes will be stored in the submap, but to get high rate pose estimates
-   * between them, we may want to add relative poses from the IMU
+   * @brief add a trajectory measurement to the appropriate submap.  and returns
+   * a transaction if a new submap is generated. This transaction will contain a
+   * constraint between the new submap and the previous, and then initiate a
+   * loop closure check on the previous submap to see if a loop closure
+   * constraints can also be added to the transaction.
+   *
+   * This is usually used to add a trajectory coming from higher rate sensore to
+   * fill the gap between lower rate sensors. Example: camera keyframes and
+   * lidar keyframes will be stored in the submap, but to get high rate pose
+   * estimates between them, we may want to add relative poses from the IMU
    * (preintegration)
+   *
    * @param measurement trajectory measurement to add
    * NOTE: All transforms should be from baselink_frame_ to world_frame_
    */
-  void AddTrajectoryMeasurement(const TrajectoryMeasurementMsg& measurement);
+  fuse_core::Transaction::SharedPtr AddTrajectoryMeasurement(
+      const TrajectoryMeasurementMsg& measurement);
 
   /**
-   * @brief Get loop closure measurements by comparing the current submap to all
-   * previous submaps
-   * @return fuse transaction with the frame to frame constraints between two
-   * loop closure poses
+   * @brief takes the latest submap (back of vector) and adds a pose constraint
+   * between it and it's previous submap. If it's the first submap, it will add
+   * a perfect prior on this submap.
+   * @return transaction which adds the new submap variables and a binary
+   * constraints between the previous submap and the new one
    */
-  fuse_core::Transaction::SharedPtr FindLoopClosures();
+  fuse_core::Transaction::SharedPtr InitiateNewSubmapPose();
 
   /**
    * @brief Update submap poses with a new graph message
@@ -191,6 +216,16 @@ class GlobalMap {
   int GetSubmapId(const Eigen::Matrix4d& T_WORLD_FRAME);
 
   /**
+   * @brief Get loop closure measurements by comparing the second last submap to
+   * all previous submaps. The reason we compare the second last submap is
+   * because we don't want to find loop closures until the submap is complete,
+   * this ensures a best estimate of the loop closure constraint.
+   * @return fuse transaction with the frame to frame constraints between two
+   * loop closure poses
+   */
+  fuse_core::Transaction::SharedPtr FindLoopClosures();
+
+  /**
    * @brief Converts an array of float containing a pose measurement [R | t] (of
    * size 3 x 4) to a 4 x 4 Eigen Matrix
    */
@@ -199,7 +234,8 @@ class GlobalMap {
   Params params_;
   std::vector<Submap> submaps_;
   std::shared_ptr<ExtrinsicsLookup> extrinsics_;
-  std::unique_ptr<LoopClosureCandidateSearchBase> loop_closure_candidate_search_;
+  std::unique_ptr<LoopClosureCandidateSearchBase>
+      loop_closure_candidate_search_;
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
 
   // All poses will be stored w.r.t to these frame. By default, baselink is set

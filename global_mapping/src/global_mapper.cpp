@@ -15,13 +15,21 @@ GlobalMapper::GlobalMapper()
           std::bind(&GlobalMapper::process, this, std::placeholders::_1)) {}
 
 void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
-  global_map_->AddCameraMeasurement(msg->camera_measurement);
-  global_map_->AddLidarMeasurement(msg->lidar_measurement);
-  global_map_->AddTrajectoryMeasurement(msg->trajectory_measurement);
-  fuse_core::Transaction::SharedPtr transaction =
-      global_map_->FindLoopClosures();
-  ROS_DEBUG("Sending transaction.");
-  sendTransaction(transaction);
+  fuse_core::Transaction::SharedPtr new_transaction1 =
+      global_map_->AddCameraMeasurement(msg->camera_measurement);
+  if (new_transaction1 != nullptr) {
+    sendTransaction(new_transaction1);
+  }
+  fuse_core::Transaction::SharedPtr new_transaction2 =
+      global_map_->AddLidarMeasurement(msg->lidar_measurement);
+  if (new_transaction2 != nullptr) {
+    sendTransaction(new_transaction2);
+  }
+  fuse_core::Transaction::SharedPtr new_transaction3 =
+      global_map_->AddTrajectoryMeasurement(msg->trajectory_measurement);
+  if (new_transaction3 != nullptr) {
+    sendTransaction(new_transaction3);
+  }
 }
 
 void GlobalMapper::onInit() {
