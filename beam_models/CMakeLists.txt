@@ -107,7 +107,6 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
-    # ${slamtools_LIBRARIES}
     beam::utils
     beam::matching
     beam::filtering
@@ -125,49 +124,17 @@ add_dependencies(
 #############
 ## Testing ##
 #############
-# add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
-#   tests/scan_matcher_3d_tests.cpp)
-# target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
-#   ${PROJECT_NAME}
-#   gtest_main
-#   beam::utils)
-# add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
-#          COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
-
-
-#[[
-add_executable(${PROJECT_NAME}_icp_tests
-  tests/icp_tests.cpp
-)
-
-catkin_add_gtest(${PROJECT_NAME}_scan_matcher_3d_gtests
-  tests/scan_matcher_3d_tests.cpp
-)
-target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${CERES_LIBRARIES}
-)
-
-#[[
-
-# Model tests
-catkin_add_gtest(test_unicycle_2d
-  test/test_unicycle_2d.cpp
-)
-target_link_libraries(test_unicycle_2d
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${CERES_LIBRARIES}
-)
-set_target_properties(test_unicycle_2d
-  PROPERTIES
-    CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-)
-#]]
-
 if(CATKIN_ENABLE_TESTING)
+  # add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
+  #   tests/scan_matcher_3d_tests.cpp)
+  # target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
+  #   ${PROJECT_NAME}
+  #   gtest_main
+  #   beam::utils)
+  # add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
+  #         COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
+
+
   find_package(rostest REQUIRED)
   find_package(basalt REQUIRED)
 

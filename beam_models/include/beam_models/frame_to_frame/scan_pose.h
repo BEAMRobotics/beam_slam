@@ -107,42 +107,42 @@ class ScanPose {
 
   void Save(const std::string& save_path, bool to_world_frame = true,
             bool add_frame = true) {
-    if (!boost::filesystem::exists(save_path)) {
-      ROS_ERROR("Cannot save cloud, directory does not exist: %s",
-                save_path.c_str());
-      return;
-    }
+    // if (!boost::filesystem::exists(save_path)) {
+    //   ROS_ERROR("Cannot save cloud, directory does not exist: %s",
+    //             save_path.c_str());
+    //   return;
+    // }
 
-    std::string file_name_prefix = save_path + std::to_string(stamp_.toSec());
-    if (!to_world_frame) {
-      pcl::io::savePCDFileASCII(file_name_prefix + ".pcd", pointcloud_);
-      return;
-    }
+    // std::string file_name_prefix = save_path + std::to_string(stamp_.toSec());
+    // if (!to_world_frame) {
+    //   pcl::io::savePCDFileASCII(file_name_prefix + ".pcd", pointcloud_);
+    //   return;
+    // }
 
-    PointCloudPtr cloud_initial = std::make_shared<PointCloud>();
-    PointCloudPtr cloud_final = std::make_shared<PointCloud>();
+    // PointCloudPtr cloud_initial = std::make_shared<PointCloud>();
+    // PointCloudPtr cloud_final = std::make_shared<PointCloud>();
 
-    pcl::transformPointCloud(pointcloud_, *cloud_initial,
-                             T_WORLD_CLOUD_initial_);
-    pcl::transformPointCloud(pointcloud_, *cloud_final, this->T_WORLD_CLOUD());
+    // pcl::transformPointCloud(pointcloud_, *cloud_initial,
+    //                          T_WORLD_CLOUD_initial_);
+    // pcl::transformPointCloud(pointcloud_, *cloud_final, this->T_WORLD_CLOUD());
 
-    PointCloudColPtr cloud_initial_col =
-        beam::ColorPointCloud(cloud_initial, 255, 0, 0);
-    PointCloudColPtr cloud_final_col =
-        beam::ColorPointCloud(cloud_final, 0, 255, 0);
+    // PointCloudColPtr cloud_initial_col =
+    //     beam::ColorPointCloud(cloud_initial, 255, 0, 0);
+    // PointCloudColPtr cloud_final_col =
+    //     beam::ColorPointCloud(cloud_final, 0, 255, 0);
 
-    if (add_frame) {
-      cloud_initial_col =
-          beam::AddFrameToCloud(cloud_initial_col, T_WORLD_CLOUD_initial_);
-      cloud_final_col =
-          beam::AddFrameToCloud(cloud_final_col, this->T_WORLD_CLOUD());
-    }
-    pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
-                              *cloud_initial_col);
-    pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd",
-                              *cloud_final_col);
+    // if (add_frame) {
+    //   cloud_initial_col =
+    //       beam::AddFrameToCloud(cloud_initial_col, T_WORLD_CLOUD_initial_);
+    //   cloud_final_col =
+    //       beam::AddFrameToCloud(cloud_final_col, this->T_WORLD_CLOUD());
+    // }
+    // pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
+    //                           *cloud_initial_col);
+    // pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd",
+    //                           *cloud_final_col);
 
-    ROS_INFO("Saved cloud with stamp: %.5f", stamp_.toSec());
+    // ROS_INFO("Saved cloud with stamp: %.5f", stamp_.toSec());
   }
 
   void SaveLoamCloud(const std::string& save_path, bool to_world_frame = true,
