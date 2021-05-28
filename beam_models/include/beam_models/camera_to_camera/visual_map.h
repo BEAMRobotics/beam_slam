@@ -19,9 +19,63 @@ namespace beam_models { namespace camera_to_camera {
 class VisualMap {
 public:
   VisualMap(std::string source,
-            std::shared_ptr<beam_calibration::CameraModel> cam_model);
+            std::shared_ptr<beam_calibration::CameraModel> cam_model,
+            Eigen::Matrix4d T_imu_cam);
 
   ~VisualMap() = default;
+
+  /**
+   * @brief Helper function to get a pose at time t
+   * @param track feature track of current image
+   */
+  beam::opt<Eigen::Matrix4d> getPose(const ros::Time& stamp);
+
+  /**
+   * @brief Helper function to get a landmark by id
+   * The landmark that will be retrieved will be in imu-world frame, transform
+   * to camera before returning
+   * @param track feature track of current image
+   */
+  beam::opt<Eigen::Matrix4d> getLandmark(uint64_t landmark_id);
+
+  /**
+   * @brief Helper function to add a pose at time t to a transaction
+   * The pose being added will be a camera pose, transform it to imu
+   * @param track feature track of current image
+   */
+  void addPose(const Eigen::Matrix4d& pose, const ros::Time& cur_time,
+               std::shared_ptr<fuse_core::Transaction> transaction);
+
+  /**
+   * @brief Helper function to add a new landmark variable to a transaction
+   * The landmark being added is in camera coord system, first transform it to
+   * imu before adding
+   * @param track feature track of current image
+   */
+  void addLandmark(const Eigen::Vector3d& p, uint64_t id,
+                   std::shared_ptr<fuse_core::Transaction> transaction);
+
+  /**
+   * @brief Helper function to add a constraint between a landmark and a pose
+   * @param track feature track of current image
+   */
+  void addConstraint(const ros::Time& img_time, uint64_t lm_id,
+                     const Eigen::Vector2d& pixel,
+                     std::shared_ptr<fuse_core::Transaction> transaction);
+
+  /**
+   * @brief Updates current graph copy
+   * @param track feature track of current image
+   */
+  void updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg,
+                   const ros::Time& oldest_time);
+
+protected:
+  /**
+   * @brief Helper function to get a landmark by id
+   * @param track feature track of current image
+   */
+  fuse_variables::Position3D::SharedPtr getLandmark(uint64_t landmark_id);
 
   /**
    * @brief Helper function to get an orientation variable
@@ -37,61 +91,6 @@ public:
   fuse_variables::Position3DStamped::SharedPtr
       getPosition(const ros::Time& stamp);
 
-  /**
-   * @brief Helper function to get a pose at time t
-   * @param track feature track of current image
-   */
-  beam::opt<Eigen::Matrix4d> getPose(const ros::Time& stamp);
-
-  /**
-   * @brief Helper function to get a landmark by id
-   * @param track feature track of current image
-   */
-  fuse_variables::Position3D::SharedPtr getLandmark(uint64_t landmark_id);
-
-  /**
-   * @brief Helper function to add a new orientation variable to a transaction
-   * @param track feature track of current image
-   */
-  void addOrientation(const Eigen::Quaterniond& q, const ros::Time& cur_time,
-                      std::shared_ptr<fuse_core::Transaction> transaction);
-
-  /**
-   * @brief Helper function to add a new position variable to a transaction
-   * @param track feature track of current image
-   */
-  void addPosition(const Eigen::Vector3d& p, const ros::Time& cur_time,
-                   std::shared_ptr<fuse_core::Transaction> transaction);
-
-  /**
-   * @brief Helper function to add a pose at time t to a transaction
-   * @param track feature track of current image
-   */
-  void addPose(const Eigen::Matrix4d& pose, const ros::Time& cur_time,
-               std::shared_ptr<fuse_core::Transaction> transaction);
-
-  /**
-   * @brief Helper function to add a new landmark variable to a transaction
-   * @param track feature track of current image
-   */
-  void addLandmark(const Eigen::Vector3d& p, uint64_t id,
-                   std::shared_ptr<fuse_core::Transaction> transaction);
-
-  /**
-   * @brief Helper function to add a new landmark variable to a transaction
-   * @param track feature track of current image
-   */
-  void addConstraint(const ros::Time& img_time, uint64_t lm_id,
-                     const Eigen::Vector2d& pixel,
-                     std::shared_ptr<fuse_core::Transaction> transaction);
-
-  /**
-   * @brief Updates current graph copy
-   * @param track feature track of current image
-   */
-  void updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg, const ros::Time& oldest_time);
-
-protected:
   // these store the most up to date variables for in between optimizations
   std::unordered_map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;
@@ -103,6 +102,7 @@ protected:
   bool graph_initialized = false;
   std::string source_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
+  Eigen::Matrix4d T_imu_cam_;
 };
 
 }} // namespace beam_models::camera_to_camera

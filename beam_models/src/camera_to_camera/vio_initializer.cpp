@@ -4,8 +4,8 @@ namespace beam_models { namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> input_cam_model,
-    Eigen::Matrix4d T_body_cam, Eigen::Matrix4d T_body_imu,
-    Eigen::Vector4d imu_intrinsics, double rectify_scale) {
+    Eigen::Matrix4d T_imu_cam, Eigen::Vector4d imu_intrinsics,
+    double rectify_scale) {
   this->rectify_scale_ = rectify_scale;
   this->resize_scale_ = 1 / this->rectify_scale_;
 
@@ -17,8 +17,8 @@ VIOInitializer::VIOInitializer(
   intrinsics[3] = cam_model_->GetHeight() / 2;
   this->cam_model_->SetIntrinsics(intrinsics);
 
-  this->config_ = std::make_shared<CameraConfig>(this->cam_model_, T_body_cam,
-                                                 T_body_imu, imu_intrinsics);
+  this->config_ = std::make_shared<CameraConfig>(
+      this->cam_model_, T_imu_cam, Eigen::Matrix4d::Identity(), imu_intrinsics);
 
   Eigen::Vector2i image_size_out(
       this->rectify_scale_ * this->cam_model_->GetHeight(),

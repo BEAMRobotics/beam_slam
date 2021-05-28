@@ -7,8 +7,8 @@
 // beam_slam
 #include <beam_models/camera_to_camera/vio_initializer.h>
 #include <beam_models/camera_to_camera/visual_map.h>
-#include <beam_parameters/models/vio_params.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
+#include <beam_parameters/models/vio_params.h>
 // fuse
 #include <fuse_core/async_sensor_model.h>
 // libbeam
@@ -98,17 +98,42 @@ private:
   beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
 
   /**
-   * @brief Determines if a frame at a given time is a keyframe, and returns
-   * common landmarks between the given frame and the current keyframe
-   * @param img_time time of image to check
-   * @param[out] common_landmarks landmarks seen in given frame and keyframe
-   * @param avg_parallax_threshold threshold of the parallax between images
-   * @param common_track_threshold number of matches required to pass
+   * @brief Helper function to get a landmark by id
+   * The landmark that will be retrieved will be in imu-world frame, transform
+   * to camera before returning
+   * @param track feature track of current image
    */
-  bool isKeyframe(const ros::Time& img_time,
-                  std::vector<uint64_t>& common_landmarks,
-                  Eigen::Matrix4d& imu_pose,
-                  const uint16_t common_track_threshold = 100.0);
+  beam::opt<Eigen::Vector3d> GetLandmark(uint64_t landmark_id);
+
+  /**
+   * @brief Helper function to add a new landmark variable to a transaction
+   * The landmark being added is in camera coord system, first transform it to
+   * imu before adding
+   * @param track feature track of current image
+   */
+  void AddLandmark(const Eigen::Vector3d& p, uint64_t id,
+                   std::shared_ptr<fuse_core::Transaction> transaction);
+
+  /**
+   * @brief Helper function to get a pose at time t
+   * @param track feature track of current image
+   */
+  beam::opt<Eigen::Matrix4d> GetCameraPose(const ros::Time& stamp);
+
+  /**
+   * @brief Helper function to get a pose at time t
+   * @param track feature track of current image
+   */
+  void AddCameraPose(const ros::Time& stamp,
+                     const Eigen::Matrix4d& T_WORLD_CAMERA,
+                     std::shared_ptr<fuse_core::Transaction> transaction);
+
+  /**
+   * @brief Helper function to add a constraint between a landmark and a pose
+   * @param track feature track of current image
+   */
+  void AddConstraint(const ros::Time& img_time, uint64_t lm_id,
+                     std::shared_ptr<fuse_core::Transaction> transaction);
 
 protected:
   int img_num_{};
@@ -124,11 +149,16 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<VIOInitializer> initializer_;
-  std::shared_ptr<VisualMap> visual_map_;
   std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
   // most recent keyframe timestamp
   ros::Time cur_kf_time_;
   std::string source_ = "VO";
+  // landmark/graph stuff
+  std::unordered_map<uint64_t, fuse_variables::Position3D::SharedPtr>
+      landmark_positions_;
+  fuse_core::Graph::ConstSharedPtr graph_;
+  std::shared_ptr<VisualMap>
+      visual_map_; // replace with graph frame initializer
 };
 
 }} // namespace beam_models::camera_to_camera

@@ -28,8 +28,8 @@ public:
    * @brief Custom Constructor
    */
   VIOInitializer(std::shared_ptr<beam_calibration::CameraModel> input_cam_model,
-                 Eigen::Matrix4d T_body_cam, Eigen::Matrix4d T_body_imu,
-                 Eigen::Vector4d imu_intrinsics, double rectify_scale = 1.0);
+                 Eigen::Matrix4d T_imu_cam, Eigen::Vector4d imu_intrinsics,
+                 double rectify_scale = 1.0);
 
   /**
    * @brief Adds an image to the initializer, returns pass or fail
@@ -48,7 +48,7 @@ public:
               ros::Time cur_time);
 
   /**
-   * @brief Returns the map of poses in sliding window
+   * @brief Returns the map of poses in sliding window, in imu frame
    */
   std::map<unsigned long, Eigen::Matrix4d> GetPoses();
 

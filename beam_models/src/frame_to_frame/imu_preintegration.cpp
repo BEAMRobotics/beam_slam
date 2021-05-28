@@ -219,6 +219,9 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
 
+  // copy state to kth frame
+  imu_state_k_ = imu_state_i_;
+
   ResetPreintegrator();
 
   return transaction;
