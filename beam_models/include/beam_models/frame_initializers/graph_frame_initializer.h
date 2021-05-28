@@ -8,10 +8,8 @@ namespace beam_models { namespace frame_initializers {
 
 /**
  * @brief This class can be used to estimate a pose of a frame given its
- * timestamp. This is done by building a tf tree with incoming odometry messages
- * then looking up the transform at the given time. For more information on the
- * frames, see the PoseLookup class.
- *
+ * timestamp. This is done by building searching through the current fuse graph,
+ * or preintegrating to the time point
  */
 class GraphFrameInitializer : public FrameInitializerBase {
 public:
@@ -32,46 +30,45 @@ public:
 
   /**
    * @brief Helper function to get an orientation variable
-   * @param track feature track of current image
+   * @param stamp timestamp of orienation to get
    */
   fuse_variables::Orientation3DStamped::SharedPtr
       GetOrientation(const ros::Time& stamp);
 
   /**
    * @brief Helper function to get a position variable
-   * @param track feature track of current image
+   * @param stamp timestamp of position to get
    */
   fuse_variables::Position3DStamped::SharedPtr
       GetPosition(const ros::Time& stamp);
 
   /**
-   * @brief Helper function to get a position variable
-   * @param track feature track of current image
+   * @brief Helper function to add an orientation variable
+   * @param stamp timestamp of orientation to add
+   * @param R_WORLD_SENSOR orientation variable to add
    */
   void AddOrientation(
       const ros::Time& stamp,
       const fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_SENSOR);
 
   /**
-   * @brief Helper function to get a position variable
-   * @param track feature track of current image
+   * @brief Helper function to add a position variable
+   * @param stamp timestamp of position to add
+   * @param t_WORLD_SENSOR position variable to add
    */
   void AddPosition(
       const ros::Time& stamp,
       const fuse_variables::Position3DStamped::SharedPtr& t_WORLD_SENSOR);
 
   /**
-   * @brief Gets estimate frame pose
-   * @param time stamp of the frame being initialized
-   * @param T_WORLD_SENSOR reference to result
-   * @return true if pose lookup was successful
+   * @brief Updates the currently held graph and clears local maps
+   * @param graph graph to update with
    */
   void SetGraph(const fuse_core::Graph::ConstSharedPtr& graph);
 
   /**
-   * @brief Gets estimate frame pose
-   * @param preint stamp of the frame being initialized
-   * @return true if pose lookup was successful
+   * @brief Sets the imu preintegration object
+   * @param preint imu preint pointer to set
    */
   void SetIMUPreintegrator(
       std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration>
