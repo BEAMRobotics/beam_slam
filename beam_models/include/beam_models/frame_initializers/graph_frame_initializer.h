@@ -27,13 +27,7 @@ public:
    * @return true if pose lookup was successful
    */
   bool GetEstimatedPose(const ros::Time& time,
-                        Eigen::Matrix4d& T_WORLD_SENSOR) override {
-    /*
-      1. try to get pose from graph
-      2. if fail (i.e time is past latest pose in graph), then try to get pose
-      from imu_preint_ object
-    */
-  }
+                        Eigen::Matrix4d& T_WORLD_SENSOR) override;
 
   /**
    * @brief Helper function to get an orientation variable
@@ -53,7 +47,17 @@ public:
    * @brief Helper function to get a position variable
    * @param track feature track of current image
    */
-  void AddPose(const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SENSOR);
+  void AddOrientation(
+      const ros::Time& stamp,
+      const fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_SENSOR);
+
+  /**
+   * @brief Helper function to get a position variable
+   * @param track feature track of current image
+   */
+  void AddPosition(
+      const ros::Time& stamp,
+      const fuse_variables::Position3DStamped::SharedPtr& t_WORLD_SENSOR);
 
   /**
    * @brief Gets estimate frame pose

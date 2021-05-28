@@ -97,6 +97,7 @@ add_library(
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
+  src/frame_initializers/graph_frame_initializer.cpp
   src/camera_to_camera/visual_odom.cpp
 )
 
@@ -123,14 +124,14 @@ add_dependencies(
 ## Testing ##
 #############
 if(CATKIN_ENABLE_TESTING)
-  # add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
-  #   tests/scan_matcher_3d_tests.cpp)
-  # target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
-  #   ${PROJECT_NAME}
-  #   gtest_main
-  #   beam::utils)
-  # add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
-  #         COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
+  add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
+    tests/scan_matcher_3d_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils)
+  add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
+          COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
 
 
   find_package(rostest REQUIRED)

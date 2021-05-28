@@ -142,7 +142,7 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
 
   if (t_now.toSec() < imu_data_buffer_.front().t)
     ROS_FATAL_STREAM("Requested pose falls outside of imu buffer");
-
+  
   // Populate integrators
   while (t_now.toSec() > imu_data_buffer_.front().t) {
     pre_integrator_interval.data.emplace_back(imu_data_buffer_.front());
