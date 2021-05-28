@@ -33,6 +33,7 @@ bool GraphFrameInitializer::GetEstimatedPose(const ros::Time& time,
         return true;
       }
     }
+    return false;
   }
 }
 
