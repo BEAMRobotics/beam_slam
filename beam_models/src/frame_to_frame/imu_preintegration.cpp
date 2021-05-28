@@ -50,20 +50,8 @@ void ImuPreintegration::SetStart(
     fuse_variables::Position3DStamped::SharedPtr position,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   // adjust imu buffer
-  if (imu_data_buffer_.empty()) {
-    ROS_FATAL_STREAM("imu buffer must be populated");
-  }
-
-  if (t_start.toSec() < imu_data_buffer_.front().t) {
-    ROS_FATAL_STREAM("Requested start must have at least imu msg prior");
-  }
-
   while (t_start.toSec() > imu_data_buffer_.front().t) {
     imu_data_buffer_.pop();
-  }
-
-  if (imu_data_buffer_.empty()) {
-    ROS_FATAL_STREAM("Requested start falls outside of imu buffer");
   }
 
   // set imu state
@@ -244,6 +232,9 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
+
+  // copy state to kth frame
+  imu_state_k_ = imu_state_i_;
 
   ResetPreintegrator();
 
