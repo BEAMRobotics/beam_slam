@@ -50,10 +50,6 @@ void GlobalMapper::onInit() {
   }
 }
 
-void GlobalMapper::onStart() {
-  //
-}
-
 void GlobalMapper::onStop() {
   global_map_->SaveTrajectoryFiles(params_.output_path);
   if (params_.save_trajectory_cloud) {

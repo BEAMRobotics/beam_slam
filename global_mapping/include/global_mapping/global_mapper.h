@@ -18,11 +18,13 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   SMART_PTR_DEFINITIONS(GlobalMapper);
 
   /**
-   * @brief This constructor loads variables, and initializes the
-   * frame_initializer object
+   * @brief This initializes the AsyncSensorModel class, device id and ROS message callback
    */
   GlobalMapper();
 
+  /**
+   * @brief default  destructor
+   */
   ~GlobalMapper() override = default;
 
   /**
@@ -44,22 +46,17 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
 
  private:
   /**
-   * @brief TODO
+   * @brief Load and validate params, initialize required variables/pointers
    */
   void onInit() override;
 
   /**
-   * @brief TODO
-   */
-  void onStart() override;
-
-  /**
-   * @brief TODO
+   * @brief Save final trajectories and maps if specified
    */
   void onStop() override;
 
   /**
-   * @brief TODO
+   * @brief Update submap poses
    */
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
