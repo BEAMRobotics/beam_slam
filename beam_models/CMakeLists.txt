@@ -124,14 +124,14 @@ add_dependencies(
 ## Testing ##
 #############
 if(CATKIN_ENABLE_TESTING)
-  add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
-    tests/scan_matcher_3d_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
-    ${PROJECT_NAME}
-    gtest_main
-    beam::utils)
-  add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
-          COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
+  # add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
+  #   tests/scan_matcher_3d_tests.cpp)
+  # target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
+  #   ${PROJECT_NAME}
+  #   gtest_main
+  #   beam::utils)
+  # add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
+  #         COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
 
 
   find_package(rostest REQUIRED)

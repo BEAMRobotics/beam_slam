@@ -16,9 +16,10 @@ namespace beam_models { namespace frame_initializers {
 class GraphFrameInitializer : public FrameInitializerBase {
 public:
   /**
-   * @brief Default Constructor
+   * @brief Static Instance getter (singleton)
+   * @return reference to the singleton
    */
-  GraphFrameInitializer();
+  static GraphFrameInitializer& GetInstance();
 
   /**
    * @brief Gets estimate frame pose (in world frame in imu coords)
@@ -76,7 +77,22 @@ public:
       std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration>
           imu_preint);
 
+  /**
+   * @brief Delete copy constructor
+   */
+  GraphFrameInitializer(GraphFrameInitializer const&) = delete;
+
+  /**
+   * @brief Delete assignment constructor
+   */
+  void operator=(GraphFrameInitializer const&) = delete;
+
 private:
+  /**
+   * @brief Private Default Constructor
+   */
+  GraphFrameInitializer() {}
+
   std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
   fuse_core::Graph::ConstSharedPtr graph_;
   std::unordered_map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>

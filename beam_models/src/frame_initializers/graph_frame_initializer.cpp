@@ -2,7 +2,10 @@
 
 namespace beam_models { namespace frame_initializers {
 
-GraphFrameInitializer::GraphFrameInitializer() {}
+GraphFrameInitializer& GraphFrameInitializer::GetInstance() {
+  static GraphFrameInitializer instance;
+  return instance;
+}
 
 bool GraphFrameInitializer::GetEstimatedPose(const ros::Time& time,
                                              Eigen::Matrix4d& T_WORLD_SENSOR) {
