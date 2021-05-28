@@ -5,7 +5,16 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS utils matching filtering cv calibration containers mapping)
+find_package(
+  beam REQUIRED 
+  COMPONENTS 
+    utils 
+    matching 
+    filtering 
+    cv 
+    calibration 
+    containers 
+    mapping)
 
 find_package(
   catkin REQUIRED
@@ -37,6 +46,7 @@ find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
+FIND_PACKAGE(PCL 1.11.1 REQUIRED)
 
 add_message_files(
   DIRECTORY
@@ -101,6 +111,7 @@ add_library(
   src/global_map.cpp
   src/submap.cpp
   src/loop_closure/loop_closure_candidate_search_eucdist.cpp
+  src/loop_closure/loop_closure_refinement_loam_registration.cpp
 )
 
 ## Specify libraries to link a library or executable target against

@@ -49,7 +49,7 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
     BEAM_ERROR(
         "Invalid loop closure covariance diagonal (6 values required). Using "
         "default.");
-    vec_eig << 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3;
+    vec_eig << 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5;
     loop_closure_covariance = vec_eig.asDiagonal();
   }
 }
@@ -101,19 +101,24 @@ void GlobalMap::Setup() {
   // initiate loop closure refinement
   if (params_.loop_closure_refinement_type == "ICP") {
     loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
+        params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   } else if (params_.loop_closure_refinement_type == "GICP") {
     loop_closure_refinement_ = std::make_unique<LoopClosureRefinementGicp>(
+        params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   } else if (params_.loop_closure_refinement_type == "NDT") {
     loop_closure_refinement_ = std::make_unique<LoopClosureRefinementNdt>(
+        params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   } else if (params_.loop_closure_refinement_type == "LOAM") {
     loop_closure_refinement_ = std::make_unique<LoopClosureRefinementLoam>(
+        params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   } else {
     BEAM_ERROR("Invalid loop closure refinement type. Using default: ICP");
     loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
+        params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   }
 }

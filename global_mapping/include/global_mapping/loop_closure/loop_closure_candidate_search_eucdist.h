@@ -19,6 +19,12 @@ class LoopClosureCandidateSearchEucDist
   using LoopClosureCandidateSearchBase::LoopClosureCandidateSearchBase;
 
   /**
+   * @brief another constructor that takes in parameters
+   * @param distance_threshold_m submaps closer than this will be considered as loop closure candidates
+   */
+  LoopClosureCandidateSearchEucDist(double distance_threshold_m);
+
+  /**
    * @brief Pure virtual function that takes in a vector of submaps, a query
    * index and finds candidate loop closures with an estimated relative pose
    * @param submaps vector of submaps

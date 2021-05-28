@@ -12,6 +12,7 @@
 #include <beam_containers/LandmarkContainer.h>
 #include <beam_containers/LandmarkMeasurement.h>
 #include <beam_calibration/CameraModel.h>
+#include <beam_matching/loam/LoamPointCloud.h>
 #include <global_mapping/LandmarkMeasurementMsg.h>
 #include <beam_common/scan_pose.h>
 #include <beam_common/extrinsics_lookup.h>
@@ -161,63 +162,70 @@ class Submap {
    * @param tolerance max time difference for this to return true
    * @return true if query time difference is within some tolorance
    */
-  bool Near(const ros::Time& time, const double tolerance);
+  bool Near(const ros::Time& time, const double tolerance) const;
 
   /**
    * @brief check if the submap was generated before or after some other submap
    * @return true if time of this submap is less than the time of the input
    * submap
    */
-  bool operator<(const Submap& rhs);
+  bool operator<(const Submap& rhs) const;
 
   /**
    * @brief save all 3D keypoints in landmark measurements to a single
    * pointcloud map. Points will be converted to world frame before saving
    * @param filename filename to save to including full path
    */
-  void SaveKeypointsMapInWorldFrame(const std::string& filename);
+  void SaveKeypointsMapInWorldFrame(const std::string& filename) const;
 
   /**
    * @brief save all lidar points to a single pointcloud map. Points will be
    * converted to world frame before saving
    * @param filename filename to save to including full path
    */
-  void SaveLidarMapInWorldFrame(const std::string& filename);
+  void SaveLidarMapInWorldFrame(const std::string& filename) const;
 
   /**
    * @brief output all 3D keypoints in landmark measurements to a single
    * pointcloud. Points will be converted to world frame before outputting
    * @return cloud
    */
-  PointCloud GetKeypointsInWorldFrame();
+  PointCloud GetKeypointsInWorldFrame() const;
 
   /**
    * @brief output all lidar points to a single pointcloud map. Points will be
    * converted to world frame before outputting
    * @param return cloud
    */
-  PointCloud GetLidarPointsInWorldFrame();
+  PointCloud GetLidarPointsInWorldFrame() const;
+
+  /**
+   * @brief output all lidar LOAM points to a single pointcloud map. Points will
+   * be converted to world frame before outputting
+   * @param return cloud
+   */
+  beam_matching::LoamPointCloud GetLidarLoamPointsInWorldFrame() const;
 
   /**
    * @brief return a vector of stamped poses for all camera keyframes and their
    * attached sub-trajectories
    * @param return vectors of stamped poses
    */
-  std::vector<PoseStamped> GetCameraTrajectory();
+  std::vector<PoseStamped> GetCameraTrajectory() const;
 
   /**
    * @brief return a vector of stamped poses for all lidar keyframes and their
    * attached sub-trajectories
    * @param return vectors of stamped poses
    */
-  std::vector<PoseStamped> GetLidarTrajectory();
+  std::vector<PoseStamped> GetLidarTrajectory() const;
 
   /**
    * @brief print relevant information about what is currently contained in this
    * submap. Example: pose, number of lidar scans and keypoints, etc...
    * @param stream input stream
    */
-  void Print(std::ostream& stream = std::cout);
+  void Print(std::ostream& stream = std::cout) const;
 
  private:
   // general submap data

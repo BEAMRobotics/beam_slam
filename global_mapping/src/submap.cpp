@@ -131,29 +131,35 @@ bool Submap::UpdatePose(fuse_core::Graph::ConstSharedPtr graph_msg) {
   return false;
 }
 
-bool Submap::Near(const ros::Time& time, const double tolerance) {
+bool Submap::Near(const ros::Time& time, const double tolerance) const {
   return (std::abs(stamp_.toSec() - time.toSec()) <= tolerance);
 }
 
-bool Submap::operator<(const Submap& rhs) { return (stamp_ < rhs.stamp_); }
+bool Submap::operator<(const Submap& rhs) const {
+  return (stamp_ < rhs.stamp_);
+}
 
-void Submap::SaveKeypointsMapInWorldFrame(const std::string& filename) {
+void Submap::SaveKeypointsMapInWorldFrame(const std::string& filename) const {
   //
 }
 
-void Submap::SaveLidarMapInWorldFrame(const std::string& filename) {
+void Submap::SaveLidarMapInWorldFrame(const std::string& filename) const {
   //
 }
 
-PointCloud Submap::GetKeypointsInWorldFrame() {
+PointCloud Submap::GetKeypointsInWorldFrame() const {
   //
 }
 
-PointCloud Submap::GetLidarPointsInWorldFrame() {
+PointCloud Submap::GetLidarPointsInWorldFrame() const {
   //
 }
 
-void Submap::Print(std::ostream& stream) {
+beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame() const {
+  //
+}
+
+void Submap::Print(std::ostream& stream) const {
   stream << "  Stamp: " << stamp_ << "\n"
          << "  Number of Updates: " << graph_updates_ << "\n"
          << "  Position:\n"

@@ -8,6 +8,10 @@
 
 namespace global_mapping {
 
+LoopClosureCandidateSearchEucDist::LoopClosureCandidateSearchEucDist(
+    double distance_threshold_m)
+    : distance_threshold_m_(distance_threshold_m) {}
+
 void LoopClosureCandidateSearchEucDist::LoadConfig() {
   if (config_path_.empty()) {
     return;
@@ -31,6 +35,7 @@ void LoopClosureCandidateSearchEucDist::FindLoopClosureCandidates(
     const std::vector<Submap>& submaps, int query_index,
     std::vector<int>& matched_indices,
     std::vector<Eigen::Matrix4d, pose_allocator>& estimated_poses) {
+  LoadConfig();
   matched_indices.clear();
   estimated_poses.clear();
   const Eigen::Matrix4d& T_WORLD_QUERY = submaps[query_index].T_WORLD_SUBMAP();
