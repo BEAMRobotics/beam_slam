@@ -16,6 +16,7 @@ public:
    */
   void loadExtraParams(const ros::NodeHandle& nh) final {
     nh.getParam("queue_size", queue_size);
+    nh.getParam("window_time", window_time);
     nh.getParam("gravitational_acceleration", gravitational_acceleration);
     nh.getParam("prior_noise", prior_noise);
     cov_gyro_noise = fuse_core::getCovarianceDiagonalParam<3>(
@@ -29,6 +30,7 @@ public:
   }
 
   int queue_size{300};
+  double window_time{1.00};
   double gravitational_acceleration{9.80665};
   double prior_noise{1e-9};
   fuse_core::Matrix3d cov_gyro_noise;  
