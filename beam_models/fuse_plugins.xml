@@ -10,6 +10,11 @@
       An adapter-type sensor that produces absolute or relative pose constraints from information published by
       another node
     </description>
+  </class>
+  <class type="beam_models::frame_to_frame::Imu3D" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces relative constraints between IMU states
+    </description>
   </class>  
   <class type="beam_models::frame_to_frame::ScanMatcher3D" base_class_type="fuse_core::SensorModel">
     <description>
