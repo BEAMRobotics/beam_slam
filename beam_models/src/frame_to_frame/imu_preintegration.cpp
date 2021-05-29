@@ -139,9 +139,8 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   }
 
   // integrate between frames
-  pre_integrator_interval.integrate(
-      t_now.toSec(), imu_state_i_.GyroBiasVec(),
-      imu_state_i_.AccelBiasVec(), false, false);
+  pre_integrator_interval.integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
+                                    imu_state_i_.AccelBiasVec(), false, false);
 
   // predict state at end of window using integrated imu measurements
   ImuState imu_state_k = PredictState(pre_integrator_interval, imu_state_k_);
@@ -171,8 +170,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     transaction.AddImuStatePrior(
         imu_state_i_.Orientation(), imu_state_i_.Position(),
         imu_state_i_.Velocity(), imu_state_i_.GyroBias(),
-        imu_state_i_.AccelBias(), prior_covariance,
-        "FIRST_IMU_STATE_PRIOR");
+        imu_state_i_.AccelBias(), prior_covariance, "FIRST_IMU_STATE_PRIOR");
 
     transaction.AddImuStateVariables(
         imu_state_i_.Orientation(), imu_state_i_.Position(),
@@ -221,14 +219,13 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   transaction.AddImuStateConstraint(
       imu_state_i_.Orientation(), imu_state_j.Orientation(),
       imu_state_i_.Position(), imu_state_j.Position(), imu_state_i_.Velocity(),
-      imu_state_j.Velocity(), imu_state_i_.GyroBias(),
-      imu_state_j.GyroBias(), imu_state_i_.AccelBias(),
-      imu_state_j.AccelBias(), delta_ij, covariance_ij, pre_integrator);
+      imu_state_j.Velocity(), imu_state_i_.GyroBias(), imu_state_j.GyroBias(),
+      imu_state_i_.AccelBias(), imu_state_j.AccelBias(), delta_ij,
+      covariance_ij, pre_integrator);
 
   transaction.AddImuStateVariables(
       imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),
-      imu_state_j.GyroBias(), imu_state_j.AccelBias(),
-      imu_state_j.Stamp());
+      imu_state_j.GyroBias(), imu_state_j.AccelBias(), imu_state_j.Stamp());
 
   // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
