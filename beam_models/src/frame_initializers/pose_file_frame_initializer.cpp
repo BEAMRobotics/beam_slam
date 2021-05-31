@@ -56,8 +56,8 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
 
   // create buffer core with cache time slightly larger than the difference
   // between the min and max timestamps. Also include a minimum
-  double cache_time = 1.2 * (timestamps[timestamps.size() - 1].toSec() -
-                             timestamps[0].toSec());
+  double cache_time =
+      1.2 * (timestamps[timestamps.size() - 1].toSec() - timestamps[0].toSec());
   if (cache_time < 10) { cache_time = 10; }
   std::shared_ptr<tf2::BufferCore> poses =
       std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
@@ -91,8 +91,9 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   pose_lookup_ = std::make_unique<beam_common::PoseLookup>(pose_lookup_params);
 }
 
-bool PoseFileFrameInitializer::GetEstimatedPose(
-    const ros::Time& time, Eigen::Matrix4d& T_WORLD_SENSOR) {
+bool PoseFileFrameInitializer::GetEstimatedPose(const ros::Time& time,
+                                                Eigen::Matrix4d& T_WORLD_SENSOR,
+                                                std::string frame_id) {
   if (pose_lookup_ == nullptr) { return false; }
   bool result = pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, time);
   return result;

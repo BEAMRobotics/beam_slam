@@ -41,8 +41,8 @@ public:
    * @param T_WORLD_SENSOR reference to result
    * @return true if pose lookup was successful
    */
-  bool GetEstimatedPose(const ros::Time& time,
-                        Eigen::Matrix4d& T_WORLD_SENSOR) override;
+  bool GetEstimatedPose(const ros::Time& time, Eigen::Matrix4d& T_WORLD_SENSOR,
+                        std::string frame_id = "") override;
 
 private:
   std::unique_ptr<beam_common::PoseLookup> pose_lookup_;
