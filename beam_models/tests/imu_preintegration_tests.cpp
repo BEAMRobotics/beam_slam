@@ -579,7 +579,7 @@ TEST(ImuPreintegration, Simple2StateFG) {
 }
 
 class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
-protected:
+public:
   virtual void SetUp() {
     // set intrinsic noise of imu to zero
     params.cov_gyro_noise.setZero();
@@ -592,22 +592,18 @@ protected:
 
     // instantiate preintegration class with zero noise. By default,
     // bias terms (i.e. bg, ba) are set to zero
-    ImuPreintegration imu_preintegration_temp = ImuPreintegration(params);
-    imu_preintegration = std::move(imu_preintegration_temp);
+    imu_preintegration = std::make_unique<ImuPreintegration>(params);
 
     // populate ImuPreintegration with synthetic imu measurements
     for (ImuPreintegration::ImuData msg : data.imu_data_gt)
-      imu_preintegration.PopulateBuffer(msg);
+      imu_preintegration->PopulateBuffer(msg);
 
-    // create three imu states where:
-    // 1) IS1 is the imu state at the start of simulation
-    // 2) IS2 is the imu state in the middle of the simulation
-    // 3) IS3 is the imu state at the end of the simulation
+    // get copies of imu states
     IS1 = data.IS1;
     IS2 = data.IS2;
     IS3 = data.IS3;
 
-    // get start, middle, and end times
+    // get stamps of imu states
     t_start = IS1.Stamp();
     t_middle = IS2.Stamp();
     t_end = IS3.Stamp();
@@ -615,60 +611,21 @@ protected:
 
   Data data;
   ImuPreintegration::Params params;
-  ImuPreintegration imu_preintegration;
+  std::unique_ptr<ImuPreintegration> imu_preintegration;
 
-  // imu states
   ImuState IS1;
   ImuState IS2;
   ImuState IS3;
 
-  // imu state times
   ros::Time t_start;
   ros::Time t_middle;
-  ros::Time t_end;  
+  ros::Time t_end;
 };
 
-TEST(ImuPreintegration, BaseFunctionality) {
-  /*
-  ImuPreintegration Class set-up
-  */
-
-  // declare data
-  Data data;
-
-  // set intrinsic noise of imu to zero
-  ImuPreintegration::Params params;
-  params.cov_gyro_noise.setZero();
-  params.cov_accel_noise.setZero();
-  params.cov_gyro_bias.setZero();
-  params.cov_accel_bias.setZero();
-
-  // set gravitional acceleration according to data class
-  params.gravitational_acceleration = data.gravitational_acceleration;
-
-  // instantiate preintegration class with zero noise. By default,
-  // bias terms (i.e. bg, ba) are set to zero
-  ImuPreintegration imu_preintegration = ImuPreintegration(params);
-
-  // populate ImuPreintegration with synthetic imu measurements
-  for (ImuPreintegration::ImuData msg : data.imu_data_gt)
-    imu_preintegration.PopulateBuffer(msg);
-
-  // create three imu states where:
-  // 1) IS1 is the imu state at the start of simulation
-  // 2) IS2 is the imu state in the middle of the simulation
-  // 3) IS3 is the imu state at the end of the simulation
-  ImuState IS1 = data.IS1;
-  ImuState IS2 = data.IS2;
-  ImuState IS3 = data.IS3;
-
-  // get start and end times
-  ros::Time t_start = IS1.Stamp();
-  ros::Time t_end = IS3.Stamp();
-
-  /*
-  SetStart() functionality
-  */
+TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
+  /**
+   * SetStart() functionality
+   */
 
   // set start of imu preintegration. This requires us to pass three fuse
   // variables, which for testing purposes will match IS1
@@ -680,19 +637,19 @@ TEST(ImuPreintegration, BaseFunctionality) {
       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
 
   // check default
-  imu_preintegration.SetStart(t_start);
+  imu_preintegration->SetStart(t_start);
   ImuState IS_default(t_start);
-  ImuState IS_start_default = imu_preintegration.GetImuState();
+  ImuState IS_start_default = imu_preintegration->GetImuState();
   ExpectImuStateEq(IS_start_default, IS_default);
 
   // check optional initialization
-  imu_preintegration.SetStart(t_start, o_start, p_start, v_start);
-  ImuState IS_start = imu_preintegration.GetImuState();
+  imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
+  ImuState IS_start = imu_preintegration->GetImuState();
   ExpectImuStateEq(IS_start, IS1);
 
-  /*
-  PredictState() functionality
-  */
+  /**
+   * PredictState() functionality
+   */
 
   // populate Preintegrator class from Slamtools with imu preintegration deltas
   // from data class
@@ -711,42 +668,42 @@ TEST(ImuPreintegration, BaseFunctionality) {
   // predict middle and end imu state using relative change-in-motion ground
   // truth
   ImuState IS_middle_predict =
-      imu_preintegration.PredictState(pre_integrator_12, IS_start);
+      imu_preintegration->PredictState(pre_integrator_12, IS_start);
   ImuState IS_end_predict =
-      imu_preintegration.PredictState(pre_integrator_23, IS_middle_predict);
+      imu_preintegration->PredictState(pre_integrator_23, IS_middle_predict);
 
   // check
   ExpectImuStateEq(IS_middle_predict, IS2);
   ExpectImuStateEq(IS_end_predict, IS3);
 
-  /*
-  CalculateRelativeChange() functionality
-  */
+  /**
+   * CalculateRelativeChange() functionality
+   */
 
-  ExpectImuStateEq(imu_preintegration.GetImuState(), IS1);
-  auto delta_start_end = imu_preintegration.CalculateRelativeChange(IS3);
+  ExpectImuStateEq(imu_preintegration->GetImuState(), IS1);
+  auto delta_start_end = imu_preintegration->CalculateRelativeChange(IS3);
   EXPECT_TRUE(
       delta_start_end.isApprox(CalculateRelativeStateDelta(IS1, IS3), 1e-6));
 
-  /*
-  GetPose() functionality
-  */
+  /**
+   * GetPose() functionality
+   */
 
   for (int i = 1; i - 1 < data.pose_gt.size(); i++) {
-    ExpectTransformsNear(imu_preintegration.GetPose(ros::Time(i)),
+    ExpectTransformsNear(imu_preintegration->GetPose(ros::Time(i)),
                          data.pose_gt[i - 1]);
   }
 
-  /*
-  RegisterNewImuPreintegratedFactor() functionality
-  */
+  /**
+   * RegisterNewImuPreintegratedFactor() functionality
+   */
 
   // generate transaction to perform imu preintegration
-  auto transaction = imu_preintegration.RegisterNewImuPreintegratedFactor(t_end)
+  auto transaction = imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
                          .GetTransaction();
 
   // get end imu state from preintegration
-  ImuState IS_end = imu_preintegration.GetImuState();
+  ImuState IS_end = imu_preintegration->GetImuState();
 
   // check
   ExpectImuStateNear(IS_end, IS3);
@@ -838,40 +795,7 @@ TEST(ImuPreintegration, BaseFunctionality) {
   }
 }
 
-TEST(ImuPreintegration, MultipleTransactions) {
-  // declare data
-  Data data;
-
-  // set intrinsic noise of imu to zero
-  ImuPreintegration::Params params;
-  params.cov_gyro_noise.setZero();
-  params.cov_accel_noise.setZero();
-  params.cov_gyro_bias.setZero();
-  params.cov_accel_bias.setZero();
-
-  // set gravitional acceleration according to data class
-  params.gravitational_acceleration = data.gravitational_acceleration;
-
-  // instantiate preintegration class with zero noise.
-  ImuPreintegration imu_preintegration = ImuPreintegration(params);
-
-  // populate ImuPreintegration with synthetic imu measurements
-  for (ImuPreintegration::ImuData msg : data.imu_data_gt)
-    imu_preintegration.PopulateBuffer(msg);
-
-  // create three imu states where:
-  // 1) IS1 is the imu state at the start of simulation
-  // 2) IS2 is the imu state in the middle of the simulation
-  // 3) IS3 is the imu state at the end of the simulation
-  ImuState IS1 = data.IS1;
-  ImuState IS2 = data.IS2;
-  ImuState IS3 = data.IS3;
-
-  // get start and end times
-  ros::Time t_start = IS1.Stamp();
-  ros::Time t_middle = IS2.Stamp();
-  ros::Time t_end = IS3.Stamp();
-
+TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
   // set start
   fuse_variables::Orientation3DStamped::SharedPtr o_start =
       fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
@@ -879,20 +803,20 @@ TEST(ImuPreintegration, MultipleTransactions) {
       fuse_variables::Position3DStamped::make_shared(IS1.Position());
   fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
-  imu_preintegration.SetStart(t_start, o_start, p_start, v_start);
+  imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
 
   // for testing, call GetPose() from start to middle
   for (int i = t_start.toSec() + 1; i - 1 < t_middle.toSec(); i++) {
     Eigen::Matrix4d dummy_T_WORLD_IMU =
-        imu_preintegration.GetPose(ros::Time(i));
+        imu_preintegration->GetPose(ros::Time(i));
   }
 
   // generate transactions, taking start, middle, and end as key frames
   auto transaction1 =
-      imu_preintegration.RegisterNewImuPreintegratedFactor(t_middle)
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_middle)
           .GetTransaction();
   auto transaction2 =
-      imu_preintegration.RegisterNewImuPreintegratedFactor(t_end)
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
           .GetTransaction();
 
   // create graph
