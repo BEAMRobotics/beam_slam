@@ -41,13 +41,9 @@ void VisualMap::addLandmark(
     std::shared_ptr<fuse_core::Transaction> transaction) {
   fuse_variables::Position3D::SharedPtr landmark =
       fuse_variables::Position3D::make_shared(std::to_string(id).c_str());
-
-  // transform p from camera coords to imu coords
-  Eigen::Vector4d P_WORLD = T_imu_cam.inverse() * p.homogenous();
-  Eigen::Vector3d P_WORLD_IMU = P_WORLD.head(3) / P_WORLD(3);
-  landmark->x() = P_WORLD_IMU[0];
-  landmark->y() = P_WORLD_IMU[1];
-  landmark->z() = P_WORLD_IMU[2];
+  landmark->x() = p[0];
+  landmark->y() = p[1];
+  landmark->z() = p[2];
   transaction->addVariable(landmark);
   landmark_positions_[id] = landmark;
 }
@@ -65,18 +61,6 @@ beam::opt<Eigen::Matrix4d> VisualMap::getPose(const ros::Time& stamp) {
     // transform pose from imu coord space to camera coord space
     Eigen::Matrix4d T_WORLD_CAMERA = T_WORLD_IMU * T_imu_cam_;
     return T_WORLD_CAMERA;
-  } else {
-    return {};
-  }
-}
-
-beam::opt<Eigen::Matrix4d> getLandmark(uint64_t landmark_id) {
-  fuse_variables::Position3D::SharedPtr lm = this->getLandmark(landmark_id);
-  if (lm) {
-    // transform landmark from imu coords to camera coords
-    Eigen::Vector3d P_WORLD(lm->data());
-    Eigen::Vector4d P_CAMERA = T_imu_cam.inverse() * P_WORLD.homogenous();
-    return (P_CAMERA.head(3) / P_CAMERA(3));
   } else {
     return {};
   }

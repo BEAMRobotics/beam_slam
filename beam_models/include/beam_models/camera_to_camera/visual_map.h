@@ -32,11 +32,9 @@ public:
 
   /**
    * @brief Helper function to get a landmark by id
-   * The landmark that will be retrieved will be in imu-world frame, transform
-   * to camera before returning
    * @param track feature track of current image
    */
-  beam::opt<Eigen::Matrix4d> getLandmark(uint64_t landmark_id);
+  fuse_variables::Position3D::SharedPtr getLandmark(uint64_t landmark_id);
 
   /**
    * @brief Helper function to add a pose at time t to a transaction
@@ -70,13 +68,6 @@ public:
   void updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg,
                    const ros::Time& oldest_time);
 
-protected:
-  /**
-   * @brief Helper function to get a landmark by id
-   * @param track feature track of current image
-   */
-  fuse_variables::Position3D::SharedPtr getLandmark(uint64_t landmark_id);
-
   /**
    * @brief Helper function to get an orientation variable
    * @param track feature track of current image
@@ -91,6 +82,7 @@ protected:
   fuse_variables::Position3DStamped::SharedPtr
       getPosition(const ros::Time& stamp);
 
+protected:
   // these store the most up to date variables for in between optimizations
   std::unordered_map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;
