@@ -4,7 +4,8 @@
 
 #include <beam_utils/math.h>
 
-namespace beam_models { namespace frame_to_frame {
+namespace beam_models {
+namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
   g_ << 0, 0, -params_.gravitational_acceleration;
@@ -20,7 +21,7 @@ ImuPreintegration::ImuPreintegration(const Params& params,
 }
 
 void ImuPreintegration::ClearBuffer() {
-  for (size_t i = 0; i < imu_data_buffer_.size(); ++i) imu_data_buffer_.pop();
+  for (size_t i = 0; i < imu_data_buffer_.size(); i++) imu_data_buffer_.pop();
 }
 
 void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -42,6 +43,14 @@ void ImuPreintegration::SetPreintegrator() {
 void ImuPreintegration::ResetPreintegrator() {
   pre_integrator_ij.reset();
   pre_integrator_ij.data.clear();
+}
+
+void ImuPreintegration::CheckTime(const ros::Time& t_now) {
+  if (t_now.toSec() < imu_data_buffer_.front().t) {
+    const std::string error = "Requested time preceeds IMU messages in buffer";
+    ROS_FATAL_STREAM(error);
+    throw std::runtime_error(error);
+  }
 }
 
 void ImuPreintegration::SetStart(
@@ -128,8 +137,8 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   // encapsulate imu measurments between frames
   PreIntegrator pre_integrator_interval;
 
-  if (t_now.toSec() < imu_data_buffer_.front().t)
-    ROS_FATAL_STREAM("Requested pose falls outside of imu buffer");
+  // check requested time
+  CheckTime(t_now);
 
   // Populate integrators
   while (t_now.toSec() > imu_data_buffer_.front().t) {
@@ -160,6 +169,9 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     fuse_variables::Position3DStamped::SharedPtr position) {
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
+
+  // check requested time
+  CheckTime(t_now);    
 
   // generate prior constraint at start
   if (first_window_) {
@@ -238,4 +250,5 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   return transaction;
 }
 
-}}  // namespace beam_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace beam_models

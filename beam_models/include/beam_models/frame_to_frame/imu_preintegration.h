@@ -174,6 +174,13 @@ class ImuPreintegration {
    */
   void ResetPreintegrator();
 
+  /**
+   * @brief checks to see if requested time preceeds IMU messages in buffer.
+   * Throws fatal run time error if this is true
+   * @param t_now requested time
+   */
+  void CheckTime(const ros::Time& t_now);
+
   Params params_;            // class parameters
   Eigen::Vector3d g_;        // gravity vector
   bool first_window_{true};  // flag for first window between key frames
