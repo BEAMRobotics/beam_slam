@@ -155,11 +155,11 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   ImuState imu_state_k = PredictState(pre_integrator_interval, imu_state_k_);
   imu_state_k_ = std::move(imu_state_k);
 
-  Eigen::Matrix4d T_WORLD_ISk;
+  Eigen::Matrix4d T_WORLD_IMU;
   beam::QuaternionAndTranslationToTransformMatrix(
-      imu_state_k_.OrientationQuat(), imu_state_k_.PositionVec(), T_WORLD_ISk);
+      imu_state_k_.OrientationQuat(), imu_state_k_.PositionVec(), T_WORLD_IMU);
 
-  return T_WORLD_ISk;
+  return T_WORLD_IMU;
 }
 
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
