@@ -300,23 +300,24 @@ std::vector<fuse_core::UUID> AddVariables(
 }
 
 void ExpectImuStateEq(const ImuState& IS1, const ImuState& IS2) {
+  double tol = 1e-12;
   EXPECT_EQ(IS1.Stamp(), IS2.Stamp());
-  EXPECT_NEAR(IS1.OrientationQuat().w(), IS2.OrientationQuat().w(), 1e-12);
-  EXPECT_NEAR(IS1.OrientationQuat().x(), IS2.OrientationQuat().x(), 1e-12);
-  EXPECT_NEAR(IS1.OrientationQuat().y(), IS2.OrientationQuat().y(), 1e-12);
-  EXPECT_NEAR(IS1.OrientationQuat().z(), IS2.OrientationQuat().z(), 1e-12);
-  EXPECT_NEAR(IS1.PositionVec()[0], IS2.PositionVec()[0], 1e-12);
-  EXPECT_NEAR(IS1.PositionVec()[1], IS2.PositionVec()[1], 1e-12);
-  EXPECT_NEAR(IS1.PositionVec()[2], IS2.PositionVec()[2], 1e-12);
-  EXPECT_NEAR(IS1.VelocityVec()[0], IS2.VelocityVec()[0], 1e-12);
-  EXPECT_NEAR(IS1.VelocityVec()[1], IS2.VelocityVec()[1], 1e-12);
-  EXPECT_NEAR(IS1.VelocityVec()[2], IS2.VelocityVec()[2], 1e-12);
-  EXPECT_NEAR(IS1.GyroBiasVec()[0], IS2.GyroBiasVec()[0], 1e-12);
-  EXPECT_NEAR(IS1.GyroBiasVec()[1], IS2.GyroBiasVec()[1], 1e-12);
-  EXPECT_NEAR(IS1.GyroBiasVec()[2], IS2.GyroBiasVec()[2], 1e-12);
-  EXPECT_NEAR(IS1.AccelBiasVec()[0], IS2.AccelBiasVec()[0], 1e-12);
-  EXPECT_NEAR(IS1.AccelBiasVec()[1], IS2.AccelBiasVec()[1], 1e-12);
-  EXPECT_NEAR(IS1.AccelBiasVec()[2], IS2.AccelBiasVec()[2], 1e-12);
+  EXPECT_NEAR(IS1.OrientationQuat().w(), IS2.OrientationQuat().w(), tol);
+  EXPECT_NEAR(IS1.OrientationQuat().x(), IS2.OrientationQuat().x(), tol);
+  EXPECT_NEAR(IS1.OrientationQuat().y(), IS2.OrientationQuat().y(), tol);
+  EXPECT_NEAR(IS1.OrientationQuat().z(), IS2.OrientationQuat().z(), tol);
+  EXPECT_NEAR(IS1.PositionVec()[0], IS2.PositionVec()[0], tol);
+  EXPECT_NEAR(IS1.PositionVec()[1], IS2.PositionVec()[1], tol);
+  EXPECT_NEAR(IS1.PositionVec()[2], IS2.PositionVec()[2], tol);
+  EXPECT_NEAR(IS1.VelocityVec()[0], IS2.VelocityVec()[0], tol);
+  EXPECT_NEAR(IS1.VelocityVec()[1], IS2.VelocityVec()[1], tol);
+  EXPECT_NEAR(IS1.VelocityVec()[2], IS2.VelocityVec()[2], tol);
+  EXPECT_NEAR(IS1.GyroBiasVec()[0], IS2.GyroBiasVec()[0], tol);
+  EXPECT_NEAR(IS1.GyroBiasVec()[1], IS2.GyroBiasVec()[1], tol);
+  EXPECT_NEAR(IS1.GyroBiasVec()[2], IS2.GyroBiasVec()[2], tol);
+  EXPECT_NEAR(IS1.AccelBiasVec()[0], IS2.AccelBiasVec()[0], tol);
+  EXPECT_NEAR(IS1.AccelBiasVec()[1], IS2.AccelBiasVec()[1], tol);
+  EXPECT_NEAR(IS1.AccelBiasVec()[2], IS2.AccelBiasVec()[2], tol);
 }
 
 void ExpectImuStateNear(const ImuState& IS1, const ImuState& IS2) {
@@ -576,6 +577,56 @@ TEST(ImuPreintegration, Simple2StateFG) {
     EXPECT_EQ(ba2->data()[i], IS2.AccelBias().data()[i]);
   }
 }
+
+class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
+protected:
+  virtual void SetUp() {
+    // set intrinsic noise of imu to zero
+    params.cov_gyro_noise.setZero();
+    params.cov_accel_noise.setZero();
+    params.cov_gyro_bias.setZero();
+    params.cov_accel_bias.setZero();
+
+    // set gravitional acceleration according to data class
+    params.gravitational_acceleration = data.gravitational_acceleration;
+
+    // instantiate preintegration class with zero noise. By default,
+    // bias terms (i.e. bg, ba) are set to zero
+    ImuPreintegration imu_preintegration_temp = ImuPreintegration(params);
+    imu_preintegration = std::move(imu_preintegration_temp);
+
+    // populate ImuPreintegration with synthetic imu measurements
+    for (ImuPreintegration::ImuData msg : data.imu_data_gt)
+      imu_preintegration.PopulateBuffer(msg);
+
+    // create three imu states where:
+    // 1) IS1 is the imu state at the start of simulation
+    // 2) IS2 is the imu state in the middle of the simulation
+    // 3) IS3 is the imu state at the end of the simulation
+    IS1 = data.IS1;
+    IS2 = data.IS2;
+    IS3 = data.IS3;
+
+    // get start, middle, and end times
+    t_start = IS1.Stamp();
+    t_middle = IS2.Stamp();
+    t_end = IS3.Stamp();
+  }
+
+  Data data;
+  ImuPreintegration::Params params;
+  ImuPreintegration imu_preintegration;
+
+  // imu states
+  ImuState IS1;
+  ImuState IS2;
+  ImuState IS3;
+
+  // imu state times
+  ros::Time t_start;
+  ros::Time t_middle;
+  ros::Time t_end;  
+};
 
 TEST(ImuPreintegration, BaseFunctionality) {
   /*
