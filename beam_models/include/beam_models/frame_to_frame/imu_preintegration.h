@@ -48,11 +48,11 @@ class ImuPreintegration {
 
   /**
    * @brief IMU data type derived from Slamtools
-   * @param t_ros ros time of imu data
    */
   struct ImuData : public IMUData {
-    ros::Time t_ros;
-
+    /**
+     * @brief Defualt Constructor
+     */
     ImuData() = default;
 
     /**
@@ -60,7 +60,6 @@ class ImuPreintegration {
      * @param msg sensor data
      */
     ImuData(const sensor_msgs::Imu::ConstPtr& msg) {
-      t_ros = msg->header.stamp;
       t = msg->header.stamp.toSec();
       w[0] = msg->angular_velocity.x;
       w[1] = msg->angular_velocity.y;

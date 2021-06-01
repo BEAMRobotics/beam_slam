@@ -34,16 +34,17 @@ void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
 }
 
 class Data {
-public:
+ public:
   Data() {
     // set time of simulation and gravity vector
     int64_t time_simulation_ns = start_time_ns + time_duration;
     gravity << 0, 0, -gravitational_acceleration;
 
     // set times of imu states
-    t1_ros = ros::Time(start_time_ns * 1e-9);
-    t2_ros = ros::Time((start_time_ns + time_simulation_ns) * 0.5 * 1e-9);
-    t3_ros = ros::Time(time_simulation_ns * 1e-9);
+    ros::Time t1_ros = ros::Time(start_time_ns * 1e-9);
+    ros::Time t2_ros =
+        ros::Time((start_time_ns + time_simulation_ns) * 0.5 * 1e-9);
+    ros::Time t3_ros = ros::Time(time_simulation_ns * 1e-9);
 
     // generate spline
     basalt::Se3Spline<5> gt_spline(time_interval_ns, start_time_ns);
@@ -61,7 +62,6 @@ public:
 
       // assign info to start of interval in imu data
       ImuPreintegration::ImuData imu_data;
-      imu_data.t_ros = ros::Time(t_ns * 1e-9);
       imu_data.t = t_ns * 1e-9;     // [sec]
       imu_data.w = rot_vel_body;    // [rad/sec]
       imu_data.a = lin_accel_body;  // [m/sec^2]
@@ -132,21 +132,18 @@ public:
 
   // Imu State 1
   ImuState IS1;
-  ros::Time t1_ros;
   Eigen::Quaterniond q1_quat;
   Eigen::Vector3d p1_vec;
   Eigen::Vector3d v1_vec;
 
   // Imu State 2
   ImuState IS2;
-  ros::Time t2_ros;
   Eigen::Quaterniond q2_quat;
   Eigen::Vector3d p2_vec;
   Eigen::Vector3d v2_vec;
 
   // Imu State 3
   ImuState IS3;
-  ros::Time t3_ros;
   Eigen::Quaterniond q3_quat;
   Eigen::Vector3d p3_vec;
   Eigen::Vector3d v3_vec;
@@ -579,7 +576,7 @@ TEST(ImuPreintegration, Simple2StateFG) {
 }
 
 class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
-public:
+ public:
   virtual void SetUp() {
     // set intrinsic noise of imu to zero
     params.cov_gyro_noise.setZero();
@@ -699,8 +696,9 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
    */
 
   // generate transaction to perform imu preintegration
-  auto transaction = imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
-                         .GetTransaction();
+  auto transaction =
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
+          .GetTransaction();
 
   // get end imu state from preintegration
   ImuState IS_end = imu_preintegration->GetImuState();
