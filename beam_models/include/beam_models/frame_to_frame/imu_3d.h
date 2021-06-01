@@ -43,12 +43,6 @@ class Imu3D
    */
   void onStart() override;
 
-  /**
-   * @brief Unsubscribe from the input topic to stop sending transactions to the
-   * optimizer
-   */
-  void onStop() override;
-
   double elapsed_window_time_{0};
   bool set_start_{true};
   ros::Time t_prev_;

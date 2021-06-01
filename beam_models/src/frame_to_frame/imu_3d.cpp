@@ -35,8 +35,6 @@ void Imu3D::onStart() {
       &ThrottledCallback::callback, &throttled_callback_);
 };
 
-void Imu3D::onStop() { subscriber_.shutdown(); }
-
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
 Imu3D::GenerateTransaction(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_DEBUG("Received incoming imu message");
