@@ -691,9 +691,19 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
                          data.pose_gt[i - 1]);
   }
 
+  // expect throws from CheckTime()
+  EXPECT_ANY_THROW(
+      { Eigen::Matrix4d T_temp = imu_preintegration->GetPose(ros::Time(-1)); });
+
   /**
    * RegisterNewImuPreintegratedFactor() functionality
    */
+
+  // expect throws from CheckTime()
+  EXPECT_ANY_THROW({
+    auto trans_temp =
+        imu_preintegration->RegisterNewImuPreintegratedFactor(ros::Time(-1));
+  });
 
   // generate transaction to perform imu preintegration
   auto transaction =
