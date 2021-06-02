@@ -48,7 +48,7 @@ void ImuPreintegration::ResetPreintegrator() {
 void ImuPreintegration::CheckTime(const ros::Time& t_now) {
   if (t_now.toSec() < imu_data_buffer_.front().t) {
     const std::string error = "Requested time preceeds IMU messages in buffer";
-    ROS_FATAL_STREAM(error);
+    BEAM_ERROR(error);
     throw std::runtime_error(error);
   }
 }
