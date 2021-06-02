@@ -4,7 +4,8 @@
 
 #include <beam_utils/math.h>
 
-namespace beam_models { namespace frame_to_frame {
+namespace beam_models {
+namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
   g_ << 0, 0, -params_.gravitational_acceleration;
@@ -20,7 +21,7 @@ ImuPreintegration::ImuPreintegration(const Params& params,
 }
 
 void ImuPreintegration::ClearBuffer() {
-  for (size_t i = 0; i < imu_data_buffer_.size(); ++i) imu_data_buffer_.pop();
+  for (size_t i = 0; i < imu_data_buffer_.size(); i++) imu_data_buffer_.pop();
 }
 
 void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -42,6 +43,14 @@ void ImuPreintegration::SetPreintegrator() {
 void ImuPreintegration::ResetPreintegrator() {
   pre_integrator_ij.reset();
   pre_integrator_ij.data.clear();
+}
+
+void ImuPreintegration::CheckTime(const ros::Time& t_now) {
+  if (t_now.toSec() < imu_data_buffer_.front().t) {
+    const std::string error = "Requested time preceeds IMU messages in buffer";
+    BEAM_ERROR(error);
+    throw std::runtime_error(error);
+  }
 }
 
 void ImuPreintegration::SetStart(
@@ -128,8 +137,8 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   // encapsulate imu measurments between frames
   PreIntegrator pre_integrator_interval;
 
-  if (t_now.toSec() < imu_data_buffer_.front().t)
-    ROS_FATAL_STREAM("Requested pose falls outside of imu buffer");
+  // check requested time
+  CheckTime(t_now);
 
   // Populate integrators
   while (t_now.toSec() > imu_data_buffer_.front().t) {
@@ -139,19 +148,18 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   }
 
   // integrate between frames
-  pre_integrator_interval.integrate(
-      t_now.toSec(), imu_state_i_.GyroBiasVec(),
-      imu_state_i_.AccelBiasVec(), false, false);
+  pre_integrator_interval.integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
+                                    imu_state_i_.AccelBiasVec(), false, false);
 
   // predict state at end of window using integrated imu measurements
   ImuState imu_state_k = PredictState(pre_integrator_interval, imu_state_k_);
   imu_state_k_ = std::move(imu_state_k);
 
-  Eigen::Matrix4d T_WORLD_ISk;
+  Eigen::Matrix4d T_WORLD_IMU;
   beam::QuaternionAndTranslationToTransformMatrix(
-      imu_state_k_.OrientationQuat(), imu_state_k_.PositionVec(), T_WORLD_ISk);
+      imu_state_k_.OrientationQuat(), imu_state_k_.PositionVec(), T_WORLD_IMU);
 
-  return T_WORLD_ISk;
+  return T_WORLD_IMU;
 }
 
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
@@ -162,6 +170,9 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 
+  // check requested time
+  CheckTime(t_now);    
+
   // generate prior constraint at start
   if (first_window_) {
     Eigen::Matrix<double, 15, 15> prior_covariance;
@@ -171,8 +182,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     transaction.AddImuStatePrior(
         imu_state_i_.Orientation(), imu_state_i_.Position(),
         imu_state_i_.Velocity(), imu_state_i_.GyroBias(),
-        imu_state_i_.AccelBias(), prior_covariance,
-        "FIRST_IMU_STATE_PRIOR");
+        imu_state_i_.AccelBias(), prior_covariance, "FIRST_IMU_STATE_PRIOR");
 
     transaction.AddImuStateVariables(
         imu_state_i_.Orientation(), imu_state_i_.Position(),
@@ -221,14 +231,13 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   transaction.AddImuStateConstraint(
       imu_state_i_.Orientation(), imu_state_j.Orientation(),
       imu_state_i_.Position(), imu_state_j.Position(), imu_state_i_.Velocity(),
-      imu_state_j.Velocity(), imu_state_i_.GyroBias(),
-      imu_state_j.GyroBias(), imu_state_i_.AccelBias(),
-      imu_state_j.AccelBias(), delta_ij, covariance_ij, pre_integrator);
+      imu_state_j.Velocity(), imu_state_i_.GyroBias(), imu_state_j.GyroBias(),
+      imu_state_i_.AccelBias(), imu_state_j.AccelBias(), delta_ij,
+      covariance_ij, pre_integrator);
 
   transaction.AddImuStateVariables(
       imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),
-      imu_state_j.GyroBias(), imu_state_j.AccelBias(),
-      imu_state_j.Stamp());
+      imu_state_j.GyroBias(), imu_state_j.AccelBias(), imu_state_j.Stamp());
 
   // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
@@ -241,4 +250,5 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   return transaction;
 }
 
-}}  // namespace beam_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace beam_models
