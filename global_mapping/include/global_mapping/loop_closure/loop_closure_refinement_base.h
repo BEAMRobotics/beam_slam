@@ -31,8 +31,8 @@ class LoopClosureRefinementBase {
   ~LoopClosureRefinementBase() = default;
 
   /**
-   * @brief Generate a fuse transaction between two candidate loop closure
-   * submaps
+   * @brief Pure virtual function that generate a fuse transaction between two
+   * candidate loop closure submaps
    * @param matched_submap
    * @param query_submap
    */

@@ -11,14 +11,16 @@
 namespace global_mapping {
 
 /**
- * @brief TODO
+ * @brief This is class is implemented as a sensor model which takes in
+ * SlamChunk messages, creates and populates a GlobalMap
  */
 class GlobalMapper : public fuse_core::AsyncSensorModel {
  public:
   SMART_PTR_DEFINITIONS(GlobalMapper);
 
   /**
-   * @brief This initializes the AsyncSensorModel class, device id and ROS message callback
+   * @brief This initializes the AsyncSensorModel class, device id and ROS
+   * message callback
    */
   GlobalMapper();
 

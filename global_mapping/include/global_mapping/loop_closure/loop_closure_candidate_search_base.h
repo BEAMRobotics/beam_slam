@@ -12,10 +12,6 @@ namespace global_mapping {
 /**
  * @brief Loop candidate search finds candidate loop closures between submaps
  * and returns estimated relative poses
- *
- *  (2) A refinement step that takes an estimated pose
- * from the candidate search and refines the relative pose between the two
- * candidate locations
  */
 class LoopClosureCandidateSearchBase {
  public:

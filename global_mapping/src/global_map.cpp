@@ -139,7 +139,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddCameraMeasurement(
   std::vector<float> T;
   T = measurement.T_WORLD_BASELINK;
   Eigen::Matrix4d T_WORLD_BASELINK =
-      VectorToEigenTransform(measurement.T_WORLD_BASELINK);
+      beam::VectorToEigenTransform(measurement.T_WORLD_BASELINK);
   int submap_id = GetSubmapId(T_WORLD_BASELINK);
 
   // if id is equal to submap size then we need to create a new submap
@@ -169,7 +169,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddLidarMeasurement(
     return new_transaction;
   }
   Eigen::Matrix4d T_WORLD_BASELINK =
-      VectorToEigenTransform(measurement.T_WORLD_BASELINK);
+      beam::VectorToEigenTransform(measurement.T_WORLD_BASELINK);
   int submap_id = GetSubmapId(T_WORLD_BASELINK);
 
   // if id is equal to submap size then we need to create a new submap
@@ -199,7 +199,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddTrajectoryMeasurement(
     return new_transaction;
   }
   Eigen::Matrix4d T_WORLDLM_KEYFRAME =
-      VectorToEigenTransform(measurement.T_WORLD_BASELINK);
+      beam::VectorToEigenTransform(measurement.T_WORLD_BASELINK);
   int submap_id = GetSubmapId(T_WORLDLM_KEYFRAME);
 
   // if id is equal to submap size then we need to create a new submap
@@ -223,7 +223,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddTrajectoryMeasurement(
     for (int j = 0; j < 12; j++) {
       current_pose.push_back(measurement.poses[12 * i + j]);
     }
-    Eigen::Matrix4d T_WORLDLM_FRAME = VectorToEigenTransform(current_pose);
+    Eigen::Matrix4d T_WORLDLM_FRAME = beam::VectorToEigenTransform(current_pose);
     Eigen::Matrix4d T_KEYFRAME_FRAME = T_KEYFRAME_WORLDLM * T_WORLDLM_FRAME;
 
     poses.push_back(T_KEYFRAME_FRAME);
@@ -425,19 +425,6 @@ void GlobalMap::SaveFullKeypointMap(const std::string& output_path,
   BEAM_INFO("Saving initial lidar map of size {} to: {}",
             lidar_map_initial.size(), filename_initial);
   pcl::io::savePCDFileBinary(filename_initial, lidar_map_initial);
-}
-
-Eigen::Matrix4d GlobalMap::VectorToEigenTransform(const std::vector<float>& v) {
-  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
-  T(0, 3) = v[3];
-  T(1, 3) = v[7];
-  T(2, 3) = v[11];
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      int vector_index = i + j * 4;
-      T(i, j) = static_cast<double>(v[vector_index]);
-    }
-  }
 }
 
 void GlobalMap::SaveTrajectoryFile(const std::string& output_path,

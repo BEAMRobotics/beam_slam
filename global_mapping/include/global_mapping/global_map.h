@@ -257,12 +257,6 @@ class GlobalMap {
    */
   fuse_core::Transaction::SharedPtr FindLoopClosures();
 
-  /**
-   * @brief Converts an array of float containing a pose measurement [R | t] (of
-   * size 3 x 4) to a 4 x 4 Eigen Matrix
-   */
-  Eigen::Matrix4d VectorToEigenTransform(const std::vector<float>& v);
-
   Params params_;
   std::vector<Submap> submaps_;
   std::shared_ptr<ExtrinsicsLookup> extrinsics_;
