@@ -54,7 +54,7 @@ beam::opt<Eigen::Matrix4d> VisualMap::getPose(const ros::Time& stamp) {
       this->getOrientation(stamp);
   if (p && q) {
     Eigen::Vector3d position(p->data());
-    Eigen::Quaterniond orientation(q->data());
+    Eigen::Quaterniond orientation(q->w(), q->x(), q->y(), q->z());
     Eigen::Matrix4d T_WORLD_IMU;
     beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
                                                     T_WORLD_IMU);
@@ -78,16 +78,6 @@ void VisualMap::addConstraint(
       fuse_constraints::VisualConstraint::make_shared(
           source_, *orientation, *position, *lm, pixel, T_imu_cam_, cam_model_);
   transaction->addConstraint(vis_constraint);
-}
-
-void VisualMap::updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg,
-                            const ros::Time& oldest_time) {
-  /*
-   * 1. go through all maps and remove items that have a time older than oldest
-   * time
-   */
-  this->graph_ = std::move(graph_msg);
-  if (!graph_initialized) graph_initialized = true;
 }
 
 fuse_variables::Orientation3DStamped::SharedPtr
@@ -172,9 +162,19 @@ fuse_variables::Position3D::SharedPtr
   }
   // if its not initalized check local maps
   if (landmark_positions_.find(landmark_id) != landmark_positions_.end()) {
-    landmark_positions_[landmark_id];
+    return landmark_positions_[landmark_id];
   }
   return nullptr;
+}
+
+void VisualMap::updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg,
+                            const ros::Time& oldest_time) {
+  /*
+   * 1. go through all maps and remove items that have a time older than oldest
+   * time
+   */
+  this->graph_ = std::move(graph_msg);
+  if (!graph_initialized) graph_initialized = true;
 }
 
 }} // namespace beam_models::camera_to_camera

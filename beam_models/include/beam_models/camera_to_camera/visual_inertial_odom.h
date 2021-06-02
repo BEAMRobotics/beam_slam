@@ -13,6 +13,7 @@
 #include <fuse_core/async_sensor_model.h>
 // libbeam
 #include <beam_calibration/CameraModel.h>
+#include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/tracker/Tracker.h>
 
 namespace beam_models { namespace camera_to_camera {
@@ -21,8 +22,14 @@ class VisualInertialOdom : public fuse_core::AsyncSensorModel {
 public:
   SMART_PTR_DEFINITIONS(VisualInertialOdom);
 
+  /**
+   * @brief Default Constructor
+   */
   VisualInertialOdom();
 
+  /**
+   * @brief Default Destructor
+   */
   ~VisualInertialOdom() override = default;
 
   /**
@@ -77,12 +84,7 @@ private:
    * @return the transaction containing the frame information
    */
   std::shared_ptr<fuse_core::Transaction>
-      registerFrame(const ros::Time& img_time);
-
-  /**
-   * @brief Determines if a given image is a keyframe
-   */
-  bool isKeyframe(cv::Mat image, ros::Time img_time);
+      registerFrame(const cv::Mat& image, const ros::Time& img_time);
 
   /**
    * @brief Initializes the map with values in the initializer after it has
@@ -98,9 +100,24 @@ private:
 
   /**
    * @brief Triangulates a feature track
+   * @param feature track to triangulate
    * @return the 3d location of the feature
    */
   beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
+
+  /**
+   * @brief Estimates a frames pose at a given time given matches to the current
+   * keyframe
+   * @param landmark_matches map of <keypoint index: landmark id> matches with
+   * current keyframe
+   * @param kp keypoints in the image at img_time
+   * @param img_time timestamp of the current image
+   * @return the 3d location of the feature
+   */
+  Eigen::Matrix4d
+      estimateFramePose(const std::map<int, uint64_t>& landmark_matches,
+                        const std::vector<cv::KeyPoint>& kp,
+                        const ros::Time& img_time);
 
 protected:
   int img_num_{};
@@ -113,14 +130,16 @@ protected:
   std::queue<sensor_msgs::Imu> imu_buffer_;
   std::queue<sensor_msgs::Imu> temp_imu_buffer_;
   // computer vision objects
+  std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<VIOInitializer> initializer_;
   std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
   // most recent keyframe timestamp
   ros::Time cur_kf_time_;
-  Eigen::Matrix4d cur_kf_pose_;
+  double max_kf_time_;
   std::string source_ = "VO";
+  Eigen::Matrix4d T_imu_cam_;
   // stores all access to graph
   std::shared_ptr<VisualMap> visual_map_;
 };

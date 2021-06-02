@@ -6,6 +6,7 @@
 #include <fuse_core/util.h>
 
 #include <beam_calibration/CameraModel.h>
+#include <beam_optimization/CamPoseReprojectionCost.h>
 #include <beam_utils/math.h>
 
 #include <ceres/autodiff_cost_function.h>
@@ -17,55 +18,6 @@ template <class T>
 using opt = beam::optional<T>;
 
 namespace fuse_constraints {
-
-struct CameraProjectionFunctor {
-  CameraProjectionFunctor(
-      const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
-      Eigen::Vector2d pixel_detected)
-      : camera_model_(camera_model), pixel_detected_(pixel_detected) {}
-
-  bool operator()(const double* P, double* pixel) const {
-    Eigen::Vector3d P_CAMERA_eig{P[0], P[1], P[2]};
-    opt<Eigen::Vector2d> pixel_projected =
-        camera_model_->ProjectPointPrecise(P_CAMERA_eig);
-
-    // get image dims in case projection fails
-    uint16_t height =
-        camera_model_->GetHeight() != 0 ? camera_model_->GetHeight() : 5000;
-    uint16_t width =
-        camera_model_->GetWidth() != 0 ? camera_model_->GetWidth() : 5000;
-
-    if (pixel_projected.has_value()) {
-      pixel[0] = pixel_projected.value()[0];
-      pixel[1] = pixel_projected.value()[1];
-    } else {
-      // if the projection failed, set the projected point to
-      // be the nearest edge point to the detected point
-      int near_u =
-          (width - pixel_detected_[0]) < pixel_detected_[0] ? width : 0;
-      int dist_u = (width - pixel_detected_[0]) < pixel_detected_[0]
-                       ? (width - pixel_detected_[0])
-                       : pixel_detected_[0];
-      int near_v =
-          (height - pixel_detected_[1]) < pixel_detected_[1] ? height : 0;
-      int dist_v = (height - pixel_detected_[1]) < pixel_detected_[1]
-                       ? (height - pixel_detected_[1])
-                       : pixel_detected_[1];
-      if (dist_u <= dist_v) {
-        pixel[0] = near_u;
-        pixel[1] = pixel_detected_[1];
-      } else {
-        pixel[0] = pixel_detected_[0];
-        pixel[1] = near_v;
-      }
-    }
-
-    return true;
-  }
-
-  std::shared_ptr<beam_calibration::CameraModel> camera_model_;
-  Eigen::Vector2d pixel_detected_;
-};
 
 class ReprojectionFunctor {
 public:
@@ -80,12 +32,13 @@ public:
    */
   ReprojectionFunctor(
       const fuse_core::Matrix2d& A, const Eigen::Vector2d& pixel_measurement,
-      const std::shared_ptr<beam_calibration::CameraModel> cam_model, const Eigen::Matrix4d& T_imu_cam)
+      const std::shared_ptr<beam_calibration::CameraModel> cam_model,
+      const Eigen::Matrix4d& T_imu_cam)
       : A_(A), pixel_measurement_(pixel_measurement), cam_model_(cam_model) {
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
-        new ceres::NumericDiffCostFunction<CameraProjectionFunctor,
+        new ceres::NumericDiffCostFunction<beam_optimization::CameraProjectionFunctor,
                                            ceres::CENTRAL, 2, 3>(
-            new CameraProjectionFunctor(cam_model_, pixel_measurement_))));
+            new beam_optimization::CameraProjectionFunctor(cam_model_, pixel_measurement_))));
     beam::TransformMatrixToQuaternionAndTranslation(T_imu_cam.inverse(),
                                                     Q_cam_imu_, t_cam_imu_);
   }
@@ -93,12 +46,11 @@ public:
   template <typename T>
   bool operator()(const T* const R_WORLD_IMU, const T* const t_WORLD_IMU,
                   const T* const P_WORLD, T* residual) const {
-    
     T R_IMU_WORLD[4];
     R_IMU_WORLD[0] = R_WORLD_IMU[0];
-    R_IMU_WORLD[1] = - R_WORLD_IMU[1];
-    R_IMU_WORLD[2] = - R_WORLD_IMU[2];
-    R_IMU_WORLD[3] = - R_WORLD_IMU[3];
+    R_IMU_WORLD[1] = -R_WORLD_IMU[1];
+    R_IMU_WORLD[2] = -R_WORLD_IMU[2];
+    R_IMU_WORLD[3] = -R_WORLD_IMU[3];
     // rotate and translate point (world to imu frame)
     T P_IMU[3];
     ceres::QuaternionRotatePoint(R_IMU_WORLD, P_WORLD, P_IMU);
@@ -107,6 +59,12 @@ public:
     P_IMU[0] -= Rt[0];
     P_IMU[1] -= Rt[1];
     P_IMU[2] -= Rt[2];
+
+    // T P_IMU[3];
+    // ceres::QuaternionRotatePoint(R_IMU_WORLD, P_WORLD, P_IMU);
+    // P_IMU[0] += t_WORLD_IMU[0];
+    // P_IMU[1] += t_WORLD_IMU[1];
+    // P_IMU[2] += t_WORLD_IMU[2];
 
     // extrinsic transform (imu to camera)
     T P_CAMERA[3];
