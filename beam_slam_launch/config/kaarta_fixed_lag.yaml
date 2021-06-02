@@ -1,3 +1,11 @@
+# global parameters: These will be used in multiple locations
+optimization_frequency: 1
+lag_duration: 20
+imu_frame: "IMU"
+lidar_frame: "velodyne"
+camera_frame: "camera"
+static_extrinsics: true
+
 sensor_models:
   - name: 'scan_matcher_3d'
     type: 'beam_models::frame_to_frame::ScanMatcher3D'
@@ -23,9 +31,6 @@ solver_options:
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
-
-optimization_frequency: 1
-lag_duration: 20
 
 unicycle_3d:
   process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,

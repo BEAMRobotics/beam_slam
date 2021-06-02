@@ -1,0 +1,7 @@
+<library path="lib/libglobal_mapping">
+  <class type="global_mapping::GlobalMapper" base_class_type="fuse_core::SensorModel">
+    <description>
+      A plugin for managing the global map, implemented as a sensor model but subscribes to SLAM messages as opposed to sensor messages.
+    </description>
+  </class>  
+</library>

@@ -155,8 +155,9 @@ ScanMatcher3D::GenerateTransaction(
         msg->header.stamp);
   }
 
-  ScanPose current_scan_pose(msg->header.stamp, T_WORLD_CLOUDCURRENT,
-                             *cloud_current, feature_extractor_);
+  beam_common::ScanPose current_scan_pose(msg->header.stamp,
+                                          T_WORLD_CLOUDCURRENT, *cloud_current,
+                                          feature_extractor_);
 
   // if outputting scans, add to the active list
   if (!params_.scan_output_directory.empty() || output_graph_updates_) {

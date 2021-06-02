@@ -21,6 +21,7 @@
 
 using namespace beam_models;
 using namespace frame_to_frame;
+using namespace beam_common;
 
 class Data {
  public:
@@ -235,8 +236,8 @@ TEST(ScanPose, IO) {
   ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
   ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
 
-  Eigen::Matrix4d T_WORLD_S2_ = SP2.T_WORLD_CLOUD();
-  Eigen::Matrix4d T_WORLD_S1_ = SP1.T_WORLD_CLOUD();
+  Eigen::Matrix4d T_WORLD_S2_ = SP2.T_REFFRAME_CLOUD();
+  Eigen::Matrix4d T_WORLD_S1_ = SP1.T_REFFRAME_CLOUD();
   EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S1, T_WORLD_S1_, 0.1, 0.001));
   EXPECT_EQ(SP1.Cloud().size(), data_.S1.size());
   EXPECT_EQ(SP2.Cloud().size(), data_.S2.size());
