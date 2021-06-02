@@ -9,10 +9,10 @@ uint64 measurement_id
 # time stamp associated with the initial pose
 time stamp
 
-# Transform from sensor frame (associated with sensor_id) to world frame
-# for  the sensor that these poses are measuring. 
+# Transform from baselink frame to world frame, measured from the sensor
+#  with id: sensor_id
 # Expressed as [R | t], read from left to right to down. Size is (3 x 4)
-float32[] T_WORLD_FRAME
+float32[] T_WORLD_BASELINK
 
 # number of pose measurements  
 uint32 size   

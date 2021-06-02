@@ -1,8 +1,8 @@
 # global parameters: These will be used in multiple locations
 optimization_frequency: 15
-imu_frame: "IMU"
-lidar_frame: "velodyne"
-camera_frame: "camera"
+imu_frame: 'IMU'
+lidar_frame: 'velodyne'
+camera_frame: 'camera'
 static_extrinsics: true
 
 sensor_models:
@@ -19,8 +19,8 @@ publishers:
     type: 'beam_publishers::Path3DPublisher'
 
 solver_options:
-  minimizer_type: "TRUST_REGION"
-  linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
+  minimizer_type: 'TRUST_REGION'
+  linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
   minimizer_progress_to_stdout: false
   num_threads: 4
   num_linear_solver_threads: 4
@@ -39,6 +39,13 @@ unicycle_3d:
 
 global_mapper:
   differential: false # Default: false
+  global_mapper_config: ''
+  output_path: '/home/nick/results/beam_slam/global_mapper/'
+  save_submaps: true
+  save_final_map: true
+  save_trajectory_cloud: true
+  save_local_mapper_trajectory: true
+  save_local_mapper_maps: true
   
 path_pub:
   frame_id: 'odom' # Stored in pose header. Default: odom

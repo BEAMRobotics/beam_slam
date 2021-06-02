@@ -26,37 +26,51 @@ using namespace beam_common;
  * @brief class for holding and performing operation on locally consistent SLAM
  * data chunks.
  *
- * NOTE: All data should be expressed in one "baselink" sensor frame
- * (usually set to camera frame), and with respect to the submap frame (not
+ * All data should be expressed in one "baselink" sensor frame
+ * (usually set to imu frame), and with respect to the submap frame (not
  * world frame). This is made to be used in conjuction with GlobalMap which
  * allows for the relative pose of the submaps to be changed without affecting
  * the local consistency of the data in the submaps.
+ *
+ * To keep the local mapper running fast, we do not update the poses/points in
+ * the local mapper when the global mapper closes loops. Instead, we keep track
+ * of the original world frame in the local mapper, and when we pass data
+ * between the two we make sure to transform to the appropriate world frame.
+ * That transformation gets taken care of in the submaps, since submaps store
+ * their original pose w.r.t. the world frame (in other words, the world frame
+ * tracked by the local mapper)
  */
 class Submap {
  public:
   struct PoseStamped {
     ros::Time stamp;
-    Eigen::Matrix4d T_SUBMAP_SENSOR;
+    Eigen::Matrix4d T_SUBMAP_BASELINK;
   };
 
   /**
    * @brief constructor that requires a pose and stamp for the submap.
    * @param T_WORLD_SUBMAP pose in matrix form
    * @param stamp timestamp associated with the submap pose
+   * @param extrinsics extrinsics lookup object
+   * @param camera_model camera model, used for kepoint triangulation and BA
    */
   Submap(const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP,
-         const std::shared_ptr<ExtrinsicsLookup>& extrinsics);
+         const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
+         const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
 
   /**
    * @brief constructor that requires a pose and stamp for the submap.
    * @param position t_WORLD_SUBMAP
    * @param orientation R_WORLD_SUBMAP
    * @param stamp timestamp associated with the submap pose
+   * @param extrinsics extrinsics lookup object
+   * @param camera_model camera model, used for kepoint triangulation and BA
    */
   Submap(const ros::Time& stamp,
          const fuse_variables::Position3DStamped& position,
          const fuse_variables::Orientation3DStamped& orientation,
-         const std::shared_ptr<ExtrinsicsLookup>& extrinsics);
+         const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
+         const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
 
   /**
    * @brief default destructor
@@ -102,52 +116,44 @@ class Submap {
   /**
    * @brief add a set of camera measurements associated with one image frame
    * @param landmarks landmark measurements viewed by the input frame
-   * @param T_WORLD_FRAME pose of the frame. Note this is relative to the
-   * original world estimate that is tracked by the local mapper, not the
-   * optimized location from the PGO.
+   * @param T_WORLDLM_BASELINK pose of baselink at this camera measurement time.
+   * Note this transform is relative to the original world estimate that is
+   * tracked by the local mapper, not the optimized location from the PGO.
    * @param stamp stamp associated with the image frame
    * @param sensor_id used to lookup transforms
    * @param measurement_id id of this specific measurement (image)
    */
   void AddCameraMeasurement(
       const std::vector<LandmarkMeasurementMsg>& landmarks,
-      const Eigen::Matrix4d& T_WORLD_FRAME, const ros::Time& stamp,
+      const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
       int sensor_id, int measurement_id);
 
   /**
    * @brief add a set of lidar measurements associated with one scan
-   * @param cloud pointcloud in some scan frame
-   * @param T_WORLD_FRAME pose of the lidar scan (or frame). Note this is
-   * relative to the original world estimate that is tracked by the local
-   * mapper, not the optimized location from the PGO.
+   * @param cloud pointcloud in the baselink frame
+   * @param T_WORLDLM_BASELINK pose of the baselink at this lidar scan. Note
+   * this is relative to the original world estimate that is tracked by the
+   * local mapper, not the optimized location from the PGO.
    * @param stamp stamp associated with the lidar scan
-   * @param sensor_id used to lookup transforms
-   * @param measurement_id id of this specific measurement (scan)
    * @param type type of lidar points. See description in LidarMeasurement.msg
    */
   void AddLidarMeasurement(const PointCloud& cloud,
-                           const Eigen::Matrix4d& T_WORLD_FRAME,
-                           const ros::Time& stamp, int sensor_id,
-                           int measurement_id, int type);
+                           const Eigen::Matrix4d& T_WORLDLM_BASELINK,
+                           const ros::Time& stamp, int type);
 
   /**
-   * @brief add a set of trajectory measurements associated with some frame
-   * (usually relative poses to an image keyframe)
-   * @param poses set of poses (T_WORLD_FRAME) describing the trajectory between
-   * some less freqent measurement (i.e. lidar or camera)
+   * @brief add a set of trajectory measurements associated with some lidar or
+   * image keyframe
+   * @param poses set of poses relative to the keyframe (T_KEYFRAME_FRAME)
+   * describing the trajectory between some less freqent measurement (i.e. lidar
+   * or camera). Note that keyframe and frame are both baselink frames.
    * @param stamps set of time stamps associated with the poses above
-   * @param T_WORLD_FRAME pose of the lidar scan (or frame). Note this is
-   * relative to the original world estimate that is tracked by the local
-   * mapper, not the optimized location from the PGO.
-   * @param stamp stamp associated with the lidar scan
-   * @param sensor_id used to lookup transforms
-   * @param measurement_id id of this specific measurement (scan)
+   * @param stamp stamp associated with the keyframe that this trajectory is
+   * attached to.
    */
   void AddTrajectoryMeasurement(
       const std::vector<Eigen::Matrix4d, pose_allocator>& poses,
-      const std::vector<ros::Time>& stamps,
-      const Eigen::Matrix4d& T_WORLD_FRAME, const ros::Time& stamp,
-      int sensor_id, int measurement_id);
+      const std::vector<ros::Time>& stamps, const ros::Time& stamp);
 
   /**
    * @brief update the submap pose with an updated graph message
@@ -175,50 +181,72 @@ class Submap {
    * @brief save all 3D keypoints in landmark measurements to a single
    * pointcloud map. Points will be converted to world frame before saving
    * @param filename filename to save to including full path
+   * @param use_initial_world_frame set to true to use the initial world frame
+   * from the local mapper, before global optimization
    */
-  void SaveKeypointsMapInWorldFrame(const std::string& filename) const;
+  void SaveKeypointsMapInWorldFrame(const std::string& filename,
+                                    bool use_initial_world_frame = false);
 
   /**
    * @brief save all lidar points to a single pointcloud map. Points will be
    * converted to world frame before saving
    * @param filename filename to save to including full path
+   * @param use_initial_world_frame set to true to use the initial world frame
+   * from the local mapper, before global optimization
    */
-  void SaveLidarMapInWorldFrame(const std::string& filename) const;
+  void SaveLidarMapInWorldFrame(const std::string& filename,
+                                bool use_initial_world_frame = false) const;
+
+  /**
+   * @brief save all lidar loam pointclouds. Points will be
+   * converted to world frame before saving. Separate clouds will be stored for
+   * each feature type, with the option to also combine them
+   * @param path full path to output directory (cannot specify filename since
+   * multiple files will be outputted)
+   * @param combine_features set to true to also output a combined map of all
+   * features
+   * @param use_initial_world_frame set to true to use the initial world frame
+   * from the local mapper, before global optimization
+   */
+  void SaveLidarLoamMapInWorldFrame(const std::string& path,
+                                    bool combine_features = true,
+                                    bool use_initial_world_frame = false) const;
 
   /**
    * @brief output all 3D keypoints in landmark measurements to a single
    * pointcloud. Points will be converted to world frame before outputting
+   * @param use_initial_world_frame set to true to use the initial world frame
+   * from the local mapper, before global optimization
    * @return cloud
    */
-  PointCloud GetKeypointsInWorldFrame() const;
+  PointCloud GetKeypointsInWorldFrame(bool use_initial_world_frame = false);
 
   /**
    * @brief output all lidar points to a single pointcloud map. Points will be
    * converted to world frame before outputting
+   * @param use_initial_world_frame set to true to use the initial world frame
+   * from the local mapper, before global optimization
    * @param return cloud
    */
-  PointCloud GetLidarPointsInWorldFrame() const;
+  PointCloud GetLidarPointsInWorldFrame(
+      bool use_initial_world_frame = false) const;
 
   /**
    * @brief output all lidar LOAM points to a single pointcloud map. Points will
    * be converted to world frame before outputting
+   * @param use_initial_world_frame set to true to use the initial world frame
+   * from the local mapper, before global optimization
    * @param return cloud
    */
-  beam_matching::LoamPointCloud GetLidarLoamPointsInWorldFrame() const;
+  beam_matching::LoamPointCloud GetLidarLoamPointsInWorldFrame(
+      bool use_initial_world_frame = false) const;
 
   /**
-   * @brief return a vector of stamped poses for all camera keyframes and their
+   * @brief return a vector of stamped poses for all keyframes and their
    * attached sub-trajectories
    * @param return vectors of stamped poses
    */
-  std::vector<PoseStamped> GetCameraTrajectory() const;
-
-  /**
-   * @brief return a vector of stamped poses for all lidar keyframes and their
-   * attached sub-trajectories
-   * @param return vectors of stamped poses
-   */
-  std::vector<PoseStamped> GetLidarTrajectory() const;
+  std::vector<Submap::PoseStamped> GetTrajectory() const;
 
   /**
    * @brief print relevant information about what is currently contained in this
@@ -228,26 +256,38 @@ class Submap {
   void Print(std::ostream& stream = std::cout) const;
 
  private:
+  /**
+   * @brief Get 3D positions of each landmark given current tracks and camera
+   * poses. This fills in landmark_positions_
+   * @param override_points if set to false, it will skip triangulation if it
+   * has already been called
+   */
+  void TriangulateKeypoints(bool override_points = false);
+
   // general submap data
   ros::Time stamp_;
   int graph_updates_{0};
   fuse_variables::Position3DStamped position_;        // t_WORLD_SUBMAP
   fuse_variables::Orientation3DStamped orientation_;  // R_WORLD_SUBMAP
   std::shared_ptr<ExtrinsicsLookup> extrinsics_;
-  Eigen::Matrix4d T_WORLD_SUBMAP_initial_;
+  Eigen::Matrix4d T_WORLD_SUBMAP_;  // this get recomputed when fuse vars change
+  Eigen::Matrix4d T_WORLD_SUBMAP_initial_;  // = T_WORLDLM_SUBMAP
+  Eigen::Matrix4d T_SUBMAP_WORLD_initial_;  // = T_SUBMAP_WORLDLM
 
   // lidar data
   std::map<uint64_t, ScanPose> lidar_keyframe_poses_;  // <time,ScanPose>
-  std::map<uint64_t, PoseStamped> lidar_subframe_poses_;
 
   // camera data
-  std::shared_ptr<beam_calibration::CameraModel> cam_model_;
+  std::shared_ptr<beam_calibration::CameraModel> camera_model_;
   std::map<uint64_t, Eigen::Matrix4d> camera_keyframe_poses_;  // <time, pose>
-  std::map<uint64_t, PoseStamped> camera_subframe_poses_;
-  //   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;  // <id,
-  //   position>
+  std::map<uint64_t, Eigen::Vector3d> landmark_positions_;     // <id, position>
   beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement>
       landmarks_;
+
+  // subframe trajectory measurements
+  std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;
+
+  // NOTE: all poses are T_SUBMAP_BASELINK
 };
 
 }  // namespace global_mapping

@@ -68,23 +68,29 @@ class GlobalMap {
   /**
    * @brief constructor requiring only a pointer to an extrinsics lookup object
    * @param extrinsics object for looking up extrinsics
+   * @param camera_model shared pointer to a camera model class
    */
-  GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics);
+  GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
+            const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
 
   /**
    * @brief constructor that also takes a params struct.
    * @param extrinsics object for looking up extrinsics
+   * @param camera_model shared pointer to a camera model class
    * @param params see struct above
    */
   GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
+            const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
             const Params& params);
 
   /**
    * @brief constructor that also takes a path to config file.
    * @param extrinsics object for looking up extrinsics
+   * @param camera_model shared pointer to a camera model class
    * @param config_path full path to json config file
    */
   GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
+            const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
             const std::string& config_path);
 
   /**
@@ -117,7 +123,7 @@ class GlobalMap {
       const LidarMeasurementMsg& measurement);
 
   /**
-   * @brief add a trajectory measurement to the appropriate submap.  and returns
+   * @brief add a trajectory measurement to the appropriate submap  and returns
    * a transaction if a new submap is generated. This transaction will contain a
    * constraint between the new submap and the previous, and then initiate a
    * loop closure check on the previous submap to see if a loop closure
@@ -130,7 +136,10 @@ class GlobalMap {
    * (preintegration)
    *
    * @param measurement trajectory measurement to add
-   * NOTE: All transforms should be from baselink_frame_ to world_frame_
+   *
+   * NOTE: All input transforms should be from baselink_frame to the world frame
+   * of the local mapper. This function will convert the poses to relative
+   * transforms instead of absolute.
    */
   fuse_core::Transaction::SharedPtr AddTrajectoryMeasurement(
       const TrajectoryMeasurementMsg& measurement);
@@ -152,51 +161,74 @@ class GlobalMap {
 
   /**
    * @brief Save each lidar submap to pcd files. A lidar submap consists of an
-   * aggregation of all scans in the submap transformed to the worl frame using
+   * aggregation of all scans in the submap transformed to the world frame using
    * the submap pose estimate and the relative pose measurements of all scans
    * relative to their submap anchor.
    * @param output_path where to save the submaps
+   * @param save_initial set to true to save the initial map from the
+   * local mapper, before global optimization
    */
-  void SaveLidarSubmaps(const std::string& output_path);
+  void SaveLidarSubmaps(const std::string& output_path,
+                        bool save_initial = false);
 
   /**
    * @brief Save each keypoint submap to pcd files. A keypoint submap contains
    * all estimated 3D keypoint locations which have been transformed to the worl
    * frame using the submap pose estimate (anchor).
    * @param output_path where to save the submaps
+   * @param save_initial set to true to save the initial map from the
+   * local mapper, before global optimization
    */
-  void SaveKeypointSubmaps(const std::string& output_path);
+  void SaveKeypointSubmaps(const std::string& output_path,
+                           bool save_initial = false);
 
   /**
    * @brief Save a map containing all lidar submaps expressed in the world frame
    * @param output_path where to save the map
+   * @param save_initial set to true to save the initial map from the
+   * local mapper, before global optimization
    */
-  void SaveFullLidarMap(const std::string& output_path);
+  void SaveFullLidarMap(const std::string& output_path,
+                        bool save_initial = false);
 
   /**
    * @brief Save a map containing all submap keypoints expressed in the world
    * frame
    * @param output_path where to save the map
+   * @param save_initial set to true to save the initial map from the
+   * local mapper, before global optimization
+   * @param save_initial set to true to save the initial map from the
+   * local mapper, before global optimization
    */
-  void SaveFullKeypointMap(const std::string& output_path);
+  void SaveFullKeypointMap(const std::string& output_path,
+                           bool save_initial = false);
 
   /**
    * @brief saves the trajectory as a posefile
    * @param output_path where to save the trajectory
+   * @param save_initial set to true to save the initial trajectory from the
+   * local mapper, before global optimization
    */
-  void SaveTrajectoryFiles(const std::string& output_path);
+  void SaveTrajectoryFile(const std::string& output_path,
+                          bool save_initial = true);
 
   /**
    * @brief saves the trajectory as a pointcloud
    * @param output_path where to save the trajectory
+   * @param save_initial set to true to save the initial trajectory from the
+   * local mapper, before global optimization
    */
-  void SaveTrajectoryClouds(const std::string& output_path);
+  void SaveTrajectoryClouds(const std::string& output_path,
+                            bool save_initial = true);
 
   /**
    * @brief saves the pose of each submap as a pointcloud with RGB frames
    * @param output_path where to save the pointcloud
+   * @param save_initial set to true to save the initial trajectory from the
+   * local mapper, before global optimization
    */
-  void SaveSubmapFrames(const std::string& output_path);
+  void SaveSubmapFrames(const std::string& output_path,
+                        bool save_initial = true);
 
  private:
   /**
@@ -234,12 +266,13 @@ class GlobalMap {
   Params params_;
   std::vector<Submap> submaps_;
   std::shared_ptr<ExtrinsicsLookup> extrinsics_;
+  std::shared_ptr<beam_calibration::CameraModel> camera_model_;
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
 
   // All poses will be stored w.r.t to these frame. By default, baselink is set
-  // to camera frame stored in extrinsics_ and world frame is set to "world".
+  // to imu frame stored in extrinsics_ and world frame is set to "world".
   // See Setup()
   std::string baselink_frame_;
   std::string world_frame_;

@@ -41,27 +41,34 @@ void GlobalMapper::onInit() {
       .static_extrinsics = params_.static_extrinsics};
   std::shared_ptr<ExtrinsicsLookup> extrinsics =
       std::make_shared<ExtrinsicsLookup>(extrinsics_params);
-
+  std::shared_ptr<beam_calibration::CameraModel> camera_model =
+      beam_calibration::CameraModel::Create(params_.intrinsics_path);
   if (!params_.global_mapper_config.empty()) {
-    global_map_ =
-        std::make_unique<GlobalMap>(extrinsics, params_.global_mapper_config);
+    global_map_ = std::make_unique<GlobalMap>(extrinsics, camera_model,
+                                              params_.global_mapper_config);
   } else {
-    global_map_ = std::make_unique<GlobalMap>(extrinsics);
+    global_map_ = std::make_unique<GlobalMap>(extrinsics, camera_model);
   }
 }
 
 void GlobalMapper::onStop() {
-  global_map_->SaveTrajectoryFiles(params_.output_path);
+  global_map_->SaveTrajectoryFile(params_.output_path,
+                                   params_.save_local_mapper_trajectory);
   if (params_.save_trajectory_cloud) {
-    global_map_->SaveTrajectoryClouds(params_.output_path);
+    global_map_->SaveTrajectoryClouds(params_.output_path,
+                                      params_.save_local_mapper_trajectory);
   }
   if (params_.save_submaps) {
-    global_map_->SaveLidarSubmaps(params_.output_path);
-    global_map_->SaveKeypointSubmaps(params_.output_path);
+    global_map_->SaveLidarSubmaps(params_.output_path,
+                                  params_.save_local_mapper_maps);
+    global_map_->SaveKeypointSubmaps(params_.output_path,
+                                     params_.save_local_mapper_maps);
   }
   if (params_.save_final_map) {
-    global_map_->SaveFullLidarMap(params_.output_path);
-    global_map_->SaveFullKeypointMap(params_.output_path);
+    global_map_->SaveFullLidarMap(params_.output_path,
+                                  params_.save_local_mapper_maps);
+    global_map_->SaveFullKeypointMap(params_.output_path,
+                                     params_.save_local_mapper_maps);
   }
 }
 

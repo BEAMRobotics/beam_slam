@@ -4,7 +4,8 @@ lag_duration: 2
 imu_frame: "IMU"
 lidar_frame: "velodyne"
 camera_frame: "camera"
-static_extrinsics: true
+static_extrinsics: true,
+intrinsics_path: "/home/nick/config/calibrations/F_kaarta.json"
 
 sensor_models:
   - name: 'scan_matcher_3d'
