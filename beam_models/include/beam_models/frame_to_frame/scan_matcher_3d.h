@@ -6,7 +6,7 @@
 
 #include <beam_models/frame_to_frame/frame_to_frame_sensor_model_base.h>
 #include <beam_models/frame_to_frame/multi_scan_registration.h>
-#include <beam_models/frame_to_frame/scan_pose.h>
+#include <beam_common/scan_pose.h>
 #include <beam_parameters/models/scan_matcher_3d_params.h>
 
 namespace beam_models { namespace frame_to_frame {
@@ -34,7 +34,7 @@ protected:
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
   /** only needed if you want to output the final clouds or graph updates */
-  std::list<ScanPose> active_clouds_; 
+  std::list<beam_common::ScanPose> active_clouds_; 
 
   /** Only needed if using LoamMatcher */
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_{nullptr};

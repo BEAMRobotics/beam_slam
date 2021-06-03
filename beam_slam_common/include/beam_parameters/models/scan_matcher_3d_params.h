@@ -34,7 +34,7 @@ public:
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           "");
     nh.param("matcher_noise_diagonal", matcher_noise_diagonal, matcher_noise_diagonal);
-    
+
     // get lag_duration from global namespace
     ros::param::get("~lag_duration", lag_duration);
 

@@ -4,7 +4,8 @@
 
 #include <beam_utils/math.h>
 
-namespace beam_models { namespace frame_to_frame {
+namespace beam_models {
+namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
   g_ << 0, 0, -params_.gravitational_acceleration;
@@ -20,7 +21,7 @@ ImuPreintegration::ImuPreintegration(const Params& params,
 }
 
 void ImuPreintegration::ClearBuffer() {
-  for (size_t i = 0; i < imu_data_buffer_.size(); ++i) imu_data_buffer_.pop();
+  for (size_t i = 0; i < imu_data_buffer_.size(); i++) imu_data_buffer_.pop();
 }
 
 void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu& msg) {
@@ -44,14 +45,24 @@ void ImuPreintegration::ResetPreintegrator() {
   pre_integrator_ij.data.clear();
 }
 
+void ImuPreintegration::CheckTime(const ros::Time& t_now) {
+  if (t_now.toSec() < imu_data_buffer_.front().t) {
+    const std::string error = "Requested time preceeds IMU messages in buffer";
+    BEAM_ERROR(error);
+    throw std::runtime_error(error);
+  }
+}
+
 void ImuPreintegration::SetStart(
     const ros::Time& t_start,
     fuse_variables::Orientation3DStamped::SharedPtr orientation,
     fuse_variables::Position3DStamped::SharedPtr position,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
+  // adjust imu buffer
   while (t_start.toSec() > imu_data_buffer_.front().t) {
     imu_data_buffer_.pop();
   }
+
   // set imu state
   ImuState imu_state_i(t_start);
 
@@ -121,8 +132,10 @@ Eigen::Matrix<double, 16, 1>
 Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   // encapsulate imu measurments between frames
   PreIntegrator pre_integrator_interval;
-  if (t_now.toSec() < imu_data_buffer_.front().t)
-    ROS_FATAL_STREAM("Requested pose falls outside of imu buffer");
+
+  // check requested time
+  CheckTime(t_now);
+
   // Populate integrators
   while (t_now.toSec() > imu_data_buffer_.front().t) {
     pre_integrator_interval.data.emplace_back(imu_data_buffer_.front());
@@ -137,11 +150,11 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   ImuState imu_state_k = PredictState(pre_integrator_interval, imu_state_k_);
   imu_state_k_ = std::move(imu_state_k);
 
-  Eigen::Matrix4d T_WORLD_ISk;
+  Eigen::Matrix4d T_WORLD_IMU;
   beam::QuaternionAndTranslationToTransformMatrix(
-      imu_state_k_.OrientationQuat(), imu_state_k_.PositionVec(), T_WORLD_ISk);
+      imu_state_k_.OrientationQuat(), imu_state_k_.PositionVec(), T_WORLD_IMU);
 
-  return T_WORLD_ISk;
+  return T_WORLD_IMU;
 }
 
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
@@ -151,6 +164,9 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
         fuse_variables::Position3DStamped::SharedPtr position) {
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
+
+  // check requested time
+  CheckTime(t_now);    
 
   // generate prior constraint at start
   if (first_window_) {
@@ -227,4 +243,5 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   return transaction;
 }
 
-}} // namespace beam_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace beam_models

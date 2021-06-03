@@ -8,7 +8,7 @@
 #include <beam_matching/loam/LoamPointCloud.h>
 
 #include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
-#include <beam_models/frame_to_frame/scan_pose.h>
+#include <beam_common/scan_pose.h>
 
 static bool tmp_{true};
 
@@ -16,6 +16,7 @@ namespace beam_models {
 namespace frame_to_frame {
 
 using namespace beam_matching;
+using namespace beam_common;
 
 template <typename ConstraintType, typename PriorType>
 using TransactionBase =
@@ -88,7 +89,7 @@ class MultiScanRegistrationBase {
   std::string current_scan_path_;
   std::string tmp_output_path_{
       "/home/nick/results/beam_slam/scan_registration/"};
-  PointCloudColPtr coord_frame_;
+  PointCloudCol coord_frame_;
 };
 
 class MultiScanLoamRegistration : public MultiScanRegistrationBase {
