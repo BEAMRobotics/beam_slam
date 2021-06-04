@@ -105,20 +105,6 @@ private:
    */
   beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
 
-  /**
-   * @brief Estimates a frames pose at a given time given matches to the current
-   * keyframe
-   * @param landmark_matches map of <keypoint index: landmark id> matches with
-   * current keyframe
-   * @param kp keypoints in the image at img_time
-   * @param img_time timestamp of the current image
-   * @return the 3d location of the feature
-   */
-  Eigen::Matrix4d
-      estimateFramePose(const std::map<int, uint64_t>& landmark_matches,
-                        const std::vector<cv::KeyPoint>& kp,
-                        const ros::Time& img_time);
-
 protected:
   int img_num_{};
   // loadable camera parameters
@@ -138,6 +124,7 @@ protected:
   // most recent keyframe timestamp
   ros::Time cur_kf_time_;
   double max_kf_time_;
+  sts::map<uint64_t, Eigen::Matrix4d> poses_since_last_kf_;
   std::string source_ = "VO";
   Eigen::Matrix4d T_imu_cam_;
   // stores all access to graph
