@@ -18,6 +18,8 @@
 #include <beam_common/sensor_proc.h>
 #include <beam_common/utils.h>
 #include <beam_models/frame_to_frame/scan_matcher_3d.h>
+#include <beam_models/frame_to_frame/scan_registration/multi_scan_registration.h>
+#include <beam_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 
 using namespace beam_models;
 using namespace frame_to_frame;
@@ -443,14 +445,14 @@ TEST(MultiScanRegistration, 2Scans) {
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-  MultiScanRegistration::Params scan_reg_params{.num_neighbors = 1,
-                                                .outlier_threshold_t = 1,
+  MultiScanRegistration::Params scan_reg_params{.outlier_threshold_t = 1,
                                                 .outlier_threshold_r = 30,
                                                 .min_motion_trans_m = 0,
                                                 .min_motion_rot_rad = 0,
                                                 .source = "TEST",
-                                                .lag_duration = 100,
-                                                .fix_first_scan = false};
+                                                .fix_first_scan = false,
+                                                .num_neighbors = 1,
+                                                .lag_duration = 100};
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
       std::make_unique<MultiScanRegistration>(std::move(matcher),
@@ -534,14 +536,15 @@ TEST(MultiScanRegistration, 3Scans) {
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-  MultiScanRegistration::Params scan_reg_params{.num_neighbors = 3,
-                                                .outlier_threshold_t = 1,
+  MultiScanRegistration::Params scan_reg_params{.outlier_threshold_t = 1,
                                                 .outlier_threshold_r = 30,
                                                 .min_motion_trans_m = 0,
                                                 .min_motion_rot_rad = 0,
                                                 .source = "TEST",
-                                                .lag_duration = 100,
-                                                .fix_first_scan = false};
+
+                                                .fix_first_scan = false,
+                                                .num_neighbors = 3,
+                                                .lag_duration = 100};
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
       std::make_unique<MultiScanRegistration>(std::move(matcher),
@@ -639,14 +642,16 @@ TEST(MultiScanRegistration, TransactionsAndUpdates) {
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
   MultiScanRegistration::Params scan_reg_params{
-      .num_neighbors = 3,
+
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
       .min_motion_trans_m = 0,
       .min_motion_rot_rad = 0,
       .source = "TEST",
-      .lag_duration = 0,  // should still work with 0
-      .fix_first_scan = false};
+
+      .fix_first_scan = false,
+      .num_neighbors = 3,
+      .lag_duration = 0};  // should still work with 0
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
       std::make_unique<MultiScanRegistration>(std::move(matcher),
@@ -752,27 +757,29 @@ TEST(MultiScanRegistration, NumNeighbours) {
   std::unique_ptr<beam_matching::IcpMatcher> matcher2 =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-  MultiScanRegistration::Params scan_reg_params1{.num_neighbors = 1,
-                                                 .outlier_threshold_t = 1,
+  MultiScanRegistration::Params scan_reg_params1{.outlier_threshold_t = 1,
                                                  .outlier_threshold_r = 30,
                                                  .min_motion_trans_m = 0,
                                                  .min_motion_rot_rad = 0,
                                                  .source = "TEST",
-                                                 .lag_duration = 100,
-                                                 .fix_first_scan = false};
+
+                                                 .fix_first_scan = false,
+                                                 .num_neighbors = 1,
+                                                 .lag_duration = 100};
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration1 =
       std::make_unique<MultiScanRegistration>(std::move(matcher1),
                                               scan_reg_params1);
 
-  MultiScanRegistration::Params scan_reg_params2{.num_neighbors = 2,
-                                                 .outlier_threshold_t = 1,
+  MultiScanRegistration::Params scan_reg_params2{.outlier_threshold_t = 1,
                                                  .outlier_threshold_r = 30,
                                                  .min_motion_trans_m = 0,
                                                  .min_motion_rot_rad = 0,
                                                  .source = "TEST",
-                                                 .lag_duration = 100,
-                                                 .fix_first_scan = true};
+
+                                                 .fix_first_scan = true,
+                                                 .num_neighbors = 2,
+                                                 .lag_duration = 100};
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration2 =
       std::make_unique<MultiScanRegistration>(std::move(matcher2),
@@ -887,14 +894,15 @@ TEST(MultiScanRegistration, RegistrationCases) {
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
 
-  MultiScanRegistration::Params scan_reg_params{.num_neighbors = 5,
-                                                .outlier_threshold_t = 1,
+  MultiScanRegistration::Params scan_reg_params{.outlier_threshold_t = 1,
                                                 .outlier_threshold_r = 30,
                                                 .min_motion_trans_m = 0,
                                                 .min_motion_rot_rad = 0,
                                                 .source = "TEST",
-                                                .lag_duration = 100,
-                                                .fix_first_scan = true};
+
+                                                .fix_first_scan = true,
+                                                .num_neighbors = 5,
+                                                .lag_duration = 100};
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
       std::make_unique<MultiScanRegistration>(std::move(matcher),
                                               scan_reg_params);
@@ -943,25 +951,28 @@ TEST(MultiScanLoamRegistration, 2Scans) {
   matcher = std::make_unique<LoamMatcher>(*matcher_params);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
       std::make_shared<LoamFeatureExtractor>(matcher_params);
-  
+
   // create scan poses
   ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1, feature_extractor);
   ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2, feature_extractor);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2, feature_extractor);
+  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2,
+                    feature_extractor);
 
   MultiScanRegistration::Params scan_reg_params{
-      .num_neighbors = 1,
+
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
       .min_motion_trans_m = 0,
       .min_motion_rot_rad = 0,
       .source = "TEST",
-      .lag_duration = 0,  // should still work with 0
-      .fix_first_scan = false};
+
+      .fix_first_scan = false,
+      .num_neighbors = 1,
+      .lag_duration = 0};
 
   std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
       std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
-                                              scan_reg_params);
+                                                  scan_reg_params);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
@@ -996,9 +1007,11 @@ TEST(MultiScanLoamRegistration, 2Scans) {
   auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(SP2.Orientation().uuid()));
 
-  Eigen::Matrix4d T_WORLD_S1_mea = beam_common::FusePoseToEigenTransform(p1, o1);
-  Eigen::Matrix4d T_WORLD_S2_mea = beam_common::FusePoseToEigenTransform(p2, o2);
-  
+  Eigen::Matrix4d T_WORLD_S1_mea =
+      beam_common::FusePoseToEigenTransform(p1, o1);
+  Eigen::Matrix4d T_WORLD_S2_mea =
+      beam_common::FusePoseToEigenTransform(p2, o2);
+
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, data_.T_WORLD_S1, 1, 0.03));
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, data_.T_WORLD_S2, 1, 0.03));
 }
@@ -1025,14 +1038,16 @@ TEST(MultiScanLoamRegistration, 3Scans) {
 
   // init scan registration
   MultiScanRegistration::Params scan_reg_params{
-      .num_neighbors = 3,
+
       .outlier_threshold_t = 1,
       .outlier_threshold_r = 30,
       .min_motion_trans_m = 0,
       .min_motion_rot_rad = 0,
       .source = "TEST",
-      .lag_duration = 0,  // should still work with 0
-      .fix_first_scan = false};
+
+      .fix_first_scan = false,
+      .num_neighbors = 3,
+      .lag_duration = 0};
 
   std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
       std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
@@ -1074,10 +1089,13 @@ TEST(MultiScanLoamRegistration, 3Scans) {
   auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph->getVariable(SP3.Orientation().uuid()));
 
-  Eigen::Matrix4d T_WORLD_S1_mea = beam_common::FusePoseToEigenTransform(p1, o1);
-  Eigen::Matrix4d T_WORLD_S2_mea = beam_common::FusePoseToEigenTransform(p2, o2);
-  Eigen::Matrix4d T_WORLD_S3_mea = beam_common::FusePoseToEigenTransform(p3, o3);
-  
+  Eigen::Matrix4d T_WORLD_S1_mea =
+      beam_common::FusePoseToEigenTransform(p1, o1);
+  Eigen::Matrix4d T_WORLD_S2_mea =
+      beam_common::FusePoseToEigenTransform(p2, o2);
+  Eigen::Matrix4d T_WORLD_S3_mea =
+      beam_common::FusePoseToEigenTransform(p3, o3);
+
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, data_.T_WORLD_S1, 1, 0.03));
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, data_.T_WORLD_S2, 1, 0.03));
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S3_mea, data_.T_WORLD_S3, 1, 0.03));
