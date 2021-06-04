@@ -80,7 +80,7 @@ public:
    *
    * @param[in] landmark_id  The id associated to a landmark
    */
-  explicit Position3D(const char* landmark_id);
+  explicit Position3D(uint64_t landmark_id);
 
   /**
    * @brief read only access to data

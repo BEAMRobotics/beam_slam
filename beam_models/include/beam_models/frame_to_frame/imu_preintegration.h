@@ -59,14 +59,14 @@ class ImuPreintegration {
      * @brief Constructor
      * @param msg sensor data
      */
-    ImuData(const sensor_msgs::Imu::ConstPtr& msg) {
-      t = msg->header.stamp.toSec();
-      w[0] = msg->angular_velocity.x;
-      w[1] = msg->angular_velocity.y;
-      w[2] = msg->angular_velocity.z;
-      a[0] = msg->linear_acceleration.x;
-      a[1] = msg->linear_acceleration.y;
-      a[2] = msg->linear_acceleration.z;
+    ImuData(const sensor_msgs::Imu& msg) {
+      t = msg.header.stamp.toSec();
+      w[0] = msg.angular_velocity.x;
+      w[1] = msg.angular_velocity.y;
+      w[2] = msg.angular_velocity.z;
+      a[0] = msg.linear_acceleration.x;
+      a[1] = msg.linear_acceleration.y;
+      a[2] = msg.linear_acceleration.z;
     }
   };
 
@@ -98,7 +98,7 @@ class ImuPreintegration {
   /**
    * @brief populate imu buffer with imu data collected by sensor data
    */
-  void PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg);
+  void PopulateBuffer(const sensor_msgs::Imu& msg);
 
   /**
    * @brief populate imu buffer with imu data

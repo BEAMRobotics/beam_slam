@@ -42,12 +42,13 @@
 #include <boost/serialization/export.hpp>
 
 #include <ostream>
+#include <string>
 
 namespace fuse_variables {
 
-Position3D::Position3D(const char* landmark_id)
+Position3D::Position3D(uint64_t landmark_id)
     : FixedSizeVariable(
-          fuse_core::uuid::generate(detail::type(), landmark_id)) {}
+          fuse_core::uuid::generate(detail::type(), std::to_string(landmark_id).c_str())) {}
 
 void Position3D::print(std::ostream& stream) const {
   stream << type() << ":\n"
