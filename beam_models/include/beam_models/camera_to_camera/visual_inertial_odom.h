@@ -122,9 +122,9 @@ protected:
   std::shared_ptr<VIOInitializer> initializer_;
   std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
   // most recent keyframe timestamp
-  ros::Time cur_kf_time_;
   double max_kf_time_;
-  sts::map<uint64_t, Eigen::Matrix4d> poses_since_last_kf_;
+  std::deque<uint64_t> keyframes_;
+  std::map<uint64_t, std::map<uint64_t, Eigen::Matrix4d>> frame_poses_;
   std::string source_ = "VO";
   Eigen::Matrix4d T_imu_cam_;
   // stores all access to graph

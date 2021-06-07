@@ -47,8 +47,10 @@
 namespace fuse_variables {
 
 Position3D::Position3D(uint64_t landmark_id)
-    : FixedSizeVariable(
-          fuse_core::uuid::generate(detail::type(), std::to_string(landmark_id).c_str())) {}
+    : FixedSizeVariable(fuse_core::uuid::generate(
+          detail::type(), std::to_string(landmark_id).c_str())) {
+  this->id_ = landmark_id;
+}
 
 void Position3D::print(std::ostream& stream) const {
   stream << type() << ":\n"

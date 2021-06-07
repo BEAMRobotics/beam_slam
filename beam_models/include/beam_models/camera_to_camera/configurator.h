@@ -70,6 +70,10 @@ public:
 
   size_t min_init_raw_frames() const { return (init_map_frames() - 1) * 2 + 1; }
 
+  double solver_time_limit() const { return 1.0; }
+
+  size_t solver_iteration_limit() const { return 5; }
+
 private:
   Eigen::Matrix3d K;
   Eigen::Quaterniond q_cam2body;

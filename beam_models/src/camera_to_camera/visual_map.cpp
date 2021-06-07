@@ -141,51 +141,37 @@ fuse_variables::Position3DStamped::SharedPtr
 
 fuse_variables::Position3D::SharedPtr
     VisualMap::getLandmark(uint64_t landmark_id) {
-  uint64_t id;
-  // check if theres a correspondence to an old measurement
-  if (landmark_correspondences_.find(landmark_id) ==
-      landmark_positions_.end()) {
-    id = landmark_id;
-  } else {
-    id = landmark_correspondences_[landmark_id];
-  }
-
   std::string position_3d_type = "fuse_variables::Position3D";
   fuse_variables::Position3D::SharedPtr landmark =
       fuse_variables::Position3D::make_shared();
   // first check the graph for the variable if its initialized
   if (graph_initialized) {
-    auto landmark_uuid =
-        fuse_core::uuid::generate(position_3d_type, std::to_string(id).c_str());
+    auto landmark_uuid = fuse_core::uuid::generate(
+        position_3d_type, std::to_string(landmark_id).c_str());
     try {
       *landmark = dynamic_cast<const fuse_variables::Position3D&>(
           graph_->getVariable(landmark_uuid));
-      landmark_positions_.erase(id);
+      landmark_positions_.erase(landmark_id);
     } catch (const std::out_of_range& oor) {
-      if (landmark_positions_.find(id) == landmark_positions_.end()) {
+      if (landmark_positions_.find(landmark_id) == landmark_positions_.end()) {
         return nullptr;
       } else {
-        return landmark_positions_[id];
+        return landmark_positions_[landmark_id];
       }
     }
   }
   // if its not initialized check local maps
-  if (landmark_positions_.find(id) != landmark_positions_.end()) {
-    return landmark_positions_[id];
+  if (landmark_positions_.find(landmark_id) != landmark_positions_.end()) {
+    return landmark_positions_[landmark_id];
   }
   return nullptr;
 }
 
-void VisualMap::addLandmarkCorrespondence(uint64_t new_id, uint64_t old_id) {
-  landmark_correspondences_[new_id] = old_id;
-}
-
-void VisualMap::updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg,
-                            const ros::Time& oldest_time) {
-  /*
-   * 1. go through all maps and remove items that have a time older than oldest
-   * time
-   */
+void VisualMap::updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
+  // clear temp maps
+  orientations_.clear();
+  positions_.clear();
+  landmark_positions_.clear();
   this->graph_ = std::move(graph_msg);
   if (!graph_initialized) graph_initialized = true;
 }

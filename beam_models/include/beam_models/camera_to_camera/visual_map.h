@@ -65,8 +65,7 @@ public:
    * @brief Updates current graph copy
    * @param track feature track of current image
    */
-  void updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg,
-                   const ros::Time& oldest_time);
+  void updateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
   /**
    * @brief Helper function to get an orientation variable
@@ -82,25 +81,15 @@ public:
   fuse_variables::Position3DStamped::SharedPtr
       getPosition(const ros::Time& stamp);
 
-  /**
-   * @brief Adds a correspondence between two landmarks denoting them as the
-   * same landmark
-   * @param new_id id of new observance
-   * @param old_id id of old observance
-   */
-  void addLandmarkCorrespondence(uint64_t new_id, uint64_t old_id);
-
 protected:
-  // these store the most up to date variables for in between optimizations
+  // these store the most up to date variables for in between optimization cycles
   std::unordered_map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;
   std::unordered_map<uint64_t, fuse_variables::Position3DStamped::SharedPtr>
       positions_;
   std::unordered_map<uint64_t, fuse_variables::Position3D::SharedPtr>
       landmark_positions_;
-  // this map stores a correspondence between a new landmark and a previous
-  // observance of it
-  std::unordered_map<uint64_t, uint64_t> landmark_correspondences_;
+  // current graph
   fuse_core::Graph::ConstSharedPtr graph_;
   bool graph_initialized = false;
   std::string source_;

@@ -39,6 +39,7 @@
 #include <fuse_core/variable.h>
 #include <fuse_variables/fixed_size_variable.h>
 #include <ros/time.h>
+#include <opencv2/core/core.hpp>
 
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/base_object.hpp>
@@ -122,6 +123,11 @@ public:
    */
   const double& z() const { return data_[Z]; }
 
+    /**
+   * @brief Read-only access to the id
+   */
+  const uint64_t& id() const { return id_; }
+
   /**
    * @brief Print a human-readable description of the variable to the provided
    * stream.
@@ -133,6 +139,8 @@ public:
 private:
   // Allow Boost Serialization access to private methods
   friend class boost::serialization::access;
+  uint64_t id_;
+  cv::Mat descriptor_;
 
   /**
    * @brief The Boost Serialize method that serializes all of the data members
