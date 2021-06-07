@@ -255,23 +255,24 @@ std::shared_ptr<fuse_core::Transaction>
   std::cout << "\nImage: " << img_time << std::endl;
   auto transaction = fuse_core::Transaction::make_shared();
   // [1] get landmark ids in current image
-  std::vector<uint64_t> cur_img_ids =
-      this->tracker_->GetLandmarkIDsInImage(img_time);
-  // [2] retrieve positions of the landmarks in the image
+  std::vector<cv::KeyPoint> kp;
+  cv::Mat desc;
+  std::vector<cv::DMatch> matches;
+  std::map<int, uint64_t> matched_landmarks =
+      tracker_->Match(image, kp, desc, matches);
   std::set<uint64_t> triangulated_ids_set, nontriangulated_ids_set;
   std::vector<Eigen::Vector2i> pixels;
   std::vector<Eigen::Vector3d> points;
-  for (auto& id : cur_img_ids) {
-    Eigen::Vector2i pixel = tracker_->Get(img_time, id).cast<int>();
+  for (auto& m : matched_landmarks) {
     fuse_variables::Position3D::SharedPtr lm =
-        this->visual_map_->getLandmark(id);
+        this->visual_map_->getLandmark(m.second);
     if (lm) {
       Eigen::Vector3d point(lm->data());
-      pixels.push_back(pixel);
+      pixels.push_back(beam::ConvertKeypoint(kp[m.first]));
       points.push_back(point);
-      triangulated_ids_set.insert(id);
+      triangulated_ids_set.insert(m.second);
     } else {
-      nontriangulated_ids_set.insert(id);
+      nontriangulated_ids_set.insert(m.second);
     }
   }
   float elapsed = beam::toc(&t);
@@ -286,11 +287,12 @@ std::shared_ptr<fuse_core::Transaction>
   //                                         points, report);
   // [5] Add pose to temporary pose buffer between last keyframe and the current
   // frame
-  frame_poses_[keyframes_.front()][img_time.toNSec()] = T_world_cam;
+  //frame_poses_[keyframes_.front()][img_time.toNSec()] = T_world_cam;
   // [6] Perform keyframe processing
   std::cout << "Visible landmarks: " << triangulated_ids_set.size()
             << std::endl;
   if (triangulated_ids_set.size() < 50) {
+    tracker_->Register(img_time, kp, desc, matches);
     ros::Time cur_kf_time;
     cur_kf_time.fromNSec(keyframes_.front());
     // [6.1] Add current pose to the graph
