@@ -6,6 +6,7 @@
 #include <beam_matching/Matchers.h>
 
 #include <beam_common/utils.h>
+#include <beam_common/lidar_map.h>
 #include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 namespace beam_models {
@@ -15,17 +16,7 @@ using namespace beam_matching;
 using namespace beam_common;
 
 ScanToMapRegistrationBase::ScanToMapRegistrationBase(bool fix_first_scan)
-    : fix_first_scan_(fix_first_scan) {
-  // if outputting results, clear output folder:
-  if (!output_scan_registration_results_) {
-    return;
-  }
-
-  if (boost::filesystem::is_directory(tmp_output_path_)) {
-    boost::filesystem::remove_all(tmp_output_path_);
-  }
-  boost::filesystem::create_directory(tmp_output_path_);
-}
+    : fix_first_scan_(fix_first_scan) {}
 
 beam_constraints::frame_to_frame::Pose3DStampedTransaction
 ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
@@ -75,7 +66,6 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
 
   // add new registered scan and then trim the map
   AddScanToMap(new_scan, T_MAP_SCAN);
-  TrimMap(T_MAP_SCAN);
 
   T_MAP_SCANPREV_ = T_MAP_SCAN;
   scan_prev_position_ = new_scan.Position();
@@ -131,10 +121,12 @@ ScanToMapLoamRegistration::ScanToMapLoamRegistration(
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher, const Params& params)
     : ScanToMapRegistrationBase(params.fix_first_scan),
       matcher_(std::move(matcher)),
-      params_(params) {}
+      params_(params) {
+  map_.SetParams(params_.map_size);
+}
 
 bool ScanToMapLoamRegistration::IsMapEmpty() {
-  return clouds_in_map_frame_.empty();
+  return map_.NumLoamClouds() == 0;
 }
 
 bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
@@ -151,12 +143,10 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   scan_in_map_frame->TransformPointCloud(T_MAPEST_SCAN);
 
   // get combined loamcloud map
-  LoamPointCloudPtr map = std::make_shared<LoamPointCloud>();
-  for (const LoamPointCloud& cloud : clouds_in_map_frame_) {
-    map->Merge(cloud);
-  }
+  LoamPointCloudPtr current_map =
+      std::make_shared<LoamPointCloud>(map_.GetLoamCloudMap());
 
-  matcher_->SetRef(map);
+  matcher_->SetRef(current_map);
   matcher_->SetTarget(scan_in_map_frame);
 
   if (!matcher_->Match()) {
@@ -170,19 +160,13 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   }
 
   T_MAP_SCAN = beam::InvertTransform(T_MAPEST_MAP) * T_MAPEST_SCAN;
+
+  return true;
 }
 
 void ScanToMapLoamRegistration::AddScanToMap(
     const ScanPose& scan_pose, const Eigen::Matrix4d& T_MAP_SCAN) {
-  LoamPointCloud cloud_in_map_frame = scan_pose.LoamCloud();
-  cloud_in_map_frame.TransformPointCloud(T_MAP_SCAN);
-  clouds_in_map_frame_.push_back(cloud_in_map_frame);
-}
-
-void ScanToMapLoamRegistration::TrimMap(const Eigen::Matrix4d& T_MAP_SCAN) {
-  if (clouds_in_map_frame_.size() > params_.map_size) {
-    clouds_in_map_frame_.pop_front();
-  }
+  map_.AddPointCloud(scan_pose.LoamCloud(), scan_pose.Stamp(), T_MAP_SCAN);
 }
 
 bool ScanToMapLoamRegistration::PassedRegThreshold(
@@ -211,6 +195,10 @@ bool ScanToMapLoamRegistration::PassedMinMotion(
     return true;
   }
   return false;
+}
+
+const LidarMap& ScanToMapLoamRegistration::GetMap() const{
+  return map_;
 }
 
 }  // namespace frame_to_frame

@@ -6,7 +6,7 @@ set(build_depends
   )
 
 find_package(tf REQUIRED)
-find_package(beam REQUIRED COMPONENTS utils)
+find_package(beam REQUIRED COMPONENTS utils filtering matching)
 
 find_package(
   catkin REQUIRED 
@@ -56,3 +56,20 @@ target_link_libraries(
     ${tf_LIBRARIES}
     beam::utils
   )
+
+  #############
+## Testing ##
+#############
+if(CATKIN_ENABLE_TESTING)
+  add_executable(${PROJECT_NAME}_scan_pose_tests 
+    tests/scan_pose_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_scan_pose_tests 
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils
+    beam::filtering
+    beam::matching)
+  add_test(NAME ${PROJECT_NAME}_scan_pose_tests 
+          COMMAND ${PROJECT_NAME}_scan_pose_tests)
+
+endif()
