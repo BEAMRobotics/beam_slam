@@ -106,7 +106,7 @@ private:
   beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
 
 protected:
-  int img_num_{};
+  int img_num_{0};
   // loadable camera parameters
   beam_parameters::models::VIOParams params_;
   // topic subscribers and buffers

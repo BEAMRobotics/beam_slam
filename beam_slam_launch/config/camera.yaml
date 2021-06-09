@@ -28,7 +28,7 @@ ignition2d:
 solver_options:
   minimizer_type: "TRUST_REGION"
   linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
-  minimizer_progress_to_stdout: false
+  minimizer_progress_to_stdout: true
   num_threads: 6
   num_linear_solver_threads: 6
   max_num_iterations: 50

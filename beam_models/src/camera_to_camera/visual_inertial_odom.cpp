@@ -36,14 +36,14 @@ void VisualInertialOdom::onInit() {
    ***********************************************************/
   ceres::Solver::Options pose_refinement_options;
   pose_refinement_options.minimizer_progress_to_stdout = false;
-  pose_refinement_options.max_num_iterations = 50;
+  pose_refinement_options.max_num_iterations = 10;
   pose_refinement_options.max_solver_time_in_seconds = 1e-2;
-  pose_refinement_options.function_tolerance = 1e-8;
-  pose_refinement_options.gradient_tolerance = 1e-10;
-  pose_refinement_options.parameter_tolerance = 1e-8;
+  pose_refinement_options.function_tolerance = 1e-6;
+  pose_refinement_options.gradient_tolerance = 1e-8;
+  pose_refinement_options.parameter_tolerance = 1e-6;
   pose_refinement_options.trust_region_strategy_type = ceres::DOGLEG;
-  pose_refinement_options.linear_solver_type = ceres::SPARSE_SCHUR;
-  pose_refinement_options.preconditioner_type = ceres::SCHUR_JACOBI;
+  pose_refinement_options.linear_solver_type = ceres::DENSE_SCHUR;
+  // pose_refinement_options.preconditioner_type = ceres::SCHUR_JACOBI;
   pose_refiner_ =
       std::make_shared<beam_cv::PoseRefinement>(pose_refinement_options);
   /***********************************************************
@@ -116,17 +116,18 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         auto init_transaction = this->initMap();
         sendTransaction(init_transaction);
         // register the current frame against the map
-        // tracker_->AddImage(image, img_time);
+        tracker_->AddImage(image, img_time);
         auto frame_transaction = this->registerFrame(image, img_time);
-        // sendTransaction(frame_transaction);
+        sendTransaction(frame_transaction);
       } else {
         tracker_->AddImage(image, img_time);
         std::queue<sensor_msgs::Imu>().swap(temp_imu_buffer_);
       }
     } else {
-      // tracker_->AddImage(image, img_time);
+      tracker_->AddImage(image, img_time);
       auto frame_transaction = this->registerFrame(image, img_time);
-      // sendTransaction(frame_transaction);
+
+      sendTransaction(frame_transaction);
     }
     image_buffer_.pop();
   }
@@ -161,6 +162,8 @@ std::shared_ptr<fuse_core::Transaction> VisualInertialOdom::initMap() {
     t.fromNSec(pose.first);
     this->visual_map_->addPose(pose.second, t, transaction);
   }
+  std::cout << "First frame pose: \n"
+            << this->visual_map_->getPose(t).value() << std::endl;
   keyframes_.push_back(t.toNSec());
   /******************************************************
    *           Add landmarks and constraints            *
@@ -211,7 +214,7 @@ std::shared_ptr<fuse_core::Transaction> VisualInertialOdom::initMap() {
 
 beam::opt<Eigen::Vector3d>
     VisualInertialOdom::triangulate(beam_cv::FeatureTrack track) {
-  if (track.size() >= 2) {
+  if (track.size() >= 6) {
     std::vector<Eigen::Matrix4d> T_cam_world_v;
     std::vector<Eigen::Vector2i> pixels;
     for (auto& measurement : track) {
@@ -250,55 +253,49 @@ cv::Mat VisualInertialOdom::extractImage(const sensor_msgs::Image& msg) {
 std::shared_ptr<fuse_core::Transaction>
     VisualInertialOdom::registerFrame(const cv::Mat& image,
                                       const ros::Time& img_time) {
-  struct timespec t;
-  beam::tic(&t);
-  std::cout << "\nImage: " << img_time << std::endl;
+  // std::cout << "\nImage: " << img_time << std::endl;
   auto transaction = fuse_core::Transaction::make_shared();
   // [1] get landmark ids in current image
-  std::vector<cv::KeyPoint> kp;
-  cv::Mat desc;
-  std::vector<cv::DMatch> matches;
-  std::map<int, uint64_t> matched_landmarks =
-      tracker_->Match(image, kp, desc, matches);
+  std::vector<uint64_t> cur_img_ids =
+      this->tracker_->GetLandmarkIDsInImage(img_time);
+  // [2] retrieve positions of the landmarks in the image
   std::set<uint64_t> triangulated_ids_set, nontriangulated_ids_set;
   std::vector<Eigen::Vector2i> pixels;
   std::vector<Eigen::Vector3d> points;
-  for (auto& m : matched_landmarks) {
+  for (auto& id : cur_img_ids) {
+    Eigen::Vector2i pixel = tracker_->Get(img_time, id).cast<int>();
     fuse_variables::Position3D::SharedPtr lm =
-        this->visual_map_->getLandmark(m.second);
+        this->visual_map_->getLandmark(id);
     if (lm) {
       Eigen::Vector3d point(lm->data());
-      pixels.push_back(beam::ConvertKeypoint(kp[m.first]));
+      pixels.push_back(pixel);
       points.push_back(point);
-      triangulated_ids_set.insert(m.second);
+      triangulated_ids_set.insert(id);
     } else {
-      nontriangulated_ids_set.insert(m.second);
+      nontriangulated_ids_set.insert(id);
     }
   }
-  float elapsed = beam::toc(&t);
-  std::cout << "Elapsed: " << elapsed << std::endl;
-  Eigen::Matrix4d T_world_cam = beam_cv::AbsolutePoseEstimator::RANSACEstimator(
-      cam_model_, pixels, points, 30);
-  // // [3] get estimated pose of current frame using just imu
-  Eigen::Matrix4d T_world_cam_imu = imu_preint_->GetPose(img_time) * T_imu_cam_;
-  // // [4] Refine pose estimate using the visible landmarks
-  // std::string report;
-  // T_world_cam = pose_refiner_->RefinePose(T_world_cam, cam_model_, pixels,
-  //                                         points, report);
+  // [3] get estimated pose of current frame using just imu
+  Eigen::Matrix4d T_world_cam_est =
+      imu_preint_->GetPose(img_time) * T_imu_cam_.inverse();
+  // [4] Filter out outlier landmarks using initial estimate
+  // [4] Refine pose estimate using the visible landmarks
+  std::string report;
+  Eigen::Matrix4d T_world_cam = pose_refiner_->RefinePose(
+      T_world_cam_est, cam_model_, pixels, points, report);
   // [5] Add pose to temporary pose buffer between last keyframe and the current
   // frame
-  //frame_poses_[keyframes_.front()][img_time.toNSec()] = T_world_cam;
+  frame_poses_[keyframes_.front()][img_time.toNSec()] = T_world_cam;
   // [6] Perform keyframe processing
-  std::cout << "Visible landmarks: " << triangulated_ids_set.size()
-            << std::endl;
-  if (triangulated_ids_set.size() < 50) {
-    tracker_->Register(img_time, kp, desc, matches);
+  // std::cout << "Visible landmarks: " << triangulated_ids_set.size()
+  //           << std::endl;
+  if (triangulated_ids_set.size() < 100) {
     ros::Time cur_kf_time;
     cur_kf_time.fromNSec(keyframes_.front());
     // [6.1] Add current pose to the graph
-    std::cout << "Adding Pose: \n" << T_world_cam << std::endl;
-    std::cout << "IMU pose: \n" << T_world_cam_imu << std::endl;
-    this->visual_map_->addPose(T_world_cam, img_time, transaction);
+    this->visual_map_->addPose(T_world_cam_est, img_time, transaction);
+    // std::cout << "Initial Pose Estimate: \n" << T_world_cam_est << std::endl;
+    // std::cout << "Refined Pose Estimate: \n" << T_world_cam << std::endl;
     // [6.2] Add constraints to currently tracked landmarks
     for (auto& id : triangulated_ids_set) {
       this->visual_map_->addConstraint(
@@ -308,6 +305,7 @@ std::shared_ptr<fuse_core::Transaction>
             cur_kf_time, id, tracker_->Get(cur_kf_time, id), transaction);
       } catch (const std::out_of_range& oor) {}
     }
+    int num_triangulated = 0;
     // [6.3] Triangulate new features and add constraints
     for (auto& id : nontriangulated_ids_set) {
       beam::opt<Eigen::Vector3d> point =
@@ -315,6 +313,7 @@ std::shared_ptr<fuse_core::Transaction>
       // [6.3.1] TODO: Check local map for correspondence
       // [6.3.2] Triangulate and add if there is no correspondence
       if (point.has_value()) {
+        num_triangulated++;
         this->visual_map_->addLandmark(point.value(), id, transaction);
         this->visual_map_->addConstraint(
             img_time, id, tracker_->Get(img_time, id), transaction);
@@ -324,7 +323,8 @@ std::shared_ptr<fuse_core::Transaction>
         } catch (const std::out_of_range& oor) {}
       }
     }
-    // [6.4] Create imu_preint constraint between the current frame and last kf
+    // std::cout << "New landmark points: " << num_triangulated << std::endl;
+    //[6.4] Create imu_preint constraint between the current frame and last kf
     fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
         this->visual_map_->getOrientation(img_time);
     fuse_variables::Position3DStamped::SharedPtr img_position =
