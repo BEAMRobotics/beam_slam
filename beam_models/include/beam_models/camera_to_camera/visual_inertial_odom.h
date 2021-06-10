@@ -94,6 +94,12 @@ private:
   std::shared_ptr<fuse_core::Transaction> initMap();
 
   /**
+   * @brief Initializes the imu preint object with values form the
+   * initialization
+   */
+  void initIMU();
+
+  /**
    * @brief Converts ros image message to opencv image
    */
   cv::Mat extractImage(const sensor_msgs::Image& msg);
@@ -122,9 +128,10 @@ protected:
   std::shared_ptr<VIOInitializer> initializer_;
   std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
   // most recent keyframe timestamp
-  double max_kf_time_;
+  ros::Time cur_kf_time_;
   std::deque<uint64_t> keyframes_;
   std::map<uint64_t, std::map<uint64_t, Eigen::Matrix4d>> frame_poses_;
+  std::map<uint64_t, cv::Mat> kf_images_;
   std::string source_ = "VO";
   Eigen::Matrix4d T_imu_cam_;
   // stores all access to graph
