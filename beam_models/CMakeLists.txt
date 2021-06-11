@@ -90,7 +90,8 @@ add_library(
   src/motion/unicycle_3d_ignition.cpp
   src/frame_to_frame/frame_to_frame_sensor_model_base.cpp
   src/frame_to_frame/scan_matcher_3d.cpp
-  src/frame_to_frame/multi_scan_registration.cpp
+  src/frame_to_frame/scan_registration/multi_scan_registration.cpp
+  src/frame_to_frame/scan_registration/scan_to_map_registration.cpp
 	src/frame_to_frame/imu_preintegration.cpp
   src/frame_to_frame/imu_state.cpp
   src/frame_initializers/frame_initializer_base.cpp
@@ -122,15 +123,23 @@ add_dependencies(
 ## Testing ##
 #############
 if(CATKIN_ENABLE_TESTING)
-  add_executable(${PROJECT_NAME}_scan_matcher_3d_gtests 
-    tests/scan_matcher_3d_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_scan_matcher_3d_gtests 
+  add_executable(${PROJECT_NAME}_multi_scan_registration_tests 
+    tests/multi_scan_registration_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_multi_scan_registration_tests 
     ${PROJECT_NAME}
     gtest_main
     beam::utils)
-  add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
-          COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
-
+  add_test(NAME ${PROJECT_NAME}_multi_scan_registration_tests 
+          COMMAND ${PROJECT_NAME}_multi_scan_registration_tests)
+  
+  add_executable(${PROJECT_NAME}_scan_to_map_registration_tests 
+    tests/scan_to_map_registration_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_scan_to_map_registration_tests 
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils)
+  add_test(NAME ${PROJECT_NAME}_scan_to_map_registration_tests 
+          COMMAND ${PROJECT_NAME}_scan_to_map_registration_tests)        
 
   find_package(rostest REQUIRED)
   find_package(basalt REQUIRED)
