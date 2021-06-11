@@ -73,6 +73,13 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   return transaction;
 }
 
+ScanToMapLoamRegistration::Params::Params(
+    const ScanRegistrationParamsBase& base_params, int _map_size,
+    bool _store_full_cloud)
+    : ScanRegistrationParamsBase(base_params),
+      map_size(_map_size),
+      store_full_cloud(_store_full_cloud) {}
+
 void ScanToMapLoamRegistration::Params::LoadFromJson(
     const std::string& config) {
   std::string read_file = config;
@@ -93,8 +100,7 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
         "beam_slam_launch/config/registration_config/scan_to_map_loam.json";
     if (!boost::filesystem::exists(default_path)) {
       BEAM_WARN(
-          "Could not find default scan to map loam registration config at: {}. "
-          "Using "
+          "Could not find default multi scan registration config at: {}. Using "
           "default params.",
           default_path);
       return;
@@ -102,19 +108,16 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
     read_file = default_path;
   }
 
-  BEAM_INFO("Loading scan registration config file: {}", read_file);
+  // load default params
+  LoadBaseFromJson(read_file);
 
+  // load other params specific to this class
   nlohmann::json J;
   std::ifstream file(read_file);
   file >> J;
 
-  outlier_threshold_t = J["outlier_threshold_t"];
-  outlier_threshold_r = J["outlier_threshold_r"];
-  min_motion_trans_m = J["min_motion_trans_m"];
-  min_motion_rot_rad = J["min_motion_rot_rad"];
-  source = J["source"];
-  fix_first_scan = J["fix_first_scan"];
   map_size = J["map_size"];
+  store_full_cloud = J["store_full_cloud"];
 }
 
 ScanToMapLoamRegistration::ScanToMapLoamRegistration(
@@ -167,6 +170,10 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
 void ScanToMapLoamRegistration::AddScanToMap(
     const ScanPose& scan_pose, const Eigen::Matrix4d& T_MAP_SCAN) {
   map_.AddPointCloud(scan_pose.LoamCloud(), scan_pose.Stamp(), T_MAP_SCAN);
+  if(params_.store_full_cloud){
+    map_.AddPointCloud(scan_pose.Cloud(), scan_pose.Stamp(), T_MAP_SCAN);
+  }
+  
 }
 
 bool ScanToMapLoamRegistration::PassedRegThreshold(
@@ -195,10 +202,6 @@ bool ScanToMapLoamRegistration::PassedMinMotion(
     return true;
   }
   return false;
-}
-
-const LidarMap& ScanToMapLoamRegistration::GetMap() const{
-  return map_;
 }
 
 }  // namespace frame_to_frame

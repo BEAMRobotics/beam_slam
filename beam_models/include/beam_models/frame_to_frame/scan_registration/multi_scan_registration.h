@@ -21,16 +21,27 @@ using namespace beam_common;
 
 class MultiScanRegistrationBase : public ScanRegistrationBase {
  public:
-  struct Params {
-    double outlier_threshold_t{0.3};
-    double outlier_threshold_r{20};
-    double min_motion_trans_m{0};
-    double min_motion_rot_rad{0};
-    std::string source{"MULTISCANREGISTRATION"};
-    bool fix_first_scan{false};
-    int num_neighbors{5};
-    double lag_duration{0}; // This cannot be set by a json config.
+  struct Params : public ScanRegistrationParamsBase {
+    Params() = default;
 
+    /** constructor that takes in a base params object */
+    Params(const ScanRegistrationParamsBase& base_params, int _num_neighbors,
+           double _lag_duration, bool _disable_lidar_map);
+
+    /** number of neibouring scans to register against */
+    int num_neighbors{5};
+
+    /** this is needed to know when to remove old scans that have been factored
+     * out of the graph. Note that this must be input from the client code, it
+     * cannot be set by a json config. The reason for this is because this
+     * parameter should come from the yaml file used for the main fuse optimizer
+     * config. */
+    double lag_duration{0};
+
+    /** Set this to true if you don't want to build a lidar map */
+    bool disable_lidar_map{false};
+
+    /** load derived params & base params */
     void LoadFromJson(const std::string& config);
   };
 
@@ -84,7 +95,6 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
                           const Eigen::Matrix4d& T_estimated);
 
   std::list<ScanPose> reference_clouds_;
-
   Params params_;
   double pose_prior_noise_{1e-9};
 
@@ -98,6 +108,8 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 
 class MultiScanLoamRegistration : public MultiScanRegistrationBase {
  public:
+  using Params = MultiScanRegistrationBase::Params;
+
   MultiScanLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
                             const Params& params);
 
@@ -114,6 +126,8 @@ class MultiScanLoamRegistration : public MultiScanRegistrationBase {
 
 class MultiScanRegistration : public MultiScanRegistrationBase {
  public:
+  using Params = MultiScanRegistrationBase::Params;
+
   MultiScanRegistration(std::unique_ptr<Matcher<PointCloudPtr>> matcher,
                         const Params& params);
 

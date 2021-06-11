@@ -39,6 +39,16 @@ class Data {
     std::string config_path = test_path + "data/loam_config.json";
     loam_params = std::make_shared<LoamParams>(config_path);
 
+    // create scan reg params
+    scan_reg_params.outlier_threshold_t = 1;
+    scan_reg_params.outlier_threshold_r = 30;
+    scan_reg_params.min_motion_trans_m = 0;
+    scan_reg_params.min_motion_rot_rad = 0;
+    scan_reg_params.source = "TEST";
+    scan_reg_params.fix_first_scan = true;
+    scan_reg_params.map_size = 3;
+    scan_reg_params.store_full_cloud = false;
+
     // downsample input cloud
     Eigen::Vector3f scan_voxel_size(0.05, 0.05, 0.05);
     beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
@@ -107,6 +117,7 @@ class Data {
   PointCloud S2;
   PointCloud S3;
   std::shared_ptr<LoamParams> loam_params;
+  ScanToMapLoamRegistration::Params scan_reg_params;
 };
 
 Data data_;
@@ -126,17 +137,9 @@ TEST(ScanToMapLoamRegistration, 2Scans) {
   ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2,
                     feature_extractor);
 
-  ScanToMapLoamRegistration::Params scan_reg_params{.outlier_threshold_t = 1,
-                                                    .outlier_threshold_r = 30,
-                                                    .min_motion_trans_m = 0,
-                                                    .min_motion_rot_rad = 0,
-                                                    .source = "TEST",
-                                                    .fix_first_scan = true,
-                                                    .map_size = 2};
-
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
       std::make_unique<ScanToMapLoamRegistration>(std::move(matcher),
-                                                  scan_reg_params);
+                                                  data_.scan_reg_params);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
@@ -180,7 +183,7 @@ TEST(ScanToMapLoamRegistration, 2Scans) {
 
 TEST(ScanToMapLoamRegistration, 3Scans) {
   data_ = Data();
-  
+
   // init scan registration
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
   matcher = std::make_unique<LoamMatcher>(*data_.loam_params);
@@ -200,17 +203,9 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
   //   SP3.Save("/home/nick/tmp/loam_scan_registration/sp3/");
 
   // init scan registration
-  ScanToMapLoamRegistration::Params scan_reg_params{.outlier_threshold_t = 1,
-                                                    .outlier_threshold_r = 30,
-                                                    .min_motion_trans_m = 0,
-                                                    .min_motion_rot_rad = 0,
-                                                    .source = "TEST",
-                                                    .fix_first_scan = true,
-                                                    .map_size = 3};
-
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
       std::make_unique<ScanToMapLoamRegistration>(std::move(matcher),
-                                                  scan_reg_params);
+                                                  data_.scan_reg_params);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();

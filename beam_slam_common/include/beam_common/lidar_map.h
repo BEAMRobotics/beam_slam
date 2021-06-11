@@ -1,11 +1,5 @@
 #pragma once
 
-#include <fuse_core/graph.h>
-#include <fuse_variables/orientation_3d_stamped.h>
-#include <fuse_variables/position_3d_stamped.h>
-#include <pcl/common/transforms.h>
-#include <pcl/io/pcd_io.h>
-
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/loam/LoamPointCloud.h>
 
@@ -29,10 +23,7 @@ class LidarMap {
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
    */
-  static LidarMap& GetInstance() {
-    static LidarMap instance;
-    return instance;
-  }
+  static LidarMap& GetInstance();
 
   /**
    * @brief set the parameters of this lidar map. Since this is implemented as a
@@ -41,36 +32,25 @@ class LidarMap {
    * then it'll disregard this call and output a warning.
    * @param map_size number of scans to store in this map
    */
-  bool SetParams(int map_size) {
-    if (map_params_set_ && map_size != map_size_) {
-      BEAM_ERROR("Map parameters already set, these cannot be changed.");
-      return false;
-    }
-
-    map_size_ = map_size;
-    map_params_set_ = true;
-    return true;
-  }
+  bool SetParams(int map_size);
 
   /**
    * @brief checks if no pointclouds have been added to this map
    * @return true if no clouds have been added (loam or regular pointclouds)
    */
-  bool Empty() const {
-    return loam_clouds_in_map_frame_.empty() && clouds_in_map_frame_.empty();
-  }
+  bool Empty() const;
 
   /**
    * @brief return the number of pointclouds currently stored
    * @return number of pcl pointclouds stored
    */
-  int NumPointClouds() const { return clouds_in_map_frame_.size(); }
+  int NumPointClouds() const;
 
   /**
    * @brief return the number of loam pointclouds currently stored
    * @return number of loam pointclouds stored
    */
-  int NumLoamClouds() const { return loam_clouds_in_map_frame_.size(); }
+  int NumLoamClouds() const;
 
   /**
    * @brief add pointcloud and convert to map frame. It will also remove
@@ -84,22 +64,7 @@ class LidarMap {
    * we will be frequently asking for the full map).
    */
   void AddPointCloud(const PointCloud& cloud, const ros::Time& stamp,
-                     const Eigen::Matrix4d& T_MAP_SCAN) {
-    // add cloud to map
-    PointCloud cloud_in_map_frame;
-    pcl::transformPointCloud(cloud, cloud_in_map_frame, T_MAP_SCAN);
-    clouds_in_map_frame_.emplace(stamp.toNSec(), cloud_in_map_frame);
-
-    // add pose
-    cloud_poses_.emplace(stamp.toNSec(), T_MAP_SCAN);
-
-    // remove cloud & pose if map is greater than max size
-    if (clouds_in_map_frame_.size() > map_size_) {
-      uint64_t first_scan_stamp = clouds_in_map_frame_.begin()->first;
-      clouds_in_map_frame_.erase(first_scan_stamp);
-      cloud_poses_.erase(first_scan_stamp);
-    }
-  }
+                     const Eigen::Matrix4d& T_MAP_SCAN);
 
   /**
    * @brief add loam pointcloud and convert to map frame. It will also remove
@@ -113,48 +78,40 @@ class LidarMap {
    * we will be frequently asking for the full map).
    */
   void AddPointCloud(const LoamPointCloud& cloud, const ros::Time& stamp,
-                     const Eigen::Matrix4d& T_MAP_SCAN) {
-    // add cloud to map
-    LoamPointCloud cloud_in_map_frame = cloud;
-    cloud_in_map_frame.TransformPointCloud(T_MAP_SCAN);
-    loam_clouds_in_map_frame_.emplace(stamp.toNSec(), cloud_in_map_frame);
-
-    // add pose
-    loam_cloud_poses_.emplace(stamp.toNSec(), T_MAP_SCAN);
-
-    // remove cloud & pose if map is greater than max size
-    if (loam_clouds_in_map_frame_.size() > map_size_) {
-      uint64_t first_scan_stamp = loam_clouds_in_map_frame_.begin()->first;
-      loam_clouds_in_map_frame_.erase(first_scan_stamp);
-      loam_cloud_poses_.erase(first_scan_stamp);
-    }
-  }
+                     const Eigen::Matrix4d& T_MAP_SCAN);
 
   /**
    * @brief returns combined pointcloud in map frame
    * @return pointcloud
    */
-  PointCloud GetPointCloudMap() const {
-    PointCloud cloud;
-    for (auto it = clouds_in_map_frame_.begin();
-         it != clouds_in_map_frame_.end(); it++) {
-      cloud += it->second;
-    }
-    return cloud;
-  }
+  PointCloud GetPointCloudMap() const;
 
   /**
    * @brief returns combined loam pointcloud in map frame
    * @return LoamPointCloud
    */
-  LoamPointCloud GetLoamCloudMap() const {
-    LoamPointCloud cloud;
-    for (auto it = loam_clouds_in_map_frame_.begin();
-         it != loam_clouds_in_map_frame_.end(); it++) {
-      cloud.Merge(it->second);
-    }
-    return cloud;
-  }
+  LoamPointCloud GetLoamCloudMap() const;
+
+  /**
+   * @brief Updates all points in a scan if that scan is currently saved in the
+   * map. It does this by checking for the timestmap in the loam_cloud_poses_ &
+   * cloud_poses_ maps. It also checks that the poses have changed by some
+   * minimum amount before iterating through all points and updating their
+   * positions.
+   * @param stamp time associated with the scan. This will be used to determine
+   * if the scan is current saved in the map or not.
+   * @param T_MAP_SCAN updated scan pose
+   * @param rotation_threshold_deg scans will only be updated if the new pose
+   * has a rotation change greater than this threshold. Note we use the angle
+   * part of Eigen::AxisAngle to determine difference in rotation.
+   * @param translation_threshold_m scans will only be updated if the new pose
+   * has a translation change greater than this threshold.
+   * @return true if scan was updated. It will return false if the new pose is
+   * too similar to the prev, or if the scan doesn't exist
+   */
+  bool UpdateScan(const ros::Time& stamp, const Eigen::Matrix4d& T_MAP_SCAN,
+                  double rotation_threshold_deg = 0.5,
+                  double translation_threshold_m = 0.005);
 
   /**
    * @brief save pointcloud of current scanpose
@@ -165,22 +122,7 @@ class LidarMap {
    * @param b blue color intensity (for non loam clouds only)
    */
   void Save(const std::string& save_path, bool add_frames = true,
-            uint8_t r = 255, uint8_t g = 255, uint8_t b = 255) const {
-    if (!loam_clouds_in_map_frame_.empty()) {
-      LoamPointCloud map = GetLoamCloudMap();
-      map.Save(save_path);
-    }
-    if (!clouds_in_map_frame_.empty()) {
-      PointCloud map = GetPointCloudMap();
-      PointCloudCol map_col = beam::ColorPointCloud(map, r, g, b);
-      PointCloudCol frame = beam::CreateFrameCol();
-      for (auto it = cloud_poses_.begin(); it != cloud_poses_.end(); it++) {
-        const Eigen::Matrix4d& T_MAP_SCAN = it->second;
-        beam::MergeFrameToCloud(map_col, frame, T_MAP_SCAN);
-      }
-      pcl::io::savePCDFileASCII(save_path + "pointcloud.pcd", map_col);
-    }
-  }
+            uint8_t r = 255, uint8_t g = 255, uint8_t b = 255) const;
 
   /**
    * @brief Delete copy constructor
@@ -198,10 +140,10 @@ class LidarMap {
    */
   LidarMap() = default;
 
-  std::map<uint64_t, LoamPointCloud> loam_clouds_in_map_frame_;
-  std::map<uint64_t, Eigen::Matrix4d> loam_cloud_poses_;
   std::map<uint64_t, PointCloud> clouds_in_map_frame_;
   std::map<uint64_t, Eigen::Matrix4d> cloud_poses_;
+  std::map<uint64_t, LoamPointCloud> loam_clouds_in_map_frame_;
+  std::map<uint64_t, Eigen::Matrix4d> loam_cloud_poses_;
   int map_size_{10};
   bool map_params_set_{false};
 };

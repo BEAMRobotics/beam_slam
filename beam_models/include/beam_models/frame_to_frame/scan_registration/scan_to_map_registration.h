@@ -79,22 +79,29 @@ class ScanToMapRegistrationBase : public ScanRegistrationBase {
  */
 class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
  public:
-  struct Params {
-    double outlier_threshold_t{0.3};
-    double outlier_threshold_r{20};
-    double min_motion_trans_m{0};
-    double min_motion_rot_rad{0};
-    std::string source{"SCANTOMAPREGISTRATION"};
-    bool fix_first_scan{false};
+  struct Params : public ScanRegistrationParamsBase {
+    Params() = default;
+
+    /** constructor that takes in a base params object */
+    Params(const ScanRegistrationParamsBase& base_params, int _map_size,
+           bool _store_full_cloud);
+
+    /** number of prev scans to save in the map */
     int map_size{10};
 
+    /** If set to true, it will extract the loam and regular point cloud from
+     * the scan poses, even though only the loam clouds are used for
+     * registration. The reason for this is that we may want to build a fully
+     * dense map for other purposes, but also build a loam map for registration.
+     */
+    bool store_full_cloud{true};
+
+    /** load derived params & base params */
     void LoadFromJson(const std::string& config);
   };
 
   ScanToMapLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
                             const Params& params);
-
-  const LidarMap& GetMap() const;
 
  private:
   bool IsMapEmpty() override;
@@ -111,7 +118,6 @@ class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
 
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher_;
   Params params_;
-  LidarMap& map_ = LidarMap::GetInstance();
 };
 
 }  // namespace frame_to_frame

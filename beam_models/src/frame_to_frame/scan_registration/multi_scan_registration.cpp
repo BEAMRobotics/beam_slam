@@ -2,8 +2,6 @@
 
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/transaction.h>
-#include <nlohmann/json.hpp>
-#include <boost/filesystem.hpp>
 
 #include <beam_matching/Matchers.h>
 
@@ -17,7 +15,16 @@ namespace frame_to_frame {
 using namespace beam_matching;
 using namespace beam_common;
 
-void MultiScanRegistrationBase::Params::LoadFromJson(const std::string& config) {
+MultiScanRegistrationBase::Params::Params(
+    const ScanRegistrationParamsBase& base_params, int _num_neighbors,
+    double _lag_duration, bool _disable_lidar_map)
+    : ScanRegistrationParamsBase(base_params),
+      num_neighbors(_num_neighbors),
+      lag_duration(_lag_duration),
+      disable_lidar_map(_disable_lidar_map) {}
+
+void MultiScanRegistrationBase::Params::LoadFromJson(
+    const std::string& config) {
   std::string read_file = config;
   if (config.empty()) {
     return;
@@ -44,19 +51,16 @@ void MultiScanRegistrationBase::Params::LoadFromJson(const std::string& config) 
     read_file = default_path;
   }
 
-  BEAM_INFO("Loading scan registration config file: {}", read_file);
+  // load default params
+  LoadBaseFromJson(read_file);
 
+  // load other params specific to this class
   nlohmann::json J;
   std::ifstream file(read_file);
   file >> J;
 
-  outlier_threshold_t = J["outlier_threshold_t"];
-  outlier_threshold_r = J["outlier_threshold_r"];
-  min_motion_trans_m = J["min_motion_trans_m"];
-  min_motion_rot_rad = J["min_motion_rot_rad"];
-  source = J["source"];
-  fix_first_scan = J["fix_first_scan"];
   num_neighbors = J["num_neighbors"];
+  disable_lidar_map = J["disable_lidar_map"];
 }
 
 MultiScanRegistrationBase::MultiScanRegistrationBase(const Params& params)
@@ -84,6 +88,10 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
     reference_clouds_.push_front(new_scan);
+    if (!params_.disable_lidar_map) {
+      map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(),
+                         new_scan.T_REFFRAME_CLOUD());
+    }
     if (params_.fix_first_scan) {
       // build covariance
       fuse_core::Matrix6d prior_covariance;
@@ -105,11 +113,17 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
 
   RemoveOldScans(new_scan.Stamp());
 
+  // for building a lidar map with multi scan registration, we will average the
+  // pose estimates from each scan registration. This stores the cumulative sum
+  // of all DOFs (x, y, z, rx, ry, rz)
+  std::vector<double> estimated_scan_poses_sum(6);
+
   int counter = 0;
   int num_constraints = 0;
   for (auto ref_iter = reference_clouds_.begin();
        ref_iter != reference_clouds_.end(); ref_iter++) {
     counter++;
+
     ROS_DEBUG("Matching against neighbor no. %d", counter);
 
     // run matcher to get refined cloud pose
@@ -117,6 +131,22 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     Eigen::Matrix<double, 6, 6> covariance;
     if (!MatchScans(*ref_iter, new_scan, T_CLOUDREF_CLOUDCURRENT, covariance)) {
       continue;
+    }
+
+    // keep track of all results so that we can average the transform for the
+    // lidar map
+    if (!params_.disable_lidar_map) {
+      const Eigen::Matrix4d& T_WORLD_CLOUDREF = (*ref_iter).T_REFFRAME_CLOUD();
+      Eigen::Matrix4d T_WORLD_CLOUDCURRENT =
+          T_WORLD_CLOUDREF * T_CLOUDREF_CLOUDCURRENT;
+      Eigen::Vector3d r =
+          beam::RToLieAlgebra(T_WORLD_CLOUDCURRENT.block(0, 0, 3, 3));
+      estimated_scan_poses_sum[0] += T_WORLD_CLOUDCURRENT(0, 3);
+      estimated_scan_poses_sum[1] += T_WORLD_CLOUDCURRENT(1, 3);
+      estimated_scan_poses_sum[2] += T_WORLD_CLOUDCURRENT(2, 3);
+      estimated_scan_poses_sum[3] += r[0];
+      estimated_scan_poses_sum[4] += r[1];
+      estimated_scan_poses_sum[5] += r[2];
     }
 
     // add measurement to transaction
@@ -130,6 +160,19 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
         covariance, params_.source);
 
     num_constraints++;
+  }
+
+  // calculate average and add to lidar map
+  if (!params_.disable_lidar_map) {
+    Eigen::Matrix4d T_WORLD_CLOUD_AVG = Eigen::Matrix4d::Identity();
+    Eigen::Vector3d r(estimated_scan_poses_sum[3] / num_constraints,
+                      estimated_scan_poses_sum[4] / num_constraints,
+                      estimated_scan_poses_sum[5] / num_constraints);
+    T_WORLD_CLOUD_AVG.block(0, 0, 3, 3) = beam::LieAlgebraToR(r);
+    T_WORLD_CLOUD_AVG(0, 3) = estimated_scan_poses_sum[0] / num_constraints;
+    T_WORLD_CLOUD_AVG(1, 3) = estimated_scan_poses_sum[1] / num_constraints;
+    T_WORLD_CLOUD_AVG(2, 3) = estimated_scan_poses_sum[2] / num_constraints;
+    map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(), T_WORLD_CLOUD_AVG);
   }
 
   // if no constraints were added for this scan, send empty transaction (don't

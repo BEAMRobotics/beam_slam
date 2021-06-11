@@ -41,6 +41,7 @@ add_library(${PROJECT_NAME}
   src/beam_common/common.cpp
   src/beam_common/pose_lookup.cpp
   src/beam_common/scan_pose.cpp
+  src/beam_common/lidar_map.cpp
   )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
