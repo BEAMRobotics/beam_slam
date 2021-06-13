@@ -66,6 +66,12 @@ bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
       frame_time_queue_.pop();
     }
     return true;
+  } else {
+    if (img_num_ < this->config_->min_init_raw_frames()) {
+      ROS_INFO("Initialization Attempt: Not Enough Frames.");
+    } else {
+      ROS_INFO("Initialization Attempt: Failed SFM or IMU Initialization.");
+    }
   }
   this->pending_frame_ = this->CreateFrame();
   if (img_num_ > this->config_->init_map_frames()) {

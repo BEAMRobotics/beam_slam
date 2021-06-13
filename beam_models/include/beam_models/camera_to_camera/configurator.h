@@ -64,15 +64,11 @@ public:
 
   Eigen::Matrix3d imu_accel_random_walk() const { return accl_random_walk; }
 
-  size_t init_map_frames() const { return 6; }
+  size_t init_map_frames() const { return 8; }
 
   size_t max_init_raw_frames() const { return (init_map_frames() - 1) * 3 + 1; }
 
   size_t min_init_raw_frames() const { return (init_map_frames() - 1) * 2 + 1; }
-
-  double solver_time_limit() const { return 1.0; }
-
-  size_t solver_iteration_limit() const { return 5; }
 
 private:
   Eigen::Matrix3d K;

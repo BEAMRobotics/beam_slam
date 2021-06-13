@@ -74,10 +74,13 @@ void VisualMap::addConstraint(
       this->getPosition(img_time);
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
       this->getOrientation(img_time);
-  fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
-      fuse_constraints::VisualConstraint::make_shared(
-          source_, *orientation, *position, *lm, pixel, T_imu_cam_, cam_model_);
-  transaction->addConstraint(vis_constraint);
+  if (position && orientation && lm) {
+    fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
+        fuse_constraints::VisualConstraint::make_shared(source_, *orientation,
+                                                        *position, *lm, pixel,
+                                                        T_imu_cam_, cam_model_);
+    transaction->addConstraint(vis_constraint);
+  }
 }
 
 fuse_variables::Orientation3DStamped::SharedPtr

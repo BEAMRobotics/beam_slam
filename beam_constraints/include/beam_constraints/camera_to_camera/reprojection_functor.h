@@ -36,9 +36,10 @@ public:
       const Eigen::Matrix4d& T_imu_cam)
       : A_(A), pixel_measurement_(pixel_measurement), cam_model_(cam_model) {
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
-        new ceres::NumericDiffCostFunction<beam_optimization::CameraProjectionFunctor,
-                                           ceres::CENTRAL, 2, 3>(
-            new beam_optimization::CameraProjectionFunctor(cam_model_, pixel_measurement_))));
+        new ceres::NumericDiffCostFunction<
+            beam_optimization::CameraProjectionFunctor, ceres::CENTRAL, 2, 3>(
+            new beam_optimization::CameraProjectionFunctor(
+                cam_model_, pixel_measurement_))));
     beam::TransformMatrixToQuaternionAndTranslation(T_imu_cam.inverse(),
                                                     Q_cam_imu_, t_cam_imu_);
   }
@@ -61,15 +62,19 @@ public:
     P_IMU[2] -= Rt[2];
 
     // T P_IMU[3];
-    // ceres::QuaternionRotatePoint(R_IMU_WORLD, P_WORLD, P_IMU);
+    // ceres::QuaternionRotatePoint(R_WORLD_IMU, P_WORLD, P_IMU);
     // P_IMU[0] += t_WORLD_IMU[0];
     // P_IMU[1] += t_WORLD_IMU[1];
     // P_IMU[2] += t_WORLD_IMU[2];
 
+    T R_CAM_IMU[4];
+    R_CAM_IMU[0] = (T)Q_cam_imu_.w();
+    R_CAM_IMU[1] = (T)Q_cam_imu_.x();
+    R_CAM_IMU[2] = (T)Q_cam_imu_.y();
+    R_CAM_IMU[3] = (T)Q_cam_imu_.z();
     // extrinsic transform (imu to camera)
     T P_CAMERA[3];
-    ceres::QuaternionRotatePoint(Q_cam_imu_.cast<T>().coeffs().data(), P_IMU,
-                                 P_CAMERA);
+    ceres::QuaternionRotatePoint(R_CAM_IMU, P_IMU, P_CAMERA);
     P_CAMERA[0] += t_cam_imu_.cast<T>()[0];
     P_CAMERA[1] += t_cam_imu_.cast<T>()[1];
     P_CAMERA[2] += t_cam_imu_.cast<T>()[2];
