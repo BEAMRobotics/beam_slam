@@ -31,10 +31,10 @@ class ExtrinsicsLookup {
   };
 
   /**
-   * @brief Constructor
-   * @param params all input params required. See struct above
+   * @brief Static Instance getter (singleton)
+   * @return reference to the singleton
    */
-  ExtrinsicsLookup(const Params& params);
+  static ExtrinsicsLookup& GetInstance();
 
   /**
    * @brief Gets the extrinsics between camera and imu
@@ -89,13 +89,43 @@ class ExtrinsicsLookup {
   bool GetT_LIDAR_IMU(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));
 
   Params params;
-  
+
  private:
- bool GetTransform(Eigen::Matrix4d& T, const std::string& to_frame,
-                              const std::string& from_frame,
-                              const ros::Time& time);
+  /**
+   * @brief Constructor
+   * @param params all input params required. See struct above
+   */
+  ExtrinsicsLookup(const Params& params);
+
+  /**
+   * @brief default constructor
+   */
+  ExtrinsicsLookup() = delete;
+
+  /**
+   * @brief copy constructor
+   */
+  ExtrinsicsLookup(const ExtrinsicsLookup&);
+
+  /**
+   * @brief copy assignment operator
+   */
+  ExtrinsicsLookup& operator=(const ExtrinsicsLookup&);
+
+  static ExtrinsicsLookup& instance_;
+
+  bool GetTransform(Eigen::Matrix4d& T, const std::string& to_frame,
+                    const std::string& from_frame, const ros::Time& time);
 
   tf::TransformListener tf_listener_;
+
+  fuse_variables::Position3DStamped imu_position;     // identity
+  fuse_variables::Position3DStamped camera_position;  // t_BASELINK_CAMERA
+  fuse_variables::Position3DStamped lidar_position;   // t_BASELINK_LIDAR
+
+  fuse_variables::Orientation3DStamped imu_orientation;
+  fuse_variables::Orientation3DStamped camera_orientation;  // R_BASELINK_CAMERA
+  fuse_variables::Orientation3DStamped lidar_orientation;   // R_BASELINK_LIDAR
 
   Eigen::Matrix4d T_LIDAR_IMU_;
   Eigen::Matrix4d T_LIDAR_CAMERA_;

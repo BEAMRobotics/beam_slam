@@ -5,6 +5,24 @@
 
 namespace beam_common {
 
+ExtrinsicsLookup& ExtrinsicsLookup::instance_ = NULL;
+
+static ExtrinsicsLookup& ExtrinsicsLookup::GetInstance() {
+  if (instance_ == NULL) {
+    ExtrinsicsLookup::Params params;
+
+    // get extrinsics params from global namespace
+    ros::param::get("~imu_frame", params.imu_frame);
+    ros::param::get("~camera_frame", params.camera_frame);
+    ros::param::get("~lidar_frame", params.lidar_frame);
+    ros::param::get("~static_extrinsics", params.static_extrinsics);
+
+    instance_ = new ExtrinsicsLookup(params);
+  }
+
+  return instance_;
+}
+
 ExtrinsicsLookup::ExtrinsicsLookup(const Params& params) : params(params) {
   if (params.imu_frame.empty() || params.camera_frame.empty() ||
       params.lidar_frame.empty()) {
@@ -18,18 +36,18 @@ ExtrinsicsLookup::ExtrinsicsLookup(const Params& params) : params(params) {
 bool ExtrinsicsLookup::GetT_CAMERA_IMU(Eigen::Matrix4d& T,
                                        const ros::Time& time) {
   // check if already known
-  if(params.static_extrinsics && T_IMU_CAMERA_set_){
+  if (params.static_extrinsics && T_IMU_CAMERA_set_) {
     T = beam::InvertTransform(T_IMU_CAMERA_);
     return true
   }
-  
+
   // get extrinsics
   if (!GetTransform(T, params.camera_frame, params.imu_frame, time)) {
     return false;
   }
 
   // if extrinsics are set, we never have to recalculate this
-  if(params.static_extrinsics){
+  if (params.static_extrinsics) {
     T_IMU_CAMERA_ = beam::InvertTransform(T);
     T_IMU_CAMERA_set_ = true;
   }
@@ -39,18 +57,18 @@ bool ExtrinsicsLookup::GetT_CAMERA_IMU(Eigen::Matrix4d& T,
 bool ExtrinsicsLookup::GetT_IMU_CAMERA(Eigen::Matrix4d& T,
                                        const ros::Time& time) {
   // check if already known
-  if(params.static_extrinsics && T_IMU_CAMERA_set_){
+  if (params.static_extrinsics && T_IMU_CAMERA_set_) {
     T = T_IMU_CAMERA_;
     return true
   }
-  
+
   // get extrinsics
   if (!GetTransform(T, params.imu_frame, params.camera_frame, time)) {
     return false;
   }
 
   // if extrinsics are set, we never have to recalculate this
-  if(params.static_extrinsics){
+  if (params.static_extrinsics) {
     T_IMU_CAMERA_ = T;
     T_IMU_CAMERA_set_ = true;
   }
@@ -58,20 +76,20 @@ bool ExtrinsicsLookup::GetT_IMU_CAMERA(Eigen::Matrix4d& T,
 }
 
 bool ExtrinsicsLookup::GetT_CAMERA_LIDAR(Eigen::Matrix4d& T,
-                                       const ros::Time& time) {
+                                         const ros::Time& time) {
   // check if already known
-  if(params.static_extrinsics && T_LIDAR_CAMERA_set_){
+  if (params.static_extrinsics && T_LIDAR_CAMERA_set_) {
     T = beam::InvertTransform(T_LIDAR_CAMERA_);
     return true
   }
-  
+
   // get extrinsics
   if (!GetTransform(T, params.camera_frame, params.lidar_frame, time)) {
     return false;
   }
 
   // if extrinsics are set, we never have to recalculate this
-  if(params.static_extrinsics){
+  if (params.static_extrinsics) {
     T_LIDAR_CAMERA_ = beam::InvertTransform(T);
     T_LIDAR_CAMERA_set_ = true;
   }
@@ -79,20 +97,20 @@ bool ExtrinsicsLookup::GetT_CAMERA_LIDAR(Eigen::Matrix4d& T,
 }
 
 bool ExtrinsicsLookup::GetT_LIDAR_CAMERA(Eigen::Matrix4d& T,
-                                       const ros::Time& time) {
+                                         const ros::Time& time) {
   // check if already known
-  if(params.static_extrinsics && T_LIDAR_CAMERA_set_){
+  if (params.static_extrinsics && T_LIDAR_CAMERA_set_) {
     T = T_LIDAR_CAMERA_;
     return true
   }
-  
+
   // get extrinsics
   if (!GetTransform(T, params.lidar_frame, params.camera_frame, time)) {
     return false;
   }
 
   // if extrinsics are set, we never have to recalculate this
-  if(params.static_extrinsics){
+  if (params.static_extrinsics) {
     T_LIDAR_CAMERA_ = T;
     T_LIDAR_CAMERA_set_ = true;
   }
@@ -100,20 +118,20 @@ bool ExtrinsicsLookup::GetT_LIDAR_CAMERA(Eigen::Matrix4d& T,
 }
 
 bool ExtrinsicsLookup::GetT_IMU_LIDAR(Eigen::Matrix4d& T,
-                                       const ros::Time& time) {
+                                      const ros::Time& time) {
   // check if already known
-  if(params.static_extrinsics && T_LIDAR_IMU_set_){
+  if (params.static_extrinsics && T_LIDAR_IMU_set_) {
     T = beam::InvertTransform(T_LIDAR_IMU_);
     return true
   }
-  
+
   // get extrinsics
   if (!GetTransform(T, params.imu_frame, params.lidar_frame, time)) {
     return false;
   }
 
   // if extrinsics are set, we never have to recalculate this
-  if(params.static_extrinsics){
+  if (params.static_extrinsics) {
     T_LIDAR_IMU_ = beam::InvertTransform(T);
     T_LIDAR_IMU_set_ = true;
   }
@@ -121,40 +139,39 @@ bool ExtrinsicsLookup::GetT_IMU_LIDAR(Eigen::Matrix4d& T,
 }
 
 bool ExtrinsicsLookup::GetT_LIDAR_IMU(Eigen::Matrix4d& T,
-                                       const ros::Time& time) {
+                                      const ros::Time& time) {
   // check if already known
-  if(params.static_extrinsics && T_LIDAR_IMU_set_){
+  if (params.static_extrinsics && T_LIDAR_IMU_set_) {
     T = T_LIDAR_IMU_;
     return true
   }
-  
+
   // get extrinsics
   if (!GetTransform(T, params.lidar_frame, params.imu_frame, time)) {
     return false;
   }
 
   // if extrinsics are set, we never have to recalculate this
-  if(params.static_extrinsics){
+  if (params.static_extrinsics) {
     T_LIDAR_IMU_ = T;
     T_LIDAR_IMU_set_ = true;
   }
   return true;
 }
 
-bool ExtrinsicsLookup::GetTransform(Eigen::Matrix4d& T, const std::string& to_frame,
-                              const std::string& from_frame,
-                              const ros::Time& time) {
+bool ExtrinsicsLookup::GetTransform(Eigen::Matrix4d& T,
+                                    const std::string& to_frame,
+                                    const std::string& from_frame,
+                                    const ros::Time& time) {
   tf::StampedTransform TROS;
   try {
-    tf_listener_.lookupTransform(to_frame, from_frame,
-                                 time, TROS);
+    tf_listener_.lookupTransform(to_frame, from_frame, time, TROS);
   } catch (tf::TransformException& ex) {
     if (params.static_extrinsics) {
       BEAM_WARN("Cannot lookup static extrinsics between frames: {} , {}",
                 to_frame, from_frame);
     } else {
-      BEAM_WARN("Cannot lookup dynamic extrinsics for t = %.10f",
-                time.toSec());
+      BEAM_WARN("Cannot lookup dynamic extrinsics for t = %.10f", time.toSec());
     }
     return false;
   }

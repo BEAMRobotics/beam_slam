@@ -51,11 +51,9 @@ class Submap {
    * @brief constructor that requires a pose and stamp for the submap.
    * @param T_WORLD_SUBMAP pose in matrix form
    * @param stamp timestamp associated with the submap pose
-   * @param extrinsics extrinsics lookup object
    * @param camera_model camera model, used for kepoint triangulation and BA
    */
   Submap(const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP,
-         const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
          const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
 
   /**
@@ -63,13 +61,11 @@ class Submap {
    * @param position t_WORLD_SUBMAP
    * @param orientation R_WORLD_SUBMAP
    * @param stamp timestamp associated with the submap pose
-   * @param extrinsics extrinsics lookup object
    * @param camera_model camera model, used for kepoint triangulation and BA
    */
   Submap(const ros::Time& stamp,
          const fuse_variables::Position3DStamped& position,
          const fuse_variables::Orientation3DStamped& orientation,
-         const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
          const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
 
   /**
@@ -269,7 +265,8 @@ class Submap {
   int graph_updates_{0};
   fuse_variables::Position3DStamped position_;        // t_WORLD_SUBMAP
   fuse_variables::Orientation3DStamped orientation_;  // R_WORLD_SUBMAP
-  std::shared_ptr<ExtrinsicsLookup> extrinsics_;
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
   Eigen::Matrix4d T_WORLD_SUBMAP_;  // this get recomputed when fuse vars change
   Eigen::Matrix4d T_WORLD_SUBMAP_initial_;  // = T_WORLDLM_SUBMAP
   Eigen::Matrix4d T_SUBMAP_WORLD_initial_;  // = T_SUBMAP_WORLDLM
