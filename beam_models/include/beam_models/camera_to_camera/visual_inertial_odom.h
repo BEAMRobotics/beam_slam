@@ -112,15 +112,10 @@ private:
   beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
 
   /**
-   * @brief Calculates reprojection error of a point projected into pose
-   * @param point to project
-   * @param pose to transform point into
-   * @param threshold reproj error threshold
-   * @return if inlier or not
+   * @brief Triangulates a feature track
+   * @param feature track to triangulate
+   * @return the 3d location of the feature
    */
-  bool isInlier(Eigen::Vector3d p_world, Eigen::Matrix4d T_world_cam,
-                Eigen::Vector2d observed_pixel, double threshold);
-
   void addIMUConstraint(ros::Time keyframe_time,
                         std::shared_ptr<fuse_core::Transaction> transaction);
 
@@ -143,7 +138,6 @@ protected:
   // most recent keyframe timestamp
   ros::Time cur_kf_time_;
   std::deque<uint64_t> keyframes_;
-  std::map<uint64_t, Eigen::Matrix4d> non_keyframe_poses_;
   std::map<uint64_t, cv::Mat> kf_images_;
   std::string source_ = "VO";
   Eigen::Matrix4d T_imu_cam_;

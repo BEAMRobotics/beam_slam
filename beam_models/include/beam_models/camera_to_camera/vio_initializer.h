@@ -2,6 +2,7 @@
 // libbeam
 #include <beam_calibration/CameraModels.h>
 #include <beam_calibration/ConvertCameraModel.h>
+#include <beam_cv/Utils.h>
 #include <beam_cv/geometry/Triangulation.h>
 // ros
 #include <sensor_msgs/Imu.h>
@@ -20,6 +21,11 @@
 
 namespace beam_models { namespace camera_to_camera {
 
+typedef std::map<
+    uint64_t, Eigen::Matrix4d, std::less<uint64_t>,
+    Eigen::aligned_allocator<std::pair<const uint64_t, Eigen::Matrix4d>>>
+    PoseMap;
+
 class VIOInitializer {
 public:
   VIOInitializer() = default;
@@ -28,8 +34,8 @@ public:
    * @brief Custom Constructor
    */
   VIOInitializer(std::shared_ptr<beam_calibration::CameraModel> input_cam_model,
-                 Eigen::Matrix4d T_imu_cam, Eigen::Vector4d imu_intrinsics,
-                 double rectify_scale = 1.0);
+                 const Eigen::Matrix4d& T_imu_cam,
+                 const Eigen::Vector4d& imu_intrinsics);
 
   /**
    * @brief Adds an image to the initializer, returns pass or fail
@@ -44,13 +50,13 @@ public:
    * @param lin_accel linear acceleration
    * @param cur_time timestamp of imu measurement
    */
-  void AddIMU(Eigen::Vector3d ang_vel, Eigen::Vector3d lin_accel,
+  void AddIMU(const Eigen::Vector3d& ang_vel, const Eigen::Vector3d& lin_accel,
               ros::Time cur_time);
 
   /**
    * @brief Returns the map of poses in sliding window, in imu frame
    */
-  std::map<unsigned long, Eigen::Matrix4d> GetPoses();
+  PoseMap GetPoses();
 
   /**
    * @brief Fills the estimated bias parameters
@@ -81,10 +87,8 @@ protected:
 
   bool is_initialized_ = false;
   int img_num_ = 0;
-  double resize_scale_;
-  double rectify_scale_;
 
-  std::map<unsigned long, Eigen::Matrix4d> tracker_poses_;
+  PoseMap tracker_poses_;
   std::queue<ros::Time> frame_time_queue_;
 };
 

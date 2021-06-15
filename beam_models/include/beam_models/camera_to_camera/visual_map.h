@@ -18,9 +18,8 @@ namespace beam_models { namespace camera_to_camera {
 
 class VisualMap {
 public:
-  VisualMap(std::string source,
-            std::shared_ptr<beam_calibration::CameraModel> cam_model,
-            Eigen::Matrix4d T_imu_cam);
+  VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+            const Eigen::Matrix4d& T_imu_cam);
 
   ~VisualMap() = default;
 
@@ -82,7 +81,8 @@ public:
       getPosition(const ros::Time& stamp);
 
 protected:
-  // these store the most up to date variables for in between optimization cycles
+  // these store the most up to date variables for in between optimization
+  // cycles
   std::unordered_map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;
   std::unordered_map<uint64_t, fuse_variables::Position3DStamped::SharedPtr>
@@ -92,7 +92,7 @@ protected:
   // current graph
   fuse_core::Graph::ConstSharedPtr graph_;
   bool graph_initialized = false;
-  std::string source_;
+  std::string source_ = "VO";
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   Eigen::Matrix4d T_imu_cam_;
 };

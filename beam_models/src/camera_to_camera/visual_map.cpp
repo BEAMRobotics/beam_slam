@@ -4,10 +4,9 @@
 
 namespace beam_models { namespace camera_to_camera {
 
-VisualMap::VisualMap(std::string source,
-                     std::shared_ptr<beam_calibration::CameraModel> cam_model,
-                     Eigen::Matrix4d T_imu_cam)
-    : source_(source), cam_model_(cam_model), T_imu_cam_(T_imu_cam) {}
+VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+                     const Eigen::Matrix4d& T_imu_cam)
+    : cam_model_(cam_model), T_imu_cam_(T_imu_cam) {}
 
 void VisualMap::addPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
                         const ros::Time& cur_time,

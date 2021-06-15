@@ -4,30 +4,20 @@ namespace beam_models { namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> input_cam_model,
-    Eigen::Matrix4d T_imu_cam, Eigen::Vector4d imu_intrinsics,
-    double rectify_scale) {
-  this->rectify_scale_ = rectify_scale;
-  this->resize_scale_ = 1 / this->rectify_scale_;
-
+    const Eigen::Matrix4d& T_imu_cam, const Eigen::Vector4d& imu_intrinsics) {
   this->cam_model_ = input_cam_model->Clone();
   Eigen::VectorXd intrinsics = this->cam_model_->GetIntrinsics();
-  intrinsics[0] = intrinsics[0] * this->resize_scale_;
-  intrinsics[1] = intrinsics[1] * this->resize_scale_;
   intrinsics[2] = cam_model_->GetWidth() / 2;
   intrinsics[3] = cam_model_->GetHeight() / 2;
   this->cam_model_->SetIntrinsics(intrinsics);
 
   this->config_ = std::make_shared<CameraConfig>(
       this->cam_model_, T_imu_cam, Eigen::Matrix4d::Identity(), imu_intrinsics);
-
-  Eigen::Vector2i image_size_out(
-      this->rectify_scale_ * this->cam_model_->GetHeight(),
-      this->rectify_scale_ * this->cam_model_->GetWidth());
   // create image rectifier
   Eigen::Vector2i image_size(input_cam_model->GetHeight(),
                              input_cam_model->GetWidth());
   this->rectifier_ = std::make_shared<beam_calibration::UndistortImages>(
-      input_cam_model, image_size, image_size_out);
+      input_cam_model, image_size, image_size);
   // create initializer
   this->initializer_ = std::make_unique<VigInitializer>(config_);
   this->pending_frame_ = this->CreateFrame();
@@ -38,7 +28,6 @@ bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
   // construct slamtools image objects
   std::shared_ptr<OpenCvImage> img = std::make_shared<OpenCvImage>(cur_img);
   img->correct_distortion(rectifier_);
-  if (this->resize_scale_ != 1.0) { img->resize(this->resize_scale_); }
   img->t = cur_time.toSec();
   pending_frame_->image = img;
   // add the timestamp to the queue
@@ -49,7 +38,7 @@ bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
   if (std::unique_ptr<SlidingWindow> sw = initializer_->init()) {
     sliding_window_.swap(sw);
     is_initialized_ = true;
-    ROS_INFO("VIO Initialization Success. Returning.");
+    ROS_INFO("Initialization Attempt: Success.");
     for (int i = 0; i < this->config_->init_map_frames(); i++) {
       ros::Time time = frame_time_queue_.front();
       // get frame pose from sliding window
@@ -80,7 +69,8 @@ bool VIOInitializer::AddImage(cv::Mat cur_img, ros::Time cur_time) {
   return false;
 }
 
-void VIOInitializer::AddIMU(Eigen::Vector3d ang_vel, Eigen::Vector3d lin_accel,
+void VIOInitializer::AddIMU(const Eigen::Vector3d& ang_vel,
+                            const Eigen::Vector3d& lin_accel,
                             ros::Time cur_time) {
   IMUData imu_data;
   imu_data.t = cur_time.toSec();
@@ -89,7 +79,7 @@ void VIOInitializer::AddIMU(Eigen::Vector3d ang_vel, Eigen::Vector3d lin_accel,
   pending_frame_->preintegration.data.push_back(imu_data);
 }
 
-std::map<unsigned long, Eigen::Matrix4d> VIOInitializer::GetPoses() {
+PoseMap VIOInitializer::GetPoses() {
   if (is_initialized_) return tracker_poses_;
 }
 
