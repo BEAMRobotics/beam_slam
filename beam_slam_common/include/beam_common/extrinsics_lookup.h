@@ -37,11 +37,6 @@ class ExtrinsicsLookup {
   static ExtrinsicsLookup& GetInstance();
 
   /**
-   * @brief default constructor
-   */
-  ExtrinsicsLookup() = delete;
-
-  /**
    * @brief copy constructor
    */
   ExtrinsicsLookup(const ExtrinsicsLookup& other) = delete;
@@ -107,10 +102,9 @@ class ExtrinsicsLookup {
 
  private:
   /**
-   * @brief Constructor
-   * @param params all input params required. See struct above
+   * @brief default constructor
    */
-  ExtrinsicsLookup(const Params& params);
+  ExtrinsicsLookup();
 
   bool GetTransform(Eigen::Matrix4d& T, const std::string& to_frame,
                     const std::string& from_frame, const ros::Time& time);

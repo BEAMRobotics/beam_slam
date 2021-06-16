@@ -5,29 +5,31 @@
 
 namespace beam_common {
 
-ExtrinsicsLookup& ExtrinsicsLookup::GetInstance() {
+void ExtrinsicsLookup::GetParams() {
+  bool is_empty = (params.imu_frame.empty() || params.camera_frame.empty() ||
+                   params.lidar_frame.empty());
 
-  ExtrinsicsLookup::Params params;
+  // get parameters from parameter server
+  if (is_empty) {
+    ros::param::get("~imu_frame", params.imu_frame);
+    ros::param::get("~camera_frame", params.camera_frame);
+    ros::param::get("~lidar_frame", params.lidar_frame);
+    ros::param::get("~static_extrinsics", params.static_extrinsics);
+  }
 
-  // get extrinsics params from global namespace
-  ros::param::get("~imu_frame", params.imu_frame);
-  ros::param::get("~camera_frame", params.camera_frame);
-  ros::param::get("~lidar_frame", params.lidar_frame);
-  ros::param::get("~static_extrinsics", params.static_extrinsics);
-
-  static ExtrinsicsLookup instance_(params);
-
-  return instance_;
-}
-
-ExtrinsicsLookup::ExtrinsicsLookup(const Params& params) : params(params) {
-  if (params.imu_frame.empty() || params.camera_frame.empty() ||
-      params.lidar_frame.empty()) {
+  // validate parameters
+  if (is_empty) {
     BEAM_ERROR(
         "Inputs to ExtrinsicsLookup invalid. You must supply a frame name for "
         "each of the 3 sensor types: imu, camera, lidar");
     throw std::invalid_argument{"Inputs to ExtrinsicsLookup invalid."};
   }
+}
+
+ExtrinsicsLookup& ExtrinsicsLookup::GetInstance() {
+  GetParams();
+  static ExtrinsicsLookup instance_;
+  return instance_;
 }
 
 bool ExtrinsicsLookup::GetT_CAMERA_IMU(Eigen::Matrix4d& T,
