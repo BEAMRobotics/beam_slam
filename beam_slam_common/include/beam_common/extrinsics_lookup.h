@@ -104,7 +104,7 @@ class ExtrinsicsLookup {
   /**
    * @brief default constructor
    */
-  ExtrinsicsLookup();
+  ExtrinsicsLookup() = default;
 
   bool GetTransform(Eigen::Matrix4d& T, const std::string& to_frame,
                     const std::string& from_frame, const ros::Time& time);

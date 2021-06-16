@@ -6,23 +6,22 @@
 namespace beam_common {
 
 void ExtrinsicsLookup::GetParams() {
-  bool is_empty = (params.imu_frame.empty() || params.camera_frame.empty() ||
-                   params.lidar_frame.empty());
-
-  // get parameters from parameter server
-  if (is_empty) {
+  // get parameters from global namespace
+  if (params.imu_frame.empty() || params.camera_frame.empty() ||
+      params.lidar_frame.empty()) {
     ros::param::get("~imu_frame", params.imu_frame);
     ros::param::get("~camera_frame", params.camera_frame);
     ros::param::get("~lidar_frame", params.lidar_frame);
     ros::param::get("~static_extrinsics", params.static_extrinsics);
-  }
 
-  // validate parameters
-  if (is_empty) {
-    BEAM_ERROR(
-        "Inputs to ExtrinsicsLookup invalid. You must supply a frame name for "
-        "each of the 3 sensor types: imu, camera, lidar");
-    throw std::invalid_argument{"Inputs to ExtrinsicsLookup invalid."};
+    // validate parameters
+    if (params.imu_frame.empty() || params.camera_frame.empty() ||
+        params.lidar_frame.empty()) {
+      BEAM_ERROR(
+          "Inputs to ExtrinsicsLookup invalid. You must supply a frame name "
+          "for each of the 3 sensor types: imu, camera, lidar");
+      throw std::invalid_argument{"Inputs to ExtrinsicsLookup invalid."};
+    }
   }
 }
 
