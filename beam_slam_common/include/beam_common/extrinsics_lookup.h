@@ -55,7 +55,7 @@ class ExtrinsicsLookup {
                        const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between camera and imu
+   * @brief Gets the extrinsics between imu and camera
    * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
    * @return true if lookup was successful
@@ -73,7 +73,7 @@ class ExtrinsicsLookup {
                          const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between camera and lidar
+   * @brief Gets the extrinsics between lidar and camera
    * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
    * @return true if lookup was successful
@@ -82,7 +82,7 @@ class ExtrinsicsLookup {
                          const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between lidar and IMU
+   * @brief Gets the extrinsics between IMU and lidar
    * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
    * @return true if lookup was successful
