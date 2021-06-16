@@ -5,7 +5,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 // beam_slam
-#include <beam_models/camera_to_camera/vio_initializer.h>
+#include <beam_models/camera_to_camera/lvio_initializer.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 #include <beam_parameters/models/vio_params.h>
@@ -78,28 +78,6 @@ protected:
 
 private:
   /**
-   * @brief Registers a frame against the current map
-   * @param img_time timestamp of the image to register (must have previously
-   * been added to the tracker)
-   * @return the transaction containing the frame information
-   */
-  std::shared_ptr<fuse_core::Transaction>
-      registerFrame(const cv::Mat& image, const ros::Time& img_time);
-
-  /**
-   * @brief Initializes the map with values in the initializer after it has
-   * succeeded
-   * @return the transaction containing all map init information
-   */
-  std::shared_ptr<fuse_core::Transaction> initMap();
-
-  /**
-   * @brief Initializes the imu preint object with values form the
-   * initialization
-   */
-  void initIMU();
-
-  /**
    * @brief Converts ros image message to opencv image
    */
   cv::Mat extractImage(const sensor_msgs::Image& msg);
@@ -111,13 +89,7 @@ private:
    */
   beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
 
-  /**
-   * @brief Triangulates a feature track
-   * @param feature track to triangulate
-   * @return the 3d location of the feature
-   */
-  void addIMUConstraint(ros::Time keyframe_time,
-                        std::shared_ptr<fuse_core::Transaction> transaction);
+  bool IsKeyframe(ros::Time img_time);
 
 protected:
   int img_num_{0};
@@ -133,16 +105,17 @@ protected:
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
-  std::shared_ptr<VIOInitializer> initializer_;
+  std::shared_ptr<beam_models::camera_to_camera::LVIOInitializer> initializer_;
   std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
   // most recent keyframe timestamp
-  ros::Time cur_kf_time_;
+  ros::Time cur_kf_time_ = ros::Time(0);
   std::deque<uint64_t> keyframes_;
-  std::map<uint64_t, cv::Mat> kf_images_;
   std::string source_ = "VO";
   Eigen::Matrix4d T_imu_cam_;
   // stores all access to graph
   std::shared_ptr<VisualMap> visual_map_;
+  ros::Time last_stamp_;
+  nav_msgs::Path path_;
 };
 
 }} // namespace beam_models::camera_to_camera

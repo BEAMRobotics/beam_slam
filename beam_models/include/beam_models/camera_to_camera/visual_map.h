@@ -21,6 +21,10 @@ public:
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
             const Eigen::Matrix4d& T_imu_cam);
 
+  VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+            fuse_core::Graph::SharedPtr local_graph,
+            const Eigen::Matrix4d& T_imu_cam);
+
   ~VisualMap() = default;
 
   /**
@@ -41,7 +45,7 @@ public:
    * @param track feature track of current image
    */
   void addPose(const Eigen::Matrix4d& pose, const ros::Time& cur_time,
-               std::shared_ptr<fuse_core::Transaction> transaction);
+               std::shared_ptr<fuse_core::Transaction> transaction = nullptr);
 
   /**
    * @brief Helper function to add a new landmark variable to a transaction
@@ -49,16 +53,17 @@ public:
    * imu before adding
    * @param track feature track of current image
    */
-  void addLandmark(const Eigen::Vector3d& p, uint64_t id,
-                   std::shared_ptr<fuse_core::Transaction> transaction);
+  void
+      addLandmark(const Eigen::Vector3d& p, uint64_t id,
+                  std::shared_ptr<fuse_core::Transaction> transactio = nullptr);
 
   /**
    * @brief Helper function to add a constraint between a landmark and a pose
    * @param track feature track of current image
    */
-  void addConstraint(const ros::Time& img_time, uint64_t lm_id,
-                     const Eigen::Vector2d& pixel,
-                     std::shared_ptr<fuse_core::Transaction> transaction);
+  void addConstraint(
+      const ros::Time& img_time, uint64_t lm_id, const Eigen::Vector2d& pixel,
+      std::shared_ptr<fuse_core::Transaction> transaction = nullptr);
 
   /**
    * @brief Updates current graph copy
@@ -90,6 +95,7 @@ protected:
   std::unordered_map<uint64_t, fuse_variables::Position3D::SharedPtr>
       landmark_positions_;
   // current graph
+  fuse_core::Graph::SharedPtr local_graph_;
   fuse_core::Graph::ConstSharedPtr graph_;
   bool graph_initialized = false;
   std::string source_ = "VO";

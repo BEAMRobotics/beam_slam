@@ -40,44 +40,49 @@ public:
             beam_optimization::CameraProjectionFunctor, ceres::CENTRAL, 2, 3>(
             new beam_optimization::CameraProjectionFunctor(
                 cam_model_, pixel_measurement_))));
-    beam::TransformMatrixToQuaternionAndTranslation(T_imu_cam.inverse(),
-                                                    Q_cam_imu_, t_cam_imu_);
+    T_imu_cam_ = T_imu_cam;
   }
 
   template <typename T>
   bool operator()(const T* const R_WORLD_IMU, const T* const t_WORLD_IMU,
                   const T* const P_WORLD, T* residual) const {
-    T R_IMU_WORLD[4];
-    R_IMU_WORLD[0] = R_WORLD_IMU[0];
-    R_IMU_WORLD[1] = -R_WORLD_IMU[1];
-    R_IMU_WORLD[2] = -R_WORLD_IMU[2];
-    R_IMU_WORLD[3] = -R_WORLD_IMU[3];
-    // rotate and translate point (world to imu frame)
-    T P_IMU[3];
-    ceres::QuaternionRotatePoint(R_IMU_WORLD, P_WORLD, P_IMU);
-    T Rt[3];
-    ceres::QuaternionRotatePoint(R_IMU_WORLD, t_WORLD_IMU, Rt);
-    P_IMU[0] -= Rt[0];
-    P_IMU[1] -= Rt[1];
-    P_IMU[2] -= Rt[2];
+    Eigen::Matrix<T, 4, 4> T_IMU_CAM = T_imu_cam_.cast<T>();
 
-    // T P_IMU[3];
-    // ceres::QuaternionRotatePoint(R_WORLD_IMU, P_WORLD, P_IMU);
-    // P_IMU[0] += t_WORLD_IMU[0];
-    // P_IMU[1] += t_WORLD_IMU[1];
-    // P_IMU[2] += t_WORLD_IMU[2];
+    T R_WORLD_IMU_mat[9];
+    ceres::QuaternionToRotation(R_WORLD_IMU, R_WORLD_IMU_mat);
 
-    T R_CAM_IMU[4];
-    R_CAM_IMU[0] = (T)Q_cam_imu_.w();
-    R_CAM_IMU[1] = (T)Q_cam_imu_.x();
-    R_CAM_IMU[2] = (T)Q_cam_imu_.y();
-    R_CAM_IMU[3] = (T)Q_cam_imu_.z();
-    // extrinsic transform (imu to camera)
+    Eigen::Matrix<T, 4, 4> T_WORLD_IMU;
+    T_WORLD_IMU(0,0) = R_WORLD_IMU_mat[0];
+    T_WORLD_IMU(0,1) = R_WORLD_IMU_mat[1];
+    T_WORLD_IMU(0,2) = R_WORLD_IMU_mat[2];
+    T_WORLD_IMU(0,3) = t_WORLD_IMU[0];
+    T_WORLD_IMU(1,0) = R_WORLD_IMU_mat[3];
+    T_WORLD_IMU(1,1) = R_WORLD_IMU_mat[4];
+    T_WORLD_IMU(1,2) = R_WORLD_IMU_mat[5];
+    T_WORLD_IMU(1,3) = t_WORLD_IMU[1];
+    T_WORLD_IMU(2,0) = R_WORLD_IMU_mat[6];
+    T_WORLD_IMU(2,1) = R_WORLD_IMU_mat[7];
+    T_WORLD_IMU(2,2) = R_WORLD_IMU_mat[8];
+    T_WORLD_IMU(2,3) = t_WORLD_IMU[2];
+    T_WORLD_IMU(3,0) = (T)0;
+    T_WORLD_IMU(3,1) = (T)0;
+    T_WORLD_IMU(3,2) = (T)0;
+    T_WORLD_IMU(3,3) = (T)1;
+
+
+    Eigen::Matrix<T, 4, 1> P_WORLD_h;
+    P_WORLD_h[0] = P_WORLD[0];
+    P_WORLD_h[1] = P_WORLD[1];
+    P_WORLD_h[2] = P_WORLD[2];
+    P_WORLD_h[3] = (T)1;
+
+    Eigen::Matrix<T, 4, 1> P_IMU_h = T_WORLD_IMU.inverse() * P_WORLD_h;
+    Eigen::Matrix<T, 3, 1> P_CAM =
+        (T_IMU_CAM.inverse() * P_IMU_h ).hnormalized();
     T P_CAMERA[3];
-    ceres::QuaternionRotatePoint(R_CAM_IMU, P_IMU, P_CAMERA);
-    P_CAMERA[0] += t_cam_imu_.cast<T>()[0];
-    P_CAMERA[1] += t_cam_imu_.cast<T>()[1];
-    P_CAMERA[2] += t_cam_imu_.cast<T>()[2];
+    P_CAMERA[0] = P_CAM[0];
+    P_CAMERA[1] = P_CAM[1];
+    P_CAMERA[2] = P_CAM[2];
 
     const T* P_CAMERA_const = &(P_CAMERA[0]);
 
@@ -94,6 +99,7 @@ private:
   Eigen::Vector2d pixel_measurement_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::unique_ptr<ceres::CostFunctionToFunctor<2, 3>> compute_projection;
+  Eigen::Matrix4d T_imu_cam_;
   Eigen::Quaterniond Q_cam_imu_;
   Eigen::Vector3d t_cam_imu_;
 };

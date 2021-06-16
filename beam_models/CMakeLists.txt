@@ -96,9 +96,8 @@ add_library(
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
-  src/camera_to_camera/visual_inertial_odom.cpp
-  src/camera_to_camera/vio_initializer.cpp
-  src/camera_to_camera/visual_map.cpp
+  # src/camera_to_camera/visual_inertial_odom.cpp
+  # src/camera_to_camera/visual_map.cpp
 )
 
 ## Specify libraries to link a library or executable target against
@@ -133,6 +132,16 @@ if(CATKIN_ENABLE_TESTING)
   add_test(NAME ${PROJECT_NAME}_scan_matcher_3d_gtests 
           COMMAND ${PROJECT_NAME}_scan_matcher_3d_gtests)
 
+
+  add_executable(${PROJECT_NAME}_reprojection_test
+    tests/reprojection_test.cpp)
+  target_link_libraries(${PROJECT_NAME}_reprojection_test
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils
+    beam::calibration)
+  add_test(NAME ${PROJECT_NAME}_reprojection_test
+          COMMAND ${PROJECT_NAME}_reprojection_test)
 
   find_package(rostest REQUIRED)
   find_package(basalt REQUIRED)
