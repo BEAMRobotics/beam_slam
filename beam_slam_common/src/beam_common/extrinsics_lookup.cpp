@@ -5,7 +5,12 @@
 
 namespace beam_common {
 
-void ExtrinsicsLookup::GetParams() {
+ExtrinsicsLookup& ExtrinsicsLookup::GetInstance() {
+  static ExtrinsicsLookup instance_;
+  return instance_;
+}
+
+ExtrinsicsLookup::ExtrinsicsLookup() {
   // get parameters from global namespace
   if (params.imu_frame.empty() || params.camera_frame.empty() ||
       params.lidar_frame.empty()) {
@@ -23,12 +28,6 @@ void ExtrinsicsLookup::GetParams() {
       throw std::invalid_argument{"Inputs to ExtrinsicsLookup invalid."};
     }
   }
-}
-
-ExtrinsicsLookup& ExtrinsicsLookup::GetInstance() {
-  GetParams();
-  static ExtrinsicsLookup instance_;
-  return instance_;
 }
 
 bool ExtrinsicsLookup::GetT_CAMERA_IMU(Eigen::Matrix4d& T,

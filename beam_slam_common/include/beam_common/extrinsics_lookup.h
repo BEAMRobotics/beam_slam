@@ -10,9 +10,8 @@ namespace beam_common {
  * calibrations which are being published to tf or tf_static. The 3 types of
  * frames need to be supplied to this class. The prefered way to use this with
  * beam_slam is to add global variables to the config yaml for each of the
- * frames, then each of the sensor models can instantiate this class with those
- * same global params. See global_mapper.cpp for an example use case.
- *
+ * frames, then each of the sensor models can get the instance of this class
+ * with those same global params. See global_mapper.cpp for an example use case.
  */
 class ExtrinsicsLookup {
  public:
