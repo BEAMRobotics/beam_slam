@@ -145,14 +145,14 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     this->tracker_->AddImage(image, img_time);
     if (IsKeyframe(img_time)) {
       std::cout << "New Keyframe: " << img_time << std::endl;
-      if(cur_kf_time_ > last_stamp_){
+      if (cur_kf_time_ > last_stamp_ && !set_once) {
         initializer_->SetPath(path_);
-        std::cout << "path set" << std::endl;
+        set_once = true;
       }
       if (!initializer_->Initialized()) {
         if (initializer_->AddKeyframe(img_time)) {
-          // get imu preint, graph variables, and constraints to initialize fuse
-          // graph
+          std::cout << "Initialization Success" << std::endl;
+          imu_preint_ = initializer_->GetPreintegrator();
         }
       } else {
         // registerImage(img_time);
@@ -217,8 +217,8 @@ bool VisualInertialOdom::IsKeyframe(ros::Time img_time) {
   int num_matches = 0;
   for (auto& id : cur_img_ids) {
     try {
-      Eigen::Vector2i pL = this->tracker_->Get(cur_kf_time_, id).cast<int>();
-      Eigen::Vector2i pR = this->tracker_->Get(img_time, id).cast<int>();
+      this->tracker_->Get(cur_kf_time_, id);
+      this->tracker_->Get(img_time, id);
       num_matches++;
     } catch (const std::out_of_range& oor) {}
   }

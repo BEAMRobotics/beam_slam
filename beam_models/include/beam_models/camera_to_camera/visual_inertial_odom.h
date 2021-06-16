@@ -116,6 +116,7 @@ protected:
   std::shared_ptr<VisualMap> visual_map_;
   ros::Time last_stamp_;
   nav_msgs::Path path_;
+  bool set_once = false;
 };
 
 }} // namespace beam_models::camera_to_camera

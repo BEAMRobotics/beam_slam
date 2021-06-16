@@ -122,6 +122,7 @@ fuse_variables::Orientation3DStamped::SharedPtr
             dynamic_cast<const fuse_variables::Orientation3DStamped&>(
                 graph_->getVariable(corr_orientation_uuid));
         orientations_.erase(stamp.toSec());
+        return corr_orientation;
       } catch (const std::out_of_range& oor) {
         if (orientations_.find(stamp.toNSec()) == orientations_.end()) {
           return nullptr;
@@ -137,6 +138,7 @@ fuse_variables::Orientation3DStamped::SharedPtr
       *corr_orientation =
           dynamic_cast<const fuse_variables::Orientation3DStamped&>(
               local_graph_->getVariable(corr_orientation_uuid));
+      return corr_orientation;
     } catch (const std::out_of_range& oor) {}
   }
   return nullptr;
@@ -172,6 +174,7 @@ fuse_variables::Position3DStamped::SharedPtr
     try {
       *corr_position = dynamic_cast<const fuse_variables::Position3DStamped&>(
           local_graph_->getVariable(corr_position_uuid));
+      return corr_position;
     } catch (const std::out_of_range& oor) {}
   }
   return nullptr;
@@ -190,6 +193,7 @@ fuse_variables::Position3D::SharedPtr
         *landmark = dynamic_cast<const fuse_variables::Position3D&>(
             graph_->getVariable(landmark_uuid));
         landmark_positions_.erase(landmark_id);
+        return landmark;
       } catch (const std::out_of_range& oor) {
         if (landmark_positions_.find(landmark_id) ==
             landmark_positions_.end()) {
@@ -207,6 +211,7 @@ fuse_variables::Position3D::SharedPtr
     try {
       *landmark = dynamic_cast<const fuse_variables::Position3D&>(
           local_graph_->getVariable(landmark_uuid));
+      return landmark;
     } catch (const std::out_of_range& oor) {}
   }
   return nullptr;

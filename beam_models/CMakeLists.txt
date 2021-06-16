@@ -96,8 +96,8 @@ add_library(
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
-  # src/camera_to_camera/visual_inertial_odom.cpp
-  # src/camera_to_camera/visual_map.cpp
+  src/camera_to_camera/visual_inertial_odom.cpp
+  src/camera_to_camera/visual_map.cpp
 )
 
 ## Specify libraries to link a library or executable target against
