@@ -5,20 +5,17 @@
 
 namespace beam_common {
 
-ExtrinsicsLookup& ExtrinsicsLookup::instance_ = NULL;
+ExtrinsicsLookup& ExtrinsicsLookup::GetInstance() {
 
-static ExtrinsicsLookup& ExtrinsicsLookup::GetInstance() {
-  if (instance_ == NULL) {
-    ExtrinsicsLookup::Params params;
+  ExtrinsicsLookup::Params params;
 
-    // get extrinsics params from global namespace
-    ros::param::get("~imu_frame", params.imu_frame);
-    ros::param::get("~camera_frame", params.camera_frame);
-    ros::param::get("~lidar_frame", params.lidar_frame);
-    ros::param::get("~static_extrinsics", params.static_extrinsics);
+  // get extrinsics params from global namespace
+  ros::param::get("~imu_frame", params.imu_frame);
+  ros::param::get("~camera_frame", params.camera_frame);
+  ros::param::get("~lidar_frame", params.lidar_frame);
+  ros::param::get("~static_extrinsics", params.static_extrinsics);
 
-    instance_ = new ExtrinsicsLookup(params);
-  }
+  static ExtrinsicsLookup instance_(params);
 
   return instance_;
 }

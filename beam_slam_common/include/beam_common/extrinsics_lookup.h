@@ -37,6 +37,21 @@ class ExtrinsicsLookup {
   static ExtrinsicsLookup& GetInstance();
 
   /**
+   * @brief default constructor
+   */
+  ExtrinsicsLookup() = delete;
+
+  /**
+   * @brief copy constructor
+   */
+  ExtrinsicsLookup(const ExtrinsicsLookup& other) = delete;
+
+  /**
+   * @brief copy assignment operator
+   */
+  ExtrinsicsLookup& operator=(const ExtrinsicsLookup& other) = delete;
+
+  /**
    * @brief Gets the extrinsics between camera and imu
    * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
@@ -96,23 +111,6 @@ class ExtrinsicsLookup {
    * @param params all input params required. See struct above
    */
   ExtrinsicsLookup(const Params& params);
-
-  /**
-   * @brief default constructor
-   */
-  ExtrinsicsLookup() = delete;
-
-  /**
-   * @brief copy constructor
-   */
-  ExtrinsicsLookup(const ExtrinsicsLookup&);
-
-  /**
-   * @brief copy assignment operator
-   */
-  ExtrinsicsLookup& operator=(const ExtrinsicsLookup&);
-
-  static ExtrinsicsLookup& instance_;
 
   bool GetTransform(Eigen::Matrix4d& T, const std::string& to_frame,
                     const std::string& from_frame, const ros::Time& time);
