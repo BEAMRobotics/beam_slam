@@ -15,6 +15,7 @@ find_package(
     fuse_variables
     fuse_models
     fuse_constraints
+    std_msgs
     geometry_msgs
     nav_msgs
     pluginlib
@@ -27,6 +28,7 @@ find_package(
     tf2_2d
     tf2_geometry_msgs
     tf2_ros
+    message_generation
     beam_constraints
     beam_slam_common
 		beam_variables
@@ -39,6 +41,18 @@ find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
 
+add_message_files(
+  DIRECTORY
+    msg
+  FILES
+    InitializedPathMsg.msg
+)
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+)
+
 catkin_package(
   INCLUDE_DIRS
     include
@@ -50,6 +64,7 @@ catkin_package(
     fuse_publishers
     fuse_variables
     fuse_constraints
+    std_msgs
     geometry_msgs
     message_runtime
     nav_msgs
