@@ -41,7 +41,7 @@ void ImuPreintegration::SetPreintegrator() {
 }
 
 void ImuPreintegration::ResetPreintegrator() {
-  pre_integrator_ij.reset();
+  pre_integrator_ij.Reset();
   pre_integrator_ij.data.clear();
 }
 
@@ -199,7 +199,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   }
 
   // integrate between key frames
-  pre_integrator_ij.integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
+  pre_integrator_ij.Integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
                               imu_state_i_.AccelBiasVec(), true, true);
 
   // predict state at end of window using integrated imu measurements

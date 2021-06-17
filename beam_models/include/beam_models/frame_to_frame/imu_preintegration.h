@@ -3,13 +3,12 @@
 #include <queue>
 
 #include <sensor_msgs/Imu.h>
-#include <slamtools/preintegrator.h>
-
+//#include <slamtools/preintegrator.h>
 #include <beam_constraints/frame_to_frame/imu_state_3d_stamped_transaction.h>
 #include <beam_models/frame_to_frame/imu_state.h>
+#include <beam_models/frame_to_frame/preintegrator.h>
 
-namespace beam_models {
-namespace frame_to_frame {
+namespace beam_models { namespace frame_to_frame {
 
 template <typename ConstraintType, typename PriorType>
 using TransactionBase =
@@ -26,7 +25,7 @@ using TransactionBase =
  * or LIO
  */
 class ImuPreintegration {
- public:
+public:
   /**
    * @param gravitational_acceleration gravitational acceleration in [m/sec^2]
    * @param prior_noise noise assumed for prior covariance
@@ -44,30 +43,6 @@ class ImuPreintegration {
     Eigen::Matrix3d cov_gyro_bias;
     Eigen::Matrix3d cov_accel_bias;
     std::string source{"IMUPREINTEGRATION"};
-  };
-
-  /**
-   * @brief IMU data type derived from Slamtools
-   */
-  struct ImuData : public IMUData {
-    /**
-     * @brief Defualt Constructor
-     */
-    ImuData() = default;
-
-    /**
-     * @brief Constructor
-     * @param msg sensor data
-     */
-    ImuData(const sensor_msgs::Imu::ConstPtr& msg) {
-      t = msg->header.stamp.toSec();
-      w[0] = msg->angular_velocity.x;
-      w[1] = msg->angular_velocity.y;
-      w[2] = msg->angular_velocity.z;
-      a[0] = msg->linear_acceleration.x;
-      a[1] = msg->linear_acceleration.y;
-      a[2] = msg->linear_acceleration.z;
-    }
   };
 
   /**
@@ -103,7 +78,7 @@ class ImuPreintegration {
   /**
    * @brief populate imu buffer with imu data
    */
-  void PopulateBuffer(const ImuData& imu_data);
+  void PopulateBuffer(const IMUData& imu_data);
 
   /**
    * @brief sets the initial IMU state with respect to world frame
@@ -133,8 +108,8 @@ class ImuPreintegration {
    * @param imu_state_new new ImuState
    * @return delta vector in order [del_q, del_p, del_v, del_bg, ba]
    */
-  Eigen::Matrix<double, 16, 1> CalculateRelativeChange(
-      const ImuState& imu_state_new);
+  Eigen::Matrix<double, 16, 1>
+      CalculateRelativeChange(const ImuState& imu_state_new);
 
   /**
    * @brief gets current IMU state, which is the last registered key frame
@@ -157,12 +132,12 @@ class ImuPreintegration {
    * @return transaction
    */
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-  RegisterNewImuPreintegratedFactor(
-      const ros::Time& t_now,
-      fuse_variables::Orientation3DStamped::SharedPtr orientation = nullptr,
-      fuse_variables::Position3DStamped::SharedPtr position = nullptr);
+      RegisterNewImuPreintegratedFactor(
+          const ros::Time& t_now,
+          fuse_variables::Orientation3DStamped::SharedPtr orientation = nullptr,
+          fuse_variables::Position3DStamped::SharedPtr position = nullptr);
 
- private:
+private:
   /**
    * @brief sets Preintegrator class parameters
    */
@@ -180,17 +155,16 @@ class ImuPreintegration {
    */
   void CheckTime(const ros::Time& t_now);
 
-  Params params_;            // class parameters
-  Eigen::Vector3d g_;        // gravity vector
-  bool first_window_{true};  // flag for first window between key frames
+  Params params_;           // class parameters
+  Eigen::Vector3d g_;       // gravity vector
+  bool first_window_{true}; // flag for first window between key frames
 
-  ImuState imu_state_i_;                 // current key frame
-  ImuState imu_state_k_;                 // intermediate frame
-  PreIntegrator pre_integrator_ij;       // preintegrate between key frames
-  std::queue<ImuData> imu_data_buffer_;  // store imu data
-  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};  // zero gyroscope bias
-  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};  // zero accleration bias
+  ImuState imu_state_i_;                // current key frame
+  ImuState imu_state_k_;                // intermediate frame
+  PreIntegrator pre_integrator_ij;      // preintegrate between key frames
+  std::queue<IMUData> imu_data_buffer_; // store imu data
+  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
+  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero accleration bias
 };
 
-}  // namespace frame_to_frame
-}  // namespace beam_models
+}} // namespace beam_models::frame_to_frame
