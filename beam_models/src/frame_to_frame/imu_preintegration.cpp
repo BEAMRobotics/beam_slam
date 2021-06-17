@@ -46,7 +46,7 @@ void ImuPreintegration::ResetPreintegrator() {
 }
 
 void ImuPreintegration::CheckTime(const ros::Time& t_now) {
-  if (t_now.toSec() < imu_data_buffer_.front().t) {
+  if (t_now < imu_data_buffer_.front().t) {
     const std::string error = "Requested time preceeds IMU messages in buffer";
     BEAM_ERROR(error);
     throw std::runtime_error(error);
@@ -59,7 +59,7 @@ void ImuPreintegration::SetStart(
     fuse_variables::Position3DStamped::SharedPtr position,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   // adjust imu buffer
-  while (t_start.toSec() > imu_data_buffer_.front().t) {
+  while (t_start > imu_data_buffer_.front().t) {
     imu_data_buffer_.pop();
   }
 
@@ -141,14 +141,14 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   CheckTime(t_now);
 
   // Populate integrators
-  while (t_now.toSec() > imu_data_buffer_.front().t) {
+  while (t_now > imu_data_buffer_.front().t) {
     pre_integrator_interval.data.emplace_back(imu_data_buffer_.front());
     pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
     imu_data_buffer_.pop();
   }
 
   // integrate between frames
-  pre_integrator_interval.Integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
+  pre_integrator_interval.Integrate(t_now, imu_state_i_.GyroBiasVec(),
                                     imu_state_i_.AccelBiasVec(), false, false);
 
   // predict state at end of window using integrated imu measurements
@@ -193,13 +193,13 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   }
 
   // Populate integrator
-  while (t_now.toSec() > imu_data_buffer_.front().t) {
+  while (t_now > imu_data_buffer_.front().t) {
     pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
     imu_data_buffer_.pop();
   }
 
   // integrate between key frames
-  pre_integrator_ij.Integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
+  pre_integrator_ij.Integrate(t_now, imu_state_i_.GyroBiasVec(),
                               imu_state_i_.AccelBiasVec(), true, true);
 
   // predict state at end of window using integrated imu measurements

@@ -1,12 +1,13 @@
 #pragma once
 
 #include <beam_utils/math.h>
+#include <beam_utils/time.h>
 #include <sensor_msgs/Imu.h>
 
 namespace beam_common {
 
 struct IMUData {
-  double t;          // timestamp
+  ros::Time t;          // timestamp
   Eigen::Vector3d w; // gyro measurement
   Eigen::Vector3d a; // accelerometer measurement
   /**
@@ -19,7 +20,7 @@ struct IMUData {
    * @param msg sensor data
    */
   IMUData(const sensor_msgs::Imu::ConstPtr& msg) {
-    t = msg->header.stamp.toSec();
+    t = msg->header.stamp;
     w[0] = msg->angular_velocity.x;
     w[1] = msg->angular_velocity.y;
     w[2] = msg->angular_velocity.z;
@@ -49,11 +50,11 @@ struct PreIntegrator {
 
   void Reset();
   
-  void Increment(double dt, const IMUData& data, const Eigen::Vector3d& bg,
+  void Increment(ros::Duration dt, const IMUData& data, const Eigen::Vector3d& bg,
                  const Eigen::Vector3d& ba, bool compute_jacobian,
                  bool compute_covariance);
 
-  bool Integrate(double t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
+  bool Integrate(ros::Time t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
                  bool compute_jacobian, bool compute_covariance);
 
   void ComputeSqrtInverseCovariance();
