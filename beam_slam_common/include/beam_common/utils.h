@@ -31,21 +31,4 @@ inline void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
   T_WORLD_SENSOR.block(0, 0, 3, 3) = q.toRotationMatrix();
 }
 
-inline Eigen::Matrix4d FusePoseToEigenTransform(
-    const fuse_variables::Position3DStamped& p,
-    const fuse_variables::Orientation3DStamped& o) {
-  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
-  
-  // add position
-  T(0,3) = p.x();
-  T(1,3) = p.y();
-  T(2,3) = p.z();
-
-  // add rotation
-  Eigen::Quaterniond q(o.w(), o.x(), o.y(), o.z());
-  Eigen::Matrix3d R = q.toRotationMatrix();
-  T.block(0,0,3,3) = R;
-  return T;
-}
-
 }  // namespace beam_common
