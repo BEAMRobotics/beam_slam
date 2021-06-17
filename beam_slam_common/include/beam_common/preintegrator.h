@@ -1,22 +1,24 @@
 #pragma once
-#include <beam_utils/math.h>
 
-namespace beam_models { namespace frame_to_frame {
+#include <beam_utils/math.h>
+#include <sensor_msgs/Imu.h>
+
+namespace beam_common {
 
 struct IMUData {
-  double t;        // timestamp
+  double t;          // timestamp
   Eigen::Vector3d w; // gyro measurement
   Eigen::Vector3d a; // accelerometer measurement
   /**
    * @brief Defualt Constructor
    */
-  ImuData() = default;
+  IMUData() = default;
 
   /**
    * @brief Constructor
    * @param msg sensor data
    */
-  ImuData(const sensor_msgs::Imu::ConstPtr& msg) {
+  IMUData(const sensor_msgs::Imu::ConstPtr& msg) {
     t = msg->header.stamp.toSec();
     w[0] = msg->angular_velocity.x;
     w[1] = msg->angular_velocity.y;
@@ -46,11 +48,14 @@ struct PreIntegrator {
   };
 
   void Reset();
-  void Increment(double t, const IMUData& data, const Eigen::Vector3d& bg,
+  
+  void Increment(double dt, const IMUData& data, const Eigen::Vector3d& bg,
                  const Eigen::Vector3d& ba, bool compute_jacobian,
                  bool compute_covariance);
+
   bool Integrate(double t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
                  bool compute_jacobian, bool compute_covariance);
+
   void ComputeSqrtInverseCovariance();
 
   Eigen::Matrix3d cov_w; // continuous noise covariance
@@ -64,4 +69,4 @@ struct PreIntegrator {
   std::vector<IMUData> data;
 };
 
-}} // namespace beam_models::frame_to_frame
+} // namespace beam_common

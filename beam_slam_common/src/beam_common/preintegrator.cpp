@@ -1,4 +1,6 @@
-#include <beam_models/frame_to_frame/preintegrator.h>
+#include <beam_common/preintegrator.h>
+
+namespace beam_common {
 
 void PreIntegrator::Reset() {
   delta.t = 0;
@@ -16,8 +18,9 @@ void PreIntegrator::Reset() {
 }
 
 void PreIntegrator::Increment(double dt, const IMUData& data,
-                              const Eigen::Vector3d& bg, const Vector3d& ba,
-                              bool compute_jacobian, bool compute_covariance) {
+                              const Eigen::Vector3d& bg,
+                              const Eigen::Vector3d& ba, bool compute_jacobian,
+                              bool compute_covariance) {
   assert(("dt must > 0") && (dt >= 0));
 
   Eigen::Vector3d w = data.w - bg;
@@ -26,35 +29,38 @@ void PreIntegrator::Increment(double dt, const IMUData& data,
   if (compute_covariance) {
     Eigen::Matrix<double, 9, 9> A;
     A.setIdentity();
-    A.block<3, 3>(ES_Q, ES_Q) = beam::expmap(w * dt).conjugate().matrix();
-    A.block<3, 3>(ES_V, ES_Q) = -dt * delta.q.matrix() * hat(a);
-    A.block<3, 3>(ES_P, ES_Q) = -0.5 * dt * dt * delta.q.matrix() * hat(a);
-    A.block<3, 3>(ES_P, ES_V) = dt * Eigen::Matrix3d::Identity();
+    A.block<3, 3>(0, 0) = beam::expmap(w * dt).conjugate().matrix();
+    A.block<3, 3>(6, 0) = -dt * delta.q.matrix() * beam::SkewTransform(a);
+    A.block<3, 3>(3, 0) =
+        -0.5 * dt * dt * delta.q.matrix() * beam::SkewTransform(a);
+    A.block<3, 3>(3, 6) = dt * Eigen::Matrix3d::Identity();
 
     Eigen::Matrix<double, 9, 6> B;
     B.setZero();
-    B.block<3, 3>(ES_Q, ES_BG - ES_BG) = dt * beam::RightJacobian(w * dt);
-    B.block<3, 3>(ES_V, ES_BA - ES_BG) = dt * delta.q.matrix();
-    B.block<3, 3>(ES_P, ES_BA - ES_BG) = 0.5 * dt * dt * delta.q.matrix();
+    B.block<3, 3>(0, 0) = dt * beam::RightJacobian(w * dt);
+    B.block<3, 3>(6, 3) = dt * delta.q.matrix();
+    B.block<3, 3>(3, 3) = 0.5 * dt * dt * delta.q.matrix();
 
     Eigen::Matrix<double, 6, 6> white_noise_cov;
     double inv_dt = 1.0 / std::max(dt, 1.0e-7);
     white_noise_cov.setZero();
-    white_noise_cov.block<3, 3>(ES_BG - ES_BG, ES_BG - ES_BG) = cov_w * inv_dt;
-    white_noise_cov.block<3, 3>(ES_BA - ES_BG, ES_BA - ES_BG) = cov_a * inv_dt;
+    white_noise_cov.block<3, 3>(0, 0) = cov_w * inv_dt;
+    white_noise_cov.block<3, 3>(3, 3) = cov_a * inv_dt;
 
-    delta.cov.block<9, 9>(ES_Q, ES_Q) =
+    delta.cov.block<9, 9>(0, 0) =
         A * delta.cov.block<9, 9>(0, 0) * A.transpose() +
         B * white_noise_cov * B.transpose();
-    delta.cov.block<3, 3>(ES_BG, ES_BG) += cov_bg * dt;
-    delta.cov.block<3, 3>(ES_BA, ES_BA) += cov_ba * dt;
+    delta.cov.block<3, 3>(9, 9) += cov_bg * dt;
+    delta.cov.block<3, 3>(12, 12) += cov_ba * dt;
   }
 
   if (compute_jacobian) {
     jacobian.dp_dbg += dt * jacobian.dv_dbg - 0.5 * dt * dt * delta.q.matrix() *
-                                                  hat(a) * jacobian.dq_dbg;
+                                                  beam::SkewTransform(a) *
+                                                  jacobian.dq_dbg;
     jacobian.dp_dba += dt * jacobian.dv_dba - 0.5 * dt * dt * delta.q.matrix();
-    jacobian.dv_dbg -= dt * delta.q.matrix() * hat(a) * jacobian.dq_dbg;
+    jacobian.dv_dbg -=
+        dt * delta.q.matrix() * beam::SkewTransform(a) * jacobian.dq_dbg;
     jacobian.dv_dba -= dt * delta.q.matrix();
     jacobian.dq_dbg =
         beam::expmap(w * dt).conjugate().matrix() * jacobian.dq_dbg -
@@ -71,7 +77,7 @@ void PreIntegrator::Increment(double dt, const IMUData& data,
 }
 
 bool PreIntegrator::Integrate(double t, const Eigen::Vector3d& bg,
-                              const Vector3d& ba, bool compute_jacobian,
+                              const Eigen::Vector3d& ba, bool compute_jacobian,
                               bool compute_covariance) {
   if (data.size() == 0) return false;
   this->Reset();
@@ -94,3 +100,5 @@ void PreIntegrator::ComputeSqrtInverseCovariance() {
           .matrixL()
           .transpose();
 }
+
+} // namespace beam_common

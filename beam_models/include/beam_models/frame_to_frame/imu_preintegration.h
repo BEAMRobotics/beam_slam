@@ -3,10 +3,9 @@
 #include <queue>
 
 #include <sensor_msgs/Imu.h>
-//#include <slamtools/preintegrator.h>
 #include <beam_constraints/frame_to_frame/imu_state_3d_stamped_transaction.h>
 #include <beam_models/frame_to_frame/imu_state.h>
-#include <beam_models/frame_to_frame/preintegrator.h>
+#include <beam_common/preintegrator.h>
 
 namespace beam_models { namespace frame_to_frame {
 
@@ -78,7 +77,7 @@ public:
   /**
    * @brief populate imu buffer with imu data
    */
-  void PopulateBuffer(const IMUData& imu_data);
+  void PopulateBuffer(const beam_common::IMUData& imu_data);
 
   /**
    * @brief sets the initial IMU state with respect to world frame
@@ -100,7 +99,7 @@ public:
    * @param imu_state_curr current IMU state
    * @return ImuState
    */
-  ImuState PredictState(const PreIntegrator& pre_integrator,
+  ImuState PredictState(const beam_common::PreIntegrator& pre_integrator,
                         const ImuState& imu_state_curr);
 
   /**
@@ -161,8 +160,8 @@ private:
 
   ImuState imu_state_i_;                // current key frame
   ImuState imu_state_k_;                // intermediate frame
-  PreIntegrator pre_integrator_ij;      // preintegrate between key frames
-  std::queue<IMUData> imu_data_buffer_; // store imu data
+  beam_common::PreIntegrator pre_integrator_ij;      // preintegrate between key frames
+  std::queue<beam_common::IMUData> imu_data_buffer_; // store imu data
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero accleration bias
 };

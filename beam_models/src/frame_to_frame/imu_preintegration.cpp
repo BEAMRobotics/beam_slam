@@ -25,11 +25,11 @@ void ImuPreintegration::ClearBuffer() {
 }
 
 void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
-  ImuData imu_data(msg);
+  beam_common::IMUData imu_data(msg);
   imu_data_buffer_.push(imu_data);
 }
 
-void ImuPreintegration::PopulateBuffer(const ImuData& imu_data) {
+void ImuPreintegration::PopulateBuffer(const beam_common::IMUData& imu_data) {
   imu_data_buffer_.push(imu_data);
 }
 
@@ -87,7 +87,7 @@ void ImuPreintegration::SetStart(
   imu_state_k_ = imu_state_i_;
 }
 
-ImuState ImuPreintegration::PredictState(const PreIntegrator& pre_integrator,
+ImuState ImuPreintegration::PredictState(const beam_common::PreIntegrator& pre_integrator,
                                          const ImuState& imu_state_curr) {
   // calculate new states
   double dt = pre_integrator.delta.t;
@@ -135,7 +135,7 @@ Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
 
 Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   // encapsulate imu measurments between frames
-  PreIntegrator pre_integrator_interval;
+  beam_common::PreIntegrator pre_integrator_interval;
 
   // check requested time
   CheckTime(t_now);
@@ -148,7 +148,7 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   }
 
   // integrate between frames
-  pre_integrator_interval.integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
+  pre_integrator_interval.Integrate(t_now.toSec(), imu_state_i_.GyroBiasVec(),
                                     imu_state_i_.AccelBiasVec(), false, false);
 
   // predict state at end of window using integrated imu measurements
@@ -225,7 +225,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   }
 
   // make preintegrator a shared pointer for constraint
-  auto pre_integrator = std::make_shared<PreIntegrator>(pre_integrator_ij);
+  auto pre_integrator = std::make_shared<beam_common::PreIntegrator>(pre_integrator_ij);
 
   // generate relative constraints between key frames
   transaction.AddImuStateConstraint(
