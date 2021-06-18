@@ -90,15 +90,7 @@ bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg,
          (t >= data.back().t));
   this->Increment(t - data.back().t, data.back(), bg, ba, compute_jacobian,
                   compute_covariance);
-  if (compute_covariance) { this->ComputeSqrtInverseCovariance(); }
   return true;
-}
-
-void PreIntegrator::ComputeSqrtInverseCovariance() {
-  delta.sqrt_inv_cov =
-      Eigen::LLT<Eigen::Matrix<double, 15, 15>>(delta.cov.inverse())
-          .matrixL()
-          .transpose();
 }
 
 } // namespace beam_common

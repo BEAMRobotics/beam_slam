@@ -44,7 +44,7 @@ struct PreIntegrator {
   };
 
   /**
-   * @brief
+   * @brief Represents the jacobian
    */
   struct Jacobian {
     Eigen::Matrix3d dq_dbg;
@@ -55,16 +55,16 @@ struct PreIntegrator {
   };
 
   /**
-   * @brief Resets teh preintegrator to a 0 state
+   * @brief Resets the preintegrator to a 0 state
    */
   void Reset();
 
   /**
    * @brief
-   * @param dt
-   * @param data
-   * @param bg
-   * @param ba
+   * @param dt time difference to increment forward to
+   * @param data given imu data
+   * @param bg current gyroscope bias estimate
+   * @param ba current accelerometer bias estimate
    * @param compute_jacobian optionally compute the jacobian
    * @param compute_covariance optionally compute the covariance
    */
@@ -84,11 +84,6 @@ struct PreIntegrator {
   bool Integrate(ros::Time t, const Eigen::Vector3d& bg,
                  const Eigen::Vector3d& ba, bool compute_jacobian,
                  bool compute_covariance);
-
-  /**
-   * @brief
-   */
-  void ComputeSqrtInverseCovariance();
 
   Eigen::Matrix3d cov_w; // continuous noise covariance
   Eigen::Matrix3d cov_a;
