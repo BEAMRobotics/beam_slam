@@ -61,8 +61,8 @@ class Data {
           (gt_spline.transAccelWorld(t_ns + dt_ns / 2) - gravity);
 
       // assign info to start of interval in imu data
-      ImuPreintegration::ImuData imu_data;
-      imu_data.t = t_ns * 1e-9;     // [sec]
+      beam_common::IMUData imu_data;
+      imu_data.t = ros::Time(t_ns * 1e-9);     // [sec]
       imu_data.w = rot_vel_body;    // [rad/sec]
       imu_data.a = lin_accel_body;  // [m/sec^2]
 
@@ -127,7 +127,7 @@ class Data {
   double gravitational_acceleration{9.81};  // [m/sec^2]
 
   Eigen::Vector3d gravity;
-  std::vector<ImuPreintegration::ImuData> imu_data_gt;
+  std::vector<beam_common::IMUData> imu_data_gt;
   std::vector<Eigen::Matrix4d> pose_gt;
 
   // Imu State 1
@@ -592,7 +592,7 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
     imu_preintegration = std::make_unique<ImuPreintegration>(params);
 
     // populate ImuPreintegration with synthetic imu measurements
-    for (ImuPreintegration::ImuData msg : data.imu_data_gt)
+    for (beam_common::IMUData msg : data.imu_data_gt)
       imu_preintegration->PopulateBuffer(msg);
 
     // get copies of imu states
@@ -650,13 +650,13 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
 
   // populate Preintegrator class from Slamtools with imu preintegration deltas
   // from data class
-  PreIntegrator pre_integrator_12;
+  beam_common::PreIntegrator pre_integrator_12;
   pre_integrator_12.delta.t = data.delta_t_12;
   pre_integrator_12.delta.q = data.delta_q_12;
   pre_integrator_12.delta.p = data.delta_p_12;
   pre_integrator_12.delta.v = data.delta_v_12;
 
-  PreIntegrator pre_integrator_23;
+  beam_common::PreIntegrator pre_integrator_23;
   pre_integrator_23.delta.t = data.delta_t_23;
   pre_integrator_23.delta.q = data.delta_q_23;
   pre_integrator_23.delta.p = data.delta_p_23;
