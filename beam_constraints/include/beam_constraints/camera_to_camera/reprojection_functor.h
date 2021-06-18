@@ -25,8 +25,9 @@ struct CameraProjectionFunctor {
 
   bool operator()(const double* P, double* pixel) const {
     Eigen::Vector3d P_CAMERA_eig{P[0], P[1], P[2]};
-    opt<Eigen::Vector2d> pixel_projected =
-        camera_model_->ProjectPointPrecise(P_CAMERA_eig);
+    Eigen::Vector2d pixel_projected;
+    bool in_image = false;
+    bool in_domain = camera_model_->ProjectPoint(P_CAMERA_eig, pixel_projected, in_image);
 
     // get image dims in case projection fails
     uint16_t height =
@@ -34,9 +35,9 @@ struct CameraProjectionFunctor {
     uint16_t width =
         camera_model_->GetWidth() != 0 ? camera_model_->GetWidth() : 5000;
 
-    if (pixel_projected.has_value()) {
-      pixel[0] = pixel_projected.value()[0];
-      pixel[1] = pixel_projected.value()[1];
+    if (in_image) {
+      pixel[0] = pixel_projected[0];
+      pixel[1] = pixel_projected[1];
     } else {
       // if the projection failed, set the projected point to
       // be the nearest edge point to the detected point
