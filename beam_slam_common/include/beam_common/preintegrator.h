@@ -32,7 +32,7 @@ struct IMUData {
 
 struct PreIntegrator {
   struct Delta {
-    double t;
+    ros::Duration t;
     Eigen::Quaterniond q;
     Eigen::Vector3d p;
     Eigen::Vector3d v;

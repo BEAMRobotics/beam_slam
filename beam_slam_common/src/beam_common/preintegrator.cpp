@@ -3,7 +3,7 @@
 namespace beam_common {
 
 void PreIntegrator::Reset() {
-  delta.t = 0;
+  delta.t = ros::Duration(0.0);
   delta.q.setIdentity();
   delta.p.setZero();
   delta.v.setZero();
@@ -70,7 +70,7 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
   Eigen::Quaterniond q_intermediate = delta.q * beam::expmap(0.5 * w * dtd);
   Eigen::Vector3d a_intermediate = q_intermediate * a;
 
-  delta.t = delta.t + dtd;
+  delta.t = delta.t + dt;
   delta.p = delta.p + dtd * delta.v + 0.5 * dtd * dtd * a_intermediate;
   delta.v = delta.v + dtd * a_intermediate;
   delta.q = (delta.q * beam::expmap(w * dtd)).normalized();

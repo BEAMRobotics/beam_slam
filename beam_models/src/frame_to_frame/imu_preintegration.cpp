@@ -4,8 +4,7 @@
 
 #include <beam_utils/math.h>
 
-namespace beam_models {
-namespace frame_to_frame {
+namespace beam_models { namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
   g_ << 0, 0, -params_.gravitational_acceleration;
@@ -59,9 +58,7 @@ void ImuPreintegration::SetStart(
     fuse_variables::Position3DStamped::SharedPtr position,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   // adjust imu buffer
-  while (t_start > imu_data_buffer_.front().t) {
-    imu_data_buffer_.pop();
-  }
+  while (t_start > imu_data_buffer_.front().t) { imu_data_buffer_.pop(); }
 
   // set imu state
   ImuState imu_state_i(t_start);
@@ -70,13 +67,9 @@ void ImuPreintegration::SetStart(
     imu_state_i.SetOrientation(orientation->data());
   }
 
-  if (position != nullptr) {
-    imu_state_i.SetPosition(position->data());
-  }
+  if (position != nullptr) { imu_state_i.SetPosition(position->data()); }
 
-  if (velocity != nullptr) {
-    imu_state_i.SetVelocity(velocity->data());
-  }
+  if (velocity != nullptr) { imu_state_i.SetVelocity(velocity->data()); }
 
   imu_state_i.SetGyroBias(bg_);
   imu_state_i.SetAccelBias(ba_);
@@ -87,10 +80,11 @@ void ImuPreintegration::SetStart(
   imu_state_k_ = imu_state_i_;
 }
 
-ImuState ImuPreintegration::PredictState(const beam_common::PreIntegrator& pre_integrator,
-                                         const ImuState& imu_state_curr) {
+ImuState ImuPreintegration::PredictState(
+    const beam_common::PreIntegrator& pre_integrator,
+    const ImuState& imu_state_curr) {
   // calculate new states
-  double dt = pre_integrator.delta.t;
+  double dt = pre_integrator.delta.t.toSec();
   Eigen::Matrix3d or_curr = imu_state_curr.OrientationQuat().toRotationMatrix();
   Eigen::Matrix3d or_new_mat = or_curr * pre_integrator.delta.q.matrix();
   Eigen::Vector3d vel_new =
@@ -101,15 +95,15 @@ ImuState ImuPreintegration::PredictState(const beam_common::PreIntegrator& pre_i
 
   // instantiate new imu state
   Eigen::Quaterniond or_new(or_new_mat);
-  ros::Time t_new = imu_state_curr.Stamp() + ros::Duration(dt);
+  ros::Time t_new = imu_state_curr.Stamp() + pre_integrator.delta.t;
   ImuState imu_state_new(t_new, or_new, pos_new, vel_new,
                          imu_state_curr.GyroBiasVec(),
                          imu_state_curr.AccelBiasVec());
   return imu_state_new;
 }
 
-Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
-    const ImuState& imu_state_new) {
+Eigen::Matrix<double, 16, 1>
+    ImuPreintegration::CalculateRelativeChange(const ImuState& imu_state_new) {
   Eigen::Matrix3d or_curr_rot_trans = imu_state_i_.OrientationQuat()
                                           .normalized()
                                           .toRotationMatrix()
@@ -163,15 +157,15 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
 }
 
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-ImuPreintegration::RegisterNewImuPreintegratedFactor(
-    const ros::Time& t_now,
-    fuse_variables::Orientation3DStamped::SharedPtr orientation,
-    fuse_variables::Position3DStamped::SharedPtr position) {
+    ImuPreintegration::RegisterNewImuPreintegratedFactor(
+        const ros::Time& t_now,
+        fuse_variables::Orientation3DStamped::SharedPtr orientation,
+        fuse_variables::Position3DStamped::SharedPtr position) {
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 
   // check requested time
-  CheckTime(t_now);    
+  CheckTime(t_now);
 
   // generate prior constraint at start
   if (first_window_) {
@@ -206,12 +200,12 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_);
 
   // update orientation and position of predicted imu state with arguments
-  if (orientation != nullptr) {
+  if (orientation && position) {
     imu_state_j.SetOrientation(orientation->data());
-  }
-
-  if (position != nullptr) {
     imu_state_j.SetPosition(position->data());
+    if (imu_state_j.Stamp() != t_now) {
+      std::cout << "timestamp mismatch" << std::endl;
+    }
   }
 
   // calculate relative change in imu state between key frames
@@ -223,9 +217,24 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     covariance_ij.setIdentity();
     covariance_ij *= params_.prior_noise;
   }
+  // Ensure covariance non nan and non inf
+  bool nan_or_inf = false;
+  for (size_t i = 0, rows = covariance_ij.rows(), cols = covariance_ij.cols();
+       i < rows; ++i) {
+    if (nan_or_inf) break;
+    for (size_t j = 0; j < cols; ++j) {
+      if (std::isnan(covariance_ij(i, j)) || std::isinf(covariance_ij(i, j))) {
+        covariance_ij.setIdentity();
+        covariance_ij *= params_.prior_noise;
+        nan_or_inf = true;
+        break;
+      }
+    }
+  }
 
   // make preintegrator a shared pointer for constraint
-  auto pre_integrator = std::make_shared<beam_common::PreIntegrator>(pre_integrator_ij);
+  auto pre_integrator =
+      std::make_shared<beam_common::PreIntegrator>(pre_integrator_ij);
 
   // generate relative constraints between key frames
   transaction.AddImuStateConstraint(
@@ -250,5 +259,4 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   return transaction;
 }
 
-}  // namespace frame_to_frame
-}  // namespace beam_models
+}} // namespace beam_models::frame_to_frame

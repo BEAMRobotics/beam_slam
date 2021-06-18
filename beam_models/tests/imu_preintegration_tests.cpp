@@ -114,8 +114,8 @@ class Data {
     CalculateRelativeMotion(IS2, IS3, delta_q_23, delta_p_23, delta_v_23,
                             gravity);
 
-    delta_t_12 = ros::Duration(IS2.Stamp() - IS1.Stamp()).toSec();
-    delta_t_23 = ros::Duration(IS3.Stamp() - IS2.Stamp()).toSec();
+    delta_t_12 = ros::Duration(IS2.Stamp() - IS1.Stamp());
+    delta_t_23 = ros::Duration(IS3.Stamp() - IS2.Stamp());
   }
 
   // spline parameters
@@ -149,12 +149,12 @@ class Data {
   Eigen::Vector3d v3_vec;
 
   // Imu State deltas
-  double delta_t_12;
+  ros::Duration delta_t_12;
   Eigen::Quaterniond delta_q_12;
   Eigen::Vector3d delta_p_12;
   Eigen::Vector3d delta_v_12;
 
-  double delta_t_23;
+  ros::Duration delta_t_23;
   Eigen::Quaterniond delta_q_23;
   Eigen::Vector3d delta_p_23;
   Eigen::Vector3d delta_v_23;
