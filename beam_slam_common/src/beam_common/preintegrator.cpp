@@ -67,12 +67,12 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
         dtd * beam::RightJacobian(w * dtd);
   }
 
-  Eigen::Quaterniond q_intermediate = delta.q * beam::expmap(0.5 * w * dtd);
-  Eigen::Vector3d a_intermediate = q_intermediate * a;
+  Eigen::Quaterniond q_mid = delta.q * beam::expmap(0.5 * w * dtd);
+  Eigen::Vector3d a_mid = q_mid * a;
 
   delta.t = delta.t + dt;
-  delta.p = delta.p + dtd * delta.v + 0.5 * dtd * dtd * a_intermediate;
-  delta.v = delta.v + dtd * a_intermediate;
+  delta.p = delta.p + dtd * delta.v + 0.5 * dtd * dtd * a_mid;
+  delta.v = delta.v + dtd * a_mid;
   delta.q = (delta.q * beam::expmap(w * dtd)).normalized();
 }
 
