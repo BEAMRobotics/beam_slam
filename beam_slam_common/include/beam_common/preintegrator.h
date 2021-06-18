@@ -7,7 +7,7 @@
 namespace beam_common {
 
 struct IMUData {
-  ros::Time t;          // timestamp
+  ros::Time t;       // timestamp
   Eigen::Vector3d w; // gyro measurement
   Eigen::Vector3d a; // accelerometer measurement
   /**
@@ -31,6 +31,9 @@ struct IMUData {
 };
 
 struct PreIntegrator {
+  /**
+   * @brief Struct representating the changes between imu states
+   */
   struct Delta {
     ros::Duration t;
     Eigen::Quaterniond q;
@@ -40,6 +43,9 @@ struct PreIntegrator {
     Eigen::Matrix<double, 15, 15> sqrt_inv_cov;
   };
 
+  /**
+   * @brief
+   */
   struct Jacobian {
     Eigen::Matrix3d dq_dbg;
     Eigen::Matrix3d dp_dbg;
@@ -48,15 +54,40 @@ struct PreIntegrator {
     Eigen::Matrix3d dv_dba;
   };
 
+  /**
+   * @brief Resets teh preintegrator to a 0 state
+   */
   void Reset();
-  
-  void Increment(ros::Duration dt, const IMUData& data, const Eigen::Vector3d& bg,
+
+  /**
+   * @brief
+   * @param dt
+   * @param data
+   * @param bg
+   * @param ba
+   * @param compute_jacobian optionally compute the jacobian
+   * @param compute_covariance optionally compute the covariance
+   */
+  void Increment(ros::Duration dt, const IMUData& data,
+                 const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
+                 bool compute_jacobian, bool compute_covariance);
+
+  /**
+   * @brief IMU Integration Function, integrate current measurements to a
+   * timestamp
+   * @param t timestamp to integrate to
+   * @param bg current gyroscope bias estimate
+   * @param ba current accelerometer bias estimate
+   * @param compute_jacobian optionally compute the jacobian
+   * @param compute_covariance optionally compute the covariance
+   */
+  bool Integrate(ros::Time t, const Eigen::Vector3d& bg,
                  const Eigen::Vector3d& ba, bool compute_jacobian,
                  bool compute_covariance);
 
-  bool Integrate(ros::Time t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
-                 bool compute_jacobian, bool compute_covariance);
-
+  /**
+   * @brief
+   */
   void ComputeSqrtInverseCovariance();
 
   Eigen::Matrix3d cov_w; // continuous noise covariance
@@ -66,7 +97,7 @@ struct PreIntegrator {
 
   Delta delta;
   Jacobian jacobian;
-
+  // vector of imu data (buffer)
   std::vector<IMUData> data;
 };
 

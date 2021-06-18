@@ -203,9 +203,6 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   if (orientation && position) {
     imu_state_j.SetOrientation(orientation->data());
     imu_state_j.SetPosition(position->data());
-    if (imu_state_j.Stamp() != t_now) {
-      std::cout << "timestamp mismatch" << std::endl;
-    }
   }
 
   // calculate relative change in imu state between key frames
