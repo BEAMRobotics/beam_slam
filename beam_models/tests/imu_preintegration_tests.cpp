@@ -589,7 +589,7 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
 
     // populate ImuPreintegration with synthetic imu measurements
     for (beam_common::IMUData msg : data.imu_data_gt)
-      imu_preintegration->PopulateBuffer(msg);
+      imu_preintegration->AddToBuffer(msg);
 
     // get copies of imu states
     IS1 = data.IS1;

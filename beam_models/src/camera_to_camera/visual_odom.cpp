@@ -73,7 +73,7 @@ void VisualOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     if (!initialization_passed_) {
       initializer_->AddIMU(ang_vel, lin_accel, imu_time);
     } else {
-      // preintegrator.PopulateBuffer(msg);
+      // preintegrator.AddToBuffer(msg);
     }
     //}
     imu_buffer_.pop();

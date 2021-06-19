@@ -23,12 +23,12 @@ void ImuPreintegration::ClearBuffer() {
   for (size_t i = 0; i < imu_data_buffer_.size(); i++) imu_data_buffer_.pop();
 }
 
-void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
+void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
   beam_common::IMUData imu_data(msg);
   imu_data_buffer_.push(imu_data);
 }
 
-void ImuPreintegration::PopulateBuffer(const beam_common::IMUData& imu_data) {
+void ImuPreintegration::AddToBuffer(const beam_common::IMUData& imu_data) {
   imu_data_buffer_.push(imu_data);
 }
 

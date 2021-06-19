@@ -73,12 +73,12 @@ public:
   /**
    * @brief populate imu buffer with imu data collected by sensor data
    */
-  void PopulateBuffer(const sensor_msgs::Imu::ConstPtr& msg);
+  void AddToBuffer(const sensor_msgs::Imu::ConstPtr& msg);
 
   /**
    * @brief populate imu buffer with imu data
    */
-  void PopulateBuffer(const beam_common::IMUData& imu_data);
+  void AddToBuffer(const beam_common::IMUData& imu_data);
 
   /**
    * @brief sets the initial IMU state with respect to world frame
