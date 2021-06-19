@@ -6,6 +6,9 @@
 
 namespace beam_common {
 
+/**
+ * @brief Struct representating a single imu measurements
+ */
 struct IMUData {
   ros::Time t;       // timestamp
   Eigen::Vector3d w; // gyro measurement
@@ -30,30 +33,31 @@ struct IMUData {
   }
 };
 
-struct PreIntegrator {
-  /**
-   * @brief Struct representating the changes between imu states
-   */
-  struct Delta {
-    ros::Duration t;
-    Eigen::Quaterniond q;
-    Eigen::Vector3d p;
-    Eigen::Vector3d v;
-    Eigen::Matrix<double, 15, 15> cov; // ordered in q, p, v, bg, ba
-    Eigen::Matrix<double, 15, 15> sqrt_inv_cov;
-  };
+/**
+ * @brief Struct representating the changes between imu states
+ */
+struct Delta {
+  ros::Duration t;
+  Eigen::Quaterniond q;
+  Eigen::Vector3d p;
+  Eigen::Vector3d v;
+  Eigen::Matrix<double, 15, 15> cov; // ordered in q, p, v, bg, ba
+  Eigen::Matrix<double, 15, 15> sqrt_inv_cov;
+};
 
-  /**
-   * @brief Represents the jacobian
-   */
-  struct Jacobian {
-    Eigen::Matrix3d dq_dbg;
-    Eigen::Matrix3d dp_dbg;
-    Eigen::Matrix3d dp_dba;
-    Eigen::Matrix3d dv_dbg;
-    Eigen::Matrix3d dv_dba;
-  };
+/**
+ * @brief Represents the jacobian
+ */
+struct Jacobian {
+  Eigen::Matrix3d dq_dbg;
+  Eigen::Matrix3d dp_dbg;
+  Eigen::Matrix3d dp_dba;
+  Eigen::Matrix3d dv_dbg;
+  Eigen::Matrix3d dv_dba;
+};
 
+class PreIntegrator {
+public:
   /**
    * @brief Resets the preintegrator to a 0 state
    */

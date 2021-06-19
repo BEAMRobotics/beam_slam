@@ -7,6 +7,8 @@
 #include <beam_models/frame_to_frame/imu_state.h>
 #include <beam_common/preintegrator.h>
 
+#define GRAVITY 9.80655
+
 namespace beam_models { namespace frame_to_frame {
 
 template <typename ConstraintType, typename PriorType>
@@ -35,12 +37,11 @@ public:
    * @param source sensor model source
    */
   struct Params {
-    double gravitational_acceleration{9.80665};
     double prior_noise{1e-9};
-    Eigen::Matrix3d cov_gyro_noise;
-    Eigen::Matrix3d cov_accel_noise;
-    Eigen::Matrix3d cov_gyro_bias;
-    Eigen::Matrix3d cov_accel_bias;
+    Eigen::Matrix3d cov_gyro_noise{Eigen::Matrix3d::Identity()};
+    Eigen::Matrix3d cov_accel_noise{Eigen::Matrix3d::Identity()};
+    Eigen::Matrix3d cov_gyro_bias{Eigen::Matrix3d::Identity()};
+    Eigen::Matrix3d cov_accel_bias{Eigen::Matrix3d::Identity()};
     std::string source{"IMUPREINTEGRATION"};
   };
 
@@ -82,14 +83,14 @@ public:
   /**
    * @brief sets the initial IMU state with respect to world frame
    * @param t_start time of initial IMU state
-   * @param orientation orientation of initial IMU state
-   * @param position position of initial IMU state
-   * @param velocity velocity of initial IMU state
+   * @param R_WORLD_IMU orientation of initial IMU state (if null, is set to identity)
+   * @param t_WORLD_IMU position of initial IMU state (if null, is set to zero)
+   * @param velocity velocity of initial IMU state (if null set to zero)
    */
   void SetStart(
       const ros::Time& t_start,
-      fuse_variables::Orientation3DStamped::SharedPtr orientation = nullptr,
-      fuse_variables::Position3DStamped::SharedPtr position = nullptr,
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
       fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
 
   /**
@@ -126,15 +127,15 @@ public:
   /**
    * @brief registers new transaction between key frames
    * @param t_now time at which to set new key frame
-   * @param orientation orientation of new key frame from VIO or LIO
-   * @param position position of new key frame from VIO or LIO
+   * @param R_WORLD_IMU orientation of new key frame from VIO or LIO (if null, imu will predict)
+   * @param t_WORLD_IMU position of new key frame from VIO or LIO (if null, imu will predict)
    * @return transaction
    */
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
       RegisterNewImuPreintegratedFactor(
           const ros::Time& t_now,
-          fuse_variables::Orientation3DStamped::SharedPtr orientation = nullptr,
-          fuse_variables::Position3DStamped::SharedPtr position = nullptr);
+          fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
+          fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
 
 private:
   /**

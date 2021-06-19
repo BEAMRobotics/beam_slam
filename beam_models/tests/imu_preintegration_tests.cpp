@@ -38,7 +38,7 @@ class Data {
   Data() {
     // set time of simulation and gravity vector
     int64_t time_simulation_ns = start_time_ns + time_duration;
-    gravity << 0, 0, -gravitational_acceleration;
+    gravity << 0, 0, -GRAVITY;
 
     // set times of imu states
     ros::Time t1_ros = ros::Time(start_time_ns * 1e-9);
@@ -124,7 +124,6 @@ class Data {
   int64_t time_interval_ns = 10e9;          // [nano sec]
   int64_t time_duration = 20e9;             // [nano sec]
   int64_t dt_ns = 1e7;                      // [nano sec]
-  double gravitational_acceleration{9.81};  // [m/sec^2]
 
   Eigen::Vector3d gravity;
   std::vector<beam_common::IMUData> imu_data_gt;
@@ -583,9 +582,6 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
     params.cov_accel_noise.setZero();
     params.cov_gyro_bias.setZero();
     params.cov_accel_bias.setZero();
-
-    // set gravitional acceleration according to data class
-    params.gravitational_acceleration = data.gravitational_acceleration;
 
     // instantiate preintegration class with zero noise. By default,
     // bias terms (i.e. bg, ba) are set to zero

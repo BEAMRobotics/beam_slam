@@ -26,10 +26,14 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
   Eigen::Vector3d w = data.w - bg;
   Eigen::Vector3d a = data.a - ba;
 
+  Eigen::Quaterniond q_full(beam::LieAlgebraToR(w * dtd));
+  Eigen::Quaterniond q_half(beam::LieAlgebraToR(0.5 * w * dtd));
+
   if (compute_covariance) {
     Eigen::Matrix<double, 9, 9> A;
     A.setIdentity();
-    A.block<3, 3>(0, 0) = beam::expmap(w * dtd).conjugate().matrix();
+
+    A.block<3, 3>(0, 0) = q_full.conjugate().matrix();
     A.block<3, 3>(6, 0) = -dtd * delta.q.matrix() * beam::SkewTransform(a);
     A.block<3, 3>(3, 0) =
         -0.5 * dtd * dtd * delta.q.matrix() * beam::SkewTransform(a);
@@ -55,41 +59,41 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
   }
 
   if (compute_jacobian) {
-    jacobian.dp_dbg += dtd * jacobian.dv_dbg - 0.5 * dtd * dtd * delta.q.matrix() *
-                                                  beam::SkewTransform(a) *
-                                                  jacobian.dq_dbg;
-    jacobian.dp_dba += dtd * jacobian.dv_dba - 0.5 * dtd * dtd * delta.q.matrix();
+    jacobian.dp_dbg +=
+        dtd * jacobian.dv_dbg - 0.5 * dtd * dtd * delta.q.matrix() *
+                                    beam::SkewTransform(a) * jacobian.dq_dbg;
+    jacobian.dp_dba +=
+        dtd * jacobian.dv_dba - 0.5 * dtd * dtd * delta.q.matrix();
     jacobian.dv_dbg -=
         dtd * delta.q.matrix() * beam::SkewTransform(a) * jacobian.dq_dbg;
     jacobian.dv_dba -= dtd * delta.q.matrix();
-    jacobian.dq_dbg =
-        beam::expmap(w * dtd).conjugate().matrix() * jacobian.dq_dbg -
-        dtd * beam::RightJacobian(w * dtd);
+    jacobian.dq_dbg = q_full.conjugate().matrix() * jacobian.dq_dbg -
+                      dtd * beam::RightJacobian(w * dtd);
   }
 
-  Eigen::Quaterniond q_mid = delta.q * beam::expmap(0.5 * w * dtd);
+  Eigen::Quaterniond q_mid = delta.q * q_half;
   Eigen::Vector3d a_mid = q_mid * a;
 
   delta.t = delta.t + dt;
   delta.p = delta.p + dtd * delta.v + 0.5 * dtd * dtd * a_mid;
   delta.v = delta.v + dtd * a_mid;
-  delta.q = (delta.q * beam::expmap(w * dtd)).normalized();
+  delta.q = (delta.q * q_full).normalized();
 }
 
 bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg,
                               const Eigen::Vector3d& ba, bool compute_jacobian,
                               bool compute_covariance) {
   if (data.size() == 0) return false;
-  this->Reset();
+  Reset();
   for (size_t i = 0; i + 1 < data.size(); ++i) {
     const IMUData& d = data[i];
-    this->Increment(data[i + 1].t - d.t, d, bg, ba, compute_jacobian,
-                    compute_covariance);
+    Increment(data[i + 1].t - d.t, d, bg, ba, compute_jacobian,
+              compute_covariance);
   }
   assert(("Image time cannot be earlier than last imu.") &&
          (t >= data.back().t));
-  this->Increment(t - data.back().t, data.back(), bg, ba, compute_jacobian,
-                  compute_covariance);
+  Increment(t - data.back().t, data.back(), bg, ba, compute_jacobian,
+            compute_covariance);
   return true;
 }
 

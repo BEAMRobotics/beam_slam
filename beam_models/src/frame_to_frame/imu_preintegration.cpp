@@ -7,7 +7,7 @@
 namespace beam_models { namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
-  g_ << 0, 0, -params_.gravitational_acceleration;
+  g_ << 0, 0, -GRAVITY;
   SetPreintegrator();
 }
 
@@ -15,7 +15,7 @@ ImuPreintegration::ImuPreintegration(const Params& params,
                                      const Eigen::Vector3d& init_bg,
                                      const Eigen::Vector3d& init_ba)
     : params_(params), bg_(init_bg), ba_(init_ba) {
-  g_ << 0, 0, -params_.gravitational_acceleration;
+  g_ << 0, 0, -GRAVITY;
   SetPreintegrator();
 }
 
@@ -54,8 +54,8 @@ void ImuPreintegration::CheckTime(const ros::Time& t_now) {
 
 void ImuPreintegration::SetStart(
     const ros::Time& t_start,
-    fuse_variables::Orientation3DStamped::SharedPtr orientation,
-    fuse_variables::Position3DStamped::SharedPtr position,
+    fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
+    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   // adjust imu buffer
   while (t_start > imu_data_buffer_.front().t) { imu_data_buffer_.pop(); }
@@ -63,13 +63,11 @@ void ImuPreintegration::SetStart(
   // set imu state
   ImuState imu_state_i(t_start);
 
-  if (orientation != nullptr) {
-    imu_state_i.SetOrientation(orientation->data());
-  }
+  if (R_WORLD_IMU) { imu_state_i.SetOrientation(R_WORLD_IMU->data()); }
 
-  if (position != nullptr) { imu_state_i.SetPosition(position->data()); }
+  if (t_WORLD_IMU) { imu_state_i.SetPosition(t_WORLD_IMU->data()); }
 
-  if (velocity != nullptr) { imu_state_i.SetVelocity(velocity->data()); }
+  if (velocity) { imu_state_i.SetVelocity(velocity->data()); }
 
   imu_state_i.SetGyroBias(bg_);
   imu_state_i.SetAccelBias(ba_);
@@ -159,8 +157,8 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
     ImuPreintegration::RegisterNewImuPreintegratedFactor(
         const ros::Time& t_now,
-        fuse_variables::Orientation3DStamped::SharedPtr orientation,
-        fuse_variables::Position3DStamped::SharedPtr position) {
+        fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
+        fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 
@@ -200,9 +198,9 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_);
 
   // update orientation and position of predicted imu state with arguments
-  if (orientation && position) {
-    imu_state_j.SetOrientation(orientation->data());
-    imu_state_j.SetPosition(position->data());
+  if (R_WORLD_IMU && t_WORLD_IMU) {
+    imu_state_j.SetOrientation(R_WORLD_IMU->data());
+    imu_state_j.SetPosition(t_WORLD_IMU->data());
   }
 
   // calculate relative change in imu state between key frames
