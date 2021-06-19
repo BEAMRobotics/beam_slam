@@ -6,8 +6,7 @@
 
 namespace beam_models { namespace frame_to_frame {
 
-ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
-  g_ << 0, 0, -GRAVITY;
+ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {\
   SetPreintegrator();
 }
 
@@ -15,7 +14,6 @@ ImuPreintegration::ImuPreintegration(const Params& params,
                                      const Eigen::Vector3d& init_bg,
                                      const Eigen::Vector3d& init_ba)
     : params_(params), bg_(init_bg), ba_(init_ba) {
-  g_ << 0, 0, -GRAVITY;
   SetPreintegrator();
 }
 

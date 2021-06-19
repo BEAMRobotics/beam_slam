@@ -156,7 +156,7 @@ private:
   void CheckTime(const ros::Time& t_now);
 
   Params params_;           // class parameters
-  Eigen::Vector3d g_;       // gravity vector
+  Eigen::Vector3d g_{Eigen::Vector3d(0, 0, -GRAVITY)}; // gravity vector
   bool first_window_{true}; // flag for first window between key frames
 
   ImuState imu_state_i_;                // current key frame

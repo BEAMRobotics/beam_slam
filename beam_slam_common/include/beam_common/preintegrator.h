@@ -10,9 +10,6 @@ namespace beam_common {
  * @brief Struct representating a single imu measurements
  */
 struct IMUData {
-  ros::Time t;       // timestamp
-  Eigen::Vector3d w; // gyro measurement
-  Eigen::Vector3d a; // accelerometer measurement
   /**
    * @brief Defualt Constructor
    */
@@ -31,6 +28,10 @@ struct IMUData {
     a[1] = msg->linear_acceleration.y;
     a[2] = msg->linear_acceleration.z;
   }
+
+  ros::Time t;       // timestamp
+  Eigen::Vector3d w; // gyro measurement
+  Eigen::Vector3d a; // accelerometer measurement
 };
 
 /**
@@ -58,6 +59,11 @@ struct Jacobian {
 
 class PreIntegrator {
 public:
+  /**
+   * @brief Defualt Constructor
+   */
+  PreIntegrator() = default;
+
   /**
    * @brief Resets the preintegrator to a 0 state
    */
