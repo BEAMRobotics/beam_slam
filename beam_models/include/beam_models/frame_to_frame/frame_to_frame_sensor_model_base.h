@@ -66,7 +66,7 @@ protected:
       frame_initializer_ =
           std::make_unique<frame_initializers::OdometryFrameInitializer>(
               base_params_->frame_initializer_info, 100,
-              base_params_->sensor_frame, true, 30);
+              base_params_->sensor_frame, 30);
     } else if (base_params_->frame_initializer_type == "POSEFILE") {
       frame_initializer_ =
           std::make_unique<frame_initializers::PoseFileFrameInitializer>(

@@ -6,7 +6,8 @@
 #include <beam_common/pose_lookup.h>
 #include <beam_models/frame_initializers/frame_initializer_base.h>
 
-namespace beam_models { namespace frame_initializers {
+namespace beam_models {
+namespace frame_initializers {
 
 /**
  * @brief This class can be used to estimate a pose of a frame given its
@@ -16,21 +17,19 @@ namespace beam_models { namespace frame_initializers {
  *
  */
 class OdometryFrameInitializer : public FrameInitializerBase {
-public:
+ public:
   /**
    * @brief Constructor
    * @param topic odometry topic to subscribe to
    * @param queue_size subscriber queue size
    * @param sensor_frame_id frame ID attached to the sensor, used to lookup
    * extrinsic calibrations. If not supplied, it will assume the odometry is
-   * already in the correct frame.
-   * @param static_extrinsics set to false if extrinsics change and transforms
-   * are broadcasted to /tf
-   * @param poses_buffer_time lenth of time to store poses for interpolation
+   * in the baslink frame
+   * @param poses_buffer_time length of time to store poses for interpolation
    */
   OdometryFrameInitializer(const std::string& topic, int queue_size,
                            const std::string& sensor_frame_id,
-                           bool static_extrinsics, double poses_buffer_time);
+                           double poses_buffer_time);
 
   /**
    * @brief Gets estimate frame pose
@@ -48,11 +47,22 @@ public:
    */
   void OdometryCallback(const nav_msgs::OdometryConstPtr message);
 
-private:
-  beam_common::PoseLookup::Params pose_lookup_params_;
-  std::unique_ptr<beam_common::PoseLookup> pose_lookup_;
+ private:
+  /**
+   * @brief Check to see if world frame and baselink frame IDs match those
+   * supplied in odemetry messages.
+   */
+  void CheckOdometryFrameIDs(const nav_msgs::OdometryConstPtr message);
+
+      beam_common::PoseLookup& pose_lookup_ =
+          beam_common::PoseLookup::GetInstance();
+
   std::shared_ptr<tf2::BufferCore> poses_;
+  std::string sensor_frame_id_;
   ros::Subscriber odometry_subscriber_;
+
+  bool check_world_baselink_frames_{false};
 };
 
-}} // namespace beam_models::frame_initializers
+}  // namespace frame_initializers
+}  // namespace beam_models
