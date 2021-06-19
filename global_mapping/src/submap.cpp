@@ -342,8 +342,8 @@ void Submap::TriangulateKeypoints(bool override_points) {
     Eigen::Matrix4d T_SUBMAP_WORLD = beam::InvertTransform(T_WORLD_SUBMAP_);
 
     // get poses and pixels for each measurement in the track
-    std::vector<Eigen::Matrix4d> Ts_CAM_WORLD;
-    std::vector<Eigen::Vector2i> pixels;
+    std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> Ts_CAM_WORLD;
+    std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
     for (const beam_containers::LandmarkMeasurement& measurement : track) {
       // find keyframe from measurement stamp
       std::map<uint64_t, Eigen::Matrix4d>::const_iterator keyframe_pose =
