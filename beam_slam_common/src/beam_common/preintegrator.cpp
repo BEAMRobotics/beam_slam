@@ -41,7 +41,7 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
 
     Eigen::Matrix<double, 9, 6> B;
     B.setZero();
-    B.block<3, 3>(0, 0) = dtd * beam::RightJacobian(w * dtd);
+    B.block<3, 3>(0, 0) = dtd * beam::RightJacobianOfSO3(w * dtd);
     B.block<3, 3>(6, 3) = dtd * delta.q.matrix();
     B.block<3, 3>(3, 3) = 0.5 * dtd * dtd * delta.q.matrix();
 
@@ -68,7 +68,7 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
         dtd * delta.q.matrix() * beam::SkewTransform(a) * jacobian.dq_dbg;
     jacobian.dv_dba -= dtd * delta.q.matrix();
     jacobian.dq_dbg = q_full.conjugate().matrix() * jacobian.dq_dbg -
-                      dtd * beam::RightJacobian(w * dtd);
+                      dtd * beam::RightJacobianOfSO3(w * dtd);
   }
 
   Eigen::Quaterniond q_mid = delta.q * q_half;
