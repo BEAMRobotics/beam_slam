@@ -210,20 +210,6 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
     covariance_ij.setIdentity();
     covariance_ij *= params_.prior_noise;
   }
-  // Ensure covariance non nan and non inf
-  bool nan_or_inf = false;
-  for (size_t i = 0, rows = covariance_ij.rows(), cols = covariance_ij.cols();
-       i < rows; ++i) {
-    if (nan_or_inf) break;
-    for (size_t j = 0; j < cols; ++j) {
-      if (std::isnan(covariance_ij(i, j)) || std::isinf(covariance_ij(i, j))) {
-        covariance_ij.setIdentity();
-        covariance_ij *= params_.prior_noise;
-        nan_or_inf = true;
-        break;
-      }
-    }
-  }
 
   // make preintegrator a shared pointer for constraint
   auto pre_integrator =
