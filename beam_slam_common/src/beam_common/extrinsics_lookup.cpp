@@ -1,6 +1,6 @@
 #include <beam_common/extrinsics_lookup.h>
-#include <beam_common/utils.h>
 
+#include <beam_common/utils.h>
 #include <beam_utils/log.h>
 #include <beam_utils/math.h>
 
