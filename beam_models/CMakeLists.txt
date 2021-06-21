@@ -140,35 +140,49 @@ add_dependencies(
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
   find_package(basalt REQUIRED)
-
-  add_executable(${PROJECT_NAME}_multi_scan_registration_tests 
-    tests/multi_scan_registration_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_multi_scan_registration_tests 
-    ${PROJECT_NAME}
-    gtest_main
-    beam::utils)
-  add_test(NAME ${PROJECT_NAME}_multi_scan_registration_tests 
-          COMMAND ${PROJECT_NAME}_multi_scan_registration_tests)
+  # Lint tests
+  roslint_add_test()
   
-  add_executable(${PROJECT_NAME}_scan_to_map_registration_tests 
-    tests/scan_to_map_registration_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_scan_to_map_registration_tests 
+  # Scan to scan registration tests
+  catkin_add_gtest(multi_scan_registration_tests 
+    tests/multi_scan_registration_tests.cpp
+  )
+  target_link_libraries(multi_scan_registration_tests 
     ${PROJECT_NAME}
-    gtest_main
-    beam::utils)
-  add_test(NAME ${PROJECT_NAME}_scan_to_map_registration_tests 
-          COMMAND ${PROJECT_NAME}_scan_to_map_registration_tests)        
+  )
+  set_target_properties(multi_scan_registration_tests 
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )  
 
-  add_executable(${PROJECT_NAME}_imu_preintegration_tests 
-    tests/imu_preintegration_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
+  # Scan to map registration tests
+  catkin_add_gtest(scan_to_map_registration_tests 
+    tests/scan_to_map_registration_tests.cpp
+  )
+  target_link_libraries(scan_to_map_registration_tests 
     ${PROJECT_NAME}
-    ${CERES_LIBRARIES}
+  )
+  set_target_properties(scan_to_map_registration_tests 
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
+
+  # IMU preintegration tests
+  catkin_add_gtest(imu_preintegration_tests
+    tests/imu_preintegration_tests.cpp
+  )
+  target_link_libraries(imu_preintegration_tests
+    ${PROJECT_NAME}
     ${catkin_LIBRARIES}
-    gtest_main
-    beam::utils)
-  add_test(NAME ${PROJECT_NAME}_imu_preintegration_tests 
-          COMMAND ${PROJECT_NAME}_imu_preintegration_tests)     
+    ${CERES_LIBRARIES}
+  )
+  set_target_properties(imu_preintegration_tests
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
 
 endif()
 
