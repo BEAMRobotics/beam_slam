@@ -25,7 +25,7 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   } else if (extension == ".ply") {
     poses_reader.LoadFromPLY(file_path);
   } else {
-    ROS_ERROR(
+    BEAM_ERROR(
         "Invalid file extension for pose file. Options: .json, .txt, .ply");
     throw std::invalid_argument{"Invalid extensions type."};
   }

@@ -50,12 +50,12 @@ class OdometryFrameInitializer : public FrameInitializerBase {
  private:
   /**
    * @brief Check to see if world frame and baselink frame IDs match those
-   * supplied in odemetry messages.
+   * supplied in odometry messages.
    */
   void CheckOdometryFrameIDs(const nav_msgs::OdometryConstPtr message);
 
-      beam_common::PoseLookup& pose_lookup_ =
-          beam_common::PoseLookup::GetInstance();
+  beam_common::PoseLookup& pose_lookup_ =
+      beam_common::PoseLookup::GetInstance();
 
   std::shared_ptr<tf2::BufferCore> poses_;
   std::string sensor_frame_id_;

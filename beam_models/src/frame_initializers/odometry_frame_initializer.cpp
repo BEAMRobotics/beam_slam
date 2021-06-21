@@ -30,18 +30,19 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
     BEAM_WARN(
         "World frame and baselink frames do not match parent and child frames "
         "in odometry messages, respectively.");
-  } else {
-    check_world_baselink_frames_ = true;
   }
+  check_world_baselink_frames_ = true;
 }
 
 void OdometryFrameInitializer::OdometryCallback(
     const nav_msgs::OdometryConstPtr message) {
   if (!check_world_baselink_frames_) CheckOdometryFrameIDs(message);
 
+  // stamp transforms using world and baselink frame IDs from PoseLookup
   geometry_msgs::TransformStamped tf_stamped;
   tf_stamped.header = message->header;
-  tf_stamped.child_frame_id = message->child_frame_id;
+  tf_stamped.header.frame_id = pose_lookup_.GetWorldFrameID();
+  tf_stamped.child_frame_id = pose_lookup_.GetBaselinkFrameID();
   tf_stamped.transform.translation.x = message->pose.pose.position.x;
   tf_stamped.transform.translation.y = message->pose.pose.position.y;
   tf_stamped.transform.translation.z = message->pose.pose.position.z;
