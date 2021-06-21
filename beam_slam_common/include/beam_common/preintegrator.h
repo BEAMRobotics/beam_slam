@@ -7,7 +7,7 @@
 namespace beam_common {
 
 /**
- * @brief Struct representating a single imu measurements
+ * @brief Struct representating a single imu measurement
  */
 struct IMUData {
   /**
@@ -57,10 +57,14 @@ struct Jacobian {
   Eigen::Matrix3d dv_dba;
 };
 
+/**
+ * @brief this class contains the preintegration math and functions required, it
+ * is used with ImuPreintegration for creating constraints and estimating states
+ */
 class PreIntegrator {
 public:
   /**
-   * @brief Defualt Constructor
+   * @brief Default Constructor
    */
   PreIntegrator() = default;
 
