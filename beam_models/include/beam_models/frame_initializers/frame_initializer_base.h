@@ -35,12 +35,12 @@ class FrameInitializerBase {
 
   /**
    * @brief Gets estimated pose of sensor frame wrt world frame
+   * @param T_WORLD_SENSOR reference to result 
    * @param time stamp of the frame being initialized
-   * @param T_WORLD_SENSOR reference to result
    * @return true if pose lookup was successful
    */
-  bool GetEstimatedPose(const ros::Time& time,
-                        Eigen::Matrix4d& T_WORLD_SENSOR) {
+  bool GetEstimatedPose(Eigen::Matrix4d& T_WORLD_SENSOR,
+                        const ros::Time& time) {
     return pose_lookup_.GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id_,
                                           time);
   };

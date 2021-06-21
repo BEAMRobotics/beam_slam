@@ -144,8 +144,8 @@ ScanMatcher3D::GenerateTransaction(
   }
 
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT;
-  if (!frame_initializer_->GetEstimatedPose(msg->header.stamp,
-                                            T_WORLD_CLOUDCURRENT)) {
+  if (!frame_initializer_->GetEstimatedPose(T_WORLD_CLOUDCURRENT,
+                                            msg->header.stamp)) {
     return beam_constraints::frame_to_frame::Pose3DStampedTransaction(
         msg->header.stamp);
   }
