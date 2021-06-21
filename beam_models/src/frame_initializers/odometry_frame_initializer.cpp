@@ -6,9 +6,9 @@ namespace beam_models {
 namespace frame_initializers {
 
 OdometryFrameInitializer::OdometryFrameInitializer(
-    const std::string& topic, int queue_size,
-    const std::string& sensor_frame_id, double poses_buffer_time)
-    : sensor_frame_id_(sensor_frame_id) {
+    const std::string& topic, int queue_size, int64_t poses_buffer_time,
+    const std::string& sensor_frame_id)
+    : FrameInitializerBase(sensor_frame_id) {
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time));
   pose_lookup_.SetPoses(poses_);
 
@@ -31,12 +31,12 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
         "World frame and baselink frames do not match parent and child frames "
         "in odometry messages, respectively.");
   }
-  check_world_baselink_frames_ = true;
+  check_world_baselink_frames_ = false;
 }
 
 void OdometryFrameInitializer::OdometryCallback(
     const nav_msgs::OdometryConstPtr message) {
-  if (!check_world_baselink_frames_) CheckOdometryFrameIDs(message);
+  if (check_world_baselink_frames_) CheckOdometryFrameIDs(message);
 
   // stamp transforms using world and baselink frame IDs from PoseLookup
   geometry_msgs::TransformStamped tf_stamped;
@@ -49,13 +49,6 @@ void OdometryFrameInitializer::OdometryCallback(
   tf_stamped.transform.rotation = message->pose.pose.orientation;
   std::string authority{"odometry"};
   poses_->setTransform(tf_stamped, authority, false);
-}
-
-bool OdometryFrameInitializer::GetEstimatedPose(
-    const ros::Time& time, Eigen::Matrix4d& T_WORLD_SENSOR) {
-  bool result =
-      pose_lookup_.GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id_, time);
-  return result;
 }
 
 }  // namespace frame_initializers

@@ -10,7 +10,7 @@ namespace frame_initializers {
 
 PoseFileFrameInitializer::PoseFileFrameInitializer(
     const std::string& file_path, const std::string& sensor_frame_id)
-    : sensor_frame_id_(sensor_frame_id) {
+    : FrameInitializerBase(sensor_frame_id) {
   if (!boost::filesystem::exists(file_path)) {
     ROS_ERROR("Pose file not found: %s", file_path.c_str());
     throw std::invalid_argument{"Pose file not found."};
@@ -30,10 +30,6 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     throw std::invalid_argument{"Invalid extensions type."};
   }
 
-  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-      transforms = poses_reader.GetPoses();
-  std::vector<ros::Time> timestamps = poses_reader.GetTimeStamps();
-
   if (pose_lookup_.GetBaselinkFrameID() != poses_reader.GetFixedFrame()) {
     BEAM_WARN(
         "Baselink frame supplied to PoseFrameInitializer is not consistent "
@@ -46,19 +42,19 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
         "with pose file.");
   }
 
-  if (sensor_frame_id_.empty()) {
-    sensor_frame_id_ = pose_lookup_.GetBaselinkFrameID();
-  }
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      transforms = poses_reader.GetPoses();
+  std::vector<ros::Time> timestamps = poses_reader.GetTimeStamps();
 
   // create buffer core with cache time slightly larger than the difference
   // between the min and max timestamps. Also include a minimum
-  double cache_time =
+  int64_t cache_time =
       1.2 * (timestamps[timestamps.size() - 1].toSec() - timestamps[0].toSec());
   if (cache_time < 10) {
     cache_time = 10;
   }
-  std::shared_ptr<tf2::BufferCore> poses =
-      std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
+
+  poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
 
   for (int i = 0; i < transforms.size(); i++) {
     geometry_msgs::TransformStamped tf_stamped;
@@ -76,17 +72,10 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     tf_stamped.transform.rotation.z = q.z();
     tf_stamped.transform.rotation.w = q.w();
     std::string authority{"poses_file"};
-    poses->setTransform(tf_stamped, authority, false);
+    poses_->setTransform(tf_stamped, authority, false);
   }
 
-  pose_lookup_.SetPoses(poses);
-}
-
-bool PoseFileFrameInitializer::GetEstimatedPose(
-    const ros::Time& time, Eigen::Matrix4d& T_WORLD_SENSOR) {
-  bool result =
-      pose_lookup_.GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id_, time);
-  return result;
+  pose_lookup_.SetPoses(poses_);
 }
 
 }  // namespace frame_initializers

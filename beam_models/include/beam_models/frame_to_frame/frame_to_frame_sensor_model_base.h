@@ -8,7 +8,8 @@
 #include <beam_models/frame_initializers/frame_initializers.h>
 #include <beam_parameters/models/frame_to_frame_parameter_base.h>
 
-namespace beam_models { namespace frame_to_frame {
+namespace beam_models {
+namespace frame_to_frame {
 
 /**
  * This class is inherited by each of the different frame_to_frame sensor
@@ -24,7 +25,7 @@ namespace beam_models { namespace frame_to_frame {
 template <typename SubscriberMsgType, typename ParamType,
           typename TransactionType>
 class FrameToFrameSensorModelBase : public fuse_core::AsyncSensorModel {
-public:
+ public:
   SMART_PTR_DEFINITIONS(FrameToFrameSensorModelBase<
                         SubscriberMsgType, ParamType, TransactionType>);
 
@@ -40,7 +41,7 @@ public:
 
   ~FrameToFrameSensorModelBase() override = default;
 
-protected:
+ protected:
   /**
    * @brief virtual function that needs to be overridden for each derived class
    */
@@ -65,8 +66,8 @@ protected:
     if (base_params_->frame_initializer_type == "ODOMETRY") {
       frame_initializer_ =
           std::make_unique<frame_initializers::OdometryFrameInitializer>(
-              base_params_->frame_initializer_info, 100,
-              base_params_->sensor_frame, 30);
+              base_params_->frame_initializer_info, 100, 30,
+              base_params_->sensor_frame);
     } else if (base_params_->frame_initializer_type == "POSEFILE") {
       frame_initializer_ =
           std::make_unique<frame_initializers::PoseFileFrameInitializer>(
@@ -103,7 +104,7 @@ protected:
    */
   void onStop() override { subscriber_.shutdown(); };
 
-  fuse_core::UUID device_id_; //!< The UUID of this device
+  fuse_core::UUID device_id_;  //!< The UUID of this device
   std::shared_ptr<beam_parameters::models::FrameToFrameParameterBase>
       base_params_;
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
@@ -114,4 +115,5 @@ protected:
   ThrottledCallback throttled_callback_;
 };
 
-}} // namespace beam_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace beam_models
