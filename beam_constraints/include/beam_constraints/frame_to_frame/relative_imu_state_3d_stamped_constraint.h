@@ -19,7 +19,7 @@
 
 #include <beam_variables/accel_bias_3d_stamped.h>
 #include <beam_variables/gyro_bias_3d_stamped.h>
-#include <slamtools/preintegrator.h>
+#include <beam_common/preintegrator.h>
 
 namespace beam_constraints { namespace frame_to_frame {
 
@@ -50,7 +50,7 @@ public:
       const beam_variables::AccelerationBias3DStamped& accelbias2,
       const Eigen::Matrix<double, 16, 1>& delta,
       const Eigen::Matrix<double, 15, 15>& covariance,
-      const std::shared_ptr<PreIntegrator> pre_integrator = nullptr);
+      const std::shared_ptr<beam_common::PreIntegrator> pre_integrator = nullptr);
 
   virtual ~RelativeImuState3DStampedConstraint() = default;
 
