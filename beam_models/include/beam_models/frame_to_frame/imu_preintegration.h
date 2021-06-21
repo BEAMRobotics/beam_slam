@@ -2,10 +2,10 @@
 
 #include <queue>
 
-#include <sensor_msgs/Imu.h>
+#include <beam_common/preintegrator.h>
 #include <beam_constraints/frame_to_frame/imu_state_3d_stamped_transaction.h>
 #include <beam_models/frame_to_frame/imu_state.h>
-#include <beam_common/preintegrator.h>
+#include <sensor_msgs/Imu.h>
 
 #define GRAVITY 9.80655
 
@@ -28,7 +28,6 @@ using TransactionBase =
 class ImuPreintegration {
 public:
   /**
-   * @param gravitational_acceleration gravitational acceleration in [m/sec^2]
    * @param prior_noise noise assumed for prior covariance
    * @param cov_gyro_noise angular velocity covariance [REQUIRED]
    * @param cov_accel_noise linear accleration covariance [REQUIRED]
@@ -38,10 +37,11 @@ public:
    */
   struct Params {
     double prior_noise{1e-9};
-    Eigen::Matrix3d cov_gyro_noise{Eigen::Matrix3d::Identity()};
-    Eigen::Matrix3d cov_accel_noise{Eigen::Matrix3d::Identity()};
-    Eigen::Matrix3d cov_gyro_bias{Eigen::Matrix3d::Identity()};
-    Eigen::Matrix3d cov_accel_bias{Eigen::Matrix3d::Identity()};
+    Eigen::Vector3d gravity{Eigen::Vector3d(0, 0, -GRAVITY)};
+    Eigen::Matrix3d cov_gyro_noise{Eigen::Matrix3d::Identity() * 1e-3};
+    Eigen::Matrix3d cov_accel_noise{Eigen::Matrix3d::Identity() * 1e-3};
+    Eigen::Matrix3d cov_gyro_bias{Eigen::Matrix3d::Identity() * 1e-3};
+    Eigen::Matrix3d cov_accel_bias{Eigen::Matrix3d::Identity() * 1e-3};
     std::string source{"IMUPREINTEGRATION"};
   };
 
@@ -83,7 +83,8 @@ public:
   /**
    * @brief sets the initial IMU state with respect to world frame
    * @param t_start time of initial IMU state
-   * @param R_WORLD_IMU orientation of initial IMU state (if null, is set to identity)
+   * @param R_WORLD_IMU orientation of initial IMU state (if null, is set to
+   * identity)
    * @param t_WORLD_IMU position of initial IMU state (if null, is set to zero)
    * @param velocity velocity of initial IMU state (if null set to zero)
    */
@@ -127,8 +128,10 @@ public:
   /**
    * @brief registers new transaction between key frames
    * @param t_now time at which to set new key frame
-   * @param R_WORLD_IMU orientation of new key frame from VIO or LIO (if null, imu will predict)
-   * @param t_WORLD_IMU position of new key frame from VIO or LIO (if null, imu will predict)
+   * @param R_WORLD_IMU orientation of new key frame from VIO or LIO (if null,
+   * imu will predict)
+   * @param t_WORLD_IMU position of new key frame from VIO or LIO (if null, imu
+   * will predict)
    * @return transaction
    */
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
@@ -156,15 +159,15 @@ private:
   void CheckTime(const ros::Time& t_now);
 
   Params params_;           // class parameters
-  Eigen::Vector3d g_{Eigen::Vector3d(0, 0, -GRAVITY)}; // gravity vector
   bool first_window_{true}; // flag for first window between key frames
 
-  ImuState imu_state_i_;                // current key frame
-  ImuState imu_state_k_;                // intermediate frame
-  beam_common::PreIntegrator pre_integrator_ij;      // preintegrate between key frames
+  ImuState imu_state_i_; // current key frame
+  ImuState imu_state_k_; // intermediate frame
+  beam_common::PreIntegrator
+      pre_integrator_ij; // preintegrate between key frames
   std::queue<beam_common::IMUData> imu_data_buffer_; // store imu data
-  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
-  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero accleration bias
+  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};      // zero gyroscope bias
+  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};      // zero accleration bias
 };
 
 }} // namespace beam_models::frame_to_frame

@@ -6,7 +6,8 @@
 
 namespace beam_models { namespace frame_to_frame {
 
-ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {\
+ImuPreintegration::ImuPreintegration(const Params& params)
+    : params_(params) {
   SetPreintegrator();
 }
 
@@ -84,10 +85,10 @@ ImuState ImuPreintegration::PredictState(
   Eigen::Matrix3d or_curr = imu_state_curr.OrientationQuat().toRotationMatrix();
   Eigen::Matrix3d or_new_mat = or_curr * pre_integrator.delta.q.matrix();
   Eigen::Vector3d vel_new =
-      imu_state_curr.VelocityVec() + g_ * dt + or_curr * pre_integrator.delta.v;
+      imu_state_curr.VelocityVec() + params_.gravity * dt + or_curr * pre_integrator.delta.v;
   Eigen::Vector3d pos_new =
       imu_state_curr.PositionVec() + imu_state_curr.VelocityVec() * dt +
-      0.5 * g_ * dt * dt + or_curr * pre_integrator.delta.p;
+      0.5 * params_.gravity * dt * dt + or_curr * pre_integrator.delta.p;
 
   // instantiate new imu state
   Eigen::Quaterniond or_new(or_new_mat);

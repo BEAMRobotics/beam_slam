@@ -70,7 +70,7 @@ public:
   void Reset();
 
   /**
-   * @brief
+   * @brief Increments current state by the incoming imu data
    * @param dt time difference to increment forward to
    * @param data given imu data
    * @param bg current gyroscope bias estimate
