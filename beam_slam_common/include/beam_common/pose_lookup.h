@@ -57,8 +57,8 @@ class PoseLookup {
    * @brief Gets estimate of sensor frame pose wrt baselink frame using
    * ExtrinsicsLookup
    * @param T_BASELINK_SENSOR reference to result
-   * @param sensor_frame sensor frame id. If empty, the assume sensor frame will
-   * be the baselink frame
+   * @param sensor_frame sensor frame id. If empty, the assumed sensor frame
+   * will be the baselink frame
    * @param time extrinsic time to lookup. If empty, or set to ros::Time(0), it
    * will use most recent available. This is also used when static_extrinsics is
    * set to true
@@ -78,7 +78,7 @@ class PoseLookup {
                            const ros::Time& time);
 
   /**
-   * @brief Gets the frame id of IMU
+   * @brief Gets the frame id of world
    * @return frame id
    */
   std::string GetWorldFrameID() const { return world_frame_; }
@@ -101,7 +101,8 @@ class PoseLookup {
   void CheckPoses();
 
   /**
-   * @brief commonly thrown error when getting baselink to sensor transform
+   * @brief commonly thrown error when incorrectly getting baselink to sensor
+   * transform
    */
   bool ThrowFrameIDError();
 

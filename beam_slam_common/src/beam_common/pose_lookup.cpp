@@ -1,6 +1,6 @@
 #include <beam_common/pose_lookup.h>
-#include <beam_common/utils.h>
 
+#include <beam_common/utils.h>
 #include <beam_utils/log.h>
 
 namespace beam_common {
@@ -20,6 +20,13 @@ PoseLookup::PoseLookup() {
     BEAM_ERROR(
         "Inputs to PoseLookup invalid. Parameters: world_frame and "
         "baselink_frame cannot be empty.");
+    throw std::invalid_argument{"Inputs to PoseLookup invalid."};
+  }
+
+  if (baselink_frame_ != extrinsics_.GetIMUFrameID() &&
+      baselink_frame_ != extrinsics_.GetCameraFrameID() &&
+      baselink_frame_ != extrinsics_.GetLidarFrameID()) {
+    BEAM_ERROR("baselink_frame must match one of the sensor frame IDs");
     throw std::invalid_argument{"Inputs to PoseLookup invalid."};
   }
 }
@@ -60,8 +67,9 @@ bool PoseLookup::GetT_WORLD_SENSOR(Eigen::Matrix4d& T_WORLD_SENSOR,
 
 bool PoseLookup::ThrowFrameIDError() {
   BEAM_ERROR(
-      "Sensor frame ID does not match those supplied in ExtrinsicsLookup.");
-  throw std::invalid_argument{"See sensor frame IDs set in YAML file"};
+      "Sensor frame ID does not match specified frames for imu, camera, or "
+      "lidar");
+  throw std::invalid_argument{"Invalid sensor frame ID"};
   return false;
 }
 
@@ -81,7 +89,6 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
   }
 
   // get transform from ExtrinsicsLookup
-  // TODO: refactor using Enum class for sensor frames, make use of switch-case
   if (baselink_frame_ == extrinsics_.GetIMUFrameID()) {
     if (sensor_frame == extrinsics_.GetCameraFrameID()) {
       extrinsics_.GetT_IMU_CAMERA(T_BASELINK_SENSOR, time);
@@ -107,7 +114,9 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
       ThrowFrameIDError();
     }
   } else {
-    ThrowFrameIDError();
+    // this condition should never be reached as we ensure that baselink is set
+    // properly upon class instantiation
+    return false;
   }
 
   return true;
