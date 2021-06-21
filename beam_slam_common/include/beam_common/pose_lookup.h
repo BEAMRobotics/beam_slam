@@ -27,17 +27,17 @@ class PoseLookup {
   static PoseLookup& GetInstance();
 
   /**
-   * @brief copy constructor
+   * @brief Copy constructor
    */
   PoseLookup(const PoseLookup& other) = delete;
 
   /**
-   * @brief copy assignment operator
+   * @brief Copy assignment operator
    */
   PoseLookup& operator=(const PoseLookup& other) = delete;
 
   /**
-   * @brief set Poses as a shared pointer. Setting poses has been enforced
+   * @brief Set Poses as a shared pointer. Setting poses has been enforced
    * @return true if poses are set
    */
   bool SetPoses(const std::shared_ptr<tf2::BufferCore> poses);
@@ -91,17 +91,17 @@ class PoseLookup {
 
  private:
   /**
-   * @brief constructor
+   * @brief Constructor
    */
   PoseLookup();
 
   /**
-   * @brief check to ensure that poses has been set
+   * @brief Check to ensure that poses has been set
    */
   void CheckPoses();
 
   /**
-   * @brief commonly thrown error when incorrectly getting baselink to sensor
+   * @brief Commonly thrown error when incorrectly getting baselink to sensor
    * transform
    */
   bool ThrowFrameIDError();

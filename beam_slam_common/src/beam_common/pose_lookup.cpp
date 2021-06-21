@@ -35,6 +35,7 @@ void PoseLookup::CheckPoses() {
   if (poses_ == nullptr) {
     BEAM_ERROR("Poses cannot be empty.");
     throw std::invalid_argument{"Poses must be set for PoseLookup to function"};
+    return false;
   }
 }
 

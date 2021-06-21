@@ -17,8 +17,7 @@ class PoseFileFrameInitializer : public FrameInitializerBase {
    * @brief Constructor
    * @param file_path full path to pose file
    * @param sensor_frame_id frame ID attached to the sensor, used to lookup
-   * extrinsic calibrations. If not supplied, it will assume the odometry is
-   * in the baslink frame
+   * extrinsic calibrations. See FrameInitializerBase for description
    */
   PoseFileFrameInitializer(const std::string& file_path,
                            const std::string& sensor_frame_id = "");

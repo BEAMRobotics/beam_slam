@@ -25,9 +25,9 @@ class FrameInitializerBase {
    * @brief Constructor
    * @param sensor_frame_id frame ID attached to the sensor, used to lookup
    * extrinsic calibrations. If not supplied, the sensor frame is assumed to
-   * coincide with the baselinke frame specified in PoseLookup
+   * coincide with the baselink frame specified in PoseLookup
    */
-  FrameInitializerBase(std::string sensor_frame_id)
+  FrameInitializerBase(const std::string& sensor_frame_id)
       : sensor_frame_id_{sensor_frame_id} {
     if (sensor_frame_id_.empty())
       sensor_frame_id_ = pose_lookup_.GetBaselinkFrameID();
@@ -35,7 +35,7 @@ class FrameInitializerBase {
 
   /**
    * @brief Gets estimated pose of sensor frame wrt world frame
-   * @param T_WORLD_SENSOR reference to result 
+   * @param T_WORLD_SENSOR reference to result
    * @param time stamp of the frame being initialized
    * @return true if pose lookup was successful
    */

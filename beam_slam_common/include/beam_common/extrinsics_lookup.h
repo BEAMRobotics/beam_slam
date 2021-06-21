@@ -24,7 +24,7 @@ class ExtrinsicsLookup {
   static ExtrinsicsLookup& GetInstance();
 
   /**
-   * @brief Ccopy constructor
+   * @brief Copy constructor
    */
   ExtrinsicsLookup(const ExtrinsicsLookup& other) = delete;
 
