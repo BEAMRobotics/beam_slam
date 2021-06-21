@@ -1,0 +1,11 @@
+{
+  "max_corr": 1,
+  "max_iter": 50,
+  "t_eps": 1e-8,
+  "fit_eps": 1e-2,
+  "lidar_ang_covar": 8e-8,
+  "lidar_lin_covar": 2.5e-3,
+  "covar_estimator": 0,
+  "res": 0,
+  "multiscale_steps": 0
+}

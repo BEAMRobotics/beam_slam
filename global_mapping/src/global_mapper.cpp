@@ -34,26 +34,20 @@ void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
 
 void GlobalMapper::onInit() {
   params_.loadFromROS(private_node_handle_);
-  ExtrinsicsLookup::Params extrinsics_params{
-      .imu_frame = params_.imu_frame,
-      .camera_frame = params_.camera_frame,
-      .lidar_frame = params_.lidar_frame,
-      .static_extrinsics = params_.static_extrinsics};
-  std::shared_ptr<ExtrinsicsLookup> extrinsics =
-      std::make_shared<ExtrinsicsLookup>(extrinsics_params);
+
   std::shared_ptr<beam_calibration::CameraModel> camera_model =
       beam_calibration::CameraModel::Create(params_.intrinsics_path);
   if (!params_.global_mapper_config.empty()) {
-    global_map_ = std::make_unique<GlobalMap>(extrinsics, camera_model,
+    global_map_ = std::make_unique<GlobalMap>(camera_model,
                                               params_.global_mapper_config);
   } else {
-    global_map_ = std::make_unique<GlobalMap>(extrinsics, camera_model);
+    global_map_ = std::make_unique<GlobalMap>(camera_model);
   }
 }
 
 void GlobalMapper::onStop() {
   global_map_->SaveTrajectoryFile(params_.output_path,
-                                   params_.save_local_mapper_trajectory);
+                                  params_.save_local_mapper_trajectory);
   if (params_.save_trajectory_cloud) {
     global_map_->SaveTrajectoryClouds(params_.output_path,
                                       params_.save_local_mapper_trajectory);

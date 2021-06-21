@@ -38,7 +38,7 @@ class Data {
   Data() {
     // set time of simulation and gravity vector
     int64_t time_simulation_ns = start_time_ns + time_duration;
-    gravity << 0, 0, -gravitational_acceleration;
+    gravity << 0, 0, -GRAVITY;
 
     // set times of imu states
     ros::Time t1_ros = ros::Time(start_time_ns * 1e-9);
@@ -61,8 +61,8 @@ class Data {
           (gt_spline.transAccelWorld(t_ns + dt_ns / 2) - gravity);
 
       // assign info to start of interval in imu data
-      ImuPreintegration::ImuData imu_data;
-      imu_data.t = t_ns * 1e-9;     // [sec]
+      beam_common::IMUData imu_data;
+      imu_data.t = ros::Time(t_ns * 1e-9);     // [sec]
       imu_data.w = rot_vel_body;    // [rad/sec]
       imu_data.a = lin_accel_body;  // [m/sec^2]
 
@@ -114,8 +114,8 @@ class Data {
     CalculateRelativeMotion(IS2, IS3, delta_q_23, delta_p_23, delta_v_23,
                             gravity);
 
-    delta_t_12 = ros::Duration(IS2.Stamp() - IS1.Stamp()).toSec();
-    delta_t_23 = ros::Duration(IS3.Stamp() - IS2.Stamp()).toSec();
+    delta_t_12 = ros::Duration(IS2.Stamp() - IS1.Stamp());
+    delta_t_23 = ros::Duration(IS3.Stamp() - IS2.Stamp());
   }
 
   // spline parameters
@@ -124,10 +124,9 @@ class Data {
   int64_t time_interval_ns = 10e9;          // [nano sec]
   int64_t time_duration = 20e9;             // [nano sec]
   int64_t dt_ns = 1e7;                      // [nano sec]
-  double gravitational_acceleration{9.81};  // [m/sec^2]
 
   Eigen::Vector3d gravity;
-  std::vector<ImuPreintegration::ImuData> imu_data_gt;
+  std::vector<beam_common::IMUData> imu_data_gt;
   std::vector<Eigen::Matrix4d> pose_gt;
 
   // Imu State 1
@@ -149,12 +148,12 @@ class Data {
   Eigen::Vector3d v3_vec;
 
   // Imu State deltas
-  double delta_t_12;
+  ros::Duration delta_t_12;
   Eigen::Quaterniond delta_q_12;
   Eigen::Vector3d delta_p_12;
   Eigen::Vector3d delta_v_12;
 
-  double delta_t_23;
+  ros::Duration delta_t_23;
   Eigen::Quaterniond delta_q_23;
   Eigen::Vector3d delta_p_23;
   Eigen::Vector3d delta_v_23;
@@ -584,16 +583,13 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
     params.cov_gyro_bias.setZero();
     params.cov_accel_bias.setZero();
 
-    // set gravitional acceleration according to data class
-    params.gravitational_acceleration = data.gravitational_acceleration;
-
     // instantiate preintegration class with zero noise. By default,
     // bias terms (i.e. bg, ba) are set to zero
     imu_preintegration = std::make_unique<ImuPreintegration>(params);
 
     // populate ImuPreintegration with synthetic imu measurements
-    for (ImuPreintegration::ImuData msg : data.imu_data_gt)
-      imu_preintegration->PopulateBuffer(msg);
+    for (beam_common::IMUData msg : data.imu_data_gt)
+      imu_preintegration->AddToBuffer(msg);
 
     // get copies of imu states
     IS1 = data.IS1;
@@ -650,13 +646,13 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
 
   // populate Preintegrator class from Slamtools with imu preintegration deltas
   // from data class
-  PreIntegrator pre_integrator_12;
+  beam_common::PreIntegrator pre_integrator_12;
   pre_integrator_12.delta.t = data.delta_t_12;
   pre_integrator_12.delta.q = data.delta_q_12;
   pre_integrator_12.delta.p = data.delta_p_12;
   pre_integrator_12.delta.v = data.delta_v_12;
 
-  PreIntegrator pre_integrator_23;
+  beam_common::PreIntegrator pre_integrator_23;
   pre_integrator_23.delta.t = data.delta_t_23;
   pre_integrator_23.delta.q = data.delta_q_23;
   pre_integrator_23.delta.p = data.delta_p_23;
