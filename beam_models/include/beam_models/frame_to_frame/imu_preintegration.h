@@ -73,7 +73,7 @@ public:
   /**
    * @brief populate imu buffer with imu data collected by sensor data
    */
-  void AddToBuffer(const sensor_msgs::Imu::ConstPtr& msg);
+  void AddToBuffer(const sensor_msgs::Imu& msg);
 
   /**
    * @brief populate imu buffer with imu data
@@ -137,13 +137,8 @@ public:
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
       RegisterNewImuPreintegratedFactor(
           const ros::Time& t_now,
-<<<<<<< HEAD
-          fuse_variables::Orientation3DStamped::SharedPtr orientation = nullptr,
-          fuse_variables::Position3DStamped::SharedPtr position = nullptr);
-=======
           fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
           fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
->>>>>>> aeee4ec2284621acd27a38c09fcb38c1bdec2de3
 
 private:
   /**

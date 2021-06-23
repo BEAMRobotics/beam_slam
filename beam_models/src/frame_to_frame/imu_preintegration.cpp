@@ -22,13 +22,8 @@ void ImuPreintegration::ClearBuffer() {
   for (size_t i = 0; i < imu_data_buffer_.size(); i++) imu_data_buffer_.pop();
 }
 
-<<<<<<< HEAD
-void ImuPreintegration::PopulateBuffer(const sensor_msgs::Imu& msg) {
-  ImuData imu_data(msg);
-=======
-void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
+void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
   beam_common::IMUData imu_data(msg);
->>>>>>> aeee4ec2284621acd27a38c09fcb38c1bdec2de3
   imu_data_buffer_.push(imu_data);
 }
 
@@ -69,15 +64,9 @@ void ImuPreintegration::SetStart(
 
   if (R_WORLD_IMU) { imu_state_i.SetOrientation(R_WORLD_IMU->data()); }
 
-<<<<<<< HEAD
-  if (position != nullptr) { imu_state_i.SetPosition(position->data()); }
-
-  if (velocity != nullptr) { imu_state_i.SetVelocity(velocity->data()); }
-=======
   if (t_WORLD_IMU) { imu_state_i.SetPosition(t_WORLD_IMU->data()); }
 
   if (velocity) { imu_state_i.SetVelocity(velocity->data()); }
->>>>>>> aeee4ec2284621acd27a38c09fcb38c1bdec2de3
 
   imu_state_i.SetGyroBias(bg_);
   imu_state_i.SetAccelBias(ba_);
@@ -166,13 +155,8 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
 beam_constraints::frame_to_frame::ImuState3DStampedTransaction
     ImuPreintegration::RegisterNewImuPreintegratedFactor(
         const ros::Time& t_now,
-<<<<<<< HEAD
-        fuse_variables::Orientation3DStamped::SharedPtr orientation,
-        fuse_variables::Position3DStamped::SharedPtr position) {
-=======
         fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
         fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
->>>>>>> aeee4ec2284621acd27a38c09fcb38c1bdec2de3
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 

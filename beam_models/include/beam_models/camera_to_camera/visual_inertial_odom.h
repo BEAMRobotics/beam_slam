@@ -5,7 +5,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 // beam_slam
-#include <beam_models/camera_to_camera/lvio_initializer.h>
+#include <beam_models/camera_to_camera/initial/lvio_initializer.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 #include <beam_parameters/models/vio_params.h>

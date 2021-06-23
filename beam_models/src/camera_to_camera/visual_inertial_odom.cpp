@@ -81,8 +81,13 @@ void VisualInertialOdom::onInit() {
       std::make_shared<beam_models::camera_to_camera::LVIOInitializer>(
           cam_model_, tracker_, pose_refiner_, T_imu_cam_);
 
+  Eigen::Matrix4d T_body_vicon_;
+  T_body_vicon_ << 0.33638, -0.01749, 0.94156, 0.06901, //
+      -0.02078, -0.99972, -0.01114, -0.02781,           //
+      0.94150, -0.01582, -0.33665, -0.12395,            //
+      0.0, 0.0, 0.0, 1.0;                               //
   // read path
-  std::string file = "/home/jake/vicon_path.txt";
+  std::string file = "/home/jake/data/vicon_path.txt";
   std::ifstream infile;
   std::string line;
   // open file
@@ -107,15 +112,31 @@ void VisualInertialOdom::onInit() {
     double zr = std::stod(line);
     std::getline(infile, line, '\n');
     double wr = std::stod(line);
+
+    Eigen::Vector3d position(xp, yp, zp);
+    Eigen::Quaterniond orientation;
+    orientation.w() = wr;
+    orientation.x() = xr;
+    orientation.y() = yr;
+    orientation.z() = zr;
+    Eigen::Matrix4d T_world_vicon;
+    beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
+                                                    T_world_vicon);
+    Eigen::Matrix4d T_world_imu = T_body_vicon_ * T_world_vicon;
+
+    Eigen::Vector3d position_p;
+    Eigen::Quaterniond orientation_p;
+    beam::TransformMatrixToQuaternionAndTranslation(T_world_imu, orientation_p, position_p);
+
     geometry_msgs::PoseStamped pose;
     pose.header.stamp = stamp;
-    pose.pose.position.x = xp;
-    pose.pose.position.y = yp;
-    pose.pose.position.z = zp;
-    pose.pose.orientation.x = xr;
-    pose.pose.orientation.y = yr;
-    pose.pose.orientation.z = zr;
-    pose.pose.orientation.w = wr;
+    pose.pose.position.x = position_p[0];
+    pose.pose.position.y = position_p[1];
+    pose.pose.position.z = position_p[2];
+    pose.pose.orientation.x = orientation_p.x();
+    pose.pose.orientation.y = orientation_p.y();
+    pose.pose.orientation.z = orientation_p.z();
+    pose.pose.orientation.w = orientation_p.w();
     path_.poses.push_back(pose);
     last_stamp_ = stamp;
   }
@@ -133,7 +154,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     if (!initializer_->Initialized()) {
       initializer_->AddIMU(imu_buffer_.front());
     } else {
-      imu_preint_->PopulateBuffer(imu_buffer_.front());
+      imu_preint_->AddToBuffer(imu_buffer_.front());
     }
     imu_buffer_.pop();
   }
@@ -150,7 +171,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         set_once = true;
       }
       if (!initializer_->Initialized()) {
-        if (initializer_->AddKeyframe(img_time)) {
+        if (initializer_->AddImage(img_time)) {
           std::cout << "Initialization Success" << std::endl;
           imu_preint_ = initializer_->GetPreintegrator();
         }
@@ -222,7 +243,7 @@ bool VisualInertialOdom::IsKeyframe(ros::Time img_time) {
       num_matches++;
     } catch (const std::out_of_range& oor) {}
   }
-  if (num_matches <= 100) {
+  if (num_matches <= 200) {
     cur_kf_time_ = img_time;
     return true;
   } else {
