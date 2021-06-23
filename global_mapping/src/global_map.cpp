@@ -55,25 +55,22 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
 }
 
 GlobalMap::GlobalMap(
-    const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model)
-    : extrinsics_(extrinsics), camera_model_(camera_model) {
+    : camera_model_(camera_model) {
   Setup();
 }
 
 GlobalMap::GlobalMap(
-    const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const Params& params)
-    : extrinsics_(extrinsics), camera_model_(camera_model), params_(params) {
+    : camera_model_(camera_model), params_(params) {
   Setup();
 }
 
 GlobalMap::GlobalMap(
-    const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::string& config_path)
-    : extrinsics_(extrinsics), camera_model_(camera_model) {
+    : camera_model_(camera_model) {
   if (!boost::filesystem::exists(config_path)) {
     BEAM_ERROR(
         "GlobalMap config file not found, using default parameters. Input: {}",
@@ -88,7 +85,7 @@ GlobalMap::GlobalMap(
 }
 
 void GlobalMap::Setup() {
-  baselink_frame_ = extrinsics_->params.imu_frame;
+  baselink_frame_ = extrinsics_.GetIMUFrameID();
   world_frame_ = "world";
 
   // initiate loop closure candidate search
@@ -144,8 +141,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddCameraMeasurement(
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(measurement.stamp, T_WORLD_BASELINK, extrinsics_,
-                              camera_model_));
+    submaps_.push_back(Submap(measurement.stamp, T_WORLD_BASELINK, camera_model_));
     new_transaction = InitiateNewSubmapPose();
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
         FindLoopClosures();
@@ -174,8 +170,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddLidarMeasurement(
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(measurement.stamp, T_WORLD_BASELINK, extrinsics_,
-                              camera_model_));
+    submaps_.push_back(Submap(measurement.stamp, T_WORLD_BASELINK, camera_model_));
     new_transaction = InitiateNewSubmapPose();
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
         FindLoopClosures();
@@ -204,8 +199,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddTrajectoryMeasurement(
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(measurement.stamp, T_WORLDLM_KEYFRAME,
-                              extrinsics_, camera_model_));
+    submaps_.push_back(Submap(measurement.stamp, T_WORLDLM_KEYFRAME, camera_model_));
     new_transaction = InitiateNewSubmapPose();
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
         FindLoopClosures();

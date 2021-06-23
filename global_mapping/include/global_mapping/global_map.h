@@ -66,31 +66,25 @@ class GlobalMap {
   };
 
   /**
-   * @brief constructor requiring only a pointer to an extrinsics lookup object
-   * @param extrinsics object for looking up extrinsics
+   * @brief constructor requiring only a pointer to camera model object
    * @param camera_model shared pointer to a camera model class
    */
-  GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
-            const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
+  GlobalMap(const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
 
   /**
    * @brief constructor that also takes a params struct.
-   * @param extrinsics object for looking up extrinsics
    * @param camera_model shared pointer to a camera model class
    * @param params see struct above
    */
-  GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
-            const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+  GlobalMap(const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
             const Params& params);
 
   /**
    * @brief constructor that also takes a path to config file.
-   * @param extrinsics object for looking up extrinsics
    * @param camera_model shared pointer to a camera model class
    * @param config_path full path to json config file
    */
-  GlobalMap(const std::shared_ptr<ExtrinsicsLookup>& extrinsics,
-            const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+  GlobalMap(const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
             const std::string& config_path);
 
   /**
@@ -259,7 +253,8 @@ class GlobalMap {
 
   Params params_;
   std::vector<Submap> submaps_;
-  std::shared_ptr<ExtrinsicsLookup> extrinsics_;
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;

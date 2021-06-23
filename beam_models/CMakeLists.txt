@@ -15,6 +15,7 @@ find_package(
     fuse_variables
     fuse_models
     fuse_constraints
+    std_msgs
     geometry_msgs
     nav_msgs
     pluginlib
@@ -27,6 +28,7 @@ find_package(
     tf2_2d
     tf2_geometry_msgs
     tf2_ros
+    message_generation
     beam_constraints
     beam_slam_common
 		beam_variables
@@ -39,6 +41,18 @@ find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
 
+add_message_files(
+  DIRECTORY
+    msg
+  FILES
+    InitializedPathMsg.msg
+)
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+)
+
 catkin_package(
   INCLUDE_DIRS
     include
@@ -50,6 +64,7 @@ catkin_package(
     fuse_publishers
     fuse_variables
     fuse_constraints
+    std_msgs
     geometry_msgs
     message_runtime
     nav_msgs
@@ -123,31 +138,38 @@ add_dependencies(
 ## Testing ##
 #############
 if(CATKIN_ENABLE_TESTING)
-  add_executable(${PROJECT_NAME}_multi_scan_registration_tests 
-    tests/multi_scan_registration_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_multi_scan_registration_tests 
-    ${PROJECT_NAME}
-    gtest_main
-    beam::utils)
-  add_test(NAME ${PROJECT_NAME}_multi_scan_registration_tests 
-          COMMAND ${PROJECT_NAME}_multi_scan_registration_tests)
-  
-  add_executable(${PROJECT_NAME}_scan_to_map_registration_tests 
-    tests/scan_to_map_registration_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_scan_to_map_registration_tests 
-    ${PROJECT_NAME}
-    gtest_main
-    beam::utils)
-  add_test(NAME ${PROJECT_NAME}_scan_to_map_registration_tests 
-          COMMAND ${PROJECT_NAME}_scan_to_map_registration_tests)        
-
   find_package(rostest REQUIRED)
   find_package(basalt REQUIRED)
-
   # Lint tests
   roslint_add_test()
+  
+  # Scan to scan registration tests
+  catkin_add_gtest(multi_scan_registration_tests 
+    tests/multi_scan_registration_tests.cpp
+  )
+  target_link_libraries(multi_scan_registration_tests 
+    ${PROJECT_NAME}
+  )
+  set_target_properties(multi_scan_registration_tests 
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )  
 
-  # Model tests
+  # Scan to map registration tests
+  catkin_add_gtest(scan_to_map_registration_tests 
+    tests/scan_to_map_registration_tests.cpp
+  )
+  target_link_libraries(scan_to_map_registration_tests 
+    ${PROJECT_NAME}
+  )
+  set_target_properties(scan_to_map_registration_tests 
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
+
+  # IMU preintegration tests
   catkin_add_gtest(imu_preintegration_tests
     tests/imu_preintegration_tests.cpp
   )
@@ -161,5 +183,6 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES
   )
+
 endif()
 
