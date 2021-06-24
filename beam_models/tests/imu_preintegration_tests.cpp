@@ -644,7 +644,7 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
    * PredictState() functionality
    */
 
-  // populate Preintegrator class from Slamtools with imu preintegration deltas
+  // populate Preintegrator class with imu preintegration deltas
   // from data class
   beam_common::PreIntegrator pre_integrator_12;
   pre_integrator_12.delta.t = data.delta_t_12;

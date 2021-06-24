@@ -22,7 +22,7 @@ void ImuPreintegration::ClearBuffer() {
   for (size_t i = 0; i < imu_data_buffer_.size(); i++) imu_data_buffer_.pop();
 }
 
-void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
+void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
   beam_common::IMUData imu_data(msg);
   imu_data_buffer_.push(imu_data);
 }
@@ -137,7 +137,6 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
     pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
     imu_data_buffer_.pop();
   }
-
   // integrate between frames
   pre_integrator_interval.Integrate(t_now, imu_state_i_.GyroBiasVec(),
                                     imu_state_i_.AccelBiasVec(), false, false);
