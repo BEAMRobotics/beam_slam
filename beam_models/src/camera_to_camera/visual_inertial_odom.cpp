@@ -53,9 +53,9 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *        Load camera model and Create Map object          *
    ***********************************************************/
-  this->cam_model_ =
+  cam_model_ =
       beam_calibration::CameraModel::Create(params_.cam_intrinsics_path);
-  this->visual_map_ = std::make_shared<VisualMap>(this->cam_model_, T_imu_cam_);
+  visual_map_ = std::make_shared<VisualMap>(cam_model_, T_imu_cam_, source_);
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
@@ -65,8 +65,8 @@ void VisualInertialOdom::onInit() {
       std::make_shared<beam_cv::ORBDescriptor>();
   std::shared_ptr<beam_cv::Detector> detector =
       std::make_shared<beam_cv::FASTDetector>(1000);
-  this->tracker_ = std::make_shared<beam_cv::Tracker>(
-      detector, descriptor, matcher, params_.window_size);
+  tracker_ = std::make_shared<beam_cv::Tracker>(detector, descriptor, matcher,
+                                                params_.window_size);
   /***********************************************************
    *                  Subscribe to topics                    *
    ***********************************************************/
@@ -74,73 +74,8 @@ void VisualInertialOdom::onInit() {
       params_.image_topic, 1000, &VisualInertialOdom::processImage, this);
   imu_subscriber_ = private_node_handle_.subscribe(
       params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
-  /***********************************************************
-   *               Create initializer object                 *
-   ***********************************************************/
-  initializer_ =
-      std::make_shared<beam_models::camera_to_camera::LVIOInitializer>(
-          cam_model_, tracker_, pose_refiner_, T_imu_cam_);
-
-  Eigen::Matrix4d T_body_vicon_;
-  T_body_vicon_ << 0.33638, -0.01749, 0.94156, 0.06901, //
-      -0.02078, -0.99972, -0.01114, -0.02781,           //
-      0.94150, -0.01582, -0.33665, -0.12395,            //
-      0.0, 0.0, 0.0, 1.0;                               //
-  // read path
-  std::string file = "/home/jake/data/vicon_path.txt";
-  std::ifstream infile;
-  std::string line;
-  // open file
-  infile.open(file);
-  while (!infile.eof()) {
-    ros::Time stamp;
-    // get timestamp k
-    std::getline(infile, line, ',');
-    uint64_t t = std::stod(line);
-    stamp.fromNSec(t);
-    std::getline(infile, line, ',');
-    double xp = std::stod(line);
-    std::getline(infile, line, ',');
-    double yp = std::stod(line);
-    std::getline(infile, line, ',');
-    double zp = std::stod(line);
-    std::getline(infile, line, ',');
-    double xr = std::stod(line);
-    std::getline(infile, line, ',');
-    double yr = std::stod(line);
-    std::getline(infile, line, ',');
-    double zr = std::stod(line);
-    std::getline(infile, line, '\n');
-    double wr = std::stod(line);
-
-    Eigen::Vector3d position(xp, yp, zp);
-    Eigen::Quaterniond orientation;
-    orientation.w() = wr;
-    orientation.x() = xr;
-    orientation.y() = yr;
-    orientation.z() = zr;
-    Eigen::Matrix4d T_world_vicon;
-    beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
-                                                    T_world_vicon);
-    Eigen::Matrix4d T_world_imu = T_body_vicon_ * T_world_vicon;
-
-    Eigen::Vector3d position_p;
-    Eigen::Quaterniond orientation_p;
-    beam::TransformMatrixToQuaternionAndTranslation(T_world_imu, orientation_p,
-                                                    position_p);
-
-    geometry_msgs::PoseStamped pose;
-    pose.header.stamp = stamp;
-    pose.pose.position.x = position_p[0];
-    pose.pose.position.y = position_p[1];
-    pose.pose.position.z = position_p[2];
-    pose.pose.orientation.x = orientation_p.x();
-    pose.pose.orientation.y = orientation_p.y();
-    pose.pose.orientation.z = orientation_p.z();
-    pose.pose.orientation.w = orientation_p.w();
-    path_.poses.push_back(pose);
-    last_stamp_ = stamp;
-  }
+  path_subscriber_ = private_node_handle_.subscribe(
+      params_.lidar_init_path_topic, 1, &VisualInertialOdom::processPath, this);
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -153,26 +88,12 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
    *                    Add Image to map or initializer                     *
    **************************************************************************/
   if (imu_time > img_time && !imu_buffer_.empty()) {
-    cv::Mat image = this->extractImage(image_buffer_.front());
-    this->tracker_->AddImage(image, img_time);
+    cv::Mat image = ExtractImage(image_buffer_.front());
+    tracker_->AddImage(image, img_time);
     if (IsKeyframe(img_time)) {
-      std::cout << "New Keyframe: " << img_time << std::endl;
-      if (cur_kf_time_ > last_stamp_ && !set_once) {
-        initializer_->SetPath(path_);
-        set_once = true;
-      }
-      if (!initializer_->Initialized()) {
-        if (initializer_->AddImage(img_time)) {
-          std::cout << "Initialization Success" << std::endl;
-          imu_preint_ = initializer_->GetPreintegrator();
-        }
-      } else {
-        // registerImage(img_time);
-      }
+      // handle keyframe
     } else {
-      if (initializer_->Initialized()) {
-        // localize image only
-      }
+      // handle non-keyframe
     }
     image_buffer_.pop();
   }
@@ -187,43 +108,18 @@ void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
    *          Add IMU messages to preintegrator or initializer              *
    **************************************************************************/
   while (imu_buffer_.front().header.stamp <= img_time && !imu_buffer_.empty()) {
-    if (!initializer_->Initialized()) {
-      initializer_->AddIMU(imu_buffer_.front());
-    } else {
-      imu_preint_->AddToBuffer(imu_buffer_.front());
-    }
+    // handle imu messgae
     imu_buffer_.pop();
   }
 }
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
-  this->visual_map_->updateGraph(graph);
+  visual_map_->UpdateGraph(graph);
 }
 
 void VisualInertialOdom::onStop() {}
 
-beam::opt<Eigen::Vector3d>
-    VisualInertialOdom::triangulate(beam_cv::FeatureTrack track) {
-  if (track.size() >= 2) {
-    std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
-    std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
-    for (auto& measurement : track) {
-      ros::Time stamp = measurement.time_point;
-      beam::opt<Eigen::Matrix4d> T = this->visual_map_->getPose(stamp);
-      // check if the pose is in the graph (keyframe)
-      if (T.has_value()) {
-        pixels.push_back(measurement.value.cast<int>());
-        T_cam_world_v.push_back(T.value());
-      }
-    }
-    beam::opt<Eigen::Vector3d> point = beam_cv::Triangulation::TriangulatePoint(
-        this->cam_model_, T_cam_world_v, pixels);
-    return point;
-  }
-  return {};
-}
-
-cv::Mat VisualInertialOdom::extractImage(const sensor_msgs::Image& msg) {
+cv::Mat VisualInertialOdom::ExtractImage(const sensor_msgs::Image& msg) {
   cv_bridge::CvImagePtr cv_ptr;
   try {
     cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8);
@@ -238,13 +134,12 @@ bool VisualInertialOdom::IsKeyframe(ros::Time img_time) {
     cur_kf_time_ = img_time;
     return true;
   }
-  std::vector<uint64_t> cur_img_ids =
-      this->tracker_->GetLandmarkIDsInImage(img_time);
+  std::vector<uint64_t> cur_img_ids = tracker_->GetLandmarkIDsInImage(img_time);
   int num_matches = 0;
   for (auto& id : cur_img_ids) {
     try {
-      this->tracker_->Get(cur_kf_time_, id);
-      this->tracker_->Get(img_time, id);
+      tracker_->Get(cur_kf_time_, id);
+      tracker_->Get(img_time, id);
       num_matches++;
     } catch (const std::out_of_range& oor) {}
   }

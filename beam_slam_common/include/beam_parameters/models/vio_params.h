@@ -28,17 +28,18 @@ public:
     ros::param::get("/batch_optimizer/VIO/imu_topic", imu_topic);
     ros::param::get("/batch_optimizer/VIO/window_size", window_size);
     ros::param::get("/batch_optimizer/VIO/imu_intrinsics", imu_intrinsics);
-    ros::param::get("/batch_optimizer/VIO/image_hz", image_hz);
+    ros::param::get("/batch_optimizer/VIO/lidar_init_path_topic",
+                    lidar_init_path_topic);
   }
 
   std::string cam_intrinsics_path{};
   std::string image_topic{};
   std::string imu_topic{};
-  int image_hz{};
+  std::string lidar_init_path_topic{};
   int window_size{};
   std::vector<double> imu_intrinsics{0, 0, 0, 0};
 };
 
-}} // namespace beam_models::parameters
+}} // namespace beam_parameters::models
 
 #endif

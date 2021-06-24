@@ -38,11 +38,11 @@ unicycle_3d:
 VIO:
   cam_intrinsics_path: "/home/jake/data/VIO/euroc/intrinsics.json"
   image_topic: "/cam0/image_raw"
-  image_hz: 20
   imu_topic: "/imu0"
   window_size: 100
   # gryo noise, accel noise, gryo walk, accel walk
   imu_intrinsics: [1.6968e-04, 2.0000e-3 , 1.9393e-05, 3.0000e-3]
+  lidar_init_path_topic: "/path"
 
 path_pub:
   frame_id: 'odom' # Stored in pose header. Default: odom
