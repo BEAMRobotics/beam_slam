@@ -70,50 +70,46 @@ public:
                                                         T_WORLD_IMU);
         Eigen::Matrix4d T_WORLD_CAM = T_WORLD_IMU * T_imu_cam_;
         visual_map_->addPose(T_WORLD_CAM, frame.t);
-        // 2. Push its imu messages
-        for (auto& imu_data : frame.preint.data) {
-          imu_preint_->AddToBuffer(imu_data);
-        }
-        // 3. Add respective imu constraints
-        if (i == 0) {
-          imu_preint_->SetStart(frame.t, visual_map_->getOrientation(frame.t),
-                                visual_map_->getPosition(frame.t));
-        } else {
-          fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
-              visual_map_->getOrientation(frame.t);
-          fuse_variables::Position3DStamped::SharedPtr img_position =
-              visual_map_->getPosition(frame.t);
-          auto transaction = imu_preint_
-                                 ->RegisterNewImuPreintegratedFactor(
-                                     frame.t, img_orientation, img_position)
-                                 .GetTransaction();
-          for (auto& var : transaction->addedVariables()) {
-            fuse_core::Variable::UniquePtr var_unique = var.clone();
-            fuse_core::Variable::SharedPtr var_shared = std::move(var_unique);
-            local_graph_->addVariable(var_shared);
-          }
-          for (auto& constraint : transaction->addedConstraints()) {
-            fuse_core::Constraint::UniquePtr constraint_unique =
-                constraint.clone();
-            fuse_core::Constraint::SharedPtr constraint_shared =
-                std::move(constraint_unique);
-            local_graph_->addConstraint(constraint_shared);
-          }
-        }
+        // // 2. Push its imu messages
+        // for (auto& imu_data : frame.preint.data) {
+        //   imu_preint_->AddToBuffer(imu_data);
+        // }
+        // // 3. Add respective imu constraints
+        // if (i == 0) {
+        //   imu_preint_->SetStart(frame.t, visual_map_->getOrientation(frame.t),
+        //                         visual_map_->getPosition(frame.t));
+        // } else {
+        //   fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
+        //       visual_map_->getOrientation(frame.t);
+        //   fuse_variables::Position3DStamped::SharedPtr img_position =
+        //       visual_map_->getPosition(frame.t);
+        //   auto transaction = imu_preint_
+        //                          ->RegisterNewImuPreintegratedFactor(
+        //                              frame.t, img_orientation, img_position)
+        //                          .GetTransaction();
+        //   for (auto& var : transaction->addedVariables()) {
+        //     fuse_core::Variable::UniquePtr var_unique = var.clone();
+        //     fuse_core::Variable::SharedPtr var_shared = std::move(var_unique);
+        //     local_graph_->addVariable(var_shared);
+        //   }
+        //   for (auto& constraint : transaction->addedConstraints()) {
+        //     fuse_core::Constraint::UniquePtr constraint_unique =
+        //         constraint.clone();
+        //     fuse_core::Constraint::SharedPtr constraint_shared =
+        //         std::move(constraint_unique);
+        //     local_graph_->addConstraint(constraint_shared);
+        //   }
+        // }
       }
 
-      /* Inertial Bundle Adjustment
-      For each landmark id seen in init window:
-        triangulate using frame poses
-        add respective visual constraints
-      optimize graph
-      **/
       ros::Time start = path_.poses[0].header.stamp;
       ros::Time end = path_.poses[path_.poses.size() - 1].header.stamp;
       std::vector<uint64_t> landmarks =
           tracker_->GetLandmarkIDsInWindow(start, end);
       int num_landmarks = 0;
+      bool one_lm = false;
       for (auto& id : landmarks) {
+        if(one_lm) break;
         if (!visual_map_->getLandmark(id)) {
           std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
           std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
@@ -136,6 +132,7 @@ public:
               num_landmarks++;
               visual_map_->addLandmark(point.value(), id);
               for (int i = 0; i < observation_stamps.size(); i++) {
+                one_lm = true;
                 visual_map_->addConstraint(
                     observation_stamps[i], id,
                     tracker_->Get(observation_stamps[i], id));
@@ -144,10 +141,29 @@ public:
           }
         }
       }
-      std::cout << "Initial map landmarks: " << num_landmarks << std::endl;
-      ceres::Solver::Options options;
-      options.minimizer_progress_to_stdout = true;
-      local_graph_->optimize(options);
+      std::vector<double> residuals;
+      double cost;
+      local_graph_->evaluate(&cost, &residuals);
+      for(auto& r: residuals){
+        std::cout << r << std::endl;
+      }
+
+      // for (auto& f : valid_frames) {
+      //   std::cout << visual_map_->getPose(f.t) << std::endl;
+      // }
+      // std::cout << "Initial map landmarks: " << num_landmarks << std::endl;
+      // ceres::Solver::Options options;
+      // options.minimizer_progress_to_stdout = true;
+      // options.max_num_iterations = 100;
+      // options.max_solver_time_in_seconds = 1e6;
+      // options.function_tolerance = 1e-20;
+      // options.gradient_tolerance = 1e-20;
+      // options.parameter_tolerance = 1e-20;
+      // options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+      // local_graph_->optimize(options);
+      // for (auto& f : valid_frames) {
+      //   std::cout << visual_map_->getPose(f.t) << std::endl;
+      // }
       is_initialized_ = true;
       return true;
     }

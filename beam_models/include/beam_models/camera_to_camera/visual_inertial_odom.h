@@ -79,16 +79,15 @@ protected:
 private:
   /**
    * @brief Converts ros image message to opencv image
+   * @param msg image message to convert to cv mat
    */
   cv::Mat extractImage(const sensor_msgs::Image& msg);
 
   /**
-   * @brief Triangulates a feature track
-   * @param feature track to triangulate
-   * @return the 3d location of the feature
+   * @brief Determines if the current frame is a keyframe
+   * @param img_time timestamp of image to check if its a valid keyframe (should
+   * be the most recently added image)
    */
-  beam::opt<Eigen::Vector3d> triangulate(beam_cv::FeatureTrack track);
-
   bool IsKeyframe(ros::Time img_time);
 
 protected:

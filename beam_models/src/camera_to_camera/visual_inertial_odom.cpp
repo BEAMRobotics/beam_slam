@@ -126,7 +126,8 @@ void VisualInertialOdom::onInit() {
 
     Eigen::Vector3d position_p;
     Eigen::Quaterniond orientation_p;
-    beam::TransformMatrixToQuaternionAndTranslation(T_world_imu, orientation_p, position_p);
+    beam::TransformMatrixToQuaternionAndTranslation(T_world_imu, orientation_p,
+                                                    position_p);
 
     geometry_msgs::PoseStamped pose;
     pose.header.stamp = stamp;
@@ -143,26 +144,16 @@ void VisualInertialOdom::onInit() {
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
-  // get message info
+  // push image onto buffer
   image_buffer_.push(*msg);
-  sensor_msgs::Image img_msg = image_buffer_.front();
-  ros::Time img_time = img_msg.header.stamp;
-  /**************************************************************************
-   *              Add IMU messages to buffer or initializer                 *
-   **************************************************************************/
-  while (imu_buffer_.front().header.stamp <= img_time && !imu_buffer_.empty()) {
-    if (!initializer_->Initialized()) {
-      initializer_->AddIMU(imu_buffer_.front());
-    } else {
-      imu_preint_->AddToBuffer(imu_buffer_.front());
-    }
-    imu_buffer_.pop();
-  }
+  // get current imu and image timestamps
+  ros::Time imu_time = imu_buffer_.front().header.stamp;
+  ros::Time img_time = image_buffer_.front().header.stamp;
   /**************************************************************************
    *                    Add Image to map or initializer                     *
    **************************************************************************/
-  if (!imu_buffer_.empty()) {
-    cv::Mat image = this->extractImage(img_msg);
+  if (imu_time > img_time && !imu_buffer_.empty()) {
+    cv::Mat image = this->extractImage(image_buffer_.front());
     this->tracker_->AddImage(image, img_time);
     if (IsKeyframe(img_time)) {
       std::cout << "New Keyframe: " << img_time << std::endl;
@@ -188,7 +179,21 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
 }
 
 void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
+  // push imu message onto buffer
   imu_buffer_.push(*msg);
+  // get current image timestamp
+  ros::Time img_time = image_buffer_.front().header.stamp;
+  /**************************************************************************
+   *          Add IMU messages to preintegrator or initializer              *
+   **************************************************************************/
+  while (imu_buffer_.front().header.stamp <= img_time && !imu_buffer_.empty()) {
+    if (!initializer_->Initialized()) {
+      initializer_->AddIMU(imu_buffer_.front());
+    } else {
+      imu_preint_->AddToBuffer(imu_buffer_.front());
+    }
+    imu_buffer_.pop();
+  }
 }
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
@@ -212,7 +217,7 @@ beam::opt<Eigen::Vector3d>
       }
     }
     beam::opt<Eigen::Vector3d> point = beam_cv::Triangulation::TriangulatePoint(
-        this->cam_model_, T_cam_world_v, pixels, 10.0);
+        this->cam_model_, T_cam_world_v, pixels);
     return point;
   }
   return {};
