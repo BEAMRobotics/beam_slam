@@ -94,25 +94,22 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
    **************************************************************************/
   if (imu_time > img_time && !imu_buffer_.empty()) {
     tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
-    if (IsKeyframe(img_time)) {
-      std::cout << "New Keyframe: " << img_time << std::endl;
+    bool is_kf = IsKeyframe(img_time);
+    if (!initializer_->Initialized() && is_kf) {
       // temp
       if (cur_kf_time_ > last_stamp_ && !set_once) {
         init_path_pub_.publish(init_path_);
         set_once = true;
       }
-      if (!initializer_->Initialized()) {
-        if (initializer_->AddImage(img_time)) {
-          std::cout << "Initialization Success" << std::endl;
-          imu_preint_ = initializer_->GetPreintegrator();
-        }
-      } else {
-        // registerImage(img_time);
+      if (initializer_->AddImage(img_time)) {
+        std::cout << "Initialization Success" << std::endl;
+        imu_preint_ = initializer_->GetPreintegrator();
+        // copy graph into transaction and send transaction
       }
-    } else {
-      if (initializer_->Initialized()) {
-        // localize image only
-      }
+    } else if (initializer_->Initialized() && !is_kf) {
+      // localize image and publish to internal frame initializer
+    } else if (initializer_->Initialized() && is_kf) {
+      // localize image and add to graph and publish to frame initializer
     }
     image_buffer_.pop();
   }
