@@ -97,8 +97,9 @@ class PoseLookup {
 
   /**
    * @brief Check to ensure that poses has been set
+   * @return true if poses set
    */
-  void CheckPoses();
+  bool CheckPoses();
 
   /**
    * @brief Commonly thrown error when incorrectly getting baselink to sensor
