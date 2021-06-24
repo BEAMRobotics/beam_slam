@@ -39,10 +39,11 @@ public:
    */
   VisualConstraint(
       const std::string& source,
-      const fuse_variables::Orientation3DStamped& camera_orientation,
-      const fuse_variables::Position3DStamped& camera_position,
-      const fuse_variables::Position3D& landmark_position,
+      const fuse_variables::Orientation3DStamped& R_WORLD_IMU,
+      const fuse_variables::Position3DStamped& t_WORLD_IMU,
+      const fuse_variables::Position3D& P_WORLD,
       const Eigen::Vector2d& pixel_measurement,
+      const Eigen::Matrix4d& T_imu_cam,
       const std::shared_ptr<beam_calibration::CameraModel> cam_model);
 
   /**
@@ -79,6 +80,7 @@ public:
 
 protected:
   Eigen::Vector2d pixel_;
+  Eigen::Matrix4d T_imu_cam_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
 
 private:

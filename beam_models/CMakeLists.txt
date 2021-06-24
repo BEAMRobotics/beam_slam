@@ -33,7 +33,6 @@ find_package(
     beam_slam_common
 		beam_variables
     cv_bridge
-    slamtools
     basalt)
 
 find_package(Ceres REQUIRED)
@@ -79,7 +78,6 @@ catkin_package(
     beam_slam_common
 		beam_variables
     cv_bridge
-    slamtools
     basalt
   DEPENDS
     Boost
@@ -112,7 +110,9 @@ add_library(
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
-  src/camera_to_camera/visual_odom.cpp
+  src/initialization/imu_initializer.cpp
+  src/camera_to_camera/visual_inertial_odom.cpp
+  src/camera_to_camera/visual_map.cpp
 )
 
 ## Specify libraries to link a library or executable target against

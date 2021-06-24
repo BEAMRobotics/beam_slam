@@ -19,14 +19,14 @@ struct IMUData {
    * @brief Constructor
    * @param msg sensor data
    */
-  IMUData(const sensor_msgs::Imu::ConstPtr& msg) {
-    t = msg->header.stamp;
-    w[0] = msg->angular_velocity.x;
-    w[1] = msg->angular_velocity.y;
-    w[2] = msg->angular_velocity.z;
-    a[0] = msg->linear_acceleration.x;
-    a[1] = msg->linear_acceleration.y;
-    a[2] = msg->linear_acceleration.z;
+  IMUData(const sensor_msgs::Imu& msg) {
+    t = msg.header.stamp;
+    w[0] = msg.angular_velocity.x;
+    w[1] = msg.angular_velocity.y;
+    w[2] = msg.angular_velocity.z;
+    a[0] = msg.linear_acceleration.x;
+    a[1] = msg.linear_acceleration.y;
+    a[2] = msg.linear_acceleration.z;
   }
 
   ros::Time t;       // timestamp

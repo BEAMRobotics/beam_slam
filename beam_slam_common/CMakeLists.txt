@@ -15,6 +15,7 @@ find_package(
     fuse_variables
     fuse_constraints
     sensor_msgs
+    nav_msgs
   )
 
 catkin_package(
@@ -26,6 +27,8 @@ catkin_package(
     ${build_depends}
     fuse_variables
     fuse_constraints
+    sensor_msgs
+    nav_msgs
 )
 
 ###########

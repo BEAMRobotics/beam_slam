@@ -73,7 +73,7 @@ public:
   /**
    * @brief populate imu buffer with imu data collected by sensor data
    */
-  void AddToBuffer(const sensor_msgs::Imu::ConstPtr& msg);
+  void AddToBuffer(const sensor_msgs::Imu& msg);
 
   /**
    * @brief populate imu buffer with imu data
