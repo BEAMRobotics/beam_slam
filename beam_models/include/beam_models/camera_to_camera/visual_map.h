@@ -26,7 +26,8 @@ public:
    * @param T_imu_cam transform from camera to imu frame
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-            const Eigen::Matrix4d& T_imu_cam, const std::string& source);
+            const Eigen::Matrix4d& T_imu_cam,
+            const std::string& source = "VIO");
 
   /**
    * @brief Custom cosntrcutor, use when working with local graph
@@ -36,7 +37,8 @@ public:
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
             fuse_core::Graph::SharedPtr local_graph,
-            const Eigen::Matrix4d& T_imu_cam, const std::string& source);
+            const Eigen::Matrix4d& T_imu_cam,
+            const std::string& source = "VIO");
 
   /**
    * @brief Default destructor

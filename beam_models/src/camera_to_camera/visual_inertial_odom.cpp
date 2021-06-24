@@ -11,7 +11,6 @@
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/RelativePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
-#include <beam_cv/matchers/Matchers.h>
 #include <beam_utils/time.h>
 #include <fstream>
 #include <iostream>
@@ -26,6 +25,7 @@ VisualInertialOdom::VisualInertialOdom()
     : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL) {}
 
 void VisualInertialOdom::onInit() {
+  Eigen::Matrix4d T_imu_cam_;
   T_imu_cam_ << 0.0148655429818, -0.999880929698, 0.00414029679422,
       -0.0216401454975, 0.999557249008, 0.0149672133247, 0.025715529948,
       -0.064676986768, -0.0257744366974, 0.00375618835797, 0.999660727178,
@@ -56,14 +56,12 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
-  std::shared_ptr<beam_cv::Matcher> matcher =
-      std::make_shared<beam_cv::BFMatcher>(cv::NORM_HAMMING, false, false);
   std::shared_ptr<beam_cv::Descriptor> descriptor =
       std::make_shared<beam_cv::ORBDescriptor>();
   std::shared_ptr<beam_cv::Detector> detector =
-      std::make_shared<beam_cv::FASTDetector>(1000);
-  tracker_ = std::make_shared<beam_cv::Tracker>(detector, descriptor, matcher,
-                                                params_.window_size);
+      std::make_shared<beam_cv::GFTTDetector>(1000);
+  tracker_ = std::make_shared<beam_cv::KLTracker>(detector, descriptor,
+                                                  params_.window_size);
   /***********************************************************
    *                  Subscribe to topics                    *
    ***********************************************************/
@@ -72,7 +70,17 @@ void VisualInertialOdom::onInit() {
   imu_subscriber_ = private_node_handle_.subscribe(
       params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
   path_subscriber_ = private_node_handle_.subscribe(
-      params_.lidar_init_path_topic, 1, &VisualInertialOdom::processPath, this);
+      params_.init_path_topic, 1, &VisualInertialOdom::processInitPath, this);
+  /***********************************************************
+   *               Create initializer object                 *
+   ***********************************************************/
+  initializer_ =
+      std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
+          cam_model_, tracker_, pose_refiner_, T_imu_cam_);
+  // temp
+  init_path_pub_ = private_node_handle_.advertise<InitializedPathMsg>(
+      params_.init_path_topic, 1);
+  BuildPath();
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -85,12 +93,26 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
    *                    Add Image to map or initializer                     *
    **************************************************************************/
   if (imu_time > img_time && !imu_buffer_.empty()) {
-    cv::Mat image = ExtractImage(image_buffer_.front());
-    tracker_->AddImage(image, img_time);
+    tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
     if (IsKeyframe(img_time)) {
-      // handle keyframe
+      std::cout << "New Keyframe: " << img_time << std::endl;
+      // temp
+      if (cur_kf_time_ > last_stamp_ && !set_once) {
+        init_path_pub_.publish(init_path_);
+        set_once = true;
+      }
+      if (!initializer_->Initialized()) {
+        if (initializer_->AddImage(img_time)) {
+          std::cout << "Initialization Success" << std::endl;
+          imu_preint_ = initializer_->GetPreintegrator();
+        }
+      } else {
+        // registerImage(img_time);
+      }
     } else {
-      // handle non-keyframe
+      if (initializer_->Initialized()) {
+        // localize image only
+      }
     }
     image_buffer_.pop();
   }
@@ -105,9 +127,18 @@ void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
    *          Add IMU messages to preintegrator or initializer              *
    **************************************************************************/
   while (imu_buffer_.front().header.stamp <= img_time && !imu_buffer_.empty()) {
-    // handle imu messgae
+    if (!initializer_->Initialized()) {
+      initializer_->AddIMU(imu_buffer_.front());
+    } else {
+      imu_preint_->AddToBuffer(imu_buffer_.front());
+    }
     imu_buffer_.pop();
   }
+}
+
+void VisualInertialOdom::processInitPath(
+    const InitializedPathMsg::ConstPtr& msg) {
+  initializer_->SetPath(*msg);
 }
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
@@ -130,22 +161,11 @@ bool VisualInertialOdom::IsKeyframe(ros::Time img_time) {
   if (cur_kf_time_ == ros::Time(0)) {
     cur_kf_time_ = img_time;
     return true;
-  }
-  std::vector<uint64_t> cur_img_ids = tracker_->GetLandmarkIDsInImage(img_time);
-  int num_matches = 0;
-  for (auto& id : cur_img_ids) {
-    try {
-      tracker_->Get(cur_kf_time_, id);
-      tracker_->Get(img_time, id);
-      num_matches++;
-    } catch (const std::out_of_range& oor) {}
-  }
-  if (num_matches <= 200) {
+  } else if ((img_time - cur_kf_time_).toSec() >= 0.5) {
     cur_kf_time_ = img_time;
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 
 }} // namespace beam_models::camera_to_camera
