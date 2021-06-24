@@ -12,12 +12,9 @@
 #include <beam_cv/geometry/RelativePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/matchers/Matchers.h>
-#include <beam_utils/pointclouds.h>
 #include <beam_utils/time.h>
 #include <fstream>
 #include <iostream>
-#include <nav_msgs/Path.h>
-#include <pcl/io/pcd_io.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(beam_models::camera_to_camera::VisualInertialOdom,

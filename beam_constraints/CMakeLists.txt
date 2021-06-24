@@ -15,7 +15,6 @@ set(build_depends
   tf2_ros
   beam_slam_common
   beam_variables
-  slamtools
 )
 
 find_package(beam REQUIRED COMPONENTS calibration optimization)

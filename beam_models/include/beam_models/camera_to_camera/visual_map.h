@@ -120,9 +120,8 @@ protected:
       positions_;
   std::unordered_map<uint64_t, fuse_variables::Position3D::SharedPtr>
       landmark_positions_;
-  fuse_core::Graph::SharedPtr
-      local_graph_; // local graph  if not using global fuse graph
-  fuse_core::Graph::ConstSharedPtr graph_; // copy of the current fuse graph
+  fuse_core::Graph::SharedPtr local_graph_; // for direct use
+  fuse_core::Graph::ConstSharedPtr graph_;  // copy of the current fuse graph
   bool graph_initialized = false;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   Eigen::Matrix4d T_imu_cam_;

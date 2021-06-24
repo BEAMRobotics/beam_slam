@@ -33,7 +33,6 @@ find_package(
     beam_slam_common
 		beam_variables
     cv_bridge
-    slamtools
     basalt)
 
 find_package(Ceres REQUIRED)
@@ -79,7 +78,6 @@ catkin_package(
     beam_slam_common
 		beam_variables
     cv_bridge
-    slamtools
     basalt
   DEPENDS
     Boost

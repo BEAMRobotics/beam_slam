@@ -102,7 +102,7 @@ private:
   bool IsKeyframe(ros::Time img_time);
 
 protected:
-std::string source_ = "VIO";
+  std::string source_ = "VIO";
   int img_num_{0};
   // loadable camera parameters
   beam_parameters::models::VIOParams params_;
