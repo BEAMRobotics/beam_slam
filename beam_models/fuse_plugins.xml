@@ -16,6 +16,11 @@
       An adapter-type sensor that produces relative pose constraints
     </description>
   </class>
+  <class type="beam_models::frame_to_frame::LioInitializer" base_class_type="fuse_core::SensorModel">
+    <description>
+      Class for initializing a SLAM process using lidar scans and IMU messages to generate an initial trajectory estimate and IMU biases
+    </description>
+  </class>
   <class type="beam_models::camera_to_camera::VisualOdom" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints

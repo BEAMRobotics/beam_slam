@@ -105,6 +105,7 @@ add_library(
   src/motion/unicycle_3d_ignition.cpp
   src/frame_to_frame/frame_to_frame_sensor_model_base.cpp
   src/frame_to_frame/scan_matcher_3d.cpp
+  src/frame_to_frame/lio_initializer.cpp
   src/frame_to_frame/scan_registration/multi_scan_registration.cpp
   src/frame_to_frame/scan_registration/scan_to_map_registration.cpp
 	src/frame_to_frame/imu_preintegration.cpp
