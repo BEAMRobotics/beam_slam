@@ -51,8 +51,9 @@ inline Eigen::Matrix4d
   return T;
 }
 
-inline void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
-                            Eigen::Matrix4d& T_WORLD_SENSOR) {
+inline void
+    PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
+                                  Eigen::Matrix4d& T_WORLD_SENSOR) {
   Eigen::Vector3d position;
   position[0] = pose.pose.position.x;
   position[1] = pose.pose.position.y;
@@ -66,17 +67,17 @@ inline void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose
                                                   T_WORLD_SENSOR);
 }
 
-inline void InterpolateTransformFromPath(const nav_msgs::Path& path, const ros::Time& time,
-                            Eigen::Matrix4d& T_WORLD_SENSOR) {
-  for (int i = 0; i < path.poses.size(); i++) {
-    if (time < path.poses[i + 1].header.stamp &&
-        time >= path.poses[i].header.stamp) {
+inline void InterpolateTransformFromPath(
+    const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
+    Eigen::Matrix4d& T_WORLD_SENSOR) {
+  for (int i = 0; i < poses.size(); i++) {
+    if (time < poses[i + 1].header.stamp && time >= poses[i].header.stamp) {
       Eigen::Matrix4d pose1, pose2;
-      PoseMsgToTransformationMatrix(path.poses[i], pose1);
-      PoseMsgToTransformationMatrix(path.poses[i + 1], pose2);
+      PoseMsgToTransformationMatrix(poses[i], pose1);
+      PoseMsgToTransformationMatrix(poses[i + 1], pose2);
       T_WORLD_SENSOR = beam::InterpolateTransform(
-          pose1, beam::RosTimeToChrono(path.poses[i].header.stamp), pose2,
-          beam::RosTimeToChrono(path.poses[i + 1].header.stamp),
+          pose1, beam::RosTimeToChrono(poses[i].header.stamp), pose2,
+          beam::RosTimeToChrono(poses[i + 1].header.stamp),
           beam::RosTimeToChrono(time));
     }
   }

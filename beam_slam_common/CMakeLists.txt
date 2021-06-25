@@ -15,7 +15,7 @@ find_package(
     fuse_variables
     fuse_constraints
     sensor_msgs
-    nav_msgs
+    geometry_msgs
   )
 
 catkin_package(
@@ -28,7 +28,7 @@ catkin_package(
     fuse_variables
     fuse_constraints
     sensor_msgs
-    nav_msgs
+    geometry_msgs
 )
 
 ###########
