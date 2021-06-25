@@ -12,6 +12,7 @@
 #include <beam_cv/geometry/RelativePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/matchers/Matchers.h>
+#include <beam_cv/trackers/Trackers.h>
 #include <beam_utils/time.h>
 #include <fstream>
 #include <iostream>
@@ -62,7 +63,7 @@ void VisualInertialOdom::onInit() {
       std::make_shared<beam_cv::ORBDescriptor>();
   std::shared_ptr<beam_cv::Detector> detector =
       std::make_shared<beam_cv::FASTDetector>(1000);
-  tracker_ = std::make_shared<beam_cv::Tracker>(detector, descriptor, matcher,
+  tracker_ = std::make_shared<beam_cv::KLTracker>(detector, descriptor,
                                                 params_.window_size);
   /***********************************************************
    *                  Subscribe to topics                    *
