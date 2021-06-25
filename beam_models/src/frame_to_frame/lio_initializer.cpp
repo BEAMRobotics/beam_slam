@@ -107,6 +107,7 @@ void LioInitializer::processLidar(
 
   // init first message
   if (keyframe_start_time_.toSec() == 0) {
+    ROS_DEBUG("Set first scan and imu start time.");
     imu_preintegration_->SetStart(msg->header.stamp);
     AddPointcloudToKeyframe(*cloud_current, msg->header.stamp);
     keyframe_start_time_ = msg->header.stamp;
@@ -115,6 +116,7 @@ void LioInitializer::processLidar(
   }
 
   if (msg->header.stamp - keyframe_start_time_ > params_.aggregation_time) {
+    ROS_DEBUG("Processing keyframe.");
     ProcessCurrentKeyframe();
     keyframe_cloud_.clear();
     AddPointcloudToKeyframe(*cloud_current, msg->header.stamp);
@@ -154,12 +156,15 @@ void LioInitializer::ProcessCurrentKeyframe() {
   // check if time window is full, if not then keep adding to the queue
   if (keyframes_.back().Stamp() - keyframes_.front().Stamp() <
       params_.trajectory_time_window) {
+        ROS_DEBUG("Time windows not full, continuing to add keyframes.");
     return;
   }
+  ROS_DEBUG("Time window is full, checking trajectory length.");
 
   // check that trajectory is long enough
   if (CalculateTrajectoryLength() > params_.min_trajectory_distance) {
     // if so, then optimize
+    ROS_DEBUG("Trajectory is long enough, optimizing lio initializer data.");
     Optimize();
     OutputResults();
     initialization_complete_ = true;
@@ -282,6 +287,7 @@ void LioInitializer::OutputResults() {
   // first, go through all scans and get the initial poses and save those scans
   std::string save_path = params_.scan_output_directory + "/imu_poses/";
   boost::filesystem::create_directory(save_path);
+  ROS_DEBUG("Saving results to %s", save_path.c_str());
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
     const Eigen::Matrix4d& T_WORLD_SCAN = iter->T_REFFRAME_CLOUD_INIT();
     PointCloud cloud_world;
@@ -294,6 +300,7 @@ void LioInitializer::OutputResults() {
   // Next, go through all scans and get the initial poses and save those scans
   save_path = params_.scan_output_directory + "/loam_poses/";
   boost::filesystem::create_directory(save_path);
+  ROS_DEBUG("Saving results to %s", save_path.c_str());
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
     const Eigen::Matrix4d& T_WORLD_SCAN = iter->T_REFFRAME_CLOUD();
     PointCloud cloud_world;
@@ -306,6 +313,7 @@ void LioInitializer::OutputResults() {
   // Finally, update scans with final estimates poses and save
   save_path = params_.scan_output_directory + "/final_poses/";
   boost::filesystem::create_directory(save_path);
+  ROS_DEBUG("Saving results to %s", save_path.c_str());
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
     iter->Update(graph_);
     const Eigen::Matrix4d& T_WORLD_SCAN = iter->T_REFFRAME_CLOUD();

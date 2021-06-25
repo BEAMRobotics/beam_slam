@@ -10,30 +10,7 @@ intrinsics_path: "/home/nick/config/calibrations/F_kaarta.json"
 sensor_models:
   - name: 'lio_initializer'
     type: 'beam_models::frame_to_frame::LioInitializer'
-    motion_models: ['unicycle_3d']
 
-motion_models:
-  - name: 'unicycle_3d'
-    type: 'beam_models::motion::Unicycle3D'
-
-solver_options:
-  minimizer_type: "TRUST_REGION"
-  linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
-  minimizer_progress_to_stdout: false
-  num_threads: 6
-  num_linear_solver_threads: 6
-  max_num_iterations: 50
-  gradient_tolerance: 0.00000015
-  parameter_tolerance: 0.00000015
-  function_tolerance: 0.00000015
-
-unicycle_3d:
-  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2]
-  buffer_length: 100000
 
 lio_initializer:
   matcher_params_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
@@ -43,7 +20,7 @@ lio_initializer:
   lidar_topic: '/velodyne_points'
   imu_topic: '/imu/data'
   aggregation_time: 0.1
-  trajectory_time_window: 
+  trajectory_time_window: 10
   min_trajectory_distance: 3
   outlier_threshold_t_m: 0.3
   outlier_threshold_r_deg: 15
