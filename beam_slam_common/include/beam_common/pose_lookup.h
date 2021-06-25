@@ -104,6 +104,7 @@ class PoseLookup {
   /**
    * @brief Commonly thrown error when incorrectly getting baselink to sensor
    * transform
+   * @return false if error thrown
    */
   bool ThrowFrameIDError();
 
