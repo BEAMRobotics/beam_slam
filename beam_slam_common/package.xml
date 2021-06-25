@@ -17,5 +17,7 @@
   <depend>roscpp</depend>
   <depend>fuse_variables</depend>
   <depend>fuse_constraints</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
   
 </package>

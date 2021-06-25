@@ -7,6 +7,8 @@ set(build_depends
   roscpp
 )
 
+find_package(beam REQUIRED COMPONENTS cv)
+
 find_package(catkin REQUIRED COMPONENTS
   ${build_depends}
 )
@@ -51,6 +53,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${CERES_LIBRARIES}
+  beam::cv
 )
 set_target_properties(${PROJECT_NAME}
   PROPERTIES

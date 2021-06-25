@@ -14,6 +14,8 @@ find_package(
     ${build_depends}
     fuse_variables
     fuse_constraints
+    sensor_msgs
+    nav_msgs
   )
 
 catkin_package(
@@ -25,6 +27,8 @@ catkin_package(
     ${build_depends}
     fuse_variables
     fuse_constraints
+    sensor_msgs
+    nav_msgs
 )
 
 ###########
@@ -43,6 +47,7 @@ add_library(${PROJECT_NAME}
   src/beam_common/pose_lookup.cpp
   src/beam_common/scan_pose.cpp
   src/beam_common/lidar_map.cpp
+  src/beam_common/preintegrator.cpp
   )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
