@@ -77,6 +77,11 @@ bool ScanPose::Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
   return false;
 }
 
+void ScanPose::Update(const Eigen::Matrix4d& T_REFFRAME_CLOUD) {
+  beam_common::EigenTransformToFusePose(T_REFFRAME_CLOUD, position_,
+                                        orientation_);
+}
+
 bool ScanPose::Near(const ros::Time& time, const double tolerance) const {
   return (std::abs(stamp_.toSec() - time.toSec()) <= tolerance);
 }

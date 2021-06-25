@@ -63,6 +63,13 @@ class ScanPose {
   bool Update(const fuse_core::Graph::ConstSharedPtr& graph_msg);
 
   /**
+   * @brief update the pose of this ScanPose given a transformation matrix
+   * @param T_REFFRAME_CLOUD transformation from the cloud (scan frame) to the
+   * reference frame (usually WORLD or SUBMAP)
+   */
+  void Update(const Eigen::Matrix4d& T_REFFRAME_CLOUD);
+
+  /**
    * @brief check if this scanpose is near some some other scan pose in the time
    * domain
    * @param time query time
