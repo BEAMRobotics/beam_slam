@@ -1,5 +1,9 @@
 optimization_period: 0.1
 lag_duration: 2
+imu_frame: 'imu0'
+lidar_frame: 'base_link'
+camera_frame: 'cam0'
+static_extrinsics: true
 
 sensor_models:
   - name: 'camera'

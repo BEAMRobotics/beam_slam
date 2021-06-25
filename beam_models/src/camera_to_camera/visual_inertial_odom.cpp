@@ -1,4 +1,5 @@
 #include <beam_models/camera_to_camera/visual_inertial_odom.h>
+#include <beam_common/extrinsics_lookup.h>
 // fuse
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
@@ -25,11 +26,10 @@ VisualInertialOdom::VisualInertialOdom()
     : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL) {}
 
 void VisualInertialOdom::onInit() {
-  Eigen::Matrix4d T_imu_cam_;
-  T_imu_cam_ << 0.0148655429818, -0.999880929698, 0.00414029679422,
-      -0.0216401454975, 0.999557249008, 0.0149672133247, 0.025715529948,
-      -0.064676986768, -0.0257744366974, 0.00375618835797, 0.999660727178,
-      0.00981073058949, 0.0, 0.0, 0.0, 1.0;
+
+  Eigen::Matrix4d T_imu_cam;
+  beam_common::ExtrinsicsLookup::GetInstance().GetT_IMU_CAMERA(T_imu_cam);
+  std::cout << T_imu_cam << std::endl;
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   params_.loadFromROS(private_node_handle_);
@@ -52,7 +52,7 @@ void VisualInertialOdom::onInit() {
    ***********************************************************/
   cam_model_ =
       beam_calibration::CameraModel::Create(params_.cam_intrinsics_path);
-  visual_map_ = std::make_shared<VisualMap>(cam_model_, T_imu_cam_, source_);
+  visual_map_ = std::make_shared<VisualMap>(cam_model_, T_imu_cam, source_);
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
@@ -76,7 +76,7 @@ void VisualInertialOdom::onInit() {
    ***********************************************************/
   initializer_ =
       std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
-          cam_model_, tracker_, pose_refiner_, T_imu_cam_);
+          cam_model_, tracker_, pose_refiner_, T_imu_cam);
   // temp
   init_path_pub_ = private_node_handle_.advertise<InitializedPathMsg>(
       params_.init_path_topic, 1);
@@ -96,6 +96,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
     bool is_kf = IsKeyframe(img_time);
     if (!initializer_->Initialized() && is_kf) {
+      std::cout << "Keyframe: " << img_time << std::endl;
       // temp
       if (cur_kf_time_ > last_stamp_ && !set_once) {
         init_path_pub_.publish(init_path_);

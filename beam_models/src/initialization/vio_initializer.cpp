@@ -30,21 +30,22 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     PerformIMUInitialization(valid_frames);
     beam_models::frame_to_frame::ImuPreintegration::Params imu_params;
     imu_params.gravity = gravity_;
+    std::cout << gravity_ << std::endl;
     imu_preint_ =
         std::make_shared<beam_models::frame_to_frame::ImuPreintegration>(
             imu_params, bg_, ba_);
-    // Apply scale estimate if desired
-    if (use_scale_estimate_)
-      for (auto& f : valid_frames) { f.p = scale_ * f.p; }
-    // Add poses and imu constraints to graph
-    AddPosesAndIMUConstraints(valid_frames);
-    // Add landmarks and visual constraints to graph
-    AddLandmarksAndVisualConstraints();
-    // optimize graph
-    ceres::Solver::Options options;
-    options.minimizer_progress_to_stdout = true;
-    local_graph_->optimize(options);
-    is_initialized_ = true;
+    // // Apply scale estimate if desired
+    // if (use_scale_estimate_)
+    //   for (auto& f : valid_frames) { f.p = scale_ * f.p; }
+    // // Add poses and imu constraints to graph
+    // AddPosesAndIMUConstraints(valid_frames);
+    // // Add landmarks and visual constraints to graph
+    // AddLandmarksAndVisualConstraints();
+    // // optimize graph
+    // ceres::Solver::Options options;
+    // options.minimizer_progress_to_stdout = true;
+    // local_graph_->optimize(options);
+    // is_initialized_ = true;
   }
   return is_initialized_;
 }
