@@ -110,6 +110,10 @@ void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   }
 }
 
+void VisualInertialOdom::processPath(const nav_msgs::Path::ConstPtr& msg){
+
+}
+
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   visual_map_->UpdateGraph(graph);
 }
