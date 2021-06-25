@@ -43,6 +43,7 @@ add_library(${PROJECT_NAME}
   src/beam_parameters/models/model_params.cpp
   src/beam_parameters/publishers/publisher_params.cpp
   src/beam_common/common.cpp
+  src/beam_common/extrinsics_lookup.cpp
   src/beam_common/pose_lookup.cpp
   src/beam_common/scan_pose.cpp
   src/beam_common/lidar_map.cpp
@@ -63,7 +64,7 @@ target_link_libraries(
     beam::utils
   )
 
-  #############
+#############
 ## Testing ##
 #############
 if(CATKIN_ENABLE_TESTING)
