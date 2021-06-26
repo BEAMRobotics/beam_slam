@@ -1,11 +1,11 @@
 # global parameters: These will be used in multiple locations
 optimization_frequency: 1
 lag_duration: 2
-imu_frame: "IMU"
+imu_frame: "imu"
 lidar_frame: "velodyne"
 camera_frame: "camera"
 static_extrinsics: true,
-intrinsics_path: "/home/nick/config/calibrations/F_kaarta.json"
+intrinsics_path: "/home/nick/config/calibrations/kaarta/F_kaarta.json"
 
 sensor_models:
   - name: 'lio_initializer'
@@ -17,8 +17,11 @@ lio_initializer:
   registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class
   differential: false # Default: false
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
-  lidar_topic: '/velodyne_points'
-  imu_topic: '/imu/data'
+  lidar_topic: '/points_raw'
+  imu_topic: '/imu_raw'
+  output_topic: 'lio_initialiser_result'
+  nominal_gravity_direction: '-Z'
+  undistort_scans: true
   aggregation_time: 0.1
   trajectory_time_window: 10
   min_trajectory_distance: 3

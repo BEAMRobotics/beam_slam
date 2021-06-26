@@ -7,6 +7,8 @@
 
 #include <beam_utils/math.h>
 
+#include <beam_models/InitializedPathMsg.h>
+
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(beam_models::frame_to_frame::LioInitializer,
                        fuse_core::SensorModel)
@@ -29,6 +31,9 @@ void LioInitializer::onInit() {
   // subscribe to lidar topic
   lidar_subscriber_ = private_node_handle_.subscribe(
       params_.lidar_topic, 10, &LioInitializer::processLidar, this);
+
+  // init publisher
+  results_publisher_ = private_node_handle_.advertise<InitializedPathMsg>(params_.output_topic, 1000);    
 
   // init imu preintegration
   ImuPreintegration::Params imu_preint_params;
@@ -167,6 +172,7 @@ void LioInitializer::ProcessCurrentKeyframe() {
     ROS_DEBUG("Trajectory is long enough, optimizing lio initializer data.");
     Optimize();
     OutputResults();
+    PublishResults();
     initialization_complete_ = true;
   } else {
     keyframes_.pop_front();
@@ -204,18 +210,6 @@ bool LioInitializer::MatchScans(const beam_common::ScanPose& scan_pose_1,
     return false;
   }
 
-  return true;
-}
-
-bool LioInitializer::PassedRegThreshold(const Eigen::Matrix4d& T_measured) {
-  double t_error = T_measured.block(0, 3, 3, 1).norm();
-  Eigen::Matrix3d R = T_measured.block(0, 0, 3, 3);
-  double r_error = std::abs(Eigen::AngleAxis<double>(R).angle());
-
-  if (t_error > params_.outlier_threshold_t_m ||
-      r_error > params_.outlier_threshold_r_deg) {
-    return false;
-  }
   return true;
 }
 
@@ -279,6 +273,10 @@ void LioInitializer::Optimize() {
 }
 
 void LioInitializer::OutputResults() {
+  if(params_.scan_output_directory.empty()){
+    return;
+  }
+  
   if (!boost::filesystem::exists(params_.scan_output_directory)) {
     ROS_ERROR("Output directory does not exist. Not outputting results.");
     return;
@@ -323,6 +321,13 @@ void LioInitializer::OutputResults() {
         save_path + std::to_string(iter->Stamp().toSec()) + ".pcd",
         cloud_world);
   }
+}
+
+void LioInitializer::PublishResults(){
+  return;
+  // todo
+  InitializedPathMsg msg;
+  results_publisher_.publish(msg);
 }
 
 }  // namespace frame_to_frame

@@ -115,16 +115,6 @@ class LioInitializer : public fuse_core::AsyncSensorModel {
                   Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   /**
-   * @brief checked the transform between two scans (from scan registration
-   * results) against the max motion params to determine if the scan
-   * registration was a success of not. This will only eliminate very bad scan
-   * registration results.
-   * @param T_measured pose refinement between two scans that have been already transformed into a common reference frame
-   * @return true if rotation and translation are below threshold set in params
-   */
-  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured);
-
-  /**
    * @brief create factor graph of scan registration and imu measurements, then
    * solve and publish results.
    */
@@ -140,10 +130,16 @@ class LioInitializer : public fuse_core::AsyncSensorModel {
    */
   void OutputResults();
 
+  /**
+   * @brief publish results of initialization to a InitializedPathMsg
+   */
+  void PublishResults();
+
  protected:
   // subscribers
   ros::Subscriber imu_subscriber_;
   ros::Subscriber lidar_subscriber_;
+  ros::Publisher results_publisher_;
 
   // imu data handler
   std::unique_ptr<ImuPreintegration> imu_preintegration_;

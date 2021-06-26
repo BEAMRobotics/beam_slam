@@ -28,6 +28,7 @@ struct LioInitializerParams : public ParameterBase {
                           "");
     getParamRequired<std::string>(nh, "imu_topic", imu_topic);
     getParamRequired<std::string>(nh, "lidar_topic", lidar_topic);
+    getParamRequired<std::string>(nh, "output_topic", output_topic);
     getParam<std::string>(nh, "nominal_gravity_direction", nominal_gravity_direction, "-Z");
     getParam<bool>(nh, "undistort_scans", undistort_scans, true);
     getParam<double>(nh, "min_trajectory_distance", min_trajectory_distance, 3);
@@ -50,6 +51,7 @@ struct LioInitializerParams : public ParameterBase {
   std::string scan_output_directory;
   std::string imu_topic;
   std::string lidar_topic;
+  std::string output_topic;
   
   std::string nominal_gravity_direction;
   bool undistort_scans{true};
