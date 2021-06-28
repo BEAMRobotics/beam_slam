@@ -6,8 +6,7 @@
 
 namespace beam_models { namespace frame_to_frame {
 
-ImuPreintegration::ImuPreintegration(const Params& params)
-    : params_(params) {
+ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
   SetPreintegrator();
 }
 
@@ -84,8 +83,9 @@ ImuState ImuPreintegration::PredictState(
   double dt = pre_integrator.delta.t.toSec();
   Eigen::Matrix3d or_curr = imu_state_curr.OrientationQuat().toRotationMatrix();
   Eigen::Matrix3d or_new_mat = or_curr * pre_integrator.delta.q.matrix();
-  Eigen::Vector3d vel_new =
-      imu_state_curr.VelocityVec() + params_.gravity * dt + or_curr * pre_integrator.delta.v;
+  Eigen::Vector3d vel_new = imu_state_curr.VelocityVec() +
+                            params_.gravity * dt +
+                            or_curr * pre_integrator.delta.v;
   Eigen::Vector3d pos_new =
       imu_state_curr.PositionVec() + imu_state_curr.VelocityVec() * dt +
       0.5 * params_.gravity * dt * dt + or_curr * pre_integrator.delta.p;
@@ -195,12 +195,6 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   // predict state at end of window using integrated imu measurements
   ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_);
 
-  // update orientation and position of predicted imu state with arguments
-  if (R_WORLD_IMU && t_WORLD_IMU) {
-    imu_state_j.SetOrientation(R_WORLD_IMU->data());
-    imu_state_j.SetPosition(t_WORLD_IMU->data());
-  }
-
   // calculate relative change in imu state between key frames
   auto delta_ij = CalculateRelativeChange(imu_state_j);
 
@@ -226,6 +220,12 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
   transaction.AddImuStateVariables(
       imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),
       imu_state_j.GyroBias(), imu_state_j.AccelBias(), imu_state_j.Stamp());
+
+  // update orientation and position of predicted imu state with arguments
+  if (R_WORLD_IMU && t_WORLD_IMU) {
+    imu_state_j.SetOrientation(R_WORLD_IMU->data());
+    imu_state_j.SetPosition(t_WORLD_IMU->data());
+  }
 
   // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
