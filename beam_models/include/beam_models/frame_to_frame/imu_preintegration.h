@@ -121,24 +121,26 @@ public:
   /**
    * @brief gets pose of imu with respect to world frame
    * @param t_now time at which to get pose
-   * @return pose
+   * @param T_WORLD_IMU reference to pose matrix to fill in
+   * @return true if successful
    */
-  Eigen::Matrix4d GetPose(const ros::Time& t_now);
+  bool GetPose(Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now);
 
   /**
    * @brief registers new transaction between key frames
+   * @param transaction reference to transaction object where imu factors will be added
    * @param t_now time at which to set new key frame
    * @param R_WORLD_IMU orientation of new key frame from VIO or LIO (if null,
    * imu will predict)
    * @param t_WORLD_IMU position of new key frame from VIO or LIO (if null, imu
    * will predict)
-   * @return transaction
+   * @return true if successful. 
    */
-  beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-      RegisterNewImuPreintegratedFactor(
-          const ros::Time& t_now,
-          fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
-          fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
+  bool RegisterNewImuPreintegratedFactor(
+    beam_constraints::frame_to_frame::ImuState3DStampedTransaction& transaction,
+    const ros::Time& t_now,
+    fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
+    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
 
 private:
   /**
@@ -150,13 +152,6 @@ private:
    * @brief calls Preintegrator reset() and clears stored imu data
    */
   void ResetPreintegrator();
-
-  /**
-   * @brief checks to see if requested time preceeds IMU messages in buffer.
-   * Throws fatal run time error if this is true
-   * @param t_now requested time
-   */
-  void CheckTime(const ros::Time& t_now);
 
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames

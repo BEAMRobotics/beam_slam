@@ -67,7 +67,7 @@ public:
    * otherwise will add to loca graph
    */
   void AddPose(const Eigen::Matrix4d& T_WORLD_CAMERA, const ros::Time& cur_time,
-               std::shared_ptr<fuse_core::Transaction> transaction = nullptr);
+               fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Helper function to add a new landmark variable to a transaction or
@@ -79,7 +79,7 @@ public:
    */
   void AddLandmark(
       const Eigen::Vector3d& position, uint64_t lm_id,
-      std::shared_ptr<fuse_core::Transaction> transaction = nullptr);
+      fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Helper function to add a constraint between a landmark and a pose
@@ -91,7 +91,7 @@ public:
    */
   void AddConstraint(
       const ros::Time& img_time, uint64_t lm_id, const Eigen::Vector2d& pixel,
-      std::shared_ptr<fuse_core::Transaction> transaction = nullptr);
+      fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Retrieves q_WORLD_IMU
@@ -106,6 +106,26 @@ public:
    */
   fuse_variables::Position3DStamped::SharedPtr
       GetPosition(const ros::Time& stamp);
+
+  /**
+   * @brief Adds orientation in imu frame
+   * @param stamp associated to orientation
+   * @param q_WORLD_IMU quaternion representing orientation
+   * @param transaciton optional transaction object if using global graph
+   */
+  void AddOrientation(
+      const ros::Time& stamp, const Eigen::Quaterniond& q_WORLD_IMU,
+      fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Adds position in imu frame
+   * @param stamp associated to position
+   * @param q_WORLD_IMU vector representing position
+   * @param transaciton optional transaction object if using global graph
+   */
+  void AddPosition(
+      const ros::Time& stamp, const Eigen::Vector3d& p_WORLD_IMU,
+      fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Updates current graph copy

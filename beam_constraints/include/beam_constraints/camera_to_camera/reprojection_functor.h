@@ -69,7 +69,6 @@ public:
     T_WORLD_IMU(3,2) = (T)0;
     T_WORLD_IMU(3,3) = (T)1;
 
-
     Eigen::Matrix<T, 4, 1> P_WORLD_h;
     P_WORLD_h[0] = P_WORLD[0];
     P_WORLD_h[1] = P_WORLD[1];
@@ -78,7 +77,7 @@ public:
 
     Eigen::Matrix<T, 4, 1> P_IMU_h = T_WORLD_IMU.inverse() * P_WORLD_h;
     Eigen::Matrix<T, 3, 1> P_CAM =
-        (T_IMU_CAM.inverse() * P_IMU_h ).hnormalized();
+        (T_IMU_CAM.inverse() * P_IMU_h).hnormalized();
     T P_CAMERA[3];
     P_CAMERA[0] = P_CAM[0];
     P_CAMERA[1] = P_CAM[1];

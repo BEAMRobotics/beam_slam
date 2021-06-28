@@ -74,7 +74,7 @@ fuse_variables::Position3D::SharedPtr
 
 void VisualMap::AddPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
                         const ros::Time& cur_time,
-                        std::shared_ptr<fuse_core::Transaction> transaction) {
+                        fuse_core::Transaction::SharedPtr transaction) {
   // transform pose into imu coord space
   Eigen::Matrix4d T_WORLD_IMU = T_WORLD_CAMERA * T_imu_cam_.inverse();
   Eigen::Quaterniond q;
@@ -107,9 +107,46 @@ void VisualMap::AddPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
   }
 }
 
+void VisualMap::AddOrientation(
+    const ros::Time& stamp, const Eigen::Quaterniond& q_WORLD_IMU,
+    fuse_core::Transaction::SharedPtr transaction) {
+  fuse_variables::Orientation3DStamped::SharedPtr orientation =
+      fuse_variables::Orientation3DStamped::make_shared(stamp);
+  orientation->w() = q_WORLD_IMU.w();
+  orientation->x() = q_WORLD_IMU.x();
+  orientation->y() = q_WORLD_IMU.y();
+  orientation->z() = q_WORLD_IMU.z();
+  if (transaction) {
+    transaction->addVariable(orientation);
+    orientations_[stamp.toNSec()] = orientation;
+  } else if (local_graph_) {
+    local_graph_->addVariable(orientation);
+  } else {
+    ROS_WARN("Must input local graph or transaction.");
+  }
+}
+
+void VisualMap::AddPosition(
+    const ros::Time& stamp, const Eigen::Vector3d& p_WORLD_IMU,
+    fuse_core::Transaction::SharedPtr transaction) {
+  fuse_variables::Position3DStamped::SharedPtr position =
+      fuse_variables::Position3DStamped::make_shared(stamp);
+  position->x() = p_WORLD_IMU[0];
+  position->y() = p_WORLD_IMU[1];
+  position->z() = p_WORLD_IMU[2];
+  if (transaction) {
+    transaction->addVariable(position);
+    positions_[stamp.toNSec()] = position;
+  } else if (local_graph_) {
+    local_graph_->addVariable(position);
+  } else {
+    ROS_WARN("Must input local graph or transaction.");
+  }
+}
+
 void VisualMap::AddLandmark(
     const Eigen::Vector3d& position, uint64_t id,
-    std::shared_ptr<fuse_core::Transaction> transaction) {
+    fuse_core::Transaction::SharedPtr transaction) {
   fuse_variables::Position3D::SharedPtr landmark =
       fuse_variables::Position3D::make_shared(id);
   landmark->x() = position[0];
@@ -128,7 +165,7 @@ void VisualMap::AddLandmark(
 
 void VisualMap::AddConstraint(
     const ros::Time& img_time, uint64_t lm_id, const Eigen::Vector2d& pixel,
-    std::shared_ptr<fuse_core::Transaction> transaction) {
+    fuse_core::Transaction::SharedPtr transaction) {
   fuse_variables::Position3D::SharedPtr lm = GetLandmark(lm_id);
   fuse_variables::Position3DStamped::SharedPtr position = GetPosition(img_time);
   fuse_variables::Orientation3DStamped::SharedPtr orientation =

@@ -1,5 +1,5 @@
 #include <beam_models/camera_to_camera/visual_inertial_odom.h>
-#include <beam_common/extrinsics_lookup.h>
+//#include <beam_common/extrinsics_lookup.h>
 // fuse
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
@@ -26,10 +26,13 @@ VisualInertialOdom::VisualInertialOdom()
     : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL) {}
 
 void VisualInertialOdom::onInit() {
-
   Eigen::Matrix4d T_imu_cam;
-  beam_common::ExtrinsicsLookup::GetInstance().GetT_IMU_CAMERA(T_imu_cam);
-  std::cout << T_imu_cam << std::endl;
+  T_imu_cam << 0.0148655429818, -0.999880929698, 0.00414029679422,
+      -0.0216401454975, 0.999557249008, 0.0149672133247, 0.025715529948,
+      -0.064676986768, -0.0257744366974, 0.00375618835797, 0.999660727178,
+      0.00981073058949, 0.0, 0.0, 0.0, 1.0;
+  // beam_common::ExtrinsicsLookup::GetInstance().GetT_IMU_CAMERA(T_imu_cam);
+  // std::cout << T_imu_cam << std::endl;
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   params_.loadFromROS(private_node_handle_);
@@ -59,7 +62,7 @@ void VisualInertialOdom::onInit() {
   std::shared_ptr<beam_cv::Descriptor> descriptor =
       std::make_shared<beam_cv::ORBDescriptor>();
   std::shared_ptr<beam_cv::Detector> detector =
-      std::make_shared<beam_cv::GFTTDetector>(1000);
+      std::make_shared<beam_cv::GFTTDetector>(500);
   tracker_ = std::make_shared<beam_cv::KLTracker>(detector, descriptor,
                                                   params_.window_size);
   /***********************************************************
@@ -159,7 +162,7 @@ bool VisualInertialOdom::IsKeyframe(ros::Time img_time) {
   if (cur_kf_time_ == ros::Time(0)) {
     cur_kf_time_ = img_time;
     return true;
-  } else if ((img_time - cur_kf_time_).toSec() >= 0.5) {
+  } else if ((img_time - cur_kf_time_).toSec() >= 0.8) {
     cur_kf_time_ = img_time;
     return true;
   }

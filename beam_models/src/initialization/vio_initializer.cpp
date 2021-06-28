@@ -30,22 +30,22 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     PerformIMUInitialization(valid_frames);
     beam_models::frame_to_frame::ImuPreintegration::Params imu_params;
     imu_params.gravity = gravity_;
-    std::cout << gravity_ << std::endl;
     imu_preint_ =
         std::make_shared<beam_models::frame_to_frame::ImuPreintegration>(
             imu_params, bg_, ba_);
-    // // Apply scale estimate if desired
-    // if (use_scale_estimate_)
-    //   for (auto& f : valid_frames) { f.p = scale_ * f.p; }
-    // // Add poses and imu constraints to graph
-    // AddPosesAndIMUConstraints(valid_frames);
-    // // Add landmarks and visual constraints to graph
-    // AddLandmarksAndVisualConstraints();
-    // // optimize graph
-    // ceres::Solver::Options options;
-    // options.minimizer_progress_to_stdout = true;
-    // local_graph_->optimize(options);
-    // is_initialized_ = true;
+    // Apply scale estimate if desired
+    if (use_scale_estimate_)
+      for (auto& f : valid_frames) { f.p = scale_ * f.p; }
+    // Add poses and imu constraints to graph
+    AddPosesAndIMUConstraints(valid_frames);
+    // Add landmarks and visual constraints to graph
+    AddLandmarksAndVisualConstraints();
+    // optimize graph
+    ceres::Solver::Options options;
+    options.minimizer_progress_to_stdout = true;
+    options.max_solver_time_in_seconds = 5;
+    local_graph_->optimize(options);
+    is_initialized_ = true;
   }
   return is_initialized_;
 }
@@ -92,14 +92,15 @@ void VIOInitializer::BuildFrameVectors(
     // if (stamp < end) {
     // get pose of frame using path
     Eigen::Matrix4d T_WORLD_IMU;
-    beam_common::InterpolateTransformFromPath(init_path_->poses, stamp, T_WORLD_IMU);
+    beam_common::InterpolateTransformFromPath(init_path_->poses, stamp,
+                                              T_WORLD_IMU);
     Eigen::Vector3d p_WORLD_IMU;
     Eigen::Quaterniond q_WORLD_IMU;
     beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_IMU, q_WORLD_IMU,
                                                     p_WORLD_IMU);
     // create frame and add to valid frame vector
-    beam_models::camera_to_camera::Frame new_frame(stamp, p_WORLD_IMU,
-                                                   q_WORLD_IMU, preintegrator);
+    beam_models::camera_to_camera::Frame new_frame{stamp, p_WORLD_IMU,
+                                                   q_WORLD_IMU, preintegrator};
     valid_frames.push_back(new_frame);
     //}
     // else {
@@ -154,13 +155,10 @@ void VIOInitializer::AddPosesAndIMUConstraints(
     const std::vector<beam_models::camera_to_camera::Frame>& frames) {
   // add initial poses and imu constraints
   for (int i = 0; i < frames.size(); i++) {
-    // 1. Add frames pose to graph
+    // 1. Add frame's pose to graph
     beam_models::camera_to_camera::Frame frame = frames[i];
-    Eigen::Matrix4d T_WORLD_IMU;
-    beam::QuaternionAndTranslationToTransformMatrix(frame.q, frame.p,
-                                                    T_WORLD_IMU);
-    Eigen::Matrix4d T_WORLD_CAM = T_WORLD_IMU * T_imu_cam_;
-    visual_map_->AddPose(T_WORLD_CAM, frame.t);
+    visual_map_->AddPosition(frame.t, frame.p);
+    visual_map_->AddOrientation(frame.t, frame.q);
     // 2. Push its imu messages
     for (auto& imu_data : frame.preint.data) {
       imu_preint_->AddToBuffer(imu_data);
@@ -174,20 +172,18 @@ void VIOInitializer::AddPosesAndIMUConstraints(
           visual_map_->GetOrientation(frame.t);
       fuse_variables::Position3DStamped::SharedPtr img_position =
           visual_map_->GetPosition(frame.t);
-      auto transaction = imu_preint_
-                             ->RegisterNewImuPreintegratedFactor(
-                                 frame.t, img_orientation, img_position)
-                             .GetTransaction();
-      for (auto& var : transaction->addedVariables()) {
-        fuse_core::Variable::UniquePtr var_unique = var.clone();
-        fuse_core::Variable::SharedPtr var_shared = std::move(var_unique);
-        local_graph_->addVariable(var_shared);
+      // get imu transaction
+      beam_constraints::frame_to_frame::ImuState3DStampedTransaction
+          imu_transaction(frame.t);
+      imu_preint_->RegisterNewImuPreintegratedFactor(
+          imu_transaction, frame.t, img_orientation, img_position);
+      fuse_core::Transaction::SharedPtr fuse_transaction =
+          imu_transaction.GetTransaction();
+      for (auto& var : fuse_transaction->addedVariables()) {
+        local_graph_->addVariable(std::move(var.clone()));
       }
-      for (auto& constraint : transaction->addedConstraints()) {
-        fuse_core::Constraint::UniquePtr constraint_unique = constraint.clone();
-        fuse_core::Constraint::SharedPtr constraint_shared =
-            std::move(constraint_unique);
-        local_graph_->addConstraint(constraint_shared);
+      for (auto& constraint : fuse_transaction->addedConstraints()) {
+        local_graph_->addConstraint(std::move(constraint.clone()));
       }
     }
   }
@@ -199,7 +195,7 @@ void VIOInitializer::AddLandmarksAndVisualConstraints() {
   int num_landmarks = 0;
   for (auto& id : landmarks) {
     if (!visual_map_->GetLandmark(id)) {
-      std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
+      std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_world_cam_v;
       std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
@@ -208,13 +204,13 @@ void VIOInitializer::AddLandmarksAndVisualConstraints() {
         // check if the pose is in the graph (keyframe)
         if (T.has_value()) {
           pixels.push_back(m.value.cast<int>());
-          T_cam_world_v.push_back(T.value());
+          T_world_cam_v.push_back(T.value().inverse());
           observation_stamps.push_back(m.time_point);
         }
       }
-      if (T_cam_world_v.size() >= 2) {
+      if (T_world_cam_v.size() >= 2) {
         beam::opt<Eigen::Vector3d> point =
-            beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+            beam_cv::Triangulation::TriangulatePoint(cam_model_, T_world_cam_v,
                                                      pixels);
         if (point.has_value()) {
           num_landmarks++;

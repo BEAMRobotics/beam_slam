@@ -185,5 +185,17 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD_REQUIRED YES
   )
 
+
+  add_executable(${PROJECT_NAME}_reprojection_test
+    tests/reprojection_test.cpp)
+  target_link_libraries(${PROJECT_NAME}_reprojection_test
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils
+    beam::cv)
+  add_test(NAME ${PROJECT_NAME}_reprojection_test
+          COMMAND ${PROJECT_NAME}_reprojection_test)
+
+
 endif()
 

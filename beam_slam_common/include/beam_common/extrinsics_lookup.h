@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <fuse_variables/orientation_3d_stamped.h>
+#include <fuse_variables/position_3d_stamped.h>
 #include <tf/transform_listener.h>
 
 namespace beam_common {
@@ -22,12 +24,12 @@ class ExtrinsicsLookup {
   static ExtrinsicsLookup& GetInstance();
 
   /**
-   * @brief copy constructor
+   * @brief Copy constructor
    */
   ExtrinsicsLookup(const ExtrinsicsLookup& other) = delete;
 
   /**
-   * @brief copy assignment operator
+   * @brief Copy assignment operator
    */
   ExtrinsicsLookup& operator=(const ExtrinsicsLookup& other) = delete;
 
@@ -87,31 +89,40 @@ class ExtrinsicsLookup {
    * @brief Gets the frame id of IMU
    * @return frame id
    */
-  const std::string GetIMUFrameID() {
-    return imu_frame_;
-  }
+  std::string GetIMUFrameID() const { return imu_frame_; }
 
   /**
    * @brief Gets the frame id of camera
    * @return frame id
    */
-  const std::string GetCameraFrameID() {
-    return camera_frame_;
-  }
+  std::string GetCameraFrameID() const { return camera_frame_; }
 
   /**
    * @brief Gets the frame id of lidar
    * @return frame id
    */
-  const std::string GetLidarFrameID() {
-    return lidar_frame_;
+  std::string GetLidarFrameID() const { return lidar_frame_; }
+
+  /**
+   * @brief Gets the status on whether or not extrinsics are static
+   * @return true if extrinsics are static
+   */
+  bool IsStatic() const { return static_extrinsics_; }
+
+  /**
+   * @brief Gets the status on whether or not extrinsics between all frames have
+   * been set
+   * @return true if extrinsics between all frames have been set
+   */
+  bool IsSet() const {
+    return T_LIDAR_IMU_set_ && T_LIDAR_CAMERA_set_ && T_IMU_CAMERA_set_;
   }
 
  private:
   /**
-   * @brief default constructor
+   * @brief Constructor
    */
-  ExtrinsicsLookup() = default;
+  ExtrinsicsLookup();
 
   /**
    * @brief Gets transform between specified frames
@@ -130,9 +141,10 @@ class ExtrinsicsLookup {
   fuse_variables::Position3DStamped camera_position_;  // t_BASELINK_CAMERA
   fuse_variables::Position3DStamped lidar_position_;   // t_BASELINK_LIDAR
 
-  fuse_variables::Orientation3DStamped imu_orientation_;     // zero rotation
-  fuse_variables::Orientation3DStamped camera_orientation_;  // R_BASELINK_CAMERA
-  fuse_variables::Orientation3DStamped lidar_orientation_;   // R_BASELINK_LIDAR
+  fuse_variables::Orientation3DStamped imu_orientation_;  // zero rotation
+  fuse_variables::Orientation3DStamped
+      camera_orientation_;                                  // R_BASELINK_CAMERA
+  fuse_variables::Orientation3DStamped lidar_orientation_;  // R_BASELINK_LIDAR
 
   Eigen::Matrix4d T_LIDAR_IMU_;
   Eigen::Matrix4d T_LIDAR_CAMERA_;
@@ -141,7 +153,7 @@ class ExtrinsicsLookup {
   std::string imu_frame_{""};
   std::string camera_frame_{""};
   std::string lidar_frame_{""};
-  
+
   bool T_LIDAR_IMU_set_{false};
   bool T_LIDAR_CAMERA_set_{false};
   bool T_IMU_CAMERA_set_{false};
