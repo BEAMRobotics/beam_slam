@@ -8,6 +8,7 @@ namespace beam_models {
 namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
+  ValidateParameters();
   SetPreintegrator();
 }
 
@@ -15,6 +16,7 @@ ImuPreintegration::ImuPreintegration(const Params& params,
                                      const Eigen::Vector3d& init_bg,
                                      const Eigen::Vector3d& init_ba)
     : params_(params), bg_(init_bg), ba_(init_ba) {
+  ValidateParameters();
   SetPreintegrator();
 }
 
@@ -29,6 +31,21 @@ void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
 
 void ImuPreintegration::AddToBuffer(const beam_common::IMUData& imu_data) {
   imu_data_buffer_.push(imu_data);
+}
+
+void ImuPreintegration::ValidateParameters() {
+  std::string msg{"Inputs to PoseLookup invalid."};
+  if (params_.cov_gyro_noise.isZero() || params_.cov_accel_noise.isZero() ||
+      params_.cov_gyro_bias.isZero() || params_.cov_accel_bias.isZero()) {
+    BEAM_ERROR(
+        "All intrinsic IMU noise parameters must be specified. Parameters: "
+        "cov_gyro_noise, cov_accel_noise, cov_gyro_bias, and "
+        "cov_accel_bias cannot be zero.");
+    throw std::invalid_argument{msg};
+  } else if (params_.prior_noise <= 0) {
+    BEAM_ERROR("prior noise on imu preintegration must be positive");
+    throw std::invalid_argument{msg};
+  }
 }
 
 void ImuPreintegration::SetPreintegrator() {
@@ -125,12 +142,13 @@ Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
   return delta;
 }
 
-bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now) {
+bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
+                                const ros::Time& t_now) {
   // encapsulate imu measurments between frames
   beam_common::PreIntegrator pre_integrator_interval;
 
   // check requested time
-  if (t_now < imu_data_buffer_.front().t){
+  if (t_now < imu_data_buffer_.front().t) {
     return false;
   }
 
