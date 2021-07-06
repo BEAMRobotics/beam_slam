@@ -147,9 +147,9 @@ class ImuPreintegration {
 
  private:
   /**
-   * @brief validates parameters
+   * @brief checks parameters
    */
-  void ValidateParameters();
+  void CheckParameters();
 
   /**
    * @brief sets Preintegrator class noise parameters

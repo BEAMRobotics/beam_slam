@@ -8,7 +8,7 @@ namespace beam_models {
 namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
-  ValidateParameters();
+  CheckParameters();
   SetPreintegrator();
 }
 
@@ -16,7 +16,7 @@ ImuPreintegration::ImuPreintegration(const Params& params,
                                      const Eigen::Vector3d& init_bg,
                                      const Eigen::Vector3d& init_ba)
     : params_(params), bg_(init_bg), ba_(init_ba) {
-  ValidateParameters();
+  CheckParameters();
   SetPreintegrator();
 }
 
@@ -33,7 +33,7 @@ void ImuPreintegration::AddToBuffer(const beam_common::IMUData& imu_data) {
   imu_data_buffer_.push(imu_data);
 }
 
-void ImuPreintegration::ValidateParameters() {
+void ImuPreintegration::CheckParameters() {
   std::string msg{"Inputs to ImuPreintegration invalid."};
   if (params_.cov_gyro_noise.hasNaN() || params_.cov_accel_noise.hasNaN() ||
       params_.cov_gyro_bias.hasNaN() || params_.cov_accel_bias.hasNaN()) {
@@ -42,8 +42,10 @@ void ImuPreintegration::ValidateParameters() {
         "cov_gyro_noise, cov_accel_noise, cov_gyro_bias, and "
         "cov_accel_bias cannot be zero.");
     throw std::invalid_argument{msg};
-  } else if (params_.prior_noise <= 0) {
-    BEAM_ERROR("prior noise on imu preintegration must be positive");
+  }
+
+  if (params_.prior_noise <= 0) {
+    BEAM_ERROR("prior noise on IMU preintegration must be positive");
     throw std::invalid_argument{msg};
   }
 }
