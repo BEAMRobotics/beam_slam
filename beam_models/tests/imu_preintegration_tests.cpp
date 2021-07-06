@@ -576,7 +576,7 @@ TEST(ImuPreintegration, Simple2StateFG) {
 
 class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     // set intrinsic noise of imu to zero
     params.cov_gyro_noise.setZero();
     params.cov_accel_noise.setZero();
