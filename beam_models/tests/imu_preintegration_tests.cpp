@@ -617,6 +617,18 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
 
 TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   /**
+   * CheckParameters() functionality
+   */
+
+  // instantiate preintegration class with default parameters. An error is
+  // thrown when noise parameters are not passed by the user
+  EXPECT_ANY_THROW({
+    ImuPreintegration::Params params;
+    std::unique_ptr<ImuPreintegration> dummy_imu_preintegration =
+        std::make_unique<ImuPreintegration>(params);
+  });
+
+  /**
    * SetStart() functionality
    */
 
@@ -688,23 +700,19 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
     ExpectTransformsNear(T_WORLD_IMU, data.pose_gt[i - 1]);
   }
 
-  // expect throws from CheckTime()
-  EXPECT_ANY_THROW({
-    Eigen::Matrix4d T_WORLD_IMU;
-    imu_preintegration->GetPose(T_WORLD_IMU, ros::Time(-1));
-  });
+  // expect false from incorrect time
+  Eigen::Matrix4d T_WORLD_IMU;
+  EXPECT_FALSE(imu_preintegration->GetPose(T_WORLD_IMU, t_start));
 
   /**
    * RegisterNewImuPreintegratedFactor() functionality
    */
 
-  // expect throws from CheckTime()
-  EXPECT_ANY_THROW({
-    beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-        dummy_imu_transaction(ros::Time(-1));
-    imu_preintegration->RegisterNewImuPreintegratedFactor(dummy_imu_transaction,
-                                                          ros::Time(-1));
-  });
+  // expect false from incorrect time
+  beam_constraints::frame_to_frame::ImuState3DStampedTransaction
+      dummy_imu_transaction(t_start);
+  EXPECT_FALSE(imu_preintegration->RegisterNewImuPreintegratedFactor(
+      dummy_imu_transaction, t_start));
 
   // generate transaction to perform imu preintegration
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction
