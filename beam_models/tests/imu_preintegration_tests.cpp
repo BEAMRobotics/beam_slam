@@ -628,6 +628,19 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
         std::make_unique<ImuPreintegration>(params);
   });
 
+  // instantiate preintegration class with invalid prior noise
+  EXPECT_ANY_THROW({
+    ImuPreintegration::Params params;
+    double random_number = beam::randf(0, 1e-5);
+    params.prior_noise = 0;
+    params.cov_gyro_noise.setIdentity();
+    params.cov_accel_noise.setIdentity();
+    params.cov_gyro_bias.setIdentity();
+    params.cov_accel_bias.setIdentity();
+    std::unique_ptr<ImuPreintegration> dummy_imu_preintegration =
+        std::make_unique<ImuPreintegration>(params);
+  });
+
   /**
    * SetStart() functionality
    */
@@ -922,5 +935,6 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+  testing::FLAGS_gtest_death_test_style = "threadsafe";
   return RUN_ALL_TESTS();
 }
