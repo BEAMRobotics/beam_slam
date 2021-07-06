@@ -39,10 +39,10 @@ class ImuPreintegration {
   struct Params {
     double prior_noise{1e-9};
     Eigen::Vector3d gravity{Eigen::Vector3d(0, 0, -GRAVITY)};
-    Eigen::Matrix3d cov_gyro_noise;
-    Eigen::Matrix3d cov_accel_noise;
-    Eigen::Matrix3d cov_gyro_bias;
-    Eigen::Matrix3d cov_accel_bias;
+    Eigen::Matrix3d cov_gyro_noise{Eigen::Matrix3d::Identity() * NAN};
+    Eigen::Matrix3d cov_accel_noise{Eigen::Matrix3d::Identity() * NAN};
+    Eigen::Matrix3d cov_gyro_bias{Eigen::Matrix3d::Identity() * NAN};
+    Eigen::Matrix3d cov_accel_bias{Eigen::Matrix3d::Identity() * NAN};
     std::string source{"IMUPREINTEGRATION"};
   };
 
