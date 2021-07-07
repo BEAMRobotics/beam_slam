@@ -53,16 +53,19 @@ public:
 
   /**
    * @brief Returns the current state
+   * @return true or false if process is initialized
    */
   bool Initialized();
 
   /**
    * @brief Returns a read only the current local graph
+   * @return read-only graph
    */
   const fuse_graphs::HashGraph& GetGraph();
 
   /**
    * @brief Returns a pointer to the imu preintegration object used
+   * @return point to imu preintegration
    */
   std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration>
       GetPreintegrator();

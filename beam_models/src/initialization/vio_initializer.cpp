@@ -21,6 +21,7 @@ VIOInitializer::VIOInitializer(
 bool VIOInitializer::AddImage(ros::Time cur_time) {
   frame_times_.push_back(cur_time.toNSec());
   if (init_path_) {
+    ROS_INFO("Attempting Initialization.");
     // Build frame vectors
     std::vector<beam_models::camera_to_camera::Frame> valid_frames;
     std::vector<beam_models::camera_to_camera::Frame> invalid_frames;
