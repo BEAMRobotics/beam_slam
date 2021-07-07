@@ -143,31 +143,31 @@ if(CATKIN_ENABLE_TESTING)
   # Lint tests
   roslint_add_test()
   
-  # # Scan to scan registration tests
-  # catkin_add_gtest(multi_scan_registration_tests 
-  #   tests/multi_scan_registration_tests.cpp
-  # )
-  # target_link_libraries(multi_scan_registration_tests 
-  #   ${PROJECT_NAME}
-  # )
-  # set_target_properties(multi_scan_registration_tests 
-  #   PROPERTIES
-  #     CXX_STANDARD 14
-  #     CXX_STANDARD_REQUIRED YES
-  # )  
+  # Scan to scan registration tests
+  catkin_add_gtest(multi_scan_registration_tests 
+    tests/multi_scan_registration_tests.cpp
+  )
+  target_link_libraries(multi_scan_registration_tests 
+    ${PROJECT_NAME}
+  )
+  set_target_properties(multi_scan_registration_tests 
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )  
 
-  # # Scan to map registration tests
-  # catkin_add_gtest(scan_to_map_registration_tests 
-  #   tests/scan_to_map_registration_tests.cpp
-  # )
-  # target_link_libraries(scan_to_map_registration_tests 
-  #   ${PROJECT_NAME}
-  # )
-  # set_target_properties(scan_to_map_registration_tests 
-  #   PROPERTIES
-  #     CXX_STANDARD 14
-  #     CXX_STANDARD_REQUIRED YES
-  # )
+  # Scan to map registration tests
+  catkin_add_gtest(scan_to_map_registration_tests 
+    tests/scan_to_map_registration_tests.cpp
+  )
+  target_link_libraries(scan_to_map_registration_tests 
+    ${PROJECT_NAME}
+  )
+  set_target_properties(scan_to_map_registration_tests 
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
 
   # IMU preintegration tests
   catkin_add_gtest(imu_preintegration_tests
