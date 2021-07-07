@@ -107,9 +107,9 @@ void VisualMap::AddPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
   }
 }
 
-void VisualMap::AddOrientation(
-    const ros::Time& stamp, const Eigen::Quaterniond& q_WORLD_IMU,
-    fuse_core::Transaction::SharedPtr transaction) {
+void VisualMap::AddOrientation(const Eigen::Quaterniond& q_WORLD_IMU,
+                               const ros::Time& stamp,
+                               fuse_core::Transaction::SharedPtr transaction) {
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
       fuse_variables::Orientation3DStamped::make_shared(stamp);
   orientation->w() = q_WORLD_IMU.w();
@@ -126,9 +126,9 @@ void VisualMap::AddOrientation(
   }
 }
 
-void VisualMap::AddPosition(
-    const ros::Time& stamp, const Eigen::Vector3d& p_WORLD_IMU,
-    fuse_core::Transaction::SharedPtr transaction) {
+void VisualMap::AddPosition(const Eigen::Vector3d& p_WORLD_IMU,
+                            const ros::Time& stamp,
+                            fuse_core::Transaction::SharedPtr transaction) {
   fuse_variables::Position3DStamped::SharedPtr position =
       fuse_variables::Position3DStamped::make_shared(stamp);
   position->x() = p_WORLD_IMU[0];
@@ -144,9 +144,8 @@ void VisualMap::AddPosition(
   }
 }
 
-void VisualMap::AddLandmark(
-    const Eigen::Vector3d& position, uint64_t id,
-    fuse_core::Transaction::SharedPtr transaction) {
+void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
+                            fuse_core::Transaction::SharedPtr transaction) {
   fuse_variables::Position3D::SharedPtr landmark =
       fuse_variables::Position3D::make_shared(id);
   landmark->x() = position[0];
@@ -163,9 +162,9 @@ void VisualMap::AddLandmark(
   }
 }
 
-void VisualMap::AddConstraint(
-    const ros::Time& img_time, uint64_t lm_id, const Eigen::Vector2d& pixel,
-    fuse_core::Transaction::SharedPtr transaction) {
+void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
+                              const Eigen::Vector2d& pixel,
+                              fuse_core::Transaction::SharedPtr transaction) {
   fuse_variables::Position3D::SharedPtr lm = GetLandmark(lm_id);
   fuse_variables::Position3DStamped::SharedPtr position = GetPosition(img_time);
   fuse_variables::Orientation3DStamped::SharedPtr orientation =

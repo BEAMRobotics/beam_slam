@@ -196,6 +196,5 @@ if(CATKIN_ENABLE_TESTING)
   add_test(NAME ${PROJECT_NAME}_reprojection_test
           COMMAND ${PROJECT_NAME}_reprojection_test)
 
-
 endif()
 

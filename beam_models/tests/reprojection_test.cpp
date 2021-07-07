@@ -43,9 +43,7 @@ TEST(ReprojectionFunctor, TestAccuracy) {
 
   Eigen::Vector2d pixeld = pixel.cast<double>();
   fuse_constraints::ReprojectionFunctor reproj =
-      fuse_constraints::ReprojectionFunctor(Eigen::Matrix2d::Identity(),
-      pixeld,
-                                            cam, T_imu_cam);
+      fuse_constraints::ReprojectionFunctor(pixeld, cam, T_imu_cam);
 
   double t_WORLD_IMU[3];
   t_WORLD_IMU[0] = p[0];

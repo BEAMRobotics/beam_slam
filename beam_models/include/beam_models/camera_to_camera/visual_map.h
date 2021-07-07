@@ -77,9 +77,8 @@ public:
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void AddLandmark(
-      const Eigen::Vector3d& position, uint64_t lm_id,
-      fuse_core::Transaction::SharedPtr transaction = nullptr);
+  void AddLandmark(const Eigen::Vector3d& position, uint64_t lm_id,
+                   fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Helper function to add a constraint between a landmark and a pose
@@ -89,9 +88,9 @@ public:
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void AddConstraint(
-      const ros::Time& img_time, uint64_t lm_id, const Eigen::Vector2d& pixel,
-      fuse_core::Transaction::SharedPtr transaction = nullptr);
+  void AddConstraint(const ros::Time& img_time, uint64_t lm_id,
+                     const Eigen::Vector2d& pixel,
+                     fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Retrieves q_WORLD_IMU
@@ -113,9 +112,9 @@ public:
    * @param q_WORLD_IMU quaternion representing orientation
    * @param transaciton optional transaction object if using global graph
    */
-  void AddOrientation(
-      const ros::Time& stamp, const Eigen::Quaterniond& q_WORLD_IMU,
-      fuse_core::Transaction::SharedPtr transaction = nullptr);
+  void AddOrientation(const Eigen::Quaterniond& q_WORLD_IMU,
+                      const ros::Time& stamp,
+                      fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Adds position in imu frame
@@ -123,9 +122,8 @@ public:
    * @param q_WORLD_IMU vector representing position
    * @param transaciton optional transaction object if using global graph
    */
-  void AddPosition(
-      const ros::Time& stamp, const Eigen::Vector3d& p_WORLD_IMU,
-      fuse_core::Transaction::SharedPtr transaction = nullptr);
+  void AddPosition(const Eigen::Vector3d& p_WORLD_IMU, const ros::Time& stamp,
+                   fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Updates current graph copy

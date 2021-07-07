@@ -26,15 +26,14 @@ public:
   /**
    * @brief Construct a cost function instance
    *
-   * @param[in] A The residual weighting matrix, Recommended: 2x2 identity
    * @param[in] pixel_measurement The pixel location of feature in the image
    * @param[in] cam_model The camera intrinsics for projection
    */
   ReprojectionFunctor(
-      const fuse_core::Matrix2d& A, const Eigen::Vector2d& pixel_measurement,
+      const Eigen::Vector2d& pixel_measurement,
       const std::shared_ptr<beam_calibration::CameraModel> cam_model,
       const Eigen::Matrix4d& T_imu_cam)
-      : A_(A), pixel_measurement_(pixel_measurement), cam_model_(cam_model) {
+      : pixel_measurement_(pixel_measurement), cam_model_(cam_model) {
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
         new ceres::NumericDiffCostFunction<
             beam_optimization::CameraProjectionFunctor, ceres::CENTRAL, 2, 3>(
@@ -52,22 +51,22 @@ public:
     ceres::QuaternionToRotation(R_WORLD_IMU, R_WORLD_IMU_mat);
 
     Eigen::Matrix<T, 4, 4> T_WORLD_IMU;
-    T_WORLD_IMU(0,0) = R_WORLD_IMU_mat[0];
-    T_WORLD_IMU(0,1) = R_WORLD_IMU_mat[1];
-    T_WORLD_IMU(0,2) = R_WORLD_IMU_mat[2];
-    T_WORLD_IMU(0,3) = t_WORLD_IMU[0];
-    T_WORLD_IMU(1,0) = R_WORLD_IMU_mat[3];
-    T_WORLD_IMU(1,1) = R_WORLD_IMU_mat[4];
-    T_WORLD_IMU(1,2) = R_WORLD_IMU_mat[5];
-    T_WORLD_IMU(1,3) = t_WORLD_IMU[1];
-    T_WORLD_IMU(2,0) = R_WORLD_IMU_mat[6];
-    T_WORLD_IMU(2,1) = R_WORLD_IMU_mat[7];
-    T_WORLD_IMU(2,2) = R_WORLD_IMU_mat[8];
-    T_WORLD_IMU(2,3) = t_WORLD_IMU[2];
-    T_WORLD_IMU(3,0) = (T)0;
-    T_WORLD_IMU(3,1) = (T)0;
-    T_WORLD_IMU(3,2) = (T)0;
-    T_WORLD_IMU(3,3) = (T)1;
+    T_WORLD_IMU(0, 0) = R_WORLD_IMU_mat[0];
+    T_WORLD_IMU(0, 1) = R_WORLD_IMU_mat[1];
+    T_WORLD_IMU(0, 2) = R_WORLD_IMU_mat[2];
+    T_WORLD_IMU(0, 3) = t_WORLD_IMU[0];
+    T_WORLD_IMU(1, 0) = R_WORLD_IMU_mat[3];
+    T_WORLD_IMU(1, 1) = R_WORLD_IMU_mat[4];
+    T_WORLD_IMU(1, 2) = R_WORLD_IMU_mat[5];
+    T_WORLD_IMU(1, 3) = t_WORLD_IMU[1];
+    T_WORLD_IMU(2, 0) = R_WORLD_IMU_mat[6];
+    T_WORLD_IMU(2, 1) = R_WORLD_IMU_mat[7];
+    T_WORLD_IMU(2, 2) = R_WORLD_IMU_mat[8];
+    T_WORLD_IMU(2, 3) = t_WORLD_IMU[2];
+    T_WORLD_IMU(3, 0) = (T)0;
+    T_WORLD_IMU(3, 1) = (T)0;
+    T_WORLD_IMU(3, 2) = (T)0;
+    T_WORLD_IMU(3, 3) = (T)1;
 
     Eigen::Matrix<T, 4, 1> P_WORLD_h;
     P_WORLD_h[0] = P_WORLD[0];
@@ -94,13 +93,10 @@ public:
   }
 
 private:
-  fuse_core::Matrix2d A_;
   Eigen::Vector2d pixel_measurement_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::unique_ptr<ceres::CostFunctionToFunctor<2, 3>> compute_projection;
   Eigen::Matrix4d T_imu_cam_;
-  Eigen::Quaterniond Q_cam_imu_;
-  Eigen::Vector3d t_cam_imu_;
 };
 
 } // namespace fuse_constraints

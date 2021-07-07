@@ -123,6 +123,7 @@ protected:
   // most recent keyframe timestamp
   ros::Time cur_kf_time_ = ros::Time(0);
 
+  std::map<uint64_t, cv::Mat> images;
   // temp stuff
   ros::Time last_stamp_;
   InitializedPathMsg init_path_;

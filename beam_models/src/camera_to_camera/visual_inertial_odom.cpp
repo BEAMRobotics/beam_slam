@@ -79,7 +79,7 @@ void VisualInertialOdom::onInit() {
    ***********************************************************/
   initializer_ =
       std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
-          cam_model_, tracker_, pose_refiner_, T_imu_cam);
+          cam_model_, tracker_, T_imu_cam);
   // temp
   init_path_pub_ = private_node_handle_.advertise<InitializedPathMsg>(
       params_.init_path_topic, 1);
@@ -99,14 +99,13 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
     bool is_kf = IsKeyframe(img_time);
     if (!initializer_->Initialized() && is_kf) {
-      std::cout << "Keyframe: " << img_time << std::endl;
       // temp
       if (cur_kf_time_ > last_stamp_ && !set_once) {
         init_path_pub_.publish(init_path_);
         set_once = true;
       }
       if (initializer_->AddImage(img_time)) {
-        std::cout << "Initialization Success" << std::endl;
+        ROS_INFO("Initialization Success.");
         imu_preint_ = initializer_->GetPreintegrator();
         // copy graph into transaction and send transaction
       }
