@@ -2,7 +2,6 @@
 
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/PoseRefinement.h>
-#include <beam_utils/pointclouds.h>
 
 namespace beam_models { namespace camera_to_camera {
 
@@ -276,34 +275,6 @@ bool VIOInitializer::LocalizeFrame(
       T_CAMERA_WORLD_est, cam_model_, pixels, points, report);
   T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
   return true;
-}
-
-void VIOInitializer::SaveFramesCloud(
-    const std::vector<beam_models::camera_to_camera::Frame>& frames) {
-  Eigen::Matrix4d T_WORLD_CAMERA;
-  pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
-  for (auto& f : frames) {
-    T_WORLD_CAMERA = visual_map_->GetPose(f.t).value();
-    frame_cloud =
-        beam::AddFrameToCloud(frame_cloud, T_WORLD_CAMERA, 0.001, 0.1);
-  }
-  pcl::io::savePCDFileBinary("/home/jake/frames.pcd", frame_cloud);
-}
-
-void VIOInitializer::SaveVisualPointCloud() {
-  ros::Time start = init_path_->poses[0].header.stamp;
-  ros::Time end = init_path_->poses[init_path_->poses.size() - 1].header.stamp;
-  pcl::PointCloud<pcl::PointXYZ> points_cloud;
-  std::vector<uint64_t> landmarks =
-      tracker_->GetLandmarkIDsInWindow(start, end);
-  for (auto& id : landmarks) {
-    fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
-    if (lm) {
-      pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
-      points_cloud.points.push_back(p);
-    }
-  }
-  pcl::io::savePCDFileBinary("/home/jake/points.pcd", points_cloud);
 }
 
 void VIOInitializer::OptimizeGraph() {

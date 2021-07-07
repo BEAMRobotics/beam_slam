@@ -1,7 +1,6 @@
 #pragma once
 // libbeam
 #include <beam_calibration/CameraModel.h>
-#include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/trackers/Trackers.h>
 #include <beam_utils/utils.h>
@@ -69,28 +68,56 @@ public:
       GetPreintegrator();
 
 private:
+  /**
+   * @brief Build a vector of frames with the current init path and the
+   * frame_times_ vector, if a frame is outside of the given path it will be
+   * referred to as an invalid frame and its pose will be set to 0
+   * @param valid_frames[out] frames that are within the init path
+   * @param invalid_frames[out] frames that are outside the init path
+   */
   void BuildFrameVectors(
       std::vector<beam_models::camera_to_camera::Frame>& valid_frames,
       std::vector<beam_models::camera_to_camera::Frame>& invalid_frames);
 
+  /**
+   * @brief Estimates imu parameters given a vector of frames with some known
+   * poses (can be up to scale from sfm, or in real world scale from lidar)
+   * @param frames input frames  with poses to estimate imu parameters
+   */
   void PerformIMUInitialization(
       const std::vector<beam_models::camera_to_camera::Frame>& frames);
 
+  /**
+   * @brief Adds all poses and inertial constraints contained within the frames
+   * vector to the local graph
+   * @param frames input frames
+   * @param set_start when true will set the first frames pose as the prior
+   */
   void AddPosesAndInertialConstraints(
       const std::vector<beam_models::camera_to_camera::Frame>& frames,
       bool set_start);
 
+  /**
+   * @brief Adds visual constraints to input frames, will triangulate landmarks
+   * if they are not already triangulated
+   * @param frames input frames
+   * @return number of landmarks that have been added
+   */
   size_t AddVisualConstraints(
       const std::vector<beam_models::camera_to_camera::Frame>& frames);
 
+  /**
+   * @brief Localizes a given frame using the current landmarks
+   * @param frames input frames
+   * @param T_WORLD_CAMERA[out] estimated pose of the camera
+   * @return true or false if it succeeded or not
+   */
   bool LocalizeFrame(const beam_models::camera_to_camera::Frame& frame,
                      Eigen::Matrix4d& T_WORLD_CAMERA);
 
-  void SaveFramesCloud(
-      const std::vector<beam_models::camera_to_camera::Frame>& frames);
-
-  void SaveVisualPointCloud();
-
+  /**
+   * @brief Optimizes the current local graph
+   */
   void OptimizeGraph();
 
 protected:
