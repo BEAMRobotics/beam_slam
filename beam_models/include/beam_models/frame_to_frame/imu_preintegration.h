@@ -129,18 +129,15 @@ class ImuPreintegration {
 
   /**
    * @brief registers new transaction between key frames
-   * @param transaction reference to transaction object where imu factors will
-   * be added
    * @param t_now time at which to set new key frame
    * @param R_WORLD_IMU orientation of new key frame from VIO or LIO (if null,
    * imu will predict)
    * @param t_WORLD_IMU position of new key frame from VIO or LIO (if null, imu
    * will predict)
-   * @return true if successful.
+   * @return transaction
    */
-  bool RegisterNewImuPreintegratedFactor(
-      beam_constraints::frame_to_frame::ImuState3DStampedTransaction&
-          transaction,
+  beam_constraints::frame_to_frame::ImuState3DStampedTransaction
+  RegisterNewImuPreintegratedFactor(
       const ros::Time& t_now,
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);

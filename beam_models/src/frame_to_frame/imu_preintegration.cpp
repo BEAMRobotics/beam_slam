@@ -38,14 +38,13 @@ void ImuPreintegration::CheckParameters() {
   if (params_.cov_gyro_noise.hasNaN() || params_.cov_accel_noise.hasNaN() ||
       params_.cov_gyro_bias.hasNaN() || params_.cov_accel_bias.hasNaN()) {
     BEAM_ERROR(
-        "All intrinsic IMU noise parameters must be specified. Parameters: "
-        "cov_gyro_noise, cov_accel_noise, cov_gyro_bias, and "
-        "cov_accel_bias cannot be zero.");
+        "All intrinsic IMU noise parameters (cov_gyro_noise, cov_accel_noise, "
+        "cov_gyro_bias, and cov_accel_bias) must be specified ");
     throw std::invalid_argument{msg};
   }
 
   if (params_.prior_noise <= 0) {
-    BEAM_ERROR("prior noise on IMU preintegration must be positive");
+    BEAM_ERROR("Prior noise on IMU preintegration must be positive");
     throw std::invalid_argument{msg};
   }
 }
@@ -174,14 +173,17 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
   return true;
 }
 
-bool ImuPreintegration::RegisterNewImuPreintegratedFactor(
-    beam_constraints::frame_to_frame::ImuState3DStampedTransaction& transaction,
+beam_constraints::frame_to_frame::ImuState3DStampedTransaction
+ImuPreintegration::RegisterNewImuPreintegratedFactor(
     const ros::Time& t_now,
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
+  beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
+      t_now);
+
   // check requested time
   if (t_now < imu_data_buffer_.front().t) {
-    return false;
+    return transaction;
   }
 
   // generate prior constraint at start
@@ -256,7 +258,7 @@ bool ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   ResetPreintegrator();
 
-  return true;
+  return transaction;
 }
 
 }  // namespace frame_to_frame
