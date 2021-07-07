@@ -465,7 +465,7 @@ TEST(MultiScanRegistration, TransactionsAndUpdates) {
   auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(SP3.Orientation().uuid()));
 
-//   multi_scan_registration->GetMap().Save("/home/nick/tmp/loam_scan_registration/lidar_map2/");    
+  //   multi_scan_registration->GetMap().Save("/home/nick/tmp/loam_scan_registration/lidar_map2/");
 
   EXPECT_TRUE(VectorsEqual(SP1.Position().data(), p1.data(), 3));
   EXPECT_TRUE(VectorsEqual(SP1.Orientation().data(), o1.data(), 4));
@@ -829,7 +829,7 @@ TEST(MultiScanLoamRegistration, 3Scans) {
   //   beam_common::LidarMap& map = beam_common::LidarMap::GetInstance();
   //   map.Save("/home/nick/tmp/loam_scan_registration/lidar_map/");
 
-//   EXPECT_TRUE(map.NumPointClouds() == 3);
+  //   EXPECT_TRUE(map.NumPointClouds() == 3);
   EXPECT_TRUE(multi_scan_registration->GetMap().NumPointClouds() == 3);
 
   EXPECT_TRUE(
@@ -838,4 +838,9 @@ TEST(MultiScanLoamRegistration, 3Scans) {
       beam::ArePosesEqual(T_WORLD_S2_mea, data_.T_WORLD_S2, 1, 0.05, true));
   EXPECT_TRUE(
       beam::ArePosesEqual(T_WORLD_S3_mea, data_.T_WORLD_S3, 1, 0.05, true));
+}
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
