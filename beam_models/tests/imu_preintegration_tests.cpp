@@ -633,10 +633,10 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
     ImuPreintegration::Params params;
     double random_number = beam::randf(0, 1e-5);
     params.prior_noise = 0;
-    params.cov_gyro_noise.setIdentity();
-    params.cov_accel_noise.setIdentity();
-    params.cov_gyro_bias.setIdentity();
-    params.cov_accel_bias.setIdentity();
+    params.cov_gyro_noise.setIdentity() * random_number;
+    params.cov_accel_noise.setIdentity() * random_number;
+    params.cov_gyro_bias.setIdentity() * random_number;
+    params.cov_accel_bias.setIdentity() * random_number;
     std::unique_ptr<ImuPreintegration> dummy_imu_preintegration =
         std::make_unique<ImuPreintegration>(params);
   });
@@ -721,17 +721,14 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
    * RegisterNewImuPreintegratedFactor() functionality
    */
 
-  // expect false from incorrect time
-  beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-      dummy_imu_transaction(t_start);
-  EXPECT_FALSE(imu_preintegration->RegisterNewImuPreintegratedFactor(
-      dummy_imu_transaction, t_start));
+  // expect false as incorrect time will return nullptr
+  EXPECT_FALSE(imu_preintegration->RegisterNewImuPreintegratedFactor(t_start)
+                   .GetTransaction());
 
   // generate transaction to perform imu preintegration
-  beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-      imu_transaction(t_end);
-  imu_preintegration->RegisterNewImuPreintegratedFactor(imu_transaction, t_end);
-  auto transaction = imu_transaction.GetTransaction();
+  auto transaction =
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
+          .GetTransaction();
 
   // get end imu state from preintegration
   ImuState IS_end = imu_preintegration->GetImuState();
@@ -843,16 +840,13 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
   }
 
   // generate transactions, taking start, middle, and end as key frames
-  beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-      imu_transaction1(t_middle);
-  beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-      imu_transaction2(t_end);
-  imu_preintegration->RegisterNewImuPreintegratedFactor(imu_transaction1,
-                                                        t_middle);
-  imu_preintegration->RegisterNewImuPreintegratedFactor(imu_transaction2,
-                                                        t_end);
-  auto transaction1 = imu_transaction1.GetTransaction();
-  auto transaction2 = imu_transaction2.GetTransaction();
+
+  auto transaction1 =
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_middle)
+          .GetTransaction();
+  auto transaction2 =
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
+          .GetTransaction();
 
   // create graph
   fuse_graphs::HashGraph graph;
