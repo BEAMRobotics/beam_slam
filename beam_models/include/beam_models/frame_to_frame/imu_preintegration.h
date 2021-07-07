@@ -149,7 +149,7 @@ class ImuPreintegration {
   void CheckParameters();
 
   /**
-   * @brief sets Preintegrator class noise parameters
+   * @brief sets Preintegrator class parameters
    */
   void SetPreintegrator();
 

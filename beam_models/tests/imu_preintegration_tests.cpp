@@ -621,7 +621,7 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
    */
 
   // instantiate preintegration class with default parameters. An error is
-  // thrown when noise parameters are not passed by the user
+  // thrown when noise parameters are not set by the user
   EXPECT_ANY_THROW({
     ImuPreintegration::Params params;
     std::unique_ptr<ImuPreintegration> dummy_imu_preintegration =
@@ -630,8 +630,8 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
 
   // instantiate preintegration class with invalid prior noise
   EXPECT_ANY_THROW({
-    ImuPreintegration::Params params;
     double random_number = beam::randf(0, 1e-5);
+    ImuPreintegration::Params params;
     params.prior_noise = 0;
     params.cov_gyro_noise.setIdentity() * random_number;
     params.cov_accel_noise.setIdentity() * random_number;
@@ -929,6 +929,5 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  testing::FLAGS_gtest_death_test_style = "threadsafe";
   return RUN_ALL_TESTS();
 }
