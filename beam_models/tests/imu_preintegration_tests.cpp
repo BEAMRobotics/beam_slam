@@ -722,13 +722,11 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
    */
 
   // expect false as incorrect time will return nullptr
-  EXPECT_FALSE(imu_preintegration->RegisterNewImuPreintegratedFactor(t_start)
-                   .GetTransaction());
+  EXPECT_FALSE(imu_preintegration->RegisterNewImuPreintegratedFactor(t_start));
 
   // generate transaction to perform imu preintegration
   auto transaction =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
-          .GetTransaction();
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
 
   // get end imu state from preintegration
   ImuState IS_end = imu_preintegration->GetImuState();
@@ -842,11 +840,9 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
   // generate transactions, taking start, middle, and end as key frames
 
   auto transaction1 =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_middle)
-          .GetTransaction();
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_middle);
   auto transaction2 =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
-          .GetTransaction();
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
 
   // create graph
   fuse_graphs::HashGraph graph;

@@ -173,7 +173,7 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
   return true;
 }
 
-beam_constraints::frame_to_frame::ImuState3DStampedTransaction
+fuse_core::Transaction::SharedPtr
 ImuPreintegration::RegisterNewImuPreintegratedFactor(
     const ros::Time& t_now,
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
@@ -183,7 +183,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   // check requested time
   if (t_now < imu_data_buffer_.front().t) {
-    return transaction;
+    return transaction.GetTransaction();
   }
 
   // generate prior constraint at start
@@ -258,7 +258,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   ResetPreintegrator();
 
-  return transaction;
+  return transaction.GetTransaction();
 }
 
 }  // namespace frame_to_frame

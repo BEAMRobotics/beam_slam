@@ -136,8 +136,7 @@ class ImuPreintegration {
    * will predict)
    * @return transaction
    */
-  beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-  RegisterNewImuPreintegratedFactor(
+  fuse_core::Transaction::SharedPtr RegisterNewImuPreintegratedFactor(
       const ros::Time& t_now,
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
