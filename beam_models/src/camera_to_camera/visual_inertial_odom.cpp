@@ -82,7 +82,9 @@ void VisualInertialOdom::onInit() {
    ***********************************************************/
   initializer_ =
       std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
-          cam_model_, tracker_, T_imu_cam);
+          cam_model_, tracker_, T_imu_cam, imu_params_.cov_gyro_noise,
+          imu_params_.cov_accel_noise, imu_params_.cov_gyro_bias,
+          imu_params_.cov_accel_bias);
   // temp
   init_path_pub_ = private_node_handle_.advertise<InitializedPathMsg>(
       camera_params_.init_path_topic, 1);

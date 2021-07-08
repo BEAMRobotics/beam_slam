@@ -8,10 +8,17 @@ namespace beam_models { namespace camera_to_camera {
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
     std::shared_ptr<beam_cv::Tracker> tracker, const Eigen::Matrix4d& T_imu_cam,
+    const Eigen::Matrix3d& cov_gyro_noise,
+    const Eigen::Matrix3d& cov_accel_noise,
+    const Eigen::Matrix3d& cov_gyro_bias, const Eigen::Matrix3d& cov_accel_bias,
     bool use_scale_estimate)
     : cam_model_(cam_model),
       tracker_(tracker),
       T_imu_cam_(T_imu_cam),
+      cov_gyro_noise_(cov_gyro_noise),
+      cov_accel_noise_(cov_accel_noise),
+      cov_gyro_bias_(cov_gyro_bias),
+      cov_accel_bias_(cov_accel_bias),
       use_scale_estimate_(use_scale_estimate) {
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
   visual_map_ =
@@ -30,6 +37,10 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     PerformIMUInitialization(valid_frames);
     beam_models::frame_to_frame::ImuPreintegration::Params imu_params;
     imu_params.gravity = gravity_;
+    imu_params.cov_gyro_noise = cov_gyro_noise_;
+    imu_params.cov_accel_noise = cov_accel_noise_;
+    imu_params.cov_gyro_bias = cov_gyro_bias_;
+    imu_params.cov_accel_bias = cov_accel_bias_;
     imu_preint_ =
         std::make_shared<beam_models::frame_to_frame::ImuPreintegration>(
             imu_params, bg_, ba_);
@@ -102,6 +113,10 @@ void VIOInitializer::BuildFrameVectors(
     if (stamp < start) continue;
     // add imu data to frames preintegrator
     beam_common::PreIntegrator preintegrator;
+    preintegrator.cov_w = cov_gyro_noise_;
+    preintegrator.cov_a = cov_accel_noise_;
+    preintegrator.cov_bg = cov_gyro_bias_;
+    preintegrator.cov_ba = cov_accel_bias_;
     while (imu_buffer_.front().header.stamp <= stamp && !imu_buffer_.empty()) {
       beam_common::IMUData imu_data(imu_buffer_.front());
       preintegrator.data.push_back(imu_data);
