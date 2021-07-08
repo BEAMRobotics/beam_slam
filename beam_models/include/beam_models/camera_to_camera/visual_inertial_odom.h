@@ -103,6 +103,8 @@ private:
    */
   bool IsKeyframe(ros::Time img_time);
 
+  void SendInitializationGraph(const fuse_graphs::HashGraph& graph);
+
 protected:
   std::string source_ = "VIO";
   int img_num_{0};
