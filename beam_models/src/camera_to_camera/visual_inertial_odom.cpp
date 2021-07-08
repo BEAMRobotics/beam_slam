@@ -176,7 +176,7 @@ bool VisualInertialOdom::IsKeyframe(ros::Time img_time) {
 }
 
 void VisualInertialOdom::SendInitializationGraph(
-    const fuse_graphs::HashGraph& graph) {
+    const fuse_graphs::HashGraph& init_graph) {
   auto transaction = fuse_core::Transaction::make_shared();
   for (auto& var : init_graph.getVariables()) {
     fuse_variables::Position3D::SharedPtr landmark =
