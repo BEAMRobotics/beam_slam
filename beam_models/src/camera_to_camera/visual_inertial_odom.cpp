@@ -35,7 +35,8 @@ void VisualInertialOdom::onInit() {
   // std::cout << T_imu_cam << std::endl;
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
-  params_.loadFromROS(private_node_handle_);
+  camera_params_.loadFromROS(private_node_handle_);
+  imu_params_.loadFromROS(private_node_handle_);
   /***********************************************************
    *       Initialize pose refiner object with params        *
    ***********************************************************/
@@ -54,7 +55,7 @@ void VisualInertialOdom::onInit() {
    *        Load camera model and Create Map object          *
    ***********************************************************/
   cam_model_ =
-      beam_calibration::CameraModel::Create(params_.cam_intrinsics_path);
+      beam_calibration::CameraModel::Create(camera_params_.cam_intrinsics_path);
   visual_map_ = std::make_shared<VisualMap>(cam_model_, T_imu_cam, source_);
   /***********************************************************
    *              Initialize tracker variables               *
@@ -62,18 +63,20 @@ void VisualInertialOdom::onInit() {
   std::shared_ptr<beam_cv::Descriptor> descriptor =
       std::make_shared<beam_cv::ORBDescriptor>();
   std::shared_ptr<beam_cv::Detector> detector =
-      std::make_shared<beam_cv::GFTTDetector>(500);
+      std::make_shared<beam_cv::GFTTDetector>(300);
   tracker_ = std::make_shared<beam_cv::KLTracker>(detector, descriptor,
-                                                  params_.window_size);
+                                                  camera_params_.window_size);
   /***********************************************************
    *                  Subscribe to topics                    *
    ***********************************************************/
-  image_subscriber_ = private_node_handle_.subscribe(
-      params_.image_topic, 1000, &VisualInertialOdom::processImage, this);
+  image_subscriber_ =
+      private_node_handle_.subscribe(camera_params_.image_topic, 1000,
+                                     &VisualInertialOdom::processImage, this);
   imu_subscriber_ = private_node_handle_.subscribe(
-      params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
+      imu_params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
   path_subscriber_ = private_node_handle_.subscribe(
-      params_.init_path_topic, 1, &VisualInertialOdom::processInitPath, this);
+      camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
+      this);
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
@@ -82,7 +85,7 @@ void VisualInertialOdom::onInit() {
           cam_model_, tracker_, T_imu_cam);
   // temp
   init_path_pub_ = private_node_handle_.advertise<InitializedPathMsg>(
-      params_.init_path_topic, 1);
+      camera_params_.init_path_topic, 1);
   BuildPath();
 }
 

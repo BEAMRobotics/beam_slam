@@ -14,7 +14,8 @@
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 #include <beam_models/initialization/vio_initializer.h>
-#include <beam_parameters/models/vio_params.h>
+#include <beam_parameters/models/camera_params.h>
+#include <beam_parameters/models/imu_params.h>
 
 // libbeam
 #include <beam_calibration/CameraModel.h>
@@ -106,7 +107,8 @@ protected:
   std::string source_ = "VIO";
   int img_num_{0};
   // loadable camera parameters
-  beam_parameters::models::VIOParams params_;
+  beam_parameters::models::CameraParams camera_params_;
+  beam_parameters::models::IMUParams imu_params_;
   // topic subscribers and buffers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
@@ -123,7 +125,6 @@ protected:
   // most recent keyframe timestamp
   ros::Time cur_kf_time_ = ros::Time(0);
 
-  std::map<uint64_t, cv::Mat> images;
   // temp stuff
   ros::Time last_stamp_;
   InitializedPathMsg init_path_;

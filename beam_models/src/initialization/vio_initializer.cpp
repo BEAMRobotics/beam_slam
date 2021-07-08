@@ -52,6 +52,14 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     AddPosesAndInertialConstraints(invalid_frames, false);
     // add landmarks and visual constraints for the invalid frames
     init_lms += AddVisualConstraints(invalid_frames);
+    // for (auto& f : valid_frames) {
+    //   std::cout << f.t << std::endl;
+    //   std::cout << visual_map_->GetPose(f.t) << std::endl;
+    // }
+    // for (auto& f : invalid_frames) {
+    //   std::cout << f.t << std::endl;
+    //   std::cout << visual_map_->GetPose(f.t) << std::endl;
+    // }
     ROS_INFO("Initialized Map Points: %zu", init_lms);
     is_initialized_ = true;
   }

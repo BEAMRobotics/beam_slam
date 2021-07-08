@@ -14,7 +14,7 @@ namespace beam_parameters { namespace models {
 /**
  * @brief Defines the set of parameters required by the ScanMatcher class
  */
-struct VIOParams : public ParameterBase {
+struct CameraParams : public ParameterBase {
 public:
   /**
    * @brief Method for loading parameter values from ROS.
@@ -22,21 +22,16 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-    ros::param::get("/batch_optimizer/VIO/cam_intrinsics_path",
-                    cam_intrinsics_path);
-    ros::param::get("/batch_optimizer/VIO/image_topic", image_topic);
-    ros::param::get("/batch_optimizer/VIO/imu_topic", imu_topic);
-    ros::param::get("/batch_optimizer/VIO/window_size", window_size);
-    ros::param::get("/batch_optimizer/VIO/imu_intrinsics", imu_intrinsics);
-    ros::param::get("/batch_optimizer/VIO/init_path_topic", init_path_topic);
+    getParam<std::string>(nh, "cam_intrinsics_path", cam_intrinsics_path, "");
+    getParam<std::string>(nh, "image_topic", image_topic, "");
+    getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
+    getParam<int>(nh, "window_size", window_size, 100);
   }
 
   std::string cam_intrinsics_path{};
   std::string image_topic{};
-  std::string imu_topic{};
   std::string init_path_topic{};
   int window_size{};
-  std::vector<double> imu_intrinsics{0, 0, 0, 0};
 };
 
 }} // namespace beam_parameters::models
