@@ -144,6 +144,32 @@ void VisualMap::AddPosition(const Eigen::Vector3d& p_WORLD_IMU,
   }
 }
 
+void VisualMap::AddOrientation(
+    fuse_variables::Orientation3DStamped::SharedPtr orientation,
+    fuse_core::Transaction::SharedPtr transaction) {
+  if (transaction) {
+    transaction->addVariable(orientation);
+    orientations_[orientation->stamp().toNSec()] = orientation;
+  } else if (local_graph_) {
+    local_graph_->addVariable(orientation);
+  } else {
+    ROS_WARN("Must input local graph or transaction.");
+  }
+}
+
+void VisualMap::AddPosition(
+    fuse_variables::Position3DStamped::SharedPtr position,
+    fuse_core::Transaction::SharedPtr transaction) {
+  if (transaction) {
+    transaction->addVariable(position);
+    positions_[position->stamp().toNSec()] = position;
+  } else if (local_graph_) {
+    local_graph_->addVariable(position);
+  } else {
+    ROS_WARN("Must input local graph or transaction.");
+  }
+}
+
 void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
                             fuse_core::Transaction::SharedPtr transaction) {
   fuse_variables::Position3D::SharedPtr landmark =
@@ -155,6 +181,18 @@ void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
   if (transaction) {
     transaction->addVariable(landmark);
     landmark_positions_[id] = landmark;
+  } else if (local_graph_) {
+    local_graph_->addVariable(landmark);
+  } else {
+    ROS_WARN("Must input local graph or transaction.");
+  }
+}
+
+void VisualMap::AddLandmark(fuse_variables::Position3D::SharedPtr landmark,
+                            fuse_core::Transaction::SharedPtr transaction) {
+  if (transaction) {
+    transaction->addVariable(landmark);
+    landmark_positions_[landmark->id()] = landmark;
   } else if (local_graph_) {
     local_graph_->addVariable(landmark);
   } else {

@@ -81,6 +81,16 @@ public:
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
+   * @brief Helper function to add a new landmark variable to a transaction or
+   * graph
+   * @param landmark to add
+   * @param transaction (optional) if provided will add to transaction,
+   * otherwise will add to loca graph
+   */
+  void AddLandmark(fuse_variables::Position3D::SharedPtr landmark,
+                   fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
    * @brief Helper function to add a constraint between a landmark and a pose
    * @param img_time associated image timestamp to add constraint to
    * @param landmark_id landmark to add constraint to
@@ -123,6 +133,25 @@ public:
    * @param transaciton optional transaction object if using global graph
    */
   void AddPosition(const Eigen::Vector3d& p_WORLD_IMU, const ros::Time& stamp,
+                   fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Adds orientation in imu frame
+   * @param stamp associated to orientation
+   * @param q_WORLD_IMU quaternion representing orientation
+   * @param transaciton optional transaction object if using global graph
+   */
+  void AddOrientation(
+      fuse_variables::Orientation3DStamped::SharedPtr orientation,
+      fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Adds position in imu frame
+   * @param stamp associated to position
+   * @param q_WORLD_IMU vector representing position
+   * @param transaciton optional transaction object if using global graph
+   */
+  void AddPosition(fuse_variables::Position3DStamped::SharedPtr position,
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**

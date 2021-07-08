@@ -111,8 +111,38 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       }
       if (initializer_->AddImage(img_time)) {
         ROS_INFO("Initialization Success.");
+        // get the preintegration object
         imu_preint_ = initializer_->GetPreintegrator();
-        // copy graph into transaction and send transaction
+        // copy init graph and send to fuse optimizer
+        auto transaction = fuse_core::Transaction::make_shared();
+        fuse_graphs::HashGraph init_graph = initializer_->GetGraph();
+        for (auto& var : init_graph.getVariables()) {
+          fuse_variables::Position3D::SharedPtr landmark =
+              fuse_variables::Position3D::make_shared();
+          fuse_variables::Position3DStamped::SharedPtr position =
+              fuse_variables::Position3DStamped::make_shared();
+          fuse_variables::Orientation3DStamped::SharedPtr orientation =
+              fuse_variables::Orientation3DStamped::make_shared();
+
+          if (var.type() == landmark->type()) {
+            *landmark = dynamic_cast<const fuse_variables::Position3D&>(var);
+            visual_map_->AddLandmark(landmark, transaction);
+          }
+          if (var.type() == orientation->type()) {
+            *orientation =
+                dynamic_cast<const fuse_variables::Orientation3DStamped&>(var);
+            visual_map_->AddOrientation(orientation, transaction);
+          }
+          if (var.type() == position->type()) {
+            *position =
+                dynamic_cast<const fuse_variables::Position3DStamped&>(var);
+            visual_map_->AddPosition(position, transaction);
+          }
+        }
+        for (auto& constraint : init_graph.getConstraints()) {
+          transaction->addConstraint(std::move(constraint.clone()));
+        }
+        sendTransaction(transaction);
       }
     } else if (initializer_->Initialized() && !is_kf) {
       // localize image and publish to internal frame initializer
