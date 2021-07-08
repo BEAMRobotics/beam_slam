@@ -34,18 +34,9 @@ void ImuPreintegration::AddToBuffer(const beam_common::IMUData& imu_data) {
 }
 
 void ImuPreintegration::CheckParameters() {
-  std::string msg{"Inputs to ImuPreintegration invalid."};
-  if (params_.cov_gyro_noise.hasNaN() || params_.cov_accel_noise.hasNaN() ||
-      params_.cov_gyro_bias.hasNaN() || params_.cov_accel_bias.hasNaN()) {
-    BEAM_ERROR(
-        "All intrinsic IMU noise parameters (cov_gyro_noise, cov_accel_noise, "
-        "cov_gyro_bias, and cov_accel_bias) must be specified ");
-    throw std::invalid_argument{msg};
-  }
-
   if (params_.prior_noise <= 0) {
     BEAM_ERROR("Prior noise on IMU preintegration must be positive");
-    throw std::invalid_argument{msg};
+    throw std::invalid_argument{"Inputs to ImuPreintegration invalid."};
   }
 }
 

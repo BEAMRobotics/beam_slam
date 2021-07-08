@@ -30,19 +30,19 @@ class ImuPreintegration {
  public:
   /**
    * @param prior_noise noise assumed for prior covariance
-   * @param cov_gyro_noise angular velocity covariance [REQUIRED]
-   * @param cov_accel_noise linear accleration covariance [REQUIRED]
-   * @param cov_gyro_bias gyroscope bias covariance [REQUIRED]
-   * @param cov_accel_bias accleration bias covariance [REQUIRED]
+   * @param cov_gyro_noise angular velocity covariance
+   * @param cov_accel_noise linear accleration covariance
+   * @param cov_gyro_bias gyroscope bias covariance
+   * @param cov_accel_bias accleration bias covariance
    * @param source sensor model source
    */
   struct Params {
     double prior_noise{1e-9};
     Eigen::Vector3d gravity{Eigen::Vector3d(0, 0, -GRAVITY)};
-    Eigen::Matrix3d cov_gyro_noise{Eigen::Matrix3d::Identity() * NAN};
-    Eigen::Matrix3d cov_accel_noise{Eigen::Matrix3d::Identity() * NAN};
-    Eigen::Matrix3d cov_gyro_bias{Eigen::Matrix3d::Identity() * NAN};
-    Eigen::Matrix3d cov_accel_bias{Eigen::Matrix3d::Identity() * NAN};
+    Eigen::Matrix3d cov_gyro_noise{Eigen::Matrix3d::Identity() * 1e-4};
+    Eigen::Matrix3d cov_accel_noise{Eigen::Matrix3d::Identity() * 1e-3};
+    Eigen::Matrix3d cov_gyro_bias{Eigen::Matrix3d::Identity() * 1e-6};
+    Eigen::Matrix3d cov_accel_bias{Eigen::Matrix3d::Identity() * 1e-4};
     std::string source{"IMUPREINTEGRATION"};
   };
 

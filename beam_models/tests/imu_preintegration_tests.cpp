@@ -620,23 +620,10 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
    * CheckParameters() functionality
    */
 
-  // instantiate preintegration class with default parameters. An error is
-  // thrown when noise parameters are not set by the user
-  EXPECT_ANY_THROW({
-    ImuPreintegration::Params params;
-    std::unique_ptr<ImuPreintegration> dummy_imu_preintegration =
-        std::make_unique<ImuPreintegration>(params);
-  });
-
   // instantiate preintegration class with invalid prior noise
   EXPECT_ANY_THROW({
-    double random_number = beam::randf(0, 1e-5);
     ImuPreintegration::Params params;
     params.prior_noise = 0;
-    params.cov_gyro_noise.setIdentity() * random_number;
-    params.cov_accel_noise.setIdentity() * random_number;
-    params.cov_gyro_bias.setIdentity() * random_number;
-    params.cov_accel_bias.setIdentity() * random_number;
     std::unique_ptr<ImuPreintegration> dummy_imu_preintegration =
         std::make_unique<ImuPreintegration>(params);
   });
