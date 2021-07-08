@@ -134,7 +134,7 @@ class ImuPreintegration {
    * imu will predict)
    * @param t_WORLD_IMU position of new key frame from VIO or LIO (if null, imu
    * will predict)
-   * @return transaction
+   * @return transaction if successful. If not, nullptr is returned
    */
   fuse_core::Transaction::SharedPtr RegisterNewImuPreintegratedFactor(
       const ros::Time& t_now,

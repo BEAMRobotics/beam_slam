@@ -174,7 +174,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   // check requested time
   if (t_now < imu_data_buffer_.front().t) {
-    return transaction.GetTransaction();
+    return nullptr;
   }
 
   // generate prior constraint at start
