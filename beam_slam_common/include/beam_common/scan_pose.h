@@ -156,7 +156,7 @@ class ScanPose {
    * @param add_frame whether or not to add coordinate frame to cloud
    */
   void Save(const std::string& save_path, bool to_reference_frame = true,
-            bool add_frame = true);
+            bool add_frame = true) const;
 
   /**
    * @brief save loam pointcloud of current scanpose
@@ -165,7 +165,7 @@ class ScanPose {
    * @param add_frame whether or not to add coordinate frame to cloud
    */
   void SaveLoamCloud(const std::string& save_path,
-                     bool to_reference_frame = true, bool add_frame = true);
+                     bool to_reference_frame = true, bool add_frame = true) const;
 
  protected:
   ros::Time stamp_;

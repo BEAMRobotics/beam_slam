@@ -1,11 +1,18 @@
-# global parameters: These will be used in multiple locations
+## global parameters: These will be used in multiple locations
+
+# optimization params
 optimization_frequency: 1
 lag_duration: 2
+
+# frames
 imu_frame: "imu"
 lidar_frame: "velodyne"
 camera_frame: "camera"
+
+# calibrations
 static_extrinsics: true,
-intrinsics_path: "/home/nick/config/calibrations/kaarta/F_kaarta.json"
+camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/kaarta/camera.json"
+imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/kaarta/imu.json"
 
 sensor_models:
   - name: 'lio_initializer'
@@ -13,12 +20,12 @@ sensor_models:
 
 
 lio_initializer:
-  matcher_params_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
+  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
   registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class
   differential: false # Default: false
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
-  lidar_topic: '/points_raw'
-  imu_topic: '/imu_raw'
+  lidar_topic: '/velodyne_points'
+  imu_topic: '/imu/data'
   output_topic: 'lio_initialiser_result'
   nominal_gravity_direction: '-Z'
   undistort_scans: true

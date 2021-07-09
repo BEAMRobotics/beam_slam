@@ -92,8 +92,11 @@ class LioInitializer : public fuse_core::AsyncSensorModel {
    * transform the current pointcloud into the keyframe coordinate system.
    * @param cloud pointcloud in the lidar sensor frame
    * @param time timestamp associated with this cloud
+   * @param T_WORLD_IMUNOW current estimate of the imu pose
+   * @return true if successful
    */
-  void AddPointcloudToKeyframe(const PointCloud& cloud, const ros::Time& time);
+  bool AddPointcloudToKeyframe(const PointCloud& cloud, const ros::Time& time,
+                               const Eigen::Matrix4d& T_WORLD_IMUNOW);
 
   /**
    * @brief iterates through all keypoints in the list and add up the change in
@@ -121,12 +124,13 @@ class LioInitializer : public fuse_core::AsyncSensorModel {
   void Optimize();
 
   /**
-   * @brief Save three types of scans to separate folders: 
-   * 
-   * (1) scans transformed to world frame using imu pre-integration pose estimate
-   * (2) scans transformed to world frame using loam refined pose estimates
-   * (3) scans transformed to world frame using final pose estimates from factor graph
-   * 
+   * @brief Save three types of scans to separate folders:
+   *
+   * (1) scans transformed to world frame using imu pre-integration pose
+   * estimate (2) scans transformed to world frame using loam refined pose
+   * estimates (3) scans transformed to world frame using final pose estimates
+   * from factor graph
+   *
    */
   void OutputResults();
 
@@ -135,7 +139,6 @@ class LioInitializer : public fuse_core::AsyncSensorModel {
    */
   void PublishResults();
 
- protected:
   // subscribers
   ros::Subscriber imu_subscriber_;
   ros::Subscriber lidar_subscriber_;
@@ -160,7 +163,9 @@ class LioInitializer : public fuse_core::AsyncSensorModel {
   std::list<beam_common::ScanPose> keyframes_;
 
   // keep track of the current keyframe
+  int keyframe_scan_counter_{0};
   ros::Time keyframe_start_time_{0};
+  ros::Time prev_stamp_{0};
   PointCloud keyframe_cloud_;
   Eigen::Matrix4d T_WORLD_KEYFRAME_{Eigen::Matrix4d::Identity()};
 
@@ -169,6 +174,10 @@ class LioInitializer : public fuse_core::AsyncSensorModel {
 
   // optimizer
   fuse_core::Graph::SharedPtr graph_;
+
+  // debugging tools
+  std::string debug_output_path_{"/home/nick/tmp/loam_tests/"};
+  bool output_initial_scans_{true};
 };
 }  // namespace frame_to_frame
 }  // namespace beam_models

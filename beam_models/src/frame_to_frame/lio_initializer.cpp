@@ -30,10 +30,11 @@ void LioInitializer::onInit() {
 
   // subscribe to lidar topic
   lidar_subscriber_ = private_node_handle_.subscribe(
-      params_.lidar_topic, 10, &LioInitializer::processLidar, this);
+      params_.lidar_topic, 100, &LioInitializer::processLidar, this);
 
   // init publisher
-  results_publisher_ = private_node_handle_.advertise<InitializedPathMsg>(params_.output_topic, 1000);    
+  results_publisher_ = private_node_handle_.advertise<InitializedPathMsg>(
+      params_.output_topic, 1000);
 
   // init imu preintegration
   ImuPreintegration::Params imu_preint_params;
@@ -108,33 +109,52 @@ void LioInitializer::processLidar(
   }
 
   ROS_DEBUG("Received incoming scan");
+
+  Eigen::Matrix4d T_WORLD_IMUNOW;
+  if (!imu_preintegration_->GetPose(T_WORLD_IMUNOW, msg->header.stamp)) {
+    ROS_DEBUG("IMU measurements not available, skipping scan.");
+    return;  // skip this scan completely
+  }
+
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
 
-  // init first message
+  // init first message only if we can get a pose from the imu preint
   if (keyframe_start_time_.toSec() == 0) {
     ROS_DEBUG("Set first scan and imu start time.");
     imu_preintegration_->SetStart(msg->header.stamp);
-    AddPointcloudToKeyframe(*cloud_current, msg->header.stamp);
     keyframe_start_time_ = msg->header.stamp;
-    T_WORLD_KEYFRAME_ = imu_preintegration_->GetPose(msg->header.stamp);
+    if (!AddPointcloudToKeyframe(*cloud_current, msg->header.stamp,
+                                 T_WORLD_IMUNOW)) {
+      keyframe_start_time_ = ros::Time(0);
+    }
+    prev_stamp_ = msg->header.stamp;
     return;
   }
 
-  if (msg->header.stamp - keyframe_start_time_ > params_.aggregation_time) {
-    ROS_DEBUG("Processing keyframe.");
+  ros::Duration current_scan_period = msg->header.stamp - prev_stamp_;
+  if (msg->header.stamp - keyframe_start_time_ + current_scan_period >
+      params_.aggregation_time) {
     ProcessCurrentKeyframe();
     keyframe_cloud_.clear();
-    AddPointcloudToKeyframe(*cloud_current, msg->header.stamp);
     keyframe_start_time_ = msg->header.stamp;
-    T_WORLD_KEYFRAME_ = imu_preintegration_->GetPose(msg->header.stamp);
+    keyframe_scan_counter_ = 0;
+    T_WORLD_KEYFRAME_ = T_WORLD_IMUNOW;
   }
 
-  AddPointcloudToKeyframe(*cloud_current, msg->header.stamp);
+  AddPointcloudToKeyframe(*cloud_current, msg->header.stamp, T_WORLD_IMUNOW);
+  prev_stamp_ = msg->header.stamp;
 }
 
 void LioInitializer::onStop() {}
 
 void LioInitializer::ProcessCurrentKeyframe() {
+  if (keyframe_cloud_.size() == 0) {
+    return;
+  }
+
+  ROS_DEBUG("Processing keyframe containing %d scans and %d points.",
+            keyframe_scan_counter_, keyframe_cloud_.size());
+
   // create scan pose
   beam_common::ScanPose current_scan_pose(keyframe_start_time_,
                                           T_WORLD_KEYFRAME_, keyframe_cloud_,
@@ -142,9 +162,34 @@ void LioInitializer::ProcessCurrentKeyframe() {
 
   // first, check if this is the first scan, if so then add the scan and return
   if (keyframes_.empty()) {
+    ROS_DEBUG("Adding first keyframe to list, not performing registration.");
     keyframes_.push_back(current_scan_pose);
     return;
   }
+
+  if (output_initial_scans_) {
+    if (!boost::filesystem::exists(debug_output_path_)) {
+      ROS_ERROR("debug output path does not exist, not outputting scans.");
+    } else {
+      std::string save_dir = debug_output_path_ +
+                             std::to_string(current_scan_pose.Stamp().toSec());
+      boost::filesystem::create_directory(save_dir);
+
+      boost::filesystem::create_directory(save_dir + "/tgt/");
+      current_scan_pose.SaveLoamCloud(save_dir + "/tgt/");
+      current_scan_pose.Save(save_dir + "/tgt/");
+
+      boost::filesystem::create_directory(save_dir + "/ref/");
+      keyframes_.back().SaveLoamCloud(save_dir + "/ref/");
+      keyframes_.back().Save(save_dir + "/ref/");
+    }
+  }
+
+  ROS_DEBUG(
+      "Matching new keyframe with %d loam features to previous keyframe with "
+      "%d loam features",
+      current_scan_pose.LoamCloud().Size(),
+      keyframes_.back().LoamCloud().Size());
 
   // register current keyframe to last keyframe
   Eigen::Matrix4d T_CLOUD1_CLOUD2;
@@ -161,19 +206,23 @@ void LioInitializer::ProcessCurrentKeyframe() {
   // check if time window is full, if not then keep adding to the queue
   if (keyframes_.back().Stamp() - keyframes_.front().Stamp() <
       params_.trajectory_time_window) {
-        ROS_DEBUG("Time windows not full, continuing to add keyframes.");
+    ROS_DEBUG("Time windows not full, continuing to add keyframes.");
     return;
   }
   ROS_DEBUG("Time window is full, checking trajectory length.");
 
   // check that trajectory is long enough
-  if (CalculateTrajectoryLength() > params_.min_trajectory_distance) {
+  double trajectory_length = CalculateTrajectoryLength();
+  ROS_DEBUG("Trajectory length of %.3f m was calculated, with %d keyframes.",
+            trajectory_length, keyframes_.size());
+  if (trajectory_length > params_.min_trajectory_distance) {
     // if so, then optimize
     ROS_DEBUG("Trajectory is long enough, optimizing lio initializer data.");
     Optimize();
     OutputResults();
     PublishResults();
     initialization_complete_ = true;
+    ROS_INFO("LIO initialization complete");
   } else {
     keyframes_.pop_front();
   }
@@ -188,9 +237,13 @@ bool LioInitializer::MatchScans(const beam_common::ScanPose& scan_pose_1,
 
   LoamPointCloud cloud2_RefFInit = scan_pose_2.LoamCloud();
   cloud2_RefFInit.TransformPointCloud(T_CLOUD1_CLOUD2_init);
-  matcher_->SetRef(std::make_shared<LoamPointCloud>(cloud2_RefFInit));
-  matcher_->SetTarget(
-      std::make_shared<LoamPointCloud>(scan_pose_1.LoamCloud()));
+  std::shared_ptr<LoamPointCloud> c2 =
+      std::make_shared<LoamPointCloud>(cloud2_RefFInit);
+  std::shared_ptr<LoamPointCloud> c1 =
+      std::make_shared<LoamPointCloud>(scan_pose_1.LoamCloud());
+
+  matcher_->SetRef(c2);
+  matcher_->SetTarget(c1);
 
   // match clouds
   if (!matcher_->Match()) {
@@ -213,25 +266,27 @@ bool LioInitializer::MatchScans(const beam_common::ScanPose& scan_pose_1,
   return true;
 }
 
-void LioInitializer::AddPointcloudToKeyframe(const PointCloud& cloud,
-                                             const ros::Time& time) {
-  PointCloud cloud_converted;
+bool LioInitializer::AddPointcloudToKeyframe(
+    const PointCloud& cloud, const ros::Time& time,
+    const Eigen::Matrix4d& T_WORLD_IMUNOW) {
   Eigen::Matrix4d T_IMU_LIDAR;
   if (!extrinsics_.GetT_IMU_LIDAR(T_IMU_LIDAR, time)) {
     ROS_WARN("Unable to get imu to lidar transform with time $.5f",
              time.toSec());
-    return;
+    return false;
   }
 
+  PointCloud cloud_converted;
   if (time == keyframe_start_time_ || !params_.undistort_scans) {
     pcl::transformPointCloud(cloud, cloud_converted, T_IMU_LIDAR);
   } else {
-    Eigen::Matrix4d T_WORLD_IMUNOW = imu_preintegration_->GetPose(time);
     Eigen::Matrix4d T_KEYFRAME_CLOUDNOW =
         beam::InvertTransform(T_WORLD_KEYFRAME_) * T_WORLD_IMUNOW * T_IMU_LIDAR;
     pcl::transformPointCloud(cloud, cloud_converted, T_KEYFRAME_CLOUDNOW);
   }
   keyframe_cloud_ += cloud_converted;
+  keyframe_scan_counter_++;
+  return true;
 }
 
 double LioInitializer::CalculateTrajectoryLength() {
@@ -264,19 +319,25 @@ void LioInitializer::Optimize() {
             iter->Orientation());
     fuse_variables::Position3DStamped::SharedPtr position =
         std::make_shared<fuse_variables::Position3DStamped>(iter->Position());
-    auto imu_transaction =
-        imu_preintegration_->RegisterNewImuPreintegratedFactor(
-            iter->Stamp(), orientation, position);
+    beam_constraints::frame_to_frame::ImuState3DStampedTransaction
+        imu_transaction(iter->Stamp());
+    if (!imu_preintegration_->RegisterNewImuPreintegratedFactor(
+            imu_transaction, iter->Stamp(), orientation, position)) {
+      ROS_WARN(
+          "Cannot get IMU transaction. Skipping preintegration measurement.");
+      continue;
+    }
+
     graph_->update(*imu_transaction.GetTransaction());
   }
   graph_->optimize();
 }
 
 void LioInitializer::OutputResults() {
-  if(params_.scan_output_directory.empty()){
+  if (params_.scan_output_directory.empty()) {
     return;
   }
-  
+
   if (!boost::filesystem::exists(params_.scan_output_directory)) {
     ROS_ERROR("Output directory does not exist. Not outputting results.");
     return;
@@ -323,10 +384,82 @@ void LioInitializer::OutputResults() {
   }
 }
 
-void LioInitializer::PublishResults(){
-  return;
-  // todo
+void LioInitializer::PublishResults() {
   InitializedPathMsg msg;
+
+  // read all optimized variables from graph
+  using pose_type = std::pair<fuse_variables::Position3DStamped,
+                              fuse_variables::Orientation3DStamped>;
+  std::map<uint64_t, pose_type> poses_map;
+  for (const auto& variable : graph_->getVariables()) {
+    if (variable.type() == "beam_variables::GyroscopeBias3DStamped") {
+      auto bias =
+          dynamic_cast<const beam_variables::GyroscopeBias3DStamped*>(&variable);
+      msg.gyroscope_bias.x = bias->x();
+      msg.gyroscope_bias.y = bias->y();
+      msg.gyroscope_bias.z = bias->z();
+    } else if (variable.type() == "beam_variables::AccelerationBias3DStamped") {
+      auto bias =
+          dynamic_cast<const beam_variables::AccelerationBias3DStamped*>(&variable);
+      msg.accelerometer_bias.x = bias->x();
+      msg.accelerometer_bias.y = bias->y();
+      msg.accelerometer_bias.z = bias->z();
+    } else if (variable.type() == "fuse_variables::Position3DStamped") {
+      auto pos =
+          dynamic_cast<const fuse_variables::Position3DStamped*>(&variable);
+      uint64_t time = pos->stamp().toNSec();    
+      auto pose_iter = poses_map.find(time);
+      if(pose_iter == poses_map.end()){
+        pose_type pose;
+        pose.first = *pos;
+        poses_map.emplace(time, pose);
+      } else {
+        pose_iter->second.first = *pos;
+      }
+    } else if (variable.type() == "fuse_variables::Orientation3DStamped") {
+      auto ori =
+          dynamic_cast<const fuse_variables::Orientation3DStamped*>(&variable);
+      uint64_t time = ori->stamp().toNSec();    
+      auto pose_iter = poses_map.find(time);
+      if(pose_iter == poses_map.end()){
+        pose_type pose;
+        pose.second = *ori;
+        poses_map.emplace(time, pose);
+      } else {
+        pose_iter->second.second = *ori;
+      }
+    }
+  }
+
+  // get pose variables and add them to the msg
+  int counter = 0;
+  for (auto iter = poses_map.begin(); iter != poses_map.end(); iter++) {
+    std_msgs::Header header;
+    header.frame_id = extrinsics_.GetIMUFrameID();
+    header.seq = counter;
+    ros::Time stamp;
+    stamp.fromNSec(iter->first);
+    header.stamp = stamp;
+
+    geometry_msgs::Point position;
+    position.x = iter->second.first.x();
+    position.y = iter->second.first.y();
+    position.z = iter->second.first.z();
+
+    geometry_msgs::Quaternion orientation;
+    orientation.x = iter->second.second.x();
+    orientation.y = iter->second.second.y();
+    orientation.z = iter->second.second.z();
+    orientation.w = iter->second.second.w();
+
+    geometry_msgs::PoseStamped pose;
+    pose.header = header;
+    pose.pose.position = position;
+    pose.pose.orientation = orientation;
+    msg.poses.push_back(pose);
+    counter++;
+  }
+
   results_publisher_.publish(msg);
 }
 
