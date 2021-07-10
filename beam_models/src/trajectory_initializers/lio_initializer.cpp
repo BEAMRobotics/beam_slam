@@ -1,4 +1,4 @@
-#include <beam_models/frame_to_frame/lio_initializer.h>
+#include <beam_models/trajectory_initializers/lio_initializer.h>
 
 #include <pluginlib/class_list_macros.h>
 #include <pcl/common/transforms.h>
@@ -62,8 +62,8 @@ void LioInitializer::onInit() {
   std::shared_ptr<LoamParams> matcher_params =
       std::make_shared<LoamParams>(params_.matcher_params_path);
   matcher_ = std::make_unique<LoamMatcher>(*matcher_params);
-  std::unique_ptr<beam_matching::Matcher<LoamPointCloudPtr>> matcher =
-      std::make_unique<LoamMatcher>(*matcher_params);
+  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
+      matcher = std::make_unique<LoamMatcher>(*matcher_params);
   ScanToMapLoamRegistration::Params params;
   params.LoadFromJson(params_.registration_config_path);
   scan_registration_ =
@@ -193,7 +193,10 @@ void LioInitializer::ProcessCurrentKeyframe() {
 
   // register current keyframe to last keyframe
   Eigen::Matrix4d T_CLOUD1_CLOUD2;
-  if (!MatchScans(keyframes_.back(), current_scan_pose, T_CLOUD1_CLOUD2)) {
+  if (!beam_common::MatchScans(keyframes_.back(), current_scan_pose, matcher_,
+                               params_.outlier_threshold_r_deg,
+                               params_.outlier_threshold_t_m,
+                               T_CLOUD1_CLOUD2)) {
     return;
   }
 
@@ -212,7 +215,7 @@ void LioInitializer::ProcessCurrentKeyframe() {
   ROS_DEBUG("Time window is full, checking trajectory length.");
 
   // check that trajectory is long enough
-  double trajectory_length = CalculateTrajectoryLength();
+  double trajectory_length = beam_common::CalculateTrajectoryLength(keyframes_);
   ROS_DEBUG("Trajectory length of %.3f m was calculated, with %d keyframes.",
             trajectory_length, keyframes_.size());
   if (trajectory_length > params_.min_trajectory_distance) {
@@ -226,44 +229,6 @@ void LioInitializer::ProcessCurrentKeyframe() {
   } else {
     keyframes_.pop_front();
   }
-}
-
-bool LioInitializer::MatchScans(const beam_common::ScanPose& scan_pose_1,
-                                const beam_common::ScanPose& scan_pose_2,
-                                Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
-  Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
-      beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
-      scan_pose_2.T_REFFRAME_CLOUD();
-
-  LoamPointCloud cloud2_RefFInit = scan_pose_2.LoamCloud();
-  cloud2_RefFInit.TransformPointCloud(T_CLOUD1_CLOUD2_init);
-  std::shared_ptr<LoamPointCloud> c2 =
-      std::make_shared<LoamPointCloud>(cloud2_RefFInit);
-  std::shared_ptr<LoamPointCloud> c1 =
-      std::make_shared<LoamPointCloud>(scan_pose_1.LoamCloud());
-
-  matcher_->SetRef(c2);
-  matcher_->SetTarget(c1);
-
-  // match clouds
-  if (!matcher_->Match()) {
-    ROS_ERROR("Failed scan matching. Skipping measurement.");
-    return false;
-  }
-
-  Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher_->GetResult().matrix();
-  T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
-
-  if (!beam::ArePosesEqual(T_CLOUD1_CLOUD2, T_CLOUD1_CLOUD2_init,
-                           params_.outlier_threshold_r_deg,
-                           params_.outlier_threshold_t_m)) {
-    ROS_ERROR(
-        "Failed scan matcher transform threshold check. Skipping "
-        "lidar keyframe.");
-    return false;
-  }
-
-  return true;
 }
 
 bool LioInitializer::AddPointcloudToKeyframe(
@@ -287,24 +252,6 @@ bool LioInitializer::AddPointcloudToKeyframe(
   keyframe_cloud_ += cloud_converted;
   keyframe_scan_counter_++;
   return true;
-}
-
-double LioInitializer::CalculateTrajectoryLength() {
-  double length{0};
-  auto iter = keyframes_.begin();
-  Eigen::Vector3d prev_position = iter->T_REFFRAME_CLOUD().block(0, 3, 3, 1);
-  iter++;
-
-  while (iter != keyframes_.end()) {
-    Eigen::Vector3d current_position =
-        iter->T_REFFRAME_CLOUD().block(0, 3, 3, 1);
-    Eigen::Vector3d current_motion = current_position - prev_position;
-    length += current_motion.norm();
-    prev_position = current_position;
-    iter++;
-  }
-
-  return length;
 }
 
 void LioInitializer::Optimize() {
@@ -393,23 +340,24 @@ void LioInitializer::PublishResults() {
   std::map<uint64_t, pose_type> poses_map;
   for (const auto& variable : graph_->getVariables()) {
     if (variable.type() == "beam_variables::GyroscopeBias3DStamped") {
-      auto bias =
-          dynamic_cast<const beam_variables::GyroscopeBias3DStamped*>(&variable);
+      auto bias = dynamic_cast<const beam_variables::GyroscopeBias3DStamped*>(
+          &variable);
       msg.gyroscope_bias.x = bias->x();
       msg.gyroscope_bias.y = bias->y();
       msg.gyroscope_bias.z = bias->z();
     } else if (variable.type() == "beam_variables::AccelerationBias3DStamped") {
       auto bias =
-          dynamic_cast<const beam_variables::AccelerationBias3DStamped*>(&variable);
+          dynamic_cast<const beam_variables::AccelerationBias3DStamped*>(
+              &variable);
       msg.accelerometer_bias.x = bias->x();
       msg.accelerometer_bias.y = bias->y();
       msg.accelerometer_bias.z = bias->z();
     } else if (variable.type() == "fuse_variables::Position3DStamped") {
       auto pos =
           dynamic_cast<const fuse_variables::Position3DStamped*>(&variable);
-      uint64_t time = pos->stamp().toNSec();    
+      uint64_t time = pos->stamp().toNSec();
       auto pose_iter = poses_map.find(time);
-      if(pose_iter == poses_map.end()){
+      if (pose_iter == poses_map.end()) {
         pose_type pose;
         pose.first = *pos;
         poses_map.emplace(time, pose);
@@ -419,9 +367,9 @@ void LioInitializer::PublishResults() {
     } else if (variable.type() == "fuse_variables::Orientation3DStamped") {
       auto ori =
           dynamic_cast<const fuse_variables::Orientation3DStamped*>(&variable);
-      uint64_t time = ori->stamp().toNSec();    
+      uint64_t time = ori->stamp().toNSec();
       auto pose_iter = poses_map.find(time);
-      if(pose_iter == poses_map.end()){
+      if (pose_iter == poses_map.end()) {
         pose_type pose;
         pose.second = *ori;
         poses_map.emplace(time, pose);

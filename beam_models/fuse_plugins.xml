@@ -21,6 +21,11 @@
       Class for initializing a SLAM process using lidar scans and IMU messages to generate an initial trajectory estimate and IMU biases
     </description>
   </class>
+  <class type="beam_models::frame_to_frame::LoInitializer" base_class_type="fuse_core::SensorModel">
+    <description>
+      Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate
+    </description>
+  </class>
   <class type="beam_models::camera_to_camera::VisualInertialOdom" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints

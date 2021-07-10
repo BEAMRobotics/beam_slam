@@ -98,24 +98,6 @@ class LioInitializer : public fuse_core::AsyncSensorModel {
   bool AddPointcloudToKeyframe(const PointCloud& cloud, const ros::Time& time,
                                const Eigen::Matrix4d& T_WORLD_IMUNOW);
 
-  /**
-   * @brief iterates through all keypoints in the list and add up the change in
-   * position between each keyframe.
-   * @return trajectory length
-   */
-  double CalculateTrajectoryLength();
-
-  /**
-   * @brief match two scan poses and get resulting transform between them
-   * @param scan_pose_1
-   * @param scan_pose_2
-   * @param T_CLOUD1_CLOUD2 reference to result (transform from cloud 2 to cloud
-   * 1)
-   * @return true if match was successful
-   */
-  bool MatchScans(const beam_common::ScanPose& scan_pose_1,
-                  const beam_common::ScanPose& scan_pose_2,
-                  Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   /**
    * @brief create factor graph of scan registration and imu measurements, then
