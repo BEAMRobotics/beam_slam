@@ -1,0 +1,20 @@
+{
+  "number_of_beams": 16,
+  "fov_deg": 30,
+  "vertical_axis": "Z",
+  "n_feature_regions": 6,
+  "curvature_region": 5,
+  "max_corner_sharp": 2,
+  "max_corner_less_sharp": 20,
+  "max_surface_flat": 4,
+  "less_flat_filter_size": 0.2,
+  "surface_curvature_threshold": 0.1,
+  "max_correspondence_distance": 0.5,
+  "validate_correspondences": false,
+  "iterate_correspondences": true,
+  "convergence_criteria_translation_m": 0.001,
+  "convergence_criteria_rotation_deg": 1,
+  "max_correspondence_iterations": 10,
+  "output_ceres_summary": false,
+  "ceres_config": ""
+}

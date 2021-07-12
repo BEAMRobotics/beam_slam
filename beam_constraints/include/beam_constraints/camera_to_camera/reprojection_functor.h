@@ -6,6 +6,8 @@
 #include <fuse_core/util.h>
 
 #include <beam_calibration/CameraModel.h>
+#include <beam_optimization/CamPoseReprojectionCost.h>
+#include <beam_utils/math.h>
 
 #include <ceres/autodiff_cost_function.h>
 #include <ceres/cost_function_to_functor.h>
@@ -16,55 +18,6 @@ template <class T>
 using opt = beam::optional<T>;
 
 namespace fuse_constraints {
-
-struct CameraProjectionFunctor {
-  CameraProjectionFunctor(
-      const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
-      Eigen::Vector2d pixel_detected)
-      : camera_model_(camera_model), pixel_detected_(pixel_detected) {}
-
-  bool operator()(const double* P, double* pixel) const {
-    Eigen::Vector3d P_CAMERA_eig{P[0], P[1], P[2]};
-    opt<Eigen::Vector2d> pixel_projected =
-        camera_model_->ProjectPointPrecise(P_CAMERA_eig);
-
-    // get image dims in case projection fails
-    uint16_t height =
-        camera_model_->GetHeight() != 0 ? camera_model_->GetHeight() : 5000;
-    uint16_t width =
-        camera_model_->GetWidth() != 0 ? camera_model_->GetWidth() : 5000;
-
-    if (pixel_projected.has_value()) {
-      pixel[0] = pixel_projected.value()[0];
-      pixel[1] = pixel_projected.value()[1];
-    } else {
-      // if the projection failed, set the projected point to
-      // be the nearest edge point to the detected point
-      int near_u =
-          (width - pixel_detected_[0]) < pixel_detected_[0] ? width : 0;
-      int dist_u = (width - pixel_detected_[0]) < pixel_detected_[0]
-                       ? (width - pixel_detected_[0])
-                       : pixel_detected_[0];
-      int near_v =
-          (height - pixel_detected_[1]) < pixel_detected_[1] ? height : 0;
-      int dist_v = (height - pixel_detected_[1]) < pixel_detected_[1]
-                       ? (height - pixel_detected_[1])
-                       : pixel_detected_[1];
-      if (dist_u <= dist_v) {
-        pixel[0] = near_u;
-        pixel[1] = pixel_detected_[1];
-      } else {
-        pixel[0] = pixel_detected_[0];
-        pixel[1] = near_v;
-      }
-    }
-
-    return true;
-  }
-
-  std::shared_ptr<beam_calibration::CameraModel> camera_model_;
-  Eigen::Vector2d pixel_detected_;
-};
 
 class ReprojectionFunctor {
 public:
@@ -79,23 +32,57 @@ public:
    */
   ReprojectionFunctor(
       const fuse_core::Matrix2d& A, const Eigen::Vector2d& pixel_measurement,
-      const std::shared_ptr<beam_calibration::CameraModel> cam_model)
+      const std::shared_ptr<beam_calibration::CameraModel> cam_model,
+      const Eigen::Matrix4d& T_imu_cam)
       : A_(A), pixel_measurement_(pixel_measurement), cam_model_(cam_model) {
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
-        new ceres::NumericDiffCostFunction<CameraProjectionFunctor,
-                                           ceres::CENTRAL, 2, 3>(
-            new CameraProjectionFunctor(cam_model_, pixel_measurement_))));
+        new ceres::NumericDiffCostFunction<
+            beam_optimization::CameraProjectionFunctor, ceres::CENTRAL, 2, 3>(
+            new beam_optimization::CameraProjectionFunctor(
+                cam_model_, pixel_measurement_))));
+    T_imu_cam_ = T_imu_cam;
   }
 
   template <typename T>
-  bool operator()(const T* const cam_orientation, const T* const cam_position,
-                  const T* const landmark_position, T* residual) const {
-    // rotate and translate point
+  bool operator()(const T* const R_WORLD_IMU, const T* const t_WORLD_IMU,
+                  const T* const P_WORLD, T* residual) const {
+    Eigen::Matrix<T, 4, 4> T_IMU_CAM = T_imu_cam_.cast<T>();
+
+    T R_WORLD_IMU_mat[9];
+    ceres::QuaternionToRotation(R_WORLD_IMU, R_WORLD_IMU_mat);
+
+    Eigen::Matrix<T, 4, 4> T_WORLD_IMU;
+    T_WORLD_IMU(0,0) = R_WORLD_IMU_mat[0];
+    T_WORLD_IMU(0,1) = R_WORLD_IMU_mat[1];
+    T_WORLD_IMU(0,2) = R_WORLD_IMU_mat[2];
+    T_WORLD_IMU(0,3) = t_WORLD_IMU[0];
+    T_WORLD_IMU(1,0) = R_WORLD_IMU_mat[3];
+    T_WORLD_IMU(1,1) = R_WORLD_IMU_mat[4];
+    T_WORLD_IMU(1,2) = R_WORLD_IMU_mat[5];
+    T_WORLD_IMU(1,3) = t_WORLD_IMU[1];
+    T_WORLD_IMU(2,0) = R_WORLD_IMU_mat[6];
+    T_WORLD_IMU(2,1) = R_WORLD_IMU_mat[7];
+    T_WORLD_IMU(2,2) = R_WORLD_IMU_mat[8];
+    T_WORLD_IMU(2,3) = t_WORLD_IMU[2];
+    T_WORLD_IMU(3,0) = (T)0;
+    T_WORLD_IMU(3,1) = (T)0;
+    T_WORLD_IMU(3,2) = (T)0;
+    T_WORLD_IMU(3,3) = (T)1;
+
+
+    Eigen::Matrix<T, 4, 1> P_WORLD_h;
+    P_WORLD_h[0] = P_WORLD[0];
+    P_WORLD_h[1] = P_WORLD[1];
+    P_WORLD_h[2] = P_WORLD[2];
+    P_WORLD_h[3] = (T)1;
+
+    Eigen::Matrix<T, 4, 1> P_IMU_h = T_WORLD_IMU.inverse() * P_WORLD_h;
+    Eigen::Matrix<T, 3, 1> P_CAM =
+        (T_IMU_CAM.inverse() * P_IMU_h ).hnormalized();
     T P_CAMERA[3];
-    ceres::QuaternionRotatePoint(cam_orientation, landmark_position, P_CAMERA);
-    P_CAMERA[0] -= cam_position[0];
-    P_CAMERA[1] -= cam_position[1];
-    P_CAMERA[2] -= cam_position[2];
+    P_CAMERA[0] = P_CAM[0];
+    P_CAMERA[1] = P_CAM[1];
+    P_CAMERA[2] = P_CAM[2];
 
     const T* P_CAMERA_const = &(P_CAMERA[0]);
 
@@ -112,6 +99,9 @@ private:
   Eigen::Vector2d pixel_measurement_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::unique_ptr<ceres::CostFunctionToFunctor<2, 3>> compute_projection;
+  Eigen::Matrix4d T_imu_cam_;
+  Eigen::Quaterniond Q_cam_imu_;
+  Eigen::Vector3d t_cam_imu_;
 };
 
 } // namespace fuse_constraints

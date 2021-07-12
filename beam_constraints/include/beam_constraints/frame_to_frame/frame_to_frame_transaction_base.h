@@ -220,7 +220,7 @@ public:
       const beam_variables::AccelerationBias3DStamped& accelbias2,
       const Eigen::Matrix<double, 16, 1>& delta,
       const Eigen::Matrix<double, 15, 15>& covariance,
-      const std::shared_ptr<PreIntegrator> pre_integrator,
+      const std::shared_ptr<beam_common::PreIntegrator> pre_integrator,
       const std::string& source = "NULL") {
     // build and add constraint
     auto constraint =

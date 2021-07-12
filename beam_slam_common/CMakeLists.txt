@@ -6,7 +6,7 @@ set(build_depends
   )
 
 find_package(tf REQUIRED)
-find_package(beam REQUIRED COMPONENTS utils)
+find_package(beam REQUIRED COMPONENTS utils filtering matching)
 
 find_package(
   catkin REQUIRED 
@@ -14,6 +14,8 @@ find_package(
     ${build_depends}
     fuse_variables
     fuse_constraints
+    sensor_msgs
+    nav_msgs
   )
 
 catkin_package(
@@ -25,6 +27,8 @@ catkin_package(
     ${build_depends}
     fuse_variables
     fuse_constraints
+    sensor_msgs
+    nav_msgs
 )
 
 ###########
@@ -39,7 +43,11 @@ add_library(${PROJECT_NAME}
   src/beam_parameters/models/model_params.cpp
   src/beam_parameters/publishers/publisher_params.cpp
   src/beam_common/common.cpp
+  src/beam_common/extrinsics_lookup.cpp
   src/beam_common/pose_lookup.cpp
+  src/beam_common/scan_pose.cpp
+  src/beam_common/lidar_map.cpp
+  src/beam_common/preintegrator.cpp
   )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
@@ -55,3 +63,20 @@ target_link_libraries(
     ${tf_LIBRARIES}
     beam::utils
   )
+
+#############
+## Testing ##
+#############
+if(CATKIN_ENABLE_TESTING)
+  add_executable(${PROJECT_NAME}_scan_pose_tests 
+    tests/scan_pose_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_scan_pose_tests 
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils
+    beam::filtering
+    beam::matching)
+  add_test(NAME ${PROJECT_NAME}_scan_pose_tests 
+          COMMAND ${PROJECT_NAME}_scan_pose_tests)
+
+endif()

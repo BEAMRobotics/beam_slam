@@ -10,13 +10,13 @@
       An adapter-type sensor that produces absolute or relative pose constraints from information published by
       another node
     </description>
-  </class>  
+  </class>
   <class type="beam_models::frame_to_frame::ScanMatcher3D" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints
     </description>
   </class>
-  <class type="beam_models::camera_to_camera::VisualOdom" base_class_type="fuse_core::SensorModel">
+  <class type="beam_models::camera_to_camera::VisualInertialOdom" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints
     </description>

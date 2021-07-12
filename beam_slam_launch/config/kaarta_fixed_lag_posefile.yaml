@@ -1,3 +1,12 @@
+# global parameters: These will be used in multiple locations
+optimization_frequency: 1
+lag_duration: 2
+imu_frame: "IMU"
+lidar_frame: "velodyne"
+camera_frame: "camera"
+static_extrinsics: true,
+intrinsics_path: "/home/nick/config/calibrations/F_kaarta.json"
+
 sensor_models:
   - name: 'scan_matcher_3d'
     type: 'beam_models::frame_to_frame::ScanMatcher3D'
@@ -24,9 +33,6 @@ solver_options:
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
 
-optimization_frequency: 1
-lag_duration: 10
-
 unicycle_3d:
   process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
                            1.0e-2, 1.0e-2, 1.0e-2,
@@ -36,21 +42,17 @@ unicycle_3d:
   buffer_length: 100000
 
 scan_matcher_3d:
-  type: 'LOAM' # Options: ICP, NDT, GICP, LOAM (TODO: LIBPOINTMATCHER, TEASER)
-  matcher_params_path: '/home/nick/config/slam/loam.json' # Defaults to params in libbeam
+  type: 'MAPLOAM' # Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (TODO: LIBPOINTMATCHER, TEASER)
+  matcher_params_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
+  registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class
   differential: false # Default: false
   queue_size: 10 # Subscriber queue size. Default: 10
   downsample_size: 0 # voxel size (m) for downsample filter. Default: 0.03. Set to 0 for no downsampling
-  outlier_threshold_t: 0.3 # reject scan registration measurements that surpass this translation (m). Set to zero to ignore. Default: 0.5
-  outlier_threshold_r: 20 # reject scan registration measurements that surpass this rotation (deg). Set to zero to ignore. Default: 30
-  min_motion_trans_m: 0 # will only register scans with initial translation estimate greater than this. Default: 0
-  min_motion_rot_deg: 0 # will only register scans with initial rotation estimate greater than this. Default: 0, Note: we use an OR statement for min motion between this and the last parameter
+  matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
   subscriber_topic: '/velodyne_points'
   sensor_frame: 'velodyne' # used to lookup extrinsic calibrations
   frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
-  num_neighbors: 5 # how many neighboring scans to register against
-  fix_first_scan: true # set this to true if no ignition is used
   # scan_output_directory: '' # Outputs scans as PCD files IFF not empty
   scan_output_directory: '/home/nick/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty
 
