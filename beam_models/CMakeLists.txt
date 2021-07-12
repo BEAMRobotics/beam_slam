@@ -114,7 +114,7 @@ add_library(
   src/initialization/imu_initializer.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
-  src/camera_to_camera/visual_odom.cpp
+  #src/camera_to_camera/visual_odom.cpp
 )
 
 ## Specify libraries to link a library or executable target against

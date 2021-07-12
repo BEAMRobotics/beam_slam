@@ -1,6 +1,7 @@
-#include <beam_models/frame_initializers/graph_frame_initializer.h>
+#include <beam_models/frame_initializers/internal_frame_initializer.h>
 
-namespace beam_models { namespace frame_initializers {
+namespace beam_models {
+namespace frame_initializers {
 
 InternalFrameInitializer& InternalFrameInitializer::GetInstance() {
   static InternalFrameInitializer instance;
@@ -10,7 +11,9 @@ InternalFrameInitializer& InternalFrameInitializer::GetInstance() {
 bool InternalFrameInitializer::GetEstimatedPose(const ros::Time& time,
                                                 Eigen::Matrix4d& T_WORLD_SENSOR,
                                                 std::string frame_id) {
-  if (pose_lookup_ == nullptr) { return false; }
+  if (pose_lookup_ == nullptr) {
+    return false;
+  }
   // set to desired frame id
   pose_lookup_params_.sensor_frame = frame_id;
   bool result = pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, time);
@@ -41,7 +44,7 @@ InternalFrameInitializer::AddPose(const ros::Time& stamp,
   Eigen::Vector3d position;
   beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_SENSOR, orientation,
                                                   position);
-  // build tf message and populate in buffer core                                                
+  // build tf message and populate in buffer core
   geometry_msgs::TransformStamped tf_stamped;
   tf_stamped.header.stamp = stamp;
   tf_stamped.header.frame_id = "/" + extrinsics->world_frame();
@@ -56,4 +59,5 @@ InternalFrameInitializer::AddPose(const ros::Time& stamp,
   std::string authority{"odometry"};
   poses_->setTransform(tf_stamped, authority, false);
 }
-}} // namespace beam_models::frame_initializers
+}  // namespace frame_initializers
+}  // namespace beam_models
