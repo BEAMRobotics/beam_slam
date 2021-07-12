@@ -221,9 +221,17 @@ void LioInitializer::ProcessCurrentKeyframe() {
   if (trajectory_length > params_.min_trajectory_distance) {
     // if so, then optimize
     ROS_DEBUG("Trajectory is long enough, optimizing lio initializer data.");
+
+    // start a timer
+    beam::HighResolutionTimer timer;
+
     Optimize();
-    OutputResults();
     PublishResults();
+
+    ROS_INFO("Time to optimize: %.5f", timer.elapsed());
+
+    OutputResults();
+
     initialization_complete_ = true;
     ROS_INFO("LIO initialization complete");
   } else {

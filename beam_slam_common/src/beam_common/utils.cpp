@@ -82,7 +82,7 @@ bool MatchScans(
     const std::unique_ptr<
         beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>& matcher,
     double outlier_threshold_r_deg, double outlier_threshold_t_m,
-    Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
+    Eigen::Matrix4d& T_CLOUD1_CLOUD2, std::string& result_summary) {
   Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
       beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
       scan_pose_2.T_REFFRAME_CLOUD();
@@ -100,6 +100,7 @@ bool MatchScans(
   // match clouds
   if (!matcher->Match()) {
     ROS_ERROR("Failed scan matching. Skipping measurement.");
+    result_summary = "failed : scan mathing was unsuccessful";
     return false;
   }
 
@@ -111,6 +112,7 @@ bool MatchScans(
     ROS_ERROR(
         "Failed scan matcher transform threshold check. Skipping "
         "lidar keyframe.");
+    result_summary = "failed : transform threshold check failed";
     return false;
   }
 

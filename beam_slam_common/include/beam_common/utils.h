@@ -11,6 +11,8 @@
 
 namespace beam_common {
 
+static std::string default_string{""};
+
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                               fuse_variables::Position3DStamped& p,
                               fuse_variables::Orientation3DStamped& o);
@@ -37,16 +39,19 @@ void InterpolateTransformFromPath(const nav_msgs::Path& path,
  * @param matcher
  * @param outlier_threshold_r_deg
  * @param outlier_threshold_t_m
- * @param T_CLOUD1_CLOUD2 reference to result (transform from cloud 2 to cloud
- * 1)
+ * @param T_CLOUD1_CLOUD2 reference to result (transform from cloud2 to cloud1)
+ * @param result_summary optional reference to string to store a summary of the
+ * result. Either success, or failed with reason.
  * @return true if match was successful
  */
 bool MatchScans(
     const beam_common::ScanPose& scan_pose_1,
     const beam_common::ScanPose& scan_pose_2,
-    const std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>& matcher,
+    const std::unique_ptr<
+        beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>& matcher,
     double outlier_threshold_r_deg, double outlier_threshold_t_m,
-    Eigen::Matrix4d& T_CLOUD1_CLOUD2);
+    Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+    std::string& result_summary = default_string);
 
 /**
  * @brief iterates through all keypoints in the list and add up the change in

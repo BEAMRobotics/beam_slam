@@ -6,6 +6,7 @@
 #include <boost/filesystem.hpp>
 
 #include <beam_utils/math.h>
+#include <beam_utils/pointclouds.h>
 
 #include <beam_models/InitializedPathMsg.h>
 
@@ -36,8 +37,8 @@ void LoInitializer::onInit() {
   std::shared_ptr<LoamParams> matcher_params =
       std::make_shared<LoamParams>(params_.matcher_params_path);
   matcher_ = std::make_unique<LoamMatcher>(*matcher_params);
-  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>> matcher =
-      std::make_unique<LoamMatcher>(*matcher_params);
+  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
+      matcher = std::make_unique<LoamMatcher>(*matcher_params);
   ScanToMapLoamRegistration::Params params;
   params.LoadFromJson(params_.registration_config_path);
   scan_registration_ =
@@ -65,8 +66,6 @@ void LoInitializer::onInit() {
     boost::filesystem::create_directory(params_.scan_output_directory);
   }
 
-  // init graph
-  graph_ = std::make_shared<fuse_graphs::HashGraph>();
 }
 
 void LoInitializer::processLidar(
@@ -86,7 +85,7 @@ void LoInitializer::processLidar(
 
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
 
-  // init first message only if we can get a pose from the imu preint
+  // init first message 
   if (keyframe_start_time_.toSec() == 0) {
     ROS_DEBUG("Set first scan and imu start time.");
     keyframe_start_time_ = msg->header.stamp;
@@ -98,6 +97,9 @@ void LoInitializer::processLidar(
   }
 
   ros::Duration current_scan_period = msg->header.stamp - prev_stamp_;
+
+  // if(current_keyframe_.IsFull() && msg->header.stamp - current_keyframe_.Stamp() >
+
   if (msg->header.stamp - keyframe_start_time_ + current_scan_period >
       params_.aggregation_time) {
     ProcessCurrentKeyframe();
@@ -141,11 +143,17 @@ void LoInitializer::ProcessCurrentKeyframe() {
 
   // register current keyframe to last keyframe
   Eigen::Matrix4d T_CLOUD1_CLOUD2;
+  std::string result_summary;
   if (!beam_common::MatchScans(keyframes_.back(), current_scan_pose, matcher_,
                                params_.outlier_threshold_r_deg,
-                               params_.outlier_threshold_t_m,
-                               T_CLOUD1_CLOUD2)) {
+                               params_.outlier_threshold_t_m, T_CLOUD1_CLOUD2,
+                               result_summary)) {
+    SaveFailedMatchResults(keyframes_.back(), current_scan_pose,
+                           result_summary);
     return;
+  } else {
+    SaveSuccessfulMatchResults(keyframes_.back(), current_scan_pose,
+                               T_CLOUD1_CLOUD2);
   }
 
   // update pose of the keyframe and add to list of scan poses
@@ -169,9 +177,17 @@ void LoInitializer::ProcessCurrentKeyframe() {
   if (trajectory_length > params_.min_trajectory_distance) {
     // if so, then optimize
     ROS_DEBUG("Trajectory is long enough, optimizing Lo initializer data.");
-    Optimize();
-    OutputResults();
+    
+    // start a timer
+    beam::HighResolutionTimer timer;
+
+    CalculateTrajectory();
     PublishResults();
+
+    ROS_INFO("Time to optimize: %.5f", timer.elapsed());
+
+    OutputResults();
+    
     initialization_complete_ = true;
     ROS_INFO("Lo initialization complete");
   } else {
@@ -195,13 +211,31 @@ bool LoInitializer::AddPointcloudToKeyframe(const PointCloud& cloud,
   return true;
 }
 
-void LoInitializer::Optimize() {
+void LoInitializer::CalculateTrajectory() {
   // register scans
-  for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
+  ROS_DEBUG("Calculating final trajectory");
+  auto iter = keyframes_.begin();
+  while (iter != keyframes_.end()) {
+    ROS_DEBUG("Registering new scan");
     auto reg_transaction = scan_registration_->RegisterNewScan(*iter);
-    graph_->update(*reg_transaction.GetTransaction());
+    Eigen::Matrix4d T_WORLD_SCAN;
+    bool scan_in_map =
+        scan_registration_->GetMap().GetScanPose(iter->Stamp(), T_WORLD_SCAN);
+    if (!scan_in_map) {
+      ROS_WARN(
+          "Scan to map registration failed for stamp: %.3f. Removing from "
+          "final trajectory.",
+          iter->Stamp().toSec());
+      keyframes_.erase(iter++);  
+    } else {
+      ROS_DEBUG("Updating scan pose");
+      iter->Update(T_WORLD_SCAN);
+      ++iter;
+    }
   }
-  graph_->optimize();
+
+  // clear lidar map so we can generate a new one during slam (it's a singleton)
+  scan_registration_->GetMapMutable().Clear();
 }
 
 void LoInitializer::OutputResults() {
@@ -223,10 +257,12 @@ void LoInitializer::OutputResults() {
   std::string save_path_final = params_.scan_output_directory + "/final_poses/";
   boost::filesystem::create_directory(save_path_final);
 
+  // create frame for storing clouds
+  PointCloudCol frame = beam::CreateFrameCol();
+
   // iterate through all keyframes, update based on graph and save initial and
   // final values
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
-    iter->Update(graph_);
     const Eigen::Matrix4d& T_WORLD_SCAN_FIN = iter->T_REFFRAME_CLOUD();
     const Eigen::Matrix4d& T_WORLD_SCAN_INIT = iter->T_REFFRAME_CLOUD_INIT();
     PointCloud cloud_world_final;
@@ -235,67 +271,45 @@ void LoInitializer::OutputResults() {
                              T_WORLD_SCAN_FIN);
     pcl::transformPointCloud(iter->Cloud(), cloud_world_init,
                              T_WORLD_SCAN_INIT);
+
+    PointCloudCol cloud_world_final_col = beam::ColorPointCloud(cloud_world_final, 0, 255, 0);
+    PointCloudCol cloud_world_init_col = beam::ColorPointCloud(cloud_world_init, 255, 0, 0);
+
+    beam::MergeFrameToCloud(cloud_world_final_col, frame, T_WORLD_SCAN_FIN);
+    beam::MergeFrameToCloud(cloud_world_init_col, frame, T_WORLD_SCAN_INIT);
+
     std::string filename = std::to_string(iter->Stamp().toSec()) + ".pcd";
-    pcl::io::savePCDFileASCII(save_path_final + filename, cloud_world_final);
-    pcl::io::savePCDFileASCII(save_path_init + filename, cloud_world_init);
+    pcl::io::savePCDFileASCII(save_path_final + filename, cloud_world_final_col);
+    pcl::io::savePCDFileASCII(save_path_init + filename, cloud_world_init_col);
   }
 }
 
 void LoInitializer::PublishResults() {
   InitializedPathMsg msg;
 
-  // read all optimized variables from graph
-  using pose_type = std::pair<fuse_variables::Position3DStamped,
-                              fuse_variables::Orientation3DStamped>;
-  std::map<uint64_t, pose_type> poses_map;
-  for (const auto& variable : graph_->getVariables()) {
-   if (variable.type() == "fuse_variables::Position3DStamped") {
-      auto pos =
-          dynamic_cast<const fuse_variables::Position3DStamped*>(&variable);
-      uint64_t time = pos->stamp().toNSec();
-      auto pose_iter = poses_map.find(time);
-      if (pose_iter == poses_map.end()) {
-        pose_type pose;
-        pose.first = *pos;
-        poses_map.emplace(time, pose);
-      } else {
-        pose_iter->second.first = *pos;
-      }
-    } else if (variable.type() == "fuse_variables::Orientation3DStamped") {
-      auto ori =
-          dynamic_cast<const fuse_variables::Orientation3DStamped*>(&variable);
-      uint64_t time = ori->stamp().toNSec();
-      auto pose_iter = poses_map.find(time);
-      if (pose_iter == poses_map.end()) {
-        pose_type pose;
-        pose.second = *ori;
-        poses_map.emplace(time, pose);
-      } else {
-        pose_iter->second.second = *ori;
-      }
-    }
-  }
-
   // get pose variables and add them to the msg
   int counter = 0;
-  for (auto iter = poses_map.begin(); iter != poses_map.end(); iter++) {
+  for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
     std_msgs::Header header;
     header.frame_id = extrinsics_.GetIMUFrameID();
     header.seq = counter;
-    ros::Time stamp;
-    stamp.fromNSec(iter->first);
-    header.stamp = stamp;
+    header.stamp = iter->Stamp();
+
+    const Eigen::Matrix4d& T = iter->T_REFFRAME_CLOUD();
 
     geometry_msgs::Point position;
-    position.x = iter->second.first.x();
-    position.y = iter->second.first.y();
-    position.z = iter->second.first.z();
+    position.x = T(0,3);
+    position.y = T(1,3);
+    position.z = T(2,3);
+
+    Eigen::Matrix3d R = T.block(0,0,3,3);
+    Eigen::Quaterniond q(R);
 
     geometry_msgs::Quaternion orientation;
-    orientation.x = iter->second.second.x();
-    orientation.y = iter->second.second.y();
-    orientation.z = iter->second.second.z();
-    orientation.w = iter->second.second.w();
+    orientation.x = q.x();
+    orientation.y = q.y();
+    orientation.z = q.z();
+    orientation.w = q.w();
 
     geometry_msgs::PoseStamped pose;
     pose.header = header;
@@ -306,6 +320,94 @@ void LoInitializer::PublishResults() {
   }
 
   results_publisher_.publish(msg);
+}
+
+void LoInitializer::SaveFailedMatchResults(
+    const beam_common::ScanPose& scan_pose_ref,
+    const beam_common::ScanPose& scan_pose_tgt,
+    const std::string& result_summary) {
+  if (!output_failed_matches_) {
+    return;
+  }
+
+  if (!boost::filesystem::exists(debug_output_path_failed_)) {
+    ROS_ERROR("Debug output path does not exist, not outputting failed scans.");
+    return;
+  }
+
+  std::string save_dir =
+      debug_output_path_failed_ + std::to_string(scan_pose_tgt.Stamp().toSec());
+  boost::filesystem::create_directory(save_dir);
+
+  // print transform information
+  const Eigen::Matrix4d& T_ref = scan_pose_ref.T_REFFRAME_CLOUD();
+  Eigen::Matrix3d R_ref = T_ref.block(0, 0, 3, 3);
+  Eigen::Vector3d rpy_ref = R_ref.eulerAngles(0, 1, 2);
+
+  const Eigen::Matrix4d& T_tgt = scan_pose_tgt.T_REFFRAME_CLOUD();
+  Eigen::Matrix3d R_tgt = T_tgt.block(0, 0, 3, 3);
+  Eigen::Vector3d rpy_tgt = R_tgt.eulerAngles(0, 1, 2);
+
+  Eigen::Matrix4d T_ref_tgt = beam::InvertTransform(T_ref) * T_tgt;
+  Eigen::Matrix3d R_ref_tgt = T_ref_tgt.block(0, 0, 3, 3);
+  Eigen::Vector3d rpy_ref_tgt = R_ref_tgt.eulerAngles(0, 1, 2);
+
+  std::ofstream file(save_dir + "/transforms.txt");
+  file << "Results summary: " << result_summary << "\n\n"
+
+       << "T_WORLD_REFCLOUD:\n"
+       << T_ref << "\n"
+       << "rpy (deg): [" << beam::Rad2Deg(beam::WrapToTwoPi(rpy_ref[0])) << ", "
+       << beam::Rad2Deg(beam::WrapToTwoPi(rpy_ref[1])) << ", "
+       << beam::Rad2Deg(beam::WrapToTwoPi(rpy_ref[2])) << "]\n\n"
+
+       << "T_WORLD_TGTCLOUD:\n"
+       << T_tgt << "\n"
+       << "rpy (deg): [" << beam::Rad2Deg(beam::WrapToTwoPi(rpy_tgt[0])) << ", "
+       << beam::Rad2Deg(beam::WrapToTwoPi(rpy_tgt[1])) << ", "
+       << beam::Rad2Deg(beam::WrapToTwoPi(rpy_tgt[2])) << "]\n\n"
+
+       << "T_REFCLOUD_TGTCLOUD:\n"
+       << T_ref_tgt << "\n"
+       << "rpy (deg): [" << beam::Rad2Deg(beam::WrapToTwoPi(rpy_ref_tgt[0]))
+       << ", " << beam::Rad2Deg(beam::WrapToTwoPi(rpy_ref_tgt[1])) << ", "
+       << beam::Rad2Deg(beam::WrapToTwoPi(rpy_ref_tgt[2])) << "]\n\n";
+
+  boost::filesystem::create_directory(save_dir + "/ref/");
+  scan_pose_tgt.SaveLoamCloud(save_dir + "/ref/");
+  boost::filesystem::create_directory(save_dir + "/tgt/");
+  scan_pose_tgt.SaveLoamCloud(save_dir + "/tgt/");
+}
+
+void LoInitializer::SaveSuccessfulMatchResults(
+    const beam_common::ScanPose& scan_pose_ref,
+    const beam_common::ScanPose& scan_pose_tgt,
+    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
+  if (!output_successful_matches_) {
+    return;
+  }
+
+  if (!boost::filesystem::exists(debug_output_path_)) {
+    ROS_ERROR(
+        "Debug output path does not exist, not outputting successful scans.");
+    return;
+  }
+
+  std::string save_dir =
+      debug_output_path_ + std::to_string(scan_pose_tgt.Stamp().toSec());
+  boost::filesystem::create_directory(save_dir);
+
+  boost::filesystem::create_directory(save_dir + "/ref/");
+  scan_pose_ref.SaveLoamCloud(save_dir + "/ref/");
+  scan_pose_ref.Save(save_dir + "/ref/");
+
+  boost::filesystem::create_directory(save_dir + "/tgt/");
+  beam_common::ScanPose sp_tmp = scan_pose_tgt;
+  Eigen::Matrix4d T_WORLD_TGTALIGNED =
+      scan_pose_ref.T_REFFRAME_CLOUD() * T_CLOUD1_CLOUD2;
+  sp_tmp.Update(T_WORLD_TGTALIGNED);
+  sp_tmp.SaveLoamCloud(save_dir + "/tgt/");
+  sp_tmp.Save(save_dir + "/tgt/");
 }
 
 }  // namespace frame_to_frame

@@ -32,6 +32,9 @@ struct LoInitializerParams : public ParameterBase {
     getParam<double>(nh, "outlier_threshold_t_m", outlier_threshold_t_m, 0.3);
     getParam<double>(nh, "outlier_threshold_r_deg", outlier_threshold_r_deg, 15);
 
+    getParam<double>(nh, "keyframe_frequency", keyframe_frequency, 0.1);
+    keyframe_spacing = ros::Duration(1/keyframe_frequency);
+
     double aggregation_time_double;
     getParam<double>(nh, "aggregation_time", aggregation_time_double, 0.1);
     aggregation_time = ros::Duration(aggregation_time_double);
@@ -52,6 +55,8 @@ struct LoInitializerParams : public ParameterBase {
   double min_trajectory_distance;
   double outlier_threshold_t_m;
   double outlier_threshold_r_deg;
+  double keyframe_frequency;
+  ros::Duration keyframe_spacing; // = 1 / keyframe_frequency
 
   ros::Duration aggregation_time;
   ros::Duration trajectory_time_window;

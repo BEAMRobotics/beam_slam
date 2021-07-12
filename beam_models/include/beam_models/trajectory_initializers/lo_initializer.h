@@ -89,10 +89,10 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   bool AddPointcloudToKeyframe(const PointCloud& cloud, const ros::Time& time);
 
   /**
-   * @brief create factor graph of scan registration and imu measurements, then
-   * solve and publish results.
+   * @brief run loam scan to map registration to get a more precise estimate of
+   * scan poses
    */
-  void Optimize();
+  void CalculateTrajectory();
 
   /**
    * @brief Save three types of scans to separate folders:
@@ -109,6 +109,22 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
    * @brief publish results of initialization to a InitializedPathMsg
    */
   void PublishResults();
+
+  /**
+   * @brief saves results when scan matching failed, useful for debugging failed
+   * scan registrations
+   */
+  void SaveFailedMatchResults(const beam_common::ScanPose& scan_pose_ref,
+                              const beam_common::ScanPose& scan_pose_tgt,
+                              const std::string& result_summary);
+
+  /**
+   * @brief saves results when scan matching passed, useful for debugging failed
+   * scan registrations
+   */
+  void SaveSuccessfulMatchResults(const beam_common::ScanPose& scan_pose_ref,
+                                  const beam_common::ScanPose& scan_pose_tgt,
+                                  const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   // subscribers
   ros::Subscriber lidar_subscriber_;
@@ -139,12 +155,13 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   // bool for tracking if initialization has completed
   bool initialization_complete_{false};
 
-  // optimizer
-  fuse_core::Graph::SharedPtr graph_;
-
   // debugging tools
-  std::string debug_output_path_{"/home/nick/tmp/loam_tests/"};
-  bool output_initial_scans_{true};
+  std::string debug_output_path_{
+      "/home/nick/debug/lo_initializer_tests/success/"};
+  bool output_successful_matches_{false};
+  std::string debug_output_path_failed_{
+      "/home/nick/debug/lo_initializer_tests/failed/"};
+  bool output_failed_matches_{false};
 };
 }  // namespace frame_to_frame
 }  // namespace beam_models

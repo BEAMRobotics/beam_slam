@@ -19,7 +19,7 @@ sensor_models:
     type: 'beam_models::frame_to_frame::LoInitializer'
 
 
-lio_initializer:
+lo_initializer:
   matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
   registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class
   differential: false # Default: false
@@ -30,9 +30,10 @@ lio_initializer:
   nominal_gravity_direction: '-Z'
   undistort_scans: true
   aggregation_time: 0.1
-  trajectory_time_window: 10
-  min_trajectory_distance: 3
+  trajectory_time_window: 5
+  min_trajectory_distance: 1
   outlier_threshold_t_m: 0.3
   outlier_threshold_r_deg: 15
+  keyframe_frequency: 0.1 # max frequency of keyframes
   scan_output_directory: '/home/nick/results/beam_slam/lo_initializer/' # Outputs scans as PCD files IFF not empty
 

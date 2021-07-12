@@ -158,8 +158,8 @@ class LioInitializer : public fuse_core::AsyncSensorModel {
   fuse_core::Graph::SharedPtr graph_;
 
   // debugging tools
-  std::string debug_output_path_{"/home/nick/tmp/loam_tests/"};
-  bool output_initial_scans_{true};
+  std::string debug_output_path_{"/home/nick/debug/lio_initializer_tests/success/"};
+  bool output_initial_scans_{false};
 };
 }  // namespace frame_to_frame
 }  // namespace beam_models
