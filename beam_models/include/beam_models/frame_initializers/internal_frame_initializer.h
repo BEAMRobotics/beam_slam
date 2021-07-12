@@ -25,12 +25,16 @@ class InternalFrameInitializer : public FrameInitializerBase {
                            const std::string& sensor_frame_id = "");
 
   /**
-   * @brief Helper function to add an orientation variable
-   * @param R_WORLD_SENSOR orientation variable to add
-   * @param stamp timestamp of orientation to add
+   * @brief Adds a pose to the tf buffercore
+   * @param T_WORLD_SENSOR reference to result
+   * @param time stamp of the pose being added
+   * @param sensor_frame sensor frame id. If empty, the sensor frame will be the
+   * sensor frame used to instantiate this class. This option is useful when
+   * multiple sensors are being used
    * @return true if pose was added successfully
    */
-  void AddPose(const Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& stamp);
+  bool AddPose(const Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& stamp,
+               std::string sensor_frame_id = "");
 };
 
 }  // namespace frame_initializers
