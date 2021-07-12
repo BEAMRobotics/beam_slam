@@ -62,9 +62,9 @@ class Data {
 
       // assign info to start of interval in imu data
       beam_common::IMUData imu_data;
-      imu_data.t = ros::Time(t_ns * 1e-9);     // [sec]
-      imu_data.w = rot_vel_body;    // [rad/sec]
-      imu_data.a = lin_accel_body;  // [m/sec^2]
+      imu_data.t = ros::Time(t_ns * 1e-9);  // [sec]
+      imu_data.w = rot_vel_body;            // [rad/sec]
+      imu_data.a = lin_accel_body;          // [m/sec^2]
 
       imu_data_gt.emplace_back(imu_data);
 
@@ -120,10 +120,10 @@ class Data {
 
   // spline parameters
   int num_knots = 15;
-  int64_t start_time_ns = 0;                // [nano sec]
-  int64_t time_interval_ns = 10e9;          // [nano sec]
-  int64_t time_duration = 20e9;             // [nano sec]
-  int64_t dt_ns = 1e7;                      // [nano sec]
+  int64_t start_time_ns = 0;        // [nano sec]
+  int64_t time_interval_ns = 10e9;  // [nano sec]
+  int64_t time_duration = 20e9;     // [nano sec]
+  int64_t dt_ns = 1e7;              // [nano sec]
 
   Eigen::Vector3d gravity;
   std::vector<beam_common::IMUData> imu_data_gt;
@@ -576,7 +576,7 @@ TEST(ImuPreintegration, Simple2StateFG) {
 
 class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     // set intrinsic noise of imu to zero
     params.cov_gyro_noise.setZero();
     params.cov_accel_noise.setZero();
@@ -617,6 +617,18 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
 
 TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   /**
+   * CheckParameters() functionality
+   */
+
+  // instantiate preintegration class with invalid prior noise
+  EXPECT_ANY_THROW({
+    ImuPreintegration::Params params;
+    params.prior_noise = 0;
+    std::unique_ptr<ImuPreintegration> dummy_imu_preintegration =
+        std::make_unique<ImuPreintegration>(params);
+  });
+
+  /**
    * SetStart() functionality
    */
 
@@ -644,7 +656,7 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
    * PredictState() functionality
    */
 
-  // populate Preintegrator class from Slamtools with imu preintegration deltas
+  // populate Preintegrator class with imu preintegration deltas
   // from data class
   beam_common::PreIntegrator pre_integrator_12;
   pre_integrator_12.delta.t = data.delta_t_12;
@@ -683,28 +695,25 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
    */
 
   for (int i = 1; i - 1 < data.pose_gt.size(); i++) {
-    ExpectTransformsNear(imu_preintegration->GetPose(ros::Time(i)),
-                         data.pose_gt[i - 1]);
+    Eigen::Matrix4d T_WORLD_IMU;
+    imu_preintegration->GetPose(T_WORLD_IMU, ros::Time(i));
+    ExpectTransformsNear(T_WORLD_IMU, data.pose_gt[i - 1]);
   }
 
-  // expect throws from CheckTime()
-  EXPECT_ANY_THROW(
-      { Eigen::Matrix4d T_temp = imu_preintegration->GetPose(ros::Time(-1)); });
+  // expect false from incorrect time
+  Eigen::Matrix4d T_WORLD_IMU;
+  EXPECT_FALSE(imu_preintegration->GetPose(T_WORLD_IMU, t_start));
 
   /**
    * RegisterNewImuPreintegratedFactor() functionality
    */
 
-  // expect throws from CheckTime()
-  EXPECT_ANY_THROW({
-    auto trans_temp =
-        imu_preintegration->RegisterNewImuPreintegratedFactor(ros::Time(-1));
-  });
+  // expect false as incorrect time will return nullptr
+  EXPECT_FALSE(imu_preintegration->RegisterNewImuPreintegratedFactor(t_start));
 
   // generate transaction to perform imu preintegration
   auto transaction =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
-          .GetTransaction();
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
 
   // get end imu state from preintegration
   ImuState IS_end = imu_preintegration->GetImuState();
@@ -811,17 +820,16 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
 
   // for testing, call GetPose() from start to middle
   for (int i = t_start.toSec() + 1; i - 1 < t_middle.toSec(); i++) {
-    Eigen::Matrix4d dummy_T_WORLD_IMU =
-        imu_preintegration->GetPose(ros::Time(i));
+    Eigen::Matrix4d dummy_T_WORLD_IMU;
+    imu_preintegration->GetPose(dummy_T_WORLD_IMU, ros::Time(i));
   }
 
   // generate transactions, taking start, middle, and end as key frames
+
   auto transaction1 =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_middle)
-          .GetTransaction();
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_middle);
   auto transaction2 =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end)
-          .GetTransaction();
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
 
   // create graph
   fuse_graphs::HashGraph graph;

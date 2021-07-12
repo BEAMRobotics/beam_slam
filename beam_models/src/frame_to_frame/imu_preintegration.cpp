@@ -4,10 +4,11 @@
 
 #include <beam_utils/math.h>
 
-namespace beam_models { namespace frame_to_frame {
+namespace beam_models {
+namespace frame_to_frame {
 
-ImuPreintegration::ImuPreintegration(const Params& params)
-    : params_(params) {
+ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
+  CheckParameters();
   SetPreintegrator();
 }
 
@@ -15,6 +16,7 @@ ImuPreintegration::ImuPreintegration(const Params& params,
                                      const Eigen::Vector3d& init_bg,
                                      const Eigen::Vector3d& init_ba)
     : params_(params), bg_(init_bg), ba_(init_ba) {
+  CheckParameters();
   SetPreintegrator();
 }
 
@@ -22,13 +24,20 @@ void ImuPreintegration::ClearBuffer() {
   for (size_t i = 0; i < imu_data_buffer_.size(); i++) imu_data_buffer_.pop();
 }
 
-void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu::ConstPtr& msg) {
+void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
   beam_common::IMUData imu_data(msg);
   imu_data_buffer_.push(imu_data);
 }
 
 void ImuPreintegration::AddToBuffer(const beam_common::IMUData& imu_data) {
   imu_data_buffer_.push(imu_data);
+}
+
+void ImuPreintegration::CheckParameters() {
+  if (params_.prior_noise <= 0) {
+    BEAM_ERROR("Prior noise on IMU preintegration must be positive");
+    throw std::invalid_argument{"Inputs to ImuPreintegration invalid."};
+  }
 }
 
 void ImuPreintegration::SetPreintegrator() {
@@ -43,30 +52,30 @@ void ImuPreintegration::ResetPreintegrator() {
   pre_integrator_ij.data.clear();
 }
 
-void ImuPreintegration::CheckTime(const ros::Time& t_now) {
-  if (t_now < imu_data_buffer_.front().t) {
-    const std::string error = "Requested time preceeds IMU messages in buffer";
-    BEAM_ERROR(error);
-    throw std::runtime_error(error);
-  }
-}
-
 void ImuPreintegration::SetStart(
     const ros::Time& t_start,
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   // adjust imu buffer
-  while (t_start > imu_data_buffer_.front().t) { imu_data_buffer_.pop(); }
+  while (t_start > imu_data_buffer_.front().t) {
+    imu_data_buffer_.pop();
+  }
 
   // set imu state
   ImuState imu_state_i(t_start);
 
-  if (R_WORLD_IMU) { imu_state_i.SetOrientation(R_WORLD_IMU->data()); }
+  if (R_WORLD_IMU) {
+    imu_state_i.SetOrientation(R_WORLD_IMU->data());
+  }
 
-  if (t_WORLD_IMU) { imu_state_i.SetPosition(t_WORLD_IMU->data()); }
+  if (t_WORLD_IMU) {
+    imu_state_i.SetPosition(t_WORLD_IMU->data());
+  }
 
-  if (velocity) { imu_state_i.SetVelocity(velocity->data()); }
+  if (velocity) {
+    imu_state_i.SetVelocity(velocity->data());
+  }
 
   imu_state_i.SetGyroBias(bg_);
   imu_state_i.SetAccelBias(ba_);
@@ -84,8 +93,9 @@ ImuState ImuPreintegration::PredictState(
   double dt = pre_integrator.delta.t.toSec();
   Eigen::Matrix3d or_curr = imu_state_curr.OrientationQuat().toRotationMatrix();
   Eigen::Matrix3d or_new_mat = or_curr * pre_integrator.delta.q.matrix();
-  Eigen::Vector3d vel_new =
-      imu_state_curr.VelocityVec() + params_.gravity * dt + or_curr * pre_integrator.delta.v;
+  Eigen::Vector3d vel_new = imu_state_curr.VelocityVec() +
+                            params_.gravity * dt +
+                            or_curr * pre_integrator.delta.v;
   Eigen::Vector3d pos_new =
       imu_state_curr.PositionVec() + imu_state_curr.VelocityVec() * dt +
       0.5 * params_.gravity * dt * dt + or_curr * pre_integrator.delta.p;
@@ -99,8 +109,8 @@ ImuState ImuPreintegration::PredictState(
   return imu_state_new;
 }
 
-Eigen::Matrix<double, 16, 1>
-    ImuPreintegration::CalculateRelativeChange(const ImuState& imu_state_new) {
+Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
+    const ImuState& imu_state_new) {
   Eigen::Matrix3d or_curr_rot_trans = imu_state_i_.OrientationQuat()
                                           .normalized()
                                           .toRotationMatrix()
@@ -124,12 +134,15 @@ Eigen::Matrix<double, 16, 1>
   return delta;
 }
 
-Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
+bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
+                                const ros::Time& t_now) {
   // encapsulate imu measurments between frames
   beam_common::PreIntegrator pre_integrator_interval;
 
   // check requested time
-  CheckTime(t_now);
+  if (t_now < imu_data_buffer_.front().t) {
+    return false;
+  }
 
   // Populate integrators
   while (t_now > imu_data_buffer_.front().t) {
@@ -137,7 +150,6 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
     pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
     imu_data_buffer_.pop();
   }
-
   // integrate between frames
   pre_integrator_interval.Integrate(t_now, imu_state_i_.GyroBiasVec(),
                                     imu_state_i_.AccelBiasVec(), false, false);
@@ -146,23 +158,24 @@ Eigen::Matrix4d ImuPreintegration::GetPose(const ros::Time& t_now) {
   ImuState imu_state_k = PredictState(pre_integrator_interval, imu_state_k_);
   imu_state_k_ = std::move(imu_state_k);
 
-  Eigen::Matrix4d T_WORLD_IMU;
   beam::QuaternionAndTranslationToTransformMatrix(
       imu_state_k_.OrientationQuat(), imu_state_k_.PositionVec(), T_WORLD_IMU);
 
-  return T_WORLD_IMU;
+  return true;
 }
 
-beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-    ImuPreintegration::RegisterNewImuPreintegratedFactor(
-        const ros::Time& t_now,
-        fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
-        fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
+fuse_core::Transaction::SharedPtr
+ImuPreintegration::RegisterNewImuPreintegratedFactor(
+    const ros::Time& t_now,
+    fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
+    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
   beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 
   // check requested time
-  CheckTime(t_now);
+  if (t_now < imu_data_buffer_.front().t) {
+    return nullptr;
+  }
 
   // generate prior constraint at start
   if (first_window_) {
@@ -236,7 +249,8 @@ beam_constraints::frame_to_frame::ImuState3DStampedTransaction
 
   ResetPreintegrator();
 
-  return transaction;
+  return transaction.GetTransaction();
 }
 
-}} // namespace beam_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace beam_models

@@ -46,7 +46,7 @@ find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
-FIND_PACKAGE(PCL 1.11.1 REQUIRED)
+find_package(PCL 1.11.1 REQUIRED)
 
 add_message_files(
   DIRECTORY

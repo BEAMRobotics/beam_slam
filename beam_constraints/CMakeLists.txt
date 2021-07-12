@@ -15,10 +15,9 @@ set(build_depends
   tf2_ros
   beam_slam_common
   beam_variables
-  slamtools
 )
 
-find_package(beam REQUIRED COMPONENTS calibration)
+find_package(beam REQUIRED COMPONENTS calibration optimization)
 
 find_package(catkin REQUIRED COMPONENTS
   ${build_depends}
@@ -72,6 +71,7 @@ target_link_libraries(${PROJECT_NAME}
   ${CERES_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   beam::calibration
+  beam::optimization
 )
 
 ##########
