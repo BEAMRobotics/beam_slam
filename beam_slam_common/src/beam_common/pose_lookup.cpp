@@ -5,50 +5,45 @@
 
 namespace beam_common {
 
-PoseLookup& PoseLookup::GetInstance() {
-  static PoseLookup instance;
-  return instance;
-}
-
 PoseLookup::PoseLookup() {
   // get parameters from global namespace
   ros::param::get("~world_frame", world_frame_);
   ros::param::get("~baselink_frame", baselink_frame_);
 
   // validate parameters
+  std::string error_msg{"Inputs to PoseLookup invalid."};
   if (world_frame_.empty() || baselink_frame_.empty()) {
     BEAM_ERROR(
         "Inputs to PoseLookup invalid. Parameters: world_frame and "
         "baselink_frame cannot be empty.");
-    throw std::invalid_argument{"Inputs to PoseLookup invalid."};
-  }
-
-  if (baselink_frame_ != extrinsics_.GetIMUFrameID() &&
-      baselink_frame_ != extrinsics_.GetCameraFrameID() &&
-      baselink_frame_ != extrinsics_.GetLidarFrameID()) {
+    throw std::invalid_argument{error_msg};
+  } else if (baselink_frame_ != extrinsics_.GetIMUFrameID() &&
+             baselink_frame_ != extrinsics_.GetCameraFrameID() &&
+             baselink_frame_ != extrinsics_.GetLidarFrameID()) {
     BEAM_ERROR("baselink_frame must match one of the sensor frame IDs");
-    throw std::invalid_argument{"Inputs to PoseLookup invalid."};
+    throw std::invalid_argument{error_msg};
   }
 }
 
 bool PoseLookup::CheckPoses() {
-  if (poses_ == nullptr) {
+  if (poses_) {
     BEAM_ERROR("Poses cannot be empty.");
     throw std::invalid_argument{"Poses must be set for PoseLookup to function"};
     return false;
+  } else {
+    return true;
   }
 }
 
 bool PoseLookup::SetPoses(const std::shared_ptr<tf2::BufferCore> poses) {
   poses_ = poses;
-  CheckPoses();
-  return true;
+  return CheckPoses();
 }
 
 bool PoseLookup::GetT_WORLD_SENSOR(Eigen::Matrix4d& T_WORLD_SENSOR,
                                    const std::string& sensor_frame,
                                    const ros::Time& time) {
-  CheckPoses();
+  if (!CheckPoses()) return false;
 
   // get extrinsics
   Eigen::Matrix4d T_BASELINK_SENSOR;
@@ -96,7 +91,7 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
     } else if (sensor_frame == extrinsics_.GetLidarFrameID()) {
       extrinsics_.GetT_IMU_LIDAR(T_BASELINK_SENSOR, time);
     } else {
-      ThrowFrameIDError();
+      return ThrowFrameIDError();
     }
   } else if (baselink_frame_ == extrinsics_.GetCameraFrameID()) {
     if (sensor_frame == extrinsics_.GetIMUFrameID()) {
@@ -104,7 +99,7 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
     } else if (sensor_frame == extrinsics_.GetLidarFrameID()) {
       extrinsics_.GetT_CAMERA_LIDAR(T_BASELINK_SENSOR, time);
     } else {
-      ThrowFrameIDError();
+      return ThrowFrameIDError();
     }
   } else if (baselink_frame_ == extrinsics_.GetLidarFrameID()) {
     if (sensor_frame == extrinsics_.GetIMUFrameID()) {
@@ -112,11 +107,11 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
     } else if (sensor_frame == extrinsics_.GetCameraFrameID()) {
       extrinsics_.GetT_LIDAR_CAMERA(T_BASELINK_SENSOR, time);
     } else {
-      ThrowFrameIDError();
+      return ThrowFrameIDError();
     }
   } else {
-    // this condition should never be reached as we ensure that baselink is set
-    // properly upon class instantiation
+    // this condition should never be reached as we ensure that baselink is
+    // set properly upon class instantiation
     return false;
   }
 
@@ -125,7 +120,7 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
 
 bool PoseLookup::GetT_WORLD_BASELINK(Eigen::Matrix4d& T_WORLD_BASELINK,
                                      const ros::Time& time) {
-  CheckPoses();
+  if (!CheckPoses()) return false;
 
   std::string error_msg;
   bool can_transform =

@@ -21,20 +21,9 @@ namespace beam_common {
 class PoseLookup {
  public:
   /**
-   * @brief Static Instance getter (singleton)
-   * @return reference to the singleton
+   * @brief Constructor
    */
-  static PoseLookup& GetInstance();
-
-  /**
-   * @brief Copy constructor
-   */
-  PoseLookup(const PoseLookup& other) = delete;
-
-  /**
-   * @brief Copy assignment operator
-   */
-  PoseLookup& operator=(const PoseLookup& other) = delete;
+  PoseLookup();
 
   /**
    * @brief Set Poses as a shared pointer. Setting poses has been enforced
@@ -91,13 +80,8 @@ class PoseLookup {
 
  private:
   /**
-   * @brief Constructor
-   */
-  PoseLookup();
-
-  /**
    * @brief Check to ensure that poses has been set
-   * @return true if poses set
+   * @return true if poses set, false otherwise
    */
   bool CheckPoses();
 

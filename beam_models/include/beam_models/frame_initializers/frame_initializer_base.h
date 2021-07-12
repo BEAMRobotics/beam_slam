@@ -46,8 +46,7 @@ class FrameInitializerBase {
   };
 
  protected:
-  beam_common::PoseLookup& pose_lookup_ =
-      beam_common::PoseLookup::GetInstance();
+  beam_common::PoseLookup pose_lookup_;
   std::shared_ptr<tf2::BufferCore> poses_{nullptr};
   std::string sensor_frame_id_{""};
 };
