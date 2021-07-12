@@ -65,7 +65,10 @@ void LioInitializer::onInit() {
   std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
       matcher = std::make_unique<LoamMatcher>(*matcher_params);
   ScanToMapLoamRegistration::Params params;
-  params.LoadFromJson(params_.registration_config_path);
+  params.outlier_threshold_t = params_.outlier_threshold_t_m;
+  params.outlier_threshold_r = params_.outlier_threshold_r_deg;
+  params.map_size = params_.scan_registration_map_size;
+  params.store_full_cloud = false;
   scan_registration_ =
       std::make_unique<ScanToMapLoamRegistration>(std::move(matcher), params);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
@@ -220,7 +223,7 @@ void LioInitializer::ProcessCurrentKeyframe() {
             trajectory_length, keyframes_.size());
   if (trajectory_length > params_.min_trajectory_distance) {
     // if so, then optimize
-    ROS_DEBUG("Trajectory is long enough, optimizing lio initializer data.");
+    ROS_DEBUG("LIO Trajectory is long enough, optimizing lio initializer data.");
 
     // start a timer
     beam::HighResolutionTimer timer;
@@ -286,6 +289,9 @@ void LioInitializer::Optimize() {
     graph_->update(*imu_transaction.GetTransaction());
   }
   graph_->optimize();
+
+  // clear lidar map so we can generate a new one during slam (it's a singleton)
+  scan_registration_->GetMapMutable().Clear();
 }
 
 void LioInitializer::OutputResults() {

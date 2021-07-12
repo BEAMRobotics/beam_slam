@@ -22,8 +22,6 @@ struct LioInitializerParams : public ParameterBase {
              matcher_noise_diagonal);
     getParam<double>(nh, "matcher_noise", matcher_noise, 1e-9);
     getParam<std::string>(nh, "matcher_params_path", matcher_params_path, "");
-    getParam<std::string>(nh, "registration_config_path",
-                          registration_config_path, "");
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           "");
     getParamRequired<std::string>(nh, "imu_topic", imu_topic);
@@ -34,6 +32,7 @@ struct LioInitializerParams : public ParameterBase {
     getParam<double>(nh, "min_trajectory_distance", min_trajectory_distance, 3);
     getParam<double>(nh, "outlier_threshold_t_m", outlier_threshold_t_m, 0.3);
     getParam<double>(nh, "outlier_threshold_r_deg", outlier_threshold_r_deg, 15);
+    getParam<int>(nh, "scan_registration_map_size", scan_registration_map_size, 5);
 
     double aggregation_time_double;
     getParam<double>(nh, "aggregation_time", aggregation_time_double, 0.1);
@@ -47,7 +46,6 @@ struct LioInitializerParams : public ParameterBase {
   std::vector<double> matcher_noise_diagonal{0, 0, 0, 0, 0, 0};
   double matcher_noise;
   std::string matcher_params_path;
-  std::string registration_config_path;
   std::string scan_output_directory;
   std::string imu_topic;
   std::string lidar_topic;
@@ -58,6 +56,7 @@ struct LioInitializerParams : public ParameterBase {
   double min_trajectory_distance;
   double outlier_threshold_t_m;
   double outlier_threshold_r_deg;
+  int scan_registration_map_size;
 
   ros::Duration aggregation_time;
   ros::Duration trajectory_time_window;

@@ -40,7 +40,10 @@ void LoInitializer::onInit() {
   std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
       matcher = std::make_unique<LoamMatcher>(*matcher_params);
   ScanToMapLoamRegistration::Params params;
-  params.LoadFromJson(params_.registration_config_path);
+  params.outlier_threshold_t = params_.outlier_threshold_t_m;
+  params.outlier_threshold_r = params_.outlier_threshold_r_deg;
+  params.map_size = params_.scan_registration_map_size;
+  params.store_full_cloud = false;
   scan_registration_ =
       std::make_unique<ScanToMapLoamRegistration>(std::move(matcher), params);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
@@ -65,7 +68,6 @@ void LoInitializer::onInit() {
     }
     boost::filesystem::create_directory(params_.scan_output_directory);
   }
-
 }
 
 void LoInitializer::processLidar(
@@ -85,7 +87,7 @@ void LoInitializer::processLidar(
 
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
 
-  // init first message 
+  // init first message
   if (keyframe_start_time_.toSec() == 0) {
     ROS_DEBUG("Set first scan and imu start time.");
     keyframe_start_time_ = msg->header.stamp;
@@ -97,8 +99,6 @@ void LoInitializer::processLidar(
   }
 
   ros::Duration current_scan_period = msg->header.stamp - prev_stamp_;
-
-  // if(current_keyframe_.IsFull() && msg->header.stamp - current_keyframe_.Stamp() >
 
   if (msg->header.stamp - keyframe_start_time_ + current_scan_period >
       params_.aggregation_time) {
@@ -176,8 +176,8 @@ void LoInitializer::ProcessCurrentKeyframe() {
             trajectory_length, keyframes_.size());
   if (trajectory_length > params_.min_trajectory_distance) {
     // if so, then optimize
-    ROS_DEBUG("Trajectory is long enough, optimizing Lo initializer data.");
-    
+    ROS_INFO("LO trajectory is long enough, optimizing Lo initializer data.");
+
     // start a timer
     beam::HighResolutionTimer timer;
 
@@ -187,7 +187,7 @@ void LoInitializer::ProcessCurrentKeyframe() {
     ROS_INFO("Time to optimize: %.5f", timer.elapsed());
 
     OutputResults();
-    
+
     initialization_complete_ = true;
     ROS_INFO("Lo initialization complete");
   } else {
@@ -212,6 +212,10 @@ bool LoInitializer::AddPointcloudToKeyframe(const PointCloud& cloud,
 }
 
 void LoInitializer::CalculateTrajectory() {
+
+    // start a timer
+    beam::HighResolutionTimer timer;
+
   // register scans
   ROS_DEBUG("Calculating final trajectory");
   auto iter = keyframes_.begin();
@@ -226,12 +230,14 @@ void LoInitializer::CalculateTrajectory() {
           "Scan to map registration failed for stamp: %.3f. Removing from "
           "final trajectory.",
           iter->Stamp().toSec());
-      keyframes_.erase(iter++);  
+      keyframes_.erase(iter++);
     } else {
       ROS_DEBUG("Updating scan pose");
       iter->Update(T_WORLD_SCAN);
       ++iter;
     }
+    ROS_DEBUG("Time to register scan to map: %.5f", timer.elapsed());
+    timer.restart();
   }
 
   // clear lidar map so we can generate a new one during slam (it's a singleton)
@@ -272,14 +278,17 @@ void LoInitializer::OutputResults() {
     pcl::transformPointCloud(iter->Cloud(), cloud_world_init,
                              T_WORLD_SCAN_INIT);
 
-    PointCloudCol cloud_world_final_col = beam::ColorPointCloud(cloud_world_final, 0, 255, 0);
-    PointCloudCol cloud_world_init_col = beam::ColorPointCloud(cloud_world_init, 255, 0, 0);
+    PointCloudCol cloud_world_final_col =
+        beam::ColorPointCloud(cloud_world_final, 0, 255, 0);
+    PointCloudCol cloud_world_init_col =
+        beam::ColorPointCloud(cloud_world_init, 255, 0, 0);
 
     beam::MergeFrameToCloud(cloud_world_final_col, frame, T_WORLD_SCAN_FIN);
     beam::MergeFrameToCloud(cloud_world_init_col, frame, T_WORLD_SCAN_INIT);
 
     std::string filename = std::to_string(iter->Stamp().toSec()) + ".pcd";
-    pcl::io::savePCDFileASCII(save_path_final + filename, cloud_world_final_col);
+    pcl::io::savePCDFileASCII(save_path_final + filename,
+                              cloud_world_final_col);
     pcl::io::savePCDFileASCII(save_path_init + filename, cloud_world_init_col);
   }
 }
@@ -298,11 +307,11 @@ void LoInitializer::PublishResults() {
     const Eigen::Matrix4d& T = iter->T_REFFRAME_CLOUD();
 
     geometry_msgs::Point position;
-    position.x = T(0,3);
-    position.y = T(1,3);
-    position.z = T(2,3);
+    position.x = T(0, 3);
+    position.y = T(1, 3);
+    position.z = T(2, 3);
 
-    Eigen::Matrix3d R = T.block(0,0,3,3);
+    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
     Eigen::Quaterniond q(R);
 
     geometry_msgs::Quaternion orientation;
