@@ -3,16 +3,26 @@
 namespace beam_models {
 namespace frame_initializers {
 
-InternalFrameInitializer::InternalFrameInitializer(
-    int64_t poses_buffer_time, const std::string& sensor_frame_id)
-    : FrameInitializerBase(sensor_frame_id) {
-  poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time));
-  pose_lookup_.SetPoses(poses_);
+InternalFrameInitializer& InternalFrameInitializer::GetInstance(
+    int64_t poses_buffer_time) {
+  static InternalFrameInitializer instance(poses_buffer_time);
+  return instance;
 }
+
+InternalFrameInitializer::InternalFrameInitializer(int64_t poses_buffer_time)
+    : poses_buffer_time_(poses_buffer_time) {}
 
 bool InternalFrameInitializer::AddPose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                                        const ros::Time& stamp,
                                        std::string sensor_frame_id) {
+  // set poses
+  if (poses_) {
+    poses_ =
+        std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time_));
+    pose_lookup_.SetPoses(poses_);
+  }
+
+  // set sensor frame id
   if (sensor_frame_id.empty()) sensor_frame_id = sensor_frame_id_;
 
   // convert matrix to position and quaternion

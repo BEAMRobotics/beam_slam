@@ -27,7 +27,7 @@ class FrameInitializerBase {
    * extrinsic calibrations. If not supplied, the sensor frame is assumed to
    * coincide with the baselink frame specified in PoseLookup
    */
-  FrameInitializerBase(const std::string& sensor_frame_id)
+  FrameInitializerBase(const std::string& sensor_frame_id = "")
       : sensor_frame_id_{sensor_frame_id} {
     if (sensor_frame_id_.empty())
       sensor_frame_id_ = pose_lookup_.GetBaselinkFrameID();
