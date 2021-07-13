@@ -10,7 +10,7 @@ OdometryFrameInitializer::OdometryFrameInitializer(
     const std::string& sensor_frame_id)
     : FrameInitializerBase(sensor_frame_id) {
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time));
-  pose_lookup_.SetPoses(poses_);
+  pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);
 
   ros::NodeHandle n;
   odometry_subscriber_ = n.subscribe<nav_msgs::Odometry>(
@@ -23,7 +23,7 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
   std::string parent_frame_id = message->header.frame_id;
   std::string child_frame_id = message->child_frame_id;
 
-  if (parent_frame_id.find(pose_lookup_.GetWorldFrameID()) ==
+  if (parent_frame_id.find(pose_lookup_->GetWorldFrameID()) ==
       std::string::npos) {
     BEAM_WARN("World frame does not match parent frame in odometry messages");
   }
@@ -41,7 +41,7 @@ void OdometryFrameInitializer::OdometryCallback(
   // stamp transforms using world and baselink frame IDs from PoseLookup
   geometry_msgs::TransformStamped tf_stamped;
   tf_stamped.header = message->header;
-  tf_stamped.header.frame_id = pose_lookup_.GetWorldFrameID();
+  tf_stamped.header.frame_id = pose_lookup_->GetWorldFrameID();
   tf_stamped.child_frame_id = sensor_frame_id_;
   tf_stamped.transform.translation.x = message->pose.pose.position.x;
   tf_stamped.transform.translation.y = message->pose.pose.position.y;

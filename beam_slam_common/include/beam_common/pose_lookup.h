@@ -22,14 +22,9 @@ class PoseLookup {
  public:
   /**
    * @brief Constructor
+   * @param poses shared pointer to the poses
    */
-  PoseLookup();
-
-  /**
-   * @brief Set Poses as a shared pointer. Setting poses has been enforced
-   * @return true if poses are set
-   */
-  bool SetPoses(const std::shared_ptr<tf2::BufferCore> poses);
+  PoseLookup(const std::shared_ptr<tf2::BufferCore> poses);
 
   /**
    * @brief Gets estimate of sensor frame pose wrt world frame
@@ -79,12 +74,6 @@ class PoseLookup {
   std::string GetBaselinkFrameID() const { return baselink_frame_; }
 
  private:
-  /**
-   * @brief Check to ensure that poses has been set
-   * @return true if poses set, false otherwise
-   */
-  bool CheckPoses();
-
   /**
    * @brief Commonly thrown error when incorrectly getting baselink to sensor
    * transform

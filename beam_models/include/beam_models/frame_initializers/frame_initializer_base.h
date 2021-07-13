@@ -30,7 +30,7 @@ class FrameInitializerBase {
   FrameInitializerBase(const std::string& sensor_frame_id = "")
       : sensor_frame_id_{sensor_frame_id} {
     if (sensor_frame_id_.empty())
-      sensor_frame_id_ = pose_lookup_.GetBaselinkFrameID();
+      sensor_frame_id_ = pose_lookup_->GetBaselinkFrameID();
   };
 
   /**
@@ -44,12 +44,12 @@ class FrameInitializerBase {
   bool GetEstimatedPose(Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
                         std::string sensor_frame_id = "") {
     if (sensor_frame_id.empty()) sensor_frame_id = sensor_frame_id_;
-    return pose_lookup_.GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id,
-                                          time);
+    return pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id,
+                                           time);
   };
 
  protected:
-  beam_common::PoseLookup pose_lookup_;
+  std::shared_ptr<beam_common::PoseLookup> pose_lookup_;
   std::shared_ptr<tf2::BufferCore> poses_{nullptr};
   std::string sensor_frame_id_{""};
 };

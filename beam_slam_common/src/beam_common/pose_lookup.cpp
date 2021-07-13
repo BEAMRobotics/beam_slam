@@ -5,7 +5,8 @@
 
 namespace beam_common {
 
-PoseLookup::PoseLookup() {
+PoseLookup::PoseLookup(const std::shared_ptr<tf2::BufferCore> poses)
+    : poses_(poses) {
   // get parameters from global namespace
   ros::param::get("~world_frame", world_frame_);
   ros::param::get("~baselink_frame", baselink_frame_);
@@ -25,26 +26,9 @@ PoseLookup::PoseLookup() {
   }
 }
 
-bool PoseLookup::CheckPoses() {
-  if (poses_) {
-    BEAM_ERROR("Poses cannot be empty.");
-    throw std::invalid_argument{"Poses must be set for PoseLookup to function"};
-    return false;
-  } else {
-    return true;
-  }
-}
-
-bool PoseLookup::SetPoses(const std::shared_ptr<tf2::BufferCore> poses) {
-  poses_ = poses;
-  return CheckPoses();
-}
-
 bool PoseLookup::GetT_WORLD_SENSOR(Eigen::Matrix4d& T_WORLD_SENSOR,
                                    const std::string& sensor_frame,
                                    const ros::Time& time) {
-  if (!CheckPoses()) return false;
-
   // get extrinsics
   Eigen::Matrix4d T_BASELINK_SENSOR;
   if (!GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame, time)) {
@@ -120,8 +104,6 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
 
 bool PoseLookup::GetT_WORLD_BASELINK(Eigen::Matrix4d& T_WORLD_BASELINK,
                                      const ros::Time& time) {
-  if (!CheckPoses()) return false;
-
   std::string error_msg;
   bool can_transform =
       poses_->canTransform(world_frame_, baselink_frame_, time, &error_msg);

@@ -19,7 +19,7 @@ bool InternalFrameInitializer::AddPose(const Eigen::Matrix4d& T_WORLD_SENSOR,
   if (poses_) {
     poses_ =
         std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time_));
-    pose_lookup_.SetPoses(poses_);
+    pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);
   }
 
   // set sensor frame id
@@ -34,7 +34,7 @@ bool InternalFrameInitializer::AddPose(const Eigen::Matrix4d& T_WORLD_SENSOR,
   // build tf message and populate in buffer core
   geometry_msgs::TransformStamped tf_stamped;
   tf_stamped.header.stamp = stamp;
-  tf_stamped.header.frame_id = pose_lookup_.GetWorldFrameID();
+  tf_stamped.header.frame_id = pose_lookup_->GetWorldFrameID();
   tf_stamped.child_frame_id = sensor_frame_id;
   tf_stamped.transform.translation.x = position[0];
   tf_stamped.transform.translation.y = position[1];

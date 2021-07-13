@@ -30,18 +30,6 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     throw std::invalid_argument{"Invalid extensions type."};
   }
 
-  if (sensor_frame_id_ != poses_reader.GetFixedFrame()) {
-    BEAM_WARN(
-        "Sensor frame supplied to PoseFrameInitializer is not consistent "
-        "with pose file.");
-  }
-
-  if (pose_lookup_.GetWorldFrameID() != poses_reader.GetMovingFrame()) {
-    BEAM_WARN(
-        "World frame supplied to PoseFrameInitializer is not consistent "
-        "with pose file.");
-  }
-
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
       transforms = poses_reader.GetPoses();
   std::vector<ros::Time> timestamps = poses_reader.GetTimeStamps();
@@ -55,13 +43,25 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   }
 
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
-  pose_lookup_.SetPoses(poses_);
+  pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);
+
+  if (sensor_frame_id_ != poses_reader.GetFixedFrame()) {
+    BEAM_WARN(
+        "Sensor frame supplied to PoseFrameInitializer is not consistent "
+        "with pose file.");
+  }
+
+  if (pose_lookup_->GetWorldFrameID() != poses_reader.GetMovingFrame()) {
+    BEAM_WARN(
+        "World frame supplied to PoseFrameInitializer is not consistent "
+        "with pose file.");
+  }
 
   for (int i = 0; i < transforms.size(); i++) {
     geometry_msgs::TransformStamped tf_stamped;
     tf_stamped.header.stamp = timestamps[i];
     tf_stamped.header.seq = i;
-    tf_stamped.header.frame_id = pose_lookup_.GetWorldFrameID();
+    tf_stamped.header.frame_id = pose_lookup_->GetWorldFrameID();
     tf_stamped.child_frame_id = sensor_frame_id_;
     tf_stamped.transform.translation.x = transforms[i](0, 3);
     tf_stamped.transform.translation.y = transforms[i](1, 3);
