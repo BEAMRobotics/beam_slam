@@ -30,9 +30,9 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     throw std::invalid_argument{"Invalid extensions type."};
   }
 
-  if (pose_lookup_.GetBaselinkFrameID() != poses_reader.GetFixedFrame()) {
+  if (sensor_frame_id_ != poses_reader.GetFixedFrame()) {
     BEAM_WARN(
-        "Baselink frame supplied to PoseFrameInitializer is not consistent "
+        "Sensor frame supplied to PoseFrameInitializer is not consistent "
         "with pose file.");
   }
 
@@ -55,13 +55,14 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   }
 
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
+  pose_lookup_.SetPoses(poses_);
 
   for (int i = 0; i < transforms.size(); i++) {
     geometry_msgs::TransformStamped tf_stamped;
     tf_stamped.header.stamp = timestamps[i];
     tf_stamped.header.seq = i;
     tf_stamped.header.frame_id = pose_lookup_.GetWorldFrameID();
-    tf_stamped.child_frame_id = pose_lookup_.GetBaselinkFrameID();
+    tf_stamped.child_frame_id = sensor_frame_id_;
     tf_stamped.transform.translation.x = transforms[i](0, 3);
     tf_stamped.transform.translation.y = transforms[i](1, 3);
     tf_stamped.transform.translation.z = transforms[i](2, 3);
@@ -74,8 +75,6 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     std::string authority{"poses_file"};
     poses_->setTransform(tf_stamped, authority, false);
   }
-
-  pose_lookup_.SetPoses(poses_);
 }
 
 }  // namespace frame_initializers
