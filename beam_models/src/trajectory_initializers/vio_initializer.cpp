@@ -1,4 +1,4 @@
-#include <beam_models/initialization/vio_initializer.h>
+#include <beam_models/trajectory_initializers/vio_initializer.h>
 
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/PoseRefinement.h>

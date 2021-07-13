@@ -1,4 +1,4 @@
-#include <beam_models/initialization/imu_initializer.h>
+#include <beam_models/trajectory_initializers/imu_initializer.h>
 #define GRAVITY_NOMINAL 9.86055
 
 namespace beam_models { namespace camera_to_camera {

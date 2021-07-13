@@ -13,7 +13,7 @@
 #include <beam_models/InitializedPathMsg.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
-#include <beam_models/initialization/vio_initializer.h>
+#include <beam_models/trajectory_initializers/vio_initializer.h>
 #include <beam_parameters/models/camera_params.h>
 #include <beam_parameters/models/imu_params.h>
 
@@ -97,17 +97,37 @@ private:
   cv::Mat ExtractImage(const sensor_msgs::Image& msg);
 
   /**
-   * @brief Determines if the current frame is a keyframe
-   * @param img_time timestamp of image to check if its a valid keyframe (should
-   * be the most recently added image)
-   */
-  bool IsKeyframe(ros::Time img_time);
-
-  /**
-   * @brief Copies all variables and constraints in the init graph and sends to fuse
+   * @brief Copies all variables and constraints in the init graph and sends to
+   * fuse
    * @param init_graph the graph obtained from the initializer
    */
   void SendInitializationGraph(const fuse_graphs::HashGraph& init_graph);
+
+  /**
+   * @brief Localizes a given frame using the tracker and the current visual map
+   * @param img_time time of image to localize
+   * @param[out] triangulated_ids id's of landmarks that have already been
+   * triangulated
+   * @param[out] untriangulated_ids id's of landmarks that have not been
+   * triangulated
+   * @return T_WORLD_CAMERA
+   */
+  Eigen::Matrix4d LocalizeFrame(const ros::Time& img_time,
+                                std::vector<uint64_t>& triangulated_ids,
+                                std::vector<uint64_t>& untriangulated_ids);
+
+  /**
+   * @brief Determines if a frame is a keyframe
+   * @param img_time time of image to determine if its a keyframe
+   * @param triangulated_ids id's of landmarks that have already been
+   * triangulated
+   * @param untriangulated_ids id's of landmarks that have not been
+   * triangulated
+   * @return true or false decision
+   */
+  bool IsKeyframe(const ros::Time& img_time,
+                  const std::vector<uint64_t>& triangulated_ids,
+                  const std::vector<uint64_t>& untriangulated_ids);
 
 protected:
   std::string source_ = "VIO";
@@ -130,6 +150,7 @@ protected:
   std::shared_ptr<beam_models::camera_to_camera::VIOInitializer> initializer_;
   // most recent keyframe timestamp
   ros::Time cur_kf_time_ = ros::Time(0);
+  std::deque<ros::Time> keyframes_;
 
   // temp stuff
   ros::Time last_stamp_;

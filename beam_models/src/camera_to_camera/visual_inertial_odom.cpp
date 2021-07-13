@@ -102,24 +102,31 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
    **************************************************************************/
   if (imu_time > img_time && !imu_buffer_.empty()) {
     tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
-    bool is_kf = IsKeyframe(img_time);
-    if (!initializer_->Initialized() && is_kf) {
+    if (!initializer_->Initialized()) {
       // temp
       if (cur_kf_time_ > last_stamp_ && !set_once) {
         init_path_pub_.publish(init_path_);
         set_once = true;
       }
-      if (initializer_->AddImage(img_time)) {
-        ROS_INFO("Initialization Success.");
-        // get the preintegration object
-        imu_preint_ = initializer_->GetPreintegrator();
-        // copy init graph and send to fuse optimizer
-        SendInitializationGraph(initializer_->GetGraph());
+      if ((img_time - cur_kf_time_).toSec() >= 0.8) {
+        cur_kf_time_ = img_time;
+        if (initializer_->AddImage(img_time)) {
+          ROS_INFO("Initialization Success.");
+          // get the preintegration object
+          imu_preint_ = initializer_->GetPreintegrator();
+          // copy init graph and send to fuse optimizer
+          SendInitializationGraph(initializer_->GetGraph());
+        }
       }
-    } else if (initializer_->Initialized() && !is_kf) {
-      // localize image and publish to internal frame initializer
-    } else if (initializer_->Initialized() && is_kf) {
-      // localize image and add to graph and publish to frame initializer
+    } else {
+      std::vector<uint64_t> triangulated_ids;
+      std::vector<uint64_t> untriangulated_ids;
+      Eigen::Matrix4d T_WORLD_CAMERA =
+          LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
+      if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
+        // [1] Add constraints to triangulated ids
+        // [2] Try to triangulate untriangulated ids and add constraints
+      }
     }
     image_buffer_.pop();
   }
@@ -150,6 +157,9 @@ void VisualInertialOdom::processInitPath(
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   visual_map_->UpdateGraph(graph);
+  // for each keyframe in keyframe queue if its timestamp is outside of current
+  // window (cur_kf_time - window duration), then publish its landmark
+  // measurements
 }
 
 void VisualInertialOdom::onStop() {}
@@ -162,17 +172,6 @@ cv::Mat VisualInertialOdom::ExtractImage(const sensor_msgs::Image& msg) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
   return cv_ptr->image;
-}
-
-bool VisualInertialOdom::IsKeyframe(ros::Time img_time) {
-  if (cur_kf_time_ == ros::Time(0)) {
-    cur_kf_time_ = img_time;
-    return true;
-  } else if ((img_time - cur_kf_time_).toSec() >= 0.8) {
-    cur_kf_time_ = img_time;
-    return true;
-  }
-  return false;
 }
 
 void VisualInertialOdom::SendInitializationGraph(
@@ -206,4 +205,47 @@ void VisualInertialOdom::SendInitializationGraph(
   sendTransaction(transaction);
 }
 
+Eigen::Matrix4d VisualInertialOdom::LocalizeFrame(
+    const ros::Time& img_time, std::vector<uint64_t>& triangulated_ids,
+    std::vector<uint64_t>& untriangulated_ids) {
+  std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
+  std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
+  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
+  for (auto& id : landmarks) {
+    fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+    if (lm) {
+      triangulated_ids.push_back(id);
+      Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
+      pixels.push_back(pixeli);
+      Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
+      points.push_back(point);
+    } else {
+      untriangulated_ids.push_back(id);
+    }
+  }
+  if (points.size() < 3) { return Eigen::Matrix4d::Zero(); }
+  Eigen::Matrix4d T_CAMERA_WORLD_est =
+      beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
+                                                      points);
+  ceres::Solver::Options ceres_solver_options;
+  ceres_solver_options.minimizer_progress_to_stdout = false;
+  ceres_solver_options.max_solver_time_in_seconds = 1e-2;
+  ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
+  ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
+  beam_cv::PoseRefinement refiner(ceres_solver_options);
+  std::string report;
+  Eigen::Matrix4d T_CAMERA_WORLD_ref = refiner.RefinePose(
+      T_CAMERA_WORLD_est, cam_model_, pixels, points, report);
+  return T_CAMERA_WORLD_ref.inverse();
+}
+
+bool IsKeyframe(const ros::Time& img_time,
+                const std::vector<uint64_t>& triangulated_ids,
+                const std::vector<uint64_t>& untriangulated_ids) {
+  return true;
+  // [1] If at least t1 time has passed
+  // [2] If average parallax is over N and there translational movement over X
+  // [3] If tracks drop below M (loss of tracks)
+  // [4] If neither [2] or [3] then if over t2 has passed (stationary)
+}
 }} // namespace beam_models::camera_to_camera

@@ -9,7 +9,7 @@
 #include <beam_common/utils.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
-#include <beam_models/initialization/imu_initializer.h>
+#include <beam_models/trajectory_initializers/imu_initializer.h>
 #include <fuse_graphs/hash_graph.h>
 // ros
 #include <beam_models/InitializedPathMsg.h>
