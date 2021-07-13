@@ -1,10 +1,10 @@
 #include <beam_models/camera_to_camera/visual_inertial_odom.h>
-//#include <beam_common/extrinsics_lookup.h>
 // fuse
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 // other
 #include <cv_bridge/cv_bridge.h>
+#include <nlohmann/json.hpp>
 // libbeam
 #include <beam_cv/Utils.h>
 #include <beam_cv/descriptors/Descriptors.h>
@@ -26,17 +26,9 @@ VisualInertialOdom::VisualInertialOdom()
     : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL) {}
 
 void VisualInertialOdom::onInit() {
-  Eigen::Matrix4d T_imu_cam;
-  T_imu_cam << 0.0148655429818, -0.999880929698, 0.00414029679422,
-      -0.0216401454975, 0.999557249008, 0.0149672133247, 0.025715529948,
-      -0.064676986768, -0.0257744366974, 0.00375618835797, 0.999660727178,
-      0.00981073058949, 0.0, 0.0, 0.0, 1.0;
-  // beam_common::ExtrinsicsLookup::GetInstance().GetT_IMU_CAMERA(T_imu_cam);
-  // std::cout << T_imu_cam << std::endl;
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   camera_params_.loadFromROS(private_node_handle_);
-  imu_params_.loadFromROS(private_node_handle_);
   /***********************************************************
    *       Initialize pose refiner object with params        *
    ***********************************************************/
@@ -54,9 +46,10 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *        Load camera model and Create Map object          *
    ***********************************************************/
-  cam_model_ =
-      beam_calibration::CameraModel::Create(camera_params_.cam_intrinsics_path);
-  visual_map_ = std::make_shared<VisualMap>(cam_model_, T_imu_cam, source_);
+  std::string cam_intrinsics_path;
+  ros::param::get("~camera_intrinsics_path", cam_intrinsics_path);
+  cam_model_ = beam_calibration::CameraModel::Create(cam_intrinsics_path);
+  visual_map_ = std::make_shared<VisualMap>(cam_model_, source_);
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
@@ -73,18 +66,22 @@ void VisualInertialOdom::onInit() {
       private_node_handle_.subscribe(camera_params_.image_topic, 1000,
                                      &VisualInertialOdom::processImage, this);
   imu_subscriber_ = private_node_handle_.subscribe(
-      imu_params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
+      camera_params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
   path_subscriber_ = private_node_handle_.subscribe(
       camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
       this);
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
+  std::string imu_intrinsics_path;
+  ros::param::get("~imu_intrinsics_path", imu_intrinsics_path);
+  nlohmann::json J;
+  std::ifstream file(imu_intrinsics_path);
+  file >> J;
   initializer_ =
       std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
-          cam_model_, tracker_, T_imu_cam, imu_params_.cov_gyro_noise,
-          imu_params_.cov_accel_noise, imu_params_.cov_gyro_bias,
-          imu_params_.cov_accel_bias);
+          cam_model_, tracker_, J["imuGyrNoise"], J["imuAccNoise"],
+          J["imuGyrBiasN"], J["imuAccBiasN"]);
   // temp
   init_path_pub_ = private_node_handle_.advertise<InitializedPathMsg>(
       camera_params_.init_path_topic, 1);

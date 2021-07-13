@@ -1,3 +1,4 @@
+#include <beam_common/extrinsics_lookup.h>
 #include <beam_constraints/camera_to_camera/visual_constraint.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_utils/math.h>
@@ -5,18 +6,25 @@
 namespace beam_models { namespace camera_to_camera {
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-                     const Eigen::Matrix4d& T_imu_cam,
                      const std::string& source)
-    : cam_model_(cam_model), T_imu_cam_(T_imu_cam), source_(source) {}
+    : cam_model_(cam_model), source_(source) {
+  if (!beam_common::ExtrinsicsLookup::GetInstance().GetT_IMU_CAMERA(
+          T_imu_cam_)) {
+    ROS_WARN("Unable to get imu to camera transform, using identity.");
+    T_imu_cam_ = Eigen::Matrix4d::Identity();
+  }
+}
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                      fuse_core::Graph::SharedPtr local_graph,
-                     const Eigen::Matrix4d& T_imu_cam,
                      const std::string& source)
-    : cam_model_(cam_model),
-      local_graph_(local_graph),
-      T_imu_cam_(T_imu_cam),
-      source_(source) {}
+    : cam_model_(cam_model), local_graph_(local_graph), source_(source) {
+  if (!beam_common::ExtrinsicsLookup::GetInstance().GetT_IMU_CAMERA(
+          T_imu_cam_)) {
+    ROS_WARN("Unable to get imu to camera transform, using identity.");
+    T_imu_cam_ = Eigen::Matrix4d::Identity();
+  }
+}
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetPose(const ros::Time& stamp) {
   fuse_variables::Position3DStamped::SharedPtr p = GetPosition(stamp);

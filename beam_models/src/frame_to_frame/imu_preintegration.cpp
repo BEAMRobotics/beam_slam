@@ -8,6 +8,7 @@ namespace beam_models {
 namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
+  CheckParameters();
   SetPreintegrator();
 }
 
@@ -15,6 +16,7 @@ ImuPreintegration::ImuPreintegration(const Params& params,
                                      const Eigen::Vector3d& init_bg,
                                      const Eigen::Vector3d& init_ba)
     : params_(params), bg_(init_bg), ba_(init_ba) {
+  CheckParameters();
   SetPreintegrator();
 }
 
@@ -29,6 +31,13 @@ void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
 
 void ImuPreintegration::AddToBuffer(const beam_common::IMUData& imu_data) {
   imu_data_buffer_.push(imu_data);
+}
+
+void ImuPreintegration::CheckParameters() {
+  if (params_.prior_noise <= 0) {
+    BEAM_ERROR("Prior noise on IMU preintegration must be positive");
+    throw std::invalid_argument{"Inputs to ImuPreintegration invalid."};
+  }
 }
 
 void ImuPreintegration::SetPreintegrator() {
@@ -125,12 +134,13 @@ Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
   return delta;
 }
 
-bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now) {
+bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
+                                const ros::Time& t_now) {
   // encapsulate imu measurments between frames
   beam_common::PreIntegrator pre_integrator_interval;
 
   // check requested time
-  if (t_now < imu_data_buffer_.front().t){
+  if (t_now < imu_data_buffer_.front().t) {
     return false;
   }
 
@@ -154,14 +164,17 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t
   return true;
 }
 
-bool ImuPreintegration::RegisterNewImuPreintegratedFactor(
-    beam_constraints::frame_to_frame::ImuState3DStampedTransaction& transaction,
+fuse_core::Transaction::SharedPtr
+ImuPreintegration::RegisterNewImuPreintegratedFactor(
     const ros::Time& t_now,
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
+  beam_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
+      t_now);
+
   // check requested time
   if (t_now < imu_data_buffer_.front().t) {
-    return false;
+    return nullptr;
   }
 
   // generate prior constraint at start
@@ -236,7 +249,7 @@ bool ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   ResetPreintegrator();
 
-  return true;
+  return transaction.GetTransaction();
 }
 
 }  // namespace frame_to_frame

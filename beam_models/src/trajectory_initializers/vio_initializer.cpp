@@ -7,22 +7,21 @@ namespace beam_models { namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
-    std::shared_ptr<beam_cv::Tracker> tracker, const Eigen::Matrix4d& T_imu_cam,
-    const Eigen::Matrix3d& cov_gyro_noise,
-    const Eigen::Matrix3d& cov_accel_noise,
-    const Eigen::Matrix3d& cov_gyro_bias, const Eigen::Matrix3d& cov_accel_bias,
-    bool use_scale_estimate)
+    std::shared_ptr<beam_cv::Tracker> tracker, const double& gyro_noise,
+    const double& accel_noise, const double& gyro_bias,
+    const double& accel_bias, bool use_scale_estimate)
     : cam_model_(cam_model),
       tracker_(tracker),
-      T_imu_cam_(T_imu_cam),
-      cov_gyro_noise_(cov_gyro_noise),
-      cov_accel_noise_(cov_accel_noise),
-      cov_gyro_bias_(cov_gyro_bias),
-      cov_accel_bias_(cov_accel_bias),
       use_scale_estimate_(use_scale_estimate) {
+  // set covariance matrices for imu
+  cov_gyro_noise_ = Eigen::Matrix3d::Identity() * gyro_noise;
+  cov_accel_noise_ = Eigen::Matrix3d::Identity() * accel_noise;
+  cov_gyro_bias_ = Eigen::Matrix3d::Identity() * gyro_bias;
+  cov_accel_bias_ = Eigen::Matrix3d::Identity() * accel_bias;
+  // create optimzation graph
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
-  visual_map_ =
-      std::make_shared<VisualMap>(cam_model_, local_graph_, T_imu_cam);
+  // create visual map
+  visual_map_ = std::make_shared<VisualMap>(cam_model_, local_graph_);
 }
 
 bool VIOInitializer::AddImage(ros::Time cur_time) {
@@ -203,17 +202,15 @@ void VIOInitializer::AddPosesAndInertialConstraints(
       fuse_variables::Position3DStamped::SharedPtr img_position =
           visual_map_->GetPosition(frame.t);
       // get imu transaction
-      beam_constraints::frame_to_frame::ImuState3DStampedTransaction
-          imu_transaction(frame.t);
-      imu_preint_->RegisterNewImuPreintegratedFactor(
-          imu_transaction, frame.t, img_orientation, img_position);
-      fuse_core::Transaction::SharedPtr fuse_transaction =
-          imu_transaction.GetTransaction();
+      fuse_core::Transaction::SharedPtr transaction =
+          imu_preint_->RegisterNewImuPreintegratedFactor(
+              frame.t, img_orientation, img_position);
+
       // add constituent variables and constraints
-      for (auto& var : fuse_transaction->addedVariables()) {
+      for (auto& var : transaction->addedVariables()) {
         local_graph_->addVariable(std::move(var.clone()));
       }
-      for (auto& constraint : fuse_transaction->addedConstraints()) {
+      for (auto& constraint : transaction->addedConstraints()) {
         local_graph_->addConstraint(std::move(constraint.clone()));
       }
     }

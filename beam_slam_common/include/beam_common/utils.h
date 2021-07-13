@@ -6,81 +6,50 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <nav_msgs/Path.h>
 
+#include <beam_common/scan_pose.h>
+#include <beam_matching/loam/LoamPointCloud.h>
+
 namespace beam_common {
 
-inline void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
-                                     fuse_variables::Position3DStamped& p,
-                                     fuse_variables::Orientation3DStamped& o) {
-  // get position
-  p.x() = T_WORLD_SENSOR(0, 3);
-  p.y() = T_WORLD_SENSOR(1, 3);
-  p.z() = T_WORLD_SENSOR(2, 3);
+static std::string default_string{""};
 
-  // get rotation
-  Eigen::Matrix3d R = T_WORLD_SENSOR.block(0, 0, 3, 3);
-  Eigen::Quaterniond q(R);
-  o.x() = q.x();
-  o.y() = q.y();
-  o.z() = q.z();
-  o.w() = q.w();
-}
+void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
+                              fuse_variables::Position3DStamped& p,
+                              fuse_variables::Orientation3DStamped& o);
 
-inline void
+void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
+                              const fuse_variables::Orientation3DStamped& o,
+                              Eigen::Matrix4d& T_WORLD_SENSOR);
+
+Eigen::Matrix4d
     FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
-                             const fuse_variables::Orientation3DStamped& o,
-                             Eigen::Matrix4d& T_WORLD_SENSOR) {
-  Eigen::Quaterniond q(o.w(), o.x(), o.y(), o.z());
-  T_WORLD_SENSOR.block(0, 3, 3, 1) = Eigen::Vector3d{p.x(), p.y(), p.z()};
-  T_WORLD_SENSOR.block(0, 0, 3, 3) = q.toRotationMatrix();
-}
+                             const fuse_variables::Orientation3DStamped& o);
 
-inline Eigen::Matrix4d
-    FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
-                             const fuse_variables::Orientation3DStamped& o) {
-  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
+/**
+ * @brief Turns a pose message into an Eigen 4x4 matrix
+ * @param pose pose message to turn into eigen matrix
+ * @param T_WORLD_SENSOR[out] Transform to return
+ */
+void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
+                                   Eigen::Matrix4d& T_WORLD_SENSOR);
 
-  // add position
-  T(0, 3) = p.x();
-  T(1, 3) = p.y();
-  T(2, 3) = p.z();
-
-  // add rotation
-  Eigen::Quaterniond q(o.w(), o.x(), o.y(), o.z());
-  Eigen::Matrix3d R = q.toRotationMatrix();
-  T.block(0, 0, 3, 3) = R;
-  return T;
-}
-
-inline void
-    PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
-                                  Eigen::Matrix4d& T_WORLD_SENSOR) {
-  Eigen::Vector3d position;
-  position[0] = pose.pose.position.x;
-  position[1] = pose.pose.position.y;
-  position[2] = pose.pose.position.z;
-  Eigen::Quaterniond orientation;
-  orientation.w() = pose.pose.orientation.w;
-  orientation.x() = pose.pose.orientation.x;
-  orientation.y() = pose.pose.orientation.y;
-  orientation.z() = pose.pose.orientation.z;
-  beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
-                                                  T_WORLD_SENSOR);
-}
-
-inline void InterpolateTransformFromPath(
+/**
+ * @brief Interpolates a pose given a list of poses and a time
+ * @param poses list of poses
+ * @param time time to interpolate pose for
+ * @param T_WORLD_SENSOR[out] pose to return
+ */
+void InterpolateTransformFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
-    Eigen::Matrix4d& T_WORLD_SENSOR) {
-  for (int i = 0; i < poses.size(); i++) {
-    if (time < poses[i + 1].header.stamp && time >= poses[i].header.stamp) {
-      Eigen::Matrix4d pose1, pose2;
-      PoseMsgToTransformationMatrix(poses[i], pose1);
-      PoseMsgToTransformationMatrix(poses[i + 1], pose2);
-      T_WORLD_SENSOR = beam::InterpolateTransform(
-          pose1, beam::RosTimeToChrono(poses[i].header.stamp), pose2,
-          beam::RosTimeToChrono(poses[i + 1].header.stamp),
-          beam::RosTimeToChrono(time));
-    }
-  }
-}
+    Eigen::Matrix4d& T_WORLD_SENSOR);
+
+/**
+ * @brief iterates through all keypoints in the list and add up the change in
+ * position between each keyframe.
+ * @param keyframes list of scan poses that makeup the trajectory of keyframes
+ * @return trajectory length
+ */
+double CalculateTrajectoryLength(
+    const std::list<beam_common::ScanPose>& keyframes);
 
 } // namespace beam_common

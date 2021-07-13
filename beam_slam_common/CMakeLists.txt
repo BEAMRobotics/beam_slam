@@ -50,6 +50,7 @@ add_library(${PROJECT_NAME}
   src/beam_common/scan_pose.cpp
   src/beam_common/lidar_map.cpp
   src/beam_common/preintegrator.cpp
+  src/beam_common/utils.cpp
   )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}

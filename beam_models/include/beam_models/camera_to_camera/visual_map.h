@@ -23,21 +23,17 @@ public:
   /**
    * @brief Custom cosntrcutor, use when working with transactions
    * @param cam_model camera model being used
-   * @param T_imu_cam transform from camera to imu frame
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-            const Eigen::Matrix4d& T_imu_cam,
             const std::string& source = "VIO");
 
   /**
    * @brief Custom cosntrcutor, use when working with local graph
    * @param cam_model camera model being used
    * @param local_graph graph object being used
-   * @param T_imu_cam transform from camera to imu frame
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
             fuse_core::Graph::SharedPtr local_graph,
-            const Eigen::Matrix4d& T_imu_cam,
             const std::string& source = "VIO");
 
   /**

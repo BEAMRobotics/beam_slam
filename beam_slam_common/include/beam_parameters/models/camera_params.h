@@ -22,16 +22,16 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-    getParam<std::string>(nh, "cam_intrinsics_path", cam_intrinsics_path, "");
     getParam<std::string>(nh, "image_topic", image_topic, "");
     getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
     getParam<int>(nh, "window_size", window_size, 100);
+    getParam<std::string>(nh, "imu_topic", imu_topic, "");
   }
 
-  std::string cam_intrinsics_path{};
   std::string image_topic{};
   std::string init_path_topic{};
   int window_size{};
+  std::string imu_topic{};
 };
 
 }} // namespace beam_parameters::models

@@ -29,11 +29,8 @@ public:
    */
   VIOInitializer(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                  std::shared_ptr<beam_cv::Tracker> tracker,
-                 const Eigen::Matrix4d& T_imu_cam,
-                 const Eigen::Matrix3d& cov_gyro_noise,
-                 const Eigen::Matrix3d& cov_accel_noise,
-                 const Eigen::Matrix3d& cov_gyro_bias,
-                 const Eigen::Matrix3d& cov_accel_bias,
+                 const double& gyro_noise, const double& accel_noise,
+                 const double& gyro_bias, const double& accel_bias,
                  bool use_scale_estimate = false);
 
   /**
@@ -139,7 +136,6 @@ protected:
 
   bool is_initialized_ = false;
   bool use_scale_estimate_ = false;
-  Eigen::Matrix4d T_imu_cam_;
   Eigen::Matrix3d cov_gyro_noise_;
   Eigen::Matrix3d cov_accel_noise_;
   Eigen::Matrix3d cov_gyro_bias_;

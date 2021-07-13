@@ -1,0 +1,24 @@
+{
+  "solver_options":
+  {
+    "minimizer_progress_to_stdout": false,
+    "max_num_iterations": 5,
+    "max_solver_time_in_seconds": 1e6,
+    "function_tolerance": 1e-8,
+    "gradient_tolerance": 1e-10,
+    "parameter_tolerance": 1e-8,
+    "linear_solver_type": "DENSE_QR",
+    "preconditioner_type": "SCHUR_JACOBI"
+  },
+  "problem_options":
+  {
+    "local_parameterization_take_ownership": false,
+    "cost_function_take_ownership": false,
+    "loss_function_take_ownership": false
+  },
+  "loss_function": 
+  {
+    "type": "HUBER",
+    "scaling": 1
+  }
+}
