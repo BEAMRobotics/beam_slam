@@ -285,3 +285,8 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
   EXPECT_TRUE(
       beam::ArePosesEqual(T_WORLD_S3_mea, data_.T_WORLD_S3, 1, 0.06, true));
 }
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
