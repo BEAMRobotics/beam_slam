@@ -45,16 +45,18 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
   pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);
 
-  if (sensor_frame_id_ != poses_reader.GetFixedFrame()) {
+  if (sensor_frame_id_ != poses_reader.GetMovingFrame()) {
     BEAM_WARN(
         "Sensor frame supplied to PoseFrameInitializer is not consistent "
-        "with pose file.");
+        "with pose file. Suplied: {}, Read: {}",
+        sensor_frame_id_, poses_reader.GetMovingFrame());
   }
 
-  if (pose_lookup_->GetWorldFrameID() != poses_reader.GetMovingFrame()) {
+  if (pose_lookup_->GetWorldFrameID() != poses_reader.GetFixedFrame()) {
     BEAM_WARN(
         "World frame supplied to PoseFrameInitializer is not consistent "
-        "with pose file.");
+        "with pose file. Suplied: {}, Read: {}",
+        pose_lookup_->GetWorldFrameID(), poses_reader.GetFixedFrame());
   }
 
   for (int i = 0; i < transforms.size(); i++) {
