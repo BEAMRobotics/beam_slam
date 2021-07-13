@@ -88,11 +88,16 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
    */
   bool AddPointcloudToKeyframe(const PointCloud& cloud, const ros::Time& time);
 
+
   /**
-   * @brief run loam scan to map registration to get a more precise estimate of
-   * scan poses
+   * @brief Sets the first scan pose in the keyframes list to identity, and
+   * adjusts all subsequent poses to reflect this start change. The reason for
+   * this is that the initial scan pose will be calculated with respect to the
+   * first keyframe. Since we often rejects frames at the start that are
+   * stationary, the post of the first kept keyframe likely won't be identity
+   * and is likely to have drifted.
    */
-  void CalculateTrajectory();
+  void SetTrajectoryStart();
 
   /**
    * @brief Save three types of scans to separate folders:
@@ -109,22 +114,6 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
    * @brief publish results of initialization to a InitializedPathMsg
    */
   void PublishResults();
-
-  /**
-   * @brief saves results when scan matching failed, useful for debugging failed
-   * scan registrations
-   */
-  void SaveFailedMatchResults(const beam_common::ScanPose& scan_pose_ref,
-                              const beam_common::ScanPose& scan_pose_tgt,
-                              const std::string& result_summary);
-
-  /**
-   * @brief saves results when scan matching passed, useful for debugging failed
-   * scan registrations
-   */
-  void SaveSuccessfulMatchResults(const beam_common::ScanPose& scan_pose_ref,
-                                  const beam_common::ScanPose& scan_pose_tgt,
-                                  const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   // subscribers
   ros::Subscriber lidar_subscriber_;
@@ -155,13 +144,6 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   // bool for tracking if initialization has completed
   bool initialization_complete_{false};
 
-  // debugging tools
-  std::string debug_output_path_{
-      "/home/nick/debug/lo_initializer_tests/success/"};
-  bool output_successful_matches_{false};
-  std::string debug_output_path_failed_{
-      "/home/nick/debug/lo_initializer_tests/failed/"};
-  bool output_failed_matches_{false};
 };
 }  // namespace frame_to_frame
 }  // namespace beam_models

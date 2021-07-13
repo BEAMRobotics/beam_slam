@@ -33,27 +33,6 @@ void InterpolateTransformFromPath(const nav_msgs::Path& path,
                                   Eigen::Matrix4d& T_WORLD_SENSOR);
 
 /**
- * @brief match two scan poses and get resulting transform between them
- * @param scan_pose_1
- * @param scan_pose_2
- * @param matcher
- * @param outlier_threshold_r_deg
- * @param outlier_threshold_t_m
- * @param T_CLOUD1_CLOUD2 reference to result (transform from cloud2 to cloud1)
- * @param result_summary optional reference to string to store a summary of the
- * result. Either success, or failed with reason.
- * @return true if match was successful
- */
-bool MatchScans(
-    const beam_common::ScanPose& scan_pose_1,
-    const beam_common::ScanPose& scan_pose_2,
-    const std::unique_ptr<
-        beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>& matcher,
-    double outlier_threshold_r_deg, double outlier_threshold_t_m,
-    Eigen::Matrix4d& T_CLOUD1_CLOUD2,
-    std::string& result_summary = default_string);
-
-/**
  * @brief iterates through all keypoints in the list and add up the change in
  * position between each keyframe.
  * @param keyframes list of scan poses that makeup the trajectory of keyframes

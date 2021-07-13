@@ -112,7 +112,6 @@ add_library(
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
   src/trajectory_initializers/imu_initializer.cpp
-  src/trajectory_initializers/lio_initializer.cpp
   src/trajectory_initializers/lo_initializer.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp

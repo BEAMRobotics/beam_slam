@@ -76,49 +76,6 @@ void InterpolateTransformFromPath(const nav_msgs::Path& path,
   }
 }
 
-bool MatchScans(
-    const beam_common::ScanPose& scan_pose_1,
-    const beam_common::ScanPose& scan_pose_2,
-    const std::unique_ptr<
-        beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>& matcher,
-    double outlier_threshold_r_deg, double outlier_threshold_t_m,
-    Eigen::Matrix4d& T_CLOUD1_CLOUD2, std::string& result_summary) {
-  Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
-      beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
-      scan_pose_2.T_REFFRAME_CLOUD();
-
-  beam_matching::LoamPointCloud cloud2_RefFInit = scan_pose_2.LoamCloud();
-  cloud2_RefFInit.TransformPointCloud(T_CLOUD1_CLOUD2_init);
-  std::shared_ptr<beam_matching::LoamPointCloud> c2 =
-      std::make_shared<beam_matching::LoamPointCloud>(cloud2_RefFInit);
-  std::shared_ptr<beam_matching::LoamPointCloud> c1 =
-      std::make_shared<beam_matching::LoamPointCloud>(scan_pose_1.LoamCloud());
-
-  matcher->SetRef(c2);
-  matcher->SetTarget(c1);
-
-  // match clouds
-  if (!matcher->Match()) {
-    ROS_ERROR("Failed scan matching. Skipping measurement.");
-    result_summary = "failed : scan mathing was unsuccessful";
-    return false;
-  }
-
-  Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher->GetResult().matrix();
-  T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
-
-  if (!beam::ArePosesEqual(T_CLOUD1_CLOUD2, T_CLOUD1_CLOUD2_init,
-                           outlier_threshold_r_deg, outlier_threshold_t_m)) {
-    ROS_ERROR(
-        "Failed scan matcher transform threshold check. Skipping "
-        "lidar keyframe.");
-    result_summary = "failed : transform threshold check failed";
-    return false;
-  }
-
-  return true;
-}
-
 double CalculateTrajectoryLength(
     const std::list<beam_common::ScanPose>& keyframes) {
   double length{0};
