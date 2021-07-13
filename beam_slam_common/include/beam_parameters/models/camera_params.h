@@ -23,6 +23,7 @@ public:
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
     getParam<std::string>(nh, "image_topic", image_topic, "");
+    getParam<std::string>(nh, "source", source, "VIO");
     getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
     getParam<int>(nh, "window_size", window_size, 100);
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
@@ -32,6 +33,7 @@ public:
   std::string init_path_topic{};
   int window_size{};
   std::string imu_topic{};
+  std::string source{};
 };
 
 }} // namespace beam_parameters::models

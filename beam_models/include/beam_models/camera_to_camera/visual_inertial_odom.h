@@ -129,23 +129,28 @@ private:
                   const std::vector<uint64_t>& untriangulated_ids);
 
 protected:
-  std::string source_ = "VIO";
-  int img_num_{0};
   // loadable camera parameters
   beam_parameters::models::CameraParams camera_params_;
+
   // topic subscribers and buffers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
   ros::Subscriber path_subscriber_;
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
+
   // computer vision objects
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
-  std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
   std::shared_ptr<beam_models::camera_to_camera::VisualMap> visual_map_;
+
+  // initialization object
   std::shared_ptr<beam_models::camera_to_camera::VIOInitializer> initializer_;
+
+  // imu preintegration object
+  std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
+
   // most recent keyframe timestamp
   ros::Time cur_kf_time_ = ros::Time(0);
   std::deque<ros::Time> keyframes_;

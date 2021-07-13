@@ -49,7 +49,7 @@ void VisualInertialOdom::onInit() {
   std::string cam_intrinsics_path;
   ros::param::get("~camera_intrinsics_path", cam_intrinsics_path);
   cam_model_ = beam_calibration::CameraModel::Create(cam_intrinsics_path);
-  visual_map_ = std::make_shared<VisualMap>(cam_model_, source_);
+  visual_map_ = std::make_shared<VisualMap>(cam_model_, camera_params_.source);
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
@@ -241,7 +241,7 @@ bool IsKeyframe(const ros::Time& img_time,
                 const std::vector<uint64_t>& untriangulated_ids) {
   return true;
   // [1] If at least t1 time has passed
-  // [2] If average parallax is over N and there translational movement over X
+  // [2] If average parallax is over N and translational movement over t
   // [3] If tracks drop below M (loss of tracks)
   // [4] If neither [2] or [3] then if over t2 has passed (stationary)
 }

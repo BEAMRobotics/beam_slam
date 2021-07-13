@@ -125,25 +125,37 @@ private:
   void OptimizeGraph();
 
 protected:
+  // computer vision objects
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<beam_models::camera_to_camera::VisualMap> visual_map_;
+
+  // imu preintegration object
   std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
+
+  // graph object for optimization
   std::shared_ptr<fuse_graphs::HashGraph> local_graph_;
 
+  // stores the added imu messages and times of keyframes to use for init
   std::queue<sensor_msgs::Imu> imu_buffer_;
   std::vector<uint64_t> frame_times_;
 
+  // boolean flags
   bool is_initialized_ = false;
   bool use_scale_estimate_ = false;
+
+  // imu intrinsics
   Eigen::Matrix3d cov_gyro_noise_;
   Eigen::Matrix3d cov_accel_noise_;
   Eigen::Matrix3d cov_gyro_bias_;
   Eigen::Matrix3d cov_accel_bias_;
 
-  std::shared_ptr<InitializedPathMsg> init_path_;
+  // preintegration parameters
   Eigen::Vector3d gravity_, bg_, ba_;
   double scale_;
+
+  // initialization path
+  std::shared_ptr<InitializedPathMsg> init_path_;
 };
 
 }} // namespace beam_models::camera_to_camera
