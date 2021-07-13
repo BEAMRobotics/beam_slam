@@ -24,6 +24,7 @@ using namespace beam_common;
  */
 class ScanToMapRegistrationBase : public ScanRegistrationBase {
  public:
+
   /**
    * @brief Constructor that requires initial params
    * @param fix_first_scan set to true to give an almost perfect prior to the
@@ -36,8 +37,15 @@ class ScanToMapRegistrationBase : public ScanRegistrationBase {
    */
   ~ScanToMapRegistrationBase() = default;
 
+  /**
+   * @brief register a new scan and return the transaction generated
+   * @param new_scan scan pose to register to the current map
+   * @return transaction with constraint between the current scan pose and the
+   * previous, unless the map is empty then the transaction will only contain a
+   * prior constraint on this pose
+   */
   beam_constraints::frame_to_frame::Pose3DStampedTransaction RegisterNewScan(
-      const ScanPose& new_scan) override;
+      const ScanPose& new_scan) override; 
 
  protected:
   /**

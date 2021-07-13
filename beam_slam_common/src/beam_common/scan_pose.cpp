@@ -77,6 +77,11 @@ bool ScanPose::Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
   return false;
 }
 
+void ScanPose::Update(const Eigen::Matrix4d& T_REFFRAME_CLOUD) {
+  beam_common::EigenTransformToFusePose(T_REFFRAME_CLOUD, position_,
+                                        orientation_);
+}
+
 bool ScanPose::Near(const ros::Time& time, const double tolerance) const {
   return (std::abs(stamp_.toSec() - time.toSec()) <= tolerance);
 }
@@ -136,7 +141,7 @@ void ScanPose::Print(std::ostream& stream) const {
 }
 
 void ScanPose::Save(const std::string& save_path, bool to_reference_frame,
-                    bool add_frame) {
+                    bool add_frame) const {
   if (!boost::filesystem::exists(save_path)) {
     ROS_ERROR("Cannot save cloud, directory does not exist: %s",
               save_path.c_str());
@@ -173,7 +178,7 @@ void ScanPose::Save(const std::string& save_path, bool to_reference_frame,
 }
 
 void ScanPose::SaveLoamCloud(const std::string& save_path,
-                             bool to_reference_frame, bool add_frame) {
+                             bool to_reference_frame, bool add_frame) const {
   if (cloud_type_ != "LOAMPOINTCLOUD") {
     ROS_WARN("Scan pose has no LOAM pointcloud, not saving cloud.");
     return;

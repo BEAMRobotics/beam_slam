@@ -167,4 +167,52 @@ void LidarMap::Save(const std::string& save_path, bool add_frames, uint8_t r,
   }
 }
 
+bool LidarMap::GetScanPose(const ros::Time& stamp,
+                           Eigen::Matrix4d& T_MAP_SCAN) const {
+  // check loam poses
+  auto loam_iter = loam_cloud_poses_.find(stamp.toNSec());
+  if (loam_iter != loam_cloud_poses_.end()) {
+    T_MAP_SCAN = loam_iter->second;
+    return true;
+  }
+
+  // check other poses
+  auto iter = cloud_poses_.find(stamp.toNSec());
+  if (iter != cloud_poses_.end()) {
+    T_MAP_SCAN = iter->second;
+    return true;
+  }
+
+  return false;
+}
+
+bool LidarMap::GetScanInMapFrame(const ros::Time& stamp,
+                                 PointCloud& cloud) const {
+  auto iter = clouds_in_map_frame_.find(stamp.toNSec());
+  if (iter != clouds_in_map_frame_.end()) {
+    cloud = iter->second;
+    return true;
+  }
+
+  return false;
+}
+
+bool LidarMap::GetScanInMapFrame(const ros::Time& stamp,
+                                 LoamPointCloud& cloud) const {
+  auto iter = loam_clouds_in_map_frame_.find(stamp.toNSec());
+  if (iter != loam_clouds_in_map_frame_.end()) {
+    cloud = iter->second;
+    return true;
+  }
+
+  return false;
+}
+
+void LidarMap::Clear() {
+  clouds_in_map_frame_.clear();
+  cloud_poses_.clear();
+  loam_clouds_in_map_frame_.clear();
+  loam_cloud_poses_.clear();
+}
+
 }  // namespace beam_common

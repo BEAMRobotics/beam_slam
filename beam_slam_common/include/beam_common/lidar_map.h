@@ -114,7 +114,7 @@ class LidarMap {
                   double translation_threshold_m = 0.005);
 
   /**
-   * @brief save pointcloud of current scanpose
+   * @brief save pointcloud of current scanposes
    * @param save_path full path to output directory. This directory must exist
    * @param add_frames whether or not to add coordinate frames from each scan
    * @param r red color intensity (for non loam clouds only)
@@ -123,6 +123,39 @@ class LidarMap {
    */
   void Save(const std::string& save_path, bool add_frames = true,
             uint8_t r = 255, uint8_t g = 255, uint8_t b = 255) const;
+
+  /**
+   * @brief get a scan pose collected at some timestamp. This will check both
+   * the loam cloud poses (this takes priority) and regular poses
+   * @param stamp when scan was collected
+   * @param T_MAP_SCAN reference to cloud to fill inreference to cloud to fill
+   * inose of the scan
+   * @return true if scan with this timestamp exists
+   */
+  bool GetScanPose(const ros::Time& stamp, Eigen::Matrix4d& T_MAP_SCAN) const;
+
+  /**
+   * @brief get a scan collected at some timestamp, with points expressed in the
+   * map frame
+   * @param stamp when scan was collected
+   * @param cloud reference to cloud to fill in
+   * @return true if scan with thi stimestamp exists
+   */
+  bool GetScanInMapFrame(const ros::Time& stamp, PointCloud& cloud) const;
+
+    /**
+   * @brief get a scan collected at some timestamp, with points expressed in the
+   * map frame
+   * @param stamp when scan was collected
+   * @param cloud reference to loam cloud to fill in
+   * @return true if scan with thi stimestamp exists
+   */
+  bool GetScanInMapFrame(const ros::Time& stamp, LoamPointCloud& cloud) const;
+
+  /**
+   * @brief clears all scans and their associated poses
+   */
+  void Clear();
 
   /**
    * @brief Delete copy constructor

@@ -133,7 +133,7 @@ bool ScanToMapLoamRegistration::IsMapEmpty() {
 }
 
 bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
-                                                  Eigen::Matrix4d& T_MAP_SCAN) {
+                                                  Eigen::Matrix4d& T_MAP_SCAN) { 
   const Eigen::Matrix4d& T_MAPEST_SCAN = scan_pose.T_REFFRAME_CLOUD();
   Eigen::Matrix4d T_SCANPREV_SCANNEW =
       beam::InvertTransform(T_MAP_SCANPREV_) * T_MAPEST_SCAN;
@@ -148,8 +148,8 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   // get combined loamcloud map
   LoamPointCloudPtr current_map =
       std::make_shared<LoamPointCloud>(map_.GetLoamCloudMap());
-
-  matcher_->SetRef(current_map);
+  
+  matcher_->SetRef(current_map);  
   matcher_->SetTarget(scan_in_map_frame);
 
   if (!matcher_->Match()) {
