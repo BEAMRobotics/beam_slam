@@ -2,7 +2,7 @@
   "number_of_beams": 16,
   "fov_deg": 30,
   "vertical_axis": "Z",
-  "n_feature_regions": 6,
+  "n_feature_regions": 5,
   "curvature_region": 5,
   "max_corner_sharp": 2,
   "max_corner_less_sharp": 20,
@@ -14,7 +14,7 @@
   "iterate_correspondences": true,
   "convergence_criteria_translation_m": 0.001,
   "convergence_criteria_rotation_deg": 1,
-  "max_correspondence_iterations": 10,
+  "max_correspondence_iterations": 1,
   "output_ceres_summary": false,
   "ceres_config": ""
 }

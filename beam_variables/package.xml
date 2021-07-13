@@ -20,6 +20,8 @@
   <depend>pluginlib</depend>
   <depend>roscpp</depend>
 
+  <build_depend>libbeam</build_depend>
+
   <export>
     <fuse_core plugin="${prefix}/fuse_plugins.xml" />
   </export>
