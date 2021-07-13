@@ -152,12 +152,9 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   matcher_->SetRef(current_map);  
   matcher_->SetTarget(scan_in_map_frame);
 
-  beam::HighResolutionTimer timer;
-
   if (!matcher_->Match()) {
     return false;
   }
-  ROS_INFO("Total time to match: %.8f", timer.elapsed());
 
   Eigen::Matrix4d T_MAPEST_MAP = matcher_->GetResult().matrix();
 
