@@ -18,7 +18,7 @@
 // libbeam
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/geometry/PoseRefinement.h>
-#include <beam_cv/tracker/Tracker.h>
+#include <beam_cv/trackers/Tracker.h>
 
 namespace beam_models { namespace camera_to_camera {
 
