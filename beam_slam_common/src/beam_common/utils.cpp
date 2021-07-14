@@ -59,6 +59,21 @@ void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
                                                   T_WORLD_SENSOR);
 }
 
+void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
+                                       Eigen::Matrix4d& T_WORLD_SENSOR) {
+  T_WORLD_SENSOR = Eigen::Matrix4d::Identity();
+  T_WORLD_SENSOR(0, 3) = odom.pose.pose.position.x;
+  T_WORLD_SENSOR(1, 3) = odom.pose.pose.position.y;
+  T_WORLD_SENSOR(2, 3) = odom.pose.pose.position.z;
+  Eigen::Quaterniond q;
+  q.x() = odom.pose.pose.orientation.x;
+  q.y() = odom.pose.pose.orientation.y;
+  q.z() = odom.pose.pose.orientation.z;
+  q.w() = odom.pose.pose.orientation.w;
+  Eigen::Matrix3d R = q.toRotationMatrix();
+  T_WORLD_SENSOR.block(0, 0, 3, 3) = R;
+}
+
 void InterpolateTransformFromPath(const nav_msgs::Path& path,
                                   const ros::Time& time,
                                   Eigen::Matrix4d& T_WORLD_SENSOR) {
@@ -93,6 +108,69 @@ double CalculateTrajectoryLength(
   }
 
   return length;
+}
+
+void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS,
+                                         Eigen::Matrix4d& T) {
+  Eigen::Matrix4f T_float{Eigen::Matrix4f::Identity()};
+  T_float(0, 3) = TROS.getOrigin().getX();
+  T_float(1, 3) = TROS.getOrigin().getY();
+  T_float(2, 3) = TROS.getOrigin().getZ();
+  Eigen::Quaternionf q;
+  q.x() = TROS.getRotation().getX();
+  q.y() = TROS.getRotation().getY();
+  q.z() = TROS.getRotation().getZ();
+  q.w() = TROS.getRotation().getW();
+  T_float.block(0, 0, 3, 3) = q.toRotationMatrix();
+  T = T_float.cast<double>();
+}
+
+void TransformStampedMsgToEigenTransform(
+    const geometry_msgs::TransformStamped& TROS, Eigen::Matrix4d& T) {
+  Eigen::Matrix4f T_float{Eigen::Matrix4f::Identity()};
+  T_float(0, 3) = TROS.transform.translation.x;
+  T_float(1, 3) = TROS.transform.translation.y;
+  T_float(2, 3) = TROS.transform.translation.z;
+  Eigen::Quaternionf q;
+  q.x() = TROS.transform.rotation.x;
+  q.y() = TROS.transform.rotation.y;
+  q.z() = TROS.transform.rotation.z;
+  q.w() = TROS.transform.rotation.w;
+  T_float.block(0, 0, 3, 3) = q.toRotationMatrix();
+  T = T_float.cast<double>();
+}
+
+void EigenTransformToTransformStampedMsg(
+    const Eigen::Matrix4d& T, const ros::Time& stamp, int seq,
+    const std::string& parent_frame_id, const std::string& child_frame_id,
+    geometry_msgs::TransformStamped& tf_stamped) {
+  tf_stamped.header.stamp = stamp;
+  tf_stamped.header.seq = seq;
+  tf_stamped.header.frame_id = parent_frame_id;
+  tf_stamped.child_frame_id = child_frame_id;
+  tf_stamped.transform.translation.x = T(0, 3);
+  tf_stamped.transform.translation.y = T(1, 3);
+  tf_stamped.transform.translation.z = T(2, 3);
+  Eigen::Matrix3d R = T.block(0, 0, 3, 3);
+  Eigen::Quaterniond q(R);
+  tf_stamped.transform.rotation.x = q.x();
+  tf_stamped.transform.rotation.y = q.y();
+  tf_stamped.transform.rotation.z = q.z();
+  tf_stamped.transform.rotation.w = q.w();
+}
+
+void OdometryMsgToTransformedStamped(
+    const nav_msgs::Odometry& message, const ros::Time& stamp, int seq,
+    const std::string& parent_frame_id, const std::string& child_frame_id,
+    geometry_msgs::TransformStamped& tf_stamped) {
+  tf_stamped.header.stamp = stamp;
+  tf_stamped.header.seq = seq;
+  tf_stamped.header.frame_id = parent_frame_id;
+  tf_stamped.child_frame_id = child_frame_id;
+  tf_stamped.transform.translation.x = message.pose.pose.position.x;
+  tf_stamped.transform.translation.y = message.pose.pose.position.y;
+  tf_stamped.transform.translation.z = message.pose.pose.position.z;
+  tf_stamped.transform.rotation = message.pose.pose.orientation;
 }
 
 }  // namespace beam_common
