@@ -40,15 +40,6 @@ void ScanMatcher3D::onInit() {
     frame_initializer_ =
         std::make_unique<frame_initializers::PoseFileFrameInitializer>(
             params_.frame_initializer_info);
-  } else if (params_.frame_initializer_type == "INTERNAL") {
-    // frame_initializers::InternalFrameInitializer& internal_initializer =
-    //     frame_initializers::InternalFrameInitializer::GetInstance();
-    // frame_initializer_ =
-    //     std::make_unique<frame_initializers::InternalFrameInitializer>(
-    //         frame_initializers::InternalFrameInitializer::GetInstance());
-    // std::shared_ptr<frame_initializers::FrameInitializerBase> test1 =
-    //     std::make_shared<frame_initializers::InternalFrameInitializer>(internal_initializer);   
-    // *test1 = internal_initializer;
   } else {
     const std::string error =
         "frame_initializer_type invalid. Options: ODOMETRY, POSEFILE";
