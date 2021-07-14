@@ -77,8 +77,8 @@ void VisualInertialOdom::onInit() {
   file >> J;
   initializer_ =
       std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
-          cam_model_, tracker_, J["imuGyrNoise"], J["imuAccNoise"],
-          J["imuGyrBiasN"], J["imuAccBiasN"]);
+          cam_model_, tracker_, J["cov_gyro_noise"], J["cov_accel_noise"],
+          J["cov_gyro_bias"], J["cov_accel_bias"]);
   // temp
   init_path_pub_ = private_node_handle_.advertise<InitializedPathMsg>(
       camera_params_.init_path_topic, 1);
@@ -97,14 +97,8 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
   if (imu_time > img_time && !imu_buffer_.empty()) {
     tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
     if (!initializer_->Initialized()) {
-      // temp
-      if (cur_kf_time_ > last_stamp_ && !set_once) {
-        init_path_pub_.publish(init_path_);
-        set_once = true;
-      }
       if ((img_time - cur_kf_time_).toSec() >= 0.8) {
         cur_kf_time_ = img_time;
-        std::cout << "keyframe at:  " << cur_kf_time_ << std::endl;
         if (initializer_->AddImage(img_time)) {
           ROS_INFO("Initialization Success.");
           // get the preintegration object
@@ -112,6 +106,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
           // copy init graph and send to fuse optimizer
           SendInitializationGraph(initializer_->GetGraph());
         }
+        ROS_INFO("Initialization failure at %f", cur_kf_time_.toSec());
       }
     } else {
       std::vector<uint64_t> triangulated_ids;
