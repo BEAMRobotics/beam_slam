@@ -46,6 +46,17 @@ class PoseLookup {
                            const ros::Time& time);
 
   /**
+   * @brief Gets estimate of sensor frame pose wrt baselink frame
+   * @param T_BASELINK_SENSOR reference to result
+   * @param sensor_frame sensor frame id
+   * @param time stamp of the frame being initialized
+   * @return true if pose lookup was successful
+   */
+  bool GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
+                            const std::string& sensor_frame,
+                            const ros::Time& time);
+
+  /**
    * @brief Gets the frame id of world
    * @return frame id
    */
@@ -55,16 +66,11 @@ class PoseLookup {
    * @brief Gets the frame id of baselink
    * @return frame id
    */
-  std::string GetBaselinkFrameId() const { return extrinsics_.GetBaselinkFrameId(); }
+  std::string GetBaselinkFrameId() const {
+    return extrinsics_.GetBaselinkFrameId();
+  }
 
  private:
-  /**
-   * @brief Commonly thrown error when incorrectly getting baselink to sensor
-   * transform
-   * @return false if error thrown
-   */
-  bool ThrowFrameIDError();
-
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();
 
