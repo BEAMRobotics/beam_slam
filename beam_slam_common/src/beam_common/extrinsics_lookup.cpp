@@ -41,7 +41,7 @@ ExtrinsicsLookup::ExtrinsicsLookup() {
 bool ExtrinsicsLookup::GetT_CAMERA_IMU(Eigen::Matrix4d& T,
                                        const ros::Time& time) {
   // check if already known
-  if (static_extrinsics_) {
+  if (static_extrinsics_ && T_IMU_CAMERA_set_) {
     T = beam::InvertTransform(T_IMU_CAMERA_);
     return true;
   }
@@ -175,7 +175,7 @@ bool ExtrinsicsLookup::GetT_BASELINK_IMU(Eigen::Matrix4d& T,
     return GetT_LIDAR_IMU(T, time);
   }
 
-  // shouldn't ever get here because of validation on init
+  // should not get here because of validation on init
   return false;
 }
 
@@ -189,6 +189,9 @@ bool ExtrinsicsLookup::GetT_IMU_BASELINK(Eigen::Matrix4d& T,
   } else if (baselink_frame_ == lidar_frame_) {
     return GetT_IMU_LIDAR(T, time);
   }
+
+  // should not get here because of validation on init
+  return false;
 }
 
 bool ExtrinsicsLookup::GetT_BASELINK_CAMERA(Eigen::Matrix4d& T,
@@ -202,7 +205,7 @@ bool ExtrinsicsLookup::GetT_BASELINK_CAMERA(Eigen::Matrix4d& T,
     return GetT_LIDAR_CAMERA(T, time);
   }
 
-  // shouldn't ever get here because of validation on init
+  // should not get here because of validation on init
   return false;
 }
 
@@ -217,7 +220,7 @@ bool ExtrinsicsLookup::GetT_CAMERA_BASELINK(Eigen::Matrix4d& T,
     return GetT_CAMERA_LIDAR(T, time);
   }
 
-  // shouldn't ever get here because of validation on init
+  // should not get here because of validation on init
   return false;
 }
 
@@ -232,7 +235,7 @@ bool ExtrinsicsLookup::GetT_BASELINK_LIDAR(Eigen::Matrix4d& T,
     return true;
   }
 
-  // shouldn't ever get here because of validation on init
+  // should not get here because of validation on init
   return false;
 }
 
@@ -247,7 +250,7 @@ bool ExtrinsicsLookup::GetT_LIDAR_BASELINK(Eigen::Matrix4d& T,
     return true;
   }
 
-  // shouldn't ever get here because of validation on init
+  // should not get here because of validation on init
   return false;
 }
 

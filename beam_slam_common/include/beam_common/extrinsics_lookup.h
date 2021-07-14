@@ -24,12 +24,12 @@ class ExtrinsicsLookup {
   static ExtrinsicsLookup& GetInstance();
 
   /**
-   * @brief Copy constructor
+   * @brief Delete copy constructor
    */
   ExtrinsicsLookup(const ExtrinsicsLookup& other) = delete;
 
   /**
-   * @brief Copy assignment operator
+   * @brief Delete copy assignment operator
    */
   ExtrinsicsLookup& operator=(const ExtrinsicsLookup& other) = delete;
 
