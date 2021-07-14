@@ -40,6 +40,8 @@ public:
             new beam_optimization::CameraProjectionFunctor(
                 cam_model_, pixel_measurement_))));
     T_imu_cam_ = T_imu_cam;
+    // normalize pixel measurement
+    // scale from 0-1 in height and width
   }
 
   template <typename T>
@@ -86,6 +88,9 @@ public:
 
     T pixel_projected[2];
     (*compute_projection)(P_CAMERA_const, &(pixel_projected[0]));
+
+    // normalize projected pixel:
+    // scale from 0-1 in height and width
 
     residual[0] = pixel_measurement_.cast<T>()[0] - pixel_projected[0];
     residual[1] = pixel_measurement_.cast<T>()[1] - pixel_projected[1];

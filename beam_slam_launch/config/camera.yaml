@@ -48,7 +48,7 @@ unicycle_3d:
 camera:
   image_topic: "/cam0/image_raw"
   window_size: 1000
-  init_path_topic: "/path"
+  init_path_topic: "/lo_initialiser_result"
   imu_topic: "/imu0"
   source: "VIO"
 

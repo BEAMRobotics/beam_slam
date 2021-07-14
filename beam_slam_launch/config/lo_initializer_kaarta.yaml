@@ -24,7 +24,7 @@ lo_initializer:
   ceres_config_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
   differential: false # Default: false
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
-  lidar_topic: '/velodyne_points'
+  lidar_topic: '/horizontal_velodyne/velodyne_points'
   imu_topic: '/imu/data'
   output_topic: 'lo_initialiser_result'
   nominal_gravity_direction: '-Z'
