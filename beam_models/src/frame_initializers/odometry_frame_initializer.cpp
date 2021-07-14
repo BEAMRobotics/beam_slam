@@ -52,8 +52,8 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
         "messages. Using extrinsics.");
   }
 
-  // if we've overriden the sensor frame id, then we've already checked its
-  // valid. If not, we need to check that the odometry messages are valid.
+  // if we've overriden the sensor frame id, then we've already checked that it
+  // is valid. If not, we need to check that the odometry messages are valid.
   if (!override_sensor_frame_id_) {
     if (child_frame_id.find(extrinsics_.GetImuFrameId()) != std::string::npos) {
       sensor_frame_id_ = extrinsics_.GetImuFrameId();
