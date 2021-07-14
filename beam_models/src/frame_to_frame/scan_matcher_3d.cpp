@@ -21,11 +21,40 @@ namespace frame_to_frame {
 
 using namespace beam_matching;
 
-ScanMatcher3D::ScanMatcher3D() : FrameToFrameSensorModelBase() {}
+ScanMatcher3D::ScanMatcher3D()
+    : fuse_core::AsyncSensorModel(1),
+      device_id_(fuse_core::uuid::NIL),
+      throttled_callback_(
+          std::bind(&ScanMatcher3D::process, this, std::placeholders::_1)) {}
 
 void ScanMatcher3D::onInit() {
-  InitiateBaseClass(private_node_handle_);
-  params_.loadExtraParams(private_node_handle_);
+  params_.loadFromROS(private_node_handle_);
+ 
+  // init frame initializer
+  if (params_.frame_initializer_type == "ODOMETRY") {
+    frame_initializer_ =
+        std::make_unique<frame_initializers::OdometryFrameInitializer>(
+            params_.frame_initializer_info, 100, 30,
+            params_.sensor_frame_id_override);
+  } else if (params_.frame_initializer_type == "POSEFILE") {
+    frame_initializer_ =
+        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
+            params_.frame_initializer_info);
+  } else if (params_.frame_initializer_type == "INTERNAL") {
+    // frame_initializers::InternalFrameInitializer& internal_initializer =
+    //     frame_initializers::InternalFrameInitializer::GetInstance();
+    // frame_initializer_ =
+    //     std::make_unique<frame_initializers::InternalFrameInitializer>(
+    //         frame_initializers::InternalFrameInitializer::GetInstance());
+    // std::shared_ptr<frame_initializers::FrameInitializerBase> test1 =
+    //     std::make_shared<frame_initializers::InternalFrameInitializer>(internal_initializer);   
+    // *test1 = internal_initializer;
+  } else {
+    const std::string error =
+        "frame_initializer_type invalid. Options: ODOMETRY, POSEFILE";
+    ROS_FATAL_STREAM(error);
+    throw std::runtime_error(error);
+  }
 
   // init scan registration
   if (params_.type == "MAPLOAM") {
@@ -115,6 +144,11 @@ void ScanMatcher3D::onInit() {
   }
 }
 
+void ScanMatcher3D::onStart() {
+  subscriber_ = node_handle_.subscribe(
+      params_.topic, 10, &ThrottledCallback::callback, &throttled_callback_);
+};
+
 void ScanMatcher3D::onStop() {
   // if output set, save scans before stopping
   if (!params_.scan_output_directory.empty()) {
@@ -145,7 +179,8 @@ ScanMatcher3D::GenerateTransaction(
 
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_CLOUDCURRENT,
-                                            msg->header.stamp)) {
+                                            msg->header.stamp,
+                                            extrinsics_.GetLidarFrameId())) {
     return beam_constraints::frame_to_frame::Pose3DStampedTransaction(
         msg->header.stamp);
   }
@@ -202,6 +237,15 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
     iter->Save(curent_path);
+  }
+}
+
+void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
+  beam_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction =
+      GenerateTransaction(msg);
+  if (new_transaction.GetTransaction() != nullptr) {
+    ROS_DEBUG("Sending transaction.");
+    sendTransaction(new_transaction.GetTransaction());
   }
 }
 

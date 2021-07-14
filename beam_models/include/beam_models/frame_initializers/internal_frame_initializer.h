@@ -3,6 +3,7 @@
 #include <beam_models/frame_initializers/frame_initializer_base.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 #include <beam_utils/utils.h>
+#include <beam_common/extrinsics_lookup.h>
 
 namespace beam_models {
 namespace frame_initializers {
@@ -40,7 +41,7 @@ class InternalFrameInitializer : public FrameInitializerBase {
    * @return true if pose was added successfully
    */
   bool AddPose(const Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& stamp,
-               std::string sensor_frame_id = "");
+               const std::string& sensor_frame_id = "");
 
  private:
   /**
@@ -51,6 +52,9 @@ class InternalFrameInitializer : public FrameInitializerBase {
   InternalFrameInitializer(int64_t poses_buffer_time);
 
   int64_t poses_buffer_time_;
+
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
 };
 
 }  // namespace frame_initializers

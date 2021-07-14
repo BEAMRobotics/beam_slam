@@ -85,7 +85,7 @@ GlobalMap::GlobalMap(
 }
 
 void GlobalMap::Setup() {
-  baselink_frame_ = extrinsics_.GetIMUFrameID();
+  baselink_frame_ = extrinsics_.GetImuFrameId();
   world_frame_ = "world";
 
   // initiate loop closure candidate search
