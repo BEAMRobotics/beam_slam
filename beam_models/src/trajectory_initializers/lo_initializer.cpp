@@ -268,7 +268,7 @@ void LoInitializer::PublishResults() {
   int counter = 0;
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
     std_msgs::Header header;
-    header.frame_id = extrinsics_.GetIMUFrameID();
+    header.frame_id = extrinsics_.GetImuFrameId();
     header.seq = counter;
     header.stamp = iter->Stamp();
 

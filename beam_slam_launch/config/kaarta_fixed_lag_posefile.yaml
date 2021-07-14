@@ -1,9 +1,11 @@
 # global parameters: These will be used in multiple locations
 optimization_frequency: 1
 lag_duration: 2
-imu_frame: "IMU"
+imu_frame: "imu"
 lidar_frame: "velodyne"
 camera_frame: "camera"
+world_frame: "world"
+baselink_frame: "camera"
 static_extrinsics: true,
 intrinsics_path: "/home/nick/config/calibrations/F_kaarta.json"
 
@@ -43,17 +45,15 @@ unicycle_3d:
 
 scan_matcher_3d:
   type: 'MAPLOAM' # Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (TODO: LIBPOINTMATCHER, TEASER)
-  matcher_params_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
+  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
   registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class
   differential: false # Default: false
   queue_size: 10 # Subscriber queue size. Default: 10
   downsample_size: 0 # voxel size (m) for downsample filter. Default: 0.03. Set to 0 for no downsampling
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
-  subscriber_topic: '/velodyne_points'
-  sensor_frame: 'velodyne' # used to lookup extrinsic calibrations
+  topic: '/velodyne_points'
   frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
-  # scan_output_directory: '' # Outputs scans as PCD files IFF not empty
   scan_output_directory: '/home/nick/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty
 
 path_pub:

@@ -5,14 +5,15 @@
 #include <beam_mapping/Poses.h>
 #include <beam_utils/log.h>
 
+#include <beam_common/utils.h>
+
 namespace beam_models {
 namespace frame_initializers {
 
 PoseFileFrameInitializer::PoseFileFrameInitializer(
-    const std::string& file_path, const std::string& sensor_frame_id)
-    : FrameInitializerBase(sensor_frame_id) {
+    const std::string& file_path) {
   if (!boost::filesystem::exists(file_path)) {
-    ROS_ERROR("Pose file not found: %s", file_path.c_str());
+    BEAM_ERROR("Pose file not found: {}", file_path);
     throw std::invalid_argument{"Pose file not found."};
   }
 
@@ -30,16 +31,45 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     throw std::invalid_argument{"Invalid extensions type."};
   }
 
-  if (pose_lookup_.GetBaselinkFrameID() != poses_reader.GetFixedFrame()) {
+  // check for valid frame ids
+  if (poses_reader.GetFixedFrame() != extrinsics_.GetWorldFrameId()) {
     BEAM_WARN(
-        "Baselink frame supplied to PoseFrameInitializer is not consistent "
-        "with pose file.");
+        "Fixed frame id in pose file is not consistend with world frame id "
+        "from extrinsics. Using world frame from from extrinsics.");
   }
 
-  if (pose_lookup_.GetWorldFrameID() != poses_reader.GetMovingFrame()) {
-    BEAM_WARN(
-        "World frame supplied to PoseFrameInitializer is not consistent "
-        "with pose file.");
+  if (poses_reader.GetMovingFrame() != extrinsics_.GetImuFrameId() &&
+      poses_reader.GetMovingFrame() != extrinsics_.GetCameraFrameId() &&
+      poses_reader.GetMovingFrame() != extrinsics_.GetLidarFrameId()) {
+    BEAM_ERROR(
+        "Moving frame id in pose file must be equal to one of the frame ids in "
+        "the extrinsics.");
+    throw std::invalid_argument{"Invalid moving frame id."};
+  }
+
+  if (!extrinsics_.IsStatic() &&
+      poses_reader.GetMovingFrame() != extrinsics_.GetBaselinkFrameId()) {
+    BEAM_ERROR(
+        "Cannot use pose file with a moving frame that is not equal to the "
+        "baselink frame when extrinsics are not static.");
+    throw std::runtime_error{"Extrinsics must be static."};
+  }
+
+  Eigen::Matrix4d T_MOVINGFRAME_BASELINK;
+  bool lookup_success{true};
+  if (poses_reader.GetMovingFrame() == extrinsics_.GetBaselinkFrameId()) {
+    T_MOVINGFRAME_BASELINK = Eigen::Matrix4d::Identity();
+  } else if (poses_reader.GetMovingFrame() == extrinsics_.GetImuFrameId()) {
+    lookup_success = extrinsics_.GetT_IMU_BASELINK(T_MOVINGFRAME_BASELINK);
+  } else if (poses_reader.GetMovingFrame() == extrinsics_.GetCameraFrameId()) {
+    lookup_success = extrinsics_.GetT_CAMERA_BASELINK(T_MOVINGFRAME_BASELINK);
+  } else if (poses_reader.GetMovingFrame() == extrinsics_.GetLidarFrameId()) {
+    lookup_success = extrinsics_.GetT_LIDAR_BASELINK(T_MOVINGFRAME_BASELINK);
+  }
+
+  if (!lookup_success) {
+    BEAM_ERROR("Cannot lookup extrinsics.");
+    throw std::runtime_error{"Cannot lookup extrinsics."};
   }
 
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
@@ -57,25 +87,18 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
 
   for (int i = 0; i < transforms.size(); i++) {
+    const Eigen::Matrix4d& T_WORLD_MOVINGFRAME = transforms[i].matrix();
+    Eigen::Matrix4d T_WORLD_BASELINK =
+        T_WORLD_MOVINGFRAME * T_MOVINGFRAME_BASELINK;
     geometry_msgs::TransformStamped tf_stamped;
-    tf_stamped.header.stamp = timestamps[i];
-    tf_stamped.header.seq = i;
-    tf_stamped.header.frame_id = pose_lookup_.GetWorldFrameID();
-    tf_stamped.child_frame_id = pose_lookup_.GetBaselinkFrameID();
-    tf_stamped.transform.translation.x = transforms[i](0, 3);
-    tf_stamped.transform.translation.y = transforms[i](1, 3);
-    tf_stamped.transform.translation.z = transforms[i](2, 3);
-    Eigen::Matrix3d R = transforms[i].rotation();
-    Eigen::Quaterniond q(R);
-    tf_stamped.transform.rotation.x = q.x();
-    tf_stamped.transform.rotation.y = q.y();
-    tf_stamped.transform.rotation.z = q.z();
-    tf_stamped.transform.rotation.w = q.w();
+    beam_common::EigenTransformToTransformStampedMsg(
+        T_WORLD_BASELINK, timestamps[i], i, extrinsics_.GetWorldFrameId(),
+        extrinsics_.GetBaselinkFrameId(), tf_stamped);
     std::string authority{"poses_file"};
     poses_->setTransform(tf_stamped, authority, false);
   }
 
-  pose_lookup_.SetPoses(poses_);
+  pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);
 }
 
 }  // namespace frame_initializers

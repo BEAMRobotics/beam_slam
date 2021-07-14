@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Eigen/Dense>
-#include <tf/transform_listener.h>
 #include <tf2/buffer_core.h>
 
 #include <beam_common/extrinsics_lookup.h>
@@ -22,14 +21,9 @@ class PoseLookup {
  public:
   /**
    * @brief Constructor
+   * @param poses shared pointer to the poses
    */
-  PoseLookup();
-
-  /**
-   * @brief Set Poses as a shared pointer. Setting poses has been enforced
-   * @return true if poses are set
-   */
-  bool SetPoses(const std::shared_ptr<tf2::BufferCore> poses);
+  PoseLookup(const std::shared_ptr<tf2::BufferCore> poses);
 
   /**
    * @brief Gets estimate of sensor frame pose wrt world frame
@@ -41,21 +35,6 @@ class PoseLookup {
   bool GetT_WORLD_SENSOR(Eigen::Matrix4d& T_WORLD_SENSOR,
                          const std::string& sensor_frame,
                          const ros::Time& time);
-
-  /**
-   * @brief Gets estimate of sensor frame pose wrt baselink frame using
-   * ExtrinsicsLookup
-   * @param T_BASELINK_SENSOR reference to result
-   * @param sensor_frame sensor frame id. If empty, the assumed sensor frame
-   * will be the baselink frame
-   * @param time extrinsic time to lookup. If empty, or set to ros::Time(0), it
-   * will use most recent available. This is also used when static_extrinsics is
-   * set to true
-   * @return true if extrinsics lookup was successful
-   */
-  bool GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
-                            const std::string& sensor_frame = "",
-                            const ros::Time& time = ros::Time(0));
 
   /**
    * @brief Gets estimate of baselink frame pose wrt world frame
@@ -70,21 +49,15 @@ class PoseLookup {
    * @brief Gets the frame id of world
    * @return frame id
    */
-  std::string GetWorldFrameID() const { return world_frame_; }
+  std::string GetWorldFrameId() const { return extrinsics_.GetWorldFrameId(); }
 
   /**
    * @brief Gets the frame id of baselink
    * @return frame id
    */
-  std::string GetBaselinkFrameID() const { return baselink_frame_; }
+  std::string GetBaselinkFrameId() const { return extrinsics_.GetBaselinkFrameId(); }
 
  private:
-  /**
-   * @brief Check to ensure that poses has been set
-   * @return true if poses set, false otherwise
-   */
-  bool CheckPoses();
-
   /**
    * @brief Commonly thrown error when incorrectly getting baselink to sensor
    * transform
@@ -94,11 +67,6 @@ class PoseLookup {
 
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();
-
-  tf::TransformListener tf_listener_;
-
-  std::string world_frame_{""};
-  std::string baselink_frame_{""};
 
   std::shared_ptr<tf2::BufferCore> poses_{nullptr};
 };
