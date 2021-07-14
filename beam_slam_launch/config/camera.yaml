@@ -3,22 +3,22 @@ optimization_frequency: 1
 lag_duration: 5
 
 # frames
-imu_frame: "imu"
-lidar_frame: "velodyne"
-camera_frame: "camera"
+imu_frame: "camera_accel_frame"
+lidar_frame: "os1_lidar"
+camera_frame: "camera_infra1_optical_frame"
+world_frame: "world"
+baselink_frame: "camera_accel_frame"
 
 # calibrations
 static_extrinsics: true
-camera_intrinsics_path:  "/home/jake/data/VIO/euroc/intrinsics.json"
-imu_intrinsics_path: "/home/jake/data/VIO/imu_intrinsics.json"
+camera_intrinsics_path:  "/home/jake/data/LVIO/newer_college/cam0_intrinsics.json"
+imu_intrinsics_path: "/home/jake/data/LVIO/newer_college/imu_intrinsics.json"
 
 # sensor models
 sensor_models:
   - name: 'camera'
     type: 'beam_models::camera_to_camera::VisualInertialOdom'
     motion_models: ['unicycle_3d']
-  - name: 'lo_initializer'
-    type: 'beam_models::frame_to_frame::LoInitializer'
 
 # motion models
 motion_models:
@@ -46,26 +46,8 @@ unicycle_3d:
   buffer_length: 100000
 
 camera:
-  image_topic: "/cam0/image_raw"
+  image_topic: "/camera/infra1/image_rect_raw"
   window_size: 1000
   init_path_topic: "/lo_initialiser_result"
-  imu_topic: "/imu0"
+  imu_topic: "/camera/imu"
   source: "VIO"
-
-lo_initializer:
-  matcher_params_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
-  ceres_config_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
-  differential: false # Default: false
-  matcher_noise: 1.0e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
-  lidar_topic: '/velodyne_points'
-  imu_topic: '/imu/data'
-  output_topic: 'lo_initialiser_result'
-  nominal_gravity_direction: '-Z'
-  undistort_scans: true
-  aggregation_time: 0.1
-  trajectory_time_window: 5
-  min_trajectory_distance: 1
-  outlier_threshold_t_m: 0.3
-  outlier_threshold_r_deg: 15
-  scan_registration_map_size: 10
-  scan_output_directory: '/home/jake/results/beam_slam/lo_initializer/' # Outputs scans as PCD files IFF not empty

@@ -1,4 +1,3 @@
-#include <beam_common/extrinsics_lookup.h>
 #include <beam_constraints/camera_to_camera/visual_constraint.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_utils/math.h>
@@ -7,26 +6,20 @@ namespace beam_models { namespace camera_to_camera {
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                      const std::string& source)
-    : cam_model_(cam_model), source_(source) {
-  if (!beam_common::ExtrinsicsLookup::GetInstance().GetT_IMU_CAMERA(
-          T_imu_cam_)) {
-    ROS_WARN("Unable to get imu to camera transform, using identity.");
-    T_imu_cam_ = Eigen::Matrix4d::Identity();
-  }
-}
+    : cam_model_(cam_model), source_(source) {}
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                      fuse_core::Graph::SharedPtr local_graph,
                      const std::string& source)
-    : cam_model_(cam_model), local_graph_(local_graph), source_(source) {
-  if (!beam_common::ExtrinsicsLookup::GetInstance().GetT_IMU_CAMERA(
-          T_imu_cam_)) {
-    ROS_WARN("Unable to get imu to camera transform, using identity.");
-    T_imu_cam_ = Eigen::Matrix4d::Identity();
-  }
-}
+    : cam_model_(cam_model), local_graph_(local_graph), source_(source) {}
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetPose(const ros::Time& stamp) {
+  if (!extrinsics_set_) {
+    if (!extrinsics_.GetT_IMU_CAMERA(T_imu_cam_)) {
+      ROS_WARN("Unable to get imu to camera transform, using identity.");
+      T_imu_cam_ = Eigen::Matrix4d::Identity();
+    }
+  }
   fuse_variables::Position3DStamped::SharedPtr p = GetPosition(stamp);
   fuse_variables::Orientation3DStamped::SharedPtr q = GetOrientation(stamp);
   if (p && q) {
@@ -51,7 +44,7 @@ fuse_variables::Position3D::SharedPtr
       landmark->type(), std::to_string(landmark_id).c_str());
   // first check the graph for the variable if its initialized
   if (!local_graph_) {
-    if (graph_initialized) {
+    if (graph_) {
       try {
         *landmark = dynamic_cast<const fuse_variables::Position3D&>(
             graph_->getVariable(landmark_uuid));
@@ -83,6 +76,12 @@ fuse_variables::Position3D::SharedPtr
 void VisualMap::AddPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
                         const ros::Time& cur_time,
                         fuse_core::Transaction::SharedPtr transaction) {
+  if (!extrinsics_set_) {
+    if (!extrinsics_.GetT_IMU_CAMERA(T_imu_cam_)) {
+      ROS_WARN("Unable to get imu to camera transform, using identity.");
+      T_imu_cam_ = Eigen::Matrix4d::Identity();
+    }
+  }
   // transform pose into imu coord space
   Eigen::Matrix4d T_WORLD_IMU = T_WORLD_CAMERA * T_imu_cam_.inverse();
   Eigen::Quaterniond q;
@@ -211,6 +210,12 @@ void VisualMap::AddLandmark(fuse_variables::Position3D::SharedPtr landmark,
 void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
                               const Eigen::Vector2d& pixel,
                               fuse_core::Transaction::SharedPtr transaction) {
+  if (!extrinsics_set_) {
+    if (!extrinsics_.GetT_IMU_CAMERA(T_imu_cam_)) {
+      ROS_WARN("Unable to get imu to camera transform, using identity.");
+      T_imu_cam_ = Eigen::Matrix4d::Identity();
+    }
+  }
   fuse_variables::Position3D::SharedPtr lm = GetLandmark(lm_id);
   fuse_variables::Position3DStamped::SharedPtr position = GetPosition(img_time);
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
@@ -238,7 +243,7 @@ fuse_variables::Orientation3DStamped::SharedPtr
       corr_orientation->type(), stamp, fuse_core::uuid::NIL);
   // first check the graph for the variable if its initialized
   if (!local_graph_) {
-    if (graph_initialized) {
+    if (graph_) {
       try {
         *corr_orientation =
             dynamic_cast<const fuse_variables::Orientation3DStamped&>(
@@ -274,7 +279,7 @@ fuse_variables::Position3DStamped::SharedPtr
       corr_position->type(), stamp, fuse_core::uuid::NIL);
   // first check the graph for the variable if its initialized
   if (!local_graph_) {
-    if (graph_initialized) {
+    if (graph_) {
       try {
         *corr_position = dynamic_cast<const fuse_variables::Position3DStamped&>(
             graph_->getVariable(corr_position_uuid));
@@ -308,7 +313,6 @@ void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   positions_.clear();
   landmark_positions_.clear();
   graph_ = std::move(graph_msg);
-  if (!graph_initialized) graph_initialized = true;
 }
 
 }} // namespace beam_models::camera_to_camera

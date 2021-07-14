@@ -2,19 +2,20 @@
 // std
 #include <queue>
 
-// ros
+// messages
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
+#include <beam_models/InitializedPathMsg.h>
 
 // fuse
 #include <fuse_core/async_sensor_model.h>
 
 // beam_slam
-#include <beam_models/InitializedPathMsg.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 #include <beam_models/trajectory_initializers/vio_initializer.h>
 #include <beam_parameters/models/camera_params.h>
+#include <beam_parameters/models/global_params.h>
 
 // libbeam
 #include <beam_calibration/CameraModel.h>
@@ -131,6 +132,9 @@ private:
 protected:
   // loadable camera parameters
   beam_parameters::models::CameraParams camera_params_;
+  
+  // global parameters
+  beam_parameters::models::GlobalParams global_params_;
 
   // topic subscribers and buffers
   ros::Subscriber image_subscriber_;

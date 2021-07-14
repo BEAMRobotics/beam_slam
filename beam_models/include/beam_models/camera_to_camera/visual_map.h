@@ -3,6 +3,7 @@
 #include <map>
 #include <unordered_map>
 // beam_slam
+#include <beam_common/extrinsics_lookup.h>
 #include <beam_variables/position_3d.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/graph.h>
@@ -157,20 +158,32 @@ public:
   void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
 protected:
-  // these store the most up to date variables for in between optimization
-  // cycles
+  // temp maps for in between optimization cycles
   std::unordered_map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;
   std::unordered_map<uint64_t, fuse_variables::Position3DStamped::SharedPtr>
       positions_;
   std::unordered_map<uint64_t, fuse_variables::Position3D::SharedPtr>
       landmark_positions_;
-  fuse_core::Graph::SharedPtr local_graph_; // for direct use
-  fuse_core::Graph::ConstSharedPtr graph_;  // copy of the current fuse graph
-  bool graph_initialized = false;
+
+  // local graph for direct use
+  fuse_core::Graph::SharedPtr local_graph_;
+
+  // copy of the fuse graph (read only)
+  fuse_core::Graph::ConstSharedPtr graph_;
+
+  // pointer to camera model to use when adding constraints
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
+
+  // extrinsics from camera to imu
   Eigen::Matrix4d T_imu_cam_;
+  bool extrinsics_set_{false};
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
+
+  // source for the odometry topic to use when publishing
   std::string source_{};
+
 };
 
 }} // namespace beam_models::camera_to_camera

@@ -22,13 +22,13 @@ PLUGINLIB_EXPORT_CLASS(beam_models::camera_to_camera::VisualInertialOdom,
 
 namespace beam_models { namespace camera_to_camera {
 
-VisualInertialOdom::VisualInertialOdom()
-    : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL) {}
+VisualInertialOdom::VisualInertialOdom() : fuse_core::AsyncSensorModel(1) {}
 
 void VisualInertialOdom::onInit() {
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   camera_params_.loadFromROS(private_node_handle_);
+  global_params_.loadFromROS(private_node_handle_);
   /***********************************************************
    *       Initialize pose refiner object with params        *
    ***********************************************************/
@@ -46,9 +46,8 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *        Load camera model and Create Map object          *
    ***********************************************************/
-  std::string cam_intrinsics_path;
-  ros::param::get("~camera_intrinsics_path", cam_intrinsics_path);
-  cam_model_ = beam_calibration::CameraModel::Create(cam_intrinsics_path);
+  cam_model_ =
+      beam_calibration::CameraModel::Create(global_params_.cam_intrinsics_path);
   visual_map_ = std::make_shared<VisualMap>(cam_model_, camera_params_.source);
   /***********************************************************
    *              Initialize tracker variables               *
@@ -73,10 +72,8 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
-  std::string imu_intrinsics_path;
-  ros::param::get("~imu_intrinsics_path", imu_intrinsics_path);
   nlohmann::json J;
-  std::ifstream file(imu_intrinsics_path);
+  std::ifstream file(global_params_.imu_intrinsics_path);
   file >> J;
   initializer_ =
       std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
@@ -107,6 +104,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       }
       if ((img_time - cur_kf_time_).toSec() >= 0.8) {
         cur_kf_time_ = img_time;
+        std::cout << "keyframe at:  " << cur_kf_time_ << std::endl;
         if (initializer_->AddImage(img_time)) {
           ROS_INFO("Initialization Success.");
           // get the preintegration object
@@ -120,6 +118,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       std::vector<uint64_t> untriangulated_ids;
       Eigen::Matrix4d T_WORLD_CAMERA =
           LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
+      // publish pose to odom topic
       if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
         // [1] Add constraints to triangulated ids
         // [2] Try to triangulate untriangulated ids and add constraints
