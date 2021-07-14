@@ -1,6 +1,7 @@
 #pragma once
 
 #include <beam_models/frame_initializers/frame_initializer_base.h>
+#include <beam_common/extrinsics_lookup.h>
 
 namespace beam_models {
 namespace frame_initializers {
@@ -19,8 +20,11 @@ class PoseFileFrameInitializer : public FrameInitializerBase {
    * @param sensor_frame_id frame ID attached to the sensor, used to lookup
    * extrinsic calibrations. See FrameInitializerBase for description
    */
-  PoseFileFrameInitializer(const std::string& file_path,
-                           const std::string& sensor_frame_id = "");
+  PoseFileFrameInitializer(const std::string& file_path);
+
+ private:
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
 };
 
 }  // namespace frame_initializers

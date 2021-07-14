@@ -51,11 +51,9 @@ scan_matcher_3d:
   queue_size: 10 # Subscriber queue size. Default: 10
   downsample_size: 0 # voxel size (m) for downsample filter. Default: 0.03. Set to 0 for no downsampling
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
-  subscriber_topic: '/velodyne_points'
-  sensor_frame: 'camera' # used to lookup extrinsic calibrations
+  topic: '/velodyne_points'
   frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
-  # scan_output_directory: '' # Outputs scans as PCD files IFF not empty
   scan_output_directory: '/home/nick/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty
 
 path_pub:

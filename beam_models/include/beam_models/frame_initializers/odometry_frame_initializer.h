@@ -3,6 +3,7 @@
 #include <nav_msgs/Odometry.h>
 
 #include <beam_models/frame_initializers/frame_initializer_base.h>
+#include <beam_common/extrinsics_lookup.h>
 
 namespace beam_models {
 namespace frame_initializers {
@@ -21,12 +22,12 @@ class OdometryFrameInitializer : public FrameInitializerBase {
    * @param queue_size subscriber queue size
    * @param poses_buffer_time length of time (in seconds) to store poses for
    * interpolation
-   * @param sensor_frame_id frame ID attached to the sensor. See
-   * FrameInitializerBase for description
+   * @param sensor_frame_id frame ID attached to the sensor. If this is set, it
+   * will override the sensor_frame in the odometry message
    */
   OdometryFrameInitializer(const std::string& topic, int queue_size,
                            int64_t poses_buffer_time,
-                           const std::string& sensor_frame_id = "");
+                           const std::string& sensor_frame_id_override = "");
 
   /**
    * @brief Converts incoming odometry messages to tf poses and stores them in a
@@ -44,6 +45,11 @@ class OdometryFrameInitializer : public FrameInitializerBase {
 
   ros::Subscriber odometry_subscriber_;
   bool check_world_baselink_frames_{true};
+  bool override_sensor_frame_id_{false};
+  std::string sensor_frame_id_;
+
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
 };
 
 }  // namespace frame_initializers

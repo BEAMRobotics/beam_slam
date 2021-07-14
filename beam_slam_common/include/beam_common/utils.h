@@ -5,6 +5,7 @@
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
 #include <nav_msgs/Path.h>
 
@@ -30,6 +31,9 @@ Eigen::Matrix4d FusePoseToEigenTransform(
 void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
                                    Eigen::Matrix4d& T_WORLD_SENSOR);
 
+void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
+                                       Eigen::Matrix4d& T_WORLD_SENSOR);
+
 void InterpolateTransformFromPath(const nav_msgs::Path& path,
                                   const ros::Time& time,
                                   Eigen::Matrix4d& T_WORLD_SENSOR);
@@ -43,10 +47,20 @@ void InterpolateTransformFromPath(const nav_msgs::Path& path,
 double CalculateTrajectoryLength(
     const std::list<beam_common::ScanPose>& keyframes);
 
-void ROSStampedTransformToEigenTransform(
-    const tf::StampedTransform& TROS, Eigen::Matrix4d& T);
+void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS,
+                                         Eigen::Matrix4d& T);
 
-void GeometryTransformStampedToEigenTransform(
+void TransformStampedMsgToEigenTransform(
     const geometry_msgs::TransformStamped& TROS, Eigen::Matrix4d& T);
+
+void EigenTransformToTransformStampedMsg(
+    const Eigen::Matrix4d& T, const ros::Time& stamp, int seq,
+    const std::string& parent_frame_id, const std::string& child_frame_id,
+    geometry_msgs::TransformStamped& tf_stamped);
+
+void OdometryMsgToTransformedStamped(
+    const nav_msgs::Odometry& message, const ros::Time& stamp, int seq,
+    const std::string& parent_frame_id, const std::string& child_frame_id,
+    geometry_msgs::TransformStamped& tf_stamped);
 
 }  // namespace beam_common
