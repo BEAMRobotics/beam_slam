@@ -59,7 +59,7 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
         "Cannot lookup extrinsics between baselink frame: {} and sensor frame: "
         "{}. Ensure sensor frame ID matches either imu, camera, or lidar "
         "frames and transformation exists at time: {}",
-        GetBaselinkFrameId(), sensor_frame, time.toSec());
+        extrinsics_.GetBaselinkFrameId(), sensor_frame, time.toSec());
     return false;
   }
 
