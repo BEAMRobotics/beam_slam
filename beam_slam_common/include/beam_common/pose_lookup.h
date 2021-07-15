@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/algorithm/string.hpp>
 #include <Eigen/Dense>
 #include <tf2/buffer_core.h>
 
@@ -68,6 +69,20 @@ class PoseLookup {
    */
   std::string GetBaselinkFrameId() const {
     return extrinsics_.GetBaselinkFrameId();
+  }
+
+  /**
+   * @brief Verifies if frame id is valid by checking against frames supplied in
+   * ExtrinsicsLookup
+   * @return true if frame id matches either the imu, camera, or lidar frame id
+   */
+  bool IsFrameIdValid(const std::string& sensor_frame) const {
+    return boost::algorithm::contains(sensor_frame,
+                                      extrinsics_.GetImuFrameId()) ||
+           boost::algorithm::contains(sensor_frame,
+                                      extrinsics_.GetCameraFrameId()) ||
+           boost::algorithm::contains(sensor_frame,
+                                      extrinsics_.GetLidarFrameId());
   }
 
  private:

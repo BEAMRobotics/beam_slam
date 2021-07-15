@@ -52,13 +52,14 @@ bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
     extrinsics_.GetT_BASELINK_IMU(T_BASELINK_SENSOR, time);
   } else if (sensor_frame == extrinsics_.GetCameraFrameId()) {
     extrinsics_.GetT_BASELINK_CAMERA(T_BASELINK_SENSOR, time);
-  } else if (sensor_frame == extrinsics_.GetLidarFrameId() {
+  } else if (sensor_frame == extrinsics_.GetLidarFrameId()) {
     extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_SENSOR, time);
   } else {
     BEAM_WARN(
-        "Cannot lookup extrinsics between baselink frame and sensor frame: {} "
-        "Ensure sensor frame ID matches either imu, camera, or lidar frames",
-        sensor_frame);
+        "Cannot lookup extrinsics between baselink frame: {} and sensor frame: "
+        "{}. Ensure sensor frame ID matches either imu, camera, or lidar "
+        "frames and transformation exists at time: {}",
+        GetBaselinkFrameId(), sensor_frame, time.toSec());
     return false;
   }
 
