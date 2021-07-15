@@ -51,6 +51,7 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
   }
 
   // check that child frame supplied by odometry contains one of the sensor
+  // frames
   if (!override_sensor_frame_id_) {
     if (boost::algorithm::contains(child_frame_id,
                                    pose_lookup_->GetImuFrameId())) {
