@@ -254,6 +254,11 @@ bool ExtrinsicsLookup::GetT_LIDAR_BASELINK(Eigen::Matrix4d& T,
 bool ExtrinsicsLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T,
                                             const std::string& sensor_frame,
                                             const ros::Time& time) {
+  if (!IsSensorFrameIdValid(sensor_frame)) {
+    // error thrown by IsSensorFrameIdValid
+    return false;
+  }
+
   if (sensor_frame == baselink_frame_) {
     T = Eigen::Matrix4d::Identity();
     return true;
@@ -266,8 +271,7 @@ bool ExtrinsicsLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T,
   } else {
     BEAM_WARN(
         "Cannot lookup extrinsics between sensor frame: [{}] and baselink "
-        "frame: [{}]. Ensure sensor frame ID matches either imu, camera, or "
-        "lidar frames and transformation exists at time: [{}]",
+        "frame: [{}]. Ensure transformation exists at time: [{}]",
         sensor_frame, baselink_frame_, time.toSec());
     return false;
   }

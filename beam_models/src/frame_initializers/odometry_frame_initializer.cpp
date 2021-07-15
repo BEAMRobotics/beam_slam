@@ -22,7 +22,7 @@ OdometryFrameInitializer::OdometryFrameInitializer(
 
   if (!sensor_frame_id_override.empty()) {
     if (!extrinsics_.IsSensorFrameIdValid(sensor_frame_id_override)) {
-      // error thrown by IsSensorFrameIdValid
+      // error thrown by ExtrinsicsLookup::IsSensorFrameIdValid
       throw std::invalid_argument{"Invalid sensor frame id override."};
     } else {
       BEAM_INFO("Overriding sensor frame id in odometry messages to: {}",
@@ -63,7 +63,7 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
                                           extrinsics_.GetLidarFrameId())) {
       sensor_frame_id_ = extrinsics_.GetLidarFrameId();
     } else {
-      BEAM_WARN(
+      BEAM_ERROR(
           "Sensor frame id in odometry message not equal to any sensor frame "
           "in extrinsics. Please provide a sensor_frame_id_override.");
       throw std::invalid_argument{"Invalid frame id"};
@@ -104,7 +104,7 @@ void OdometryFrameInitializer::OdometryCallback(
     poses_->setTransform(tf_stamped, authority_, false);
     return;
   } else {
-    // additional warning thrown by PoseLookup::GetT_BASELINK_SENSOR
+    // additional warning thrown by PoseLookup::GetT_SENSOR_BASELINK
     BEAM_WARN("Skipping odometry message.");
     return;
   }

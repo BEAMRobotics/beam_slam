@@ -196,7 +196,7 @@ class ExtrinsicsLookup {
   bool IsStatic() const { return static_extrinsics_; }
 
   /**
-   * @brief Verifies if sensor frame id is valid by checking against imu,
+   * @brief Verifies if sensor frame id is valid by checking against IMU,
    * camera, or lidar frame id
    * @return true if sensor frame id matches any of these frames
    */
