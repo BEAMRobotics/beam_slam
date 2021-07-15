@@ -22,10 +22,7 @@ OdometryFrameInitializer::OdometryFrameInitializer(
 
   if (!sensor_frame_id_override.empty()) {
     if (!extrinsics_.IsSensorFrameIdValid(sensor_frame_id_override)) {
-      BEAM_ERROR(
-          "Sensor frame id override provided does not match any frame in the "
-          "extrinsics. Input: {}",
-          sensor_frame_id_override);
+      // error thrown by IsSensorFrameIdValid
       throw std::invalid_argument{"Invalid sensor frame id override."};
     } else {
       BEAM_INFO("Overriding sensor frame id in odometry messages to: {}",
@@ -41,6 +38,7 @@ OdometryFrameInitializer::OdometryFrameInitializer(
 void OdometryFrameInitializer::CheckOdometryFrameIDs(
     const nav_msgs::OdometryConstPtr message) {
   check_world_baselink_frames_ = false;
+
   std::string parent_frame_id = message->header.frame_id;
   std::string child_frame_id = message->child_frame_id;
 

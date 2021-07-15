@@ -200,10 +200,7 @@ class ExtrinsicsLookup {
    * camera, or lidar frame id
    * @return true if sensor frame id matches any of these frames
    */
-  bool IsSensorFrameIdValid(const std::string& sensor_frame) const {
-    return sensor_frame == imu_frame_ || sensor_frame == camera_frame_ ||
-           sensor_frame == lidar_frame_;
-  }
+  bool IsSensorFrameIdValid(const std::string& sensor_frame);
 
  private:
   /**

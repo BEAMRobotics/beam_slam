@@ -265,9 +265,9 @@ bool ExtrinsicsLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T,
     return GetT_BASELINK_LIDAR(T, time);
   } else {
     BEAM_WARN(
-        "Cannot lookup extrinsics between sensor frame: {} and baselink frame: "
-        "{}. Ensure sensor frame ID matches either imu, camera, or lidar "
-        "frames and transformation exists at time: {}",
+        "Cannot lookup extrinsics between sensor frame: [{}] and baselink "
+        "frame: [{}]. Ensure sensor frame ID matches either imu, camera, or "
+        "lidar frames and transformation exists at time: [{}]",
         sensor_frame, baselink_frame_, time.toSec());
     return false;
   }
@@ -281,6 +281,19 @@ bool ExtrinsicsLookup::GetT_SENSOR_BASELINK(Eigen::Matrix4d& T,
     return true;
   } else {
     // warning thrown by GetT_BASELINK_SENSOR
+    return false;
+  }
+}
+
+bool ExtrinsicsLookup::IsSensorFrameIdValid(const std::string& sensor_frame) {
+  if (sensor_frame == imu_frame_ || sensor_frame == camera_frame_ ||
+      sensor_frame == lidar_frame_) {
+    return true;
+  } else {
+    BEAM_ERROR(
+        "Input sensor frame: [{}] does not match imu frame: [{}], camera "
+        "frame: [{}], or lidar frame: [{}]",
+        sensor_frame, imu_frame_, camera_frame_, lidar_frame_);
     return false;
   }
 }
