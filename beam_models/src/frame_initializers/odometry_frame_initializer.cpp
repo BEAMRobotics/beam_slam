@@ -19,50 +19,48 @@ OdometryFrameInitializer::OdometryFrameInitializer(
       boost::bind(&OdometryFrameInitializer::OdometryCallback, this, _1));
 
   if (!sensor_frame_id_override.empty()) {
-    if (sensor_frame_id_override != extrinsics_.GetImuFrameId() &&
-        sensor_frame_id_override != extrinsics_.GetCameraFrameId() &&
-        sensor_frame_id_override != extrinsics_.GetLidarFrameId()) {
+    if (pose_lookup_->IsSensorFrameIdValid(sensor_frame_id_override)) {
+      BEAM_INFO("Overriding sensor frame id in odometry messages to: {}",
+                sensor_frame_id_override);
+      sensor_frame_id_ = sensor_frame_id_override;
+      override_sensor_frame_id_ = true;
+    } else {
       BEAM_ERROR(
           "Sensor frame id override provided does not match any frame in the "
           "extrinsics. Input: {}",
           sensor_frame_id_override);
       throw std::invalid_argument{"Invalid sensor frame id override."};
-    } else {
-      BEAM_INFO("Overriding sensor frame id in odometry messages to: {}",
-                sensor_frame_id_override);
-      sensor_frame_id_ = sensor_frame_id_override;
-      override_sensor_frame_id_ = true;
     }
   } else {
-    sensor_frame_id_ = extrinsics_.GetBaselinkFrameId();
+    sensor_frame_id_ = pose_lookup_->GetBaselinkFrameId();
   }
 }
 
 void OdometryFrameInitializer::CheckOdometryFrameIDs(
     const nav_msgs::OdometryConstPtr message) {
   check_world_baselink_frames_ = false;
-
   std::string parent_frame_id = message->header.frame_id;
   std::string child_frame_id = message->child_frame_id;
 
-  if (parent_frame_id.find(pose_lookup_->GetWorldFrameId()) ==
-      std::string::npos) {
+  // check that parent frame supplied by odometry contains world frame
+  if (!boost::algorithm::contains(parent_frame_id,
+                                  pose_lookup_->GetWorldFrameId())) {
     BEAM_WARN(
         "World frame in extrinsics does not match parent frame in odometry "
         "messages. Using extrinsics.");
   }
 
-  // if we've overriden the sensor frame id, then we've already checked that it
-  // is valid. If not, we need to check that the odometry messages are valid.
+  // check that child frame supplied by odometry contains one of the sensor
   if (!override_sensor_frame_id_) {
-    if (child_frame_id.find(extrinsics_.GetImuFrameId()) != std::string::npos) {
-      sensor_frame_id_ = extrinsics_.GetImuFrameId();
-    } else if (child_frame_id.find(extrinsics_.GetCameraFrameId()) !=
-               std::string::npos) {
-      sensor_frame_id_ = extrinsics_.GetCameraFrameId();
-    } else if (child_frame_id.find(extrinsics_.GetLidarFrameId()) !=
-               std::string::npos) {
-      sensor_frame_id_ = extrinsics_.GetLidarFrameId();
+    if (boost::algorithm::contains(child_frame_id,
+                                   pose_lookup_->GetImuFrameId())) {
+      sensor_frame_id_ = pose_lookup_->GetImuFrameId();
+    } else if (boost::algorithm::contains(child_frame_id,
+                                          pose_lookup_->GetCameraFrameId())) {
+      sensor_frame_id_ = pose_lookup_->GetCameraFrameId();
+    } else if (boost::algorithm::contains(child_frame_id,
+                                          pose_lookup_->GetLidarFrameId())) {
+      sensor_frame_id_ = pose_lookup_->GetLidarFrameId();
     } else {
       BEAM_WARN(
           "Sensor frame id in odometry message not equal to any sensor frame "
@@ -78,51 +76,41 @@ void OdometryFrameInitializer::OdometryCallback(
     CheckOdometryFrameIDs(message);
   }
 
-  // if sensor_frame is already baselink, then we can directly copy
-  if (sensor_frame_id_ == extrinsics_.GetBaselinkFrameId()) {
+  // if no sensor frame override was provided, the sensor frame is assumed to
+  // coincide with baselink. As such, tf messages are directly published
+  if (!override_sensor_frame_id_) {
     geometry_msgs::TransformStamped tf_stamped;
     beam_common::OdometryMsgToTransformedStamped(
         *message, message->header.stamp, message->header.seq,
-        extrinsics_.GetWorldFrameId(), sensor_frame_id_, tf_stamped);
-    std::string authority{"odometry"};
-    poses_->setTransform(tf_stamped, authority, false);
+        pose_lookup_->GetWorldFrameId(), sensor_frame_id_, tf_stamped);
+    poses_->setTransform(tf_stamped, authority_, false);
     return;
   }
 
-  // Otherwise, we need to apply the extrinsics
-  Eigen::Matrix4d T_SENSORFRAME_BASELINK;
-  bool lookup_success;
-  if (sensor_frame_id_ == extrinsics_.GetImuFrameId()) {
-    lookup_success = extrinsics_.GetT_IMU_BASELINK(T_SENSORFRAME_BASELINK,
-                                                   message->header.stamp);
-  } else if (sensor_frame_id_ == extrinsics_.GetCameraFrameId()) {
-    lookup_success = extrinsics_.GetT_CAMERA_BASELINK(T_SENSORFRAME_BASELINK,
-                                                      message->header.stamp);
-  } else if (sensor_frame_id_ == extrinsics_.GetLidarFrameId()) {
-    lookup_success = extrinsics_.GetT_LIDAR_BASELINK(T_SENSORFRAME_BASELINK,
-                                                     message->header.stamp);
-  }
+  // Otherwise, transform sensor frame to baselink and then publish
+  Eigen::Matrix4d T_BASELINK_SENSOR;
+  if (pose_lookup_->GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame_id_,
+                                         message->header.stamp)) {
+    Eigen::Matrix4d T_SENSOR_BASELINK =
+        beam::InvertTransform(T_BASELINK_SENSOR);
 
-  if (!lookup_success) {
+    Eigen::Matrix4d T_WORLD_SENSOR;
+    beam_common::OdometryMsgToTransformationMatrix(*message, T_WORLD_SENSOR);
+
+    Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_SENSOR * T_SENSOR_BASELINK;
+
+    geometry_msgs::TransformStamped tf_stamped;
+    beam_common::EigenTransformToTransformStampedMsg(
+        T_WORLD_BASELINK, message->header.stamp, message->header.seq,
+        pose_lookup_->GetWorldFrameId(), sensor_frame_id_, tf_stamped);
+    poses_->setTransform(tf_stamped, authority_, false);
+    return;
+  } else {
     BEAM_WARN(
-        "Cannot lookup extrinsics for stamp: {}, skipping odometry message.",
-        message->header.stamp.toSec());
+        "Skipping odometry message.");  // additional warning thrown by
+                                        // PoseLookup::GetT_BASELINK_SENSOR
     return;
   }
-
-  // get pose
-  Eigen::Matrix4d T_WORLD_SENSORFRAME;
-  beam_common::OdometryMsgToTransformationMatrix(*message, T_WORLD_SENSORFRAME);
-  Eigen::Matrix4d T_WORLD_BASELINK =
-      T_WORLD_SENSORFRAME * T_SENSORFRAME_BASELINK;
-
-  // convert and add
-  geometry_msgs::TransformStamped tf_stamped;
-  beam_common::EigenTransformToTransformStampedMsg(
-      T_WORLD_BASELINK, message->header.stamp, message->header.seq,
-      extrinsics_.GetWorldFrameId(), sensor_frame_id_, tf_stamped);
-  std::string authority{"odometry"};
-  poses_->setTransform(tf_stamped, authority, false);
 }
 
 }  // namespace frame_initializers
