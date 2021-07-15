@@ -37,8 +37,11 @@ class FrameInitializerBase {
   };
 
  protected:
+  std::string authority_;
   std::shared_ptr<beam_common::PoseLookup> pose_lookup_;
   std::shared_ptr<tf2::BufferCore> poses_{nullptr};
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
 };
 
 }  // namespace frame_initializers

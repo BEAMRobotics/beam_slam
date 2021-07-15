@@ -10,6 +10,7 @@ namespace frame_initializers {
 OdometryFrameInitializer::OdometryFrameInitializer(
     const std::string& topic, int queue_size, int64_t poses_buffer_time,
     const std::string& sensor_frame_id_override) {
+  authority_ = "odometry";
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time));
   pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);
 
@@ -19,7 +20,7 @@ OdometryFrameInitializer::OdometryFrameInitializer(
       boost::bind(&OdometryFrameInitializer::OdometryCallback, this, _1));
 
   if (!sensor_frame_id_override.empty()) {
-    if (pose_lookup_->IsSensorFrameIdValid(sensor_frame_id_override)) {
+    if (extrinsics_.IsSensorFrameIdValid(sensor_frame_id_override)) {
       BEAM_INFO("Overriding sensor frame id in odometry messages to: {}",
                 sensor_frame_id_override);
       sensor_frame_id_ = sensor_frame_id_override;
@@ -32,7 +33,7 @@ OdometryFrameInitializer::OdometryFrameInitializer(
       throw std::invalid_argument{"Invalid sensor frame id override."};
     }
   } else {
-    sensor_frame_id_ = pose_lookup_->GetBaselinkFrameId();
+    sensor_frame_id_ = extrinsics_.GetBaselinkFrameId();
   }
 }
 
@@ -44,7 +45,7 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
 
   // check that parent frame supplied by odometry contains world frame
   if (!boost::algorithm::contains(parent_frame_id,
-                                  pose_lookup_->GetWorldFrameId())) {
+                                  extrinsics_.GetWorldFrameId())) {
     BEAM_WARN(
         "World frame in extrinsics does not match parent frame in odometry "
         "messages. Using extrinsics.");
@@ -54,14 +55,14 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
   // frames
   if (!override_sensor_frame_id_) {
     if (boost::algorithm::contains(child_frame_id,
-                                   pose_lookup_->GetImuFrameId())) {
-      sensor_frame_id_ = pose_lookup_->GetImuFrameId();
+                                   extrinsics_.GetImuFrameId())) {
+      sensor_frame_id_ = extrinsics_.GetImuFrameId();
     } else if (boost::algorithm::contains(child_frame_id,
-                                          pose_lookup_->GetCameraFrameId())) {
-      sensor_frame_id_ = pose_lookup_->GetCameraFrameId();
+                                          extrinsics_.GetCameraFrameId())) {
+      sensor_frame_id_ = extrinsics_.GetCameraFrameId();
     } else if (boost::algorithm::contains(child_frame_id,
-                                          pose_lookup_->GetLidarFrameId())) {
-      sensor_frame_id_ = pose_lookup_->GetLidarFrameId();
+                                          extrinsics_.GetLidarFrameId())) {
+      sensor_frame_id_ = extrinsics_.GetLidarFrameId();
     } else {
       BEAM_WARN(
           "Sensor frame id in odometry message not equal to any sensor frame "
@@ -83,7 +84,7 @@ void OdometryFrameInitializer::OdometryCallback(
     geometry_msgs::TransformStamped tf_stamped;
     beam_common::OdometryMsgToTransformedStamped(
         *message, message->header.stamp, message->header.seq,
-        pose_lookup_->GetWorldFrameId(), sensor_frame_id_, tf_stamped);
+        extrinsics_.GetWorldFrameId(), sensor_frame_id_, tf_stamped);
     poses_->setTransform(tf_stamped, authority_, false);
     return;
   }
@@ -103,7 +104,7 @@ void OdometryFrameInitializer::OdometryCallback(
     geometry_msgs::TransformStamped tf_stamped;
     beam_common::EigenTransformToTransformStampedMsg(
         T_WORLD_BASELINK, message->header.stamp, message->header.seq,
-        pose_lookup_->GetWorldFrameId(), sensor_frame_id_, tf_stamped);
+        extrinsics_.GetWorldFrameId(), sensor_frame_id_, tf_stamped);
     poses_->setTransform(tf_stamped, authority_, false);
     return;
   } else {

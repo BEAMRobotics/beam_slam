@@ -12,6 +12,8 @@ namespace frame_initializers {
 
 PoseFileFrameInitializer::PoseFileFrameInitializer(
     const std::string& file_path) {
+  authority_ = "poses_file";
+
   if (!boost::filesystem::exists(file_path)) {
     BEAM_ERROR("Pose file not found: {}", file_path);
     throw std::invalid_argument{"Pose file not found."};

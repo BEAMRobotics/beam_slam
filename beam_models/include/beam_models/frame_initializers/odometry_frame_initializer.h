@@ -46,7 +46,6 @@ class OdometryFrameInitializer : public FrameInitializerBase {
   bool check_world_baselink_frames_{true};
   bool override_sensor_frame_id_{false};
   std::string sensor_frame_id_;
-  std::string authority_{"odometry"};
 };
 
 }  // namespace frame_initializers
