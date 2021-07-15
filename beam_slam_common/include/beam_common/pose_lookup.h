@@ -55,7 +55,7 @@ class PoseLookup {
    */
   bool GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
                             const std::string& sensor_frame,
-                            const ros::Time& time);
+                            const ros::Time& time = ros::Time(0));
 
   /**
    * @brief Gets the frame id of IMU
