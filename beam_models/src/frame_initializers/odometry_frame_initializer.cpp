@@ -106,9 +106,8 @@ void OdometryFrameInitializer::OdometryCallback(
     poses_->setTransform(tf_stamped, authority_, false);
     return;
   } else {
-    BEAM_WARN(
-        "Skipping odometry message.");  // additional warning thrown by
-                                        // PoseLookup::GetT_BASELINK_SENSOR
+    // additional warning thrown by PoseLookup::GetT_BASELINK_SENSOR
+    BEAM_WARN("Skipping odometry message.");
     return;
   }
 }

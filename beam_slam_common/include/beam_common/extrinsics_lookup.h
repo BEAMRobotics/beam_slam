@@ -34,7 +34,7 @@ class ExtrinsicsLookup {
   ExtrinsicsLookup& operator=(const ExtrinsicsLookup& other) = delete;
 
   /**
-   * @brief Gets the extrinsics between camera and imu
+   * @brief Gets the extrinsics between camera and IMU
    * @param T reference to result
    * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
@@ -43,7 +43,7 @@ class ExtrinsicsLookup {
                        const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between imu and camera
+   * @brief Gets the extrinsics between IMU and camera
    * @param T reference to result
    * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
@@ -95,7 +95,7 @@ class ExtrinsicsLookup {
                          const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between baselink and Camera
+   * @brief Gets the extrinsics between baselink and camera
    * @param T reference to result
    * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
@@ -113,7 +113,7 @@ class ExtrinsicsLookup {
                            const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between sensor and baselink
+   * @brief Gets the extrinsics between baselink and sensor
    * @param T reference to result
    * @param sensor_frame sensor frame id
    * @param time extrinsics time if extrinsics are not static
@@ -123,7 +123,7 @@ class ExtrinsicsLookup {
                             const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between baselink and IMU
+   * @brief Gets the extrinsics between IMU and baselink
    * @param T reference to result
    * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
@@ -132,7 +132,7 @@ class ExtrinsicsLookup {
                          const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between baselink and Camera
+   * @brief Gets the extrinsics between camera and baselink
    * @param T reference to result
    * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
@@ -141,7 +141,7 @@ class ExtrinsicsLookup {
                             const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between baselink and lidar
+   * @brief Gets the extrinsics between lidar and baselink
    * @param T reference to result
    * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
@@ -150,7 +150,7 @@ class ExtrinsicsLookup {
                            const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between baselink and sensor
+   * @brief Gets the extrinsics between sensor and baselink
    * @param T reference to result
    * @param sensor_frame sensor frame id
    * @param time extrinsics time if extrinsics are not static

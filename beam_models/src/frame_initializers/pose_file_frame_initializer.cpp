@@ -57,6 +57,13 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     throw std::runtime_error{"Extrinsics must be static."};
   }
 
+  Eigen::Matrix4d T_MOVINGFRAME_BASELINK;
+  if (!extrinsics_.GetT_SENSOR_BASELINK(T_MOVINGFRAME_BASELINK,
+                                        poses_reader.GetMovingFrame())) {
+    // additional warning thrown by ExtrinsicsLookup::GetT_SENSOR_BASELINK
+    throw std::runtime_error{""};
+  }
+
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
       transforms = poses_reader.GetPoses();
   std::vector<ros::Time> timestamps = poses_reader.GetTimeStamps();
@@ -70,14 +77,6 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   }
 
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
-  pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);
-
-  Eigen::Matrix4d T_MOVINGFRAME_BASELINK;
-  if (!extrinsics_.GetT_SENSOR_BASELINK(T_MOVINGFRAME_BASELINK,
-                                        poses_reader.GetMovingFrame())) {
-    throw std::runtime_error{""};  // additional warning thrown by
-                                   // ExtrinsicsLookup::GetT_SENSOR_BASELINK
-  }
 
   for (int i = 0; i < transforms.size(); i++) {
     const Eigen::Matrix4d& T_WORLD_MOVINGFRAME = transforms[i].matrix();
@@ -89,6 +88,8 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
         extrinsics_.GetBaselinkFrameId(), tf_stamped);
     poses_->setTransform(tf_stamped, authority_, false);
   }
+
+  pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);
 }
 
 }  // namespace frame_initializers
