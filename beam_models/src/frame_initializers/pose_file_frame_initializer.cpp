@@ -72,15 +72,13 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
   pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);
 
-  Eigen::Matrix4d T_BASELINK_MOVINGFRAME;
-  if (!pose_lookup_->GetT_BASELINK_SENSOR(T_BASELINK_MOVINGFRAME,
-                                          poses_reader.GetMovingFrame())) {
+  Eigen::Matrix4d T_MOVINGFRAME_BASELINK;
+  if (!extrinsics_.GetT_SENSOR_BASELINK(T_MOVINGFRAME_BASELINK,
+                                        poses_reader.GetMovingFrame())) {
     throw std::runtime_error{""};  // additional warning thrown by
-                                   // PoseLookup::GetT_BASELINK_SENSOR
+                                   // ExtrinsicsLookup::GetT_SENSOR_BASELINK
   }
 
-  Eigen::Matrix4d T_MOVINGFRAME_BASELINK =
-      beam::InvertTransform(T_BASELINK_MOVINGFRAME);
   for (int i = 0; i < transforms.size(); i++) {
     const Eigen::Matrix4d& T_WORLD_MOVINGFRAME = transforms[i].matrix();
     Eigen::Matrix4d T_WORLD_BASELINK =

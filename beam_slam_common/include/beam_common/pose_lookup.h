@@ -45,17 +45,6 @@ class PoseLookup {
   bool GetT_WORLD_BASELINK(Eigen::Matrix4d& T_WORLD_BASELINK,
                            const ros::Time& time);
 
-  /**
-   * @brief Gets estimate of sensor frame pose wrt baselink frame
-   * @param T_BASELINK_SENSOR reference to result
-   * @param sensor_frame sensor frame id
-   * @param time stamp of the frame being initialized
-   * @return true if pose lookup was successful
-   */
-  bool GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
-                            const std::string& sensor_frame,
-                            const ros::Time& time = ros::Time(0));
-
  private:
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();

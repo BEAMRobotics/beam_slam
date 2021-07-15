@@ -91,12 +91,9 @@ void OdometryFrameInitializer::OdometryCallback(
   }
 
   // Otherwise, transform sensor frame to baselink and then publish
-  Eigen::Matrix4d T_BASELINK_SENSOR;
-  if (pose_lookup_->GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame_id_,
-                                         message->header.stamp)) {
-    Eigen::Matrix4d T_SENSOR_BASELINK =
-        beam::InvertTransform(T_BASELINK_SENSOR);
-
+  Eigen::Matrix4d T_SENSOR_BASELINK;
+  if (extrinsics_.GetT_SENSOR_BASELINK(T_SENSOR_BASELINK, sensor_frame_id_,
+                                       message->header.stamp)) {
     Eigen::Matrix4d T_WORLD_SENSOR;
     beam_common::OdometryMsgToTransformationMatrix(*message, T_WORLD_SENSOR);
 

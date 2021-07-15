@@ -12,7 +12,8 @@ bool PoseLookup::GetT_WORLD_SENSOR(Eigen::Matrix4d& T_WORLD_SENSOR,
                                    const std::string& sensor_frame,
                                    const ros::Time& time) {
   Eigen::Matrix4d T_BASELINK_SENSOR;
-  if (!GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame, time)) {
+  if (!extrinsics_.GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame,
+                                        time)) {
     return false;
   }
 
@@ -41,27 +42,6 @@ bool PoseLookup::GetT_WORLD_BASELINK(Eigen::Matrix4d& T_WORLD_BASELINK,
       extrinsics_.GetWorldFrameId(), extrinsics_.GetBaselinkFrameId(), time);
 
   TransformStampedMsgToEigenTransform(TROS_WORLD_BASELINK, T_WORLD_BASELINK);
-
-  return true;
-}
-
-bool PoseLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_BASELINK_SENSOR,
-                                      const std::string& sensor_frame,
-                                      const ros::Time& time) {
-  if (sensor_frame == extrinsics_.GetImuFrameId()) {
-    extrinsics_.GetT_BASELINK_IMU(T_BASELINK_SENSOR, time);
-  } else if (sensor_frame == extrinsics_.GetCameraFrameId()) {
-    extrinsics_.GetT_BASELINK_CAMERA(T_BASELINK_SENSOR, time);
-  } else if (sensor_frame == extrinsics_.GetLidarFrameId()) {
-    extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_SENSOR, time);
-  } else {
-    BEAM_WARN(
-        "Cannot lookup extrinsics between baselink frame: {} and sensor frame: "
-        "{}. Ensure sensor frame ID matches either imu, camera, or lidar "
-        "frames and transformation exists at time: {}",
-        extrinsics_.GetBaselinkFrameId(), sensor_frame, time.toSec());
-    return false;
-  }
 
   return true;
 }
