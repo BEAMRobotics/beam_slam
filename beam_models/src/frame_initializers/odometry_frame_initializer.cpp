@@ -20,17 +20,17 @@ OdometryFrameInitializer::OdometryFrameInitializer(
       boost::bind(&OdometryFrameInitializer::OdometryCallback, this, _1));
 
   if (!sensor_frame_id_override.empty()) {
-    if (extrinsics_.IsSensorFrameIdValid(sensor_frame_id_override)) {
-      BEAM_INFO("Overriding sensor frame id in odometry messages to: {}",
-                sensor_frame_id_override);
-      sensor_frame_id_ = sensor_frame_id_override;
-      override_sensor_frame_id_ = true;
-    } else {
+    if (!extrinsics_.IsSensorFrameIdValid(sensor_frame_id_override)) {
       BEAM_ERROR(
           "Sensor frame id override provided does not match any frame in the "
           "extrinsics. Input: {}",
           sensor_frame_id_override);
       throw std::invalid_argument{"Invalid sensor frame id override."};
+    } else {
+      BEAM_INFO("Overriding sensor frame id in odometry messages to: {}",
+                sensor_frame_id_override);
+      sensor_frame_id_ = sensor_frame_id_override;
+      override_sensor_frame_id_ = true;
     }
   } else {
     sensor_frame_id_ = extrinsics_.GetBaselinkFrameId();
