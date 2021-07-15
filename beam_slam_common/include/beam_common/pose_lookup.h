@@ -58,6 +58,26 @@ class PoseLookup {
                             const ros::Time& time);
 
   /**
+   * @brief Gets the frame id of IMU
+   * @return frame id
+   */
+  std::string GetImuFrameId() const { return extrinsics_.GetImuFrameId(); }
+
+  /**
+   * @brief Gets the frame id of camera
+   * @return frame id
+   */
+  std::string GetCameraFrameId() const {
+    return extrinsics_.GetCameraFrameId();
+  }
+
+  /**
+   * @brief Gets the frame id of lidar
+   * @return frame id
+   */
+  std::string GetLidarFrameId() const { return extrinsics_.GetLidarFrameId(); }
+
+  /**
    * @brief Gets the frame id of world
    * @return frame id
    */
@@ -72,17 +92,15 @@ class PoseLookup {
   }
 
   /**
-   * @brief Verifies if frame id is valid by checking against frames supplied in
-   * ExtrinsicsLookup
-   * @return true if frame id matches either the imu, camera, or lidar frame id
+   * @brief Verifies if sensor frame id is valid by checking against sensor
+   * frames supplied in ExtrinsicsLookup
+   * @return true if sensor frame id matches either the imu, camera, or lidar
+   * frame id
    */
-  bool IsFrameIdValid(const std::string& sensor_frame) const {
-    return boost::algorithm::contains(sensor_frame,
-                                      extrinsics_.GetImuFrameId()) ||
-           boost::algorithm::contains(sensor_frame,
-                                      extrinsics_.GetCameraFrameId()) ||
-           boost::algorithm::contains(sensor_frame,
-                                      extrinsics_.GetLidarFrameId());
+  bool IsSensorFrameIdValid(const std::string& sensor_frame) const {
+    return sensor_frame == this->GetImuFrameId() ||
+           sensor_frame == this->GetCameraFrameId() ||
+           sensor_frame == this->GetLidarFrameId();
   }
 
  private:
