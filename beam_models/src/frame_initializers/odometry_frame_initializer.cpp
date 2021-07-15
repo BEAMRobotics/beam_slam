@@ -1,5 +1,6 @@
 #include <beam_models/frame_initializers/odometry_frame_initializer.h>
 
+#include <boost/algorithm/string.hpp>
 #include <beam_utils/log.h>
 
 #include <beam_common/utils.h>

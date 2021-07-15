@@ -1,6 +1,5 @@
 #pragma once
 
-#include <boost/algorithm/string.hpp>
 #include <Eigen/Dense>
 #include <tf2/buffer_core.h>
 
