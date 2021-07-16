@@ -12,6 +12,8 @@ namespace frame_initializers {
 
 PoseFileFrameInitializer::PoseFileFrameInitializer(
     const std::string& file_path) {
+  authority_ = "poses_file";
+
   if (!boost::filesystem::exists(file_path)) {
     BEAM_ERROR("Pose file not found: {}", file_path);
     throw std::invalid_argument{"Pose file not found."};
@@ -56,19 +58,9 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   }
 
   Eigen::Matrix4d T_MOVINGFRAME_BASELINK;
-  bool lookup_success{true};
-  if (poses_reader.GetMovingFrame() == extrinsics_.GetBaselinkFrameId()) {
-    T_MOVINGFRAME_BASELINK = Eigen::Matrix4d::Identity();
-  } else if (poses_reader.GetMovingFrame() == extrinsics_.GetImuFrameId()) {
-    lookup_success = extrinsics_.GetT_IMU_BASELINK(T_MOVINGFRAME_BASELINK);
-  } else if (poses_reader.GetMovingFrame() == extrinsics_.GetCameraFrameId()) {
-    lookup_success = extrinsics_.GetT_CAMERA_BASELINK(T_MOVINGFRAME_BASELINK);
-  } else if (poses_reader.GetMovingFrame() == extrinsics_.GetLidarFrameId()) {
-    lookup_success = extrinsics_.GetT_LIDAR_BASELINK(T_MOVINGFRAME_BASELINK);
-  }
-
-  if (!lookup_success) {
-    BEAM_ERROR("Cannot lookup extrinsics.");
+  if (!extrinsics_.GetT_SENSOR_BASELINK(T_MOVINGFRAME_BASELINK,
+                                        poses_reader.GetMovingFrame())) {
+    BEAM_ERROR("Cannot lookup extrinsics. Exiting.");
     throw std::runtime_error{"Cannot lookup extrinsics."};
   }
 
@@ -94,8 +86,7 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     beam_common::EigenTransformToTransformStampedMsg(
         T_WORLD_BASELINK, timestamps[i], i, extrinsics_.GetWorldFrameId(),
         extrinsics_.GetBaselinkFrameId(), tf_stamped);
-    std::string authority{"poses_file"};
-    poses_->setTransform(tf_stamped, authority, false);
+    poses_->setTransform(tf_stamped, authority_, false);
   }
 
   pose_lookup_ = std::make_shared<beam_common::PoseLookup>(poses_);

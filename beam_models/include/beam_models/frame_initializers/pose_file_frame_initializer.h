@@ -19,10 +19,6 @@ class PoseFileFrameInitializer : public FrameInitializerBase {
    * @param file_path full path to pose file
    */
   PoseFileFrameInitializer(const std::string& file_path);
-
- private:
-  beam_common::ExtrinsicsLookup& extrinsics_ =
-      beam_common::ExtrinsicsLookup::GetInstance();
 };
 
 }  // namespace frame_initializers

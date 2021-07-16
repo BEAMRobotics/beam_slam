@@ -22,17 +22,14 @@ ExtrinsicsLookup::ExtrinsicsLookup() {
 
   // validate parameters
   if (imu_frame_.empty() || camera_frame_.empty() || lidar_frame_.empty() ||
-      baselink_frame_.empty() || baselink_frame_.empty()) {
+      baselink_frame_.empty() || world_frame_.empty()) {
     BEAM_ERROR(
         "Inputs to ExtrinsicsLookup invalid. You must supply a frame name "
         "for each of the frame types: imu, camera, lidar, baselink, world");
     throw std::invalid_argument{"Inputs to ExtrinsicsLookup invalid."};
   }
 
-  if (baselink_frame_ == imu_frame_ || baselink_frame_ == camera_frame_ ||
-      baselink_frame_ == lidar_frame_) {
-    // good
-  } else {
+  if (!IsSensorFrameIdValid(baselink_frame_)) {
     BEAM_ERROR("Baselink frame must be equal to one of the sensor frames.");
     throw std::invalid_argument{"Inputs to ExtrinsicsLookup invalid."};
   }
@@ -252,6 +249,57 @@ bool ExtrinsicsLookup::GetT_LIDAR_BASELINK(Eigen::Matrix4d& T,
 
   // should not get here because of validation on init
   return false;
+}
+
+bool ExtrinsicsLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T,
+                                            const std::string& sensor_frame,
+                                            const ros::Time& time) {
+  if (!IsSensorFrameIdValid(sensor_frame)) {
+    // error thrown by IsSensorFrameIdValid
+    return false;
+  }
+
+  if (sensor_frame == baselink_frame_) {
+    T = Eigen::Matrix4d::Identity();
+    return true;
+  } else if (sensor_frame == imu_frame_) {
+    return GetT_BASELINK_IMU(T, time);
+  } else if (sensor_frame == camera_frame_) {
+    return GetT_BASELINK_CAMERA(T, time);
+  } else if (sensor_frame == lidar_frame_) {
+    return GetT_BASELINK_LIDAR(T, time);
+  } else {
+    BEAM_WARN(
+        "Cannot lookup extrinsics between sensor frame: [{}] and baselink "
+        "frame: [{}]. Ensure transformation exists at time: [{}]",
+        sensor_frame, baselink_frame_, time.toSec());
+    return false;
+  }
+}
+
+bool ExtrinsicsLookup::GetT_SENSOR_BASELINK(Eigen::Matrix4d& T,
+                                            const std::string& sensor_frame,
+                                            const ros::Time& time) {
+  if (GetT_BASELINK_SENSOR(T, sensor_frame, time)) {
+    T = beam::InvertTransform(T);
+    return true;
+  } else {
+    // warning thrown by GetT_BASELINK_SENSOR
+    return false;
+  }
+}
+
+bool ExtrinsicsLookup::IsSensorFrameIdValid(const std::string& sensor_frame) {
+  if (sensor_frame == imu_frame_ || sensor_frame == camera_frame_ ||
+      sensor_frame == lidar_frame_) {
+    return true;
+  } else {
+    BEAM_ERROR(
+        "Input sensor frame: [{}] does not match imu frame: [{}], camera "
+        "frame: [{}], or lidar frame: [{}]",
+        sensor_frame, imu_frame_, camera_frame_, lidar_frame_);
+    return false;
+  }
 }
 
 bool ExtrinsicsLookup::GetTransform(Eigen::Matrix4d& T,

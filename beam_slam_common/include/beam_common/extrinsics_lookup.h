@@ -34,18 +34,18 @@ class ExtrinsicsLookup {
   ExtrinsicsLookup& operator=(const ExtrinsicsLookup& other) = delete;
 
   /**
-   * @brief Gets the extrinsics between camera and imu
-   * @param time extrinsics time if extrinsics are not static
+   * @brief Gets the extrinsics between camera and IMU
    * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
   bool GetT_CAMERA_IMU(Eigen::Matrix4d& T,
                        const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between imu and camera
-   * @param time extrinsics time if extrinsics are not static
+   * @brief Gets the extrinsics between IMU and camera
    * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
   bool GetT_IMU_CAMERA(Eigen::Matrix4d& T,
@@ -53,8 +53,8 @@ class ExtrinsicsLookup {
 
   /**
    * @brief Gets the extrinsics between camera and lidar
-   * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
   bool GetT_CAMERA_LIDAR(Eigen::Matrix4d& T,
@@ -62,8 +62,8 @@ class ExtrinsicsLookup {
 
   /**
    * @brief Gets the extrinsics between lidar and camera
-   * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
   bool GetT_LIDAR_CAMERA(Eigen::Matrix4d& T,
@@ -71,67 +71,93 @@ class ExtrinsicsLookup {
 
   /**
    * @brief Gets the extrinsics between IMU and lidar
-   * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
   bool GetT_IMU_LIDAR(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));
 
   /**
    * @brief Gets the extrinsics between lidar and IMU
-   * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
   bool GetT_LIDAR_IMU(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));
 
   /**
    * @brief Gets the extrinsics between baselink and IMU
-   * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
-  bool GetT_BASELINK_IMU(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));  
+  bool GetT_BASELINK_IMU(Eigen::Matrix4d& T,
+                         const ros::Time& time = ros::Time(0));
 
   /**
-   * @brief Gets the extrinsics between baselink and Camera
-   * @param time extrinsics time if extrinsics are not static
+   * @brief Gets the extrinsics between baselink and camera
    * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
-  bool GetT_BASELINK_CAMERA(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));  
-
-  /**
-   * @brief Gets the extrinsics between baselink and lidar
-   * @param time extrinsics time if extrinsics are not static
-   * @param T reference to result
-   * @return true if lookup was successful
-   */
-  bool GetT_BASELINK_LIDAR(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));    
-
-  /**
-   * @brief Gets the extrinsics between baselink and IMU
-   * @param time extrinsics time if extrinsics are not static
-   * @param T reference to result
-   * @return true if lookup was successful
-   */
-  bool GetT_IMU_BASELINK(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));  
-
-  /**
-   * @brief Gets the extrinsics between baselink and Camera
-   * @param time extrinsics time if extrinsics are not static
-   * @param T reference to result
-   * @return true if lookup was successful
-   */
-  bool GetT_CAMERA_BASELINK(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));  
+  bool GetT_BASELINK_CAMERA(Eigen::Matrix4d& T,
+                            const ros::Time& time = ros::Time(0));
 
   /**
    * @brief Gets the extrinsics between baselink and lidar
-   * @param time extrinsics time if extrinsics are not static
    * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
-  bool GetT_LIDAR_BASELINK(Eigen::Matrix4d& T, const ros::Time& time = ros::Time(0));        
+  bool GetT_BASELINK_LIDAR(Eigen::Matrix4d& T,
+                           const ros::Time& time = ros::Time(0));
+
+  /**
+   * @brief Gets the extrinsics between baselink and sensor
+   * @param T reference to result
+   * @param sensor_frame sensor frame id
+   * @param time extrinsics time if extrinsics are not static
+   * @return true if lookup was successful
+   */
+  bool GetT_BASELINK_SENSOR(Eigen::Matrix4d& T, const std::string& sensor_frame,
+                            const ros::Time& time = ros::Time(0));
+
+  /**
+   * @brief Gets the extrinsics between IMU and baselink
+   * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
+   * @return true if lookup was successful
+   */
+  bool GetT_IMU_BASELINK(Eigen::Matrix4d& T,
+                         const ros::Time& time = ros::Time(0));
+
+  /**
+   * @brief Gets the extrinsics between camera and baselink
+   * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
+   * @return true if lookup was successful
+   */
+  bool GetT_CAMERA_BASELINK(Eigen::Matrix4d& T,
+                            const ros::Time& time = ros::Time(0));
+
+  /**
+   * @brief Gets the extrinsics between lidar and baselink
+   * @param T reference to result
+   * @param time extrinsics time if extrinsics are not static
+   * @return true if lookup was successful
+   */
+  bool GetT_LIDAR_BASELINK(Eigen::Matrix4d& T,
+                           const ros::Time& time = ros::Time(0));
+
+  /**
+   * @brief Gets the extrinsics between sensor and baselink
+   * @param T reference to result
+   * @param sensor_frame sensor frame id
+   * @param time extrinsics time if extrinsics are not static
+   * @return true if lookup was successful
+   */
+  bool GetT_SENSOR_BASELINK(Eigen::Matrix4d& T, const std::string& sensor_frame,
+                            const ros::Time& time = ros::Time(0));
 
   /**
    * @brief Gets the frame id of IMU
@@ -161,13 +187,20 @@ class ExtrinsicsLookup {
    * @brief Gets the frame id of the baselink frame
    * @return frame id
    */
-  std::string GetBaselinkFrameId() const { return baselink_frame_; }  
+  std::string GetBaselinkFrameId() const { return baselink_frame_; }
 
   /**
    * @brief Gets the status on whether or not extrinsics are static
    * @return true if extrinsics are static
    */
   bool IsStatic() const { return static_extrinsics_; }
+
+  /**
+   * @brief Verifies if sensor frame id is valid by checking against IMU,
+   * camera, or lidar frame id
+   * @return true if sensor frame id matches any of these frames
+   */
+  bool IsSensorFrameIdValid(const std::string& sensor_frame);
 
  private:
   /**
