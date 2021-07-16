@@ -2,10 +2,7 @@
     <!--node name="republish" type="republish" pkg="image_transport" 
     args="compressed in:=/camera/image_raw out:=/camera/image_raw/raw"/-->
 
-    <!--node name="calibration_publisher_main" pkg="calibration_publisher" type="calibration_publisher_main">
-        <param name="robot_name" value=""/>
-        <param name="extrinsics_file_path" value="/home/jake/data/VIO/euroc/extrinsics.json"/>
-    </node-->
+    <include file="$(find beam_slam_launch)/launch/includes/calibration_publisher_kaarta.launch" />
 
     <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="fixed_lag_smoother" output="screen">
         <rosparam command="load" file="$(find beam_slam_launch)/config/camera.yaml"/>

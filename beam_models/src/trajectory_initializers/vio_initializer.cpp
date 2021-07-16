@@ -182,7 +182,7 @@ void VIOInitializer::PerformIMUInitialization(
 void VIOInitializer::AddPosesAndInertialConstraints(
     const std::vector<beam_models::camera_to_camera::Frame>& frames,
     bool set_start) {
-  // add initial poses and imu constraints
+  // add initial poses and imu data to preintegrator
   for (int i = 0; i < frames.size(); i++) {
     // 1. Add frame's pose to graph
     beam_models::camera_to_camera::Frame frame = frames[i];
@@ -192,20 +192,22 @@ void VIOInitializer::AddPosesAndInertialConstraints(
     for (auto& imu_data : frame.preint.data) {
       imu_preint_->AddToBuffer(imu_data);
     }
+  }
+  // add inertial constraints between each frame
+  for (int i = 0; i < frames.size(); i++) {
+    beam_models::camera_to_camera::Frame frame = frames[i];
+    fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
+        visual_map_->GetOrientation(frame.t);
+    fuse_variables::Position3DStamped::SharedPtr img_position =
+        visual_map_->GetPosition(frame.t);
     // 3. Add respective imu constraints
     if (set_start && i == 0) {
-      imu_preint_->SetStart(frame.t, visual_map_->GetOrientation(frame.t),
-                            visual_map_->GetPosition(frame.t));
+      imu_preint_->SetStart(frame.t, img_orientation, img_position);
     } else {
-      fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
-          visual_map_->GetOrientation(frame.t);
-      fuse_variables::Position3DStamped::SharedPtr img_position =
-          visual_map_->GetPosition(frame.t);
       // get imu transaction
       fuse_core::Transaction::SharedPtr transaction =
           imu_preint_->RegisterNewImuPreintegratedFactor(
               frame.t, img_orientation, img_position);
-
       // add constituent variables and constraints
       for (auto& var : transaction->addedVariables()) {
         local_graph_->addVariable(std::move(var.clone()));

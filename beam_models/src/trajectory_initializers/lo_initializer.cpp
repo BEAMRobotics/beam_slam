@@ -151,7 +151,6 @@ void LoInitializer::ProcessCurrentKeyframe() {
   }
 
   ROS_DEBUG("Total time to process keyframe: %.5f", timer.elapsed());
-
   // check if time window is full, if not then keep adding to the queue
   if (keyframes_.back().Stamp() - keyframes_.front().Stamp() <
       params_.trajectory_time_window) {
@@ -170,13 +169,14 @@ void LoInitializer::ProcessCurrentKeyframe() {
     ROS_INFO("LO trajectory is long enough.");
     SetTrajectoryStart();
     PublishResults();
-    OutputResults();
+    //OutputResults();
     initialization_complete_ = true;
 
     // clear lidar map so we can generate a new one during slam (it's a singleton)
     scan_registration_->GetMapMutable().Clear();
 
     ROS_INFO("Lo initialization complete");
+    stop();
   } else {
     keyframes_.pop_front();
   }

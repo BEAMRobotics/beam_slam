@@ -79,10 +79,6 @@ void VisualInertialOdom::onInit() {
       std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
           cam_model_, tracker_, J["cov_gyro_noise"], J["cov_accel_noise"],
           J["cov_gyro_bias"], J["cov_accel_bias"]);
-  // temp
-  init_path_pub_ = private_node_handle_.advertise<InitializedPathMsg>(
-      camera_params_.init_path_topic, 1);
-  BuildPath();
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -100,24 +96,25 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       if ((img_time - cur_kf_time_).toSec() >= 0.8) {
         cur_kf_time_ = img_time;
         if (initializer_->AddImage(img_time)) {
-          ROS_INFO("Initialization Success.");
+          ROS_INFO("Initialization Success: %f", cur_kf_time_.toSec());
           // get the preintegration object
           imu_preint_ = initializer_->GetPreintegrator();
           // copy init graph and send to fuse optimizer
           SendInitializationGraph(initializer_->GetGraph());
+        }else {
+          ROS_INFO("Initialization Failure: %f", cur_kf_time_.toSec());
         }
-        ROS_INFO("Initialization failure at %f", cur_kf_time_.toSec());
       }
     } else {
-      std::vector<uint64_t> triangulated_ids;
-      std::vector<uint64_t> untriangulated_ids;
-      Eigen::Matrix4d T_WORLD_CAMERA =
-          LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
-      // publish pose to odom topic
-      if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
-        // [1] Add constraints to triangulated ids
-        // [2] Try to triangulate untriangulated ids and add constraints
-      }
+      // std::vector<uint64_t> triangulated_ids;
+      // std::vector<uint64_t> untriangulated_ids;
+      // Eigen::Matrix4d T_WORLD_CAMERA =
+      //     LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
+      // // publish pose to odom topic
+      // if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
+      //   // [1] Add constraints to triangulated ids
+      //   // [2] Try to triangulate untriangulated ids and add constraints
+      // }
     }
     image_buffer_.pop();
   }
@@ -230,7 +227,7 @@ Eigen::Matrix4d VisualInertialOdom::LocalizeFrame(
   return T_CAMERA_WORLD_ref.inverse();
 }
 
-bool IsKeyframe(const ros::Time& img_time,
+bool VisualInertialOdom::IsKeyframe(const ros::Time& img_time,
                 const std::vector<uint64_t>& triangulated_ids,
                 const std::vector<uint64_t>& untriangulated_ids) {
   return true;

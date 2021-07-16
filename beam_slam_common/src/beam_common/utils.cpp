@@ -44,38 +44,6 @@ Eigen::Matrix4d FusePoseToEigenTransform(
   return T;
 }
 
-void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
-                                   Eigen::Matrix4d& T_WORLD_SENSOR) {
-  Eigen::Vector3d position;
-  position[0] = pose.pose.position.x;
-  position[1] = pose.pose.position.y;
-  position[2] = pose.pose.position.z;
-  Eigen::Quaterniond orientation;
-  orientation.w() = pose.pose.orientation.w;
-  orientation.x() = pose.pose.orientation.x;
-  orientation.y() = pose.pose.orientation.y;
-  orientation.z() = pose.pose.orientation.z;
-  beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
-                                                  T_WORLD_SENSOR);
-}
-
-void InterpolateTransformFromPath(const nav_msgs::Path& path,
-                                  const ros::Time& time,
-                                  Eigen::Matrix4d& T_WORLD_SENSOR) {
-  for (int i = 0; i < path.poses.size(); i++) {
-    if (time < path.poses[i + 1].header.stamp &&
-        time >= path.poses[i].header.stamp) {
-      Eigen::Matrix4d pose1, pose2;
-      PoseMsgToTransformationMatrix(path.poses[i], pose1);
-      PoseMsgToTransformationMatrix(path.poses[i + 1], pose2);
-      T_WORLD_SENSOR = beam::InterpolateTransform(
-          pose1, beam::RosTimeToChrono(path.poses[i].header.stamp), pose2,
-          beam::RosTimeToChrono(path.poses[i + 1].header.stamp),
-          beam::RosTimeToChrono(time));
-    }
-  }
-}
-
 double CalculateTrajectoryLength(
     const std::list<beam_common::ScanPose>& keyframes) {
   double length{0};

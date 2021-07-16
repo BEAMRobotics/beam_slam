@@ -140,6 +140,7 @@ protected:
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
   ros::Subscriber path_subscriber_;
+  ros::Publisher init_odom_publisher_;
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
 
