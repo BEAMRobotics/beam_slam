@@ -47,6 +47,28 @@ inline void
 }
 
 /**
+ * @brief Turns a pose message into an Eigen 4x4 matrix
+ * @param pose pose message to turn into eigen matrix
+ * @param T_WORLD_SENSOR[out] Transform to return
+ */
+inline void PoseMsgToTransformationMatrixToPoseMsg(
+    const Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& stamp,
+    geometry_msgs::PoseStamped& pose) {
+  Eigen::Vector3d position;
+  Eigen::Quaterniond orientation;
+  beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_SENSOR, orientation,
+                                                  position);
+  pose.header.stamp = stamp;
+  pose.pose.position.x = position[0];
+  pose.pose.position.y = position[1];
+  pose.pose.position.z = position[2];
+  pose.pose.orientation.w = orientation.w();
+  pose.pose.orientation.x = orientation.x();
+  pose.pose.orientation.y = orientation.y();
+  pose.pose.orientation.z = orientation.z();
+}
+
+/**
  * @brief Interpolates a pose given a list of poses and a time
  * @param poses list of poses
  * @param time time to interpolate pose for

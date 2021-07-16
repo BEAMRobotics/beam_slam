@@ -69,6 +69,9 @@ void VisualInertialOdom::onInit() {
   path_subscriber_ = private_node_handle_.subscribe(
       camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
       this);
+  init_odom_publisher_ =
+      private_node_handle_.advertise<geometry_msgs::PoseStamped>("init_visual_odom",
+                                                                 100);
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
@@ -101,7 +104,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
           imu_preint_ = initializer_->GetPreintegrator();
           // copy init graph and send to fuse optimizer
           SendInitializationGraph(initializer_->GetGraph());
-        }else {
+        } else {
           ROS_INFO("Initialization Failure: %f", cur_kf_time_.toSec());
         }
       }
@@ -227,9 +230,9 @@ Eigen::Matrix4d VisualInertialOdom::LocalizeFrame(
   return T_CAMERA_WORLD_ref.inverse();
 }
 
-bool VisualInertialOdom::IsKeyframe(const ros::Time& img_time,
-                const std::vector<uint64_t>& triangulated_ids,
-                const std::vector<uint64_t>& untriangulated_ids) {
+bool VisualInertialOdom::IsKeyframe(
+    const ros::Time& img_time, const std::vector<uint64_t>& triangulated_ids,
+    const std::vector<uint64_t>& untriangulated_ids) {
   return true;
   // [1] If at least t1 time has passed
   // [2] If average parallax is over N and translational movement over t
