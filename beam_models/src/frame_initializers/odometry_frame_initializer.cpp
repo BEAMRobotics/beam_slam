@@ -1,6 +1,7 @@
 #include <beam_models/frame_initializers/odometry_frame_initializer.h>
 
 #include <boost/algorithm/string.hpp>
+
 #include <beam_utils/log.h>
 
 #include <beam_common/utils.h>
@@ -22,7 +23,8 @@ OdometryFrameInitializer::OdometryFrameInitializer(
 
   if (!sensor_frame_id_override.empty()) {
     if (!extrinsics_.IsSensorFrameIdValid(sensor_frame_id_override)) {
-      // error thrown by ExtrinsicsLookup::IsSensorFrameIdValid
+      BEAM_ERROR("Sensor frame id override [{}] invalid. Exiting.",
+                 sensor_frame_id_override);
       throw std::invalid_argument{"Invalid sensor frame id override."};
     } else {
       BEAM_INFO("Overriding sensor frame id in odometry messages to: {}",
@@ -77,9 +79,8 @@ void OdometryFrameInitializer::OdometryCallback(
     CheckOdometryFrameIDs(message);
   }
 
-  // if no sensor frame override was provided, the sensor frame is assumed to
-  // coincide with baselink. As such, tf messages are directly published
-  if (!override_sensor_frame_id_) {
+  // if sensor_frame is already baselink, then we can directly copy
+  if (sensor_frame_id_ == extrinsics_.GetBaselinkFrameId()) {
     geometry_msgs::TransformStamped tf_stamped;
     beam_common::OdometryMsgToTransformedStamped(
         *message, message->header.stamp, message->header.seq,
@@ -104,7 +105,6 @@ void OdometryFrameInitializer::OdometryCallback(
     poses_->setTransform(tf_stamped, authority_, false);
     return;
   } else {
-    // additional warning thrown by PoseLookup::GetT_SENSOR_BASELINK
     BEAM_WARN("Skipping odometry message.");
     return;
   }
