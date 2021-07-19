@@ -197,7 +197,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   }
 
   // Populate integrator
-  while (t_now > imu_data_buffer_.front().t) {
+  while (t_now > imu_data_buffer_.front().t && !imu_data_buffer_.empty()) {
     pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
     imu_data_buffer_.pop();
   }
@@ -208,12 +208,6 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
   // predict state at end of window using integrated imu measurements
   ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_);
-
-  // update orientation and position of predicted imu state with arguments
-  if (R_WORLD_IMU && t_WORLD_IMU) {
-    imu_state_j.SetOrientation(R_WORLD_IMU->data());
-    imu_state_j.SetPosition(t_WORLD_IMU->data());
-  }
 
   // calculate relative change in imu state between key frames
   auto delta_ij = CalculateRelativeChange(imu_state_j);
@@ -240,6 +234,12 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   transaction.AddImuStateVariables(
       imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),
       imu_state_j.GyroBias(), imu_state_j.AccelBias(), imu_state_j.Stamp());
+
+  // update orientation and position of predicted imu state with arguments
+  if (R_WORLD_IMU && t_WORLD_IMU) {
+    imu_state_j.SetOrientation(R_WORLD_IMU->data());
+    imu_state_j.SetPosition(t_WORLD_IMU->data());
+  }
 
   // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
