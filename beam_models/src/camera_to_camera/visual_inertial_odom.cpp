@@ -126,8 +126,11 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         cur_kf_time_ = img_time;
         keyframes_.push_back(img_time);
         added_since_kf_ = 0;
-        // [1] Add constraints to triangulated ids
-        // [2] Try to triangulate untriangulated ids and add constraints
+        // extend map
+        ExtendMap(img_time, T_WORLD_CAMERA, triangulated_ids,
+                  untriangulated_ids);
+        // add imu constraint
+        SendInertialConstraint(img_time);
       } else {
         added_since_kf_++;
       }
@@ -231,15 +234,8 @@ Eigen::Matrix4d VisualInertialOdom::LocalizeFrame(
       beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
                                                       points);
   // refine pose using motion only BA
-  ceres::Solver::Options ceres_solver_options;
-  ceres_solver_options.minimizer_progress_to_stdout = false;
-  ceres_solver_options.max_solver_time_in_seconds = 1e-2;
-  ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
-  ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
-  beam_cv::PoseRefinement refiner(ceres_solver_options);
-  std::string report;
-  Eigen::Matrix4d T_CAMERA_WORLD_ref = refiner.RefinePose(
-      T_CAMERA_WORLD_est, cam_model_, pixels, points, report);
+  Eigen::Matrix4d T_CAMERA_WORLD_ref =
+      pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points);
   return T_CAMERA_WORLD_ref.inverse();
 }
 
@@ -283,6 +279,64 @@ double VisualInertialOdom::ComputeAvgParallax(
     } catch (const std::out_of_range& oor) {}
   }
   return total_parallax / (double)num_matches;
+}
+
+void VisualInertialOdom::ExtendMap(
+    const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_CAMERA,
+    const std::vector<uint64_t>& triangulated_ids,
+    const std::vector<uint64_t>& untriangulated_ids) {
+  auto transaction = fuse_core::Transaction::make_shared();
+  // add camera pose
+  visual_map_->AddPose(T_WORLD_CAMERA, img_time, transaction);
+  // add constraints to triangulated ids
+  for (auto& id : triangulated_ids) {
+    visual_map_->AddConstraint(img_time, id, tracker_->Get(img_time, id),
+                               transaction);
+  }
+  // triangulate untriangulated ids and add constraints
+  for (auto& id : untriangulated_ids) {
+    std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
+    std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
+    std::vector<ros::Time> observation_stamps;
+    beam_cv::FeatureTrack track = tracker_->GetTrack(id);
+    for (auto& m : track) {
+      beam::opt<Eigen::Matrix4d> T = visual_map_->GetPose(m.time_point);
+      if (T.has_value()) {
+        pixels.push_back(m.value.cast<int>());
+        T_cam_world_v.push_back(T.value().inverse());
+        observation_stamps.push_back(m.time_point);
+      }
+    }
+    if (T_cam_world_v.size() >= 2) {
+      beam::opt<Eigen::Vector3d> point =
+          beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+                                                   pixels);
+
+      if (point.has_value()) {
+        visual_map_->AddLandmark(point.value(), id, transaction);
+        for (int i = 0; i < observation_stamps.size(); i++) {
+          visual_map_->AddConstraint(observation_stamps[i], id,
+                                     tracker_->Get(observation_stamps[i], id),
+                                     transaction);
+        }
+      }
+    }
+  }
+  sendTransaction(transaction);
+}
+
+void VisualInertialOdom::SendInertialConstraint(const ros::Time& img_time) {
+  // get robot pose variables at timestamp
+  fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
+      visual_map_->GetOrientation(img_time);
+  fuse_variables::Position3DStamped::SharedPtr img_position =
+      visual_map_->GetPosition(img_time);
+  // get inertial constraint transaction
+  fuse_core::Transaction::SharedPtr transaction =
+      imu_preint_->RegisterNewImuPreintegratedFactor(img_time, img_orientation,
+                                                     img_position);
+  // send transaction to opimizer
+  sendTransaction(transaction);
 }
 
 }} // namespace beam_models::camera_to_camera

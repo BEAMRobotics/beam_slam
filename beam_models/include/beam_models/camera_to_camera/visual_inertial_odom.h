@@ -131,8 +131,34 @@ private:
                   const std::vector<uint64_t>& triangulated_ids,
                   const std::vector<uint64_t>& untriangulated_ids);
 
+  /**
+   * @brief Computes the mean parallax between images at two times
+   * @param t1 time of first image
+   * @param t2 time of second image
+   * @param t2_landmarks id's of landmarks that have been seen in tw
+   * @return mean parallax
+   */
   double ComputeAvgParallax(const ros::Time& t1, const ros::Time& t2,
                             const std::vector<uint64_t>& t2_landmarks);
+
+  /**
+   * @brief Extends the map at an image time and adds the visual constraints
+   * @param img_time time of keyframe to extend map at
+   * @param triangulated_ids id's of landmarks that have already been
+   * triangulated
+   * @param untriangulated_ids id's of landmarks that have not been
+   * triangulated
+   */
+  void ExtendMap(const ros::Time& img_time,
+                 const Eigen::Matrix4d& T_WORLD_CAMERA,
+                 const std::vector<uint64_t>& triangulated_ids,
+                 const std::vector<uint64_t>& untriangulated_ids);
+
+  /**
+   * @brief Send the generated inertial constraint for the current image
+   * @param img_time time of current keyframe
+   */
+  void SendInertialConstraint(const ros::Time& img_time);
 
 protected:
   // loadable camera parameters
