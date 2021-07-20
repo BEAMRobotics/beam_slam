@@ -44,6 +44,53 @@ Eigen::Matrix4d
   return T;
 }
 
+void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
+                                   Eigen::Matrix4d& T_WORLD_SENSOR) {
+  Eigen::Vector3d position;
+  position[0] = pose.pose.position.x;
+  position[1] = pose.pose.position.y;
+  position[2] = pose.pose.position.z;
+  Eigen::Quaterniond orientation;
+  orientation.w() = pose.pose.orientation.w;
+  orientation.x() = pose.pose.orientation.x;
+  orientation.y() = pose.pose.orientation.y;
+  orientation.z() = pose.pose.orientation.z;
+  beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
+                                                  T_WORLD_SENSOR);
+}
+
+void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
+                                       Eigen::Matrix4d& T_WORLD_SENSOR) {
+  T_WORLD_SENSOR = Eigen::Matrix4d::Identity();
+  T_WORLD_SENSOR(0, 3) = odom.pose.pose.position.x;
+  T_WORLD_SENSOR(1, 3) = odom.pose.pose.position.y;
+  T_WORLD_SENSOR(2, 3) = odom.pose.pose.position.z;
+  Eigen::Quaterniond q;
+  q.x() = odom.pose.pose.orientation.x;
+  q.y() = odom.pose.pose.orientation.y;
+  q.z() = odom.pose.pose.orientation.z;
+  q.w() = odom.pose.pose.orientation.w;
+  Eigen::Matrix3d R = q.toRotationMatrix();
+  T_WORLD_SENSOR.block(0, 0, 3, 3) = R;
+}
+
+void InterpolateTransformFromPath(const nav_msgs::Path& path,
+                                  const ros::Time& time,
+                                  Eigen::Matrix4d& T_WORLD_SENSOR) {
+  for (int i = 0; i < path.poses.size(); i++) {
+    if (time < path.poses[i + 1].header.stamp &&
+        time >= path.poses[i].header.stamp) {
+      Eigen::Matrix4d pose1, pose2;
+      PoseMsgToTransformationMatrix(path.poses[i], pose1);
+      PoseMsgToTransformationMatrix(path.poses[i + 1], pose2);
+      T_WORLD_SENSOR = beam::InterpolateTransform(
+          pose1, beam::RosTimeToChrono(path.poses[i].header.stamp), pose2,
+          beam::RosTimeToChrono(path.poses[i + 1].header.stamp),
+          beam::RosTimeToChrono(time));
+    }
+  }
+}
+
 double CalculateTrajectoryLength(
     const std::list<beam_common::ScanPose>& keyframes) {
   double length{0};
@@ -124,21 +171,6 @@ void OdometryMsgToTransformedStamped(
   tf_stamped.transform.translation.y = message.pose.pose.position.y;
   tf_stamped.transform.translation.z = message.pose.pose.position.z;
   tf_stamped.transform.rotation = message.pose.pose.orientation;
-}
-
-void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
-                                   Eigen::Matrix4d& T_WORLD_SENSOR) {
-  Eigen::Vector3d position;
-  position[0] = pose.pose.position.x;
-  position[1] = pose.pose.position.y;
-  position[2] = pose.pose.position.z;
-  Eigen::Quaterniond orientation;
-  orientation.w() = pose.pose.orientation.w;
-  orientation.x() = pose.pose.orientation.x;
-  orientation.y() = pose.pose.orientation.y;
-  orientation.z() = pose.pose.orientation.z;
-  beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
-                                                  T_WORLD_SENSOR);
 }
 
 void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
