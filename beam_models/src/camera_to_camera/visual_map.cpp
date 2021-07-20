@@ -128,6 +128,7 @@ void VisualMap::AddOrientation(const Eigen::Quaterniond& q_WORLD_IMU,
     orientations_[stamp.toNSec()] = orientation;
   } else if (local_graph_) {
     local_graph_->addVariable(orientation);
+    local_graph_->holdVariable(orientation->uuid(), true);
   } else {
     ROS_WARN("Must input local graph or transaction.");
   }
@@ -146,6 +147,7 @@ void VisualMap::AddPosition(const Eigen::Vector3d& p_WORLD_IMU,
     positions_[stamp.toNSec()] = position;
   } else if (local_graph_) {
     local_graph_->addVariable(position);
+    local_graph_->holdVariable(position->uuid(), true);
   } else {
     ROS_WARN("Must input local graph or transaction.");
   }
@@ -159,6 +161,7 @@ void VisualMap::AddOrientation(
     orientations_[orientation->stamp().toNSec()] = orientation;
   } else if (local_graph_) {
     local_graph_->addVariable(orientation);
+    local_graph_->holdVariable(orientation->uuid());
   } else {
     ROS_WARN("Must input local graph or transaction.");
   }
@@ -172,6 +175,7 @@ void VisualMap::AddPosition(
     positions_[position->stamp().toNSec()] = position;
   } else if (local_graph_) {
     local_graph_->addVariable(position);
+    local_graph_->holdVariable(position->uuid());
   } else {
     ROS_WARN("Must input local graph or transaction.");
   }

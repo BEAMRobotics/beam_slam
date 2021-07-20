@@ -52,10 +52,13 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
+  beam_cv::DescriptorType descriptor_type =
+      beam_cv::DescriptorTypeStringMap[camera_params_.descriptor];
   std::shared_ptr<beam_cv::Descriptor> descriptor =
-      std::make_shared<beam_cv::ORBDescriptor>();
+      beam_cv::Descriptor::Create(descriptor_type);
   std::shared_ptr<beam_cv::Detector> detector =
-      std::make_shared<beam_cv::GFTTDetector>(300);
+      std::make_shared<beam_cv::GFTTDetector>(
+          camera_params_.num_features_to_track);
   tracker_ = std::make_shared<beam_cv::KLTracker>(detector, descriptor,
                                                   camera_params_.window_size);
   /***********************************************************
@@ -70,8 +73,8 @@ void VisualInertialOdom::onInit() {
       camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
       this);
   init_odom_publisher_ =
-      private_node_handle_.advertise<geometry_msgs::PoseStamped>("init_visual_odom",
-                                                                 100);
+      private_node_handle_.advertise<geometry_msgs::PoseStamped>(
+          camera_params_.frame_odometry_output_topic, 100);
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
@@ -96,7 +99,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
   if (imu_time > img_time && !imu_buffer_.empty()) {
     tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
     if (!initializer_->Initialized()) {
-      if ((img_time - cur_kf_time_).toSec() >= 0.8) {
+      if ((img_time - cur_kf_time_).toSec() >= 1.0) {
         cur_kf_time_ = img_time;
         if (initializer_->AddImage(img_time)) {
           ROS_INFO("Initialization Success: %f", cur_kf_time_.toSec());
@@ -113,6 +116,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       // std::vector<uint64_t> untriangulated_ids;
       // Eigen::Matrix4d T_WORLD_CAMERA =
       //     LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
+      // std::cout << T_WORLD_CAMERA << std::endl;
       // // publish pose to odom topic
       // if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
       //   // [1] Add constraints to triangulated ids
@@ -158,11 +162,16 @@ void VisualInertialOdom::onStop() {}
 cv::Mat VisualInertialOdom::ExtractImage(const sensor_msgs::Image& msg) {
   cv_bridge::CvImagePtr cv_ptr;
   try {
-    cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8);
+    cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
   } catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
-  return cv_ptr->image;
+  cv::Mat bgr_image;
+  cv::cvtColor(cv_ptr->image, bgr_image, cv::COLOR_RGB2BGR);
+  bgr_image = beam_cv::AdaptiveHistogram(bgr_image);
+  cv::Mat gray_image;
+  cv::cvtColor(bgr_image, gray_image, cv::COLOR_BGR2GRAY);
+  return gray_image;
 }
 
 void VisualInertialOdom::SendInitializationGraph(

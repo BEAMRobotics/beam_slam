@@ -39,15 +39,13 @@ public:
             beam_optimization::CameraProjectionFunctor, ceres::CENTRAL, 2, 3>(
             new beam_optimization::CameraProjectionFunctor(
                 cam_model_, pixel_measurement_))));
-    T_imu_cam_ = T_imu_cam;
-    // normalize pixel measurement
-    // scale from 0-1 in height and width
+    T_cam_imu_ = T_imu_cam.inverse();
   }
 
   template <typename T>
   bool operator()(const T* const R_WORLD_IMU, const T* const t_WORLD_IMU,
                   const T* const P_WORLD, T* residual) const {
-    Eigen::Matrix<T, 4, 4> T_IMU_CAM = T_imu_cam_.cast<T>();
+    Eigen::Matrix<T, 4, 4> T_CAM_IMU = T_cam_imu_.cast<T>();
 
     T R_WORLD_IMU_mat[9];
     ceres::QuaternionToRotation(R_WORLD_IMU, R_WORLD_IMU_mat);
@@ -78,7 +76,7 @@ public:
 
     Eigen::Matrix<T, 4, 1> P_IMU_h = T_WORLD_IMU.inverse() * P_WORLD_h;
     Eigen::Matrix<T, 3, 1> P_CAM =
-        (T_IMU_CAM.inverse() * P_IMU_h).hnormalized();
+        (T_CAM_IMU * P_IMU_h).hnormalized();
     T P_CAMERA[3];
     P_CAMERA[0] = P_CAM[0];
     P_CAMERA[1] = P_CAM[1];
@@ -89,11 +87,8 @@ public:
     T pixel_projected[2];
     (*compute_projection)(P_CAMERA_const, &(pixel_projected[0]));
 
-    // normalize projected pixel:
-    // scale from 0-1 in height and width
-
-    residual[0] = pixel_measurement_.cast<T>()[0] - pixel_projected[0];
-    residual[1] = pixel_measurement_.cast<T>()[1] - pixel_projected[1];
+    residual[0] = (pixel_measurement_.cast<T>()[0] - pixel_projected[0]);
+    residual[1] = (pixel_measurement_.cast<T>()[1] - pixel_projected[1]);
     return true;
   }
 
@@ -101,7 +96,7 @@ private:
   Eigen::Vector2d pixel_measurement_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::unique_ptr<ceres::CostFunctionToFunctor<2, 3>> compute_projection;
-  Eigen::Matrix4d T_imu_cam_;
+  Eigen::Matrix4d T_cam_imu_;
 };
 
 } // namespace fuse_constraints

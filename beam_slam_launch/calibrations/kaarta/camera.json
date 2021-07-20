@@ -2,8 +2,8 @@
   "date": "2019-07-24",
   "method": "opencv",
   "camera_type": "RADTAN",
-  "image_width": 2048,
-  "image_height": 1536,
+  "image_width": 640,
+  "image_height": 360,
   "frame_id": "F_kaarta",
   "intrinsics": [
     463.510914755,

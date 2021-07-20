@@ -3,16 +3,20 @@
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/PoseRefinement.h>
 
+#include <beam_utils/pointclouds.h>
+
 namespace beam_models { namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
     std::shared_ptr<beam_cv::Tracker> tracker, const double& gyro_noise,
     const double& accel_noise, const double& gyro_bias,
-    const double& accel_bias, bool use_scale_estimate)
+    const double& accel_bias, bool use_scale_estimate,
+    double max_optimization_time)
     : cam_model_(cam_model),
       tracker_(tracker),
-      use_scale_estimate_(use_scale_estimate) {
+      use_scale_estimate_(use_scale_estimate),
+      max_optimization_time_(max_optimization_time) {
   // set covariance matrices for imu
   cov_gyro_noise_ = Eigen::Matrix3d::Identity() * gyro_noise;
   cov_accel_noise_ = Eigen::Matrix3d::Identity() * accel_noise;
@@ -50,26 +54,28 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     AddPosesAndInertialConstraints(valid_frames, true);
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames);
+    // save clouds before optimization
+    SaveClouds(valid_frames, "/home/jake/frames.pcd", "/home/jake/points.pcd");
     // optimize graph
     OptimizeGraph();
+    // save clouds after optimization
+    SaveClouds(valid_frames, "/home/jake/frames_optimized.pcd",
+               "/home/jake/points_optimized.pcd");
+
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
       Eigen::Matrix4d T_WORLD_CAMERA;
-      LocalizeFrame(f, T_WORLD_CAMERA);
+      // if failure to localize next frame then init is a failure
+      if(!LocalizeFrame(f, T_WORLD_CAMERA)){
+        return false;
+      }
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA, f.q, f.p);
     }
     // add localized poses and imu constraints
     AddPosesAndInertialConstraints(invalid_frames, false);
     // add landmarks and visual constraints for the invalid frames
     init_lms += AddVisualConstraints(invalid_frames);
-    // for (auto& f : valid_frames) {
-    //   std::cout << f.t << std::endl;
-    //   std::cout << visual_map_->GetPose(f.t) << std::endl;
-    // }
-    // for (auto& f : invalid_frames) {
-    //   std::cout << f.t << std::endl;
-    //   std::cout << visual_map_->GetPose(f.t) << std::endl;
-    // }
+    // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
     is_initialized_ = true;
   }
@@ -184,11 +190,11 @@ void VIOInitializer::AddPosesAndInertialConstraints(
     bool set_start) {
   // add initial poses and imu data to preintegrator
   for (int i = 0; i < frames.size(); i++) {
-    // 1. Add frame's pose to graph
+    // Add frame's pose to graph
     beam_models::camera_to_camera::Frame frame = frames[i];
     visual_map_->AddPosition(frame.p, frame.t);
     visual_map_->AddOrientation(frame.q, frame.t);
-    // 2. Push its imu messages
+    // Push its imu messages
     for (auto& imu_data : frame.preint.data) {
       imu_preint_->AddToBuffer(imu_data);
     }
@@ -200,7 +206,7 @@ void VIOInitializer::AddPosesAndInertialConstraints(
         visual_map_->GetOrientation(frame.t);
     fuse_variables::Position3DStamped::SharedPtr img_position =
         visual_map_->GetPosition(frame.t);
-    // 3. Add respective imu constraints
+    // Add respective imu constraints
     if (set_start && i == 0) {
       imu_preint_->SetStart(frame.t, img_orientation, img_position);
     } else {
@@ -223,18 +229,18 @@ size_t VIOInitializer::AddVisualConstraints(
     const std::vector<beam_models::camera_to_camera::Frame>& frames) {
   ros::Time start = frames[0].t, end = frames[frames.size() - 1].t;
   size_t num_landmarks = 0;
-
+  // get all landmarks in the window
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInWindow(start, end);
   for (auto& id : landmarks) {
     fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
-    if (lm) {
+    if (lm) { // if the landmark already exists then add constraint
       for (auto& f : frames) {
         try {
           visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id));
         } catch (const std::out_of_range& oor) {}
       }
-    } else {
+    } else { // otherwise then triangulate then add the constraints
       std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
       std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
@@ -252,6 +258,7 @@ size_t VIOInitializer::AddVisualConstraints(
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
                                                      pixels);
+
         if (point.has_value()) {
           num_landmarks++;
           visual_map_->AddLandmark(point.value(), id);
@@ -303,8 +310,35 @@ bool VIOInitializer::LocalizeFrame(
 void VIOInitializer::OptimizeGraph() {
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = true;
-  options.max_solver_time_in_seconds = 5;
+  options.num_threads = 6;
+  options.num_linear_solver_threads = 6;
+  options.max_solver_time_in_seconds = max_optimization_time_;
+  // options.max_num_iterations = 3;
   local_graph_->optimize(options);
+}
+
+void VIOInitializer::SaveClouds(
+    const std::vector<beam_models::camera_to_camera::Frame>& frames,
+    const std::string& frames_path, const std::string& points_path) {
+  // add frame poses to cloud and save
+  pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
+  for (auto& f : frames) {
+    frame_cloud = beam::AddFrameToCloud(
+        frame_cloud, visual_map_->GetPose(f.t).value(), 0.001);
+  }
+  pcl::io::savePCDFileBinary(frames_path, frame_cloud);
+  // add all landmark points to cloud and save
+  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
+      frames[0].t, frames[frames.size() - 1].t);
+  pcl::PointCloud<pcl::PointXYZ> points_cloud;
+  for (auto& id : landmarks) {
+    fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+    if (lm) {
+      pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
+      points_cloud.points.push_back(p);
+    }
+  }
+  pcl::io::savePCDFileBinary(points_path, points_cloud);
 }
 
 }} // namespace beam_models::camera_to_camera

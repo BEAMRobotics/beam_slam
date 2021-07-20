@@ -31,7 +31,8 @@ public:
                  std::shared_ptr<beam_cv::Tracker> tracker,
                  const double& gyro_noise, const double& accel_noise,
                  const double& gyro_bias, const double& accel_bias,
-                 bool use_scale_estimate = false);
+                 bool use_scale_estimate = false,
+                 double max_optimization_time = 5.0);
 
   /**
    * @brief Notifies initialization that image at this time is to be used for
@@ -124,6 +125,16 @@ private:
    */
   void OptimizeGraph();
 
+  /**
+   * @brief Saves the poses and the points from the given frames to point clouds
+   * @param frames input frames
+   * @param frames_path path to save the poses point cloud at
+   * @param points_path path to save the landmarks point cloud at
+   */
+  void SaveClouds(
+      const std::vector<beam_models::camera_to_camera::Frame>& frames,
+      const std::string& frames_path, const std::string& points_path);
+
 protected:
   // computer vision objects
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
@@ -135,14 +146,15 @@ protected:
 
   // graph object for optimization
   std::shared_ptr<fuse_graphs::HashGraph> local_graph_;
+  double max_optimization_time_{};
 
   // stores the added imu messages and times of keyframes to use for init
   std::queue<sensor_msgs::Imu> imu_buffer_;
   std::vector<uint64_t> frame_times_;
 
   // boolean flags
-  bool is_initialized_ = false;
-  bool use_scale_estimate_ = false;
+  bool is_initialized_{false};
+  bool use_scale_estimate_{false};
 
   // imu intrinsics
   Eigen::Matrix3d cov_gyro_noise_;

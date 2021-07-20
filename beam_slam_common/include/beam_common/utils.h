@@ -51,9 +51,9 @@ inline void
  * @param pose pose message to turn into eigen matrix
  * @param T_WORLD_SENSOR[out] Transform to return
  */
-inline void PoseMsgToTransformationMatrixToPoseMsg(
-    const Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& stamp,
-    geometry_msgs::PoseStamped& pose) {
+inline void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
+                                          const ros::Time& stamp,
+                                          geometry_msgs::PoseStamped& pose) {
   Eigen::Vector3d position;
   Eigen::Quaterniond orientation;
   beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_SENSOR, orientation,
