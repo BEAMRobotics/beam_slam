@@ -4,6 +4,9 @@
 
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <nav_msgs/Odometry.h>
+#include <tf/transform_datatypes.h>
 #include <nav_msgs/Path.h>
 
 #include <beam_common/scan_pose.h>
@@ -45,6 +48,7 @@ inline void
   beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
                                                   T_WORLD_SENSOR);
 }
+
 
 /**
  * @brief Turns a pose message into an Eigen 4x4 matrix
@@ -89,6 +93,7 @@ inline void InterpolateTransformFromPath(
     }
   }
 }
+
 
 /**
  * @brief iterates through all keypoints in the list and add up the change in

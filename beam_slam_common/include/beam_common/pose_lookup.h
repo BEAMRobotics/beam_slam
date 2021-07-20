@@ -1,13 +1,14 @@
 #pragma once
 
 #include <Eigen/Dense>
-#include <tf/transform_listener.h>
 #include <tf2/buffer_core.h>
+
+#include <beam_common/extrinsics_lookup.h>
 
 namespace beam_common {
 
 /**
- * @brief This class can be used to estimate a pose of any frame given its
+ * @brief This class can be used to estimate the pose of any frame given its
  * timestamp and a tf2::BufferCore which contains the poses.
  *
  * Frames: Extrinsic calibration must be available on tf. Extrinsics can be
@@ -17,53 +18,26 @@ namespace beam_common {
  *
  */
 class PoseLookup {
-public:
-  /**
-   * @param poses shared pointer to the poses {T_WORLD_BASELINK} [REQUIRED]
-   * @param sensor_frame_id frame ID attached to the sensor, used to lookup
-   * extrinsic calibrations. If not supplied, it will assume the odometry is
-   * already in the correct frame. [OPTIONAL]
-   * @param baselink_frame moving frame in the poses [REQUIRED]
-   * @param world_frame fixed frame in the poses [REQUIRED]
-   * @param static_extrinsics set to true if the extrinsic calibrations are time
-   * invariant [OPTIONAL]
-   */
-  struct Params {
-    std::shared_ptr<tf2::BufferCore> poses{nullptr};
-    std::string sensor_frame{""};
-    std::string baselink_frame{""};
-    std::string world_frame{""};
-    bool static_extrinsics{true};
-  };
-
+ public:
   /**
    * @brief Constructor
-   * @param params all input params required. See struct above
+   * @param poses shared pointer to the poses
    */
-  PoseLookup(const Params& params);
+  PoseLookup(const std::shared_ptr<tf2::BufferCore> poses);
 
   /**
-   * @brief Gets estimate frame pose
-   * @param time stamp of the frame being initialized
+   * @brief Gets estimate of sensor frame pose wrt world frame
    * @param T_WORLD_SENSOR reference to result
+   * @param sensor_frame sensor frame id
+   * @param time stamp of the frame being initialized
    * @return true if pose lookup was successful
    */
   bool GetT_WORLD_SENSOR(Eigen::Matrix4d& T_WORLD_SENSOR,
+                         const std::string& sensor_frame,
                          const ros::Time& time);
 
   /**
-   * @brief Gets extrinsics
-   * @param T_WORLD_SENSOR reference to result
-   * @param time extrinsic time to lookup. If empty, or set to ros::Time(0), it
-   * will use most recent available. This is also used when static_extrinsics is
-   * set to true
-   * @return true if extrinsics lookup was successful
-   */
-  bool GetT_BASELINK_SENSOR(Eigen::Matrix4d& T_WORLD_BASELINK,
-                            const ros::Time& time = ros::Time(0));
-
-  /**
-   * @brief Gets pose
+   * @brief Gets estimate of baselink frame pose wrt world frame
    * @param T_WORLD_BASELINK reference to result
    * @param time pose time to lookup.
    * @return true if pose lookup was successful
@@ -71,12 +45,11 @@ public:
   bool GetT_WORLD_BASELINK(Eigen::Matrix4d& T_WORLD_BASELINK,
                            const ros::Time& time);
 
-private:
-  Params params_;
-  tf::TransformListener tf_listener_;
+ private:
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
 
-  bool extrinsics_set_{false};
-  Eigen::Matrix4d T_BASELINK_SENSOR_;
+  std::shared_ptr<tf2::BufferCore> poses_{nullptr};
 };
 
-} // namespace beam_common
+}  // namespace beam_common

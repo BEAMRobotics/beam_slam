@@ -1,5 +1,6 @@
 #include <beam_common/extrinsics_lookup.h>
 
+#include <beam_common/utils.h>
 #include <beam_utils/log.h>
 #include <beam_utils/math.h>
 
@@ -15,13 +16,21 @@ ExtrinsicsLookup::ExtrinsicsLookup() {
   ros::param::get("~imu_frame", imu_frame_);
   ros::param::get("~camera_frame", camera_frame_);
   ros::param::get("~lidar_frame", lidar_frame_);
+  ros::param::get("~world_frame", world_frame_);
+  ros::param::get("~baselink_frame", baselink_frame_);
   ros::param::get("~static_extrinsics", static_extrinsics_);
 
   // validate parameters
-  if (imu_frame_.empty() || camera_frame_.empty() || lidar_frame_.empty()) {
+  if (imu_frame_.empty() || camera_frame_.empty() || lidar_frame_.empty() ||
+      baselink_frame_.empty() || world_frame_.empty()) {
     BEAM_ERROR(
         "Inputs to ExtrinsicsLookup invalid. You must supply a frame name "
-        "for each of the 3 sensor types: imu, camera, lidar");
+        "for each of the frame types: imu, camera, lidar, baselink, world");
+    throw std::invalid_argument{"Inputs to ExtrinsicsLookup invalid."};
+  }
+
+  if (!IsSensorFrameIdValid(baselink_frame_)) {
+    BEAM_ERROR("Baselink frame must be equal to one of the sensor frames.");
     throw std::invalid_argument{"Inputs to ExtrinsicsLookup invalid."};
   }
 }
@@ -152,6 +161,147 @@ bool ExtrinsicsLookup::GetT_LIDAR_IMU(Eigen::Matrix4d& T,
   return true;
 }
 
+bool ExtrinsicsLookup::GetT_BASELINK_IMU(Eigen::Matrix4d& T,
+                                         const ros::Time& time) {
+  if (baselink_frame_ == imu_frame_) {
+    T = Eigen::Matrix4d::Identity();
+    return true;
+  } else if (baselink_frame_ == camera_frame_) {
+    return GetT_CAMERA_IMU(T, time);
+  } else if (baselink_frame_ == lidar_frame_) {
+    return GetT_LIDAR_IMU(T, time);
+  }
+
+  // should not get here because of validation on init
+  return false;
+}
+
+bool ExtrinsicsLookup::GetT_IMU_BASELINK(Eigen::Matrix4d& T,
+                                         const ros::Time& time) {
+  if (baselink_frame_ == imu_frame_) {
+    T = Eigen::Matrix4d::Identity();
+    return true;
+  } else if (baselink_frame_ == camera_frame_) {
+    return GetT_IMU_CAMERA(T, time);
+  } else if (baselink_frame_ == lidar_frame_) {
+    return GetT_IMU_LIDAR(T, time);
+  }
+
+  // should not get here because of validation on init
+  return false;
+}
+
+bool ExtrinsicsLookup::GetT_BASELINK_CAMERA(Eigen::Matrix4d& T,
+                                            const ros::Time& time) {
+  if (baselink_frame_ == imu_frame_) {
+    return GetT_IMU_CAMERA(T, time);
+  } else if (baselink_frame_ == camera_frame_) {
+    T = Eigen::Matrix4d::Identity();
+    return true;
+  } else if (baselink_frame_ == lidar_frame_) {
+    return GetT_LIDAR_CAMERA(T, time);
+  }
+
+  // should not get here because of validation on init
+  return false;
+}
+
+bool ExtrinsicsLookup::GetT_CAMERA_BASELINK(Eigen::Matrix4d& T,
+                                            const ros::Time& time) {
+  if (baselink_frame_ == imu_frame_) {
+    return GetT_CAMERA_IMU(T, time);
+  } else if (baselink_frame_ == camera_frame_) {
+    T = Eigen::Matrix4d::Identity();
+    return true;
+  } else if (baselink_frame_ == lidar_frame_) {
+    return GetT_CAMERA_LIDAR(T, time);
+  }
+
+  // should not get here because of validation on init
+  return false;
+}
+
+bool ExtrinsicsLookup::GetT_BASELINK_LIDAR(Eigen::Matrix4d& T,
+                                           const ros::Time& time) {
+  if (baselink_frame_ == imu_frame_) {
+    return GetT_IMU_LIDAR(T, time);
+  } else if (baselink_frame_ == camera_frame_) {
+    return GetT_CAMERA_LIDAR(T, time);
+  } else if (baselink_frame_ == lidar_frame_) {
+    T = Eigen::Matrix4d::Identity();
+    return true;
+  }
+
+  // should not get here because of validation on init
+  return false;
+}
+
+bool ExtrinsicsLookup::GetT_LIDAR_BASELINK(Eigen::Matrix4d& T,
+                                           const ros::Time& time) {
+  if (baselink_frame_ == imu_frame_) {
+    return GetT_LIDAR_IMU(T, time);
+  } else if (baselink_frame_ == camera_frame_) {
+    return GetT_LIDAR_CAMERA(T, time);
+  } else if (baselink_frame_ == lidar_frame_) {
+    T = Eigen::Matrix4d::Identity();
+    return true;
+  }
+
+  // should not get here because of validation on init
+  return false;
+}
+
+bool ExtrinsicsLookup::GetT_BASELINK_SENSOR(Eigen::Matrix4d& T,
+                                            const std::string& sensor_frame,
+                                            const ros::Time& time) {
+  if (!IsSensorFrameIdValid(sensor_frame)) {
+    // error thrown by IsSensorFrameIdValid
+    return false;
+  }
+
+  if (sensor_frame == baselink_frame_) {
+    T = Eigen::Matrix4d::Identity();
+    return true;
+  } else if (sensor_frame == imu_frame_) {
+    return GetT_BASELINK_IMU(T, time);
+  } else if (sensor_frame == camera_frame_) {
+    return GetT_BASELINK_CAMERA(T, time);
+  } else if (sensor_frame == lidar_frame_) {
+    return GetT_BASELINK_LIDAR(T, time);
+  } else {
+    BEAM_WARN(
+        "Cannot lookup extrinsics between sensor frame: [{}] and baselink "
+        "frame: [{}]. Ensure transformation exists at time: [{}]",
+        sensor_frame, baselink_frame_, time.toSec());
+    return false;
+  }
+}
+
+bool ExtrinsicsLookup::GetT_SENSOR_BASELINK(Eigen::Matrix4d& T,
+                                            const std::string& sensor_frame,
+                                            const ros::Time& time) {
+  if (GetT_BASELINK_SENSOR(T, sensor_frame, time)) {
+    T = beam::InvertTransform(T);
+    return true;
+  } else {
+    // warning thrown by GetT_BASELINK_SENSOR
+    return false;
+  }
+}
+
+bool ExtrinsicsLookup::IsSensorFrameIdValid(const std::string& sensor_frame) {
+  if (sensor_frame == imu_frame_ || sensor_frame == camera_frame_ ||
+      sensor_frame == lidar_frame_) {
+    return true;
+  } else {
+    BEAM_ERROR(
+        "Input sensor frame: [{}] does not match imu frame: [{}], camera "
+        "frame: [{}], or lidar frame: [{}]",
+        sensor_frame, imu_frame_, camera_frame_, lidar_frame_);
+    return false;
+  }
+}
+
 bool ExtrinsicsLookup::GetTransform(Eigen::Matrix4d& T,
                                     const std::string& to_frame,
                                     const std::string& from_frame,
@@ -169,18 +319,7 @@ bool ExtrinsicsLookup::GetTransform(Eigen::Matrix4d& T,
     return false;
   }
 
-  // convert to Eigen matrix
-  Eigen::Matrix4f T_float = Eigen::Matrix4f::Identity();
-  T_float(0, 3) = TROS.getOrigin().getX();
-  T_float(1, 3) = TROS.getOrigin().getY();
-  T_float(2, 3) = TROS.getOrigin().getZ();
-  Eigen::Quaternionf q;
-  q.x() = TROS.getRotation().getX();
-  q.y() = TROS.getRotation().getY();
-  q.z() = TROS.getRotation().getZ();
-  q.w() = TROS.getRotation().getW();
-  T_float.block(0, 0, 3, 3) = q.toRotationMatrix();
-  T = T_float.cast<double>();
+  ROSStampedTransformToEigenTransform(TROS, T);
 
   return true;
 }

@@ -229,6 +229,12 @@ fuse_core::Transaction::SharedPtr
     imu_state_j.SetPosition(t_WORLD_IMU->data());
   }
 
+  // update orientation and position of predicted imu state with arguments
+  if (R_WORLD_IMU && t_WORLD_IMU) {
+    imu_state_j.SetOrientation(R_WORLD_IMU->data());
+    imu_state_j.SetPosition(t_WORLD_IMU->data());
+  }
+
   // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
 
