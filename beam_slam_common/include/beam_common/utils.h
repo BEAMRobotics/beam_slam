@@ -94,7 +94,6 @@ inline void InterpolateTransformFromPath(
   }
 }
 
-
 /**
  * @brief iterates through all keypoints in the list and add up the change in
  * position between each keyframe.

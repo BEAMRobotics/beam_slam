@@ -11,8 +11,8 @@ camera_frame: "camera"
 
 # calibrations
 static_extrinsics: true,
-camera_intrinsics_path: "/home/jake/catkin_ws/src/beam_slam/calibrations/kaarta/camera.json"
-imu_intrinsics_path: "/home/jake/catkin_ws/src/beam_slam/calibrations/kaarta/imu.json"
+camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/kaarta/camera.json"
+imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/kaarta/imu.json"
 
 sensor_models:
   - name: 'lo_initializer'
@@ -20,8 +20,8 @@ sensor_models:
 
 
 lo_initializer:
-  matcher_params_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
-  ceres_config_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
+  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
+  ceres_config_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
   differential: false # Default: false
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
   lidar_topic: '/velodyne_points'
@@ -35,5 +35,5 @@ lo_initializer:
   outlier_threshold_t_m: 0.3
   outlier_threshold_r_deg: 15
   scan_registration_map_size: 10
-  scan_output_directory: '/home/jake/data/beam_slam/lo_initializer/' # Outputs scans as PCD files IFF not empty
+  scan_output_directory: '/home/nick/results/beam_slam/lo_initializer/' # Outputs scans as PCD files IFF not empty
 

@@ -112,16 +112,15 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         }
       }
     } else {
-      // std::vector<uint64_t> triangulated_ids;
-      // std::vector<uint64_t> untriangulated_ids;
-      // Eigen::Matrix4d T_WORLD_CAMERA =
-      //     LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
-      // std::cout << T_WORLD_CAMERA << std::endl;
-      // // publish pose to odom topic
-      // if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
-      //   // [1] Add constraints to triangulated ids
-      //   // [2] Try to triangulate untriangulated ids and add constraints
-      // }
+      std::vector<uint64_t> triangulated_ids;
+      std::vector<uint64_t> untriangulated_ids;
+      Eigen::Matrix4d T_WORLD_CAMERA =
+          LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
+      // publish pose to odom topic
+      if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
+        // [1] Add constraints to triangulated ids
+        // [2] Try to triangulate untriangulated ids and add constraints
+      }
     }
     image_buffer_.pop();
   }
@@ -153,8 +152,7 @@ void VisualInertialOdom::processInitPath(
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   visual_map_->UpdateGraph(graph);
   // for each keyframe in keyframe queue if its timestamp is outside of current
-  // window (cur_kf_time - window duration), then publish its landmark
-  // measurements
+  // window (cur_kf_time - window duration), then publish it
 }
 
 void VisualInertialOdom::onStop() {}
