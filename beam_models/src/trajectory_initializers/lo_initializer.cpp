@@ -177,7 +177,6 @@ void LoInitializer::ProcessCurrentKeyframe() {
     scan_registration_->GetMapMutable().Clear();
 
     ROS_INFO("Lo initialization complete");
-    stop();
   } else {
     keyframes_.pop_front();
   }

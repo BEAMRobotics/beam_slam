@@ -186,16 +186,20 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD_REQUIRED YES
   )
 
-
-  add_executable(${PROJECT_NAME}_reprojection_test
-    tests/reprojection_test.cpp)
-  target_link_libraries(${PROJECT_NAME}_reprojection_test
+  # Reprojection tests
+    catkin_add_gtest(reprojection_test
+    tests/reprojection_test.cpp
+  )
+  target_link_libraries(reprojection_test
     ${PROJECT_NAME}
-    gtest_main
-    beam::utils
-    beam::cv)
-  add_test(NAME ${PROJECT_NAME}_reprojection_test
-          COMMAND ${PROJECT_NAME}_reprojection_test)
+    ${catkin_LIBRARIES}
+    ${CERES_LIBRARIES}
+  )
+  set_target_properties(reprojection_test
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
 
 endif()
 
