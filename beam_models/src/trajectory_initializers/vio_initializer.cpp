@@ -2,8 +2,9 @@
 
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/PoseRefinement.h>
-
-#include <beam_utils/pointclouds.h>
+#include <beam_cv/geometry/Triangulation.h>
+#include <beam_utils/utils.h>
+#include <beam_common/utils.h>
 
 namespace beam_models { namespace camera_to_camera {
 

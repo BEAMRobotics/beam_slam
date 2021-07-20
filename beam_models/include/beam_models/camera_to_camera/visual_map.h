@@ -1,7 +1,9 @@
 #pragma once
+
 // std
 #include <map>
 #include <unordered_map>
+
 // beam_slam
 #include <beam_common/extrinsics_lookup.h>
 #include <beam_variables/position_3d.h>
@@ -13,6 +15,7 @@
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
+
 // libbeam
 #include <beam_calibration/CameraModel.h>
 #include <beam_utils/optional.h>
@@ -183,7 +186,6 @@ protected:
 
   // source for the odometry topic to use when publishing
   std::string source_{};
-
 };
 
 }} // namespace beam_models::camera_to_camera

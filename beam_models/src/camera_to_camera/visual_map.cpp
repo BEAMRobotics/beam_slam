@@ -1,5 +1,6 @@
-#include <beam_constraints/camera_to_camera/visual_constraint.h>
 #include <beam_models/camera_to_camera/visual_map.h>
+
+#include <beam_constraints/camera_to_camera/visual_constraint.h>
 #include <beam_utils/math.h>
 
 namespace beam_models { namespace camera_to_camera {

@@ -1,20 +1,17 @@
 #include <beam_models/camera_to_camera/visual_inertial_odom.h>
-// fuse
+
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
-// other
+
 #include <cv_bridge/cv_bridge.h>
 #include <nlohmann/json.hpp>
-// libbeam
-#include <beam_cv/Utils.h>
+
 #include <beam_cv/descriptors/Descriptors.h>
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
-#include <beam_cv/geometry/RelativePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
-#include <beam_utils/time.h>
-#include <fstream>
-#include <iostream>
+#include <beam_common/utils.h>
+
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(beam_models::camera_to_camera::VisualInertialOdom,
@@ -116,7 +113,12 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       std::vector<uint64_t> untriangulated_ids;
       Eigen::Matrix4d T_WORLD_CAMERA =
           LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
+      // transform to imu frame
       // publish pose to odom topic
+      geometry_msgs::PoseStamped pose;
+      beam_common::TransformationMatrixToPoseMsg(T_WORLD_CAMERA, img_time, pose);
+      init_odom_publisher_.publish(msg);
+      // process if keyframe
       if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
         // [1] Add constraints to triangulated ids
         // [2] Try to triangulate untriangulated ids and add constraints
@@ -151,8 +153,6 @@ void VisualInertialOdom::processInitPath(
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   visual_map_->UpdateGraph(graph);
-  // for each keyframe in keyframe queue if its timestamp is outside of current
-  // window (cur_kf_time - window duration), then publish it
 }
 
 void VisualInertialOdom::onStop() {}

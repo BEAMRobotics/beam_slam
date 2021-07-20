@@ -1,16 +1,15 @@
 #pragma once
+
 // libbeam
 #include <beam_calibration/CameraModel.h>
-#include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/trackers/Trackers.h>
-#include <beam_utils/utils.h>
+
 // fuse
-#include <beam_common/preintegrator.h>
-#include <beam_common/utils.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 #include <beam_models/trajectory_initializers/imu_initializer.h>
 #include <fuse_graphs/hash_graph.h>
+
 // ros
 #include <beam_models/InitializedPathMsg.h>
 #include <sensor_msgs/Imu.h>
