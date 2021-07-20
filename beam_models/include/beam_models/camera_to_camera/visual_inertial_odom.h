@@ -112,11 +112,13 @@ private:
    * triangulated
    * @param[out] untriangulated_ids id's of landmarks that have not been
    * triangulated
-   * @return T_WORLD_CAMERA
+   * @param[out] T_WORLD_CAMERA estimated pose
+   * @return failure or success
    */
-  Eigen::Matrix4d LocalizeFrame(const ros::Time& img_time,
-                                std::vector<uint64_t>& triangulated_ids,
-                                std::vector<uint64_t>& untriangulated_ids);
+  bool LocalizeFrame(const ros::Time& img_time,
+                     std::vector<uint64_t>& triangulated_ids,
+                     std::vector<uint64_t>& untriangulated_ids,
+                     Eigen::Matrix4d& T_WORLD_CAMERA);
 
   /**
    * @brief Determines if a frame is a keyframe

@@ -111,11 +111,15 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     } else {
       std::vector<uint64_t> triangulated_ids;
       std::vector<uint64_t> untriangulated_ids;
-      Eigen::Matrix4d T_WORLD_CAMERA =
-          LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
-      // transform to imu frame
-      extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
-      Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
+      Eigen::Matrix4d T_WORLD_CAMERA;
+      Eigen::Matrix4d T_WORLD_BASELINK;
+      if (LocalizeFrame(img_time, triangulated_ids, untriangulated_ids,
+                        T_WORLD_CAMERA)) {
+        extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
+        T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
+      } else {
+        imu_preint_->GetPose(T_WORLD_BASELINK, img_time);
+      }
       // publish pose to odom topic
       geometry_msgs::PoseStamped pose;
       beam_common::TransformationMatrixToPoseMsg(T_WORLD_BASELINK, img_time,
@@ -209,9 +213,10 @@ void VisualInertialOdom::SendInitializationGraph(
   sendTransaction(transaction);
 }
 
-Eigen::Matrix4d VisualInertialOdom::LocalizeFrame(
+bool VisualInertialOdom::LocalizeFrame(
     const ros::Time& img_time, std::vector<uint64_t>& triangulated_ids,
-    std::vector<uint64_t>& untriangulated_ids) {
+    std::vector<uint64_t>& untriangulated_ids,
+    Eigen::Matrix4d& T_WORLD_CAMERA) {
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
@@ -229,14 +234,18 @@ Eigen::Matrix4d VisualInertialOdom::LocalizeFrame(
     }
   }
   // perform ransac pnp for initial estimate
-  if (points.size() < 3) { return Eigen::Matrix4d::Zero(); }
-  Eigen::Matrix4d T_CAMERA_WORLD_est =
-      beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
-                                                      points);
-  // refine pose using motion only BA
-  Eigen::Matrix4d T_CAMERA_WORLD_ref =
-      pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points);
-  return T_CAMERA_WORLD_ref.inverse();
+  if (points.size() >= 15) {
+    Eigen::Matrix4d T_CAMERA_WORLD_est =
+        beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
+                                                        points);
+    // refine pose using motion only BA
+    Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
+        T_CAMERA_WORLD_est, cam_model_, pixels, points);
+    T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
+    return true;
+  } else {
+    return false;
+  }
 }
 
 bool VisualInertialOdom::IsKeyframe(
