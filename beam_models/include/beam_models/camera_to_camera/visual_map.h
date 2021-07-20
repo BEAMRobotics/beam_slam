@@ -179,7 +179,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
 
   // extrinsics from camera to imu
-  Eigen::Matrix4d T_imu_cam_;
+  Eigen::Matrix4d T_baselink_cam_;
   bool extrinsics_set_{false};
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();

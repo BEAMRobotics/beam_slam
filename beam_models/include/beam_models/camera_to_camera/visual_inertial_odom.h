@@ -12,12 +12,12 @@
 #include <fuse_core/async_sensor_model.h>
 
 // beam_slam
+#include <beam_common/extrinsics_lookup.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 #include <beam_models/trajectory_initializers/vio_initializer.h>
 #include <beam_parameters/models/camera_params.h>
 #include <beam_parameters/models/global_params.h>
-#include <beam_common/extrinsics_lookup.h>
 
 // libbeam
 #include <beam_calibration/CameraModel.h>
@@ -164,6 +164,7 @@ protected:
 
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();
+  Eigen::Matrix4d T_cam_baselink_;
 };
 
 }} // namespace beam_models::camera_to_camera

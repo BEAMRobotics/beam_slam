@@ -56,13 +56,12 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames);
     // save clouds before optimization
-    SaveClouds(valid_frames, "/home/jake/frames.pcd", "/home/jake/points.pcd");
+    // SaveClouds(valid_frames, "/home/jake/frames.pcd", "/home/jake/points.pcd");
     // optimize graph
     OptimizeGraph();
     // save clouds after optimization
-    SaveClouds(valid_frames, "/home/jake/frames_optimized.pcd",
-               "/home/jake/points_optimized.pcd");
-
+    // SaveClouds(valid_frames, "/home/jake/frames_optimized.pcd",
+    //            "/home/jake/points_optimized.pcd");
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
       Eigen::Matrix4d T_WORLD_CAMERA;
@@ -130,24 +129,24 @@ void VIOInitializer::BuildFrameVectors(
     }
     if (stamp <= end) {
       // get pose of frame using path
-      Eigen::Matrix4d T_WORLD_IMU;
+      Eigen::Matrix4d T_WORLD_BASELINK;
       beam_common::InterpolateTransformFromPath(init_path_->poses, stamp,
-                                                T_WORLD_IMU);
-      Eigen::Vector3d p_WORLD_IMU;
-      Eigen::Quaterniond q_WORLD_IMU;
-      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_IMU, q_WORLD_IMU,
-                                                      p_WORLD_IMU);
+                                                T_WORLD_BASELINK);
+      Eigen::Vector3d p_WORLD_BASELINK;
+      Eigen::Quaterniond q_WORLD_BASELINK;
+      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, q_WORLD_BASELINK,
+                                                      p_WORLD_BASELINK);
       // create frame and add to valid frame vector
       beam_models::camera_to_camera::Frame new_frame{
-          stamp, p_WORLD_IMU, q_WORLD_IMU, preintegrator};
+          stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
       valid_frames.push_back(new_frame);
     } else {
       // get arbitrary pose values
-      Eigen::Vector3d p_WORLD_IMU(0, 0, 0);
-      Eigen::Quaterniond q_WORLD_IMU(0, 0, 0, 0);
+      Eigen::Vector3d p_WORLD_BASELINK(0, 0, 0);
+      Eigen::Quaterniond q_WORLD_BASELINK(0, 0, 0, 0);
       // create frame and add to invalid frame vector
       beam_models::camera_to_camera::Frame new_frame{
-          stamp, p_WORLD_IMU, q_WORLD_IMU, preintegrator};
+          stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
       invalid_frames.push_back(new_frame);
     }
   }

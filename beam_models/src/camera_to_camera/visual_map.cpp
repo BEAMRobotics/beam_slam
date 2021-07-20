@@ -16,9 +16,9 @@ VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetPose(const ros::Time& stamp) {
   if (!extrinsics_set_) {
-    if (!extrinsics_.GetT_IMU_CAMERA(T_imu_cam_)) {
-      ROS_WARN("Unable to get imu to camera transform, using identity.");
-      T_imu_cam_ = Eigen::Matrix4d::Identity();
+    if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_cam_)) {
+      ROS_WARN("Unable to get baselink to camera transform, using identity.");
+      T_baselink_cam_ = Eigen::Matrix4d::Identity();
     }
   }
   fuse_variables::Position3DStamped::SharedPtr p = GetPosition(stamp);
@@ -26,11 +26,11 @@ beam::opt<Eigen::Matrix4d> VisualMap::GetPose(const ros::Time& stamp) {
   if (p && q) {
     Eigen::Vector3d position(p->data());
     Eigen::Quaterniond orientation(q->w(), q->x(), q->y(), q->z());
-    Eigen::Matrix4d T_WORLD_IMU;
+    Eigen::Matrix4d T_WORLD_BASELINK;
     beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
-                                                    T_WORLD_IMU);
-    // transform pose from imu coord space to camera coord space
-    Eigen::Matrix4d T_WORLD_CAMERA = T_WORLD_IMU * T_imu_cam_;
+                                                    T_WORLD_BASELINK);
+    // transform pose from baselink coord space to camera coord space
+    Eigen::Matrix4d T_WORLD_CAMERA = T_WORLD_BASELINK * T_baselink_cam_;
     return T_WORLD_CAMERA;
   } else {
     return {};
@@ -78,16 +78,16 @@ void VisualMap::AddPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
                         const ros::Time& cur_time,
                         fuse_core::Transaction::SharedPtr transaction) {
   if (!extrinsics_set_) {
-    if (!extrinsics_.GetT_IMU_CAMERA(T_imu_cam_)) {
-      ROS_WARN("Unable to get imu to camera transform, using identity.");
-      T_imu_cam_ = Eigen::Matrix4d::Identity();
+    if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_cam_)) {
+      ROS_WARN("Unable to get baselink to camera transform, using identity.");
+      T_baselink_cam_ = Eigen::Matrix4d::Identity();
     }
   }
-  // transform pose into imu coord space
-  Eigen::Matrix4d T_WORLD_IMU = T_WORLD_CAMERA * T_imu_cam_.inverse();
+  // transform pose into baselink coord space
+  Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_baselink_cam_.inverse();
   Eigen::Quaterniond q;
   Eigen::Vector3d p;
-  beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_IMU, q, p);
+  beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, q, p);
   // add orientation
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
       fuse_variables::Orientation3DStamped::make_shared(cur_time);
@@ -216,9 +216,9 @@ void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
                               const Eigen::Vector2d& pixel,
                               fuse_core::Transaction::SharedPtr transaction) {
   if (!extrinsics_set_) {
-    if (!extrinsics_.GetT_IMU_CAMERA(T_imu_cam_)) {
-      ROS_WARN("Unable to get imu to camera transform, using identity.");
-      T_imu_cam_ = Eigen::Matrix4d::Identity();
+    if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_cam_)) {
+      ROS_WARN("Unable to get baselink to camera transform, using identity.");
+      T_baselink_cam_ = Eigen::Matrix4d::Identity();
     }
   }
   fuse_variables::Position3D::SharedPtr lm = GetLandmark(lm_id);
@@ -229,7 +229,7 @@ void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
     fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
         fuse_constraints::VisualConstraint::make_shared(source_, *orientation,
                                                         *position, *lm, pixel,
-                                                        T_imu_cam_, cam_model_);
+                                                        T_baselink_cam_, cam_model_);
     if (transaction) {
       transaction->addConstraint(vis_constraint);
     } else if (local_graph_) {

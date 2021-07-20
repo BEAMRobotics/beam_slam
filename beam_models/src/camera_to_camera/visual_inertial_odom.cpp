@@ -6,12 +6,11 @@
 #include <cv_bridge/cv_bridge.h>
 #include <nlohmann/json.hpp>
 
+#include <beam_common/utils.h>
 #include <beam_cv/descriptors/Descriptors.h>
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
-#include <beam_common/utils.h>
-
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(beam_models::camera_to_camera::VisualInertialOdom,
@@ -114,10 +113,13 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       Eigen::Matrix4d T_WORLD_CAMERA =
           LocalizeFrame(img_time, triangulated_ids, untriangulated_ids);
       // transform to imu frame
+      extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
+      Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
       // publish pose to odom topic
       geometry_msgs::PoseStamped pose;
-      beam_common::TransformationMatrixToPoseMsg(T_WORLD_CAMERA, img_time, pose);
-      init_odom_publisher_.publish(msg);
+      beam_common::TransformationMatrixToPoseMsg(T_WORLD_BASELINK, img_time,
+                                                 pose);
+      init_odom_publisher_.publish(pose);
       // process if keyframe
       if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
         // [1] Add constraints to triangulated ids
@@ -239,6 +241,7 @@ bool VisualInertialOdom::IsKeyframe(
   // [1] If at least t1 time has passed
   // [2] If average parallax is over N and translational movement over t
   // [3] If tracks drop below M (loss of tracks)
-  // [4] If neither [2] or [3] then if over t2 has passed (stationary)
+  // [4] If last keyframe is about to be outside of the tracker then make
+  // keyframe
 }
 }} // namespace beam_models::camera_to_camera
