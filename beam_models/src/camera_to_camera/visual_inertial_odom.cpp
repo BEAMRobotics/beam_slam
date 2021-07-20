@@ -66,8 +66,8 @@ void VisualInertialOdom::onInit() {
   imu_subscriber_ = private_node_handle_.subscribe(
       camera_params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
   path_subscriber_ = private_node_handle_.subscribe(
-      camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
-      this);
+      private_node_handle_.getNamespace() + camera_params_.init_path_topic, 1,
+      &VisualInertialOdom::processInitPath, this);
   init_odom_publisher_ =
       private_node_handle_.advertise<geometry_msgs::PoseStamped>(
           camera_params_.frame_odometry_output_topic, 100);
@@ -253,7 +253,7 @@ bool VisualInertialOdom::IsKeyframe(
     all_ids.insert(all_ids.end(), triangulated_ids.begin(),
                    triangulated_ids.end());
     all_ids.insert(all_ids.end(), untriangulated_ids.begin(),
-                  untriangulated_ids.end());
+                   untriangulated_ids.end());
     double avg_parallax = ComputeAvgParallax(cur_kf_time_, img_time, all_ids);
 
     if (avg_parallax > camera_params_.keyframe_parallax ||

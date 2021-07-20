@@ -52,7 +52,7 @@ camera:
   source: "VIO"
   image_topic: "/monocular_camera/image"
   imu_topic: "/imu/data"
-  init_path_topic: "/fixed_lag_smoother/lo_initializer/lo_initialiser_result"
+  init_path_topic: "/lo_initialiser_result"
   frame_odometry_output_topic: "/vio_init"
   descriptor: "ORB"
   window_size: 500
