@@ -131,6 +131,9 @@ private:
                   const std::vector<uint64_t>& triangulated_ids,
                   const std::vector<uint64_t>& untriangulated_ids);
 
+  double ComputeAvgParallax(const ros::Time& t1, const ros::Time& t2,
+                            const std::vector<uint64_t>& t2_landmarks);
+
 protected:
   // loadable camera parameters
   beam_parameters::models::CameraParams camera_params_;
@@ -158,9 +161,10 @@ protected:
   // imu preintegration object
   std::shared_ptr<beam_models::frame_to_frame::ImuPreintegration> imu_preint_;
 
-  // most recent keyframe timestamp
+  // keyframe information
   ros::Time cur_kf_time_ = ros::Time(0);
   std::deque<ros::Time> keyframes_;
+  uint32_t added_since_kf_{0};
 
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();

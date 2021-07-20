@@ -96,6 +96,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
     if (!initializer_->Initialized()) {
       if ((img_time - cur_kf_time_).toSec() >= 1.0) {
+        keyframes_.push_back(img_time);
         cur_kf_time_ = img_time;
         if (initializer_->AddImage(img_time)) {
           ROS_INFO("Initialization Success: %f", cur_kf_time_.toSec());
@@ -122,8 +123,13 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       init_odom_publisher_.publish(pose);
       // process if keyframe
       if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
+        cur_kf_time_ = img_time;
+        keyframes_.push_back(img_time);
+        added_since_kf_ = 0;
         // [1] Add constraints to triangulated ids
         // [2] Try to triangulate untriangulated ids and add constraints
+      } else {
+        added_since_kf_++;
       }
     }
     image_buffer_.pop();
@@ -206,6 +212,7 @@ Eigen::Matrix4d VisualInertialOdom::LocalizeFrame(
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
+  // get 2d-3d correspondences
   for (auto& id : landmarks) {
     fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
     if (lm) {
@@ -218,10 +225,12 @@ Eigen::Matrix4d VisualInertialOdom::LocalizeFrame(
       untriangulated_ids.push_back(id);
     }
   }
+  // perform ransac pnp for initial estimate
   if (points.size() < 3) { return Eigen::Matrix4d::Zero(); }
   Eigen::Matrix4d T_CAMERA_WORLD_est =
       beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
                                                       points);
+  // refine pose using motion only BA
   ceres::Solver::Options ceres_solver_options;
   ceres_solver_options.minimizer_progress_to_stdout = false;
   ceres_solver_options.max_solver_time_in_seconds = 1e-2;
@@ -237,11 +246,43 @@ Eigen::Matrix4d VisualInertialOdom::LocalizeFrame(
 bool VisualInertialOdom::IsKeyframe(
     const ros::Time& img_time, const std::vector<uint64_t>& triangulated_ids,
     const std::vector<uint64_t>& untriangulated_ids) {
-  return true;
-  // [1] If at least t1 time has passed
-  // [2] If average parallax is over N and translational movement over t
-  // [3] If tracks drop below M (loss of tracks)
-  // [4] If last keyframe is about to be outside of the tracker then make
-  // keyframe
+  bool is_keyframe = false;
+  if ((img_time - cur_kf_time_).toSec() >=
+      camera_params_.keyframe_min_time_in_seconds) {
+    std::vector<uint64_t> all_ids;
+    all_ids.insert(all_ids.end(), triangulated_ids.begin(),
+                   triangulated_ids.end());
+    all_ids.insert(all_ids.end(), untriangulated_ids.begin(),
+                  untriangulated_ids.end());
+    double avg_parallax = ComputeAvgParallax(cur_kf_time_, img_time, all_ids);
+
+    if (avg_parallax > camera_params_.keyframe_parallax ||
+        triangulated_ids.size() < camera_params_.keyframe_tracks_drop) {
+      is_keyframe = true;
+    } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
+      is_keyframe = true;
+    }
+  } else {
+    is_keyframe = false;
+  }
+  return is_keyframe;
 }
+
+double VisualInertialOdom::ComputeAvgParallax(
+    const ros::Time& t1, const ros::Time& t2,
+    const std::vector<uint64_t>& t2_landmarks) {
+  double total_parallax = 0.0;
+  int num_matches = 0;
+  for (auto& id : t2_landmarks) {
+    try {
+      Eigen::Vector2d p1 = tracker_->Get(t1, id);
+      Eigen::Vector2d p2 = tracker_->Get(t2, id);
+      double dist = beam::distance(p1, p2);
+      total_parallax += dist;
+      num_matches++;
+    } catch (const std::out_of_range& oor) {}
+  }
+  return total_parallax / (double)num_matches;
+}
+
 }} // namespace beam_models::camera_to_camera

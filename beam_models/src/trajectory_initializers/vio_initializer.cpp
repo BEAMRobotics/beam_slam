@@ -1,10 +1,10 @@
 #include <beam_models/trajectory_initializers/vio_initializer.h>
 
+#include <beam_common/utils.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/utils.h>
-#include <beam_common/utils.h>
 
 namespace beam_models { namespace camera_to_camera {
 
@@ -56,19 +56,17 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames);
     // save clouds before optimization
-    // SaveClouds(valid_frames, "/home/jake/frames.pcd", "/home/jake/points.pcd");
+    SaveClouds(valid_frames, "/home/jake/frames.pcd", "/home/jake/points.pcd");
     // optimize graph
     OptimizeGraph();
     // save clouds after optimization
-    // SaveClouds(valid_frames, "/home/jake/frames_optimized.pcd",
-    //            "/home/jake/points_optimized.pcd");
+    SaveClouds(valid_frames, "/home/jake/frames_optimized.pcd",
+               "/home/jake/points_optimized.pcd");
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
       Eigen::Matrix4d T_WORLD_CAMERA;
       // if failure to localize next frame then init is a failure
-      if(!LocalizeFrame(f, T_WORLD_CAMERA)){
-        return false;
-      }
+      if (!LocalizeFrame(f, T_WORLD_CAMERA)) { return false; }
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA, f.q, f.p);
     }
     // add localized poses and imu constraints
@@ -134,8 +132,8 @@ void VIOInitializer::BuildFrameVectors(
                                                 T_WORLD_BASELINK);
       Eigen::Vector3d p_WORLD_BASELINK;
       Eigen::Quaterniond q_WORLD_BASELINK;
-      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, q_WORLD_BASELINK,
-                                                      p_WORLD_BASELINK);
+      beam::TransformMatrixToQuaternionAndTranslation(
+          T_WORLD_BASELINK, q_WORLD_BASELINK, p_WORLD_BASELINK);
       // create frame and add to valid frame vector
       beam_models::camera_to_camera::Frame new_frame{
           stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
