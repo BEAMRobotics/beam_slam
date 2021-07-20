@@ -162,16 +162,11 @@ void VisualInertialOdom::onStop() {}
 cv::Mat VisualInertialOdom::ExtractImage(const sensor_msgs::Image& msg) {
   cv_bridge::CvImagePtr cv_ptr;
   try {
-    cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
+    cv_ptr = cv_bridge::toCvCopy(msg, msg.encoding);
   } catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
-  cv::Mat bgr_image;
-  cv::cvtColor(cv_ptr->image, bgr_image, cv::COLOR_RGB2BGR);
-  bgr_image = beam_cv::AdaptiveHistogram(bgr_image);
-  cv::Mat gray_image;
-  cv::cvtColor(bgr_image, gray_image, cv::COLOR_BGR2GRAY);
-  return gray_image;
+  return cv_ptr->image;
 }
 
 void VisualInertialOdom::SendInitializationGraph(

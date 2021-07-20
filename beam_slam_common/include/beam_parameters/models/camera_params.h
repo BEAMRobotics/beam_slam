@@ -22,6 +22,7 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
+
     getParam<std::string>(nh, "image_topic", image_topic, "");
     getParam<std::string>(nh, "source", source, "VIO");
     getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
