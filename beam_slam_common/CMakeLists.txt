@@ -14,8 +14,9 @@ find_package(
     ${build_depends}
     fuse_variables
     fuse_constraints
+    fuse_models
     sensor_msgs
-    nav_msgs
+    geometry_msgs
   )
 
 catkin_package(
@@ -27,8 +28,9 @@ catkin_package(
     ${build_depends}
     fuse_variables
     fuse_constraints
+    fuse_models
     sensor_msgs
-    nav_msgs
+    geometry_msgs
 )
 
 ###########

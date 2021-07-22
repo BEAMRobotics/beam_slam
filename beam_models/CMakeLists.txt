@@ -111,6 +111,7 @@ add_library(
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
   src/trajectory_initializers/imu_initializer.cpp
+  src/trajectory_initializers/vio_initializer.cpp
   src/trajectory_initializers/lo_initializer.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
@@ -180,6 +181,21 @@ if(CATKIN_ENABLE_TESTING)
     ${CERES_LIBRARIES}
   )
   set_target_properties(imu_preintegration_tests
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
+
+  # Reprojection tests
+    catkin_add_gtest(reprojection_test
+    tests/reprojection_test.cpp
+  )
+  target_link_libraries(reprojection_test
+    ${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+    ${CERES_LIBRARIES}
+  )
+  set_target_properties(reprojection_test
     PROPERTIES
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES

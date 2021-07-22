@@ -170,7 +170,7 @@ void LoInitializer::ProcessCurrentKeyframe() {
     ROS_INFO("LO trajectory is long enough.");
     SetTrajectoryStart();
     PublishResults();
-    OutputResults();
+    //OutputResults();
     initialization_complete_ = true;
 
     // clear lidar map so we can generate a new one during slam (it's a singleton)

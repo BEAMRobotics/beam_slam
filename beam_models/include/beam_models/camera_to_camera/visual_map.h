@@ -1,8 +1,11 @@
 #pragma once
+
 // std
 #include <map>
 #include <unordered_map>
+
 // beam_slam
+#include <beam_common/extrinsics_lookup.h>
 #include <beam_variables/position_3d.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/graph.h>
@@ -12,6 +15,7 @@
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
+
 // libbeam
 #include <beam_calibration/CameraModel.h>
 #include <beam_utils/optional.h>
@@ -23,20 +27,18 @@ public:
   /**
    * @brief Custom cosntrcutor, use when working with transactions
    * @param cam_model camera model being used
-   * @param T_imu_cam transform from camera to imu frame
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-            const Eigen::Matrix4d& T_imu_cam, const std::string& source);
+            const std::string& source = "VIO");
 
   /**
    * @brief Custom cosntrcutor, use when working with local graph
    * @param cam_model camera model being used
    * @param local_graph graph object being used
-   * @param T_imu_cam transform from camera to imu frame
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
             fuse_core::Graph::SharedPtr local_graph,
-            const Eigen::Matrix4d& T_imu_cam, const std::string& source);
+            const std::string& source = "VIO");
 
   /**
    * @brief Default destructor
@@ -65,7 +67,7 @@ public:
    * otherwise will add to loca graph
    */
   void AddPose(const Eigen::Matrix4d& T_WORLD_CAMERA, const ros::Time& cur_time,
-               std::shared_ptr<fuse_core::Transaction> transaction = nullptr);
+               fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Helper function to add a new landmark variable to a transaction or
@@ -75,9 +77,18 @@ public:
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void AddLandmark(
-      const Eigen::Vector3d& position, uint64_t lm_id,
-      std::shared_ptr<fuse_core::Transaction> transaction = nullptr);
+  void AddLandmark(const Eigen::Vector3d& position, uint64_t lm_id,
+                   fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Helper function to add a new landmark variable to a transaction or
+   * graph
+   * @param landmark to add
+   * @param transaction (optional) if provided will add to transaction,
+   * otherwise will add to loca graph
+   */
+  void AddLandmark(fuse_variables::Position3D::SharedPtr landmark,
+                   fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Helper function to add a constraint between a landmark and a pose
@@ -87,9 +98,9 @@ public:
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void AddConstraint(
-      const ros::Time& img_time, uint64_t lm_id, const Eigen::Vector2d& pixel,
-      std::shared_ptr<fuse_core::Transaction> transaction = nullptr);
+  void AddConstraint(const ros::Time& img_time, uint64_t lm_id,
+                     const Eigen::Vector2d& pixel,
+                     fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Retrieves q_WORLD_IMU
@@ -106,25 +117,74 @@ public:
       GetPosition(const ros::Time& stamp);
 
   /**
+   * @brief Adds orientation in imu frame
+   * @param stamp associated to orientation
+   * @param q_WORLD_IMU quaternion representing orientation
+   * @param transaciton optional transaction object if using global graph
+   */
+  void AddOrientation(const Eigen::Quaterniond& q_WORLD_IMU,
+                      const ros::Time& stamp,
+                      fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Adds position in imu frame
+   * @param stamp associated to position
+   * @param q_WORLD_IMU vector representing position
+   * @param transaciton optional transaction object if using global graph
+   */
+  void AddPosition(const Eigen::Vector3d& p_WORLD_IMU, const ros::Time& stamp,
+                   fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Adds orientation in imu frame
+   * @param stamp associated to orientation
+   * @param q_WORLD_IMU quaternion representing orientation
+   * @param transaciton optional transaction object if using global graph
+   */
+  void AddOrientation(
+      fuse_variables::Orientation3DStamped::SharedPtr orientation,
+      fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Adds position in imu frame
+   * @param stamp associated to position
+   * @param q_WORLD_IMU vector representing position
+   * @param transaciton optional transaction object if using global graph
+   */
+  void AddPosition(fuse_variables::Position3DStamped::SharedPtr position,
+                   fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
    * @brief Updates current graph copy
    * @param graph_msg graph to update with
    */
   void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
 protected:
-  // these store the most up to date variables for in between optimization
-  // cycles
+  // temp maps for in between optimization cycles
   std::unordered_map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;
   std::unordered_map<uint64_t, fuse_variables::Position3DStamped::SharedPtr>
       positions_;
   std::unordered_map<uint64_t, fuse_variables::Position3D::SharedPtr>
       landmark_positions_;
-  fuse_core::Graph::SharedPtr local_graph_; // for direct use
-  fuse_core::Graph::ConstSharedPtr graph_;  // copy of the current fuse graph
-  bool graph_initialized = false;
+
+  // local graph for direct use
+  fuse_core::Graph::SharedPtr local_graph_;
+
+  // copy of the fuse graph (read only)
+  fuse_core::Graph::ConstSharedPtr graph_;
+
+  // pointer to camera model to use when adding constraints
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
-  Eigen::Matrix4d T_imu_cam_;
+
+  // extrinsics from camera to imu
+  Eigen::Matrix4d T_baselink_cam_;
+  bool extrinsics_set_{false};
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
+
+  // source for the odometry topic to use when publishing
   std::string source_{};
 };
 

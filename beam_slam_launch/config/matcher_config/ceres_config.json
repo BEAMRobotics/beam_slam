@@ -3,7 +3,7 @@
   {
     "minimizer_progress_to_stdout": false,
     "max_num_iterations": 5,
-    "max_solver_time_in_seconds": 1e6,
+    "max_solver_time_in_seconds": 0.05,
     "function_tolerance": 1e-8,
     "gradient_tolerance": 1e-10,
     "parameter_tolerance": 1e-8,
