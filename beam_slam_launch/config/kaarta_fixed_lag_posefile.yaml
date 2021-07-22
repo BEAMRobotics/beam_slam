@@ -1,6 +1,6 @@
 # global parameters: These will be used in multiple locations
 optimization_frequency: 1
-lag_duration: 2
+lag_duration: 5
 imu_frame: "imu"
 lidar_frame: "velodyne"
 camera_frame: "camera"

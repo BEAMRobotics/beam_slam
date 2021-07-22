@@ -188,8 +188,6 @@ ScanMatcher3D::GenerateTransaction(
   }
 
   // build transaction of registration measurements
-  std::cout << "New scan pose: \n";
-  current_scan_pose.LoamCloud().Print();
   return scan_registration_->RegisterNewScan(current_scan_pose);
 }
 
