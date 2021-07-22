@@ -178,8 +178,8 @@ protected:
   // pointer to camera model to use when adding constraints
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
 
-  // extrinsics from camera to baselink
-  Eigen::Matrix4d T_baselink_cam_;
+  // robot extrinsics
+  Eigen::Matrix4d T_cam_baselink_;
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();
 

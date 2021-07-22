@@ -259,17 +259,19 @@ bool VisualInertialOdom::IsKeyframe(
   bool is_keyframe = false;
   if ((img_time - cur_kf_time_).toSec() >=
       camera_params_.keyframe_min_time_in_seconds) {
+    // combine all the id's seen in the image
     std::vector<uint64_t> all_ids;
     all_ids.insert(all_ids.end(), triangulated_ids.begin(),
                    triangulated_ids.end());
     all_ids.insert(all_ids.end(), untriangulated_ids.begin(),
                    untriangulated_ids.end());
+    // compute the parallax between this frame and the last keyframe
     double avg_parallax = ComputeAvgParallax(cur_kf_time_, img_time, all_ids);
 
     ROS_DEBUG("\nImage time: %f", img_time.toSec());
     ROS_DEBUG("Avg parallax: %f", avg_parallax);
     ROS_DEBUG("Visible landmarks: %zu", triangulated_ids.size());
-
+    // test against parameters to see if this frame is a keyframe
     if (avg_parallax > camera_params_.keyframe_parallax ||
         triangulated_ids.size() < camera_params_.keyframe_tracks_drop) {
       is_keyframe = true;

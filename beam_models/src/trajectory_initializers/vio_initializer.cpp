@@ -168,6 +168,7 @@ void VIOInitializer::BuildFrameVectors(
 void VIOInitializer::PerformIMUInitialization(
     const std::vector<beam_models::camera_to_camera::Frame>& frames) {
   beam_models::camera_to_camera::IMUInitializer imu_init(frames);
+  // estimate gyroscope bias
   if (init_path_->gyroscope_bias.x == 0 && init_path_->gyroscope_bias.y == 0 &&
       init_path_->gyroscope_bias.z == 0) {
     imu_init.SolveGyroBias();
@@ -176,6 +177,7 @@ void VIOInitializer::PerformIMUInitialization(
     bg_ << init_path_->gyroscope_bias.x, init_path_->gyroscope_bias.y,
         init_path_->gyroscope_bias.z;
   }
+  // estimate gravity and scale
   if (init_path_->gravity.x == 0 && init_path_->gravity.y == 0 &&
       init_path_->gravity.z == 0) {
     imu_init.SolveGravityAndScale();
@@ -187,6 +189,7 @@ void VIOInitializer::PerformIMUInitialization(
         init_path_->gravity.z;
     scale_ = init_path_->scale;
   }
+  // estimate accelerometer bias
   if (init_path_->accelerometer_bias.x == 0 &&
       init_path_->accelerometer_bias.y == 0 &&
       init_path_->accelerometer_bias.z == 0) {
@@ -296,6 +299,7 @@ bool VIOInitializer::LocalizeFrame(
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
+  // get 2d-3d correspondences
   for (auto& id : landmarks) {
     fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
     if (lm) {
@@ -305,7 +309,8 @@ bool VIOInitializer::LocalizeFrame(
       points.push_back(point);
     }
   }
-  if (points.size() < 3) { return false; }
+  if (points.size() < 15) { return false; }
+  // estimate with ransac pnp
   Eigen::Matrix4d T_CAMERA_WORLD_est =
       beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
                                                       points);
@@ -316,13 +321,13 @@ bool VIOInitializer::LocalizeFrame(
   ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
   ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
   beam_cv::PoseRefinement refiner(ceres_solver_options);
-  std::string report;
+  // refine pose using reprojection error
   Eigen::Matrix4d T_CAMERA_WORLD_ref = refiner.RefinePose(
-      T_CAMERA_WORLD_est, cam_model_, pixels, points, report);
+      T_CAMERA_WORLD_est, cam_model_, pixels, points);
   Eigen::Matrix4d T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
-  Eigen::Matrix4d T_cam_baselink;
-  extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink);
-  T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink;
+  extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
+  // transform into baselink frame
+  T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
   return true;
 }
 

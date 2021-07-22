@@ -171,6 +171,7 @@ protected:
   std::shared_ptr<InitializedPathMsg> init_path_;
 
   // robot extrinsics
+  Eigen::Matrix4d T_cam_baselink_;
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();
 
