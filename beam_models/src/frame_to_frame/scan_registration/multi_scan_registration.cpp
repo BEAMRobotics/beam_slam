@@ -405,11 +405,14 @@ bool MultiScanLoamRegistration::MatchScans(
     return false;
   }
 
-  LoamPointCloud cloud2_RefFInit = scan_pose_2.LoamCloud();
-  cloud2_RefFInit.TransformPointCloud(T_CLOUD1_CLOUD2_init);
-  matcher_->SetRef(std::make_shared<LoamPointCloud>(cloud2_RefFInit));
-  matcher_->SetTarget(
-      std::make_shared<LoamPointCloud>(scan_pose_1.LoamCloud()));
+  std::shared_ptr<LoamPointCloud> cloud2_RefFInit =
+      std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
+  cloud2_RefFInit->TransformPointCloud(T_CLOUD1_CLOUD2_init);
+  matcher_->SetRef(cloud2_RefFInit);
+
+  std::shared_ptr<LoamPointCloud> tgt =
+      std::make_shared<LoamPointCloud>(scan_pose_1.LoamCloud());
+  matcher_->SetTarget(tgt);
 
   // match clouds
   if (!matcher_->Match()) {

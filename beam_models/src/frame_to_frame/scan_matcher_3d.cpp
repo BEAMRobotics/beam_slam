@@ -29,7 +29,7 @@ ScanMatcher3D::ScanMatcher3D()
 
 void ScanMatcher3D::onInit() {
   params_.loadFromROS(private_node_handle_);
- 
+
   // init frame initializer
   if (params_.frame_initializer_type == "ODOMETRY") {
     frame_initializer_ =
@@ -83,13 +83,15 @@ void ScanMatcher3D::onInit() {
     scan_registration_ =
         std::make_unique<MultiScanRegistration>(std::move(matcher), params);
   } else if (params_.type == "MULTILOAM") {
+    std::shared_ptr<LoamParams> matcher_params =
+        std::make_shared<LoamParams>(params_.matcher_params_path);
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
-        std::make_unique<LoamMatcher>(
-            LoamMatcher::Params(params_.matcher_params_path));
+        std::make_unique<LoamMatcher>(*matcher_params);
     MultiScanRegistrationBase::Params params;
     params.LoadFromJson(params_.registration_config_path);
     scan_registration_ =
         std::make_unique<MultiScanLoamRegistration>(std::move(matcher), params);
+    feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
   } else {
     BEAM_ERROR(
         "Invalid scan matcher 3d type. Input: {}, Using default: MAPLOAM",
@@ -137,7 +139,7 @@ void ScanMatcher3D::onInit() {
 
 void ScanMatcher3D::onStart() {
   subscriber_ = node_handle_.subscribe(
-      params_.topic, 10, &ThrottledCallback::callback, &throttled_callback_);
+      params_.topic, 1, &ThrottledCallback::callback, &throttled_callback_);
 };
 
 void ScanMatcher3D::onStop() {
@@ -186,6 +188,8 @@ ScanMatcher3D::GenerateTransaction(
   }
 
   // build transaction of registration measurements
+  std::cout << "New scan pose: \n";
+  current_scan_pose.LoamCloud().Print();
   return scan_registration_->RegisterNewScan(current_scan_pose);
 }
 
@@ -236,7 +240,11 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
       GenerateTransaction(msg);
   if (new_transaction.GetTransaction() != nullptr) {
     ROS_DEBUG("Sending transaction.");
-    sendTransaction(new_transaction.GetTransaction());
+    try {
+      sendTransaction(new_transaction.GetTransaction());
+    } catch (const std::exception& e) {
+      ROS_WARN("Cannot send transaction. Error: %s", e.what());
+    }
   }
 }
 
