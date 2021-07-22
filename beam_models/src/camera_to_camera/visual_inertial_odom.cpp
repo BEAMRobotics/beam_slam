@@ -30,8 +30,9 @@ void VisualInertialOdom::onInit() {
    ***********************************************************/
   ceres::Solver::Options pose_refinement_options;
   pose_refinement_options.minimizer_progress_to_stdout = false;
+  pose_refinement_options.logging_type = ceres::SILENT;
   pose_refinement_options.max_num_iterations = 10;
-  pose_refinement_options.max_solver_time_in_seconds = 1e-2;
+  pose_refinement_options.max_solver_time_in_seconds = 1e-3;
   pose_refinement_options.function_tolerance = 1e-4;
   pose_refinement_options.gradient_tolerance = 1e-6;
   pose_refinement_options.parameter_tolerance = 1e-4;
@@ -66,8 +67,8 @@ void VisualInertialOdom::onInit() {
   imu_subscriber_ = private_node_handle_.subscribe(
       camera_params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
   path_subscriber_ = private_node_handle_.subscribe(
-      private_node_handle_.getNamespace() + camera_params_.init_path_topic, 1,
-      &VisualInertialOdom::processInitPath, this);
+      camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
+      this);
   init_odom_publisher_ =
       private_node_handle_.advertise<geometry_msgs::PoseStamped>(
           camera_params_.frame_odometry_output_topic, 100);
@@ -80,7 +81,9 @@ void VisualInertialOdom::onInit() {
   initializer_ =
       std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
           cam_model_, tracker_, J["cov_gyro_noise"], J["cov_accel_noise"],
-          J["cov_gyro_bias"], J["cov_accel_bias"]);
+          J["cov_gyro_bias"], J["cov_accel_bias"], false,
+          camera_params_.init_max_optimization_time_in_seconds,
+          camera_params_.init_map_output_directory);
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -109,17 +112,18 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         }
       }
     } else {
+      beam::HighResolutionTimer timer;
+      if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
+        ROS_ERROR("Unable to get camera to baselink transform.");
+        return;
+      }
+      // localize frame
       std::vector<uint64_t> triangulated_ids;
       std::vector<uint64_t> untriangulated_ids;
       Eigen::Matrix4d T_WORLD_CAMERA;
-      Eigen::Matrix4d T_WORLD_BASELINK;
-      if (LocalizeFrame(img_time, triangulated_ids, untriangulated_ids,
-                        T_WORLD_CAMERA)) {
-        extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
-        T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-      } else {
-        imu_preint_->GetPose(T_WORLD_BASELINK, img_time);
-      }
+      bool visual_localization_passed = LocalizeFrame(
+          img_time, triangulated_ids, untriangulated_ids, T_WORLD_CAMERA);
+      Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
       // publish pose to odom topic
       geometry_msgs::PoseStamped pose;
       beam_common::TransformationMatrixToPoseMsg(T_WORLD_BASELINK, img_time,
@@ -130,14 +134,15 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         cur_kf_time_ = img_time;
         keyframes_.push_back(img_time);
         added_since_kf_ = 0;
-        // extend map
-        ExtendMap(img_time, T_WORLD_CAMERA, triangulated_ids,
-                  untriangulated_ids);
-        // add imu constraint
-        SendInertialConstraint(img_time);
+        // // extend map
+        // ExtendMap(img_time, T_WORLD_CAMERA, triangulated_ids,
+        //           untriangulated_ids);
+        // // add imu constraint
+        // SendInertialConstraint(img_time);
       } else {
         added_since_kf_++;
       }
+      ROS_DEBUG("Total time to process frame: %.5f", timer.elapsed());
     }
     image_buffer_.pop();
   }
@@ -196,15 +201,15 @@ void VisualInertialOdom::SendInitializationGraph(
     if (var.type() == landmark->type()) {
       *landmark = dynamic_cast<const fuse_variables::Position3D&>(var);
       visual_map_->AddLandmark(landmark, transaction);
-    }
-    if (var.type() == orientation->type()) {
+    } else if (var.type() == orientation->type()) {
       *orientation =
           dynamic_cast<const fuse_variables::Orientation3DStamped&>(var);
       visual_map_->AddOrientation(orientation, transaction);
-    }
-    if (var.type() == position->type()) {
+    } else if (var.type() == position->type()) {
       *position = dynamic_cast<const fuse_variables::Position3DStamped&>(var);
       visual_map_->AddPosition(position, transaction);
+    } else {
+      transaction->addVariable(std::move(var.clone()));
     }
   }
   for (auto& constraint : init_graph.getConstraints()) {
@@ -260,6 +265,10 @@ bool VisualInertialOdom::IsKeyframe(
     all_ids.insert(all_ids.end(), untriangulated_ids.begin(),
                    untriangulated_ids.end());
     double avg_parallax = ComputeAvgParallax(cur_kf_time_, img_time, all_ids);
+
+    ROS_DEBUG("\nImage time: %f", img_time.toSec());
+    ROS_DEBUG("Avg parallax: %f", avg_parallax);
+    ROS_DEBUG("Visible landmarks: %zu", triangulated_ids.size());
 
     if (avg_parallax > camera_params_.keyframe_parallax ||
         triangulated_ids.size() < camera_params_.keyframe_tracks_drop) {

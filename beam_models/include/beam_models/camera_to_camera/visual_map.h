@@ -60,7 +60,7 @@ public:
 
   /**
    * @brief Helper function to add a pose at time t to a transaction or graph
-   * The pose being added will be a camera pose, transform it to imu
+   * The pose being added will be a camera pose, transform it to baselink
    * @param T_WORLD_CAMERA pose of camera to add to graph or transaction
    * @param cur_time timestamp of pose
    * @param transaction (optional) if provided will add to transaction,
@@ -103,42 +103,42 @@ public:
                      fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
-   * @brief Retrieves q_WORLD_IMU
+   * @brief Retrieves q_WORLD_BASELINK
    * @param stamp to retrieve orientation at
    */
   fuse_variables::Orientation3DStamped::SharedPtr
       GetOrientation(const ros::Time& stamp);
 
   /**
-   * @brief Retrieves t_WORLD_IMU
+   * @brief Retrieves t_WORLD_BASELINK
    * @param stamp to retrieve position at
    */
   fuse_variables::Position3DStamped::SharedPtr
       GetPosition(const ros::Time& stamp);
 
   /**
-   * @brief Adds orientation in imu frame
+   * @brief Adds orientation in baselink frame
    * @param stamp associated to orientation
-   * @param q_WORLD_IMU quaternion representing orientation
+   * @param q_WORLD_BASELINK quaternion representing orientation
    * @param transaciton optional transaction object if using global graph
    */
-  void AddOrientation(const Eigen::Quaterniond& q_WORLD_IMU,
+  void AddOrientation(const Eigen::Quaterniond& q_WORLD_BASELINK,
                       const ros::Time& stamp,
                       fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
-   * @brief Adds position in imu frame
+   * @brief Adds position in baselink frame
    * @param stamp associated to position
-   * @param q_WORLD_IMU vector representing position
+   * @param q_WORLD_BASELINK vector representing position
    * @param transaciton optional transaction object if using global graph
    */
-  void AddPosition(const Eigen::Vector3d& p_WORLD_IMU, const ros::Time& stamp,
+  void AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK, const ros::Time& stamp,
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
-   * @brief Adds orientation in imu frame
+   * @brief Adds orientation in baselink frame
    * @param stamp associated to orientation
-   * @param q_WORLD_IMU quaternion representing orientation
+   * @param q_WORLD_BASELINK quaternion representing orientation
    * @param transaciton optional transaction object if using global graph
    */
   void AddOrientation(
@@ -146,9 +146,9 @@ public:
       fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
-   * @brief Adds position in imu frame
+   * @brief Adds position in baselink frame
    * @param stamp associated to position
-   * @param q_WORLD_IMU vector representing position
+   * @param q_WORLD_BASELINK vector representing position
    * @param transaciton optional transaction object if using global graph
    */
   void AddPosition(fuse_variables::Position3DStamped::SharedPtr position,
@@ -178,9 +178,8 @@ protected:
   // pointer to camera model to use when adding constraints
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
 
-  // extrinsics from camera to imu
+  // extrinsics from camera to baselink
   Eigen::Matrix4d T_baselink_cam_;
-  bool extrinsics_set_{false};
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();
 

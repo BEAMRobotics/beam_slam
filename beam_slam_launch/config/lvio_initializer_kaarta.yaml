@@ -52,15 +52,16 @@ camera:
   source: "VIO"
   image_topic: "/monocular_camera/image"
   imu_topic: "/imu/data"
-  init_path_topic: "/lo_initialiser_result"
+  init_path_topic: "/fixed_lag_smoother/lo_initializer/lo_initialiser_result"
   frame_odometry_output_topic: "/vio_init"
   descriptor: "ORB"
-  window_size: 500
-  num_features_to_track: 300
-  keyframe_parallax: 50
-  keyframe_tracks_drop: 100
-  keyframe_min_time_in_seconds: 0.3
-  init_max_optimization_time_in_seconds: 5.0
+  window_size: 1000 # number of images to store landmark information for before clearing for new images
+  num_features_to_track: 300 # number of features to track from image to image
+  keyframe_parallax: 30 # if avg parallax to the previous keyframe exceeds this then set keyframe
+  keyframe_tracks_drop: 100 # if number of visible landmarks in images drops below this then set keyframe
+  keyframe_min_time_in_seconds: 0.3 # minimum amount of time between keyframes
+  init_max_optimization_time_in_seconds: 1.0 # max amopunt of time to ooptimize the initializer map
+  init_map_output_directory: '' # Outputs vio map into directory if not empty
 
 lo_initializer:
   matcher_params_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
@@ -78,4 +79,4 @@ lo_initializer:
   outlier_threshold_t_m: 0.3
   outlier_threshold_r_deg: 15
   scan_registration_map_size: 10
-  scan_output_directory: '/home/jake/data/beam_slam/lo_initializer/' # Outputs scans as PCD files IFF not empty
+  scan_output_directory: '' # Outputs scans as PCD files IFF not empty

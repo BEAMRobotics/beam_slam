@@ -15,11 +15,9 @@ VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
     : cam_model_(cam_model), local_graph_(local_graph), source_(source) {}
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetPose(const ros::Time& stamp) {
-  if (!extrinsics_set_) {
-    if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_cam_)) {
-      ROS_WARN("Unable to get baselink to camera transform, using identity.");
-      T_baselink_cam_ = Eigen::Matrix4d::Identity();
-    }
+  if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_cam_)) {
+    ROS_ERROR("Unable to get baselink to camera transform.");
+    return {};
   }
   fuse_variables::Position3DStamped::SharedPtr p = GetPosition(stamp);
   fuse_variables::Orientation3DStamped::SharedPtr q = GetOrientation(stamp);
@@ -77,11 +75,9 @@ fuse_variables::Position3D::SharedPtr
 void VisualMap::AddPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
                         const ros::Time& cur_time,
                         fuse_core::Transaction::SharedPtr transaction) {
-  if (!extrinsics_set_) {
-    if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_cam_)) {
-      ROS_WARN("Unable to get baselink to camera transform, using identity.");
-      T_baselink_cam_ = Eigen::Matrix4d::Identity();
-    }
+  if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_cam_)) {
+    ROS_ERROR("Unable to get baselink to camera transform.");
+    return;
   }
   // transform pose into baselink coord space
   Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_baselink_cam_.inverse();
@@ -115,15 +111,15 @@ void VisualMap::AddPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
   }
 }
 
-void VisualMap::AddOrientation(const Eigen::Quaterniond& q_WORLD_IMU,
+void VisualMap::AddOrientation(const Eigen::Quaterniond& q_WORLD_BASELINK,
                                const ros::Time& stamp,
                                fuse_core::Transaction::SharedPtr transaction) {
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
       fuse_variables::Orientation3DStamped::make_shared(stamp);
-  orientation->w() = q_WORLD_IMU.w();
-  orientation->x() = q_WORLD_IMU.x();
-  orientation->y() = q_WORLD_IMU.y();
-  orientation->z() = q_WORLD_IMU.z();
+  orientation->w() = q_WORLD_BASELINK.w();
+  orientation->x() = q_WORLD_BASELINK.x();
+  orientation->y() = q_WORLD_BASELINK.y();
+  orientation->z() = q_WORLD_BASELINK.z();
   if (transaction) {
     transaction->addVariable(orientation);
     orientations_[stamp.toNSec()] = orientation;
@@ -135,14 +131,14 @@ void VisualMap::AddOrientation(const Eigen::Quaterniond& q_WORLD_IMU,
   }
 }
 
-void VisualMap::AddPosition(const Eigen::Vector3d& p_WORLD_IMU,
+void VisualMap::AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK,
                             const ros::Time& stamp,
                             fuse_core::Transaction::SharedPtr transaction) {
   fuse_variables::Position3DStamped::SharedPtr position =
       fuse_variables::Position3DStamped::make_shared(stamp);
-  position->x() = p_WORLD_IMU[0];
-  position->y() = p_WORLD_IMU[1];
-  position->z() = p_WORLD_IMU[2];
+  position->x() = p_WORLD_BASELINK[0];
+  position->y() = p_WORLD_BASELINK[1];
+  position->z() = p_WORLD_BASELINK[2];
   if (transaction) {
     transaction->addVariable(position);
     positions_[stamp.toNSec()] = position;
@@ -215,11 +211,9 @@ void VisualMap::AddLandmark(fuse_variables::Position3D::SharedPtr landmark,
 void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
                               const Eigen::Vector2d& pixel,
                               fuse_core::Transaction::SharedPtr transaction) {
-  if (!extrinsics_set_) {
-    if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_cam_)) {
-      ROS_WARN("Unable to get baselink to camera transform, using identity.");
-      T_baselink_cam_ = Eigen::Matrix4d::Identity();
-    }
+  if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_cam_)) {
+    ROS_ERROR("Unable to get baselink to camera transform.");
+    return;
   }
   fuse_variables::Position3D::SharedPtr lm = GetLandmark(lm_id);
   fuse_variables::Position3DStamped::SharedPtr position = GetPosition(img_time);
@@ -227,9 +221,9 @@ void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
       GetOrientation(img_time);
   if (position && orientation && lm) {
     fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
-        fuse_constraints::VisualConstraint::make_shared(source_, *orientation,
-                                                        *position, *lm, pixel,
-                                                        T_baselink_cam_, cam_model_);
+        fuse_constraints::VisualConstraint::make_shared(
+            source_, *orientation, *position, *lm, pixel, T_baselink_cam_,
+            cam_model_);
     if (transaction) {
       transaction->addConstraint(vis_constraint);
     } else if (local_graph_) {

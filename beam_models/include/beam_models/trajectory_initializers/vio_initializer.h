@@ -5,6 +5,7 @@
 #include <beam_cv/trackers/Trackers.h>
 
 // fuse
+#include <beam_common/extrinsics_lookup.h>
 #include <beam_models/camera_to_camera/visual_map.h>
 #include <beam_models/frame_to_frame/imu_preintegration.h>
 #include <beam_models/trajectory_initializers/imu_initializer.h>
@@ -31,7 +32,8 @@ public:
                  const double& gyro_noise, const double& accel_noise,
                  const double& gyro_bias, const double& accel_bias,
                  bool use_scale_estimate = false,
-                 double max_optimization_time = 5.0);
+                 double max_optimization_time = 5.0,
+                 const std::string& output_directory = "");
 
   /**
    * @brief Notifies initialization that image at this time is to be used for
@@ -113,11 +115,11 @@ private:
   /**
    * @brief Localizes a given frame using the current landmarks
    * @param frames input frames
-   * @param T_WORLD_CAMERA[out] estimated pose of the camera
+   * @param T_WORLD_BASELINK[out] estimated pose of the camera
    * @return true or false if it succeeded or not
    */
   bool LocalizeFrame(const beam_models::camera_to_camera::Frame& frame,
-                     Eigen::Matrix4d& T_WORLD_CAMERA);
+                     Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief Optimizes the current local graph
@@ -167,6 +169,13 @@ protected:
 
   // initialization path
   std::shared_ptr<InitializedPathMsg> init_path_;
+
+  // robot extrinsics
+  beam_common::ExtrinsicsLookup& extrinsics_ =
+      beam_common::ExtrinsicsLookup::GetInstance();
+
+  // directory to optionally output the initialization results
+  std::string output_directory_{};
 };
 
 }} // namespace beam_models::camera_to_camera

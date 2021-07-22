@@ -194,9 +194,10 @@ protected:
   std::deque<ros::Time> keyframes_;
   uint32_t added_since_kf_{0};
 
+  // robot extrinsics
+  Eigen::Matrix4d T_cam_baselink_;
   beam_common::ExtrinsicsLookup& extrinsics_ =
       beam_common::ExtrinsicsLookup::GetInstance();
-  Eigen::Matrix4d T_cam_baselink_;
 };
 
 }} // namespace beam_models::camera_to_camera

@@ -22,11 +22,12 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-
     getParam<std::string>(nh, "image_topic", image_topic, "");
     getParam<std::string>(nh, "source", source, "VIO");
     getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
+    getParam<std::string>(nh, "init_map_output_directory",
+                          init_map_output_directory, "");
 
     getParam<std::string>(nh, "frame_odometry_output_topic",
                           frame_odometry_output_topic, "/vio_init");
@@ -49,6 +50,7 @@ public:
   std::string source{};
   std::string frame_odometry_output_topic{};
   std::string descriptor{};
+  std::string init_map_output_directory{};
 
   int window_size{};
   int num_features_to_track{};

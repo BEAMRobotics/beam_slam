@@ -6,6 +6,8 @@
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/utils.h>
 
+#include <boost/filesystem.hpp>
+
 namespace beam_models { namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
@@ -13,11 +15,12 @@ VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_cv::Tracker> tracker, const double& gyro_noise,
     const double& accel_noise, const double& gyro_bias,
     const double& accel_bias, bool use_scale_estimate,
-    double max_optimization_time)
+    double max_optimization_time, const std::string& output_directory)
     : cam_model_(cam_model),
       tracker_(tracker),
       use_scale_estimate_(use_scale_estimate),
-      max_optimization_time_(max_optimization_time) {
+      max_optimization_time_(max_optimization_time),
+      output_directory_(output_directory) {
   // set covariance matrices for imu
   cov_gyro_noise_ = Eigen::Matrix3d::Identity() * gyro_noise;
   cov_accel_noise_ = Eigen::Matrix3d::Identity() * accel_noise;
@@ -32,7 +35,7 @@ VIOInitializer::VIOInitializer(
 bool VIOInitializer::AddImage(ros::Time cur_time) {
   frame_times_.push_back(cur_time.toNSec());
   if (init_path_) {
-    ROS_INFO("Attempting Initialization.");
+    ROS_INFO("Attempting VIO Initialization.");
     // Build frame vectors
     std::vector<beam_models::camera_to_camera::Frame> valid_frames;
     std::vector<beam_models::camera_to_camera::Frame> invalid_frames;
@@ -55,13 +58,9 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     AddPosesAndInertialConstraints(valid_frames, true);
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames);
-    // save clouds before optimization
-    SaveClouds(valid_frames, "/home/jake/frames.pcd", "/home/jake/points.pcd");
     // optimize graph
+    ROS_INFO("Optimizing VIO Intialization Map.");
     OptimizeGraph();
-    // save clouds after optimization
-    SaveClouds(valid_frames, "/home/jake/frames_optimized.pcd",
-               "/home/jake/points_optimized.pcd");
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
       Eigen::Matrix4d T_WORLD_CAMERA;
@@ -69,6 +68,22 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
       if (!LocalizeFrame(f, T_WORLD_CAMERA)) { return false; }
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA, f.q, f.p);
     }
+    // optionally save the vio init map to point clouds
+    if (!boost::filesystem::exists(output_directory_)) {
+      if (!output_directory_.empty()) {
+        ROS_ERROR("Output directory does not exist. Not outputting VIO "
+                  "Initializer results.");
+      }
+    } else {
+      std::vector<beam_models::camera_to_camera::Frame> all_frames;
+      all_frames.insert(all_frames.end(), valid_frames.begin(),
+                        valid_frames.end());
+      all_frames.insert(all_frames.end(), invalid_frames.begin(),
+                        invalid_frames.end());
+      SaveClouds(all_frames, output_directory_ + "/frames.pcd",
+                 output_directory_ + "/points.pcd");
+    }
+
     // add localized poses and imu constraints
     AddPosesAndInertialConstraints(invalid_frames, false);
     // add landmarks and visual constraints for the invalid frames
@@ -192,6 +207,8 @@ void VIOInitializer::AddPosesAndInertialConstraints(
     beam_models::camera_to_camera::Frame frame = frames[i];
     visual_map_->AddPosition(frame.p, frame.t);
     visual_map_->AddOrientation(frame.q, frame.t);
+    Eigen::Matrix4d T;
+    beam::QuaternionAndTranslationToTransformMatrix(frame.q, frame.p, T);
     // Push its imu messages
     for (auto& imu_data : frame.preint.data) {
       imu_preint_->AddToBuffer(imu_data);
@@ -275,7 +292,7 @@ size_t VIOInitializer::AddVisualConstraints(
 
 bool VIOInitializer::LocalizeFrame(
     const beam_models::camera_to_camera::Frame& frame,
-    Eigen::Matrix4d& T_WORLD_CAMERA) {
+    Eigen::Matrix4d& T_WORLD_BASELINK) {
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
@@ -295,13 +312,17 @@ bool VIOInitializer::LocalizeFrame(
   ceres::Solver::Options ceres_solver_options;
   ceres_solver_options.minimizer_progress_to_stdout = false;
   ceres_solver_options.max_solver_time_in_seconds = 1e-1;
+  ceres_solver_options.logging_type = ceres::SILENT;
   ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
   ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
   beam_cv::PoseRefinement refiner(ceres_solver_options);
   std::string report;
   Eigen::Matrix4d T_CAMERA_WORLD_ref = refiner.RefinePose(
       T_CAMERA_WORLD_est, cam_model_, pixels, points, report);
-  T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
+  Eigen::Matrix4d T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
+  Eigen::Matrix4d T_cam_baselink;
+  extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink);
+  T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink;
   return true;
 }
 
@@ -311,7 +332,6 @@ void VIOInitializer::OptimizeGraph() {
   options.num_threads = 6;
   options.num_linear_solver_threads = 6;
   options.max_solver_time_in_seconds = max_optimization_time_;
-  // options.max_num_iterations = 3;
   local_graph_->optimize(options);
 }
 

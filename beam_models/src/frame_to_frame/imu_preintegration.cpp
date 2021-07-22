@@ -132,7 +132,7 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
 
   // check requested time
   if (t_now < imu_data_buffer_.front().t) { return false; }
-
+  std::cout << "Imu buffer size: " << imu_data_buffer_.size() << std::endl;
   // Populate integrators
   while (t_now > imu_data_buffer_.front().t) {
     pre_integrator_interval.data.emplace_back(imu_data_buffer_.front());
@@ -222,12 +222,6 @@ fuse_core::Transaction::SharedPtr
       imu_state_j.Orientation(), imu_state_j.Position(),
       imu_state_j.Velocity(), imu_state_j.GyroBias(),
       imu_state_j.AccelBias(), imu_state_j.Stamp());
-
-  // update orientation and position of predicted imu state with arguments
-  if (R_WORLD_IMU && t_WORLD_IMU) {
-    imu_state_j.SetOrientation(R_WORLD_IMU->data());
-    imu_state_j.SetPosition(t_WORLD_IMU->data());
-  }
 
   // update orientation and position of predicted imu state with arguments
   if (R_WORLD_IMU && t_WORLD_IMU) {
