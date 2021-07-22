@@ -43,8 +43,9 @@ public:
   }
 
   template <typename T>
-  bool operator()(const T* const R_WORLD_BASELINK, const T* const t_WORLD_BASELINK,
-                  const T* const P_WORLD, T* residual) const {
+  bool operator()(const T* const R_WORLD_BASELINK,
+                  const T* const t_WORLD_BASELINK, const T* const P_WORLD,
+                  T* residual) const {
     Eigen::Matrix<T, 4, 4> T_CAM_BASELINK = T_cam_baselink_.cast<T>();
 
     T R_WORLD_BASELINK_mat[9];
@@ -74,7 +75,8 @@ public:
     P_WORLD_h[2] = P_WORLD[2];
     P_WORLD_h[3] = (T)1;
 
-    Eigen::Matrix<T, 4, 1> P_BASELINK_h = T_WORLD_BASELINK.inverse() * P_WORLD_h;
+    Eigen::Matrix<T, 4, 1> P_BASELINK_h =
+        T_WORLD_BASELINK.inverse() * P_WORLD_h;
     Eigen::Matrix<T, 3, 1> P_CAM =
         (T_CAM_BASELINK * P_BASELINK_h).hnormalized();
     T P_CAMERA[3];
@@ -87,8 +89,10 @@ public:
     T pixel_projected[2];
     (*compute_projection)(P_CAMERA_const, &(pixel_projected[0]));
 
-    residual[0] = (pixel_measurement_.cast<T>()[0] - pixel_projected[0]);
-    residual[1] = (pixel_measurement_.cast<T>()[1] - pixel_projected[1]);
+    residual[0] = (pixel_measurement_.cast<T>()[0] - pixel_projected[0]) /
+                  (double)cam_model_->GetHeight();
+    residual[1] = (pixel_measurement_.cast<T>()[1] - pixel_projected[1]) /
+                  (double)cam_model_->GetWidth();
     return true;
   }
 

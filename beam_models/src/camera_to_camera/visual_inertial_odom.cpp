@@ -131,6 +131,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       init_odom_publisher_.publish(pose);
       // process if keyframe
       if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
+        ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
         cur_kf_time_ = img_time;
         keyframes_.push_back(img_time);
         added_since_kf_ = 0;
@@ -315,6 +316,7 @@ void VisualInertialOdom::ExtendMap(
   }
   // triangulate untriangulated ids and add constraints
   for (auto& id : untriangulated_ids) {
+    // find all previous measurements of landmark
     std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
     std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
     std::vector<ros::Time> observation_stamps;
@@ -327,7 +329,8 @@ void VisualInertialOdom::ExtendMap(
         observation_stamps.push_back(m.time_point);
       }
     }
-    if (T_cam_world_v.size() >= 2) {
+    // triangulate point
+    if (T_cam_world_v.size() >= 3) {
       beam::opt<Eigen::Vector3d> point =
           beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
                                                    pixels);

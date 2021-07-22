@@ -68,22 +68,11 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
       if (!LocalizeFrame(f, T_WORLD_CAMERA)) { return false; }
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA, f.q, f.p);
     }
-    // optionally save the vio init map to point clouds
-    if (!boost::filesystem::exists(output_directory_)) {
-      if (!output_directory_.empty()) {
-        ROS_ERROR("Output directory does not exist. Not outputting VIO "
-                  "Initializer results.");
-      }
-    } else {
-      std::vector<beam_models::camera_to_camera::Frame> all_frames;
-      all_frames.insert(all_frames.end(), valid_frames.begin(),
-                        valid_frames.end());
-      all_frames.insert(all_frames.end(), invalid_frames.begin(),
-                        invalid_frames.end());
-      SaveClouds(all_frames, output_directory_ + "/frames.pcd",
-                 output_directory_ + "/points.pcd");
-    }
-
+    // optionally output the results
+    std::vector<beam_models::camera_to_camera::Frame> all_frames = valid_frames;
+    all_frames.insert(all_frames.end(), invalid_frames.begin(),
+                      invalid_frames.end());
+    OutputResults(all_frames);
     // add localized poses and imu constraints
     AddPosesAndInertialConstraints(invalid_frames, false);
     // add landmarks and visual constraints for the invalid frames
@@ -272,7 +261,7 @@ size_t VIOInitializer::AddVisualConstraints(
           observation_stamps.push_back(m.time_point);
         }
       }
-      if (T_cam_world_v.size() >= 2) {
+      if (T_cam_world_v.size() >= 3) {
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
                                                      pixels);
@@ -322,8 +311,8 @@ bool VIOInitializer::LocalizeFrame(
   ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
   beam_cv::PoseRefinement refiner(ceres_solver_options);
   // refine pose using reprojection error
-  Eigen::Matrix4d T_CAMERA_WORLD_ref = refiner.RefinePose(
-      T_CAMERA_WORLD_est, cam_model_, pixels, points);
+  Eigen::Matrix4d T_CAMERA_WORLD_ref =
+      refiner.RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points);
   Eigen::Matrix4d T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
   // transform into baselink frame
@@ -340,28 +329,34 @@ void VIOInitializer::OptimizeGraph() {
   local_graph_->optimize(options);
 }
 
-void VIOInitializer::SaveClouds(
-    const std::vector<beam_models::camera_to_camera::Frame>& frames,
-    const std::string& frames_path, const std::string& points_path) {
-  // add frame poses to cloud and save
-  pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
-  for (auto& f : frames) {
-    frame_cloud = beam::AddFrameToCloud(
-        frame_cloud, visual_map_->GetPose(f.t).value(), 0.001);
-  }
-  pcl::io::savePCDFileBinary(frames_path, frame_cloud);
-  // add all landmark points to cloud and save
-  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
-      frames[0].t, frames[frames.size() - 1].t);
-  pcl::PointCloud<pcl::PointXYZ> points_cloud;
-  for (auto& id : landmarks) {
-    fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
-    if (lm) {
-      pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
-      points_cloud.points.push_back(p);
+void VIOInitializer::OutputResults(
+    const std::vector<beam_models::camera_to_camera::Frame>& frames) {
+  if (!boost::filesystem::exists(output_directory_)) {
+    if (!output_directory_.empty()) {
+      ROS_ERROR("Output directory does not exist. Not outputting VIO "
+                "Initializer results.");
     }
+  } else {
+    // add frame poses to cloud and save
+    pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
+    for (auto& f : frames) {
+      frame_cloud = beam::AddFrameToCloud(
+          frame_cloud, visual_map_->GetPose(f.t).value(), 0.001);
+    }
+    // add all landmark points to cloud and save
+    std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
+        frames[0].t, frames[frames.size() - 1].t);
+    pcl::PointCloud<pcl::PointXYZ> points_cloud;
+    for (auto& id : landmarks) {
+      fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+      if (lm) {
+        pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
+        points_cloud.points.push_back(p);
+      }
+    }
+    pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);
+    pcl::io::savePCDFileBinary(output_directory_ + "/points.pcd", points_cloud);
   }
-  pcl::io::savePCDFileBinary(points_path, points_cloud);
 }
 
 }} // namespace beam_models::camera_to_camera

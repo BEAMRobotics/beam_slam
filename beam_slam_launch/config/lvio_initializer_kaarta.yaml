@@ -60,8 +60,8 @@ camera:
   keyframe_parallax: 30 # if avg parallax to the previous keyframe exceeds this then set keyframe
   keyframe_tracks_drop: 100 # if number of visible landmarks in images drops below this then set keyframe
   keyframe_min_time_in_seconds: 0.3 # minimum amount of time between keyframes
-  init_max_optimization_time_in_seconds: 1.0 # max amopunt of time to ooptimize the initializer map
-  init_map_output_directory: '' # Outputs vio map into directory if not empty
+  init_max_optimization_time_in_seconds: 1.0 # max amopunt of time to optimize the initializer map
+  init_map_output_directory: "" # Outputs vio map into directory if not empty
 
 lo_initializer:
   matcher_params_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class

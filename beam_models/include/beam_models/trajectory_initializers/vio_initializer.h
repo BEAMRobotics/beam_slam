@@ -129,12 +129,9 @@ private:
   /**
    * @brief Saves the poses and the points from the given frames to point clouds
    * @param frames input frames
-   * @param frames_path path to save the poses point cloud at
-   * @param points_path path to save the landmarks point cloud at
    */
-  void SaveClouds(
-      const std::vector<beam_models::camera_to_camera::Frame>& frames,
-      const std::string& frames_path, const std::string& points_path);
+  void OutputResults(
+      const std::vector<beam_models::camera_to_camera::Frame>& frames);
 
 protected:
   // computer vision objects
