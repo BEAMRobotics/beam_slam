@@ -31,7 +31,6 @@ void VisualInertialOdom::onInit() {
   ceres::Solver::Options pose_refinement_options;
   pose_refinement_options.minimizer_progress_to_stdout = false;
   pose_refinement_options.logging_type = ceres::SILENT;
-  pose_refinement_options.max_num_iterations = 10;
   pose_refinement_options.max_solver_time_in_seconds = 1e-3;
   pose_refinement_options.function_tolerance = 1e-4;
   pose_refinement_options.gradient_tolerance = 1e-6;
@@ -113,6 +112,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       }
     } else {
       beam::HighResolutionTimer timer;
+      // get most recent extrinsics
       if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
         ROS_ERROR("Unable to get camera to baselink transform.");
         return;
@@ -192,15 +192,15 @@ void VisualInertialOdom::SendInitializationGraph(
     const fuse_graphs::HashGraph& init_graph) {
   auto transaction = fuse_core::Transaction::make_shared();
   for (auto& var : init_graph.getVariables()) {
-    fuse_variables::Position3D::SharedPtr landmark =
-        fuse_variables::Position3D::make_shared();
+    fuse_variables::Point3DLandmark::SharedPtr landmark =
+        fuse_variables::Point3DLandmark::make_shared();
     fuse_variables::Position3DStamped::SharedPtr position =
         fuse_variables::Position3DStamped::make_shared();
     fuse_variables::Orientation3DStamped::SharedPtr orientation =
         fuse_variables::Orientation3DStamped::make_shared();
 
     if (var.type() == landmark->type()) {
-      *landmark = dynamic_cast<const fuse_variables::Position3D&>(var);
+      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(var);
       visual_map_->AddLandmark(landmark, transaction);
     } else if (var.type() == orientation->type()) {
       *orientation =
@@ -228,7 +228,7 @@ bool VisualInertialOdom::LocalizeFrame(
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
   // get 2d-3d correspondences
   for (auto& id : landmarks) {
-    fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+    fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
     if (lm) {
       triangulated_ids.push_back(id);
       Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
