@@ -1,6 +1,6 @@
 <launch>
     <node pkg="fuse_optimizers" type="batch_optimizer_node" name="batch_optimizer" output="screen">
-        <rosparam command="load" file="$(find beam_slam)/config/roben_batch.yaml"/>
+        <rosparam command="load" file="$(find beam_slam)/config/examples/roben_batch.yaml"/>
     </node>
 
 </launch>

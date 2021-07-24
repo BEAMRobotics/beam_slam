@@ -174,6 +174,7 @@ ScanMatcher3D::GenerateTransaction(
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_CLOUDCURRENT,
                                             msg->header.stamp,
                                             extrinsics_.GetLidarFrameId())) {
+    ROS_DEBUG("Skipping scan");                                            
     return beam_constraints::frame_to_frame::Pose3DStampedTransaction(
         msg->header.stamp);
   }
