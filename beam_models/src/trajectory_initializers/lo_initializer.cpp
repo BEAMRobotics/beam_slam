@@ -177,6 +177,7 @@ void LoInitializer::ProcessCurrentKeyframe() {
     scan_registration_->GetMapMutable().Clear();
 
     ROS_INFO("Lo initialization complete");
+    stop();
   } else {
     keyframes_.pop_front();
   }
@@ -218,7 +219,7 @@ void LoInitializer::OutputResults() {
   }
 
   if (!boost::filesystem::exists(params_.scan_output_directory)) {
-    ROS_ERROR("Output directory does not exist. Not outputting results.");
+    ROS_ERROR("Output directory does not exist. Not outputting LO Initializer results.");
     return;
   }
 

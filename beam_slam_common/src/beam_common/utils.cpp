@@ -27,9 +27,9 @@ void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
   T_WORLD_SENSOR.block(0, 0, 3, 3) = q.toRotationMatrix();
 }
 
-Eigen::Matrix4d FusePoseToEigenTransform(
-    const fuse_variables::Position3DStamped& p,
-    const fuse_variables::Orientation3DStamped& o) {
+Eigen::Matrix4d
+    FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
+                             const fuse_variables::Orientation3DStamped& o) {
   Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
 
   // add position
@@ -173,4 +173,37 @@ void OdometryMsgToTransformedStamped(
   tf_stamped.transform.rotation = message.pose.pose.orientation;
 }
 
-}  // namespace beam_common
+void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
+                                   const ros::Time& stamp,
+                                   geometry_msgs::PoseStamped& pose) {
+  Eigen::Vector3d position;
+  Eigen::Quaterniond orientation;
+  beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_SENSOR, orientation,
+                                                  position);
+  pose.header.stamp = stamp;
+  pose.pose.position.x = position[0];
+  pose.pose.position.y = position[1];
+  pose.pose.position.z = position[2];
+  pose.pose.orientation.w = orientation.w();
+  pose.pose.orientation.x = orientation.x();
+  pose.pose.orientation.y = orientation.y();
+  pose.pose.orientation.z = orientation.z();
+}
+
+void InterpolateTransformFromPath(
+    const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
+    Eigen::Matrix4d& T_WORLD_SENSOR) {
+  for (int i = 0; i < poses.size(); i++) {
+    if (time < poses[i + 1].header.stamp && time >= poses[i].header.stamp) {
+      Eigen::Matrix4d pose1, pose2;
+      PoseMsgToTransformationMatrix(poses[i], pose1);
+      PoseMsgToTransformationMatrix(poses[i + 1], pose2);
+      T_WORLD_SENSOR = beam::InterpolateTransform(
+          pose1, beam::RosTimeToChrono(poses[i].header.stamp), pose2,
+          beam::RosTimeToChrono(poses[i + 1].header.stamp),
+          beam::RosTimeToChrono(time));
+    }
+  }
+}
+
+} // namespace beam_common

@@ -10,13 +10,6 @@ namespace beam_models { namespace camera_to_camera {
  * previous frame)
  */
 struct Frame {
-  /**
-   * @brief Custom Constructor
-   */
-  Frame(ros::Time stamp, Eigen::Vector3d p_WORLD_IMU,
-        Eigen::Quaterniond q_WORLD_IMU,
-        beam_common::PreIntegrator preintegrator);
-
   ros::Time t;
   Eigen::Vector3d p;
   Eigen::Quaterniond q;
