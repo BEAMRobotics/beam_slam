@@ -31,7 +31,7 @@ find_package(
     message_generation
     beam_constraints
     beam_slam_common
-		beam_variables
+    beam_variables
     cv_bridge
     basalt)
 
@@ -76,7 +76,7 @@ catkin_package(
     tf2_ros
     beam_constraints
     beam_slam_common
-		beam_variables
+    beam_variables
     cv_bridge
     basalt
   DEPENDS
@@ -105,7 +105,7 @@ add_library(
   src/frame_to_frame/scan_registration/scan_registration_base.cpp
   src/frame_to_frame/scan_registration/multi_scan_registration.cpp
   src/frame_to_frame/scan_registration/scan_to_map_registration.cpp
-	src/frame_to_frame/imu_preintegration.cpp
+  src/frame_to_frame/imu_preintegration.cpp
   src/frame_to_frame/imu_state.cpp
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
@@ -202,4 +202,3 @@ if(CATKIN_ENABLE_TESTING)
   )
 
 endif()
-
