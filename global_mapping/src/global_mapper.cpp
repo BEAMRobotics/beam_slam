@@ -1,4 +1,6 @@
 #include <global_mapping/global_mapper.h>
+#include <global_mapping/SubmapMsg.h>
+#include <global_mapping/SubmapRequestMsg.h>
 
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
@@ -42,6 +44,7 @@ namespace global_mapping
     params_.loadFromROS(private_node_handle_);
 
     submap_request_subscriber_ = private_node_handle_.subscribe("submap_request", 10, &onSubmapRequest);
+    submap_publisher_ = private_node_handle_.advertise<SubmapMsg>("submap", 1);
 
     std::shared_ptr<beam_calibration::CameraModel> camera_model =
         beam_calibration::CameraModel::Create(params_.intrinsics_path);
@@ -52,7 +55,10 @@ namespace global_mapping
     }
     else
     {
-      global_map_ = std::make_unique<GlobalMap>(camera_model);
+      global_map_ = st
+
+          ros::Subscriber submap_request_subscriber_;
+      d::make_unique<GlobalMap>(camera_model);
     }
   }
 
@@ -86,6 +92,24 @@ namespace global_mapping
     global_map_->UpdateSubmapPoses(graph_msg);
   }
 
-  void GlbobalMapper::onSubmapRequest(const global_mapping::SubmapRequestMsg::ConstPtr &request);
+  void GlbobalMapper::onSubmapRequest(const SubmapRequestMsg::ConstPtr &request)
+  {
+    // request->scan: recent scan
+    // request->image: recent image
+    // request->pose_estimate: pose estimate
+    // request->stamp: time stamp
+    std::cout << "Submap request message with time stamp " << request->stamp << " received" << std::endl;
+
+    // publish if reloc changes operating submap
+    if (true)
+    {
+      std::cout << "Submap has changed.  Publishing to topic \"submap\"" << std::endl;
+      global_mapping::SubmapMsg msg;
+      msg.stamp = ros::Time::now();
+      msg.submap = [];
+      msg.keypoints = [];
+      submap_publisher_.publish(msg);
+    }
+  }
 
 } // namespace global_mapping

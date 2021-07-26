@@ -74,6 +74,7 @@ namespace global_mapping
     std::unique_ptr<GlobalMap> global_map_;
 
     ros::Subscriber submap_request_subscriber_;
+    ros::Publisher submap_publisher_;
 
     using ThrottledCallback =
         fuse_models::common::ThrottledCallback<SlamChunkMsg>;
