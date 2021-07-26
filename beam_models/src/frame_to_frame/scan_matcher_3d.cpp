@@ -174,6 +174,7 @@ ScanMatcher3D::GenerateTransaction(
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_CLOUDCURRENT,
                                             msg->header.stamp,
                                             extrinsics_.GetLidarFrameId())) {
+    ROS_DEBUG("Skipping scan");                                            
     return beam_constraints::frame_to_frame::Pose3DStampedTransaction(
         msg->header.stamp);
   }
@@ -188,8 +189,6 @@ ScanMatcher3D::GenerateTransaction(
   }
 
   // build transaction of registration measurements
-  std::cout << "New scan pose: \n";
-  current_scan_pose.LoamCloud().Print();
   return scan_registration_->RegisterNewScan(current_scan_pose);
 }
 
