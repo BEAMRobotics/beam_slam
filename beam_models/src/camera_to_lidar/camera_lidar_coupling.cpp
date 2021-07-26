@@ -31,7 +31,6 @@ void CameraLidarCoupling::onInit() {
     }
     boost::filesystem::create_directory(output_path_);
   }
-
 }
 
 void CameraLidarCoupling::onStart() {
@@ -63,7 +62,8 @@ fuse_core::Transaction::SharedPtr CameraLidarCoupling::ProcessKeypointsQueue(
   std::vector<uint64_t> missing_landmarks;
 
   // get all landmarks in the graph message and save as unordered map
-  std::unordered_map<fuse_core::UUID, fuse_variables::Point3DLandmark::SharedPtr>
+  std::unordered_map<fuse_core::UUID,
+                     fuse_variables::Point3DLandmark::SharedPtr>
       existing_keypoints;
   for (auto& var : graph_msg->getVariables()) {
     fuse_variables::Point3DLandmark::SharedPtr landmark =
@@ -76,6 +76,11 @@ fuse_core::Transaction::SharedPtr CameraLidarCoupling::ProcessKeypointsQueue(
 
   fuse_core::Transaction::SharedPtr transaction =
       fuse_core::Transaction::make_shared();
+
+  // get kd search tree for current lidar map
+  pcl::KdTreeFLANN<pcl::PointXYZ> lidar_map_search_tree;
+  const PointCloud& cloud = lidar_map_.GetPointCloudMap();
+  lidar_map_search_tree.setInputCloud(std::make_shared<PointCloud>(cloud));
 
   while (keypoints_queue_.size() > 0) {
     uint64_t landmark_id = keypoints_queue_.front();
@@ -90,7 +95,14 @@ fuse_core::Transaction::SharedPtr CameraLidarCoupling::ProcessKeypointsQueue(
     }
 
     fuse_variables::Point3DLandmark::SharedPtr landmark = iter->second;
-    Eigen::Vector3d lidar_point = GetLidarCorrespondence(landmark);
+    Eigen::Vector3d lidar_point;
+    bool success =
+        GetLidarCorrespondence(landmark, lidar_map_search_tree, cloud, lidar_point);
+
+    if (!success) {
+      missing_landmarks.push_back(landmark_id);
+      continue;
+    }
 
     beam_constraints::CameraLidarConstraint::SharedPtr camera_lidar_constraint =
         beam_constraints::CameraLidarConstraint::make_shared(source_, *landmark,
@@ -106,9 +118,32 @@ fuse_core::Transaction::SharedPtr CameraLidarCoupling::ProcessKeypointsQueue(
   return transaction;
 }
 
-Eigen::Vector3d CameraLidarCoupling::GetLidarCorrespondence(
-    const fuse_variables::Point3DLandmark::SharedPtr& landmark) {
-  // TODO
+bool CameraLidarCoupling::GetLidarCorrespondence(
+    const fuse_variables::Point3DLandmark::SharedPtr& landmark,
+    const pcl::KdTreeFLANN<pcl::PointXYZ>& lidar_map_search_tree,
+    const PointCloud& lidar_map, Eigen::Vector3d& lidar_point) {
+  pcl::PointXYZ landmark_pcl;
+  landmark_pcl.x = static_cast<float>(landmark->x());
+  landmark_pcl.y = static_cast<float>(landmark->y());
+  landmark_pcl.z = static_cast<float>(landmark->z());
+  std::vector<int> indices;
+  std::vector<float> distances;
+  int num_returned =
+      lidar_map_search_tree.nearestKSearch(landmark_pcl, 1, indices, distances);
+
+  if (num_returned != 1) {
+    return false;
+  }
+
+  if (distances[0] > params_.correspondence_distance_theshold) {
+    return false;
+  }
+
+  const pcl::PointXYZ& corresponding_point = lidar_map.points.at(indices[0]);
+
+  lidar_point[0] = corresponding_point.x;
+  lidar_point[1] = corresponding_point.y;
+  lidar_point[2] = corresponding_point.z;
 }
 
 }  // namespace camera_to_lidar

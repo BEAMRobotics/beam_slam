@@ -17,11 +17,12 @@ struct CameraLidarCouplingParams : public ParameterBase {
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
     getParamRequired<std::string>(nh, "input_topic", input_topic);
-    // getParam<int>(nh, "keypoint_queue_size", keypoint_queue_size,
-    //                       keypoint_queue_size);
+    getParam<double>(nh, "correspondence_distance_theshold", correspondence_distance_theshold,
+                          correspondence_distance_theshold);
   }
 
   std::string input_topic;
+  double correspondence_distance_theshold{0.3};
   
 };
 
