@@ -8,28 +8,30 @@
 #include <global_mapping/global_map.h>
 #include <beam_parameters/models/global_mapper_params.h>
 
-namespace global_mapping {
+namespace global_mapping
+{
 
-/**
+  /**
  * @brief This is class is implemented as a sensor model which takes in
  * SlamChunk messages, creates and populates a GlobalMap
  */
-class GlobalMapper : public fuse_core::AsyncSensorModel {
- public:
-  SMART_PTR_DEFINITIONS(GlobalMapper);
+  class GlobalMapper : public fuse_core::AsyncSensorModel
+  {
+  public:
+    SMART_PTR_DEFINITIONS(GlobalMapper);
 
-  /**
+    /**
    * @brief This initializes the AsyncSensorModel class, device id and ROS
    * message callback
    */
-  GlobalMapper();
+    GlobalMapper();
 
-  /**
+    /**
    * @brief default  destructor
    */
-  ~GlobalMapper() override = default;
+    ~GlobalMapper() override = default;
 
-  /**
+    /**
    * @brief This function takes a slam chunk ROS message and adds it to the
    * global map which will then decide whether to add to the current submap, or
    * generate another. When a new submap is generated two things happen:
@@ -44,31 +46,38 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
    * @param msg slam chunk message which may contain lidar data, camera data,
    * and/or pose data
    */
-  void process(const SlamChunkMsg::ConstPtr& msg);
+    void process(const SlamChunkMsg::ConstPtr &msg);
 
- private:
-  /**
+  private:
+    /**
    * @brief Load and validate params, initialize required variables/pointers
    */
-  void onInit() override;
+    void onInit() override;
 
-  /**
+    /**
    * @brief Save final trajectories and maps if specified
    */
-  void onStop() override;
+    void onStop() override;
 
-  /**
+    /**
    * @brief Update submap poses
    */
-  void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
+    void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
-  fuse_core::UUID device_id_;  //!< The UUID of this device
-  beam_parameters::models::GlobalMapperParams params_;
-  std::unique_ptr<GlobalMap> global_map_;
+    /**
+   * @brief submap_request_subscriber_ callback to potentially publish a new operating submap
+   */
+    void onSubmapRequest(const global_mapping::SubmapRequestMsg::ConstPtr &request);
 
-  using ThrottledCallback =
-      fuse_models::common::ThrottledCallback<SlamChunkMsg>;
-  ThrottledCallback throttled_callback_;
-};
+    fuse_core::UUID device_id_; //!< The UUID of this device
+    beam_parameters::models::GlobalMapperParams params_;
+    std::unique_ptr<GlobalMap> global_map_;
 
-}  // namespace global_mapping
+    ros::Subscriber submap_request_subscriber_;
+
+    using ThrottledCallback =
+        fuse_models::common::ThrottledCallback<SlamChunkMsg>;
+    ThrottledCallback throttled_callback_;
+  };
+
+} // namespace global_mapping
