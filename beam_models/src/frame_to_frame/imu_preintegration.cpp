@@ -79,7 +79,7 @@ void ImuPreintegration::SetStart(
 
 ImuState ImuPreintegration::PredictState(
     const beam_common::PreIntegrator& pre_integrator,
-    const ImuState& imu_state_curr) {
+    const ImuState& imu_state_curr, const ros::Time& t_now) {
   // calculate new states
   double dt = pre_integrator.delta.t.toSec();
   Eigen::Matrix3d or_curr = imu_state_curr.OrientationQuat().toRotationMatrix();
@@ -94,6 +94,7 @@ ImuState ImuPreintegration::PredictState(
   // instantiate new imu state
   Eigen::Quaterniond or_new(or_new_mat);
   ros::Time t_new = imu_state_curr.Stamp() + pre_integrator.delta.t;
+  if (t_now != ros::Time(0)) { t_new = t_now; }
   ImuState imu_state_new(t_new, or_new, pos_new, vel_new,
                          imu_state_curr.GyroBiasVec(),
                          imu_state_curr.AccelBiasVec());
@@ -127,7 +128,7 @@ Eigen::Matrix<double, 16, 1>
 
 bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
                                 const ros::Time& t_now) {
-  // encapsulate imu measurments between frames
+  // encapsulate imu measurements between frames
   beam_common::PreIntegrator pre_integrator_interval;
 
   // check requested time
@@ -144,7 +145,8 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
                                     imu_state_i_.AccelBiasVec(), false, false);
 
   // predict state at end of window using integrated imu measurements
-  ImuState imu_state_k = PredictState(pre_integrator_interval, imu_state_k_);
+  ImuState imu_state_k =
+      PredictState(pre_integrator_interval, imu_state_k_, t_now);
   imu_state_k_ = std::move(imu_state_k);
 
   beam::QuaternionAndTranslationToTransformMatrix(
@@ -193,7 +195,7 @@ fuse_core::Transaction::SharedPtr
                               imu_state_i_.AccelBiasVec(), true, true);
 
   // predict state at end of window using integrated imu measurements
-  ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_);
+  ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_, t_now);
 
   // calculate relative change in imu state between key frames
   auto delta_ij = CalculateRelativeChange(imu_state_j);
@@ -212,16 +214,14 @@ fuse_core::Transaction::SharedPtr
   // generate relative constraints between key frames
   transaction.AddImuStateConstraint(
       imu_state_i_.Orientation(), imu_state_j.Orientation(),
-      imu_state_i_.Position(), imu_state_j.Position(),
-      imu_state_i_.Velocity(), imu_state_j.Velocity(),
-      imu_state_i_.GyroBias(), imu_state_j.GyroBias(),
+      imu_state_i_.Position(), imu_state_j.Position(), imu_state_i_.Velocity(),
+      imu_state_j.Velocity(), imu_state_i_.GyroBias(), imu_state_j.GyroBias(),
       imu_state_i_.AccelBias(), imu_state_j.AccelBias(), delta_ij,
       covariance_ij, pre_integrator);
 
   transaction.AddImuStateVariables(
-      imu_state_j.Orientation(), imu_state_j.Position(),
-      imu_state_j.Velocity(), imu_state_j.GyroBias(),
-      imu_state_j.AccelBias(), imu_state_j.Stamp());
+      imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),
+      imu_state_j.GyroBias(), imu_state_j.AccelBias(), imu_state_j.Stamp());
 
   // update orientation and position of predicted imu state with arguments
   if (R_WORLD_IMU && t_WORLD_IMU) {

@@ -51,16 +51,14 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     imu_preint_ =
         std::make_shared<beam_models::frame_to_frame::ImuPreintegration>(
             imu_params, bg_, ba_);
+    size_t init_lms = 0;
     // Apply scale estimate if desired
     if (use_scale_estimate_)
       for (auto& f : valid_frames) { f.p = scale_ * f.p; }
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames, true);
     // Add landmarks and visual constraints to graph
-    size_t init_lms = AddVisualConstraints(valid_frames);
-    // optimize graph
-    ROS_INFO("Optimizing VIO Intialization Map.");
-    OptimizeGraph();
+    init_lms += AddVisualConstraints(valid_frames);
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
       Eigen::Matrix4d T_WORLD_CAMERA;
@@ -68,15 +66,13 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
       if (!LocalizeFrame(f, T_WORLD_CAMERA)) { return false; }
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA, f.q, f.p);
     }
-    // optionally output the results
-    std::vector<beam_models::camera_to_camera::Frame> all_frames = valid_frames;
-    all_frames.insert(all_frames.end(), invalid_frames.begin(),
-                      invalid_frames.end());
-    OutputResults(all_frames);
     // add localized poses and imu constraints
     AddPosesAndInertialConstraints(invalid_frames, false);
     // add landmarks and visual constraints for the invalid frames
     init_lms += AddVisualConstraints(invalid_frames);
+    // optimize graph
+    ROS_INFO("Optimizing VIO Intialization Map.");
+    OptimizeGraph();
     // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
     is_initialized_ = true;
@@ -326,7 +322,8 @@ void VIOInitializer::OptimizeGraph() {
   options.num_threads = 6;
   options.num_linear_solver_threads = 6;
   options.max_solver_time_in_seconds = max_optimization_time_;
-  local_graph_->optimize(options);
+  options.function_tolerance = 1e-11;
+  std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }
 
 void VIOInitializer::OutputResults(
