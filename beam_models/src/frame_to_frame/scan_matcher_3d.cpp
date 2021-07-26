@@ -122,6 +122,7 @@ void ScanMatcher3D::onInit() {
 
   // if outputting scans, clear folder
   if (!params_.scan_output_directory.empty()) {
+    BEAM_INFO("Clearing output directory: {}", params_.scan_output_directory);
     if (boost::filesystem::is_directory(params_.scan_output_directory)) {
       boost::filesystem::remove_all(params_.scan_output_directory);
     }
@@ -130,6 +131,7 @@ void ScanMatcher3D::onInit() {
 
   // if outputting graph update results, clear results folder:
   if (output_graph_updates_) {
+    BEAM_INFO("Clearing output directory: {}", graph_updates_path_);
     if (boost::filesystem::is_directory(graph_updates_path_)) {
       boost::filesystem::remove_all(graph_updates_path_);
     }

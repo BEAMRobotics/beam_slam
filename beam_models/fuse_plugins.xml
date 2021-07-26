@@ -26,4 +26,9 @@
       An adapter-type sensor that produces relative pose constraints
     </description>
   </class>
+  <class type="beam_models::camera_to_lidar::CameraLidarCoupling" base_class_type="fuse_core::SensorModel">
+    <description>
+      Sensor model that adds constraints between camera and lidar data
+    </description>
+  </class>
 </library>
