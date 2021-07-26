@@ -70,9 +70,6 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     AddPosesAndInertialConstraints(invalid_frames, false);
     // add landmarks and visual constraints for the invalid frames
     init_lms += AddVisualConstraints(invalid_frames);
-    // optimize graph
-    ROS_INFO("Optimizing VIO Intialization Map.");
-    OptimizeGraph();
     // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
     is_initialized_ = true;
@@ -201,10 +198,7 @@ void VIOInitializer::AddPosesAndInertialConstraints(
     for (auto& imu_data : frame.preint.data) {
       imu_preint_->AddToBuffer(imu_data);
     }
-  }
-  // add inertial constraints between each frame
-  for (int i = 0; i < frames.size(); i++) {
-    beam_models::camera_to_camera::Frame frame = frames[i];
+
     fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
         visual_map_->GetOrientation(frame.t);
     fuse_variables::Position3DStamped::SharedPtr img_position =
@@ -213,17 +207,17 @@ void VIOInitializer::AddPosesAndInertialConstraints(
     if (set_start && i == 0) {
       imu_preint_->SetStart(frame.t, img_orientation, img_position);
     } else {
-      // get imu transaction
-      fuse_core::Transaction::SharedPtr transaction =
-          imu_preint_->RegisterNewImuPreintegratedFactor(
-              frame.t, img_orientation, img_position);
-      // add constituent variables and constraints
-      for (auto& var : transaction->addedVariables()) {
-        local_graph_->addVariable(std::move(var.clone()));
-      }
-      for (auto& constraint : transaction->addedConstraints()) {
-        local_graph_->addConstraint(std::move(constraint.clone()));
-      }
+      // // get imu transaction
+      // fuse_core::Transaction::SharedPtr transaction =
+      //     imu_preint_->RegisterNewImuPreintegratedFactor(
+      //         frame.t, img_orientation, img_position);
+      // // add constituent variables and constraints
+      // for (auto& var : transaction->addedVariables()) {
+      //   local_graph_->addVariable(std::move(var.clone()));
+      // }
+      // for (auto& constraint : transaction->addedConstraints()) {
+      //   local_graph_->addConstraint(std::move(constraint.clone()));
+      // }
     }
   }
 }
@@ -321,7 +315,10 @@ void VIOInitializer::OptimizeGraph() {
   options.minimizer_progress_to_stdout = true;
   options.num_threads = 6;
   options.num_linear_solver_threads = 6;
-  options.max_solver_time_in_seconds = max_optimization_time_;
+  options.minimizer_type = ceres::TRUST_REGION;
+  options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+  // options.max_solver_time_in_seconds = max_optimization_time_;
+  options.max_num_iterations = 50;
   options.function_tolerance = 1e-11;
   std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }

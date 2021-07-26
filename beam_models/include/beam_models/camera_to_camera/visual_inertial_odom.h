@@ -193,6 +193,7 @@ protected:
   ros::Time cur_kf_time_ = ros::Time(0);
   std::deque<ros::Time> keyframes_;
   uint32_t added_since_kf_{0};
+  bool init_graph_optimized_{false};
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
