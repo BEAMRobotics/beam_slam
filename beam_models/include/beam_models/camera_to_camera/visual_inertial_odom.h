@@ -80,7 +80,7 @@ protected:
    * @brief Subscribe to the input topic to start sending transactions to the
    * optimizer
    */
-  void onStart() override {}
+  void onStart() override;
 
   /**
    * @brief Unsubscribe to the input topic

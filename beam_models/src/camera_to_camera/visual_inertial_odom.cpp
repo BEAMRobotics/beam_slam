@@ -64,6 +64,21 @@ void VisualInertialOdom::onInit() {
   tracker_ = std::make_shared<beam_cv::KLTracker>(detector, descriptor,
                                                   camera_params_.window_size);
   /***********************************************************
+   *               Create initializer object                 *
+   ***********************************************************/
+  nlohmann::json J;
+  std::ifstream file(global_params_.imu_intrinsics_path);
+  file >> J;
+  initializer_ =
+      std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
+          cam_model_, tracker_, J["cov_gyro_noise"], J["cov_accel_noise"],
+          J["cov_gyro_bias"], J["cov_accel_bias"], false,
+          camera_params_.init_max_optimization_time_in_seconds,
+          camera_params_.init_map_output_directory);
+}
+
+void VisualInertialOdom::onStart() {
+  /***********************************************************
    *                  Subscribe to topics                    *
    ***********************************************************/
   image_subscriber_ = node_handle_.subscribe(camera_params_.image_topic, 1000,
@@ -78,18 +93,6 @@ void VisualInertialOdom::onInit() {
   init_odom_publisher_ =
       private_node_handle_.advertise<geometry_msgs::PoseStamped>(
           camera_params_.frame_odometry_output_topic, 100);
-  /***********************************************************
-   *               Create initializer object                 *
-   ***********************************************************/
-  nlohmann::json J;
-  std::ifstream file(global_params_.imu_intrinsics_path);
-  file >> J;
-  initializer_ =
-      std::make_shared<beam_models::camera_to_camera::VIOInitializer>(
-          cam_model_, tracker_, J["cov_gyro_noise"], J["cov_accel_noise"],
-          J["cov_gyro_bias"], J["cov_accel_bias"], false,
-          camera_params_.init_max_optimization_time_in_seconds,
-          camera_params_.init_map_output_directory);
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -152,6 +155,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         cur_kf_time_ = img_time;
         keyframes_.push_back(img_time);
         added_since_kf_ = 0;
+        // go through keyframe queue and publish oldest then pop
       } else {
         added_since_kf_++;
       }
@@ -241,7 +245,8 @@ bool VisualInertialOdom::LocalizeFrame(
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
   // get 2d-3d correspondences
   for (auto& id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
+    fuse_variables::Point3DLandmark::SharedPtr lm =
+        visual_map_->GetLandmark(id);
     if (lm) {
       triangulated_ids.push_back(id);
       Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();

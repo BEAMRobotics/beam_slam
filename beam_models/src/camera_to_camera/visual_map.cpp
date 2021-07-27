@@ -307,7 +307,11 @@ fuse_variables::Position3DStamped::SharedPtr
 }
 
 void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  // clear temp maps
+  // make new copies of temp maps
+  // 1. go through each stamp involved in the graph
+  // 2. check if it exists in the maps, if not remove it
+  // 3. go through each landmark in the graph
+  // 4. check if it exists in the maps, if not remove it
   graph_ = std::move(graph_msg);
 }
 
