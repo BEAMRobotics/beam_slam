@@ -28,7 +28,8 @@ beam::opt<Eigen::Matrix4d> VisualMap::GetPose(const ros::Time& stamp) {
     beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
                                                     T_WORLD_BASELINK);
     // transform pose from baselink coord space to camera coord space
-    Eigen::Matrix4d T_WORLD_CAMERA = T_WORLD_BASELINK * T_cam_baselink_.inverse();
+    Eigen::Matrix4d T_WORLD_CAMERA =
+        T_WORLD_BASELINK * T_cam_baselink_.inverse();
     return T_WORLD_CAMERA;
   } else {
     return {};
@@ -39,8 +40,7 @@ fuse_variables::Point3DLandmark::SharedPtr
     VisualMap::GetLandmark(uint64_t landmark_id) {
   fuse_variables::Point3DLandmark::SharedPtr landmark =
       fuse_variables::Point3DLandmark::make_shared();
-  auto landmark_uuid = fuse_core::uuid::generate(
-      landmark->type(), std::to_string(landmark_id).c_str());
+  auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
   // first check the graph for the variable if its initialized
   if (!local_graph_) {
     if (graph_) {
