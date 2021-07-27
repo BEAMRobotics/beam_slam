@@ -308,9 +308,6 @@ fuse_variables::Position3DStamped::SharedPtr
 
 void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   // clear temp maps
-  orientations_.clear();
-  positions_.clear();
-  landmark_positions_.clear();
   graph_ = std::move(graph_msg);
 }
 

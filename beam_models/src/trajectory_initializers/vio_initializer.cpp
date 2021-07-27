@@ -297,7 +297,7 @@ bool VIOInitializer::LocalizeFrame(
   ceres::Solver::Options ceres_solver_options;
   ceres_solver_options.minimizer_progress_to_stdout = false;
   ceres_solver_options.max_solver_time_in_seconds = 1e-1;
-  //ceres_solver_options.logging_type = ceres::SILENT;
+  ceres_solver_options.logging_type = ceres::SILENT;
   ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
   ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
   beam_cv::PoseRefinement refiner(ceres_solver_options);
@@ -321,7 +321,8 @@ void VIOInitializer::OptimizeGraph() {
   options.preconditioner_type = ceres::SCHUR_JACOBI;
   options.max_solver_time_in_seconds = max_optimization_time_;
   options.max_num_iterations = 100;
-  std::cout << local_graph_->optimize(options).FullReport() << std::endl;
+  local_graph_->optimize(options);
+  //std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }
 
 void VIOInitializer::OutputResults(

@@ -18,7 +18,13 @@ PLUGINLIB_EXPORT_CLASS(beam_models::camera_to_camera::VisualInertialOdom,
 
 namespace beam_models { namespace camera_to_camera {
 
-VisualInertialOdom::VisualInertialOdom() : fuse_core::AsyncSensorModel(1) {}
+VisualInertialOdom::VisualInertialOdom()
+    : fuse_core::AsyncSensorModel(1),
+      device_id_(fuse_core::uuid::NIL),
+      throttled_image_callback_(std::bind(&VisualInertialOdom::processImage,
+                                          this, std::placeholders::_1)),
+      throttled_imu_callback_(std::bind(&VisualInertialOdom::processIMU, this,
+                                        std::placeholders::_1)) {}
 
 void VisualInertialOdom::onInit() {
   // Read settings from the parameter sever
@@ -61,11 +67,12 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *                  Subscribe to topics                    *
    ***********************************************************/
-  image_subscriber_ =
-      private_node_handle_.subscribe(camera_params_.image_topic, 1000,
-                                     &VisualInertialOdom::processImage, this);
-  imu_subscriber_ = private_node_handle_.subscribe(
-      camera_params_.imu_topic, 10000, &VisualInertialOdom::processIMU, this);
+  image_subscriber_ = node_handle_.subscribe(camera_params_.image_topic, 1000,
+                                             &ThrottledImageCallback::callback,
+                                             &throttled_image_callback_);
+  imu_subscriber_ = node_handle_.subscribe(camera_params_.imu_topic, 10000,
+                                           &ThrottledIMUCallback::callback,
+                                           &throttled_imu_callback_);
   path_subscriber_ = private_node_handle_.subscribe(
       camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
       this);
@@ -178,17 +185,8 @@ void VisualInertialOdom::processInitPath(
 }
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
-  for (auto& kf : keyframes_) {
-    std::cout << kf << std::endl;
-    std::cout << visual_map_->GetPose(kf) << std::endl;
-  }
-  std::cout << "\nOPTIMIZED\n" << std::endl;
   visual_map_->UpdateGraph(graph);
   init_graph_optimized_ = true;
-  for (auto& kf : keyframes_) {
-    std::cout << kf << std::endl;
-    std::cout << visual_map_->GetPose(kf) << std::endl;
-  }
 }
 
 void VisualInertialOdom::onStop() {}
@@ -276,32 +274,38 @@ bool VisualInertialOdom::IsKeyframe(
   Eigen::Matrix4d T_WORLD_prevkf = visual_map_->GetPose(cur_kf_time_).value();
   bool is_keyframe = false;
   if ((img_time - cur_kf_time_).toSec() >=
-      camera_params_.keyframe_min_time_in_seconds) {
-    // combine all the id's seen in the image
-    std::vector<uint64_t> all_ids;
-    all_ids.insert(all_ids.end(), triangulated_ids.begin(),
-                   triangulated_ids.end());
-    all_ids.insert(all_ids.end(), untriangulated_ids.begin(),
-                   untriangulated_ids.end());
-    // compute the parallax between this frame and the last keyframe
-    double avg_parallax = ComputeAvgParallax(cur_kf_time_, img_time, all_ids);
-    // test against parameters to see if this frame is a keyframe
-    if (beam::PassedMotionThreshold(T_WORLD_prevkf, T_WORLD_CAMERA, 0.0, 0.1,
-                                    true, true, false)) {
-      if (triangulated_ids.size() < camera_params_.keyframe_tracks_drop ||
-          avg_parallax > camera_params_.keyframe_parallax) {
-        is_keyframe = true;
-        ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
-        ROS_INFO("Avg parallax: %f", avg_parallax);
-        ROS_INFO("Visible landmarks: %zu", triangulated_ids.size());
-      } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
-        ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
-        ROS_INFO("Max # of frames reached.");
-        is_keyframe = true;
-      }
-    } else {
-      is_keyframe = false;
-    }
+          camera_params_.keyframe_min_time_in_seconds &&
+      beam::PassedMotionThreshold(T_WORLD_prevkf, T_WORLD_CAMERA, 0.0, 0.1,
+                                  true, true, false)) {
+    ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+    is_keyframe = true;
+    // // combine all the id's seen in the image
+    // std::vector<uint64_t> all_ids;
+    // all_ids.insert(all_ids.end(), triangulated_ids.begin(),
+    //                triangulated_ids.end());
+    // all_ids.insert(all_ids.end(), untriangulated_ids.begin(),
+    //                untriangulated_ids.end());
+    // // compute the parallax between this frame and the last keyframe
+    // double avg_parallax = ComputeAvgParallax(cur_kf_time_, img_time,
+    // all_ids);
+    // // test against parameters to see if this frame is a keyframe
+    // if (beam::PassedMotionThreshold(T_WORLD_prevkf, T_WORLD_CAMERA, 0.0,
+    // 0.05,
+    //                                 true, true, false)) {
+    //   if (triangulated_ids.size() < camera_params_.keyframe_tracks_drop ||
+    //       avg_parallax > camera_params_.keyframe_parallax) {
+    //     is_keyframe = true;
+    //     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+    //     ROS_INFO("Avg parallax: %f", avg_parallax);
+    //     ROS_INFO("Visible landmarks: %zu", triangulated_ids.size());
+    //   } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
+    //     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+    //     ROS_INFO("Max # of frames reached.");
+    //     is_keyframe = true;
+    //   }
+    // } else {
+    //   is_keyframe = false;
+    // }
   } else {
     is_keyframe = false;
   }
@@ -313,6 +317,7 @@ void VisualInertialOdom::ExtendMap(
     const std::vector<uint64_t>& triangulated_ids,
     const std::vector<uint64_t>& untriangulated_ids) {
   auto transaction = fuse_core::Transaction::make_shared();
+  transaction->stamp(img_time);
   // add camera pose
   visual_map_->AddPose(T_WORLD_CAMERA, img_time, transaction);
   // add constraints to triangulated ids

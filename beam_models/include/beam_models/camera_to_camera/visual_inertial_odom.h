@@ -10,6 +10,7 @@
 
 // fuse
 #include <fuse_core/async_sensor_model.h>
+#include <fuse_models/common/throttled_callback.h>
 
 // beam_slam
 #include <beam_common/extrinsics_lookup.h>
@@ -178,6 +179,12 @@ protected:
   ros::Publisher init_odom_publisher_;
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
+
+  // callbacks for messages
+  using ThrottledImageCallback = fuse_models::common::ThrottledCallback<sensor_msgs::Image>;
+  using ThrottledIMUCallback = fuse_models::common::ThrottledCallback<sensor_msgs::Imu>;
+  ThrottledImageCallback throttled_image_callback_;
+  ThrottledIMUCallback throttled_imu_callback_;
 
   // computer vision objects
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
