@@ -57,6 +57,8 @@ add_message_files(
     LidarMeasurementMsg.msg
     TrajectoryMeasurementMsg.msg
     SlamChunkMsg.msg
+    SubmapMsg.msg
+    RelocRequestMsg.msg
 )
 
 generate_messages()
