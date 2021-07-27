@@ -6,7 +6,6 @@
 
 // beam_slam
 #include <beam_common/extrinsics_lookup.h>
-#include <beam_variables/position_3d.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/graph.h>
 #include <fuse_core/macros.h>
@@ -15,6 +14,7 @@
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
+#include <fuse_variables/point_3d_landmark.h>
 
 // libbeam
 #include <beam_calibration/CameraModel.h>
@@ -56,7 +56,7 @@ public:
    * @brief Helper function to get a landmark by id
    * @param landmark_id to retrieve
    */
-  fuse_variables::Position3D::SharedPtr GetLandmark(uint64_t landmark_id);
+  fuse_variables::Point3DLandmark::SharedPtr GetLandmark(uint64_t landmark_id);
 
   /**
    * @brief Helper function to add a pose at time t to a transaction or graph
@@ -87,7 +87,7 @@ public:
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void AddLandmark(fuse_variables::Position3D::SharedPtr landmark,
+  void AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
@@ -166,7 +166,7 @@ protected:
       orientations_;
   std::unordered_map<uint64_t, fuse_variables::Position3DStamped::SharedPtr>
       positions_;
-  std::unordered_map<uint64_t, fuse_variables::Position3D::SharedPtr>
+  std::unordered_map<uint64_t, fuse_variables::Point3DLandmark::SharedPtr>
       landmark_positions_;
 
   // local graph for direct use

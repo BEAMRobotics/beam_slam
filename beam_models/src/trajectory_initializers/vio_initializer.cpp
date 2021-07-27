@@ -232,7 +232,7 @@ size_t VIOInitializer::AddVisualConstraints(
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInWindow(start, end);
   for (auto& id : landmarks) {
-    fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+    fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
     if (lm) { // if the landmark already exists then add constraint
       for (auto& f : frames) {
         try {
@@ -281,7 +281,7 @@ bool VIOInitializer::LocalizeFrame(
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
   // get 2d-3d correspondences
   for (auto& id : landmarks) {
-    fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+    fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
     if (lm) {
       Eigen::Vector2i pixeli = tracker_->Get(frame.t, id).cast<int>();
       pixels.push_back(pixeli);
@@ -344,7 +344,7 @@ void VIOInitializer::OutputResults(
         frames[0].t, frames[frames.size() - 1].t);
     pcl::PointCloud<pcl::PointXYZ> points_cloud;
     for (auto& id : landmarks) {
-      fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+      fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
       if (lm) {
         pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
         points_cloud.points.push_back(p);

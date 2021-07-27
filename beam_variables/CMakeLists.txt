@@ -39,7 +39,6 @@ add_compile_options(-Wall -Werror)
 add_library(${PROJECT_NAME}
   src/accel_bias_3d_stamped.cpp
   src/gyro_bias_3d_stamped.cpp
-  src/position_3d.cpp
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}

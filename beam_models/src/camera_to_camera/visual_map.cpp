@@ -35,17 +35,17 @@ beam::opt<Eigen::Matrix4d> VisualMap::GetPose(const ros::Time& stamp) {
   }
 }
 
-fuse_variables::Position3D::SharedPtr
+fuse_variables::Point3DLandmark::SharedPtr
     VisualMap::GetLandmark(uint64_t landmark_id) {
-  fuse_variables::Position3D::SharedPtr landmark =
-      fuse_variables::Position3D::make_shared();
+  fuse_variables::Point3DLandmark::SharedPtr landmark =
+      fuse_variables::Point3DLandmark::make_shared();
   auto landmark_uuid = fuse_core::uuid::generate(
       landmark->type(), std::to_string(landmark_id).c_str());
   // first check the graph for the variable if its initialized
   if (!local_graph_) {
     if (graph_) {
       try {
-        *landmark = dynamic_cast<const fuse_variables::Position3D&>(
+        *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(
             graph_->getVariable(landmark_uuid));
         landmark_positions_.erase(landmark_id);
         return landmark;
@@ -64,7 +64,7 @@ fuse_variables::Position3D::SharedPtr
     }
   } else {
     try {
-      *landmark = dynamic_cast<const fuse_variables::Position3D&>(
+      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(
           local_graph_->getVariable(landmark_uuid));
       return landmark;
     } catch (const std::out_of_range& oor) {}
@@ -180,8 +180,8 @@ void VisualMap::AddPosition(
 
 void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
                             fuse_core::Transaction::SharedPtr transaction) {
-  fuse_variables::Position3D::SharedPtr landmark =
-      fuse_variables::Position3D::make_shared(id);
+  fuse_variables::Point3DLandmark::SharedPtr landmark =
+      fuse_variables::Point3DLandmark::make_shared(id);
   landmark->x() = position[0];
   landmark->y() = position[1];
   landmark->z() = position[2];
@@ -196,7 +196,7 @@ void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
   }
 }
 
-void VisualMap::AddLandmark(fuse_variables::Position3D::SharedPtr landmark,
+void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
                             fuse_core::Transaction::SharedPtr transaction) {
   if (transaction) {
     transaction->addVariable(landmark);
@@ -215,7 +215,7 @@ void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
     ROS_ERROR("Unable to get baselink to camera transform.");
     return;
   }
-  fuse_variables::Position3D::SharedPtr lm = GetLandmark(lm_id);
+  fuse_variables::Point3DLandmark::SharedPtr lm = GetLandmark(lm_id);
   fuse_variables::Position3DStamped::SharedPtr position = GetPosition(img_time);
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
       GetOrientation(img_time);
