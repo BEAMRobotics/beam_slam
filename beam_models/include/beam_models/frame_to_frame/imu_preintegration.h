@@ -9,8 +9,7 @@
 
 #define GRAVITY 9.80655
 
-namespace beam_models {
-namespace frame_to_frame {
+namespace beam_models { namespace frame_to_frame {
 
 template <typename ConstraintType, typename PriorType>
 using TransactionBase =
@@ -27,7 +26,7 @@ using TransactionBase =
  * or LIO
  */
 class ImuPreintegration {
- public:
+public:
   /**
    * @param prior_noise noise assumed for prior covariance
    * @param cov_gyro_noise angular velocity covariance
@@ -103,15 +102,16 @@ class ImuPreintegration {
    * @return ImuState
    */
   ImuState PredictState(const beam_common::PreIntegrator& pre_integrator,
-                        const ImuState& imu_state_curr);
+                        const ImuState& imu_state_curr,
+                        const ros::Time& t_now = ros::Time(0));
 
   /**
    * @brief calculates relative change between new and previous key frames
    * @param imu_state_new new ImuState
    * @return delta vector in order [del_q, del_p, del_v, del_bg, ba]
    */
-  Eigen::Matrix<double, 16, 1> CalculateRelativeChange(
-      const ImuState& imu_state_new);
+  Eigen::Matrix<double, 16, 1>
+      CalculateRelativeChange(const ImuState& imu_state_new);
 
   /**
    * @brief gets current IMU state, which is the last registered key frame
@@ -141,7 +141,7 @@ class ImuPreintegration {
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
 
- private:
+private:
   /**
    * @brief checks parameters
    */
@@ -157,17 +157,16 @@ class ImuPreintegration {
    */
   void ResetPreintegrator();
 
-  Params params_;            // class parameters
-  bool first_window_{true};  // flag for first window between key frames
+  Params params_;           // class parameters
+  bool first_window_{true}; // flag for first window between key frames
 
-  ImuState imu_state_i_;  // current key frame
-  ImuState imu_state_k_;  // intermediate frame
+  ImuState imu_state_i_; // current key frame
+  ImuState imu_state_k_; // intermediate frame
   beam_common::PreIntegrator
-      pre_integrator_ij;  // preintegrate between key frames
-  std::queue<beam_common::IMUData> imu_data_buffer_;  // store imu data
-  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};       // zero gyroscope bias
-  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};       // zero accleration bias
+      pre_integrator_ij; // preintegrate between key frames
+  std::queue<beam_common::IMUData> imu_data_buffer_; // store imu data
+  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};      // zero gyroscope bias
+  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};      // zero accleration bias
 };
 
-}  // namespace frame_to_frame
-}  // namespace beam_models
+}} // namespace beam_models::frame_to_frame

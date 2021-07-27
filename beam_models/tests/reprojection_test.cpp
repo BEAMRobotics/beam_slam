@@ -69,3 +69,8 @@ TEST(ReprojectionFunctor, TestAccuracy) {
   EXPECT_NEAR(residual[0], 0, 0.001);
   EXPECT_NEAR(residual[1], 0, 0.001);
 }
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

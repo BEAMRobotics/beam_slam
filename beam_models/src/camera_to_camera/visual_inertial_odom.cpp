@@ -112,11 +112,14 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       }
     } else {
       beam::HighResolutionTimer timer;
-      // get most recent extrinsics
+      // dont process frame unless the initial graph has been optimized
+      if (!init_graph_optimized_) return;
+      // get most recent extrinsics, if failure then dont process frame
       if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
         ROS_ERROR("Unable to get camera to baselink transform.");
         return;
       }
+      beam::HighResolutionTimer frame_timer;
       // localize frame
       std::vector<uint64_t> triangulated_ids;
       std::vector<uint64_t> untriangulated_ids;
@@ -130,20 +133,22 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
                                                  pose);
       init_odom_publisher_.publish(pose);
       // process if keyframe
-      if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
-        ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+      if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids,
+                     T_WORLD_CAMERA)) {
+        ROS_INFO("Estimated Keyframe Pose:");
+        std::cout << T_WORLD_BASELINK << std::endl;
+        // extend map
+        ExtendMap(img_time, T_WORLD_CAMERA, triangulated_ids,
+                  untriangulated_ids);
+        // add imu constraint
+        // SendInertialConstraint(img_time);
         cur_kf_time_ = img_time;
         keyframes_.push_back(img_time);
         added_since_kf_ = 0;
-        // // extend map
-        // ExtendMap(img_time, T_WORLD_CAMERA, triangulated_ids,
-        //           untriangulated_ids);
-        // // add imu constraint
-        // SendInertialConstraint(img_time);
       } else {
         added_since_kf_++;
       }
-      ROS_DEBUG("Total time to process frame: %.5f", timer.elapsed());
+      ROS_DEBUG("Total time to process frame: %.5f", frame_timer.elapsed());
     }
     image_buffer_.pop();
   }
@@ -173,7 +178,17 @@ void VisualInertialOdom::processInitPath(
 }
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
+  for (auto& kf : keyframes_) {
+    std::cout << kf << std::endl;
+    std::cout << visual_map_->GetPose(kf) << std::endl;
+  }
+  std::cout << "\nOPTIMIZED\n" << std::endl;
   visual_map_->UpdateGraph(graph);
+  init_graph_optimized_ = true;
+  for (auto& kf : keyframes_) {
+    std::cout << kf << std::endl;
+    std::cout << visual_map_->GetPose(kf) << std::endl;
+  }
 }
 
 void VisualInertialOdom::onStop() {}
@@ -256,7 +271,9 @@ bool VisualInertialOdom::LocalizeFrame(
 
 bool VisualInertialOdom::IsKeyframe(
     const ros::Time& img_time, const std::vector<uint64_t>& triangulated_ids,
-    const std::vector<uint64_t>& untriangulated_ids) {
+    const std::vector<uint64_t>& untriangulated_ids,
+    const Eigen::Matrix4d& T_WORLD_CAMERA) {
+  Eigen::Matrix4d T_WORLD_prevkf = visual_map_->GetPose(cur_kf_time_).value();
   bool is_keyframe = false;
   if ((img_time - cur_kf_time_).toSec() >=
       camera_params_.keyframe_min_time_in_seconds) {
@@ -268,38 +285,27 @@ bool VisualInertialOdom::IsKeyframe(
                    untriangulated_ids.end());
     // compute the parallax between this frame and the last keyframe
     double avg_parallax = ComputeAvgParallax(cur_kf_time_, img_time, all_ids);
-
-    ROS_DEBUG("\nImage time: %f", img_time.toSec());
-    ROS_DEBUG("Avg parallax: %f", avg_parallax);
-    ROS_DEBUG("Visible landmarks: %zu", triangulated_ids.size());
     // test against parameters to see if this frame is a keyframe
-    if (avg_parallax > camera_params_.keyframe_parallax ||
-        triangulated_ids.size() < camera_params_.keyframe_tracks_drop) {
-      is_keyframe = true;
-    } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
-      is_keyframe = true;
+    if (beam::PassedMotionThreshold(T_WORLD_prevkf, T_WORLD_CAMERA, 0.0, 0.1,
+                                    true, true, false)) {
+      if (triangulated_ids.size() < camera_params_.keyframe_tracks_drop ||
+          avg_parallax > camera_params_.keyframe_parallax) {
+        is_keyframe = true;
+        ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+        ROS_INFO("Avg parallax: %f", avg_parallax);
+        ROS_INFO("Visible landmarks: %zu", triangulated_ids.size());
+      } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
+        ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+        ROS_INFO("Max # of frames reached.");
+        is_keyframe = true;
+      }
+    } else {
+      is_keyframe = false;
     }
   } else {
     is_keyframe = false;
   }
   return is_keyframe;
-}
-
-double VisualInertialOdom::ComputeAvgParallax(
-    const ros::Time& t1, const ros::Time& t2,
-    const std::vector<uint64_t>& t2_landmarks) {
-  double total_parallax = 0.0;
-  int num_matches = 0;
-  for (auto& id : t2_landmarks) {
-    try {
-      Eigen::Vector2d p1 = tracker_->Get(t1, id);
-      Eigen::Vector2d p2 = tracker_->Get(t2, id);
-      double dist = beam::distance(p1, p2);
-      total_parallax += dist;
-      num_matches++;
-    } catch (const std::out_of_range& oor) {}
-  }
-  return total_parallax / (double)num_matches;
 }
 
 void VisualInertialOdom::ExtendMap(
@@ -314,37 +320,34 @@ void VisualInertialOdom::ExtendMap(
     visual_map_->AddConstraint(img_time, id, tracker_->Get(img_time, id),
                                transaction);
   }
+  size_t added_lms = 0;
   // triangulate untriangulated ids and add constraints
   for (auto& id : untriangulated_ids) {
-    // find all previous measurements of landmark
-    std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
-    std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
-    std::vector<ros::Time> observation_stamps;
-    beam_cv::FeatureTrack track = tracker_->GetTrack(id);
-    for (auto& m : track) {
-      beam::opt<Eigen::Matrix4d> T = visual_map_->GetPose(m.time_point);
-      if (T.has_value()) {
-        pixels.push_back(m.value.cast<int>());
-        T_cam_world_v.push_back(T.value().inverse());
-        observation_stamps.push_back(m.time_point);
-      }
-    }
-    // triangulate point
-    if (T_cam_world_v.size() >= 3) {
+    Eigen::Vector2d pixel_prv_kf, pixel_cur_kf;
+    Eigen::Matrix4d T_cam_world_prv_kf, T_cam_world_cur_kf;
+    try {
+      // get measurements
+      pixel_prv_kf = tracker_->Get(cur_kf_time_, id);
+      pixel_cur_kf = tracker_->Get(img_time, id);
+      T_cam_world_prv_kf = visual_map_->GetPose(cur_kf_time_).value().inverse();
+      T_cam_world_cur_kf = visual_map_->GetPose(img_time).value().inverse();
+      // triangulate point
+      Eigen::Vector2i pixel_prv_kf_i = pixel_prv_kf.cast<int>();
+      Eigen::Vector2i pixel_cur_kf_i = pixel_cur_kf.cast<int>();
       beam::opt<Eigen::Vector3d> point =
-          beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                   pixels);
-
+          beam_cv::Triangulation::TriangulatePoint(
+              cam_model_, cam_model_, T_cam_world_prv_kf, T_cam_world_cur_kf,
+              pixel_prv_kf_i, pixel_cur_kf_i);
+      // add landmark and constraints to map
       if (point.has_value()) {
+        added_lms++;
         visual_map_->AddLandmark(point.value(), id, transaction);
-        for (int i = 0; i < observation_stamps.size(); i++) {
-          visual_map_->AddConstraint(observation_stamps[i], id,
-                                     tracker_->Get(observation_stamps[i], id),
-                                     transaction);
-        }
+        visual_map_->AddConstraint(cur_kf_time_, id, pixel_prv_kf, transaction);
+        visual_map_->AddConstraint(img_time, id, pixel_cur_kf, transaction);
       }
-    }
+    } catch (const std::out_of_range& oor) {}
   }
+  ROS_INFO("Added %zu new landmarks.", added_lms);
   sendTransaction(transaction);
 }
 
@@ -360,6 +363,22 @@ void VisualInertialOdom::SendInertialConstraint(const ros::Time& img_time) {
                                                      img_position);
   // send transaction to opimizer
   sendTransaction(transaction);
+}
+
+double VisualInertialOdom::ComputeAvgParallax(
+    const ros::Time& t1, const ros::Time& t2,
+    const std::vector<uint64_t>& t2_landmarks) {
+  std::vector<double> parallaxes;
+  for (auto& id : t2_landmarks) {
+    try {
+      Eigen::Vector2d p1 = tracker_->Get(t1, id);
+      Eigen::Vector2d p2 = tracker_->Get(t2, id);
+      double dist = beam::distance(p1, p2);
+      parallaxes.push_back(dist);
+    } catch (const std::out_of_range& oor) {}
+  }
+  std::sort(parallaxes.begin(), parallaxes.end());
+  return parallaxes[parallaxes.size() / 2];
 }
 
 }} // namespace beam_models::camera_to_camera

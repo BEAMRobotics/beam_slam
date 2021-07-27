@@ -51,15 +51,15 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     imu_preint_ =
         std::make_shared<beam_models::frame_to_frame::ImuPreintegration>(
             imu_params, bg_, ba_);
+    size_t init_lms = 0;
     // Apply scale estimate if desired
     if (use_scale_estimate_)
       for (auto& f : valid_frames) { f.p = scale_ * f.p; }
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames, true);
     // Add landmarks and visual constraints to graph
-    size_t init_lms = AddVisualConstraints(valid_frames);
-    // optimize graph
-    ROS_INFO("Optimizing VIO Intialization Map.");
+    init_lms += AddVisualConstraints(valid_frames);
+    // optimize valid frames
     OptimizeGraph();
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
@@ -68,11 +68,6 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
       if (!LocalizeFrame(f, T_WORLD_CAMERA)) { return false; }
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA, f.q, f.p);
     }
-    // optionally output the results
-    std::vector<beam_models::camera_to_camera::Frame> all_frames = valid_frames;
-    all_frames.insert(all_frames.end(), invalid_frames.begin(),
-                      invalid_frames.end());
-    OutputResults(all_frames);
     // add localized poses and imu constraints
     AddPosesAndInertialConstraints(invalid_frames, false);
     // add landmarks and visual constraints for the invalid frames
@@ -205,10 +200,7 @@ void VIOInitializer::AddPosesAndInertialConstraints(
     for (auto& imu_data : frame.preint.data) {
       imu_preint_->AddToBuffer(imu_data);
     }
-  }
-  // add inertial constraints between each frame
-  for (int i = 0; i < frames.size(); i++) {
-    beam_models::camera_to_camera::Frame frame = frames[i];
+
     fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
         visual_map_->GetOrientation(frame.t);
     fuse_variables::Position3DStamped::SharedPtr img_position =
@@ -217,17 +209,17 @@ void VIOInitializer::AddPosesAndInertialConstraints(
     if (set_start && i == 0) {
       imu_preint_->SetStart(frame.t, img_orientation, img_position);
     } else {
-      // get imu transaction
-      fuse_core::Transaction::SharedPtr transaction =
-          imu_preint_->RegisterNewImuPreintegratedFactor(
-              frame.t, img_orientation, img_position);
-      // add constituent variables and constraints
-      for (auto& var : transaction->addedVariables()) {
-        local_graph_->addVariable(std::move(var.clone()));
-      }
-      for (auto& constraint : transaction->addedConstraints()) {
-        local_graph_->addConstraint(std::move(constraint.clone()));
-      }
+      // // get imu transaction
+      // fuse_core::Transaction::SharedPtr transaction =
+      //     imu_preint_->RegisterNewImuPreintegratedFactor(
+      //         frame.t, img_orientation, img_position);
+      // // add constituent variables and constraints
+      // for (auto& var : transaction->addedVariables()) {
+      //   local_graph_->addVariable(std::move(var.clone()));
+      // }
+      // for (auto& constraint : transaction->addedConstraints()) {
+      //   local_graph_->addConstraint(std::move(constraint.clone()));
+      // }
     }
   }
 }
@@ -261,11 +253,10 @@ size_t VIOInitializer::AddVisualConstraints(
           observation_stamps.push_back(m.time_point);
         }
       }
-      if (T_cam_world_v.size() >= 3) {
+      if (T_cam_world_v.size() >= 2) {
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
                                                      pixels);
-
         if (point.has_value()) {
           num_landmarks++;
           visual_map_->AddLandmark(point.value(), id);
@@ -306,7 +297,7 @@ bool VIOInitializer::LocalizeFrame(
   ceres::Solver::Options ceres_solver_options;
   ceres_solver_options.minimizer_progress_to_stdout = false;
   ceres_solver_options.max_solver_time_in_seconds = 1e-1;
-  ceres_solver_options.logging_type = ceres::SILENT;
+  //ceres_solver_options.logging_type = ceres::SILENT;
   ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
   ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
   beam_cv::PoseRefinement refiner(ceres_solver_options);
@@ -325,8 +316,12 @@ void VIOInitializer::OptimizeGraph() {
   options.minimizer_progress_to_stdout = true;
   options.num_threads = 6;
   options.num_linear_solver_threads = 6;
+  options.minimizer_type = ceres::TRUST_REGION;
+  options.linear_solver_type = ceres::SPARSE_SCHUR;
+  options.preconditioner_type = ceres::SCHUR_JACOBI;
   options.max_solver_time_in_seconds = max_optimization_time_;
-  local_graph_->optimize(options);
+  options.max_num_iterations = 100;
+  std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }
 
 void VIOInitializer::OutputResults(

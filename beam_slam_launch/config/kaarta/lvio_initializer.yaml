@@ -1,6 +1,6 @@
 # optimization params
-optimization_frequency: 1
-lag_duration: 5
+optimization_frequency: 5
+lag_duration: 10
 
 # frames
 imu_frame: "imu"
@@ -35,7 +35,7 @@ solver_options:
   minimizer_progress_to_stdout: true
   num_threads: 6
   num_linear_solver_threads: 6
-  max_num_iterations: 50
+  max_num_iterations: 10
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
@@ -57,10 +57,10 @@ camera:
   descriptor: "ORB"
   window_size: 1000 # number of images to store landmark information for before clearing for new images
   num_features_to_track: 300 # number of features to track from image to image
-  keyframe_parallax: 30 # if avg parallax to the previous keyframe exceeds this then set keyframe
-  keyframe_tracks_drop: 100 # if number of visible landmarks in images drops below this then set keyframe
-  keyframe_min_time_in_seconds: 0.3 # minimum amount of time between keyframes
-  init_max_optimization_time_in_seconds: 1.0 # max amopunt of time to optimize the initializer map
+  keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe
+  keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe
+  keyframe_min_time_in_seconds: 0.0 # minimum amount of time between keyframes
+  init_max_optimization_time_in_seconds: 5.0 # max amopunt of time to optimize the initializer map
   init_map_output_directory: "" # Outputs vio map into directory if not empty
 
 lo_initializer:
