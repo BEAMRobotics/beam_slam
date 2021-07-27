@@ -127,11 +127,13 @@ private:
    * triangulated
    * @param untriangulated_ids id's of landmarks that have not been
    * triangulated
+   * @param T_WORLD_CAMERA pose of the frame in question
    * @return true or false decision
    */
   bool IsKeyframe(const ros::Time& img_time,
                   const std::vector<uint64_t>& triangulated_ids,
-                  const std::vector<uint64_t>& untriangulated_ids);
+                  const std::vector<uint64_t>& untriangulated_ids,
+                  const Eigen::Matrix4d& T_WORLD_CAMERA);
 
   /**
    * @brief Computes the mean parallax between images at two times

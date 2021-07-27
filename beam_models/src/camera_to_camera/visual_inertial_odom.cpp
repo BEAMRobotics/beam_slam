@@ -133,8 +133,8 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
                                                  pose);
       init_odom_publisher_.publish(pose);
       // process if keyframe
-      if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids)) {
-        ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+      if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids,
+                     T_WORLD_CAMERA)) {
         ROS_INFO("Estimated Keyframe Pose:");
         std::cout << T_WORLD_BASELINK << std::endl;
         // extend map
@@ -145,7 +145,6 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         cur_kf_time_ = img_time;
         keyframes_.push_back(img_time);
         added_since_kf_ = 0;
-        std::cout << std::endl;
       } else {
         added_since_kf_++;
       }
@@ -272,7 +271,9 @@ bool VisualInertialOdom::LocalizeFrame(
 
 bool VisualInertialOdom::IsKeyframe(
     const ros::Time& img_time, const std::vector<uint64_t>& triangulated_ids,
-    const std::vector<uint64_t>& untriangulated_ids) {
+    const std::vector<uint64_t>& untriangulated_ids,
+    const Eigen::Matrix4d& T_WORLD_CAMERA) {
+  Eigen::Matrix4d T_WORLD_prevkf = visual_map_->GetPose(cur_kf_time_).value();
   bool is_keyframe = false;
   if ((img_time - cur_kf_time_).toSec() >=
       camera_params_.keyframe_min_time_in_seconds) {
@@ -284,38 +285,27 @@ bool VisualInertialOdom::IsKeyframe(
                    untriangulated_ids.end());
     // compute the parallax between this frame and the last keyframe
     double avg_parallax = ComputeAvgParallax(cur_kf_time_, img_time, all_ids);
-
-    ROS_DEBUG("\nImage time: %f", img_time.toSec());
-    ROS_DEBUG("Avg parallax: %f", avg_parallax);
-    ROS_DEBUG("Visible landmarks: %zu", triangulated_ids.size());
     // test against parameters to see if this frame is a keyframe
-    if (triangulated_ids.size() < camera_params_.keyframe_tracks_drop ||
-        avg_parallax < camera_params_.keyframe_parallax) {
-      is_keyframe = true;
-    } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
-      is_keyframe = true;
+    if (beam::PassedMotionThreshold(T_WORLD_prevkf, T_WORLD_CAMERA, 0.0, 0.1,
+                                    true, true, false)) {
+      if (triangulated_ids.size() < camera_params_.keyframe_tracks_drop ||
+          avg_parallax > camera_params_.keyframe_parallax) {
+        is_keyframe = true;
+        ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+        ROS_INFO("Avg parallax: %f", avg_parallax);
+        ROS_INFO("Visible landmarks: %zu", triangulated_ids.size());
+      } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
+        ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+        ROS_INFO("Max # of frames reached.");
+        is_keyframe = true;
+      }
+    } else {
+      is_keyframe = false;
     }
   } else {
     is_keyframe = false;
   }
   return is_keyframe;
-}
-
-double VisualInertialOdom::ComputeAvgParallax(
-    const ros::Time& t1, const ros::Time& t2,
-    const std::vector<uint64_t>& t2_landmarks) {
-  double total_parallax = 0.0;
-  int num_matches = 0;
-  for (auto& id : t2_landmarks) {
-    try {
-      Eigen::Vector2d p1 = tracker_->Get(t1, id);
-      Eigen::Vector2d p2 = tracker_->Get(t2, id);
-      double dist = beam::distance(p1, p2);
-      total_parallax += dist;
-      num_matches++;
-    } catch (const std::out_of_range& oor) {}
-  }
-  return total_parallax / (double)num_matches;
 }
 
 void VisualInertialOdom::ExtendMap(
@@ -373,6 +363,22 @@ void VisualInertialOdom::SendInertialConstraint(const ros::Time& img_time) {
                                                      img_position);
   // send transaction to opimizer
   sendTransaction(transaction);
+}
+
+double VisualInertialOdom::ComputeAvgParallax(
+    const ros::Time& t1, const ros::Time& t2,
+    const std::vector<uint64_t>& t2_landmarks) {
+  std::vector<double> parallaxes;
+  for (auto& id : t2_landmarks) {
+    try {
+      Eigen::Vector2d p1 = tracker_->Get(t1, id);
+      Eigen::Vector2d p2 = tracker_->Get(t2, id);
+      double dist = beam::distance(p1, p2);
+      parallaxes.push_back(dist);
+    } catch (const std::out_of_range& oor) {}
+  }
+  std::sort(parallaxes.begin(), parallaxes.end());
+  return parallaxes[parallaxes.size() / 2];
 }
 
 }} // namespace beam_models::camera_to_camera

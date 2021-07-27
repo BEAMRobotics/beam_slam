@@ -59,6 +59,8 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     AddPosesAndInertialConstraints(valid_frames, true);
     // Add landmarks and visual constraints to graph
     init_lms += AddVisualConstraints(valid_frames);
+    // optimize valid frames
+    OptimizeGraph();
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
       Eigen::Matrix4d T_WORLD_CAMERA;
@@ -251,11 +253,10 @@ size_t VIOInitializer::AddVisualConstraints(
           observation_stamps.push_back(m.time_point);
         }
       }
-      if (T_cam_world_v.size() >= 3) {
+      if (T_cam_world_v.size() >= 2) {
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
                                                      pixels);
-
         if (point.has_value()) {
           num_landmarks++;
           visual_map_->AddLandmark(point.value(), id);
@@ -296,7 +297,7 @@ bool VIOInitializer::LocalizeFrame(
   ceres::Solver::Options ceres_solver_options;
   ceres_solver_options.minimizer_progress_to_stdout = false;
   ceres_solver_options.max_solver_time_in_seconds = 1e-1;
-  ceres_solver_options.logging_type = ceres::SILENT;
+  //ceres_solver_options.logging_type = ceres::SILENT;
   ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
   ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
   beam_cv::PoseRefinement refiner(ceres_solver_options);
@@ -316,10 +317,10 @@ void VIOInitializer::OptimizeGraph() {
   options.num_threads = 6;
   options.num_linear_solver_threads = 6;
   options.minimizer_type = ceres::TRUST_REGION;
-  options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-  // options.max_solver_time_in_seconds = max_optimization_time_;
-  options.max_num_iterations = 50;
-  options.function_tolerance = 1e-11;
+  options.linear_solver_type = ceres::SPARSE_SCHUR;
+  options.preconditioner_type = ceres::SCHUR_JACOBI;
+  options.max_solver_time_in_seconds = max_optimization_time_;
+  options.max_num_iterations = 100;
   std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }
 
