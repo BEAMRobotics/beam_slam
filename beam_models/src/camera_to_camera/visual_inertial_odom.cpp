@@ -155,7 +155,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         cur_kf_time_ = img_time;
         keyframes_.push_back(img_time);
         added_since_kf_ = 0;
-        // go through keyframe queue and publish oldest then pop
+        // publish oldest keyframe then pop
       } else {
         added_since_kf_++;
       }

@@ -13,8 +13,8 @@
 #include <fuse_core/util.h>
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
-#include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/point_3d_landmark.h>
+#include <fuse_variables/position_3d_stamped.h>
 
 // libbeam
 #include <beam_calibration/CameraModel.h>
@@ -29,7 +29,8 @@ public:
    * @param cam_model camera model being used
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-            const std::string& source = "VIO");
+            const std::string& source = "VIO",
+            const size_t tracked_features = 100, const size_t window_size = 20);
 
   /**
    * @brief Custom cosntrcutor, use when working with local graph
@@ -38,7 +39,8 @@ public:
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
             fuse_core::Graph::SharedPtr local_graph,
-            const std::string& source = "VIO");
+            const std::string& source = "VIO",
+            const size_t tracked_features = 100, const size_t window_size = 20);
 
   /**
    * @brief Default destructor
@@ -132,7 +134,8 @@ public:
    * @param q_WORLD_BASELINK vector representing position
    * @param transaciton optional transaction object if using global graph
    */
-  void AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK, const ros::Time& stamp,
+  void AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK,
+                   const ros::Time& stamp,
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
@@ -162,12 +165,15 @@ public:
 
 protected:
   // temp maps for in between optimization cycles
-  std::unordered_map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
+  std::map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;
-  std::unordered_map<uint64_t, fuse_variables::Position3DStamped::SharedPtr>
-      positions_;
-  std::unordered_map<uint64_t, fuse_variables::Point3DLandmark::SharedPtr>
+  std::map<uint64_t, fuse_variables::Position3DStamped::SharedPtr> positions_;
+  std::map<uint64_t, fuse_variables::Point3DLandmark::SharedPtr>
       landmark_positions_;
+
+  // memory management variables
+  size_t tracked_features_{100}; // # of features tracked per frame
+  size_t window_size_{20}; // # of keyframe poses to retain in local maps
 
   // local graph for direct use
   fuse_core::Graph::SharedPtr local_graph_;
