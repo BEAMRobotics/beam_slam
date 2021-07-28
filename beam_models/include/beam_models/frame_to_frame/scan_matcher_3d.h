@@ -26,7 +26,7 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
 
   ~ScanMatcher3D() override = default;
 
- protected:
+ private:
   void onStart() override;
 
   void onInit() override;
@@ -40,8 +40,13 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   beam_constraints::frame_to_frame::Pose3DStampedTransaction
   GenerateTransaction(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
+  void OutputResults(const beam_common::ScanPose& scan_pose);
+
   /** subscribe to lidar data */
   ros::Subscriber subscriber_;
+
+  /** Publish results for global map */
+  ros::Publisher results_publisher_;
 
   /** callback for lidar data */
   using ThrottledCallback = fuse_models::common::ThrottledCallback<sensor_msgs::PointCloud2>;

@@ -88,7 +88,6 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
    */
   bool AddPointcloudToKeyframe(const PointCloud& cloud, const ros::Time& time);
 
-
   /**
    * @brief Sets the first scan pose in the keyframes list to identity, and
    * adjusts all subsequent poses to reflect this start change. The reason for
@@ -131,7 +130,8 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   std::unique_ptr<beam_matching::Matcher<LoamPointCloudPtr>> matcher_;
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
 
-  // store all current keyframes to be processed
+  // store all current keyframes to be processed. Data in scan poses have
+  // already been converted to the baelink frame
   std::list<beam_common::ScanPose> keyframes_;
 
   // keep track of the current keyframe
@@ -143,7 +143,6 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
 
   // bool for tracking if initialization has completed
   bool initialization_complete_{false};
-
 };
 }  // namespace frame_to_frame
 }  // namespace beam_models

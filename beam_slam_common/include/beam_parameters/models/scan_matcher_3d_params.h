@@ -26,7 +26,12 @@ struct ScanMatcher3DParams : public ParameterBase {
                           frame_initializer_type);
     getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
                           frame_initializer_info);
-    getParamRequired<std::string>(nh, "topic", topic);
+    getParamRequired<std::string>(nh, "input_topic", topic);
+    getParamRequired<std::string>(nh, "output_topic", output_topic);
+    getParam<bool>(nh, "output_loam_points", output_loam_points,
+                   output_loam_points);
+    getParam<bool>(nh, "output_lidar_points", output_lidar_points,
+                   output_lidar_points);                   
 
     getParamRequired<std::string>(nh, "type", type);
     getParam<float>(nh, "downsample_size", downsample_size, 0.03);
@@ -43,11 +48,15 @@ struct ScanMatcher3DParams : public ParameterBase {
     // get lag_duration from global namespace
     ros::param::get("~lag_duration", lag_duration);
 
-    // Optional For Odometry frame initializer  
-    getParam<std::string>(nh, "sensor_frame_id_override", sensor_frame_id_override, "");
+    // Optional For Odometry frame initializer
+    getParam<std::string>(nh, "sensor_frame_id_override",
+                          sensor_frame_id_override, "");
   }
 
-  std::string topic;
+  std::string input_topic;
+  std::string output_topic;
+  bool output_loam_points{true};
+  bool output_lidar_points{true};
   std::string frame_initializer_type{"ODOMETRY"};
   std::string frame_initializer_info{""};
 

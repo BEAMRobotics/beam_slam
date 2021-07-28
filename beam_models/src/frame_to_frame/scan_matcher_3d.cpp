@@ -11,6 +11,7 @@
 #include <beam_models/frame_to_frame/scan_registration/multi_scan_registration.h>
 #include <beam_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 #include <beam_models/frame_initializers/frame_initializers.h>
+#include <global_mapping/SlamChunkMsg.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(beam_models::frame_to_frame::ScanMatcher3D,
@@ -138,8 +139,12 @@ void ScanMatcher3D::onInit() {
 }
 
 void ScanMatcher3D::onStart() {
-  subscriber_ = node_handle_.subscribe(
-      params_.topic, 1, &ThrottledCallback::callback, &throttled_callback_);
+  subscriber_ = node_handle_.subscribe(params_.input_topic, 1,
+                                       &ThrottledCallback::callback,
+                                       &throttled_callback_);
+
+  results_publisher_ =
+      private_node_handle_.advertise<SlamChunkMsg>(params_.output_topic, 100);
 };
 
 void ScanMatcher3D::onStop() {
@@ -174,7 +179,7 @@ ScanMatcher3D::GenerateTransaction(
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_CLOUDCURRENT,
                                             msg->header.stamp,
                                             extrinsics_.GetLidarFrameId())) {
-    ROS_DEBUG("Skipping scan");                                            
+    ROS_DEBUG("Skipping scan");
     return beam_constraints::frame_to_frame::Pose3DStampedTransaction(
         msg->header.stamp);
   }
@@ -213,11 +218,9 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
       continue;
     }
 
-    // Othewise, it has probably been marginalized out, so save and remove from
-    // active list
-    if (!params_.scan_output_directory.empty()) {
-      i->Save(params_.scan_output_directory);
-    }
+    // Othewise, it has probably been marginalized out, so output and remove
+    // from active list
+    OutputResults(*i);
     active_clouds_.erase(i++);
   }
 
@@ -226,7 +229,6 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   }
   std::string curent_path = graph_updates_path_ + "U" +
                             std::to_string(updates_) + "_" + update_time + "/";
-  boost::filesystem::create_directory(curent_path);
   boost::filesystem::create_directory(curent_path);
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
@@ -244,6 +246,29 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     } catch (const std::exception& e) {
       ROS_WARN("Cannot send transaction. Error: %s", e.what());
     }
+  }
+}
+
+void OutputResults(const beam_common::ScanPose& scan_pose) {
+  // output to global mapper
+  SlamChunkMsg slam_chunk_msg;
+  slam_chunk_msg.stamp = scan_pose.Stamp();
+
+  std::vector<float> pose;
+  const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_CLOUD();
+  for (uint8_t i = 0; i < 3; i++) {
+    for (uint8_t j = 0; j < 4; j++) {
+      pose.push_back(static_cast<float>(T(i, j)));
+    }
+  }
+  slam_chunk_msg.T_WORLD_BASELINK = pose;
+  slam_chunk_msg.baselink_frame_id = extrinsics_.GetBaselinkFrameId();
+
+  // TODO: add scan data in baselink frame (?)
+
+  // save to disk
+  if (!params_.scan_output_directory.empty()) {
+    i->Save(params_.scan_output_directory);
   }
 }
 

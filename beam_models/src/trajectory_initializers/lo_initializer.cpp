@@ -185,15 +185,15 @@ void LoInitializer::ProcessCurrentKeyframe() {
 
 bool LoInitializer::AddPointcloudToKeyframe(const PointCloud& cloud,
                                             const ros::Time& time) {
-  Eigen::Matrix4d T_IMU_LIDAR;
-  if (!extrinsics_.GetT_IMU_LIDAR(T_IMU_LIDAR, time)) {
+  Eigen::Matrix4d T_BASELINK_LIDAR;
+  if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, time)) {
     ROS_WARN("Unable to get imu to lidar transform with time $.5f",
              time.toSec());
     return false;
   }
 
   PointCloud cloud_converted;
-  pcl::transformPointCloud(cloud, cloud_converted, T_IMU_LIDAR);
+  pcl::transformPointCloud(cloud, cloud_converted, T_BASELINK_LIDAR);
   keyframe_cloud_ += cloud_converted;
   keyframe_scan_counter_++;
   return true;

@@ -38,7 +38,6 @@ unicycle_3d:
   buffer_length: 100000
 
 global_mapper:
-  differential: false # Default: false
   global_mapper_config: ''
   output_path: '/home/nick/results/beam_slam/global_mapper/'
   save_submaps: true
