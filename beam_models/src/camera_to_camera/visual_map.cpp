@@ -56,7 +56,8 @@ fuse_variables::Point3DLandmark::SharedPtr
       try {
         *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(
             graph_->getVariable(landmark_uuid));
-        landmark_positions_.erase(landmark_id);
+        // update local maps with most recent update
+        landmark_positions_[landmark_id] = landmark;
         return landmark;
       } catch (const std::out_of_range& oor) {
         if (landmark_positions_.find(landmark_id) ==
@@ -94,7 +95,8 @@ fuse_variables::Orientation3DStamped::SharedPtr
         *corr_orientation =
             dynamic_cast<const fuse_variables::Orientation3DStamped&>(
                 graph_->getVariable(corr_orientation_uuid));
-        orientations_.erase(stamp.toSec());
+        // update local maps with most recent update
+        orientations_[stamp.toNSec()] = corr_orientation;
         return corr_orientation;
       } catch (const std::out_of_range& oor) {
         if (orientations_.find(stamp.toNSec()) == orientations_.end()) {
@@ -129,7 +131,8 @@ fuse_variables::Position3DStamped::SharedPtr
       try {
         *corr_position = dynamic_cast<const fuse_variables::Position3DStamped&>(
             graph_->getVariable(corr_position_uuid));
-        positions_.erase(stamp.toSec());
+        // update local maps with most recent update
+        positions_[stamp.toNSec()] = corr_position;
         return corr_position;
       } catch (const std::out_of_range& oor) {
         if (positions_.find(stamp.toNSec()) == positions_.end()) {
@@ -214,7 +217,9 @@ void VisualMap::AddOrientation(
     fuse_variables::Orientation3DStamped::SharedPtr orientation,
     fuse_core::Transaction::SharedPtr transaction) {
   // clear local map
-  if (orientations_.size() > window_size_) { orientations_.erase(orientations_.begin()); }
+  if (orientations_.size() > window_size_) {
+    orientations_.erase(orientations_.begin());
+  }
   // add to graph or transaction
   if (transaction) {
     transaction->addVariable(orientation);
@@ -231,7 +236,9 @@ void VisualMap::AddPosition(
     fuse_variables::Position3DStamped::SharedPtr position,
     fuse_core::Transaction::SharedPtr transaction) {
   // clear local map
-  if (positions_.size() > window_size_) { positions_.erase(positions_.begin()); }
+  if (positions_.size() > window_size_) {
+    positions_.erase(positions_.begin());
+  }
   // add to graph or transaction
   if (transaction) {
     transaction->addVariable(position);

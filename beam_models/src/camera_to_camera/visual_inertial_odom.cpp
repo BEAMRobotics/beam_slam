@@ -50,7 +50,9 @@ void VisualInertialOdom::onInit() {
    ***********************************************************/
   cam_model_ =
       beam_calibration::CameraModel::Create(global_params_.cam_intrinsics_path);
-  visual_map_ = std::make_shared<VisualMap>(cam_model_, camera_params_.source);
+  visual_map_ = std::make_shared<VisualMap>(
+      cam_model_, camera_params_.source, camera_params_.num_features_to_track,
+      camera_params_.keyframe_window_size);
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
@@ -90,9 +92,17 @@ void VisualInertialOdom::onStart() {
   path_subscriber_ = private_node_handle_.subscribe(
       camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
       this);
+  /***********************************************************
+   *                 Advertise publishers                    *
+   ***********************************************************/
   init_odom_publisher_ =
       private_node_handle_.advertise<geometry_msgs::PoseStamped>(
           camera_params_.frame_odometry_output_topic, 100);
+  new_keyframe_publisher_ = private_node_handle_.advertise<std_msgs::Header>(
+      camera_params_.new_keyframes_topic, 100);
+  cam_measurement_publisher_ =
+      private_node_handle_.advertise<global_mapping::CameraMeasurementMsg>(
+          camera_params_.cam_measurement_topic, 100);
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -121,7 +131,6 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         }
       }
     } else {
-      beam::HighResolutionTimer timer;
       // dont process frame unless the initial graph has been optimized
       if (!init_graph_optimized_) return;
       // get most recent extrinsics, if failure then dont process frame
@@ -145,17 +154,21 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       // process if keyframe
       if (IsKeyframe(img_time, triangulated_ids, untriangulated_ids,
                      T_WORLD_CAMERA)) {
+        // log pose info
         ROS_INFO("Estimated Keyframe Pose:");
         std::cout << T_WORLD_BASELINK << std::endl;
+        // send pose to graph
+        SendNewKeyframePose(img_time, T_WORLD_CAMERA);
+        // notify that a new keyframe is detected
+        NotifyNewKeyframe(img_time);
         // extend map
-        ExtendMap(img_time, T_WORLD_CAMERA, triangulated_ids,
-                  untriangulated_ids);
-        // add imu constraint
-        // SendInertialConstraint(img_time);
+        ExtendMap(img_time, triangulated_ids, untriangulated_ids);
+        // update keyframe info
         cur_kf_time_ = img_time;
         keyframes_.push_back(img_time);
         added_since_kf_ = 0;
-        // publish oldest keyframe then pop
+        // publish oldest keyframe for global mapper
+        PublishCameraMeasurement();
       } else {
         added_since_kf_++;
       }
@@ -318,13 +331,10 @@ bool VisualInertialOdom::IsKeyframe(
 }
 
 void VisualInertialOdom::ExtendMap(
-    const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_CAMERA,
-    const std::vector<uint64_t>& triangulated_ids,
+    const ros::Time& img_time, const std::vector<uint64_t>& triangulated_ids,
     const std::vector<uint64_t>& untriangulated_ids) {
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(img_time);
-  // add camera pose
-  visual_map_->AddPose(T_WORLD_CAMERA, img_time, transaction);
   // add constraints to triangulated ids
   for (auto& id : triangulated_ids) {
     visual_map_->AddConstraint(img_time, id, tracker_->Get(img_time, id),
@@ -358,21 +368,35 @@ void VisualInertialOdom::ExtendMap(
     } catch (const std::out_of_range& oor) {}
   }
   ROS_INFO("Added %zu new landmarks.", added_lms);
+  // add inertial constraint
+  // AddInertialConstraint(img_time, transaction);
   sendTransaction(transaction);
 }
 
-void VisualInertialOdom::SendInertialConstraint(const ros::Time& img_time) {
+void VisualInertialOdom::SendNewKeyframePose(
+    const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_CAMERA) {
+  // make transaction
+  auto transaction = fuse_core::Transaction::make_shared();
+  transaction->stamp(img_time);
+  // add camera pose
+  visual_map_->AddPose(T_WORLD_CAMERA, img_time, transaction);
+  // send transaction
+  sendTransaction(transaction);
+}
+
+void VisualInertialOdom::AddInertialConstraint(
+    const ros::Time& img_time, fuse_core::Transaction::SharedPtr transaction) {
   // get robot pose variables at timestamp
   fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
       visual_map_->GetOrientation(img_time);
   fuse_variables::Position3DStamped::SharedPtr img_position =
       visual_map_->GetPosition(img_time);
   // get inertial constraint transaction
-  fuse_core::Transaction::SharedPtr transaction =
+  fuse_core::Transaction::SharedPtr inertial_transaction =
       imu_preint_->RegisterNewImuPreintegratedFactor(img_time, img_orientation,
                                                      img_position);
-  // send transaction to opimizer
-  sendTransaction(transaction);
+  // merge with existing transaction
+  transaction->merge(*inertial_transaction);
 }
 
 double VisualInertialOdom::ComputeAvgParallax(
@@ -389,6 +413,34 @@ double VisualInertialOdom::ComputeAvgParallax(
   }
   std::sort(parallaxes.begin(), parallaxes.end());
   return parallaxes[parallaxes.size() / 2];
+}
+
+void VisualInertialOdom::PublishCameraMeasurement() {
+  // this just makes sure the visual map has the most recent variables
+  for (auto& t : keyframes_) { visual_map_->GetPose(t); }
+  // only once keyframes reaches teh max window size, publish the keyframe
+  if (keyframes_.size() == camera_params_.keyframe_window_size) {
+    // stamp
+    ros::Time kf_to_publish = keyframes_.front();
+    // pose
+    Eigen::Matrix4d T_WORLD_BASELINK =
+        visual_map_->GetPose(kf_to_publish).value();
+    // landmark ids
+    std::vector<uint64_t> landmark_ids =
+        tracker_->GetLandmarkIDsInImage(kf_to_publish);
+    // landmark measurements
+    std::vector<Eigen::Vector2d> landmark_pixels;
+    std::vector<cv::Mat> landmark_descriptors;
+    for (auto& id : landmark_ids) {
+      landmark_pixels.push_back(tracker_->Get(kf_to_publish, id));
+    }
+    // remove keyframe
+    keyframes_.pop_front();
+  }
+}
+
+void VisualInertialOdom::NotifyNewKeyframe(const ros::Time& img_time) {
+  // build header message and publish
 }
 
 }} // namespace beam_models::camera_to_camera

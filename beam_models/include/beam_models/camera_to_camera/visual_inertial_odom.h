@@ -5,6 +5,8 @@
 
 // messages
 #include <beam_models/InitializedPathMsg.h>
+#include <global_mapping/CameraMeasurementMsg.h>
+#include <global_mapping/LandmarkMeasurementMsg.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 
@@ -155,15 +157,34 @@ private:
    * triangulated
    */
   void ExtendMap(const ros::Time& img_time,
-                 const Eigen::Matrix4d& T_WORLD_CAMERA,
                  const std::vector<uint64_t>& triangulated_ids,
                  const std::vector<uint64_t>& untriangulated_ids);
+
+  /**
+   * @brief Adds a pose to the graph
+   * @param img_time time of keyframe to extend map at
+   * @param T_WORLD_CAMERA pose of the keyframe to add
+   */
+  void SendNewKeyframePose(const ros::Time& img_time,
+                           const Eigen::Matrix4d& T_WORLD_CAMERA);
 
   /**
    * @brief Send the generated inertial constraint for the current image
    * @param img_time time of current keyframe
    */
-  void SendInertialConstraint(const ros::Time& img_time);
+  void AddInertialConstraint(const ros::Time& img_time,
+                              fuse_core::Transaction::SharedPtr transaction);
+
+  /**
+   * @brief Publishes the oldest keyframe that is stored
+   */
+  void PublishCameraMeasurement();
+
+  /**
+   * @brief Publishes to the keyframe header topic to notify any lsiteners that
+   * a new keyframe is detected
+   */
+  void NotifyNewKeyframe(const ros::Time& img_time);
 
 protected:
   // loadable camera parameters
@@ -172,17 +193,21 @@ protected:
   // global parameters
   beam_parameters::models::GlobalParams global_params_;
 
-  // topic subscribers and buffers
+  // topic publishers, subscribers and buffers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
   ros::Subscriber path_subscriber_;
   ros::Publisher init_odom_publisher_;
+  ros::Publisher new_keyframe_publisher_;
+  ros::Publisher cam_measurement_publisher_;
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
 
   // callbacks for messages
-  using ThrottledImageCallback = fuse_models::common::ThrottledCallback<sensor_msgs::Image>;
-  using ThrottledIMUCallback = fuse_models::common::ThrottledCallback<sensor_msgs::Imu>;
+  using ThrottledImageCallback =
+      fuse_models::common::ThrottledCallback<sensor_msgs::Image>;
+  using ThrottledIMUCallback =
+      fuse_models::common::ThrottledCallback<sensor_msgs::Imu>;
   ThrottledImageCallback throttled_image_callback_;
   ThrottledIMUCallback throttled_imu_callback_;
 
@@ -191,6 +216,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<beam_models::camera_to_camera::VisualMap> visual_map_;
+  bool init_graph_optimized_{false};
 
   // initialization object
   std::shared_ptr<beam_models::camera_to_camera::VIOInitializer> initializer_;
@@ -202,7 +228,6 @@ protected:
   ros::Time cur_kf_time_ = ros::Time(0);
   std::deque<ros::Time> keyframes_;
   uint32_t added_since_kf_{0};
-  bool init_graph_optimized_{false};
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
