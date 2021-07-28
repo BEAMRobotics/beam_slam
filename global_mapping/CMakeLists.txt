@@ -61,7 +61,11 @@ add_message_files(
     RelocRequestMsg.msg
 )
 
-generate_messages()
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
+)
 
 catkin_package(
   INCLUDE_DIRS

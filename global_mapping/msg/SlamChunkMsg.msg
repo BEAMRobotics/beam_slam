@@ -12,8 +12,5 @@ time stamp
 # to right to down. Size is (3 x 4)
 float32[] T_WORLD_BASELINK
 
-# stamp associated with the scan/pose
-time stamp
-
 # frame id associated with all pose and scan data
 string baselink_frame_id

@@ -1,5 +1,5 @@
 # unique id of landmark
-uint64[] landmark_id
+uint64 landmark_id
 
 # desriptor corresponding to this landmark measurement
 float32[] descriptor

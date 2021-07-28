@@ -44,7 +44,7 @@ class Submap {
  public:
   struct PoseStamped {
     ros::Time stamp;
-    Eigen::Matrix4d T_SUBMAP_BASELINK;
+    Eigen::Matrix4d pose;  // Either T_KEYFRAME_FRAME, or T_SUBMAP_FRAME
   };
 
   /**
@@ -112,17 +112,20 @@ class Submap {
   /**
    * @brief add a set of camera measurements associated with one image frame
    * @param landmarks landmark measurements viewed by the input frame
+   * @param descriptor_type_int see DescriptorTypeIntMap in
+   * beam_cv/descriptors/Descriptor.h
    * @param T_WORLDLM_BASELINK pose of baselink at this camera measurement time.
    * Note this transform is relative to the original world estimate that is
    * tracked by the local mapper, not the optimized location from the PGO.
    * @param stamp stamp associated with the image frame
-   * @param sensor_id used to lookup transforms
+   * @param sensor_id camera sensor id. This isn't really used because we
+   * currently only use one camera
    * @param measurement_id id of this specific measurement (image)
    */
   void AddCameraMeasurement(
       const std::vector<LandmarkMeasurementMsg>& landmarks,
-      const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
-      int sensor_id, int measurement_id);
+      uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLD_BASELINK,
+      const ros::Time& stamp, int sensor_id, int measurement_id);
 
   /**
    * @brief add a set of lidar measurements associated with one scan
@@ -145,7 +148,7 @@ class Submap {
    * or camera). Note that keyframe and frame are both baselink frames.
    * @param stamps set of time stamps associated with the poses above
    * @param stamp stamp associated with the keyframe that this trajectory is
-   * attached to.
+   * attached to
    */
   void AddTrajectoryMeasurement(
       const std::vector<Eigen::Matrix4d, pose_allocator>& poses,
@@ -239,8 +242,10 @@ class Submap {
 
   /**
    * @brief return a vector of stamped poses for all keyframes and their
-   * attached sub-trajectories
-   * @param return vectors of stamped poses
+   * attached sub-trajectories. Note that it is possible for a lidar keyframe
+   * and camera keyframe to have the same timstamp but different poses, in that
+   * case we use the camera keyrfame
+   * @param return vectors of stamped poses, where poses are T_SUBMAP_FRAME
    */
   std::vector<Submap::PoseStamped> GetTrajectory() const;
 
@@ -281,10 +286,10 @@ class Submap {
   beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement>
       landmarks_;
 
-  // subframe trajectory measurements
+  // subframe trajectory measurements, where poses are T_KEYFRAME_FRAME
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;
 
-  // NOTE: all poses are T_SUBMAP_BASELINK
+  // NOTE: all frames are baselink frames
 };
 
 }  // namespace global_mapping

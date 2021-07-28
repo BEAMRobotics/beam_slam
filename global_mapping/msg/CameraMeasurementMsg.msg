@@ -6,3 +6,9 @@ LandmarkMeasurementMsg[] landmarks
 
 # see DescriptorTypeIntMap in beam_cv/descriptors/Descriptor.h
 uint8 descriptor_type
+
+# id of the camera (default 0)
+uint8 sensor_id
+
+# id of the current image
+uint64 measurement_id
