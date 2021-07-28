@@ -418,7 +418,7 @@ double VisualInertialOdom::ComputeAvgParallax(
 void VisualInertialOdom::PublishCameraMeasurement() {
   // this just makes sure the visual map has the most recent variables
   for (auto& t : keyframes_) { visual_map_->GetPose(t); }
-  // only once keyframes reaches teh max window size, publish the keyframe
+  // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size) {
     // stamp
     ros::Time kf_to_publish = keyframes_.front();
@@ -440,7 +440,13 @@ void VisualInertialOdom::PublishCameraMeasurement() {
 }
 
 void VisualInertialOdom::NotifyNewKeyframe(const ros::Time& img_time) {
+  static uint32_t kf_seq_num_ = 0;
   // build header message and publish
+  std_msgs::Header keyframe_header;
+  keyframe_header.stamp = img_time;
+  keyframe_header.frame_id = global_params_.baselink_frame;
+  keyframe_header.seq = kf_seq_num_++;
+  new_keyframe_publisher_.publish(keyframe_header);
 }
 
 }} // namespace beam_models::camera_to_camera
