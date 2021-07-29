@@ -324,6 +324,8 @@ bool VisualInertialOdom::IsKeyframe(
     // } else {
     //   is_keyframe = false;
     // }
+  } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
+    is_keyframe = true;
   } else {
     is_keyframe = false;
   }
