@@ -76,7 +76,6 @@ catkin_package(
     tf2_ros
     beam_constraints
     beam_slam_common
-    global_mapping
     beam_variables
     cv_bridge
     basalt

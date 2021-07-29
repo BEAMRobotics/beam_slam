@@ -11,17 +11,24 @@ namespace beam_common {
 
 class ScanPose {
  public:
+  ScanPose() = delete;
+
   /**
    * @brief constructor for when inputting a regular pointcloud (not loam cloud)
    * @param time timestamp for this scan frame
    * @param T_REFFRAME_CLOUD transformation from the cloud (scan frame) to the
-   * reference frame (usually WORLD or SUBMAP)
+   * reference frame
+   * @param reference_frame_id frame that the pose is relative to (usually world or
+   * submap frame)
+   * @param cloud_frame_id frame that the pointcloud data is expressed in (usually
+   * lidar or baselink)
    * @param cloud input pointcloud of type pcl::PointCloud<pcl::PointXYZ>> (this
    * cannot be a loam cloud)
    * @param feature_extractor if supplied, the constructor will extract loam
    * features and store it in this class
    */
   ScanPose(const ros::Time& time, const Eigen::Matrix4d& T_REFFRAME_CLOUD,
+           const std::string& reference_frame_id, const std::string& cloud_frame_id,
            const PointCloud& cloud,
            const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
                feature_extractor = nullptr);
@@ -33,8 +40,13 @@ class ScanPose {
    * @param time timestamp for this scan frame
    * @param T_REFFRAME_CLOUD transformation from the cloud (scan frame) to the
    * reference frame (usually WORLD or SUBMAP)
+   * @param reference_frame_id frame that the pose is relative to (usually world or
+   * submap frame)
+   * @param cloud_frame_id frame that the pointcloud data is expressed in (usually
+   * lidar or baselink)
    */
-  ScanPose(const ros::Time& time, const Eigen::Matrix4d& T_REFFRAME_CLOUD);
+  ScanPose(const ros::Time& time, const Eigen::Matrix4d& T_REFFRAME_CLOUD,
+           const std::string& reference_frame_id, const std::string& cloud_frame_id);
 
   /**
    * @brief add regular pointcloud to this
@@ -143,6 +155,18 @@ class ScanPose {
   std::string Type() const;
 
   /**
+   * @brief return reference frame id
+   * @return name of the reference frame, or the frame the the pose is relative to
+   */
+  std::string ReferenceFrameId() const;
+
+    /**
+   * @brief return the cloud frame id
+   * @return name of the cloud frame, or the frame that all points are expressed in
+   */
+  std::string CloudFrameId() const;  
+
+  /**
    * @brief print relevant information about what is currently contained in this
    * ScanPose.
    * @param stream input stream
@@ -165,7 +189,8 @@ class ScanPose {
    * @param add_frame whether or not to add coordinate frame to cloud
    */
   void SaveLoamCloud(const std::string& save_path,
-                     bool to_reference_frame = true, bool add_frame = true) const;
+                     bool to_reference_frame = true,
+                     bool add_frame = true) const;
 
  protected:
   ros::Time stamp_;
@@ -175,6 +200,8 @@ class ScanPose {
   PointCloud pointcloud_;
   beam_matching::LoamPointCloud loampointcloud_;
   const Eigen::Matrix4d T_REFFRAME_CLOUD_initial_;
+  std::string reference_frame_id_;
+  std::string cloud_frame_id_;
 
   /** This is mainly used to determine if the loam pointcloud is polutated or
    * not. If so, we can run loam scan registration. Options: PCLPOINTCLOUD,

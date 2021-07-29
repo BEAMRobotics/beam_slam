@@ -11,7 +11,7 @@
 #include <beam_models/frame_to_frame/scan_registration/multi_scan_registration.h>
 #include <beam_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 #include <beam_models/frame_initializers/frame_initializers.h>
-#include <global_mapping/SlamChunkMsg.h>
+#include <beam_slam_common/SlamChunkMsg.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(beam_models::frame_to_frame::ScanMatcher3D,
@@ -144,7 +144,8 @@ void ScanMatcher3D::onStart() {
                                        &throttled_callback_);
 
   results_publisher_ =
-      private_node_handle_.advertise<SlamChunkMsg>(params_.output_topic, 100);
+      private_node_handle_.advertise<beam_slam_common::SlamChunkMsg>(
+          params_.output_topic, 100);
 };
 
 void ScanMatcher3D::onStop() {
@@ -184,9 +185,9 @@ ScanMatcher3D::GenerateTransaction(
         msg->header.stamp);
   }
 
-  beam_common::ScanPose current_scan_pose(msg->header.stamp,
-                                          T_WORLD_CLOUDCURRENT, *cloud_current,
-                                          feature_extractor_);
+  beam_common::ScanPose current_scan_pose(
+      msg->header.stamp, T_WORLD_CLOUDCURRENT, extrinsics_.GetWorldFrameId(),
+      extrinsics_.GetLidarFrameId(), *cloud_current, feature_extractor_);
 
   // if outputting scans, add to the active list
   if (!params_.scan_output_directory.empty() || output_graph_updates_) {
@@ -249,9 +250,9 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   }
 }
 
-void OutputResults(const beam_common::ScanPose& scan_pose) {
+void ScanMatcher3D::OutputResults(const beam_common::ScanPose& scan_pose) {
   // output to global mapper
-  SlamChunkMsg slam_chunk_msg;
+  beam_slam_common::SlamChunkMsg slam_chunk_msg;
   slam_chunk_msg.stamp = scan_pose.Stamp();
 
   std::vector<float> pose;
@@ -268,7 +269,7 @@ void OutputResults(const beam_common::ScanPose& scan_pose) {
 
   // save to disk
   if (!params_.scan_output_directory.empty()) {
-    i->Save(params_.scan_output_directory);
+    scan_pose.Save(params_.scan_output_directory);
   }
 }
 

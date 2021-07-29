@@ -39,6 +39,7 @@
   <depend>beam_slam_common</depend>
   <depend>beam_constraints</depend>
 	<depend>beam_variables</depend>
+  <depend>SlamChunkMsg</depend>
 
   <build_depend>message_generation</build_depend>
   <build_depend>roslint</build_depend>

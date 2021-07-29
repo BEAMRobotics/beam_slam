@@ -63,7 +63,7 @@ int Submap::Updates() const { return graph_updates_; }
 ros::Time Submap::Stamp() const { return stamp_; }
 
 void Submap::AddCameraMeasurement(
-    const std::vector<LandmarkMeasurementMsg>& landmarks,
+    const std::vector<beam_slam_common::LandmarkMeasurementMsg>& landmarks,
     uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLDLM_BASELINK,
     const ros::Time& stamp, int sensor_id, int measurement_id) {
   Eigen::Matrix4d T_SUBMAP_BASELINK =
@@ -71,7 +71,8 @@ void Submap::AddCameraMeasurement(
 
   camera_keyframe_poses_.emplace(stamp.toNSec(), T_SUBMAP_BASELINK);
 
-  for (const LandmarkMeasurementMsg& landmark_msg : landmarks) {
+  for (const beam_slam_common::LandmarkMeasurementMsg& landmark_msg :
+       landmarks) {
     Eigen::Vector2d value(landmark_msg.pixel_u, landmark_msg.pixel_v);
     auto descriptor_type =
         beam_cv::DescriptorTypeIntMap.find(descriptor_type_int);
@@ -127,7 +128,8 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     iter->second.AddPointCloud(new_loam_cloud);
   } else {
     // Stamp does not exist: add new scanpose to map
-    beam_common::ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK);
+    beam_common::ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, "submap",
+                                        extrinsics_.GetLidarFrameId());
     if (type == 0) {
       new_scan_pose.AddPointCloud(cloud, false);
       lidar_keyframe_poses_.insert(std::pair<uint64_t, beam_common::ScanPose>(

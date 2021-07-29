@@ -17,7 +17,29 @@ find_package(
     fuse_models
     sensor_msgs
     geometry_msgs
+    std_msgs
+    message_generation
   )
+
+
+add_message_files(
+  DIRECTORY
+    msg
+  FILES
+    LandmarkMeasurementMsg.msg
+    CameraMeasurementMsg.msg    
+    LidarMeasurementMsg.msg
+    TrajectoryMeasurementMsg.msg
+    SlamChunkMsg.msg
+    SubmapMsg.msg
+    RelocRequestMsg.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
+)
 
 catkin_package(
   INCLUDE_DIRS
@@ -30,7 +52,9 @@ catkin_package(
     fuse_constraints
     fuse_models
     sensor_msgs
+    std_msgs
     geometry_msgs
+    message_runtime
 )
 
 ###########

@@ -12,7 +12,8 @@ namespace beam_common {
 
 ScanPose::ScanPose(const ros::Time& time,
                    const Eigen::Matrix4d& T_REFFRAME_CLOUD,
-                   const PointCloud& cloud,
+                   const std::string& reference_frame_id,
+                   const std::string& cloud_frame_id, const PointCloud& cloud,
                    const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
                        feature_extractor)
     : stamp_(time),
@@ -34,7 +35,9 @@ ScanPose::ScanPose(const ros::Time& time,
 }
 
 ScanPose::ScanPose(const ros::Time& time,
-                   const Eigen::Matrix4d& T_REFFRAME_CLOUD)
+                   const Eigen::Matrix4d& T_REFFRAME_CLOUD,
+                   const std::string& reference_frame_id,
+                   const std::string& cloud_frame_id)
     : stamp_(time), T_REFFRAME_CLOUD_initial_(T_REFFRAME_CLOUD) {
   // create fuse variables
   position_ = fuse_variables::Position3DStamped(time, fuse_core::uuid::NIL);
@@ -123,6 +126,10 @@ beam_matching::LoamPointCloud ScanPose::LoamCloud() const {
 ros::Time ScanPose::Stamp() const { return stamp_; }
 
 std::string ScanPose::Type() const { return cloud_type_; }
+
+std::string ScanPose::ReferenceFrameId() const { return reference_frame_id_; }
+
+std::string ScanPose::CloudFrameId() const { return cloud_frame_id_; }
 
 void ScanPose::Print(std::ostream& stream) const {
   stream << "  Stamp: " << stamp_ << "\n"

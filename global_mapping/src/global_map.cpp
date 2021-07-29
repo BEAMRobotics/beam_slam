@@ -127,9 +127,9 @@ void GlobalMap::Setup() {
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
-    const CameraMeasurementMsg& cam_measurement,
-    const LidarMeasurementMsg& lid_measurement,
-    const TrajectoryMeasurementMsg& traj_measurement,
+    const beam_slam_common::CameraMeasurementMsg& cam_measurement,
+    const beam_slam_common::LidarMeasurementMsg& lid_measurement,
+    const beam_slam_common::TrajectoryMeasurementMsg& traj_measurement,
     const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
     const std::string& baselink_frame_id) {
   // check baselink frame

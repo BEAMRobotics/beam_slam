@@ -278,7 +278,8 @@ ScanPose MultiScanRegistrationBase::GetScan(const ros::Time& t, bool& success) {
     }
   }
   success = false;
-  return ScanPose(ros::Time(0), Eigen::Matrix4d::Identity(), PointCloud());
+  return ScanPose(ros::Time(0), Eigen::Matrix4d::Identity(), "", "",
+                  PointCloud());
 }
 
 void MultiScanRegistrationBase::PrintScanDetails(std::ostream& stream) {

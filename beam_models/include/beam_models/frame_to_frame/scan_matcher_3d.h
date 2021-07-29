@@ -49,7 +49,8 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   ros::Publisher results_publisher_;
 
   /** callback for lidar data */
-  using ThrottledCallback = fuse_models::common::ThrottledCallback<sensor_msgs::PointCloud2>;
+  using ThrottledCallback =
+      fuse_models::common::ThrottledCallback<sensor_msgs::PointCloud2>;
   ThrottledCallback throttled_callback_;
 
   /** only needed if you want to output the final clouds or graph updates */

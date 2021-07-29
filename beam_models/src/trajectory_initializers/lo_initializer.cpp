@@ -135,9 +135,9 @@ void LoInitializer::ProcessCurrentKeyframe() {
             keyframe_scan_counter_, keyframe_cloud_.size());
 
   // create scan pose
-  beam_common::ScanPose current_scan_pose(keyframe_start_time_,
-                                          T_WORLD_KEYFRAME_, keyframe_cloud_,
-                                          feature_extractor_);
+  beam_common::ScanPose current_scan_pose(
+      keyframe_start_time_, T_WORLD_KEYFRAME_, extrinsics_.GetWorldFrameId(),
+      extrinsics_.GetBaselinkFrameId(), keyframe_cloud_, feature_extractor_);
 
   scan_registration_->RegisterNewScan(current_scan_pose);
   Eigen::Matrix4d T_WORLD_SCAN;
@@ -163,8 +163,8 @@ void LoInitializer::ProcessCurrentKeyframe() {
   // check that trajectory is long enough
   double trajectory_length = beam_common::CalculateTrajectoryLength(keyframes_);
   ROS_DEBUG("Trajectory length of %.3f m was calculated, with %d keyframes.",
-            trajectory_length, keyframes_.size());          
-  
+            trajectory_length, keyframes_.size());
+
   if (trajectory_length > params_.min_trajectory_distance) {
     // if so, then optimize
     ROS_INFO("LO trajectory is long enough.");
@@ -173,7 +173,8 @@ void LoInitializer::ProcessCurrentKeyframe() {
     OutputResults();
     initialization_complete_ = true;
 
-    // clear lidar map so we can generate a new one during slam (it's a singleton)
+    // clear lidar map so we can generate a new one during slam (it's a
+    // singleton)
     scan_registration_->GetMapMutable().Clear();
 
     ROS_INFO("Lo initialization complete");
@@ -199,15 +200,17 @@ bool LoInitializer::AddPointcloudToKeyframe(const PointCloud& cloud,
   return true;
 }
 
-void LoInitializer::SetTrajectoryStart(){
+void LoInitializer::SetTrajectoryStart() {
   auto iter = keyframes_.begin();
   const Eigen::Matrix4d& T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_CLOUD();
-  Eigen::Matrix4d T_KEYFRAME0_WORLDOLD = beam::InvertTransform(T_WORLDOLD_KEYFRAME0);
+  Eigen::Matrix4d T_KEYFRAME0_WORLDOLD =
+      beam::InvertTransform(T_WORLDOLD_KEYFRAME0);
   iter->Update(Eigen::Matrix4d::Identity());
   iter++;
-  while (iter != keyframes_.end()){
+  while (iter != keyframes_.end()) {
     const Eigen::Matrix4d& T_WORLDOLD_KEYFRAMEX = iter->T_REFFRAME_CLOUD();
-    Eigen::Matrix4d T_KEYFRAME0_KEYFRAMEX = T_KEYFRAME0_WORLDOLD * T_WORLDOLD_KEYFRAMEX;
+    Eigen::Matrix4d T_KEYFRAME0_KEYFRAMEX =
+        T_KEYFRAME0_WORLDOLD * T_WORLDOLD_KEYFRAMEX;
     iter->Update(T_KEYFRAME0_KEYFRAMEX);
     iter++;
   }
@@ -219,7 +222,9 @@ void LoInitializer::OutputResults() {
   }
 
   if (!boost::filesystem::exists(params_.scan_output_directory)) {
-    ROS_ERROR("Output directory does not exist. Not outputting LO Initializer results.");
+    ROS_ERROR(
+        "Output directory does not exist. Not outputting LO Initializer "
+        "results.");
     return;
   }
 

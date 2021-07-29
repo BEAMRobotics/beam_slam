@@ -26,7 +26,7 @@ struct ScanMatcher3DParams : public ParameterBase {
                           frame_initializer_type);
     getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
                           frame_initializer_info);
-    getParamRequired<std::string>(nh, "input_topic", topic);
+    getParamRequired<std::string>(nh, "input_topic", input_topic);
     getParamRequired<std::string>(nh, "output_topic", output_topic);
     getParam<bool>(nh, "output_loam_points", output_loam_points,
                    output_loam_points);

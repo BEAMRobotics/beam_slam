@@ -13,7 +13,7 @@
 #include <beam_containers/LandmarkMeasurement.h>
 #include <beam_calibration/CameraModel.h>
 #include <beam_matching/loam/LoamPointCloud.h>
-#include <global_mapping/LandmarkMeasurementMsg.h>
+#include <beam_slam_common/LandmarkMeasurementMsg.h>
 #include <beam_common/scan_pose.h>
 #include <beam_common/extrinsics_lookup.h>
 
@@ -123,7 +123,7 @@ class Submap {
    * @param measurement_id id of this specific measurement (image)
    */
   void AddCameraMeasurement(
-      const std::vector<LandmarkMeasurementMsg>& landmarks,
+      const std::vector<beam_slam_common::LandmarkMeasurementMsg>& landmarks,
       uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLD_BASELINK,
       const ros::Time& stamp, int sensor_id, int measurement_id);
 

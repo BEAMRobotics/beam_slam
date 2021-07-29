@@ -9,7 +9,6 @@
 
     <buildtool_depend>catkin</buildtool_depend>
     <build_depend>libbeam</build_depend>
-    <build_depend>message_generation</build_depend>
 
     <depend>pluginlib</depend>
     <depend>roscpp</depend>
