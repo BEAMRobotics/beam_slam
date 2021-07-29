@@ -3,7 +3,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
 
-#include <beam_common/utils.h>
+#include <bs_common/utils.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/descriptors/Descriptor.h>
 
@@ -19,7 +19,7 @@ Submap::Submap(
       fuse_variables::Orientation3DStamped(stamp, fuse_core::uuid::NIL);
 
   // add transform
-  beam_common::EigenTransformToFusePose(T_WORLD_SUBMAP, position_,
+  bs_common::EigenTransformToFusePose(T_WORLD_SUBMAP, position_,
                                         orientation_);
 
   // store initial transforms
@@ -63,16 +63,19 @@ int Submap::Updates() const { return graph_updates_; }
 ros::Time Submap::Stamp() const { return stamp_; }
 
 void Submap::AddCameraMeasurement(
-    const std::vector<LandmarkMeasurementMsg>& landmarks,
-    const Eigen::Matrix4d& T_WORLDLM_BASELINK, const ros::Time& stamp,
-    int sensor_id, int measurement_id) {
+    const std::vector<bs_common::LandmarkMeasurementMsg>& landmarks,
+    uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLDLM_BASELINK,
+    const ros::Time& stamp, int sensor_id, int measurement_id) {
   Eigen::Matrix4d T_SUBMAP_BASELINK =
       T_SUBMAP_WORLD_initial_ * T_WORLDLM_BASELINK;
+
   camera_keyframe_poses_.emplace(stamp.toNSec(), T_SUBMAP_BASELINK);
-  for (const LandmarkMeasurementMsg& landmark_msg : landmarks) {
+
+  for (const bs_common::LandmarkMeasurementMsg& landmark_msg :
+       landmarks) {
     Eigen::Vector2d value(landmark_msg.pixel_u, landmark_msg.pixel_v);
     auto descriptor_type =
-        beam_cv::DescriptorTypeIntMap.find(landmark_msg.descriptor_type);
+        beam_cv::DescriptorTypeIntMap.find(descriptor_type_int);
     if (descriptor_type == beam_cv::DescriptorTypeIntMap.end()) {
       BEAM_ERROR(
           "Invalid descriptor type in LandMarkMeasurementMsg. Skipping "
@@ -125,10 +128,11 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     iter->second.AddPointCloud(new_loam_cloud);
   } else {
     // Stamp does not exist: add new scanpose to map
-    beam_common::ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK);
+    bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, "submap",
+                                        extrinsics_.GetLidarFrameId());
     if (type == 0) {
       new_scan_pose.AddPointCloud(cloud, false);
-      lidar_keyframe_poses_.insert(std::pair<uint64_t, beam_common::ScanPose>(
+      lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
           stamp.toNSec(), new_scan_pose));
       return;
     }
@@ -146,7 +150,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
       return;
     }
     new_scan_pose.AddPointCloud(new_loam_cloud, false);
-    lidar_keyframe_poses_.insert(std::pair<uint64_t, beam_common::ScanPose>(
+    lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
         stamp.toNSec(), new_scan_pose));
   }
 }
@@ -156,7 +160,7 @@ void Submap::AddTrajectoryMeasurement(
     const std::vector<ros::Time>& stamps, const ros::Time& stamp) {
   std::vector<PoseStamped> poses_stamped;
   for (int i = 0; i < poses.size(); i++) {
-    PoseStamped pose_stamped{.stamp = stamps[i], .T_SUBMAP_BASELINK = poses[i]};
+    PoseStamped pose_stamped{.stamp = stamps[i], .pose = poses[i]};
     poses_stamped.push_back(pose_stamped);
   }
 
@@ -276,18 +280,60 @@ beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
 }
 
 std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {
-  uint64_t prev_stamp = 0;
-  std::vector<Submap::PoseStamped> poses_stamped;
-  for (auto it = subframe_poses_.begin(); it != subframe_poses_.end(); it++) {
-    // check to see if the poses are in order.
-    if (it->first < prev_stamp) {
-      BEAM_WARN("Subframe trajectory not in chronological order.");
-    }
-    poses_stamped.insert(poses_stamped.end(), it->second.begin(),
-                         it->second.end());
-    prev_stamp = it->first;
+  // first we create an ordered map so we can easily make sure poses are in
+  // order, then we'll convert to a vector
+  std::map<uint64_t, Eigen::Matrix4d> poses_stamped_map;
+
+  // get all camera keyframe poses
+  for (auto it = camera_keyframe_poses_.begin();
+       it != camera_keyframe_poses_.end(); it++) {
+    poses_stamped_map.emplace(it->first, it->second);
   }
-  return poses_stamped;
+
+  // get all lidar keyframe poses if they do not override camera poses
+  for (auto it = lidar_keyframe_poses_.begin();
+       it != lidar_keyframe_poses_.end(); it++) {
+    if (poses_stamped_map.find(it->first) == poses_stamped_map.end()) {
+      poses_stamped_map.emplace(it->first, it->second.T_REFFRAME_CLOUD());
+    }
+  }
+
+  // get all subframe poses
+  for (auto it = subframe_poses_.begin(); it != subframe_poses_.end(); it++) {
+    // get keyframe pose
+    Eigen::Matrix4d T_SUBMAP_KEYFRAME;
+    if (camera_keyframe_poses_.find(it->first) !=
+        camera_keyframe_poses_.end()) {
+      T_SUBMAP_KEYFRAME = camera_keyframe_poses_.find(it->first)->second;
+    } else if (lidar_keyframe_poses_.find(it->first) !=
+               lidar_keyframe_poses_.end()) {
+      T_SUBMAP_KEYFRAME =
+          lidar_keyframe_poses_.find(it->first)->second.T_REFFRAME_CLOUD();
+    } else {
+      BEAM_ERROR(
+          "Trajectory measurement stamp does not match with any lidar or "
+          "camera keyframe. Skipping measurement.");
+      continue;
+    }
+
+    // get poses w.r.t. submap & add to final poses map
+    const std::vector<PoseStamped>& relative_poses_stamped = it->second;
+    for (const PoseStamped& relative_pose_stamped : relative_poses_stamped) {
+      const Eigen::Matrix4d& T_KEYFRAME_FRAME = relative_pose_stamped.pose;
+      poses_stamped_map.emplace(relative_pose_stamped.stamp.toNSec(),
+                                T_SUBMAP_KEYFRAME * T_KEYFRAME_FRAME);
+    }
+  }
+
+  std::vector<Submap::PoseStamped> poses_stamped_vec;  // {t, T_SUBMAP_FRAME}
+  for (auto it = poses_stamped_map.begin(); it != poses_stamped_map.end();
+       it++) {
+    ros::Time new_stamp;
+    new_stamp.fromNSec(it->first);
+    Submap::PoseStamped new_pose{.stamp = new_stamp, .pose = it->second};
+    poses_stamped_vec.push_back(new_pose);
+  }
+  return poses_stamped_vec;
 }
 
 void Submap::Print(std::ostream& stream) const {

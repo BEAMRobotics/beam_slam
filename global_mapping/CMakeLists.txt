@@ -37,29 +37,15 @@ find_package(
     tf2_2d
     tf2_geometry_msgs
     tf2_ros
-    message_generation
-    beam_constraints
-    beam_models
-    beam_slam_common)
+    bs_constraints
+    bs_models
+    bs_common)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(PCL 1.11.1 REQUIRED)
-
-add_message_files(
-  DIRECTORY
-    msg
-  FILES
-    LandmarkMeasurementMsg.msg
-    CameraMeasurementMsg.msg    
-    LidarMeasurementMsg.msg
-    TrajectoryMeasurementMsg.msg
-    SlamChunkMsg.msg
-)
-
-generate_messages()
 
 catkin_package(
   INCLUDE_DIRS
@@ -75,7 +61,6 @@ catkin_package(
     fuse_constraints
     geometry_msgs
     std_msgs
-    message_runtime
     nav_msgs
     pcl_conversions
     pluginlib
@@ -84,9 +69,9 @@ catkin_package(
     tf2
     tf2_geometry_msgs
     tf2_ros
-    beam_constraints
-    beam_models
-    beam_slam_common
+    bs_constraints
+    bs_models
+    bs_common
   DEPENDS
     Boost
     CERES

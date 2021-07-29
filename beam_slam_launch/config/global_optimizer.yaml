@@ -12,11 +12,11 @@ sensor_models:
 
 motion_models:
   - name: 'unicycle_3d'
-    type: 'beam_models::motion::Unicycle3D'
+    type: 'bs_models::motion::Unicycle3D'
 
 publishers:
   - name: 'path_pub'
-    type: 'beam_publishers::Path3DPublisher'
+    type: 'bs_publishers::Path3DPublisher'
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -38,7 +38,6 @@ unicycle_3d:
   buffer_length: 100000
 
 global_mapper:
-  differential: false # Default: false
   global_mapper_config: ''
   output_path: '/home/nick/results/beam_slam/global_mapper/'
   save_submaps: true

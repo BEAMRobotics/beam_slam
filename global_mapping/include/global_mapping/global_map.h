@@ -4,12 +4,12 @@
 
 #include <beam_utils/pointclouds.h>
 
+#include <bs_common/CameraMeasurementMsg.h>
+#include <bs_common/LidarMeasurementMsg.h>
+#include <bs_common/TrajectoryMeasurementMsg.h>
+#include <bs_common/LandmarkMeasurementMsg.h>
+#include <bs_common/extrinsics_lookup.h>
 #include <global_mapping/submap.h>
-#include <global_mapping/CameraMeasurementMsg.h>
-#include <global_mapping/LidarMeasurementMsg.h>
-#include <global_mapping/TrajectoryMeasurementMsg.h>
-#include <global_mapping/LandmarkMeasurementMsg.h>
-#include <beam_common/extrinsics_lookup.h>
 #include <global_mapping/loop_closure/loop_closure_candidate_search_base.h>
 #include <global_mapping/loop_closure/loop_closure_refinement_base.h>
 
@@ -66,6 +66,11 @@ class GlobalMap {
   };
 
   /**
+   * @brief delete default constructor
+   */
+  GlobalMap() = delete;
+
+  /**
    * @brief constructor requiring only a pointer to camera model object
    * @param camera_model shared pointer to a camera model class
    */
@@ -93,50 +98,30 @@ class GlobalMap {
   ~GlobalMap() = default;
 
   /**
-   * @brief add a camera measurement to the appropriate submap and returns a
+   * @brief add a slam chunk measurement to the appropriate submap and returns a
    * transaction if a new submap is generated. This transaction will contain a
    * constraint between the new submap and the previous, and then initiate a
    * loop closure check on the previous submap to see if a loop closure
    * constraints can also be added to the transaction.
-   * @param measurement camera measurement to add.
-   * NOTE: All data should be in baselink_frame_ already
-   */
-  fuse_core::Transaction::SharedPtr AddCameraMeasurement(
-      const CameraMeasurementMsg& measurement);
-
-  /**
-   * @brief add a lidar measurement to the appropriate submap  and returns a
-   * transaction if a new submap is generated. This transaction will contain a
-   * constraint between the new submap and the previous, and then initiate a
-   * loop closure check on the previous submap to see if a loop closure
-   * constraints can also be added to the transaction.
-   * @param measurement lidar measurement to add
-   * NOTE: All data should be in baselink_frame_ already
-   */
-  fuse_core::Transaction::SharedPtr AddLidarMeasurement(
-      const LidarMeasurementMsg& measurement);
-
-  /**
-   * @brief add a trajectory measurement to the appropriate submap  and returns
-   * a transaction if a new submap is generated. This transaction will contain a
-   * constraint between the new submap and the previous, and then initiate a
-   * loop closure check on the previous submap to see if a loop closure
-   * constraints can also be added to the transaction.
+   * @param cam_measurement camera measurement to add
+   * @param lid_measurement lidar measurement to add
+   * @param traj_measurement trajectory measurement to add
+   * @param T_WORLD_BASELINK baselink pose of slam chunk message. World frame
+   * here is the local map's world frame. This function will convert the poses
+   * to relative transforms instead of absolute.
+   * @param stamp stamp associated with the baselink pose
+   * @param baselink_frame_id frame id name of the baselink. This should be
+   * consistent with the extrinsics stored in the submap
    *
-   * This is usually used to add a trajectory coming from higher rate sensore to
-   * fill the gap between lower rate sensors. Example: camera keyframes and
-   * lidar keyframes will be stored in the submap, but to get high rate pose
-   * estimates between them, we may want to add relative poses from the IMU
-   * (preintegration)
-   *
-   * @param measurement trajectory measurement to add
-   *
-   * NOTE: All input transforms should be from baselink_frame to the world frame
-   * of the local mapper. This function will convert the poses to relative
-   * transforms instead of absolute.
+   * NOTE: All data should
+   * be in baselink_frame_ already
    */
-  fuse_core::Transaction::SharedPtr AddTrajectoryMeasurement(
-      const TrajectoryMeasurementMsg& measurement);
+  fuse_core::Transaction::SharedPtr AddMeasurement(
+      const bs_common::CameraMeasurementMsg& cam_measurement,
+      const bs_common::LidarMeasurementMsg& lid_measurement,
+      const bs_common::TrajectoryMeasurementMsg& traj_measurement,
+      const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
+      const std::string& baselink_frame_id);
 
   /**
    * @brief takes the latest submap (back of vector) and adds a pose constraint
@@ -238,6 +223,8 @@ class GlobalMap {
    * construct a submap). Note: since the incoming frame is still in world frame
    * of the local mapper, we need to use the initial T_WORLD_SUBMAP before any
    * loop closures were run.
+   * @param T_WORLD_FRAME transform from current frame to local mapper's world
+   * frame
    */
   int GetSubmapId(const Eigen::Matrix4d& T_WORLD_FRAME);
 
@@ -253,8 +240,8 @@ class GlobalMap {
 
   Params params_;
   std::vector<Submap> submaps_;
-  beam_common::ExtrinsicsLookup& extrinsics_ =
-      beam_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookup& extrinsics_ =
+      bs_common::ExtrinsicsLookup::GetInstance();
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;

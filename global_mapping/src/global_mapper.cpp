@@ -3,6 +3,8 @@
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
+#include <beam_utils/math.h>
+
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(global_mapping::GlobalMapper, fuse_core::SensorModel)
 
@@ -14,21 +16,19 @@ GlobalMapper::GlobalMapper()
       throttled_callback_(
           std::bind(&GlobalMapper::process, this, std::placeholders::_1)) {}
 
-void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
-  fuse_core::Transaction::SharedPtr new_transaction1 =
-      global_map_->AddCameraMeasurement(msg->camera_measurement);
-  if (new_transaction1 != nullptr) {
-    sendTransaction(new_transaction1);
-  }
-  fuse_core::Transaction::SharedPtr new_transaction2 =
-      global_map_->AddLidarMeasurement(msg->lidar_measurement);
-  if (new_transaction2 != nullptr) {
-    sendTransaction(new_transaction2);
-  }
-  fuse_core::Transaction::SharedPtr new_transaction3 =
-      global_map_->AddTrajectoryMeasurement(msg->trajectory_measurement);
-  if (new_transaction3 != nullptr) {
-    sendTransaction(new_transaction3);
+void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
+  std::string baselink_frame_id = msg->baselink_frame_id;
+  ros::Time stamp = msg->stamp;
+  std::vector<float> T = msg->T_WORLD_BASELINK;
+  Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
+
+  fuse_core::Transaction::SharedPtr new_transaction =
+      global_map_->AddMeasurement(msg->camera_measurement,
+                                  msg->lidar_measurement,
+                                  msg->trajectory_measurement, T_WORLD_BASELINK,
+                                  stamp, baselink_frame_id);
+  if (new_transaction != nullptr) {
+    sendTransaction(new_transaction);
   }
 }
 
@@ -38,8 +38,8 @@ void GlobalMapper::onInit() {
   std::shared_ptr<beam_calibration::CameraModel> camera_model =
       beam_calibration::CameraModel::Create(params_.intrinsics_path);
   if (!params_.global_mapper_config.empty()) {
-    global_map_ = std::make_unique<GlobalMap>(camera_model,
-                                              params_.global_mapper_config);
+    global_map_ =
+        std::make_unique<GlobalMap>(camera_model, params_.global_mapper_config);
   } else {
     global_map_ = std::make_unique<GlobalMap>(camera_model);
   }
