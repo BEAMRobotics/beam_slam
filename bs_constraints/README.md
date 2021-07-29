@@ -1,0 +1,1 @@
+The `bs_constraints` package contains fuse constraints used by sensor models in bs_models.

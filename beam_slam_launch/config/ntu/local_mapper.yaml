@@ -20,18 +20,18 @@ imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/ntu/imu.js
 
 sensor_models:
   - name: 'scan_matcher_3d'
-    type: 'beam_models::frame_to_frame::ScanMatcher3D'
+    type: 'bs_models::frame_to_frame::ScanMatcher3D'
     motion_models: ['unicycle_3d']
 
 motion_models:
   - name: 'unicycle_3d'
-    type: 'beam_models::motion::Unicycle3D'
+    type: 'bs_models::motion::Unicycle3D'
 
 publishers:
   - name: 'odom_pub'
-    type: 'beam_publishers::Odometry3DPublisher'
+    type: 'bs_publishers::Odometry3DPublisher'
   - name: 'path_pub'
-    type: 'beam_publishers::Path3DPublisher'
+    type: 'bs_publishers::Path3DPublisher'
 
 ## plugin params: specify all params for the plugins, using their unique name
 
@@ -61,11 +61,12 @@ scan_matcher_3d:
   differential: false # Default: false
   downsample_size: 0 # voxel size (m) for downsample filter. Default: 0.03. Set to 0 for no downsampling
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
-  topic: '/os1_cloud_node1/points'
+  input_topic: '/os1_cloud_node1/points'
+  output_topic: '/slam_results'
   frame_initializer_type: 'ODOMETRY' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/leica/odometry/relative' # for ODOMETRY: topic, for POSEFILE: path
   sensor_frame_id_override: 'imu'
-  scan_output_directory: '/home/nick/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty
+  scan_output_directory: '/home/nick/results/beam_slam/scan_matcher/' # Outputs scans as PCD files IFF not empty
   # scan_output_directory: ''
 
 path_pub:

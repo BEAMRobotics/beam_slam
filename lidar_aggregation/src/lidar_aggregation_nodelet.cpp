@@ -286,7 +286,7 @@ void LidarAggregationNodelet::PointCloudCallback(
   ROS_DEBUG("Added lidar chunk.");
 }
 
-// TODO: use beam_common::PoseLookup class to cleanup this code
+// TODO: use bs_common::PoseLookup class to cleanup this code
 bool LidarAggregationNodelet::AddExtrinsic(const ros::Time& time,
                                            int num_attempts) {
   // if baselink and lidar frames are the same, no extrinsics needed                                             

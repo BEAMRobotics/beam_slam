@@ -9,7 +9,6 @@
 
     <buildtool_depend>catkin</buildtool_depend>
     <build_depend>libbeam</build_depend>
-    <build_depend>message_generation</build_depend>
 
     <depend>pluginlib</depend>
     <depend>roscpp</depend>
@@ -33,9 +32,9 @@
     <depend>fuse_publishers</depend>
     <depend>fuse_variables</depend>
 
-    <depend>beam_slam_common</depend>
-    <depend>beam_models</depend>
-    <depend>beam_constraints</depend>
+    <depend>bs_common</depend>
+    <depend>bs_models</depend>
+    <depend>bs_constraints</depend>
 
     <exec_depend>message_runtime</exec_depend>
 

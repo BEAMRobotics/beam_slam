@@ -8,7 +8,7 @@
 #include <pcl/io/pcd_io.h>
 
 #include <global_mapping/loop_closure/loop_closure_methods.h>
-#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 #include <beam_utils/log.h>
 #include <beam_utils/time.h>
@@ -126,22 +126,27 @@ void GlobalMap::Setup() {
   }
 }
 
-fuse_core::Transaction::SharedPtr GlobalMap::AddCameraMeasurement(
-    const CameraMeasurementMsg& measurement) {
+fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
+    const bs_common::CameraMeasurementMsg& cam_measurement,
+    const bs_common::LidarMeasurementMsg& lid_measurement,
+    const bs_common::TrajectoryMeasurementMsg& traj_measurement,
+    const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
+    const std::string& baselink_frame_id) {
+  // check baselink frame
+  if (baselink_frame_id != extrinsics_.GetBaselinkFrameId()) {
+    BEAM_WARN(
+        "Baselink frame supplied to global map is inconsistend with "
+        "extrinsics. Supplied: {}, Extrinsics: {}",
+        baselink_frame_id, extrinsics_.GetBaselinkFrameId());
+  }
+
   fuse_core::Transaction::SharedPtr new_transaction = nullptr;
 
-  if (measurement.size == 0) {
-    return new_transaction;
-  }
-  std::vector<float> T;
-  T = measurement.T_WORLD_BASELINK;
-  Eigen::Matrix4d T_WORLD_BASELINK =
-      beam::VectorToEigenTransform(measurement.T_WORLD_BASELINK);
   int submap_id = GetSubmapId(T_WORLD_BASELINK);
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(measurement.stamp, T_WORLD_BASELINK, camera_model_));
+    submaps_.push_back(Submap(stamp, T_WORLD_BASELINK, camera_model_));
     new_transaction = InitiateNewSubmapPose();
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
         FindLoopClosures();
@@ -150,82 +155,71 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddCameraMeasurement(
     }
   }
 
-  submaps_[submap_id].AddCameraMeasurement(
-      measurement.landmarks, T_WORLD_BASELINK, measurement.stamp,
-      measurement.sensor_id, measurement.measurement_id);
-
-  return new_transaction;
-}
-
-fuse_core::Transaction::SharedPtr GlobalMap::AddLidarMeasurement(
-    const LidarMeasurementMsg& measurement) {
-  fuse_core::Transaction::SharedPtr new_transaction = nullptr;
-
-  if (measurement.size == 0) {
-    return new_transaction;
+  // add camera measurement if not empty
+  if (!cam_measurement.landmarks.empty()) {
+    submaps_[submap_id].AddCameraMeasurement(
+        cam_measurement.landmarks, cam_measurement.descriptor_type,
+        T_WORLD_BASELINK, stamp, cam_measurement.sensor_id,
+        cam_measurement.measurement_id);
   }
-  Eigen::Matrix4d T_WORLD_BASELINK =
-      beam::VectorToEigenTransform(measurement.T_WORLD_BASELINK);
-  int submap_id = GetSubmapId(T_WORLD_BASELINK);
 
-  // if id is equal to submap size then we need to create a new submap
-  if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(measurement.stamp, T_WORLD_BASELINK, camera_model_));
-    new_transaction = InitiateNewSubmapPose();
-    fuse_core::Transaction::SharedPtr loop_closure_transaction =
-        FindLoopClosures();
-    if (loop_closure_transaction != nullptr) {
-      new_transaction->merge(*loop_closure_transaction);
+  // add lidar measurement if not empty
+  if (!cam_measurement.landmarks.empty()) {
+    std::vector<float> points = lid_measurement.points;
+
+    // check dimensions of points first
+    if (points.size() % 3 != 0) {
+      BEAM_ERROR(
+          "Invalid size of lidar points. Total number of values is not "
+          "divisible by 3. Skipping lidar measurement.");
+    } else {
+      int num_points = static_cast<int>(points.size() / 3);
+
+      PointCloud cloud;
+      for (int iter = 0; iter < num_points; iter += 3) {
+        pcl::PointXYZ p;
+        p.x = points[iter];
+        p.y = points[iter + 1];
+        p.z = points[iter + 2];
+      }
+
+      submaps_[submap_id].AddLidarMeasurement(cloud, T_WORLD_BASELINK, stamp,
+                                              lid_measurement.point_type);
     }
   }
 
-  PointCloud cloud;
-  submaps_[submap_id].AddLidarMeasurement(cloud, T_WORLD_BASELINK,
-                                          measurement.stamp, measurement.type);
+  // add trajectory measurement if not empty
+  if (!traj_measurement.stamps.empty()) {
+    std::vector<float> poses_vec = traj_measurement.poses;
+    uint16_t num_poses = static_cast<uint16_t>(poses_vec.size() / 12);
 
-  return new_transaction;
-}
+    // check dimensions of inputs first
+    if (poses_vec.size() % 12 != 0) {
+      BEAM_ERROR(
+          "Invalid size of poses vector, number of elements must be divisible "
+          "by 4. Not adding trajectory measurement.");
+    } else if (num_poses != traj_measurement.stamps.size()) {
+      BEAM_ERROR(
+          "Number of poses is not equal to number of time stamps. Not adding "
+          "trajectory measurement.");
+    } else {
+      std::vector<Eigen::Matrix4d, pose_allocator> poses;
+      std::vector<ros::Time> stamps;
+      for (int i = 0; i < num_poses; i++) {
+        std::vector<float> current_pose;
+        for (int j = 0; j < 12; j++) {
+          current_pose.push_back(traj_measurement.poses[12 * i + j]);
+        }
+        Eigen::Matrix4d T_KEYFRAME_FRAME =
+            beam::VectorToEigenTransform(current_pose);
 
-fuse_core::Transaction::SharedPtr GlobalMap::AddTrajectoryMeasurement(
-    const TrajectoryMeasurementMsg& measurement) {
-  fuse_core::Transaction::SharedPtr new_transaction = nullptr;
+        poses.push_back(T_KEYFRAME_FRAME);
+        stamps.push_back(ros::Time(traj_measurement.stamps[i]));
+      }
 
-  if (measurement.size == 0) {
-    return new_transaction;
-  }
-  Eigen::Matrix4d T_WORLDLM_KEYFRAME =
-      beam::VectorToEigenTransform(measurement.T_WORLD_BASELINK);
-  int submap_id = GetSubmapId(T_WORLDLM_KEYFRAME);
-
-  // if id is equal to submap size then we need to create a new submap
-  if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(measurement.stamp, T_WORLDLM_KEYFRAME, camera_model_));
-    new_transaction = InitiateNewSubmapPose();
-    fuse_core::Transaction::SharedPtr loop_closure_transaction =
-        FindLoopClosures();
-    if (loop_closure_transaction != nullptr) {
-      new_transaction->merge(*loop_closure_transaction);
+      submaps_[submap_id].AddTrajectoryMeasurement(poses, stamps, stamp);
     }
   }
-
-  std::vector<Eigen::Matrix4d, pose_allocator> poses;
-  std::vector<ros::Time> stamps;
-  Eigen::Matrix4d T_KEYFRAME_WORLDLM =
-      beam::InvertTransform(T_WORLDLM_KEYFRAME);
-  for (int i = 0; i < measurement.size; i++) {
-    std::vector<float> current_pose;
-    for (int j = 0; j < 12; j++) {
-      current_pose.push_back(measurement.poses[12 * i + j]);
-    }
-    Eigen::Matrix4d T_WORLDLM_FRAME = beam::VectorToEigenTransform(current_pose);
-    Eigen::Matrix4d T_KEYFRAME_FRAME = T_KEYFRAME_WORLDLM * T_WORLDLM_FRAME;
-
-    poses.push_back(T_KEYFRAME_FRAME);
-    stamps.push_back(ros::Time(measurement.stamps[i]));
-  }
-
-  submaps_[submap_id].AddTrajectoryMeasurement(poses, stamps,
-                                               measurement.stamp);
 
   return new_transaction;
 }
@@ -252,7 +246,7 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   const Submap& current_submap = submaps_[submaps_.size() - 1];
   const Submap& previous_submap = submaps_[submaps_.size() - 2];
-  beam_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction(
+  bs_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction(
       current_submap.Stamp());
 
   new_transaction.AddPoseVariables(current_submap.Position(),
@@ -433,7 +427,7 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   for (auto& submap : submaps_) {
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
     for (auto& pose_stamped : submap.GetTrajectory()) {
-      Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.T_SUBMAP_BASELINK;
+      Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
       Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_SUBMAP * T_SUBMAP_BASELINK;
       poses.AddSingleTimeStamp(pose_stamped.stamp);
       poses.AddSinglePose(Eigen::Affine3d(T_WORLD_BASELINK));
@@ -457,7 +451,7 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   for (auto& submap : submaps_) {
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP_INIT();
     for (auto& pose_stamped : submap.GetTrajectory()) {
-      Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.T_SUBMAP_BASELINK;
+      Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
       Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_SUBMAP * T_SUBMAP_BASELINK;
       poses_initial.AddSingleTimeStamp(pose_stamped.stamp);
       poses_initial.AddSinglePose(Eigen::Affine3d(T_WORLD_BASELINK));
@@ -477,7 +471,7 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
   for (auto& submap : submaps_) {
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
     for (auto& pose_stamped : submap.GetTrajectory()) {
-      Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.T_SUBMAP_BASELINK;
+      Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
       Eigen::Vector4d p(0, 0, 0, 1);
       p = T_WORLD_SUBMAP * T_SUBMAP_BASELINK * p;
       pcl::PointXYZRGBL point;
@@ -499,9 +493,11 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_initial;
   for (auto& submap : submaps_) {
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP_INIT();
-    for (const Submap::PoseStamped& pose_stamped : submap.GetTrajectory()) {
+    auto poses_stamped = submap.GetTrajectory();
+    for (const Submap::PoseStamped& pose_stamped : poses_stamped) {
       Eigen::Vector4d p(0, 0, 0, 1);
-      p = T_WORLD_SUBMAP * pose_stamped.T_SUBMAP_BASELINK * p;
+      const Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
+      p = T_WORLD_SUBMAP * T_SUBMAP_BASELINK * p;
       pcl::PointXYZRGBL point;
       point.x = p[0];
       point.y = p[1];

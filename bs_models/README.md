@@ -1,0 +1,1 @@
+The `bs_models` package contains plugins that can be used to produce state estimates for a wide variety of robots.
