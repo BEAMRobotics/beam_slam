@@ -116,6 +116,7 @@ add_library(
   src/trajectory_initializers/lo_initializer.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
+  src/camera_to_camera/keyframe.cpp
 )
 
 ## Specify libraries to link a library or executable target against

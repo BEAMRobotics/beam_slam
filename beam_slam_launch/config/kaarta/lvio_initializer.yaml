@@ -60,7 +60,7 @@ camera:
   init_path_topic: "/lo_initialiser_result"
   frame_odometry_output_topic: "/vio_init"
   new_keyframes_topic: "/new_keyframes"
-  cam_measurement_topic: "/camera_measurements"
+  slam_chunk_topic: "/slam_chunks"
   descriptor: "ORB"
   window_size: 150 # number of images to store landmark information for before clearing for new images
   num_features_to_track: 100 # number of features to track from image to image

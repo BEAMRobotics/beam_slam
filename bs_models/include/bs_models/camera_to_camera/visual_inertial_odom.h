@@ -4,9 +4,11 @@
 #include <queue>
 
 // messages
-#include <bs_models/InitializedPathMsg.h>
 #include <bs_common/CameraMeasurementMsg.h>
 #include <bs_common/LandmarkMeasurementMsg.h>
+#include <bs_common/SlamChunkMsg.h>
+#include <bs_common/TrajectoryMeasurementMsg.h>
+#include <bs_models/InitializedPathMsg.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 
@@ -16,6 +18,7 @@
 
 // beam_slam
 #include <bs_common/extrinsics_lookup.h>
+#include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
@@ -156,35 +159,26 @@ private:
    * @param untriangulated_ids id's of landmarks that have not been
    * triangulated
    */
-  void ExtendMap(const ros::Time& img_time,
-                 const std::vector<uint64_t>& triangulated_ids,
+  void ExtendMap(const std::vector<uint64_t>& triangulated_ids,
                  const std::vector<uint64_t>& untriangulated_ids);
-
-  /**
-   * @brief Adds a pose to the graph
-   * @param img_time time of keyframe to extend map at
-   * @param T_WORLD_CAMERA pose of the keyframe to add
-   */
-  void SendNewKeyframePose(const ros::Time& img_time,
-                           const Eigen::Matrix4d& T_WORLD_CAMERA);
 
   /**
    * @brief Send the generated inertial constraint for the current image
    * @param img_time time of current keyframe
    */
-  void AddInertialConstraint(const ros::Time& img_time,
-                              fuse_core::Transaction::SharedPtr transaction);
+  void AddInertialConstraint(fuse_core::Transaction::SharedPtr transaction);
 
   /**
-   * @brief Publishes the oldest keyframe that is stored
+   * @brief Adds the keyframe pose to the graph and publishes keyframe header to
+   * notify any lsiteners
+   * @param T_WORLD_CAMERA pose of the keyframe to add
    */
-  void PublishCameraMeasurement();
+  void NotifyNewKeyframe(const Eigen::Matrix4d& T_WORLD_CAMERA);
 
   /**
-   * @brief Publishes to the keyframe header topic to notify any lsiteners that
-   * a new keyframe is detected
+   * @brief Publishes the oldest keyframe that is stored as a slam chunk message
    */
-  void NotifyNewKeyframe(const ros::Time& img_time);
+  void PublishSlamChunk();
 
 protected:
   // loadable camera parameters
@@ -199,7 +193,7 @@ protected:
   ros::Subscriber path_subscriber_;
   ros::Publisher init_odom_publisher_;
   ros::Publisher new_keyframe_publisher_;
-  ros::Publisher cam_measurement_publisher_;
+  ros::Publisher slam_chunk_publisher_;
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
 
@@ -225,8 +219,7 @@ protected:
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;
 
   // keyframe information
-  ros::Time cur_kf_time_ = ros::Time(0);
-  std::deque<ros::Time> keyframes_;
+  std::deque<bs_models::camera_to_camera::Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
 
   // robot extrinsics
