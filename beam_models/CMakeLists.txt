@@ -46,13 +46,7 @@ add_message_files(
   FILES
     InitializedPathMsg.msg
 )
-add_message_files(
-  DIRECTORY
-    ../global_mapping/msg
-  FILES
-    CameraMeasurementMsg.msg
-    LandmarkMeasurementMsg.msg
-)
+
 generate_messages(
   DEPENDENCIES
   std_msgs

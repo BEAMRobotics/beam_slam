@@ -101,7 +101,7 @@ void VisualInertialOdom::onStart() {
   new_keyframe_publisher_ = private_node_handle_.advertise<std_msgs::Header>(
       camera_params_.new_keyframes_topic, 100);
   cam_measurement_publisher_ =
-      private_node_handle_.advertise<global_mapping::CameraMeasurementMsg>(
+      private_node_handle_.advertise<beam_slam_common::CameraMeasurementMsg>(
           camera_params_.cam_measurement_topic, 100);
 }
 

@@ -5,8 +5,8 @@
 
 // messages
 #include <beam_models/InitializedPathMsg.h>
-#include <global_mapping/CameraMeasurementMsg.h>
-#include <global_mapping/LandmarkMeasurementMsg.h>
+#include <beam_slam_common/CameraMeasurementMsg.h>
+#include <beam_slam_common/LandmarkMeasurementMsg.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 
