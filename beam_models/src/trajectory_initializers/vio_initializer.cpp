@@ -232,7 +232,7 @@ size_t VIOInitializer::AddVisualConstraints(
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInWindow(start, end);
   for (auto& id : landmarks) {
-    fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+    fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
     if (lm) { // if the landmark already exists then add constraint
       for (auto& f : frames) {
         try {
@@ -281,7 +281,7 @@ bool VIOInitializer::LocalizeFrame(
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
   // get 2d-3d correspondences
   for (auto& id : landmarks) {
-    fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+    fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
     if (lm) {
       Eigen::Vector2i pixeli = tracker_->Get(frame.t, id).cast<int>();
       pixels.push_back(pixeli);
@@ -297,7 +297,7 @@ bool VIOInitializer::LocalizeFrame(
   ceres::Solver::Options ceres_solver_options;
   ceres_solver_options.minimizer_progress_to_stdout = false;
   ceres_solver_options.max_solver_time_in_seconds = 1e-1;
-  //ceres_solver_options.logging_type = ceres::SILENT;
+  ceres_solver_options.logging_type = ceres::SILENT;
   ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
   ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
   beam_cv::PoseRefinement refiner(ceres_solver_options);
@@ -321,7 +321,8 @@ void VIOInitializer::OptimizeGraph() {
   options.preconditioner_type = ceres::SCHUR_JACOBI;
   options.max_solver_time_in_seconds = max_optimization_time_;
   options.max_num_iterations = 100;
-  std::cout << local_graph_->optimize(options).FullReport() << std::endl;
+  local_graph_->optimize(options);
+  //std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }
 
 void VIOInitializer::OutputResults(
@@ -343,7 +344,7 @@ void VIOInitializer::OutputResults(
         frames[0].t, frames[frames.size() - 1].t);
     pcl::PointCloud<pcl::PointXYZ> points_cloud;
     for (auto& id : landmarks) {
-      fuse_variables::Position3D::SharedPtr lm = visual_map_->GetLandmark(id);
+      fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
       if (lm) {
         pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
         points_cloud.points.push_back(p);

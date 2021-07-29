@@ -31,9 +31,14 @@ public:
 
     getParam<std::string>(nh, "frame_odometry_output_topic",
                           frame_odometry_output_topic, "/vio_init");
+    getParam<std::string>(nh, "new_keyframes_topic", new_keyframes_topic,
+                          "/new_keyframes");
+    getParam<std::string>(nh, "cam_measurement_topic", cam_measurement_topic,
+                          "/camera_measurements");
     getParam<std::string>(nh, "descriptor", descriptor, "ORB");
 
     getParam<int>(nh, "window_size", window_size, 100);
+    getParam<int>(nh, "keyframe_window_size", keyframe_window_size, 20);
     getParam<int>(nh, "num_features_to_track", num_features_to_track, 300);
     getParam<int>(nh, "keyframe_parallax", keyframe_parallax, 20);
     getParam<int>(nh, "keyframe_tracks_drop", keyframe_tracks_drop, 100);
@@ -49,10 +54,13 @@ public:
   std::string imu_topic{};
   std::string source{};
   std::string frame_odometry_output_topic{};
+  std::string new_keyframes_topic{};
+  std::string cam_measurement_topic{};
   std::string descriptor{};
   std::string init_map_output_directory{};
 
   int window_size{};
+  int keyframe_window_size{};
   int num_features_to_track{};
   int keyframe_parallax{};
   int keyframe_tracks_drop{};

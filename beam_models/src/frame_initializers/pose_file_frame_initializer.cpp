@@ -61,7 +61,7 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   if (!extrinsics_.GetT_SENSOR_BASELINK(T_MOVINGFRAME_BASELINK,
                                         poses_reader.GetMovingFrame())) {
     BEAM_ERROR("Cannot lookup extrinsics. Exiting.");
-    throw std::runtime_error{"Cannot lookup extrinsics."};
+    //throw std::runtime_error{"Cannot lookup extrinsics."};
   }
 
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>

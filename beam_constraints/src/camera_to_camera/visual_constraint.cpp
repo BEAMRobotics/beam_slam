@@ -16,7 +16,7 @@ VisualConstraint::VisualConstraint(
     const std::string& source,
     const fuse_variables::Orientation3DStamped& R_WORLD_BASELINK,
     const fuse_variables::Position3DStamped& t_WORLD_BASELINK,
-    const fuse_variables::Position3D& P_WORLD,
+    const fuse_variables::Point3DLandmark& P_WORLD,
     const Eigen::Vector2d& pixel_measurement, const Eigen::Matrix4d& T_cam_baselink,
     const std::shared_ptr<beam_calibration::CameraModel> cam_model)
     : fuse_core::Constraint(
