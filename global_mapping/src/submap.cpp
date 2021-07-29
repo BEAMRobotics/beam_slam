@@ -433,7 +433,7 @@ void Submap::TriangulateKeypoints(bool override_points) {
 }
 
 bool Submap::FindT_SUBMAP_KEYFRAME(uint64_t time,
-                                   Eigen::Matrix4d& T_SUBMAP_KEYFRAME) {
+                                   Eigen::Matrix4d& T_SUBMAP_KEYFRAME) const {
   // first, look for timestamp in camera keyframe poses (these take priority)
   auto iter_cam = camera_keyframe_poses_.find(time);
   if (iter_cam != camera_keyframe_poses_.end()) {

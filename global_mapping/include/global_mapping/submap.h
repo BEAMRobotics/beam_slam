@@ -283,7 +283,7 @@ class Submap {
    * @param T_SUBMAP_KEYFRAME reference to result
    * @return true if successful, false otherwise
    */
-  bool FindT_SUBMAP_KEYFRAME(uint64_t time, Eigen::Matrix4d& T_SUBMAP_KEYFRAME);
+  bool FindT_SUBMAP_KEYFRAME(uint64_t time, Eigen::Matrix4d& T_SUBMAP_KEYFRAME) const;
 
   // general submap data
   ros::Time stamp_;
