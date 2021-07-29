@@ -10,23 +10,23 @@
 
 namespace bs_common {
 
-ScanPose::ScanPose(const ros::Time& time,
-                   const Eigen::Matrix4d& T_REFFRAME_CLOUD,
-                   const std::string& reference_frame_id,
-                   const std::string& cloud_frame_id, const PointCloud& cloud,
+ScanPose::ScanPose(const PointCloud& cloud, const ros::Time& stamp,
+                   const Eigen::Matrix4d& T_REFFRAME_BASELINK,
+                   const Eigen::Matrix4d& T_BASELINK_LIDAR,
                    const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
                        feature_extractor)
-    : stamp_(time),
-      pointcloud_(cloud),
-      T_REFFRAME_CLOUD_initial_(T_REFFRAME_CLOUD) {
+    : pointcloud_(cloud),
+      stamp_(stamp),
+      T_REFFRAME_BASELINK_initial_(T_REFFRAME_BASELINK),
+      T_BASELINK_LIDAR_(T_BASELINK_LIDAR) {
   // create fuse variables
-  position_ = fuse_variables::Position3DStamped(time, fuse_core::uuid::NIL);
+  position_ = fuse_variables::Position3DStamped(stamp, fuse_core::uuid::NIL);
   orientation_ =
-      fuse_variables::Orientation3DStamped(time, fuse_core::uuid::NIL);
+      fuse_variables::Orientation3DStamped(stamp, fuse_core::uuid::NIL);
 
   // add transform
-  bs_common::EigenTransformToFusePose(T_REFFRAME_CLOUD, position_,
-                                        orientation_);
+  bs_common::EigenTransformToFusePose(T_REFFRAME_BASELINK, position_,
+                                      orientation_);
 
   if (feature_extractor != nullptr) {
     cloud_type_ = "LOAMPOINTCLOUD";
@@ -34,19 +34,20 @@ ScanPose::ScanPose(const ros::Time& time,
   }
 }
 
-ScanPose::ScanPose(const ros::Time& time,
-                   const Eigen::Matrix4d& T_REFFRAME_CLOUD,
-                   const std::string& reference_frame_id,
-                   const std::string& cloud_frame_id)
-    : stamp_(time), T_REFFRAME_CLOUD_initial_(T_REFFRAME_CLOUD) {
+ScanPose::ScanPose(const ros::Time& stamp,
+                   const Eigen::Matrix4d& T_REFFRAME_BASELINK,
+                   const Eigen::Matrix4d& T_BASELINK_LIDAR)
+    : stamp_(stamp),
+      T_REFFRAME_BASELINK_initial_(T_REFFRAME_BASELINK),
+      T_BASELINK_LIDAR_(T_BASELINK_LIDAR) {
   // create fuse variables
-  position_ = fuse_variables::Position3DStamped(time, fuse_core::uuid::NIL);
+  position_ = fuse_variables::Position3DStamped(stamp, fuse_core::uuid::NIL);
   orientation_ =
-      fuse_variables::Orientation3DStamped(time, fuse_core::uuid::NIL);
+      fuse_variables::Orientation3DStamped(stamp, fuse_core::uuid::NIL);
 
   // add transform
-  bs_common::EigenTransformToFusePose(T_REFFRAME_CLOUD, position_,
-                                        orientation_);
+  bs_common::EigenTransformToFusePose(T_REFFRAME_BASELINK, position_,
+                                      orientation_);
 }
 
 void ScanPose::AddPointCloud(const PointCloud& cloud, bool override_cloud) {
@@ -66,7 +67,7 @@ void ScanPose::AddPointCloud(const beam_matching::LoamPointCloud& cloud,
   }
 }
 
-bool ScanPose::Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
+bool ScanPose::UpdatePose(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
   if (graph_msg->variableExists(position_.uuid()) &&
       graph_msg->variableExists(orientation_.uuid())) {
     position_ = dynamic_cast<const fuse_variables::Position3DStamped&>(
@@ -80,9 +81,10 @@ bool ScanPose::Update(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
   return false;
 }
 
-void ScanPose::Update(const Eigen::Matrix4d& T_REFFRAME_CLOUD) {
-  bs_common::EigenTransformToFusePose(T_REFFRAME_CLOUD, position_,
-                                        orientation_);
+void ScanPose::UpdatePose(const Eigen::Matrix4d& T_REFFRAME_BASELINK) {
+  bs_common::EigenTransformToFusePose(T_REFFRAME_BASELINK, position_,
+                                      orientation_);
+  updates_++;
 }
 
 bool ScanPose::Near(const ros::Time& time, const double tolerance) const {
@@ -103,18 +105,32 @@ fuse_variables::Orientation3DStamped ScanPose::Orientation() const {
   return orientation_;
 }
 
-Eigen::Matrix4d ScanPose::T_REFFRAME_CLOUD() const {
-  Eigen::Matrix4d T_REFFRAME_CLOUD{Eigen::Matrix4d::Identity()};
+Eigen::Matrix4d ScanPose::T_REFFRAME_BASELINK() const {
+  Eigen::Matrix4d T_REFFRAME_BASELINK{Eigen::Matrix4d::Identity()};
   Eigen::Quaterniond q(orientation_.w(), orientation_.x(), orientation_.y(),
                        orientation_.z());
-  T_REFFRAME_CLOUD.block(0, 3, 3, 1) =
+  T_REFFRAME_BASELINK.block(0, 3, 3, 1) =
       Eigen::Vector3d{position_.x(), position_.y(), position_.z()};
-  T_REFFRAME_CLOUD.block(0, 0, 3, 3) = q.toRotationMatrix();
-  return T_REFFRAME_CLOUD;
+  T_REFFRAME_BASELINK.block(0, 0, 3, 3) = q.toRotationMatrix();
+  return T_REFFRAME_BASELINK;
 }
 
-const Eigen::Matrix4d ScanPose::T_REFFRAME_CLOUD_INIT() const {
-  return T_REFFRAME_CLOUD_initial_;
+Eigen::Matrix4d ScanPose::T_REFFRAME_LIDAR() const {
+  return T_REFFRAME_BASELINK() * T_BASELINK_LIDAR_;
+}
+
+const Eigen::Matrix4d ScanPose::T_REFFRAME_BASELINK_INIT() const {
+  return T_REFFRAME_BASELINK_initial_;
+}
+
+Eigen::Matrix4d ScanPose::T_REFFRAME_LIDAR_INIT() const {
+  return T_REFFRAME_BASELINK_INIT() * T_BASELINK_LIDAR_;
+}
+
+Eigen::Matrix4d ScanPose::T_BASELINK_LIDAR() const { return T_BASELINK_LIDAR_; }
+
+Eigen::Matrix4d ScanPose::T_LIDAR_BASELINK() const {
+  return beam::InvertTransform(T_BASELINK_LIDAR_);
 }
 
 PointCloud ScanPose::Cloud() const { return pointcloud_; }
@@ -127,9 +143,7 @@ ros::Time ScanPose::Stamp() const { return stamp_; }
 
 std::string ScanPose::Type() const { return cloud_type_; }
 
-std::string ScanPose::ReferenceFrameId() const { return reference_frame_id_; }
-
-std::string ScanPose::CloudFrameId() const { return cloud_frame_id_; }
+void ScanPose::SetCloudTypeToLoam() { cloud_type_ = "LOAMPOINTCLOUD"; }
 
 void ScanPose::Print(std::ostream& stream) const {
   stream << "  Stamp: " << stamp_ << "\n"
@@ -162,10 +176,15 @@ void ScanPose::Save(const std::string& save_path, bool to_reference_frame,
   }
 
   PointCloud cloud_initial;
-  PointCloud cloud_final;
+  Eigen::Matrix4d T_REFFRAME_LIDAR_initial =
+      T_REFFRAME_BASELINK_initial_ * T_BASELINK_LIDAR_;
   pcl::transformPointCloud(pointcloud_, cloud_initial,
-                           T_REFFRAME_CLOUD_initial_);
-  pcl::transformPointCloud(pointcloud_, cloud_final, this->T_REFFRAME_CLOUD());
+                           T_REFFRAME_LIDAR_initial);
+
+  PointCloud cloud_final;
+  Eigen::Matrix4d T_REFFRAME_LIDAR_final =
+      T_REFFRAME_BASELINK() * T_BASELINK_LIDAR_;
+  pcl::transformPointCloud(pointcloud_, cloud_final, T_REFFRAME_LIDAR_final);
 
   PointCloudCol cloud_initial_col =
       beam::ColorPointCloud(cloud_initial, 255, 0, 0);
@@ -173,10 +192,11 @@ void ScanPose::Save(const std::string& save_path, bool to_reference_frame,
 
   if (add_frame) {
     cloud_initial_col =
-        beam::AddFrameToCloud(cloud_initial_col, T_REFFRAME_CLOUD_initial_);
+        beam::AddFrameToCloud(cloud_initial_col, T_REFFRAME_LIDAR_initial);
     cloud_final_col =
-        beam::AddFrameToCloud(cloud_final_col, this->T_REFFRAME_CLOUD());
+        beam::AddFrameToCloud(cloud_final_col, T_REFFRAME_LIDAR_final);
   }
+
   pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
                             cloud_initial_col);
   pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd", cloud_final_col);
@@ -204,8 +224,10 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
     return;
   }
 
+  Eigen::Matrix4d T_REFFRAME_LIDAR_final =
+      T_REFFRAME_BASELINK() * T_BASELINK_LIDAR_;
   beam_matching::LoamPointCloud loam_cloud_transformed = loampointcloud_;
-  loam_cloud_transformed.TransformPointCloud(this->T_REFFRAME_CLOUD());
+  loam_cloud_transformed.TransformPointCloud(T_REFFRAME_LIDAR_final);
   loam_cloud_transformed.Save(file_name_prefix, true);
 }
 

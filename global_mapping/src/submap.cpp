@@ -133,8 +133,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     iter->second.AddPointCloud(new_loam_cloud);
   } else {
     // Stamp does not exist: add new scanpose to map
-    bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_LIDAR, "submap",
-                                      extrinsics_.GetLidarFrameId());
+    bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_LIDAR, T_BASELINK_LIDAR);
     if (type == 0) {
       new_scan_pose.AddPointCloud(cloud, false);
       lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
@@ -250,7 +249,7 @@ PointCloud Submap::GetLidarPointsInWorldFrame(
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
     const PointCloud& cloud_scanframe = it->second.Cloud();
-    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_CLOUD();
+    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
     Eigen::Matrix4d T_WORLD_SCAN;
     if (use_initial_world_frame) {
       T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
@@ -271,7 +270,7 @@ beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
        it != lidar_keyframe_poses_.end(); it++) {
     const beam_matching::LoamPointCloud& cloud_scanframe =
         it->second.LoamCloud();
-    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_CLOUD();
+    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
     Eigen::Matrix4d T_WORLD_SCAN;
     if (use_initial_world_frame) {
       T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
@@ -300,7 +299,7 @@ std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {
        it != lidar_keyframe_poses_.end(); it++) {
     if (poses_stamped_map.find(it->first) == poses_stamped_map.end()) {
       // transform to baselink pose
-      const Eigen::Matrix4d& T_SUBMAP_LIDAR = it->second.T_REFFRAME_CLOUD();
+      const Eigen::Matrix4d& T_SUBMAP_LIDAR = it->second.T_REFFRAME_LIDAR();
       ros::Time stamp;
       stamp.fromNSec(it->first);
       Eigen::Matrix4d T_LIDAR_BASELINK;
@@ -443,17 +442,9 @@ bool Submap::FindT_SUBMAP_KEYFRAME(uint64_t time,
 
   auto iter_lid = lidar_keyframe_poses_.find(time);
   if (iter_lid != lidar_keyframe_poses_.end()) {
-    const Eigen::Matrix4d& T_SUBMAP_LIDAR = iter_lid->second.T_REFFRAME_CLOUD();
-
-    Eigen::Matrix4d T_LIDAR_BASELINK;
-    ros::Time stamp;
-    stamp.fromNSec(time);
-    if (!extrinsics_.GetT_LIDAR_BASELINK(T_LIDAR_BASELINK, stamp)) {
-      BEAM_ERROR("Cannot get extrinsic between lidar and baselink for time {}.",
-                 stamp.toSec());
-      return false;
-    }
-
+    const Eigen::Matrix4d& T_SUBMAP_LIDAR = iter_lid->second.T_REFFRAME_LIDAR();
+    Eigen::Matrix4d T_LIDAR_BASELINK =
+        beam::InvertTransform(iter_lid->second.T_BASELINK_LIDAR());
     T_SUBMAP_KEYFRAME = T_SUBMAP_LIDAR * T_LIDAR_BASELINK;
     return true;
   }

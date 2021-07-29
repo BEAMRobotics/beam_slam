@@ -99,7 +99,7 @@ class Data {
     matcher_params.res = 0;
 
     // create prior that will be used in optimization
-    ScanPose SP_TMP(ros::Time(0), T_WORLD_S1, "fr", "fs", S1);
+    ScanPose SP_TMP(S1, ros::Time(0), T_WORLD_S1);
 
     fuse_core::Vector7d mean;
     mean << SP_TMP.Position().x(), SP_TMP.Position().y(), SP_TMP.Position().z(),
@@ -162,12 +162,17 @@ fuse_constraints::RelativePose3DStampedConstraint::SharedPtr CreateConstraint(
 
 TEST(ScanPose, IO) {
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, "fr", "fs", data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, "fr", "fs", data_.S2);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
 
-  Eigen::Matrix4d T_WORLD_S2_ = SP2.T_REFFRAME_CLOUD();
-  Eigen::Matrix4d T_WORLD_S1_ = SP1.T_REFFRAME_CLOUD();
+  Eigen::Matrix4d T_WORLD_S2_ = SP2.T_REFFRAME_BASELINK();
+  Eigen::Matrix4d T_WORLD_S1_ = SP1.T_REFFRAME_BASELINK();
+  Eigen::Matrix4d T_WORLD_S2_lidar = SP2.T_REFFRAME_LIDAR();
+  Eigen::Matrix4d T_WORLD_S1_lidar = SP1.T_REFFRAME_LIDAR();
   EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S1, T_WORLD_S1_, 0.1, 0.001));
+  EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S2, T_WORLD_S2_, 0.1, 0.001));
+  EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S1, T_WORLD_S1_lidar, 0.1, 0.001));
+  EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S2, T_WORLD_S2_lidar, 0.1, 0.001));
   EXPECT_EQ(SP1.Cloud().size(), data_.S1.size());
   EXPECT_EQ(SP2.Cloud().size(), data_.S2.size());
   EXPECT_EQ(SP1.Stamp(), ros::Time(0));
@@ -176,8 +181,8 @@ TEST(ScanPose, IO) {
 
 TEST(ScanPose, 2NodeFG) {
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, "fr", "fs", data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, "fr", "fs", data_.S2);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -216,9 +221,9 @@ TEST(ScanPose, 2NodeFG) {
 
 TEST(ScanPose, 2NodeFGPert) {
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, "fr", "fs", data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, "fr", "fs", data_.S2);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, "fr", "fs", data_.S2);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -259,9 +264,9 @@ TEST(ScanPose, 2NodeFGPert) {
 
 TEST(ScanPose, ScanRegistrationICP) {
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, "fr", "fs", data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, "fr", "fs", data_.S2);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, "fr", "fs", data_.S2);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
 
   Eigen::Matrix4d T_S1_S2_initial =
       beam::InvertTransform(data_.T_WORLD_S1) * data_.T_WORLD_S2_pert;
@@ -292,9 +297,9 @@ TEST(ScanPose, ScanRegistrationICP) {
 
 TEST(ScanPose, ScanRegistrationPGPert) {
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, "fr", "fs", data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, "fr", "fs", data_.S2);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, "fr", "fs", data_.S2);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
 
   // run scan registration
   // * (1) transform second scan into estimated scan 1 frame

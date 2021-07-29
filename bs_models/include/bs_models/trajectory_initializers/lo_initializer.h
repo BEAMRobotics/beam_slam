@@ -131,7 +131,8 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
 
   // store all current keyframes to be processed. Data in scan poses have
-  // already been converted to the baelink frame
+  // already been converted to the baselink frame, and T_BASELINK_LIDAR is set
+  // to identity
   std::list<bs_common::ScanPose> keyframes_;
 
   // keep track of the current keyframe

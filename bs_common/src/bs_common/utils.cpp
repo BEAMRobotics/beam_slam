@@ -95,12 +95,12 @@ double CalculateTrajectoryLength(
     const std::list<bs_common::ScanPose>& keyframes) {
   double length{0};
   auto iter = keyframes.begin();
-  Eigen::Vector3d prev_position = iter->T_REFFRAME_CLOUD().block(0, 3, 3, 1);
+  Eigen::Vector3d prev_position = iter->T_REFFRAME_BASELINK().block(0, 3, 3, 1);
   iter++;
 
   while (iter != keyframes.end()) {
     Eigen::Vector3d current_position =
-        iter->T_REFFRAME_CLOUD().block(0, 3, 3, 1);
+        iter->T_REFFRAME_BASELINK().block(0, 3, 3, 1);
     Eigen::Vector3d current_motion = current_position - prev_position;
     length += current_motion.norm();
     prev_position = current_position;
