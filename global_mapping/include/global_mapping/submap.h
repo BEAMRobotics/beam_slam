@@ -26,13 +26,21 @@ using namespace bs_common;
  * @brief class for holding and performing operation on locally consistent SLAM
  * data chunks.
  *
- * Frame Convention: TODO
- * 
+ * Frame Convention:
+ * -----------------
+ *
  * All poses should be expressed in one "baselink" sensor frame
- * (usually set to imu frame), and with respect to the submap frame (not
- * world frame). This is made to be used in conjuction with GlobalMap which
- * allows for the relative pose of the submaps to be changed without affecting
- * the local consistency of the data in the submaps.
+ * (usually set to imu frame) based on what is set in the extrinsics object.
+ *
+ * Each pose is also with respect to the submap frame (not world frame).
+ *
+ * Submaps are made to be used in conjuction with GlobalMap which allows for the
+ * relative pose of the submaps to be changed without affecting the local
+ * consistency of the data in the submaps.
+ *
+ * Lidar poses, however, are stored as transforms from lidar to submap since it
+ * is more convenient to store the lidar data in the lidar sensor's frame. This
+ * is needed for extrinsic calibration.
  *
  * To keep the local mapper running fast, we do not update the poses/points in
  * the local mapper when the global mapper closes loops. Instead, we keep track
@@ -131,9 +139,9 @@ class Submap {
 
   /**
    * @brief add a set of lidar measurements associated with one scan
-   * @param cloud pointcloud in the baselink frame
-   * @param T_WORLDLM_BASELINK pose of the baselink at this lidar scan. Note
-   * this is relative to the original world estimate that is tracked by the
+   * @param cloud pointcloud in the lidar frame
+   * @param T_WORLDLM_BASELINK pose of the baselink at this lidar scan time.
+   * Note this is relative to the original world estimate that is tracked by the
    * local mapper, not the optimized location from the PGO.
    * @param stamp stamp associated with the lidar scan
    * @param type type of lidar points. See description in LidarMeasurement.msg
@@ -266,6 +274,16 @@ class Submap {
    * has already been called
    */
   void TriangulateKeypoints(bool override_points = false);
+
+  /**
+   * @brief find the stored transform from submap to keyframe at time t. This
+   * first looks in the camera keyframe poses, and if not found, it will look in
+   * the lidar keyframes
+   * @param time query time in nsecs
+   * @param T_SUBMAP_KEYFRAME reference to result
+   * @return true if successful, false otherwise
+   */
+  bool FindT_SUBMAP_KEYFRAME(uint64_t time, Eigen::Matrix4d& T_SUBMAP_KEYFRAME);
 
   // general submap data
   ros::Time stamp_;
