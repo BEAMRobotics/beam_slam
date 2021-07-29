@@ -5,10 +5,7 @@ float32[] scan
 sensor_msgs/Image image
 
 # initial estimate of sensor pose provided to reloc.  Size is: 3 x 4
-float32[] T_world_baselink
+float32[] T_WORLD_BASELINK
 
 # stamp associated with the scan/pose
 time stamp
-
-# frame id associated with the pose and scan data (baselink frame).
-string frame_id

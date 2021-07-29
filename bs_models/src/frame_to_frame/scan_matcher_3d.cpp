@@ -263,7 +263,6 @@ void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
     }
   }
   slam_chunk_msg.T_WORLD_BASELINK = pose;
-  slam_chunk_msg.baselink_frame_id = extrinsics_.GetBaselinkFrameId();
 
   // TODO: add scan data in baselink frame (?)
 

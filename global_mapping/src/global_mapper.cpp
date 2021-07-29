@@ -17,16 +17,14 @@ GlobalMapper::GlobalMapper()
           std::bind(&GlobalMapper::process, this, std::placeholders::_1)) {}
 
 void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
-  std::string baselink_frame_id = msg->baselink_frame_id;
   ros::Time stamp = msg->stamp;
   std::vector<float> T = msg->T_WORLD_BASELINK;
   Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
 
   fuse_core::Transaction::SharedPtr new_transaction =
-      global_map_->AddMeasurement(msg->camera_measurement,
-                                  msg->lidar_measurement,
-                                  msg->trajectory_measurement, T_WORLD_BASELINK,
-                                  stamp, baselink_frame_id);
+      global_map_->AddMeasurement(
+          msg->camera_measurement, msg->lidar_measurement,
+          msg->trajectory_measurement, T_WORLD_BASELINK, stamp);
   if (new_transaction != nullptr) {
     sendTransaction(new_transaction);
   }

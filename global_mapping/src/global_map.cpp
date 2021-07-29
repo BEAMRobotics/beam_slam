@@ -130,16 +130,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
     const bs_common::CameraMeasurementMsg& cam_measurement,
     const bs_common::LidarMeasurementMsg& lid_measurement,
     const bs_common::TrajectoryMeasurementMsg& traj_measurement,
-    const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
-    const std::string& baselink_frame_id) {
-  // check baselink frame
-  if (baselink_frame_id != extrinsics_.GetBaselinkFrameId()) {
-    BEAM_WARN(
-        "Baselink frame supplied to global map is inconsistend with "
-        "extrinsics. Supplied: {}, Extrinsics: {}",
-        baselink_frame_id, extrinsics_.GetBaselinkFrameId());
-  }
-
+    const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp) {
   fuse_core::Transaction::SharedPtr new_transaction = nullptr;
 
   int submap_id = GetSubmapId(T_WORLD_BASELINK);

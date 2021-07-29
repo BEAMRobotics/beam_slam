@@ -26,7 +26,9 @@ using namespace bs_common;
  * @brief class for holding and performing operation on locally consistent SLAM
  * data chunks.
  *
- * All data should be expressed in one "baselink" sensor frame
+ * Frame Convention: TODO
+ * 
+ * All poses should be expressed in one "baselink" sensor frame
  * (usually set to imu frame), and with respect to the submap frame (not
  * world frame). This is made to be used in conjuction with GlobalMap which
  * allows for the relative pose of the submaps to be changed without affecting

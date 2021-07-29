@@ -110,8 +110,6 @@ class GlobalMap {
    * here is the local map's world frame. This function will convert the poses
    * to relative transforms instead of absolute.
    * @param stamp stamp associated with the baselink pose
-   * @param baselink_frame_id frame id name of the baselink. This should be
-   * consistent with the extrinsics stored in the submap
    *
    * NOTE: All data should
    * be in baselink_frame_ already
@@ -120,8 +118,7 @@ class GlobalMap {
       const bs_common::CameraMeasurementMsg& cam_measurement,
       const bs_common::LidarMeasurementMsg& lid_measurement,
       const bs_common::TrajectoryMeasurementMsg& traj_measurement,
-      const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
-      const std::string& baselink_frame_id);
+      const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp);
 
   /**
    * @brief takes the latest submap (back of vector) and adds a pose constraint
@@ -240,9 +237,12 @@ class GlobalMap {
 
   Params params_;
   std::vector<Submap> submaps_;
+
   bs_common::ExtrinsicsLookup& extrinsics_ =
       bs_common::ExtrinsicsLookup::GetInstance();
+  
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
+  
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
