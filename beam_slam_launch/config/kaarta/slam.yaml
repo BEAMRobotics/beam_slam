@@ -13,8 +13,8 @@ baselink_frame: "camera"
 
 # calibrations
 static_extrinsics: true,
-camera_intrinsics_path: "~/catkin_ws/src/beam_slam/calibrations/kaarta/camera.json"
-imu_intrinsics_path: "~/catkin_ws/src/beam_slam/calibrations/kaarta/imu.json"
+camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/kaarta/camera.json"
+imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/kaarta/imu.json"
 
 
 ## model plugins: declare all plugins to use and give a unique name
@@ -59,7 +59,7 @@ unicycle_3d:
 
 scan_matcher_3d:
   type: 'MAPLOAM' # Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (TODO: LIBPOINTMATCHER, TEASER)
-  matcher_params_path: '~/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
+  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
   registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class
   differential: false # Default: false
   downsample_size: 0 # voxel size (m) for downsample filter. Default: 0.03. Set to 0 for no downsampling
@@ -69,13 +69,13 @@ scan_matcher_3d:
   output_loam_points: true # set this to true and it will save loam clouds to global map. Default: true
   output_lidar_points: true # set this to true and it will save regular dense pointclouds to global map. Default: true
   frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
-  frame_initializer_info: '~/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
-  scan_output_directory: '~/results/beam_slam/scan_matcher/' # Outputs scans as PCD files IFF not empty
+  frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
+  scan_output_directory: '/home/nick/results/beam_slam/scan_matcher/' # Outputs scans as PCD files IFF not empty
   # scan_output_directory: ''
 
 global_mapper:
-  global_mapper_config: '~/catkin_ws/src/beam_slam/beam_slam_launch/config/global_mapper/global_mapper_config.json'
-  output_path: '~/results/beam_slam/global_mapper/'
+  global_mapper_config: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/global_mapper/global_mapper_config.json'
+  output_path: '/home/nick/results/beam_slam/global_mapper/'
   save_submaps: true
   save_final_map: true
   save_trajectory_cloud: true

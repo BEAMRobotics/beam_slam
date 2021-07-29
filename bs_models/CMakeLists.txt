@@ -5,7 +5,15 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS calibration cv utils matching filtering)
+find_package(
+  beam REQUIRED 
+  COMPONENTS 
+  calibration
+  cv
+  utils
+  matching
+  filtering)
+
 find_package(
   catkin REQUIRED
   COMPONENTS
