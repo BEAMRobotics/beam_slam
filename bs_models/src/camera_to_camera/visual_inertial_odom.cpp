@@ -96,12 +96,12 @@ void VisualInertialOdom::onStart() {
    ***********************************************************/
   init_odom_publisher_ =
       private_node_handle_.advertise<geometry_msgs::PoseStamped>(
-          camera_params_.frame_odometry_output_topic, 100);
+          camera_params_.frame_odometry_output_topic, 10);
   new_keyframe_publisher_ = private_node_handle_.advertise<std_msgs::Header>(
-      camera_params_.new_keyframes_topic, 100);
+      camera_params_.new_keyframes_topic, 10);
   slam_chunk_publisher_ =
       private_node_handle_.advertise<bs_common::SlamChunkMsg>(
-          camera_params_.slam_chunk_topic, 100);
+          camera_params_.slam_chunk_topic, 10);
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -114,8 +114,16 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
    *                    Add Image to map or initializer                     *
    **************************************************************************/
   if (imu_time > img_time && !imu_buffer_.empty()) {
+    // get most recent extrinsics, if failure then process frame later
+    if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
+      ROS_ERROR("Unable to get camera to baselink transform.");
+      return;
+    }
+    // add image to tracker
     tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
+    // process if in initialization mode
     if (!initializer_->Initialized()) {
+      tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
       if ((img_time - keyframes_.back().Stamp()).toSec() >= 1.0) {
         bs_models::camera_to_camera::Keyframe kf(img_time,
                                                  image_buffer_.front());
@@ -130,14 +138,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
           ROS_INFO("Initialization Failure: %f", img_time.toSec());
         }
       }
-    } else {
-      // dont process frame unless the initial graph has been optimized
-      if (!init_graph_optimized_) return;
-      // get most recent extrinsics, if failure then dont process frame
-      if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
-        ROS_ERROR("Unable to get camera to baselink transform.");
-        return;
-      }
+    } else { // process if not initializing
       beam::HighResolutionTimer frame_timer;
       // localize frame
       std::vector<uint64_t> triangulated_ids;
@@ -211,7 +212,6 @@ void VisualInertialOdom::processInitPath(
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   visual_map_->UpdateGraph(graph);
-  init_graph_optimized_ = true;
 }
 
 void VisualInertialOdom::onStop() {}
@@ -411,6 +411,7 @@ void VisualInertialOdom::AddInertialConstraint(
 double VisualInertialOdom::ComputeAvgParallax(
     const ros::Time& t1, const ros::Time& t2,
     const std::vector<uint64_t>& t2_landmarks) {
+  // add parallaxes to vector
   std::vector<double> parallaxes;
   for (auto& id : t2_landmarks) {
     try {
@@ -420,6 +421,7 @@ double VisualInertialOdom::ComputeAvgParallax(
       parallaxes.push_back(dist);
     } catch (const std::out_of_range& oor) {}
   }
+  // sort and find median parallax
   std::sort(parallaxes.begin(), parallaxes.end());
   return parallaxes[parallaxes.size() / 2];
 }
