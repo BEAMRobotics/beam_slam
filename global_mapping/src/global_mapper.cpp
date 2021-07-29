@@ -16,7 +16,7 @@ GlobalMapper::GlobalMapper()
       throttled_callback_(
           std::bind(&GlobalMapper::process, this, std::placeholders::_1)) {}
 
-void GlobalMapper::process(const beam_slam_common::SlamChunkMsg::ConstPtr& msg) {
+void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
   std::string baselink_frame_id = msg->baselink_frame_id;
   ros::Time stamp = msg->stamp;
   std::vector<float> T = msg->T_WORLD_BASELINK;

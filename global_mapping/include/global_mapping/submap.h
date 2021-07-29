@@ -13,14 +13,14 @@
 #include <beam_containers/LandmarkMeasurement.h>
 #include <beam_calibration/CameraModel.h>
 #include <beam_matching/loam/LoamPointCloud.h>
-#include <beam_slam_common/LandmarkMeasurementMsg.h>
-#include <beam_common/scan_pose.h>
-#include <beam_common/extrinsics_lookup.h>
+#include <bs_common/LandmarkMeasurementMsg.h>
+#include <bs_common/scan_pose.h>
+#include <bs_common/extrinsics_lookup.h>
 
 namespace global_mapping {
 
 using pose_allocator = Eigen::aligned_allocator<Eigen::Matrix4d>;
-using namespace beam_common;
+using namespace bs_common;
 
 /**
  * @brief class for holding and performing operation on locally consistent SLAM
@@ -123,7 +123,7 @@ class Submap {
    * @param measurement_id id of this specific measurement (image)
    */
   void AddCameraMeasurement(
-      const std::vector<beam_slam_common::LandmarkMeasurementMsg>& landmarks,
+      const std::vector<bs_common::LandmarkMeasurementMsg>& landmarks,
       uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLD_BASELINK,
       const ros::Time& stamp, int sensor_id, int measurement_id);
 
@@ -270,8 +270,8 @@ class Submap {
   int graph_updates_{0};
   fuse_variables::Position3DStamped position_;        // t_WORLD_SUBMAP
   fuse_variables::Orientation3DStamped orientation_;  // R_WORLD_SUBMAP
-  beam_common::ExtrinsicsLookup& extrinsics_ =
-      beam_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookup& extrinsics_ =
+      bs_common::ExtrinsicsLookup::GetInstance();
   Eigen::Matrix4d T_WORLD_SUBMAP_;  // this get recomputed when fuse vars change
   Eigen::Matrix4d T_WORLD_SUBMAP_initial_;  // = T_WORLDLM_SUBMAP
   Eigen::Matrix4d T_SUBMAP_WORLD_initial_;  // = T_SUBMAP_WORLDLM

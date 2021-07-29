@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>bs_models</name>
+  <version>0.2.0</version>
+  <description>fuse plugins that implement various kinematic and sensor models</description>
+
+  <author email="nicholas.c.charron@gmail.com">Nick Charron</author>
+  <maintainer email="nicholas.c.charron@gmail.com">Nick Charron</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>libbeam</build_depend>
+
+  <depend>boost</depend>
+  <depend>libceres-dev</depend>
+  <depend>eigen</depend>
+  <depend>pcl_conversions</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>pluginlib</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_2d</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>cv_bridge</depend>
+  <depend>basalt</depend>
+
+  <depend>fuse_constraints</depend>
+  <depend>fuse_core</depend>
+  <depend>fuse_graphs</depend>
+  <depend>fuse_models</depend>
+  <depend>fuse_publishers</depend>
+  <depend>fuse_variables</depend>
+
+  <depend>bs_common</depend>
+  <depend>bs_constraints</depend>
+	<depend>bs_variables</depend>
+  <depend>SlamChunkMsg</depend>
+
+  <build_depend>message_generation</build_depend>
+  <build_depend>roslint</build_depend>
+  <build_depend>libbeam</build_depend>
+
+  <exec_depend>message_runtime</exec_depend>
+
+  <test_depend>rostest</test_depend>
+  <test_depend>basalt</test_depend>
+
+  <export>
+    <fuse_core plugin="${prefix}/fuse_plugins.xml" />
+  </export>
+</package>

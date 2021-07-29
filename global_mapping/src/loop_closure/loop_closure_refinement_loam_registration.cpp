@@ -26,7 +26,7 @@ LoopClosureRefinementLoam::GenerateTransaction(
   }
 
   std::string source = "LOOPCLOSURE";
-  beam_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
+  bs_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
       query_submap.Stamp());
   transaction.AddPoseConstraint(
       matched_submap.T_WORLD_SUBMAP(), query_submap.T_WORLD_SUBMAP(),

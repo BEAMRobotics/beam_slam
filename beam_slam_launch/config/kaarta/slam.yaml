@@ -20,7 +20,7 @@ imu_intrinsics_path: "~/catkin_ws/src/beam_slam/calibrations/kaarta/imu.json"
 ## model plugins: declare all plugins to use and give a unique name
 sensor_models:
   - name: 'scan_matcher_3d'
-    type: 'beam_models::frame_to_frame::ScanMatcher3D'
+    type: 'bs_models::frame_to_frame::ScanMatcher3D'
     motion_models: ['unicycle_3d']
   - name: 'global_mapper'
     type: 'global_mapping::GlobalMapper'
@@ -28,13 +28,13 @@ sensor_models:
 
 motion_models:
   - name: 'unicycle_3d'
-    type: 'beam_models::motion::Unicycle3D'
+    type: 'bs_models::motion::Unicycle3D'
 
 publishers:
   - name: 'odom_pub'
-    type: 'beam_publishers::Odometry3DPublisher'
+    type: 'bs_publishers::Odometry3DPublisher'
   - name: 'path_pub'
-    type: 'beam_publishers::Path3DPublisher'
+    type: 'bs_publishers::Path3DPublisher'
 
 ## plugin params: specify all params for the plugins, using their unique name
 

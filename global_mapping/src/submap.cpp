@@ -3,7 +3,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
 
-#include <beam_common/utils.h>
+#include <bs_common/utils.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/descriptors/Descriptor.h>
 
@@ -19,7 +19,7 @@ Submap::Submap(
       fuse_variables::Orientation3DStamped(stamp, fuse_core::uuid::NIL);
 
   // add transform
-  beam_common::EigenTransformToFusePose(T_WORLD_SUBMAP, position_,
+  bs_common::EigenTransformToFusePose(T_WORLD_SUBMAP, position_,
                                         orientation_);
 
   // store initial transforms
@@ -63,7 +63,7 @@ int Submap::Updates() const { return graph_updates_; }
 ros::Time Submap::Stamp() const { return stamp_; }
 
 void Submap::AddCameraMeasurement(
-    const std::vector<beam_slam_common::LandmarkMeasurementMsg>& landmarks,
+    const std::vector<bs_common::LandmarkMeasurementMsg>& landmarks,
     uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLDLM_BASELINK,
     const ros::Time& stamp, int sensor_id, int measurement_id) {
   Eigen::Matrix4d T_SUBMAP_BASELINK =
@@ -71,7 +71,7 @@ void Submap::AddCameraMeasurement(
 
   camera_keyframe_poses_.emplace(stamp.toNSec(), T_SUBMAP_BASELINK);
 
-  for (const beam_slam_common::LandmarkMeasurementMsg& landmark_msg :
+  for (const bs_common::LandmarkMeasurementMsg& landmark_msg :
        landmarks) {
     Eigen::Vector2d value(landmark_msg.pixel_u, landmark_msg.pixel_v);
     auto descriptor_type =
@@ -128,11 +128,11 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     iter->second.AddPointCloud(new_loam_cloud);
   } else {
     // Stamp does not exist: add new scanpose to map
-    beam_common::ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, "submap",
+    bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, "submap",
                                         extrinsics_.GetLidarFrameId());
     if (type == 0) {
       new_scan_pose.AddPointCloud(cloud, false);
-      lidar_keyframe_poses_.insert(std::pair<uint64_t, beam_common::ScanPose>(
+      lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
           stamp.toNSec(), new_scan_pose));
       return;
     }
@@ -150,7 +150,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
       return;
     }
     new_scan_pose.AddPointCloud(new_loam_cloud, false);
-    lidar_keyframe_poses_.insert(std::pair<uint64_t, beam_common::ScanPose>(
+    lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
         stamp.toNSec(), new_scan_pose));
   }
 }

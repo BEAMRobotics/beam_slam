@@ -37,9 +37,9 @@ find_package(
     tf2_2d
     tf2_geometry_msgs
     tf2_ros
-    beam_constraints
-    beam_models
-    beam_slam_common)
+    bs_constraints
+    bs_models
+    bs_common)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -69,9 +69,9 @@ catkin_package(
     tf2
     tf2_geometry_msgs
     tf2_ros
-    beam_constraints
-    beam_models
-    beam_slam_common
+    bs_constraints
+    bs_models
+    bs_common
   DEPENDS
     Boost
     CERES

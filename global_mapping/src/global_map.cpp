@@ -8,7 +8,7 @@
 #include <pcl/io/pcd_io.h>
 
 #include <global_mapping/loop_closure/loop_closure_methods.h>
-#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 #include <beam_utils/log.h>
 #include <beam_utils/time.h>
@@ -127,9 +127,9 @@ void GlobalMap::Setup() {
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
-    const beam_slam_common::CameraMeasurementMsg& cam_measurement,
-    const beam_slam_common::LidarMeasurementMsg& lid_measurement,
-    const beam_slam_common::TrajectoryMeasurementMsg& traj_measurement,
+    const bs_common::CameraMeasurementMsg& cam_measurement,
+    const bs_common::LidarMeasurementMsg& lid_measurement,
+    const bs_common::TrajectoryMeasurementMsg& traj_measurement,
     const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
     const std::string& baselink_frame_id) {
   // check baselink frame
@@ -246,7 +246,7 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   const Submap& current_submap = submaps_[submaps_.size() - 1];
   const Submap& previous_submap = submaps_[submaps_.size() - 2];
-  beam_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction(
+  bs_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction(
       current_submap.Stamp());
 
   new_transaction.AddPoseVariables(current_submap.Position(),

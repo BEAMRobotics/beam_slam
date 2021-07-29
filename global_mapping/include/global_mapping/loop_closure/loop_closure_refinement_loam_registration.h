@@ -9,7 +9,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/Matchers.h>
 #include <global_mapping/loop_closure/loop_closure_refinement_base.h>
-#include <beam_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 using namespace beam_matching;
 
