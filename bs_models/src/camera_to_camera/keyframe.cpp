@@ -21,8 +21,8 @@ const uint64_t& Keyframe::SequenceNumber() {
 }
 
 void Keyframe::AddPose(const ros::Time& timestamp,
-                       const Eigen::Matrix4d& T_WORLD_BASELINK) {
-  trajectory_[timestamp.toNSec()] = T_WORLD_BASELINK;
+                       const Eigen::Matrix4d& T_frame_keyframe) {
+  trajectory_[timestamp.toNSec()] = T_frame_keyframe;
 }
 
 const std::map<uint64_t, Eigen::Matrix4d>& Keyframe::Trajectory() {

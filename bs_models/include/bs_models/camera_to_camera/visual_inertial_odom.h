@@ -99,14 +99,8 @@ protected:
 
 private:
   /**
-   * @brief Converts ros image message to opencv image
-   * @param msg image message to convert to cv mat
-   */
-  cv::Mat ExtractImage(const sensor_msgs::Image& msg);
-
-  /**
    * @brief Copies all variables and constraints in the init graph and sends to
-   * fuse
+   * fuse optimizer
    * @param init_graph the graph obtained from the initializer
    */
   void SendInitializationGraph(const fuse_graphs::HashGraph& init_graph);
@@ -142,16 +136,6 @@ private:
                   const Eigen::Matrix4d& T_WORLD_CAMERA);
 
   /**
-   * @brief Computes the mean parallax between images at two times
-   * @param t1 time of first image
-   * @param t2 time of second image
-   * @param t2_landmarks id's of landmarks that have been seen in tw
-   * @return mean parallax
-   */
-  double ComputeAvgParallax(const ros::Time& t1, const ros::Time& t2,
-                            const std::vector<uint64_t>& t2_landmarks);
-
-  /**
    * @brief Extends the map at an image time and adds the visual constraints
    * @param img_time time of keyframe to extend map at
    * @param triangulated_ids id's of landmarks that have already been
@@ -163,8 +147,10 @@ private:
                  const std::vector<uint64_t>& untriangulated_ids);
 
   /**
-   * @brief Send the generated inertial constraint for the current image
-   * @param img_time time of current keyframe
+   * @brief creates inertial cosntraint for the current keyframe and merges with
+   * the input transaction
+   * @param transaction current transaction to merge inertial constraints with
+   * (typically built from extend map)
    */
   void AddInertialConstraint(fuse_core::Transaction::SharedPtr transaction);
 
@@ -184,6 +170,22 @@ private:
    * @brief Publishes landmark ids
    */
   void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
+
+  /**
+   * @brief Converts ros image message to opencv image
+   * @param msg image message to convert to cv mat
+   */
+  cv::Mat ExtractImage(const sensor_msgs::Image& msg);
+
+  /**
+   * @brief Computes the mean parallax between images at two times
+   * @param t1 time of first image
+   * @param t2 time of second image
+   * @param t2_landmarks id's of landmarks that have been seen in tw
+   * @return mean parallax
+   */
+  double ComputeAvgParallax(const ros::Time& t1, const ros::Time& t2,
+                            const std::vector<uint64_t>& t2_landmarks);
 
 protected:
   // loadable camera parameters

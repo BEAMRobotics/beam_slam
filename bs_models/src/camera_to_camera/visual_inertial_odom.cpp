@@ -219,16 +219,6 @@ void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 
 void VisualInertialOdom::onStop() {}
 
-cv::Mat VisualInertialOdom::ExtractImage(const sensor_msgs::Image& msg) {
-  cv_bridge::CvImagePtr cv_ptr;
-  try {
-    cv_ptr = cv_bridge::toCvCopy(msg, msg.encoding);
-  } catch (cv_bridge::Exception& e) {
-    ROS_ERROR("cv_bridge exception: %s", e.what());
-  }
-  return cv_ptr->image;
-}
-
 void VisualInertialOdom::SendInitializationGraph(
     const fuse_graphs::HashGraph& init_graph) {
   std::vector<uint64_t> new_landmarks;
@@ -404,6 +394,7 @@ void VisualInertialOdom::ExtendMap(
   ROS_INFO("Added %zu new landmarks.", added_lms);
   // add inertial constraint
   // AddInertialConstraint(img_time, transaction);
+  // send transaction to graph
   sendTransaction(transaction);
   // publish new landmarks
   PublishLandmarkIDs(new_landmarks);
@@ -423,24 +414,6 @@ void VisualInertialOdom::AddInertialConstraint(
           cur_kf_time, img_orientation, img_position);
   // merge with existing transaction
   transaction->merge(*inertial_transaction);
-}
-
-double VisualInertialOdom::ComputeAvgParallax(
-    const ros::Time& t1, const ros::Time& t2,
-    const std::vector<uint64_t>& t2_landmarks) {
-  // add parallaxes to vector
-  std::vector<double> parallaxes;
-  for (auto& id : t2_landmarks) {
-    try {
-      Eigen::Vector2d p1 = tracker_->Get(t1, id);
-      Eigen::Vector2d p2 = tracker_->Get(t2, id);
-      double dist = beam::distance(p1, p2);
-      parallaxes.push_back(dist);
-    } catch (const std::out_of_range& oor) {}
-  }
-  // sort and find median parallax
-  std::sort(parallaxes.begin(), parallaxes.end());
-  return parallaxes[parallaxes.size() / 2];
 }
 
 void VisualInertialOdom::NotifyNewKeyframe(
@@ -464,7 +437,6 @@ void VisualInertialOdom::PublishSlamChunk() {
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size) {
     SlamChunkMsg slam_chunk;
-
     // stamp
     ros::Time kf_to_publish = keyframes_.front().Stamp();
     slam_chunk.stamp = kf_to_publish;
@@ -517,6 +489,34 @@ void VisualInertialOdom::PublishLandmarkIDs(const std::vector<uint64_t>& ids) {
   std_msgs::UInt64MultiArray landmark_msg;
   for (auto& id : ids) { landmark_msg.data.push_back(id); }
   landmark_publisher_.publish(landmark_msg);
+}
+
+cv::Mat VisualInertialOdom::ExtractImage(const sensor_msgs::Image& msg) {
+  cv_bridge::CvImagePtr cv_ptr;
+  try {
+    cv_ptr = cv_bridge::toCvCopy(msg, msg.encoding);
+  } catch (cv_bridge::Exception& e) {
+    ROS_ERROR("cv_bridge exception: %s", e.what());
+  }
+  return cv_ptr->image;
+}
+
+double VisualInertialOdom::ComputeAvgParallax(
+    const ros::Time& t1, const ros::Time& t2,
+    const std::vector<uint64_t>& t2_landmarks) {
+  // add parallaxes to vector
+  std::vector<double> parallaxes;
+  for (auto& id : t2_landmarks) {
+    try {
+      Eigen::Vector2d p1 = tracker_->Get(t1, id);
+      Eigen::Vector2d p2 = tracker_->Get(t2, id);
+      double dist = beam::distance(p1, p2);
+      parallaxes.push_back(dist);
+    } catch (const std::out_of_range& oor) {}
+  }
+  // sort and find median parallax
+  std::sort(parallaxes.begin(), parallaxes.end());
+  return parallaxes[parallaxes.size() / 2];
 }
 
 }} // namespace bs_models::camera_to_camera
