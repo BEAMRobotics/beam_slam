@@ -64,7 +64,7 @@ int Submap::Updates() const { return graph_updates_; }
 ros::Time Submap::Stamp() const { return stamp_; }
 
 void Submap::AddCameraMeasurement(
-    const std::vector<bs_common::LandmarkMeasurementMsg>& landmarks,
+    const std::vector<LandmarkMeasurementMsg>& landmarks,
     uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLDLM_BASELINK,
     const ros::Time& stamp, int sensor_id, int measurement_id) {
   Eigen::Matrix4d T_SUBMAP_BASELINK =
@@ -72,7 +72,7 @@ void Submap::AddCameraMeasurement(
 
   camera_keyframe_poses_.emplace(stamp.toNSec(), T_SUBMAP_BASELINK);
 
-  for (const bs_common::LandmarkMeasurementMsg& landmark_msg : landmarks) {
+  for (const LandmarkMeasurementMsg& landmark_msg : landmarks) {
     Eigen::Vector2d value(landmark_msg.pixel_u, landmark_msg.pixel_v);
     auto descriptor_type =
         beam_cv::DescriptorTypeIntMap.find(descriptor_type_int);

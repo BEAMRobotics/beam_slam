@@ -1,6 +1,6 @@
 # optimization params
-optimization_period: 2
-lag_duration: 5
+optimization_period: 1
+lag_duration: 10
 
 # frames
 imu_frame: "imu"
@@ -38,8 +38,8 @@ solver_options:
   minimizer_progress_to_stdout: true
   num_threads: 6
   num_linear_solver_threads: 6
-  max_num_iterations: 10
-  max_solver_time_in_seconds: 1.0
+  max_num_iterations: 15
+  max_solver_time_in_seconds: 0.7
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
@@ -57,12 +57,12 @@ camera:
   source: "VIO"
   image_topic: "/monocular_camera/image"
   imu_topic: "/imu/data"
-  init_path_topic: "/fixed_lag_smoother/lo_initializer/lo_initialiser_result"
+  init_path_topic: "/lo_initialiser_result"
   frame_odometry_output_topic: "/vio_init"
   new_keyframes_topic: "/new_keyframes"
-  cam_measurement_topic: "/camera_measurements"
+  slam_chunk_topic: "/slam_chunks"
   descriptor: "ORB"
-  window_size: 1000 # number of images to store landmark information for before clearing for new images
+  window_size: 150 # number of images to store landmark information for before clearing for new images
   num_features_to_track: 100 # number of features to track from image to image
   keyframe_window_size: 20 # number of keyframes to store before wiping for new images
   keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe
@@ -78,7 +78,7 @@ lo_initializer:
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
   lidar_topic: '/velodyne_points'
   imu_topic: '/imu/data'
-  output_topic: 'lo_initialiser_result'
+  output_topic: '/lo_initialiser_result'
   nominal_gravity_direction: '-Z'
   undistort_scans: true
   aggregation_time: 0.1

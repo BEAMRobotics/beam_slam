@@ -11,7 +11,7 @@
 #include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_common/SlamChunkMsg.h>
+#include <bs_models/SlamChunkMsg.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::ScanMatcher3D,
@@ -143,7 +143,7 @@ void ScanMatcher3D::onStart() {
                                        &ThrottledCallback::callback,
                                        &throttled_callback_);
 
-  results_publisher_ = private_node_handle_.advertise<bs_common::SlamChunkMsg>(
+  results_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
       params_.output_topic, 100);
 };
 
@@ -261,7 +261,7 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 
 void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
   // output to global mapper
-  bs_common::SlamChunkMsg slam_chunk_msg;
+  SlamChunkMsg slam_chunk_msg;
   slam_chunk_msg.stamp = scan_pose.Stamp();
 
   std::vector<float> pose;
@@ -278,7 +278,7 @@ void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
   // publish regular points
   const PointCloud& cloud = scan_pose.Cloud();
   if (params_.output_lidar_points && cloud.size() > 0) {
-    bs_common::SlamChunkMsg points_msg = slam_chunk_msg;
+    SlamChunkMsg points_msg = slam_chunk_msg;
     points_msg.lidar_measurement.point_type = 0;
     for (int i = 0; i < cloud.size(); i++) {
       pcl::PointXYZ p = cloud.points.at(i);
@@ -293,7 +293,7 @@ void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
   const beam_matching::LoamPointCloud& loam_cloud = scan_pose.LoamCloud();
   if (params_.output_loam_points && loam_cloud.Size() > 0) {
     // get strong edge features
-    bs_common::SlamChunkMsg edges_msg = slam_chunk_msg;
+    SlamChunkMsg edges_msg = slam_chunk_msg;
     edges_msg.lidar_measurement.point_type = 1;
     const PointCloud& edges = loam_cloud.edges.strong.cloud;
     for (int i = 0; i < edges.size(); i++) {
@@ -305,7 +305,7 @@ void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
     results_publisher_.publish(edges_msg);
 
     // get strong surface features
-    bs_common::SlamChunkMsg surfaces_msg = slam_chunk_msg;
+    SlamChunkMsg surfaces_msg = slam_chunk_msg;
     surfaces_msg.lidar_measurement.point_type = 2;
     const PointCloud& surfaces = loam_cloud.surfaces.strong.cloud;
     for (int i = 0; i < surfaces.size(); i++) {

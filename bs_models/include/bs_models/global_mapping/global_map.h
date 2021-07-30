@@ -4,10 +4,10 @@
 
 #include <beam_utils/pointclouds.h>
 
-#include <bs_common/CameraMeasurementMsg.h>
-#include <bs_common/LidarMeasurementMsg.h>
-#include <bs_common/TrajectoryMeasurementMsg.h>
-#include <bs_common/LandmarkMeasurementMsg.h>
+#include <bs_models/CameraMeasurementMsg.h>
+#include <bs_models/LidarMeasurementMsg.h>
+#include <bs_models/TrajectoryMeasurementMsg.h>
+#include <bs_models/LandmarkMeasurementMsg.h>
 #include <bs_common/extrinsics_lookup.h>
 #include <bs_models/global_mapping/submap.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
@@ -117,9 +117,9 @@ class GlobalMap {
    * be in baselink_frame_ already
    */
   fuse_core::Transaction::SharedPtr AddMeasurement(
-      const bs_common::CameraMeasurementMsg& cam_measurement,
-      const bs_common::LidarMeasurementMsg& lid_measurement,
-      const bs_common::TrajectoryMeasurementMsg& traj_measurement,
+      const CameraMeasurementMsg& cam_measurement,
+      const LidarMeasurementMsg& lid_measurement,
+      const TrajectoryMeasurementMsg& traj_measurement,
       const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp);
 
   /**

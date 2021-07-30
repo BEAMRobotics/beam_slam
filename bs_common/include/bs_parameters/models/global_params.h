@@ -29,6 +29,7 @@ public:
     ros::param::get("~imu_frame", imu_frame);
     ros::param::get("~lidar_frame", lidar_frame);
     ros::param::get("~camera_frame", camera_frame);
+    ros::param::get("~baselink_frame", baselink_frame);
     ros::param::get("~static_extrinsics", static_extrinsics);
   }
 
@@ -39,6 +40,7 @@ public:
   std::string imu_frame{};
   std::string lidar_frame{};
   std::string camera_frame{};
+  std::string baselink_frame{};
   bool static_extrinsics{};
 };
 

@@ -1,10 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(bs_common)
 
-set(build_depends
-  roscpp
-  )
-
 find_package(tf REQUIRED)
 find_package(beam REQUIRED COMPONENTS utils filtering matching)
 
@@ -18,28 +14,7 @@ find_package(
     sensor_msgs
     geometry_msgs
     std_msgs
-    message_generation
   )
-
-
-add_message_files(
-  DIRECTORY
-    msg
-  FILES
-    LandmarkMeasurementMsg.msg
-    CameraMeasurementMsg.msg    
-    LidarMeasurementMsg.msg
-    TrajectoryMeasurementMsg.msg
-    SlamChunkMsg.msg
-    SubmapMsg.msg
-    RelocRequestMsg.msg
-)
-
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  sensor_msgs
-)
 
 catkin_package(
   INCLUDE_DIRS
@@ -54,7 +29,6 @@ catkin_package(
     sensor_msgs
     std_msgs
     geometry_msgs
-    message_runtime
 )
 
 ###########

@@ -4,7 +4,7 @@
 #include <fuse_core/uuid.h>
 #include <fuse_models/common/throttled_callback.h>
 
-#include <bs_common/SlamChunkMsg.h>
+#include <bs_models/SlamChunkMsg.h>
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_parameters/models/global_mapper_params.h>
 #include <bs_parameters/models/global_params.h>
@@ -47,7 +47,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
    * @param msg slam chunk message which may contain lidar data, camera data,
    * and/or pose data
    */
-  void process(const bs_common::SlamChunkMsg::ConstPtr& msg);
+  void process(const SlamChunkMsg::ConstPtr& msg);
 
  private:
   /**
@@ -71,7 +71,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   std::unique_ptr<GlobalMap> global_map_;
 
   using ThrottledCallback =
-      fuse_models::common::ThrottledCallback<bs_common::SlamChunkMsg>;
+      fuse_models::common::ThrottledCallback<SlamChunkMsg>;
   ThrottledCallback throttled_callback_;
 };
 

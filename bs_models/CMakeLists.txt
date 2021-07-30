@@ -53,12 +53,20 @@ add_message_files(
     msg
   FILES
     InitializedPathMsg.msg
+    LandmarkMeasurementMsg.msg
+    CameraMeasurementMsg.msg    
+    LidarMeasurementMsg.msg
+    TrajectoryMeasurementMsg.msg
+    SlamChunkMsg.msg
+    SubmapMsg.msg
+    RelocRequestMsg.msg
 )
 
 generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
+  sensor_msgs
 )
 
 catkin_package(
@@ -124,6 +132,7 @@ add_library(
   src/trajectory_initializers/lo_initializer.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
+  src/camera_to_camera/keyframe.cpp
   src/global_mapping/global_mapper.cpp
   src/global_mapping/global_map.cpp
   src/global_mapping/submap.cpp
