@@ -26,4 +26,9 @@
       An adapter-type sensor that produces relative pose constraints
     </description>
   </class>
+  <class type="bs_models::global_mapping::GlobalMapper" base_class_type="fuse_core::SensorModel">
+    <description>
+      A plugin for managing the global map, implemented as a sensor model but subscribes to SLAM messages as opposed to sensor messages.
+    </description>
+  </class>  
 </library>

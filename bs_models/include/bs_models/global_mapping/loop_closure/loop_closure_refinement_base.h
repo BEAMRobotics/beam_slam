@@ -6,7 +6,9 @@
 #include <fuse_core/transaction.h>
 
 #include <beam_utils/pointclouds.h>
-#include <global_mapping/submap.h>
+#include <bs_models/global_mapping/submap.h>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -50,3 +52,5 @@ class LoopClosureRefinementBase {
 };
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

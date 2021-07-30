@@ -13,8 +13,8 @@ baselink_frame: "camera"
 
 # calibrations
 static_extrinsics: true,
-camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/kaarta/camera.json"
-imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/kaarta/imu.json"
+camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
+imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
 
 
 ## model plugins: declare all plugins to use and give a unique name
@@ -23,7 +23,7 @@ sensor_models:
     type: 'bs_models::frame_to_frame::ScanMatcher3D'
     motion_models: ['unicycle_3d']
   - name: 'global_mapper'
-    type: 'global_mapping::GlobalMapper'
+    type: 'bs_models::global_mapping::GlobalMapper'
     motion_models: ['unicycle_3d']    
 
 motion_models:

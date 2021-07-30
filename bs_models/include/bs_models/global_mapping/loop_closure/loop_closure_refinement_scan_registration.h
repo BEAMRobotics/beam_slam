@@ -7,11 +7,13 @@
 
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/Matchers.h>
-#include <global_mapping/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
-#include <global_mapping/submap.h>
+#include <bs_models/global_mapping/submap.h>
 
 using namespace beam_matching;
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -146,3 +148,5 @@ using LoopClosureRefinementNdt =
     LoopClosureRefinementScanRegistration<NdtMatcher, NdtMatcher::Params>;
 
 }  // namespace global_mapping
+
+}  // namespace bs_models
