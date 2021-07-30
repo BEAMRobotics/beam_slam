@@ -5,7 +5,15 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS calibration cv utils matching filtering)
+find_package(
+  beam REQUIRED 
+  COMPONENTS 
+  calibration
+  cv
+  utils
+  matching
+  filtering)
+
 find_package(
   catkin REQUIRED
   COMPONENTS
@@ -45,12 +53,20 @@ add_message_files(
     msg
   FILES
     InitializedPathMsg.msg
+    LandmarkMeasurementMsg.msg
+    CameraMeasurementMsg.msg    
+    LidarMeasurementMsg.msg
+    TrajectoryMeasurementMsg.msg
+    SlamChunkMsg.msg
+    SubmapMsg.msg
+    RelocRequestMsg.msg
 )
 
 generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
+  sensor_msgs
 )
 
 catkin_package(
@@ -117,6 +133,11 @@ add_library(
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
   src/camera_to_camera/keyframe.cpp
+  src/global_mapping/global_mapper.cpp
+  src/global_mapping/global_map.cpp
+  src/global_mapping/submap.cpp
+  src/global_mapping/loop_closure/loop_closure_candidate_search_eucdist.cpp
+  src/global_mapping/loop_closure/loop_closure_refinement_loam_registration.cpp
 )
 
 ## Specify libraries to link a library or executable target against

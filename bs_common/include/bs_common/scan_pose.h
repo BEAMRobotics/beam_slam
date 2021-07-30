@@ -9,57 +9,66 @@
 
 namespace bs_common {
 
+/**
+ * @brief class to store scan information along with its pose. The pose is
+ * always stored as a transform from the baselink to some reference frame
+ * (usually world, or submap). The scan data is always stored in the lidar frame
+ * for two reasons: (1) saves us from needlessly transforming all points, (2)
+ * allows us to use these measurements for extrinsic calibration. The poses are
+ * stored in the baselink frame to make SLAM easier with fuse. All post
+ * variables in the graph will always be relative to the baselink
+ */
 class ScanPose {
  public:
-  ScanPose() = delete;
 
   /**
    * @brief constructor for when inputting a regular pointcloud (not loam cloud)
-   * @param time timestamp for this scan frame
-   * @param T_REFFRAME_CLOUD transformation from the cloud (scan frame) to the
-   * reference frame
-   * @param reference_frame_id frame that the pose is relative to (usually world or
-   * submap frame)
-   * @param cloud_frame_id frame that the pointcloud data is expressed in (usually
-   * lidar or baselink)
    * @param cloud input pointcloud of type pcl::PointCloud<pcl::PointXYZ>> (this
    * cannot be a loam cloud)
-   * @param feature_extractor if supplied, the constructor will extract loam
-   * features and store it in this class
+   * @param stamp timestamp for this scan frame
+   * @param T_REFFRAME_BASELINK transformation from the baselink frame to the
+   * reference frame
+   * @param T_BASELINK_LIDAR optional extrinsics between baselink and lidar. If
+   * not set, it will assume the baselink is the lidar frame so this transform
+   * will be set to identity.
+   * @param feature_extractor optional loam feature extractor. If supplied, the
+   * constructor will extract loam features and store it in this class
    */
-  ScanPose(const ros::Time& time, const Eigen::Matrix4d& T_REFFRAME_CLOUD,
-           const std::string& reference_frame_id, const std::string& cloud_frame_id,
-           const PointCloud& cloud,
-           const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
-               feature_extractor = nullptr);
+  ScanPose(
+      const PointCloud& cloud, const ros::Time& stamp,
+      const Eigen::Matrix4d& T_REFFRAME_BASELINK,
+      const Eigen::Matrix4d& T_BASELINK_LIDAR = Eigen::Matrix4d::Identity(),
+      const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
+          feature_extractor = nullptr);
 
   /**
    * @brief constructor that does not require an input cloud. YOU WILL NEED TO
    * MANUALLY ADD CLOUDS AFTER INSTANTIATION USING: AddPointCloud() and/or
    * AddLoamCloud
-   * @param time timestamp for this scan frame
-   * @param T_REFFRAME_CLOUD transformation from the cloud (scan frame) to the
-   * reference frame (usually WORLD or SUBMAP)
-   * @param reference_frame_id frame that the pose is relative to (usually world or
-   * submap frame)
-   * @param cloud_frame_id frame that the pointcloud data is expressed in (usually
-   * lidar or baselink)
+   * @param stamp timestamp for this scan frame
+   * @param T_REFFRAME_BASELINK transformation from the cloud (scan frame) to
+   * the reference frame (usually WORLD or SUBMAP)
+   * @param T_BASELINK_LIDAR optional extrinsics between baselink and lidar. If
+   * not set, it will assume the baselink is the lidar frame so this transform
+   * will be set to identity.
    */
-  ScanPose(const ros::Time& time, const Eigen::Matrix4d& T_REFFRAME_CLOUD,
-           const std::string& reference_frame_id, const std::string& cloud_frame_id);
+  ScanPose(
+      const ros::Time& stamp, const Eigen::Matrix4d& T_REFFRAME_BASELINK,
+      const Eigen::Matrix4d& T_BASELINK_LIDAR = Eigen::Matrix4d::Identity());
 
   /**
-   * @brief add regular pointcloud to this
+   * @brief add regular pointcloud
    * @param cloud input pointcloud of type pcl::PointCloud<pcl::PointXYZ>> (this
-   * cannot be a loam cloud)
+   * cannot be a loam cloud), where points are expressed in lidar frame
    * @param override_cloud whether or not to override the cloud, otherwise it
    * will add to the cloud.
    */
   void AddPointCloud(const PointCloud& cloud, bool override_cloud = false);
 
   /**
-   * @brief add regular pointcloud to this
-   * @param cloud input pointcloud of type LoamPointCloud
+   * @brief add loam pointcloud
+   * @param cloud input pointcloud of type LoamPointCloud, where points are
+   * expressed in lidar frame
    * @param override_cloud whether or not to override the cloud, otherwise it
    * will add to the cloud.
    */
@@ -72,14 +81,21 @@ class ScanPose {
    * pose variable uuids that are stored herein
    * @return true update was successful (i.e., uuids were in the graph message)
    */
-  bool Update(const fuse_core::Graph::ConstSharedPtr& graph_msg);
+  bool UpdatePose(const fuse_core::Graph::ConstSharedPtr& graph_msg);
 
   /**
    * @brief update the pose of this ScanPose given a transformation matrix
-   * @param T_REFFRAME_CLOUD transformation from the cloud (scan frame) to the
-   * reference frame (usually WORLD or SUBMAP)
+   * @param T_REFFRAME_BASELINK transformation from the lidar frame to
+   * the reference frame (usually WORLD or SUBMAP)
    */
-  void Update(const Eigen::Matrix4d& T_REFFRAME_CLOUD);
+  void UpdatePose(const Eigen::Matrix4d& T_REFFRAME_BASELINK);
+
+  /**
+   * @brief update the extrinsics of this ScanPose given a transformation matrix
+   * @param T_BASELINK_LIDAR transformation from the lidar frame to
+   * the baselink frame
+   */
+  void UpdateExtrinsics(const Eigen::Matrix4d& T_BASELINK_LIDAR);
 
   /**
    * @brief check if this scanpose is near some some other scan pose in the time
@@ -91,8 +107,7 @@ class ScanPose {
   bool Near(const ros::Time& time, const double tolerance) const;
 
   /**
-   * @brief get the number of times this scanpose has has its pose updated by
-   * some graph optimizer
+   * @brief get the number of times this scanpose has has its pose updated
    * @return number of pose updates
    */
   int Updates() const;
@@ -106,39 +121,69 @@ class ScanPose {
   bool operator<(const ScanPose& rhs) const;
 
   /**
-   * @brief return the current estimate of the position
+   * @brief return the current estimate of the position (t_REFFREAME_BASELINK)
    * @return position fuse variable
    */
   fuse_variables::Position3DStamped Position() const;
 
   /**
    * @brief return the current estimate of the orientation
+   * (R_REFFREAME_BASELINK)
    * @return orientation fuse variable
    */
   fuse_variables::Orientation3DStamped Orientation() const;
 
   /**
    * @brief return the current pose of this scanpose.
-   * @return T_REFFRAME_CLOUD transformation from the cloud (scan frame) to the
-   * reference frame  (usually WORLD or SUBMAP)
+   * @return T_REFFRAME_BASELINK transformation from the baselink frame to
+   * the reference frame  (usually WORLD or SUBMAP)
    */
-  Eigen::Matrix4d T_REFFRAME_CLOUD() const;
+  Eigen::Matrix4d T_REFFRAME_BASELINK() const;
+
+  /**
+   * @brief return the current pose of the lidar relative to the reference frame
+   * @return T_REFFRAME_LIDAR transformation from the lidar frame to
+   * the reference frame  (usually WORLD or SUBMAP)
+   */
+  Eigen::Matrix4d T_REFFRAME_LIDAR() const;
 
   /**
    * @brief return the initial estimate of the pose of this scanpose.
-   * @return T_REFFRAME_CLOUD_INIT transformation from the cloud (scan frame) to
+   * @return T_REFFRAME_BASELINK_INIT transformation from the baselink frame
+   * to the reference frame  (usually WORLD or SUBMAP)
+   */
+  const Eigen::Matrix4d T_REFFRAME_BASELINK_INIT() const;
+
+  /**
+   * @brief return the original estimate of the pose of the lidar relative to
+   * the reference frame
+   * @return T_REFFRAME_LIDAR_init transformation from the lidar frame to
    * the reference frame  (usually WORLD or SUBMAP)
    */
-  const Eigen::Matrix4d T_REFFRAME_CLOUD_INIT() const;
+  Eigen::Matrix4d T_REFFRAME_LIDAR_INIT() const;
+
+  /**
+   * @brief get the extrinsics of this ScanPose
+   * @return T_BASELINK_LIDAR transformation from the lidar frame to
+   * the baselink frame
+   */
+  Eigen::Matrix4d T_BASELINK_LIDAR() const;
+
+  /**
+   * @brief get the extrinsics of this ScanPose
+   * @return T_LIDAR_BASELINK transformation from the baselink to the lidar
+   * frame
+   */
+  Eigen::Matrix4d T_LIDAR_BASELINK() const;
 
   /**
    * @brief return regular cloud (not loam)
-   * @return cloud
+   * @return cloud, where points are expressed in the lidar frame
    */
   PointCloud Cloud() const;
   /**
    * @brief return loam pointcloud
-   * @return cloud
+   * @return cloud, where points are expressed in the lidar frame
    */
   beam_matching::LoamPointCloud LoamCloud() const;
 
@@ -155,16 +200,9 @@ class ScanPose {
   std::string Type() const;
 
   /**
-   * @brief return reference frame id
-   * @return name of the reference frame, or the frame the the pose is relative to
+   * @brief sets the cloud type to LOAMPOINTCLOUD
    */
-  std::string ReferenceFrameId() const;
-
-    /**
-   * @brief return the cloud frame id
-   * @return name of the cloud frame, or the frame that all points are expressed in
-   */
-  std::string CloudFrameId() const;  
+  void SetCloudTypeToLoam();
 
   /**
    * @brief print relevant information about what is currently contained in this
@@ -193,15 +231,17 @@ class ScanPose {
                      bool add_frame = true) const;
 
  protected:
+  // pose data
   ros::Time stamp_;
   int updates_{0};
   fuse_variables::Position3DStamped position_;
   fuse_variables::Orientation3DStamped orientation_;
+  const Eigen::Matrix4d T_REFFRAME_BASELINK_initial_;
+  Eigen::Matrix4d T_BASELINK_LIDAR_;
+
+  // cloud data: all in lidar frame
   PointCloud pointcloud_;
   beam_matching::LoamPointCloud loampointcloud_;
-  const Eigen::Matrix4d T_REFFRAME_CLOUD_initial_;
-  std::string reference_frame_id_;
-  std::string cloud_frame_id_;
 
   /** This is mainly used to determine if the loam pointcloud is polutated or
    * not. If so, we can run loam scan registration. Options: PCLPOINTCLOUD,

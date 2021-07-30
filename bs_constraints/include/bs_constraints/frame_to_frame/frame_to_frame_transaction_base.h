@@ -30,8 +30,10 @@ namespace bs_constraints { namespace frame_to_frame {
  * relative_pose_3d_stamped_transaction.h) with the option to define more
  * functions specific to their template types.
  *
- * Note: FTF constraint is one that constrains anything related to the state of
+ * NOTE: FTF constraint is one that constrains anything related to the state of
  * a frame. I.e., pose, velocity, acceleration (no keypoints or lidar points)
+ * 
+ * NOTE: all frames desribed in these transactions must be the baselink frames
  *
  * @tparam ConstraintType template type for the FTF constraint being used. Note:
  * we have not implemented a FTF constraint base class to enforce this, we trust

@@ -30,7 +30,7 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   // if map is empty, then add to the map then return
   Eigen::Matrix4d T_MAP_SCAN;
   if (IsMapEmpty()) {
-    T_MAP_SCAN = new_scan.T_REFFRAME_CLOUD();
+    T_MAP_SCAN = new_scan.T_REFFRAME_LIDAR();
     AddScanToMap(new_scan, T_MAP_SCAN);
     if (fix_first_scan_) {
       // build covariance
@@ -42,9 +42,11 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
       transaction.AddPosePrior(new_scan.Position(), new_scan.Orientation(),
                                prior_covariance, "FIRSTSCANPRIOR");
     }
-    T_MAP_SCANPREV_ = T_MAP_SCAN;
-    scan_prev_position_ = new_scan.Position();
-    scan_prev_orientation_ = new_scan.Orientation();
+
+    scan_pose_prev_ = std::make_unique<bs_common::ScanPose>(
+        new_scan.Stamp(), new_scan.T_REFFRAME_BASELINK(),
+        new_scan.T_BASELINK_LIDAR());
+
     return transaction;
   }
 
@@ -52,24 +54,36 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     return transaction;
   }
 
-  // add measurement to transaction
+  /**
+   * We need to convert the relative poses measurements from lidar (or cloud)
+   * frames to baselink frames:
+   *
+   * T_BASELINKPREV_BASELINKNEW = inv(T_MAP_BASELINKPREV) * T_MAP_BASELINKNEW
+   */
+  Eigen::Matrix4d T_BASELINKPREV_MAP =
+      beam::InvertTransform(scan_pose_prev_->T_REFFRAME_BASELINK());
+  Eigen::Matrix4d T_MAP_BASELINKNEW = T_MAP_SCAN * new_scan.T_LIDAR_BASELINK();
+  Eigen::Matrix4d T_BASELINKPREV_BASELINKNEW =
+      T_BASELINKPREV_MAP * T_MAP_BASELINKNEW;
   fuse_variables::Position3DStamped position_relative;
   fuse_variables::Orientation3DStamped orientation_relative;
-  Eigen::Matrix4d T_SCANPREV_SCANNEW =
-      beam::InvertTransform(T_MAP_SCANPREV_) * T_MAP_SCAN;
-  bs_common::EigenTransformToFusePose(T_SCANPREV_SCANNEW, position_relative,
-                                        orientation_relative);
-  transaction.AddPoseConstraint(scan_prev_position_, new_scan.Position(),
-                                scan_prev_orientation_, new_scan.Orientation(),
-                                position_relative, orientation_relative,
-                                covariance_, source_);
+  bs_common::EigenTransformToFusePose(T_BASELINKPREV_BASELINKNEW,
+                                      position_relative, orientation_relative);
+
+  // add measurement to transaction
+  transaction.AddPoseConstraint(
+      scan_pose_prev_->Position(), new_scan.Position(),
+      scan_pose_prev_->Orientation(), new_scan.Orientation(), position_relative,
+      orientation_relative, covariance_, source_);
 
   // add new registered scan and then trim the map
   AddScanToMap(new_scan, T_MAP_SCAN);
 
-  T_MAP_SCANPREV_ = T_MAP_SCAN;
-  scan_prev_position_ = new_scan.Position();
-  scan_prev_orientation_ = new_scan.Orientation();
+  // copy over just pose information
+  scan_pose_prev_ = std::make_unique<bs_common::ScanPose>(
+      new_scan.Stamp(), T_MAP_SCAN * new_scan.T_LIDAR_BASELINK(),
+      new_scan.T_BASELINK_LIDAR());
+
   return transaction;
 }
 
@@ -85,12 +99,6 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
   std::string read_file = config;
   if (config.empty()) {
     return;
-  } else if (!boost::filesystem::exists(config)) {
-    BEAM_WARN(
-        "Invalid scan registration config path, file does not exist, using "
-        "default. Input: {}",
-        config);
-    return;
   } else if (config == "DEFAULT_PATH") {
     std::string default_path = __FILE__;
     size_t start_iter = default_path.find("bs_models");
@@ -105,7 +113,15 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
           default_path);
       return;
     }
+    BEAM_INFO("Reading scan to map loam registration default config file: {}",
+              default_path);
     read_file = default_path;
+  } else if (!boost::filesystem::exists(config)) {
+    BEAM_WARN(
+        "Invalid scan registration config path, file does not exist, using "
+        "default. Input: {}",
+        config);
+    return;
   }
 
   // load default params
@@ -133,10 +149,11 @@ bool ScanToMapLoamRegistration::IsMapEmpty() {
 }
 
 bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
-                                                  Eigen::Matrix4d& T_MAP_SCAN) { 
-  const Eigen::Matrix4d& T_MAPEST_SCAN = scan_pose.T_REFFRAME_CLOUD();
+                                                  Eigen::Matrix4d& T_MAP_SCAN) {
+  const Eigen::Matrix4d& T_MAPEST_SCAN = scan_pose.T_REFFRAME_LIDAR();
+  const Eigen::Matrix4d& T_MAP_SCANPREV = scan_pose_prev_->T_REFFRAME_LIDAR();
   Eigen::Matrix4d T_SCANPREV_SCANNEW =
-      beam::InvertTransform(T_MAP_SCANPREV_) * T_MAPEST_SCAN;
+      beam::InvertTransform(T_MAP_SCANPREV) * T_MAPEST_SCAN;
   if (!PassedMinMotion(T_SCANPREV_SCANNEW)) {
     return false;
   }
@@ -148,8 +165,8 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   // get combined loamcloud map
   LoamPointCloudPtr current_map =
       std::make_shared<LoamPointCloud>(map_.GetLoamCloudMap());
-  
-  matcher_->SetRef(current_map);  
+
+  matcher_->SetRef(current_map);
   matcher_->SetTarget(scan_in_map_frame);
 
   if (!matcher_->Match()) {
@@ -170,10 +187,9 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
 void ScanToMapLoamRegistration::AddScanToMap(
     const ScanPose& scan_pose, const Eigen::Matrix4d& T_MAP_SCAN) {
   map_.AddPointCloud(scan_pose.LoamCloud(), scan_pose.Stamp(), T_MAP_SCAN);
-  if(params_.store_full_cloud){
+  if (params_.store_full_cloud) {
     map_.AddPointCloud(scan_pose.Cloud(), scan_pose.Stamp(), T_MAP_SCAN);
   }
-  
 }
 
 bool ScanToMapLoamRegistration::PassedRegThreshold(

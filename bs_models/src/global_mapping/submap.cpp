@@ -1,4 +1,4 @@
-#include <global_mapping/submap.h>
+#include <bs_models/global_mapping/submap.h>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
@@ -6,6 +6,8 @@
 #include <bs_common/utils.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/descriptors/Descriptor.h>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -19,8 +21,7 @@ Submap::Submap(
       fuse_variables::Orientation3DStamped(stamp, fuse_core::uuid::NIL);
 
   // add transform
-  bs_common::EigenTransformToFusePose(T_WORLD_SUBMAP, position_,
-                                        orientation_);
+  bs_common::EigenTransformToFusePose(T_WORLD_SUBMAP, position_, orientation_);
 
   // store initial transforms
   T_WORLD_SUBMAP_ = T_WORLD_SUBMAP;
@@ -63,7 +64,7 @@ int Submap::Updates() const { return graph_updates_; }
 ros::Time Submap::Stamp() const { return stamp_; }
 
 void Submap::AddCameraMeasurement(
-    const std::vector<bs_common::LandmarkMeasurementMsg>& landmarks,
+    const std::vector<LandmarkMeasurementMsg>& landmarks,
     uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLDLM_BASELINK,
     const ros::Time& stamp, int sensor_id, int measurement_id) {
   Eigen::Matrix4d T_SUBMAP_BASELINK =
@@ -71,8 +72,7 @@ void Submap::AddCameraMeasurement(
 
   camera_keyframe_poses_.emplace(stamp.toNSec(), T_SUBMAP_BASELINK);
 
-  for (const bs_common::LandmarkMeasurementMsg& landmark_msg :
-       landmarks) {
+  for (const LandmarkMeasurementMsg& landmark_msg : landmarks) {
     Eigen::Vector2d value(landmark_msg.pixel_u, landmark_msg.pixel_v);
     auto descriptor_type =
         beam_cv::DescriptorTypeIntMap.find(descriptor_type_int);
@@ -100,6 +100,13 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
                                  const ros::Time& stamp, int type) {
   Eigen::Matrix4d T_SUBMAP_BASELINK =
       T_SUBMAP_WORLD_initial_ * T_WORLDLM_BASELINK;
+  Eigen::Matrix4d T_BASELINK_LIDAR;
+  if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, stamp)) {
+    BEAM_ERROR(
+        "Cannot get extrinsics, not adding lidar measurement to submap.");
+    return;
+  }
+  Eigen::Matrix4d T_SUBMAP_LIDAR = T_SUBMAP_BASELINK * T_BASELINK_LIDAR;
 
   // Check if stamp already exists (we may be adding partial scans)
   auto iter = lidar_keyframe_poses_.find(stamp.toNSec());
@@ -128,8 +135,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     iter->second.AddPointCloud(new_loam_cloud);
   } else {
     // Stamp does not exist: add new scanpose to map
-    bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, "submap",
-                                        extrinsics_.GetLidarFrameId());
+    bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_LIDAR, T_BASELINK_LIDAR);
     if (type == 0) {
       new_scan_pose.AddPointCloud(cloud, false);
       lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
@@ -245,7 +251,7 @@ PointCloud Submap::GetLidarPointsInWorldFrame(
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
     const PointCloud& cloud_scanframe = it->second.Cloud();
-    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_CLOUD();
+    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
     Eigen::Matrix4d T_WORLD_SCAN;
     if (use_initial_world_frame) {
       T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
@@ -266,7 +272,7 @@ beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
        it != lidar_keyframe_poses_.end(); it++) {
     const beam_matching::LoamPointCloud& cloud_scanframe =
         it->second.LoamCloud();
-    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_CLOUD();
+    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
     Eigen::Matrix4d T_WORLD_SCAN;
     if (use_initial_world_frame) {
       T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
@@ -294,7 +300,19 @@ std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
     if (poses_stamped_map.find(it->first) == poses_stamped_map.end()) {
-      poses_stamped_map.emplace(it->first, it->second.T_REFFRAME_CLOUD());
+      // transform to baselink pose
+      const Eigen::Matrix4d& T_SUBMAP_LIDAR = it->second.T_REFFRAME_LIDAR();
+      ros::Time stamp;
+      stamp.fromNSec(it->first);
+      Eigen::Matrix4d T_LIDAR_BASELINK;
+      if (!extrinsics_.GetT_LIDAR_BASELINK(T_LIDAR_BASELINK, stamp)) {
+        BEAM_ERROR(
+            "Cannot get extrinsics, not adding lidar pose to trajectory.");
+        continue;
+      }
+
+      // add to map
+      poses_stamped_map.emplace(it->first, T_SUBMAP_LIDAR * T_LIDAR_BASELINK);
     }
   }
 
@@ -302,17 +320,8 @@ std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {
   for (auto it = subframe_poses_.begin(); it != subframe_poses_.end(); it++) {
     // get keyframe pose
     Eigen::Matrix4d T_SUBMAP_KEYFRAME;
-    if (camera_keyframe_poses_.find(it->first) !=
-        camera_keyframe_poses_.end()) {
-      T_SUBMAP_KEYFRAME = camera_keyframe_poses_.find(it->first)->second;
-    } else if (lidar_keyframe_poses_.find(it->first) !=
-               lidar_keyframe_poses_.end()) {
-      T_SUBMAP_KEYFRAME =
-          lidar_keyframe_poses_.find(it->first)->second.T_REFFRAME_CLOUD();
-    } else {
-      BEAM_ERROR(
-          "Trajectory measurement stamp does not match with any lidar or "
-          "camera keyframe. Skipping measurement.");
+    if (!FindT_SUBMAP_KEYFRAME(it->first, T_SUBMAP_KEYFRAME)) {
+      BEAM_ERROR("Not adding trajectory measurement to final trajetory.");
       continue;
     }
 
@@ -424,4 +433,32 @@ void Submap::TriangulateKeypoints(bool override_points) {
   }
 }
 
+bool Submap::FindT_SUBMAP_KEYFRAME(uint64_t time,
+                                   Eigen::Matrix4d& T_SUBMAP_KEYFRAME) const {
+  // first, look for timestamp in camera keyframe poses (these take priority)
+  auto iter_cam = camera_keyframe_poses_.find(time);
+  if (iter_cam != camera_keyframe_poses_.end()) {
+    T_SUBMAP_KEYFRAME = iter_cam->second;
+    return true;
+  }
+
+  auto iter_lid = lidar_keyframe_poses_.find(time);
+  if (iter_lid != lidar_keyframe_poses_.end()) {
+    const Eigen::Matrix4d& T_SUBMAP_LIDAR = iter_lid->second.T_REFFRAME_LIDAR();
+    Eigen::Matrix4d T_LIDAR_BASELINK =
+        beam::InvertTransform(iter_lid->second.T_BASELINK_LIDAR());
+    T_SUBMAP_KEYFRAME = T_SUBMAP_LIDAR * T_LIDAR_BASELINK;
+    return true;
+  }
+
+  else {
+    BEAM_ERROR(
+        "Trajectory measurement stamp does not match with any lidar or "
+        "camera keyframe.");
+    return false;
+  }
+}
+
 }  // namespace global_mapping
+
+}  // namespace bs_models

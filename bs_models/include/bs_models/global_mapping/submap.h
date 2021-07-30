@@ -13,9 +13,11 @@
 #include <beam_containers/LandmarkMeasurement.h>
 #include <beam_calibration/CameraModel.h>
 #include <beam_matching/loam/LoamPointCloud.h>
-#include <bs_common/LandmarkMeasurementMsg.h>
+#include <bs_models/LandmarkMeasurementMsg.h>
 #include <bs_common/scan_pose.h>
 #include <bs_common/extrinsics_lookup.h>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -26,11 +28,21 @@ using namespace bs_common;
  * @brief class for holding and performing operation on locally consistent SLAM
  * data chunks.
  *
- * All data should be expressed in one "baselink" sensor frame
- * (usually set to imu frame), and with respect to the submap frame (not
- * world frame). This is made to be used in conjuction with GlobalMap which
- * allows for the relative pose of the submaps to be changed without affecting
- * the local consistency of the data in the submaps.
+ * Frame Convention:
+ * -----------------
+ *
+ * All poses should be expressed in one "baselink" sensor frame
+ * (usually set to imu frame) based on what is set in the extrinsics object.
+ *
+ * Each pose is also with respect to the submap frame (not world frame).
+ *
+ * Submaps are made to be used in conjuction with GlobalMap which allows for the
+ * relative pose of the submaps to be changed without affecting the local
+ * consistency of the data in the submaps.
+ *
+ * Lidar poses, however, are stored as transforms from lidar to submap since it
+ * is more convenient to store the lidar data in the lidar sensor's frame. This
+ * is needed for extrinsic calibration.
  *
  * To keep the local mapper running fast, we do not update the poses/points in
  * the local mapper when the global mapper closes loops. Instead, we keep track
@@ -123,15 +135,15 @@ class Submap {
    * @param measurement_id id of this specific measurement (image)
    */
   void AddCameraMeasurement(
-      const std::vector<bs_common::LandmarkMeasurementMsg>& landmarks,
+      const std::vector<LandmarkMeasurementMsg>& landmarks,
       uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLD_BASELINK,
       const ros::Time& stamp, int sensor_id, int measurement_id);
 
   /**
    * @brief add a set of lidar measurements associated with one scan
-   * @param cloud pointcloud in the baselink frame
-   * @param T_WORLDLM_BASELINK pose of the baselink at this lidar scan. Note
-   * this is relative to the original world estimate that is tracked by the
+   * @param cloud pointcloud in the lidar frame
+   * @param T_WORLDLM_BASELINK pose of the baselink at this lidar scan time.
+   * Note this is relative to the original world estimate that is tracked by the
    * local mapper, not the optimized location from the PGO.
    * @param stamp stamp associated with the lidar scan
    * @param type type of lidar points. See description in LidarMeasurement.msg
@@ -265,6 +277,17 @@ class Submap {
    */
   void TriangulateKeypoints(bool override_points = false);
 
+  /**
+   * @brief find the stored transform from submap to keyframe at time t. This
+   * first looks in the camera keyframe poses, and if not found, it will look in
+   * the lidar keyframes
+   * @param time query time in nsecs
+   * @param T_SUBMAP_KEYFRAME reference to result
+   * @return true if successful, false otherwise
+   */
+  bool FindT_SUBMAP_KEYFRAME(uint64_t time,
+                             Eigen::Matrix4d& T_SUBMAP_KEYFRAME) const;
+
   // general submap data
   ros::Time stamp_;
   int graph_updates_{0};
@@ -293,3 +316,5 @@ class Submap {
 };
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

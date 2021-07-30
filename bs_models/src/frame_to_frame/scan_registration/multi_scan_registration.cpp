@@ -90,7 +90,7 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     reference_clouds_.push_front(new_scan);
     if (!params_.disable_lidar_map) {
       map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(),
-                         new_scan.T_REFFRAME_CLOUD());
+                         new_scan.T_REFFRAME_LIDAR());
     }
     if (params_.fix_first_scan) {
       // build covariance
@@ -136,7 +136,7 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     // keep track of all results so that we can average the transform for the
     // lidar map
     if (!params_.disable_lidar_map) {
-      const Eigen::Matrix4d& T_WORLD_CLOUDREF = (*ref_iter).T_REFFRAME_CLOUD();
+      const Eigen::Matrix4d& T_WORLD_CLOUDREF = (*ref_iter).T_REFFRAME_LIDAR();
       Eigen::Matrix4d T_WORLD_CLOUDCURRENT =
           T_WORLD_CLOUDREF * T_CLOUDREF_CLOUDCURRENT;
       Eigen::Vector3d r =
@@ -149,11 +149,22 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
       estimated_scan_poses_sum[5] += r[2];
     }
 
-    // add measurement to transaction
+    /**
+     * We need to convert the relative poses measurements from lidar (or cloud)
+     * frames to baselink frames:
+     *
+     * T_BASELINKREF_BASELINKNEW =
+     *    T_BASELINKREF_LIDARREF * T_LIDARREF_LIDARNEW * T_LIDARNEW_BASELINKNEW
+     */
+    Eigen::Matrix4d T_BASELINKREF_BASELINKNEW = ref_iter->T_BASELINK_LIDAR() *
+                                               T_CLOUDREF_CLOUDCURRENT *
+                                               new_scan.T_LIDAR_BASELINK();
     fuse_variables::Position3DStamped position_relative;
     fuse_variables::Orientation3DStamped orientation_relative;
     bs_common::EigenTransformToFusePose(
-        T_CLOUDREF_CLOUDCURRENT, position_relative, orientation_relative);
+        T_BASELINKREF_BASELINKNEW, position_relative, orientation_relative);
+
+    // add measurement to transaction
     transaction.AddPoseConstraint(
         ref_iter->Position(), new_scan.Position(), ref_iter->Orientation(),
         new_scan.Orientation(), position_relative, orientation_relative,
@@ -212,7 +223,7 @@ void MultiScanRegistrationBase::UpdateScanPoses(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
   for (auto iter = reference_clouds_.begin(); iter != reference_clouds_.end();
        iter++) {
-    iter->Update(graph_msg);
+    iter->UpdatePose(graph_msg);
   }
 }
 
@@ -278,8 +289,7 @@ ScanPose MultiScanRegistrationBase::GetScan(const ros::Time& t, bool& success) {
     }
   }
   success = false;
-  return ScanPose(ros::Time(0), Eigen::Matrix4d::Identity(), "", "",
-                  PointCloud());
+  return ScanPose(PointCloud(), ros::Time(0), Eigen::Matrix4d::Identity());
 }
 
 void MultiScanRegistrationBase::PrintScanDetails(std::ostream& stream) {
@@ -296,8 +306,8 @@ bool MultiScanRegistration::MatchScans(
     const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
     Eigen::Matrix4d& T_CLOUD1_CLOUD2, Eigen::Matrix<double, 6, 6>& covariance) {
   Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
-      beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
-      scan_pose_2.T_REFFRAME_CLOUD();
+      beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
+      scan_pose_2.T_REFFRAME_LIDAR();
 
   if (!PassedMinMotion(T_CLOUD1_CLOUD2_init)) {
     return false;
@@ -323,8 +333,8 @@ bool MultiScanRegistration::MatchScans(
 
   if (!PassedRegThreshold(
           T_CLOUD1_CLOUD2,
-          beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
-              scan_pose_2.T_REFFRAME_CLOUD())) {
+          beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
+              scan_pose_2.T_REFFRAME_LIDAR())) {
     ROS_ERROR(
         "Failed scan matcher transform threshold check. Skipping "
         "measurement.");
@@ -349,8 +359,8 @@ void MultiScanRegistration::OutputResults(
   }
 
   const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
-      scan_pose_2.T_REFFRAME_CLOUD();
-  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_REFFRAME_CLOUD();
+      scan_pose_2.T_REFFRAME_LIDAR();
+  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_REFFRAME_LIDAR();
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
       T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
 
@@ -399,8 +409,8 @@ bool MultiScanLoamRegistration::MatchScans(
     const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
     Eigen::Matrix4d& T_CLOUD1_CLOUD2, Eigen::Matrix<double, 6, 6>& covariance) {
   Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
-      beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
-      scan_pose_2.T_REFFRAME_CLOUD();
+      beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
+      scan_pose_2.T_REFFRAME_LIDAR();
 
   if (!PassedMinMotion(T_CLOUD1_CLOUD2_init)) {
     return false;
@@ -428,8 +438,8 @@ bool MultiScanLoamRegistration::MatchScans(
 
   if (!PassedRegThreshold(
           T_CLOUD1_CLOUD2,
-          beam::InvertTransform(scan_pose_1.T_REFFRAME_CLOUD()) *
-              scan_pose_2.T_REFFRAME_CLOUD())) {
+          beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
+              scan_pose_2.T_REFFRAME_LIDAR())) {
     ROS_ERROR(
         "Failed scan matcher transform threshold check. Skipping "
         "measurement.");
@@ -461,8 +471,8 @@ void MultiScanLoamRegistration::OutputResults(
       std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
 
   const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
-      scan_pose_2.T_REFFRAME_CLOUD();
-  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_REFFRAME_CLOUD();
+      scan_pose_2.T_REFFRAME_LIDAR();
+  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_REFFRAME_LIDAR();
   Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
       T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
 

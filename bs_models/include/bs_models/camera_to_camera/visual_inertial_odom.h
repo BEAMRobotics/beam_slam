@@ -4,10 +4,10 @@
 #include <queue>
 
 // messages
-#include <bs_common/CameraMeasurementMsg.h>
-#include <bs_common/LandmarkMeasurementMsg.h>
-#include <bs_common/SlamChunkMsg.h>
-#include <bs_common/TrajectoryMeasurementMsg.h>
+#include <bs_models/CameraMeasurementMsg.h>
+#include <bs_models/LandmarkMeasurementMsg.h>
+#include <bs_models/SlamChunkMsg.h>
+#include <bs_models/TrajectoryMeasurementMsg.h>
 #include <bs_models/InitializedPathMsg.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>

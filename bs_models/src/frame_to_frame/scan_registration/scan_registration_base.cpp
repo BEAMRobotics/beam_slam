@@ -21,7 +21,7 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
     return;
   }
 
-  BEAM_INFO("Loading scan registration config file: {}", config);
+  BEAM_INFO("Loading base scan registration from config file: {}", config);
 
   nlohmann::json J;
   std::ifstream file(config);

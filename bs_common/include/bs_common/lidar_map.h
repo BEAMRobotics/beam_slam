@@ -61,7 +61,8 @@ class LidarMap {
    * larger than the max size
    * @param T_MAP_SCAN ransform from scan frame to map frame. This
    * will be applied to the scan before adding (to reduce computation, assuming
-   * we will be frequently asking for the full map).
+   * we will be frequently asking for the full map). The map frame is usually
+   * the world frame.
    */
   void AddPointCloud(const PointCloud& cloud, const ros::Time& stamp,
                      const Eigen::Matrix4d& T_MAP_SCAN);
@@ -143,7 +144,7 @@ class LidarMap {
    */
   bool GetScanInMapFrame(const ros::Time& stamp, PointCloud& cloud) const;
 
-    /**
+  /**
    * @brief get a scan collected at some timestamp, with points expressed in the
    * map frame
    * @param stamp when scan was collected

@@ -24,7 +24,6 @@ using namespace bs_common;
  */
 class ScanToMapRegistrationBase : public ScanRegistrationBase {
  public:
-
   /**
    * @brief Constructor that requires initial params
    * @param fix_first_scan set to true to give an almost perfect prior to the
@@ -45,7 +44,7 @@ class ScanToMapRegistrationBase : public ScanRegistrationBase {
    * prior constraint on this pose
    */
   bs_constraints::frame_to_frame::Pose3DStampedTransaction RegisterNewScan(
-      const ScanPose& new_scan) override; 
+      const ScanPose& new_scan) override;
 
  protected:
   /**
@@ -72,13 +71,15 @@ class ScanToMapRegistrationBase : public ScanRegistrationBase {
   bool fix_first_scan_{true};
   const std::string source_{"SCANTOMAPREGISTRATION"};
 
-  /** These are used for calculating relative pose between scans instead of a
+  /** This is used for calculating relative pose between scans instead of a
    * global pose for each scan. To create these transactions, we need the actual
    * variables that are in the graph, and the measure transform from map to scan
-   * frame. */
-  fuse_variables::Position3DStamped scan_prev_position_;
-  fuse_variables::Orientation3DStamped scan_prev_orientation_;
-  Eigen::Matrix4d T_MAP_SCANPREV_;
+   * frame. 
+   * 
+   * NOTE: This scan pose only contains poses, no scan. 
+   * 
+   */
+  std::unique_ptr<bs_common::ScanPose> scan_pose_prev_;
 };
 
 /**

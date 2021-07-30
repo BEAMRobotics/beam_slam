@@ -11,7 +11,7 @@
 #include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_common/SlamChunkMsg.h>
+#include <bs_models/SlamChunkMsg.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::ScanMatcher3D,
@@ -143,9 +143,8 @@ void ScanMatcher3D::onStart() {
                                        &ThrottledCallback::callback,
                                        &throttled_callback_);
 
-  results_publisher_ =
-      private_node_handle_.advertise<bs_common::SlamChunkMsg>(
-          params_.output_topic, 100);
+  results_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
+      params_.output_topic, 100);
 };
 
 void ScanMatcher3D::onStop() {
@@ -176,18 +175,28 @@ ScanMatcher3D::GenerateTransaction(
     downsampler.Filter(*cloud_current, *cloud_current);
   }
 
-  Eigen::Matrix4d T_WORLD_CLOUDCURRENT;
-  if (!frame_initializer_->GetEstimatedPose(T_WORLD_CLOUDCURRENT,
+  Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
+  if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,
                                             msg->header.stamp,
-                                            extrinsics_.GetLidarFrameId())) {
+                                            extrinsics_.GetBaselinkFrameId())) {
     ROS_DEBUG("Skipping scan");
     return bs_constraints::frame_to_frame::Pose3DStampedTransaction(
         msg->header.stamp);
   }
 
-  bs_common::ScanPose current_scan_pose(
-      msg->header.stamp, T_WORLD_CLOUDCURRENT, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetLidarFrameId(), *cloud_current, feature_extractor_);
+  Eigen::Matrix4d T_BASELINK_LIDAR;
+  if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, msg->header.stamp)) {
+    ROS_ERROR(
+        "Cannot get transform from lidar to baselink for stamp: %.8f. Skipping "
+        "scan.",
+        msg->header.stamp.toSec());
+    return bs_constraints::frame_to_frame::Pose3DStampedTransaction(
+        msg->header.stamp);
+  }
+
+  bs_common::ScanPose current_scan_pose(*cloud_current, msg->header.stamp,
+                                        T_WORLD_BASELINKCURRENT,
+                                        T_BASELINK_LIDAR, feature_extractor_);
 
   // if outputting scans, add to the active list
   if (!params_.scan_output_directory.empty() || output_graph_updates_) {
@@ -206,7 +215,7 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
   auto i = active_clouds_.begin();
   while (i != active_clouds_.end()) {
-    bool update_successful = i->Update(graph_msg);
+    bool update_successful = i->UpdatePose(graph_msg);
     if (update_successful) {
       ++i;
       continue;
@@ -252,20 +261,61 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 
 void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
   // output to global mapper
-  bs_common::SlamChunkMsg slam_chunk_msg;
+  SlamChunkMsg slam_chunk_msg;
   slam_chunk_msg.stamp = scan_pose.Stamp();
 
   std::vector<float> pose;
-  const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_CLOUD();
+  const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
   for (uint8_t i = 0; i < 3; i++) {
     for (uint8_t j = 0; j < 4; j++) {
       pose.push_back(static_cast<float>(T(i, j)));
     }
   }
   slam_chunk_msg.T_WORLD_BASELINK = pose;
-  slam_chunk_msg.baselink_frame_id = extrinsics_.GetBaselinkFrameId();
 
-  // TODO: add scan data in baselink frame (?)
+  slam_chunk_msg.lidar_measurement.frame_id = extrinsics_.GetLidarFrameId();
+
+  // publish regular points
+  const PointCloud& cloud = scan_pose.Cloud();
+  if (params_.output_lidar_points && cloud.size() > 0) {
+    SlamChunkMsg points_msg = slam_chunk_msg;
+    points_msg.lidar_measurement.point_type = 0;
+    for (int i = 0; i < cloud.size(); i++) {
+      pcl::PointXYZ p = cloud.points.at(i);
+      points_msg.lidar_measurement.points.push_back(p.x);
+      points_msg.lidar_measurement.points.push_back(p.y);
+      points_msg.lidar_measurement.points.push_back(p.z);
+    }
+    results_publisher_.publish(points_msg);
+  }
+
+  // publish loam pointcloud
+  const beam_matching::LoamPointCloud& loam_cloud = scan_pose.LoamCloud();
+  if (params_.output_loam_points && loam_cloud.Size() > 0) {
+    // get strong edge features
+    SlamChunkMsg edges_msg = slam_chunk_msg;
+    edges_msg.lidar_measurement.point_type = 1;
+    const PointCloud& edges = loam_cloud.edges.strong.cloud;
+    for (int i = 0; i < edges.size(); i++) {
+      pcl::PointXYZ p = edges.points.at(i);
+      edges_msg.lidar_measurement.points.push_back(p.x);
+      edges_msg.lidar_measurement.points.push_back(p.y);
+      edges_msg.lidar_measurement.points.push_back(p.z);
+    }
+    results_publisher_.publish(edges_msg);
+
+    // get strong surface features
+    SlamChunkMsg surfaces_msg = slam_chunk_msg;
+    surfaces_msg.lidar_measurement.point_type = 2;
+    const PointCloud& surfaces = loam_cloud.surfaces.strong.cloud;
+    for (int i = 0; i < surfaces.size(); i++) {
+      pcl::PointXYZ p = surfaces.points.at(i);
+      surfaces_msg.lidar_measurement.points.push_back(p.x);
+      surfaces_msg.lidar_measurement.points.push_back(p.y);
+      surfaces_msg.lidar_measurement.points.push_back(p.z);
+    }
+    results_publisher_.publish(surfaces_msg);
+  }
 
   // save to disk
   if (!params_.scan_output_directory.empty()) {

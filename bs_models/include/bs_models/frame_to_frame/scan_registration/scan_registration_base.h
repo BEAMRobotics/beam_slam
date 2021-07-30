@@ -9,8 +9,8 @@ namespace frame_to_frame {
 
 template <typename ConstraintType, typename PriorType>
 using TransactionBase =
-    bs_constraints::frame_to_frame::FrameToFrameTransactionBase<
-        ConstraintType, PriorType>;
+    bs_constraints::frame_to_frame::FrameToFrameTransactionBase<ConstraintType,
+                                                                PriorType>;
 
 /**
  * @brief base class for scan registration parameters. These params will be used
@@ -58,6 +58,14 @@ class ScanRegistrationBase {
 
   void SetFixedCovariance(double covariance);
 
+  /**
+   * @brief pure virtual function that each derived class must implement. The
+   * function must generate a frame to frame transaction of type
+   * Pose3DStampedTransaction, where the poses MUST BE IN BASELINK FRAME.
+   * Generally, the scan registration is done in the lidar frames (to avoid
+   * uneccesary data conversions) and then the relative poses are transformed to
+   * relative baselink poses given the extrinsics
+   */
   virtual bs_constraints::frame_to_frame::Pose3DStampedTransaction
   RegisterNewScan(const bs_common::ScanPose& new_scan) = 0;
 

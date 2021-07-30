@@ -1,4 +1,4 @@
-#include <global_mapping/global_map.h>
+#include <bs_models/global_mapping/global_map.h>
 
 #include <chrono>
 #include <ctime>
@@ -7,13 +7,15 @@
 #include <nlohmann/json.hpp>
 #include <pcl/io/pcd_io.h>
 
-#include <global_mapping/loop_closure/loop_closure_methods.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 #include <beam_utils/log.h>
 #include <beam_utils/time.h>
 #include <beam_utils/pointclouds.h>
 #include <beam_mapping/Poses.h>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -89,13 +91,15 @@ void GlobalMap::Setup() {
   world_frame_ = "world";
 
   // initiate loop closure candidate search
-  if (params_.loop_closure_candidate_search_type == "EUCDISTICP") {
+  if (params_.loop_closure_candidate_search_type == "EUCDIST") {
     loop_closure_candidate_search_ =
         std::make_unique<LoopClosureCandidateSearchEucDist>(
             params_.loop_closure_candidate_search_config);
   } else {
     BEAM_ERROR(
-        "Invalid loop closure candidate search type. Using default: EUCDIST");
+        "Invalid loop closure candidate search type. Using default: EUCDIST. "
+        "Input: {}",
+        params_.loop_closure_candidate_search_type);
     loop_closure_candidate_search_ =
         std::make_unique<LoopClosureCandidateSearchEucDist>(
             params_.loop_closure_candidate_search_config);
@@ -127,19 +131,10 @@ void GlobalMap::Setup() {
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
-    const bs_common::CameraMeasurementMsg& cam_measurement,
-    const bs_common::LidarMeasurementMsg& lid_measurement,
-    const bs_common::TrajectoryMeasurementMsg& traj_measurement,
-    const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
-    const std::string& baselink_frame_id) {
-  // check baselink frame
-  if (baselink_frame_id != extrinsics_.GetBaselinkFrameId()) {
-    BEAM_WARN(
-        "Baselink frame supplied to global map is inconsistend with "
-        "extrinsics. Supplied: {}, Extrinsics: {}",
-        baselink_frame_id, extrinsics_.GetBaselinkFrameId());
-  }
-
+    const CameraMeasurementMsg& cam_measurement,
+    const LidarMeasurementMsg& lid_measurement,
+    const TrajectoryMeasurementMsg& traj_measurement,
+    const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp) {
   fuse_core::Transaction::SharedPtr new_transaction = nullptr;
 
   int submap_id = GetSubmapId(T_WORLD_BASELINK);
@@ -544,3 +539,5 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
 }
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

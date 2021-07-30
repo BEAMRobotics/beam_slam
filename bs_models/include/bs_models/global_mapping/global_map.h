@@ -4,14 +4,16 @@
 
 #include <beam_utils/pointclouds.h>
 
-#include <bs_common/CameraMeasurementMsg.h>
-#include <bs_common/LidarMeasurementMsg.h>
-#include <bs_common/TrajectoryMeasurementMsg.h>
-#include <bs_common/LandmarkMeasurementMsg.h>
+#include <bs_models/CameraMeasurementMsg.h>
+#include <bs_models/LidarMeasurementMsg.h>
+#include <bs_models/TrajectoryMeasurementMsg.h>
+#include <bs_models/LandmarkMeasurementMsg.h>
 #include <bs_common/extrinsics_lookup.h>
-#include <global_mapping/submap.h>
-#include <global_mapping/loop_closure/loop_closure_candidate_search_base.h>
-#include <global_mapping/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/global_mapping/submap.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -110,18 +112,15 @@ class GlobalMap {
    * here is the local map's world frame. This function will convert the poses
    * to relative transforms instead of absolute.
    * @param stamp stamp associated with the baselink pose
-   * @param baselink_frame_id frame id name of the baselink. This should be
-   * consistent with the extrinsics stored in the submap
    *
    * NOTE: All data should
    * be in baselink_frame_ already
    */
   fuse_core::Transaction::SharedPtr AddMeasurement(
-      const bs_common::CameraMeasurementMsg& cam_measurement,
-      const bs_common::LidarMeasurementMsg& lid_measurement,
-      const bs_common::TrajectoryMeasurementMsg& traj_measurement,
-      const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp,
-      const std::string& baselink_frame_id);
+      const CameraMeasurementMsg& cam_measurement,
+      const LidarMeasurementMsg& lid_measurement,
+      const TrajectoryMeasurementMsg& traj_measurement,
+      const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp);
 
   /**
    * @brief takes the latest submap (back of vector) and adds a pose constraint
@@ -240,9 +239,12 @@ class GlobalMap {
 
   Params params_;
   std::vector<Submap> submaps_;
+
   bs_common::ExtrinsicsLookup& extrinsics_ =
       bs_common::ExtrinsicsLookup::GetInstance();
+
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
+
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
@@ -255,3 +257,5 @@ class GlobalMap {
 };
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

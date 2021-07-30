@@ -100,7 +100,7 @@ void VisualInertialOdom::onStart() {
   new_keyframe_publisher_ = private_node_handle_.advertise<std_msgs::Header>(
       camera_params_.new_keyframes_topic, 10);
   slam_chunk_publisher_ =
-      private_node_handle_.advertise<bs_common::SlamChunkMsg>(
+      private_node_handle_.advertise<SlamChunkMsg>(
           camera_params_.slam_chunk_topic, 10);
 }
 
@@ -446,9 +446,8 @@ void VisualInertialOdom::PublishSlamChunk() {
   for (auto& kf : keyframes_) { visual_map_->GetPose(kf.Stamp()); }
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size) {
-    bs_common::SlamChunkMsg slam_chunk;
-    // baselink frame id
-    slam_chunk.baselink_frame_id = global_params_.baselink_frame;
+    SlamChunkMsg slam_chunk;
+    
     // stamp
     ros::Time kf_to_publish = keyframes_.front().Stamp();
     slam_chunk.stamp = kf_to_publish;
@@ -459,7 +458,7 @@ void VisualInertialOdom::PublishSlamChunk() {
                            T_WORLD_BASELINK.data() + T_WORLD_BASELINK.size());
     slam_chunk.T_WORLD_BASELINK = vec;
     // trajectory
-    bs_common::TrajectoryMeasurementMsg trajectory;
+    TrajectoryMeasurementMsg trajectory;
     for (auto& it : keyframes_.front().Trajectory()) {
       std::vector<float> pose(it.second.data(),
                               it.second.data() + it.second.size());
@@ -470,17 +469,17 @@ void VisualInertialOdom::PublishSlamChunk() {
     }
     slam_chunk.trajectory_measurement = trajectory;
     // camera measurements
-    bs_common::CameraMeasurementMsg camera_measurement;
+    CameraMeasurementMsg camera_measurement;
     camera_measurement.descriptor_type = 0;
     camera_measurement.sensor_id = 0;
     camera_measurement.measurement_id = keyframes_.front().SequenceNumber();
     camera_measurement.image = keyframes_.front().Image();
     // landmark measurements
-    std::vector<bs_common::LandmarkMeasurementMsg> landmarks;
+    std::vector<LandmarkMeasurementMsg> landmarks;
     std::vector<uint64_t> landmark_ids =
         tracker_->GetLandmarkIDsInImage(kf_to_publish);
     for (auto& id : landmark_ids) {
-      bs_common::LandmarkMeasurementMsg lm;
+      LandmarkMeasurementMsg lm;
       lm.landmark_id = id;
       // lm.descriptor = ;
       Eigen::Vector2d pixel = tracker_->Get(kf_to_publish, id);

@@ -92,7 +92,7 @@ void LoInitializer::processLidar(
   if (keyframes_.empty()) {
     T_WORLD_IMULAST = Eigen::Matrix4d::Identity();
   } else {
-    T_WORLD_IMULAST = keyframes_.back().T_REFFRAME_CLOUD();
+    T_WORLD_IMULAST = keyframes_.back().T_REFFRAME_BASELINK();
   }
 
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
@@ -136,15 +136,15 @@ void LoInitializer::ProcessCurrentKeyframe() {
 
   // create scan pose
   bs_common::ScanPose current_scan_pose(
-      keyframe_start_time_, T_WORLD_KEYFRAME_, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetBaselinkFrameId(), keyframe_cloud_, feature_extractor_);
+      keyframe_cloud_, keyframe_start_time_, T_WORLD_KEYFRAME_,
+      Eigen::Matrix4d::Identity(), feature_extractor_);
 
   scan_registration_->RegisterNewScan(current_scan_pose);
   Eigen::Matrix4d T_WORLD_SCAN;
   bool scan_in_map = scan_registration_->GetMap().GetScanPose(
       current_scan_pose.Stamp(), T_WORLD_SCAN);
   if (scan_in_map) {
-    current_scan_pose.Update(T_WORLD_SCAN);
+    current_scan_pose.UpdatePose(T_WORLD_SCAN);
     keyframes_.push_back(current_scan_pose);
   } else {
     return;
@@ -202,16 +202,16 @@ bool LoInitializer::AddPointcloudToKeyframe(const PointCloud& cloud,
 
 void LoInitializer::SetTrajectoryStart() {
   auto iter = keyframes_.begin();
-  const Eigen::Matrix4d& T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_CLOUD();
+  const Eigen::Matrix4d& T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_KEYFRAME0_WORLDOLD =
       beam::InvertTransform(T_WORLDOLD_KEYFRAME0);
-  iter->Update(Eigen::Matrix4d::Identity());
+  iter->UpdatePose(Eigen::Matrix4d::Identity());
   iter++;
   while (iter != keyframes_.end()) {
-    const Eigen::Matrix4d& T_WORLDOLD_KEYFRAMEX = iter->T_REFFRAME_CLOUD();
+    const Eigen::Matrix4d& T_WORLDOLD_KEYFRAMEX = iter->T_REFFRAME_BASELINK();
     Eigen::Matrix4d T_KEYFRAME0_KEYFRAMEX =
         T_KEYFRAME0_WORLDOLD * T_WORLDOLD_KEYFRAMEX;
-    iter->Update(T_KEYFRAME0_KEYFRAMEX);
+    iter->UpdatePose(T_KEYFRAME0_KEYFRAMEX);
     iter++;
   }
 }
@@ -243,8 +243,8 @@ void LoInitializer::OutputResults() {
   // iterate through all keyframes, update based on graph and save initial and
   // final values
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
-    const Eigen::Matrix4d& T_WORLD_SCAN_FIN = iter->T_REFFRAME_CLOUD();
-    const Eigen::Matrix4d& T_WORLD_SCAN_INIT = iter->T_REFFRAME_CLOUD_INIT();
+    const Eigen::Matrix4d& T_WORLD_SCAN_FIN = iter->T_REFFRAME_LIDAR();
+    const Eigen::Matrix4d& T_WORLD_SCAN_INIT = iter->T_REFFRAME_LIDAR_INIT();
     PointCloud cloud_world_final;
     PointCloud cloud_world_init;
     pcl::transformPointCloud(iter->Cloud(), cloud_world_final,
@@ -278,7 +278,7 @@ void LoInitializer::PublishResults() {
     header.seq = counter;
     header.stamp = iter->Stamp();
 
-    const Eigen::Matrix4d& T = iter->T_REFFRAME_CLOUD();
+    const Eigen::Matrix4d& T = iter->T_REFFRAME_BASELINK();
 
     geometry_msgs::Point position;
     position.x = T(0, 3);
