@@ -1,4 +1,4 @@
-#include <global_mapping/submap.h>
+#include <bs_models/global_mapping/submap.h>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
@@ -6,6 +6,8 @@
 #include <bs_common/utils.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/descriptors/Descriptor.h>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -458,3 +460,5 @@ bool Submap::FindT_SUBMAP_KEYFRAME(uint64_t time,
 }
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

@@ -9,9 +9,11 @@
 #include <bs_common/TrajectoryMeasurementMsg.h>
 #include <bs_common/LandmarkMeasurementMsg.h>
 #include <bs_common/extrinsics_lookup.h>
-#include <global_mapping/submap.h>
-#include <global_mapping/loop_closure/loop_closure_candidate_search_base.h>
-#include <global_mapping/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/global_mapping/submap.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -240,9 +242,9 @@ class GlobalMap {
 
   bs_common::ExtrinsicsLookup& extrinsics_ =
       bs_common::ExtrinsicsLookup::GetInstance();
-  
+
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
-  
+
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
@@ -255,3 +257,5 @@ class GlobalMap {
 };
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

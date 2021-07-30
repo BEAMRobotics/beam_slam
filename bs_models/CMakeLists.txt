@@ -5,7 +5,15 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(beam REQUIRED COMPONENTS calibration cv utils matching filtering)
+find_package(
+  beam REQUIRED 
+  COMPONENTS 
+  calibration
+  cv
+  utils
+  matching
+  filtering)
+
 find_package(
   catkin REQUIRED
   COMPONENTS
@@ -116,6 +124,11 @@ add_library(
   src/trajectory_initializers/lo_initializer.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
+  src/global_mapping/global_mapper.cpp
+  src/global_mapping/global_map.cpp
+  src/global_mapping/submap.cpp
+  src/global_mapping/loop_closure/loop_closure_candidate_search_eucdist.cpp
+  src/global_mapping/loop_closure/loop_closure_refinement_loam_registration.cpp
 )
 
 ## Specify libraries to link a library or executable target against

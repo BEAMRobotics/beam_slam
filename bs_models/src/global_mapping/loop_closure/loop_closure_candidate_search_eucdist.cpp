@@ -1,10 +1,12 @@
-#include <global_mapping/loop_closure/loop_closure_candidate_search_eucdist.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_eucdist.h>
 
 #include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
 
 #include <beam_utils/log.h>
 #include <beam_utils/math.h>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -55,3 +57,5 @@ void LoopClosureCandidateSearchEucDist::FindLoopClosureCandidates(
 }
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

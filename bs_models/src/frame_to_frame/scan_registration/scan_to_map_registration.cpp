@@ -99,12 +99,6 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
   std::string read_file = config;
   if (config.empty()) {
     return;
-  } else if (!boost::filesystem::exists(config)) {
-    BEAM_WARN(
-        "Invalid scan registration config path, file does not exist, using "
-        "default. Input: {}",
-        config);
-    return;
   } else if (config == "DEFAULT_PATH") {
     std::string default_path = __FILE__;
     size_t start_iter = default_path.find("bs_models");
@@ -119,7 +113,15 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
           default_path);
       return;
     }
+    BEAM_INFO("Reading scan to map loam registration default config file: {}",
+              default_path);
     read_file = default_path;
+  } else if (!boost::filesystem::exists(config)) {
+    BEAM_WARN(
+        "Invalid scan registration config path, file does not exist, using "
+        "default. Input: {}",
+        config);
+    return;
   }
 
   // load default params

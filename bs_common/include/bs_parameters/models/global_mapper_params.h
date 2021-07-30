@@ -24,13 +24,10 @@ struct GlobalMapperParams : public ParameterBase {
     getParam<bool>(nh, "save_local_mapper_trajectory",
                    save_local_mapper_trajectory, true);
     getParam<bool>(nh, "save_local_mapper_maps", save_local_mapper_maps, false);
-
-    ros::param::get("~intrinsics_path", intrinsics_path);
   }
 
   std::string global_mapper_config;
   std::string output_path;
-  std::string intrinsics_path;
   bool save_submaps;
   bool save_final_map;
   bool save_trajectory_cloud;

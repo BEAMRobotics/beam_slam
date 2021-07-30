@@ -1,6 +1,8 @@
-#include <global_mapping/loop_closure/loop_closure_refinement_loam_registration.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_loam_registration.h>
 
 #include <nlohmann/json.hpp>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -73,3 +75,5 @@ bool LoopClosureRefinementLoam::GetRefinedT_MATCH_QUERY(
 }
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

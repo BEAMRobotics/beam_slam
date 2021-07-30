@@ -273,7 +273,49 @@ void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
   }
   slam_chunk_msg.T_WORLD_BASELINK = pose;
 
-  // TODO: add scan data in baselink frame (?)
+  slam_chunk_msg.lidar_measurement.frame_id = extrinsics_.GetLidarFrameId();
+
+  // publish regular points
+  const PointCloud& cloud = scan_pose.Cloud();
+  if (params_.output_lidar_points && cloud.size() > 0) {
+    bs_common::SlamChunkMsg points_msg = slam_chunk_msg;
+    points_msg.lidar_measurement.point_type = 0;
+    for (int i = 0; i < cloud.size(); i++) {
+      pcl::PointXYZ p = cloud.points.at(i);
+      points_msg.lidar_measurement.points.push_back(p.x);
+      points_msg.lidar_measurement.points.push_back(p.y);
+      points_msg.lidar_measurement.points.push_back(p.z);
+    }
+    results_publisher_.publish(points_msg);
+  }
+
+  // publish loam pointcloud
+  const beam_matching::LoamPointCloud& loam_cloud = scan_pose.LoamCloud();
+  if (params_.output_loam_points && loam_cloud.Size() > 0) {
+    // get strong edge features
+    bs_common::SlamChunkMsg edges_msg = slam_chunk_msg;
+    edges_msg.lidar_measurement.point_type = 1;
+    const PointCloud& edges = loam_cloud.edges.strong.cloud;
+    for (int i = 0; i < edges.size(); i++) {
+      pcl::PointXYZ p = edges.points.at(i);
+      edges_msg.lidar_measurement.points.push_back(p.x);
+      edges_msg.lidar_measurement.points.push_back(p.y);
+      edges_msg.lidar_measurement.points.push_back(p.z);
+    }
+    results_publisher_.publish(edges_msg);
+
+    // get strong surface features
+    bs_common::SlamChunkMsg surfaces_msg = slam_chunk_msg;
+    surfaces_msg.lidar_measurement.point_type = 2;
+    const PointCloud& surfaces = loam_cloud.surfaces.strong.cloud;
+    for (int i = 0; i < surfaces.size(); i++) {
+      pcl::PointXYZ p = surfaces.points.at(i);
+      surfaces_msg.lidar_measurement.points.push_back(p.x);
+      surfaces_msg.lidar_measurement.points.push_back(p.y);
+      surfaces_msg.lidar_measurement.points.push_back(p.z);
+    }
+    results_publisher_.publish(surfaces_msg);
+  }
 
   // save to disk
   if (!params_.scan_output_directory.empty()) {

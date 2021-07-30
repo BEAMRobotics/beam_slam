@@ -39,7 +39,6 @@
   <depend>bs_common</depend>
   <depend>bs_constraints</depend>
 	<depend>bs_variables</depend>
-  <depend>SlamChunkMsg</depend>
 
   <build_depend>message_generation</build_depend>
   <build_depend>roslint</build_depend>
