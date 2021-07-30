@@ -5,7 +5,9 @@
 #include <ros/time.h>
 
 #include <beam_utils/pointclouds.h>
-#include <global_mapping/loop_closure/loop_closure_candidate_search_base.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -56,3 +58,5 @@ class LoopClosureCandidateSearchEucDist
 };
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

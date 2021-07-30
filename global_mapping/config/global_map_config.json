@@ -1,9 +1,0 @@
-{
-    "submap_size_m": 10,
-    "loop_closure_candidate_search_type": "EUCDIST",
-    "loop_closure_refinement_type": "ICP",
-    "loop_closure_candidate_search_config": "",
-    "loop_closure_refinement_config": "",
-    "local_mapper_covariance_diag": [1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3],
-    "loop_closure_covariance_diag": [1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6]
-  }

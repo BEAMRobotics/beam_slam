@@ -17,6 +17,8 @@
 #include <bs_common/scan_pose.h>
 #include <bs_common/extrinsics_lookup.h>
 
+namespace bs_models {
+
 namespace global_mapping {
 
 using pose_allocator = Eigen::aligned_allocator<Eigen::Matrix4d>;
@@ -283,7 +285,8 @@ class Submap {
    * @param T_SUBMAP_KEYFRAME reference to result
    * @return true if successful, false otherwise
    */
-  bool FindT_SUBMAP_KEYFRAME(uint64_t time, Eigen::Matrix4d& T_SUBMAP_KEYFRAME) const;
+  bool FindT_SUBMAP_KEYFRAME(uint64_t time,
+                             Eigen::Matrix4d& T_SUBMAP_KEYFRAME) const;
 
   // general submap data
   ros::Time stamp_;
@@ -313,3 +316,5 @@ class Submap {
 };
 
 }  // namespace global_mapping
+
+}  // namespace bs_models

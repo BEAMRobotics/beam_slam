@@ -1,4 +1,4 @@
-#include <global_mapping/global_mapper.h>
+#include <bs_models/global_mapping/global_mapper.h>
 
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
@@ -6,7 +6,9 @@
 #include <beam_utils/math.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(global_mapping::GlobalMapper, fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::global_mapping::GlobalMapper, fuse_core::SensorModel)
+
+namespace bs_models {
 
 namespace global_mapping {
 
@@ -32,9 +34,9 @@ void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
 
 void GlobalMapper::onInit() {
   params_.loadFromROS(private_node_handle_);
-
+  global_params_.loadFromROS(private_node_handle_);
   std::shared_ptr<beam_calibration::CameraModel> camera_model =
-      beam_calibration::CameraModel::Create(params_.intrinsics_path);
+      beam_calibration::CameraModel::Create(global_params_.cam_intrinsics_path);
   if (!params_.global_mapper_config.empty()) {
     global_map_ =
         std::make_unique<GlobalMap>(camera_model, params_.global_mapper_config);
@@ -69,3 +71,5 @@ void GlobalMapper::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 }
 
 }  // namespace global_mapping
+
+}  // namespace bs_models
