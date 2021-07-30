@@ -5,10 +5,10 @@
 
 // messages
 #include <bs_models/CameraMeasurementMsg.h>
+#include <bs_models/InitializedPathMsg.h>
 #include <bs_models/LandmarkMeasurementMsg.h>
 #include <bs_models/SlamChunkMsg.h>
 #include <bs_models/TrajectoryMeasurementMsg.h>
-#include <bs_models/InitializedPathMsg.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 
@@ -180,6 +180,11 @@ private:
    */
   void PublishSlamChunk();
 
+  /**
+   * @brief Publishes landmark ids
+   */
+  void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
+
 protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;
@@ -194,6 +199,7 @@ protected:
   ros::Publisher init_odom_publisher_;
   ros::Publisher new_keyframe_publisher_;
   ros::Publisher slam_chunk_publisher_;
+  ros::Publisher landmark_publisher_;
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
 

@@ -31,8 +31,10 @@ public:
 
     getParam<std::string>(nh, "frame_odometry_output_topic",
                           frame_odometry_output_topic, "/vio_init");
-    getParam<std::string>(nh, "new_keyframes_topic", new_keyframes_topic,
-                          "/new_keyframes");
+    getParam<std::string>(nh, "landmark_topic", landmark_topic,
+                          "/landmarks");
+    getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
+                          "/slam_chunks");
     getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
                           "/slam_chunks");
     getParam<std::string>(nh, "descriptor", descriptor, "ORB");
@@ -55,6 +57,7 @@ public:
   std::string source{};
   std::string frame_odometry_output_topic{};
   std::string new_keyframes_topic{};
+  std::string landmark_topic{};
   std::string slam_chunk_topic{};
   std::string descriptor{};
   std::string init_map_output_directory{};
