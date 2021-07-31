@@ -14,15 +14,32 @@ public:
    */
   Keyframe(const ros::Time& timestamp, const sensor_msgs::Image& image);
 
+  /**
+   * @brief Read only access to the timestamp
+   */
   const ros::Time& Stamp();
 
+  /**
+   * @brief Read only access to image message
+   */
   const sensor_msgs::Image& Image();
 
+  /**
+   * @brief Read only access to sequence number
+   */
   const uint64_t& SequenceNumber();
 
+  /**
+   * @brief Adds a relative pose to this keyframes trajectory
+   * @param timestamp of pose to add
+   * @param T_frame_keyframe relative pose from current keyframe to this frame
+   */
   void AddPose(const ros::Time& timestamp,
-               const Eigen::Matrix4d& T_WORLD_BASELINK);
+               const Eigen::Matrix4d& T_frame_keyframe);
 
+  /**
+   * @brief Read only access to this keyframes trajectory
+   */
   const std::map<uint64_t, Eigen::Matrix4d>& Trajectory();
 
 protected:

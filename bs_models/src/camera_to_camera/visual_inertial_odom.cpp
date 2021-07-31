@@ -5,6 +5,7 @@
 
 #include <cv_bridge/cv_bridge.h>
 #include <nlohmann/json.hpp>
+#include <std_msgs/UInt64MultiArray.h>
 
 #include <beam_cv/descriptors/Descriptors.h>
 #include <beam_cv/detectors/Detectors.h>
@@ -99,9 +100,11 @@ void VisualInertialOdom::onStart() {
           camera_params_.frame_odometry_output_topic, 10);
   new_keyframe_publisher_ = private_node_handle_.advertise<std_msgs::Header>(
       camera_params_.new_keyframes_topic, 10);
-  slam_chunk_publisher_ =
-      private_node_handle_.advertise<SlamChunkMsg>(
-          camera_params_.slam_chunk_topic, 10);
+  slam_chunk_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
+      camera_params_.slam_chunk_topic, 10);
+  landmark_publisher_ =
+      private_node_handle_.advertise<std_msgs::UInt64MultiArray>(
+          camera_params_.landmark_topic, 10);
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -216,18 +219,9 @@ void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 
 void VisualInertialOdom::onStop() {}
 
-cv::Mat VisualInertialOdom::ExtractImage(const sensor_msgs::Image& msg) {
-  cv_bridge::CvImagePtr cv_ptr;
-  try {
-    cv_ptr = cv_bridge::toCvCopy(msg, msg.encoding);
-  } catch (cv_bridge::Exception& e) {
-    ROS_ERROR("cv_bridge exception: %s", e.what());
-  }
-  return cv_ptr->image;
-}
-
 void VisualInertialOdom::SendInitializationGraph(
     const fuse_graphs::HashGraph& init_graph) {
+  std::vector<uint64_t> new_landmarks;
   auto transaction = fuse_core::Transaction::make_shared();
   // add each variable in graph as they should be added
   for (auto& var : init_graph.getVariables()) {
@@ -241,6 +235,7 @@ void VisualInertialOdom::SendInitializationGraph(
     if (var.type() == landmark->type()) {
       *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(var);
       visual_map_->AddLandmark(landmark, transaction);
+      new_landmarks.push_back(landmark->id());
     } else if (var.type() == orientation->type()) {
       *orientation =
           dynamic_cast<const fuse_variables::Orientation3DStamped&>(var);
@@ -258,6 +253,14 @@ void VisualInertialOdom::SendInitializationGraph(
   }
   // send transaction to graph
   sendTransaction(transaction);
+  // announce the first keyframe
+  std_msgs::Header keyframe_header;
+  keyframe_header.stamp = keyframes_.back().Stamp();
+  keyframe_header.frame_id = global_params_.baselink_frame;
+  keyframe_header.seq = keyframes_.back().SequenceNumber();
+  new_keyframe_publisher_.publish(keyframe_header);
+  // publish landmarks
+  PublishLandmarkIDs(new_landmarks);
 }
 
 bool VisualInertialOdom::LocalizeFrame(
@@ -351,6 +354,7 @@ void VisualInertialOdom::ExtendMap(
   // get current and previous keyframe timestamps
   ros::Time prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
   ros::Time cur_kf_time = keyframes_.back().Stamp();
+  std::vector<uint64_t> new_landmarks;
   // make transaction
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(cur_kf_time);
@@ -379,6 +383,7 @@ void VisualInertialOdom::ExtendMap(
               pixel_prv_kf_i, pixel_cur_kf_i);
       // add landmark and constraints to map
       if (point.has_value()) {
+        new_landmarks.push_back(id);
         added_lms++;
         visual_map_->AddLandmark(point.value(), id, transaction);
         visual_map_->AddConstraint(prev_kf_time, id, pixel_prv_kf, transaction);
@@ -389,7 +394,10 @@ void VisualInertialOdom::ExtendMap(
   ROS_INFO("Added %zu new landmarks.", added_lms);
   // add inertial constraint
   // AddInertialConstraint(img_time, transaction);
+  // send transaction to graph
   sendTransaction(transaction);
+  // publish new landmarks
+  PublishLandmarkIDs(new_landmarks);
 }
 
 void VisualInertialOdom::AddInertialConstraint(
@@ -406,24 +414,6 @@ void VisualInertialOdom::AddInertialConstraint(
           cur_kf_time, img_orientation, img_position);
   // merge with existing transaction
   transaction->merge(*inertial_transaction);
-}
-
-double VisualInertialOdom::ComputeAvgParallax(
-    const ros::Time& t1, const ros::Time& t2,
-    const std::vector<uint64_t>& t2_landmarks) {
-  // add parallaxes to vector
-  std::vector<double> parallaxes;
-  for (auto& id : t2_landmarks) {
-    try {
-      Eigen::Vector2d p1 = tracker_->Get(t1, id);
-      Eigen::Vector2d p2 = tracker_->Get(t2, id);
-      double dist = beam::distance(p1, p2);
-      parallaxes.push_back(dist);
-    } catch (const std::out_of_range& oor) {}
-  }
-  // sort and find median parallax
-  std::sort(parallaxes.begin(), parallaxes.end());
-  return parallaxes[parallaxes.size() / 2];
 }
 
 void VisualInertialOdom::NotifyNewKeyframe(
@@ -447,7 +437,6 @@ void VisualInertialOdom::PublishSlamChunk() {
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size) {
     SlamChunkMsg slam_chunk;
-    
     // stamp
     ros::Time kf_to_publish = keyframes_.front().Stamp();
     slam_chunk.stamp = kf_to_publish;
@@ -494,6 +483,40 @@ void VisualInertialOdom::PublishSlamChunk() {
     // remove keyframe
     keyframes_.pop_front();
   }
+}
+
+void VisualInertialOdom::PublishLandmarkIDs(const std::vector<uint64_t>& ids) {
+  std_msgs::UInt64MultiArray landmark_msg;
+  for (auto& id : ids) { landmark_msg.data.push_back(id); }
+  landmark_publisher_.publish(landmark_msg);
+}
+
+cv::Mat VisualInertialOdom::ExtractImage(const sensor_msgs::Image& msg) {
+  cv_bridge::CvImagePtr cv_ptr;
+  try {
+    cv_ptr = cv_bridge::toCvCopy(msg, msg.encoding);
+  } catch (cv_bridge::Exception& e) {
+    ROS_ERROR("cv_bridge exception: %s", e.what());
+  }
+  return cv_ptr->image;
+}
+
+double VisualInertialOdom::ComputeAvgParallax(
+    const ros::Time& t1, const ros::Time& t2,
+    const std::vector<uint64_t>& t2_landmarks) {
+  // add parallaxes to vector
+  std::vector<double> parallaxes;
+  for (auto& id : t2_landmarks) {
+    try {
+      Eigen::Vector2d p1 = tracker_->Get(t1, id);
+      Eigen::Vector2d p2 = tracker_->Get(t2, id);
+      double dist = beam::distance(p1, p2);
+      parallaxes.push_back(dist);
+    } catch (const std::out_of_range& oor) {}
+  }
+  // sort and find median parallax
+  std::sort(parallaxes.begin(), parallaxes.end());
+  return parallaxes[parallaxes.size() / 2];
 }
 
 }} // namespace bs_models::camera_to_camera
