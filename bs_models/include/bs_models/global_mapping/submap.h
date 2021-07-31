@@ -202,10 +202,14 @@ class Submap {
    * @brief save all lidar points to a single pointcloud map. Points will be
    * converted to world frame before saving
    * @param filename filename to save to including full path
+   * @param max_output_map_size this function will convert all submap lidar
+   * points to the world frame, but it's possible the map still gets too large,
+   * so this will break it up
    * @param use_initial_world_frame set to true to use the initial world frame
    * from the local mapper, before global optimization
    */
   void SaveLidarMapInWorldFrame(const std::string& filename,
+                                int max_output_map_size,
                                 bool use_initial_world_frame = false) const;
 
   /**
@@ -233,14 +237,19 @@ class Submap {
   PointCloud GetKeypointsInWorldFrame(bool use_initial_world_frame = false);
 
   /**
-   * @brief output all lidar points to a single pointcloud map. Points will be
-   * converted to world frame before outputting
+   * @brief output all lidar points to a vector of pointcloud maps. Points will
+   * be converted to world frame before outputting. Note that we output to a
+   * vector here because the size of these maps can get too large to save. The
+   * max size of each map is equal to param max_output_map_size
+   * @param max_output_map_size this function will convert all submap lidar
+   * points to the world frame, but it's possible the map still gets too large,
+   * so this will break it up
    * @param use_initial_world_frame set to true to use the initial world frame
    * from the local mapper, before global optimization
-   * @param return cloud
+   * @param return vector of clouds
    */
-  PointCloud GetLidarPointsInWorldFrame(
-      bool use_initial_world_frame = false) const;
+  std::vector<PointCloud> GetLidarPointsInWorldFrame(
+      int max_output_map_size, bool use_initial_world_frame = false) const;
 
   /**
    * @brief output all lidar LOAM points to a single pointcloud map. Points will
@@ -313,6 +322,7 @@ class Submap {
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;
 
   // NOTE: all frames are baselink frames
+
 };
 
 }  // namespace global_mapping

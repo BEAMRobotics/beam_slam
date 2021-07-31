@@ -143,20 +143,18 @@ void ScanMatcher3D::onStart() {
                                        &ThrottledCallback::callback,
                                        &throttled_callback_);
 
-  results_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
-      params_.output_topic, 100);
+  results_publisher_ =
+      private_node_handle_.advertise<SlamChunkMsg>(params_.output_topic, 100);
 };
 
 void ScanMatcher3D::onStop() {
   // if output set, save scans before stopping
-  if (!params_.scan_output_directory.empty()) {
-    ROS_DEBUG("Saving remaining scans in window to %d",
-              params_.scan_output_directory.c_str());
-    for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
-         iter++) {
-      iter->Save(params_.scan_output_directory);
-    }
+  ROS_INFO("ScanMatcher3D stopped, processing remaining scans in window.");
+  for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
+       iter++) {
+    OutputResults(*iter);
   }
+
   active_clouds_.clear();
   subscriber_.shutdown();
 }
@@ -198,10 +196,7 @@ ScanMatcher3D::GenerateTransaction(
                                         T_WORLD_BASELINKCURRENT,
                                         T_BASELINK_LIDAR, feature_extractor_);
 
-  // if outputting scans, add to the active list
-  if (!params_.scan_output_directory.empty() || output_graph_updates_) {
-    active_clouds_.push_back(current_scan_pose);
-  }
+  active_clouds_.push_back(current_scan_pose);
 
   // build transaction of registration measurements
   return scan_registration_->RegisterNewScan(current_scan_pose);
@@ -209,9 +204,6 @@ ScanMatcher3D::GenerateTransaction(
 
 void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   updates_++;
-
-  std::string update_time =
-      beam::ConvertTimeToDate(std::chrono::system_clock::now());
 
   auto i = active_clouds_.begin();
   while (i != active_clouds_.end()) {
@@ -237,6 +229,9 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   if (!output_graph_updates_) {
     return;
   }
+
+  std::string update_time =
+      beam::ConvertTimeToDate(std::chrono::system_clock::now());
   std::string curent_path = graph_updates_path_ + "U" +
                             std::to_string(updates_) + "_" + update_time + "/";
   boost::filesystem::create_directory(curent_path);
@@ -260,61 +255,66 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 }
 
 void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
-  // output to global mapper
-  SlamChunkMsg slam_chunk_msg;
-  slam_chunk_msg.stamp = scan_pose.Stamp();
+  if (!params_.output_topic.empty()) {
+    // output to global mapper
+    SlamChunkMsg slam_chunk_msg;
+    slam_chunk_msg.stamp = scan_pose.Stamp();
 
-  std::vector<float> pose;
-  const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
-  for (uint8_t i = 0; i < 3; i++) {
-    for (uint8_t j = 0; j < 4; j++) {
-      pose.push_back(static_cast<float>(T(i, j)));
+    std::vector<float> pose;
+    const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
+    for (uint8_t i = 0; i < 3; i++) {
+      for (uint8_t j = 0; j < 4; j++) {
+        pose.push_back(static_cast<float>(T(i, j)));
+      }
     }
-  }
-  slam_chunk_msg.T_WORLD_BASELINK = pose;
+    slam_chunk_msg.T_WORLD_BASELINK = pose;
 
-  slam_chunk_msg.lidar_measurement.frame_id = extrinsics_.GetLidarFrameId();
+    slam_chunk_msg.lidar_measurement.frame_id = extrinsics_.GetLidarFrameId();
 
-  // publish regular points
-  const PointCloud& cloud = scan_pose.Cloud();
-  if (params_.output_lidar_points && cloud.size() > 0) {
-    SlamChunkMsg points_msg = slam_chunk_msg;
-    points_msg.lidar_measurement.point_type = 0;
-    for (int i = 0; i < cloud.size(); i++) {
-      pcl::PointXYZ p = cloud.points.at(i);
-      points_msg.lidar_measurement.points.push_back(p.x);
-      points_msg.lidar_measurement.points.push_back(p.y);
-      points_msg.lidar_measurement.points.push_back(p.z);
+    // publish regular points
+    const PointCloud& cloud = scan_pose.Cloud();
+    if (params_.output_lidar_points && cloud.size() > 0) {
+      SlamChunkMsg points_msg = slam_chunk_msg;
+      points_msg.lidar_measurement.point_type = 0;
+      for (int i = 0; i < cloud.size(); i++) {
+        pcl::PointXYZ p = cloud.points.at(i);
+        points_msg.lidar_measurement.points.push_back(p.x);
+        points_msg.lidar_measurement.points.push_back(p.y);
+        points_msg.lidar_measurement.points.push_back(p.z);
+      }
+      ROS_DEBUG("Publishing lidar points");
+      results_publisher_.publish(points_msg);
     }
-    results_publisher_.publish(points_msg);
-  }
 
-  // publish loam pointcloud
-  const beam_matching::LoamPointCloud& loam_cloud = scan_pose.LoamCloud();
-  if (params_.output_loam_points && loam_cloud.Size() > 0) {
-    // get strong edge features
-    SlamChunkMsg edges_msg = slam_chunk_msg;
-    edges_msg.lidar_measurement.point_type = 1;
-    const PointCloud& edges = loam_cloud.edges.strong.cloud;
-    for (int i = 0; i < edges.size(); i++) {
-      pcl::PointXYZ p = edges.points.at(i);
-      edges_msg.lidar_measurement.points.push_back(p.x);
-      edges_msg.lidar_measurement.points.push_back(p.y);
-      edges_msg.lidar_measurement.points.push_back(p.z);
-    }
-    results_publisher_.publish(edges_msg);
+    // publish loam pointcloud
+    const beam_matching::LoamPointCloud& loam_cloud = scan_pose.LoamCloud();
+    if (params_.output_loam_points && loam_cloud.Size() > 0) {
+      // get strong edge features
+      SlamChunkMsg edges_msg = slam_chunk_msg;
+      edges_msg.lidar_measurement.point_type = 1;
+      const PointCloud& edges = loam_cloud.edges.strong.cloud;
+      for (int i = 0; i < edges.size(); i++) {
+        pcl::PointXYZ p = edges.points.at(i);
+        edges_msg.lidar_measurement.points.push_back(p.x);
+        edges_msg.lidar_measurement.points.push_back(p.y);
+        edges_msg.lidar_measurement.points.push_back(p.z);
+      }
+      ROS_DEBUG("Publishing loam edge points");
+      results_publisher_.publish(edges_msg);
 
-    // get strong surface features
-    SlamChunkMsg surfaces_msg = slam_chunk_msg;
-    surfaces_msg.lidar_measurement.point_type = 2;
-    const PointCloud& surfaces = loam_cloud.surfaces.strong.cloud;
-    for (int i = 0; i < surfaces.size(); i++) {
-      pcl::PointXYZ p = surfaces.points.at(i);
-      surfaces_msg.lidar_measurement.points.push_back(p.x);
-      surfaces_msg.lidar_measurement.points.push_back(p.y);
-      surfaces_msg.lidar_measurement.points.push_back(p.z);
+      // get strong surface features
+      SlamChunkMsg surfaces_msg = slam_chunk_msg;
+      surfaces_msg.lidar_measurement.point_type = 2;
+      const PointCloud& surfaces = loam_cloud.surfaces.strong.cloud;
+      for (int i = 0; i < surfaces.size(); i++) {
+        pcl::PointXYZ p = surfaces.points.at(i);
+        surfaces_msg.lidar_measurement.points.push_back(p.x);
+        surfaces_msg.lidar_measurement.points.push_back(p.y);
+        surfaces_msg.lidar_measurement.points.push_back(p.z);
+      }
+      ROS_DEBUG("Publishing loam surface points");
+      results_publisher_.publish(surfaces_msg);
     }
-    results_publisher_.publish(surfaces_msg);
   }
 
   // save to disk

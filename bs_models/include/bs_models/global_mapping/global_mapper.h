@@ -51,6 +51,11 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
 
  private:
   /**
+   * @brief initi subscriber
+   */
+  void onStart() override;
+
+  /**
    * @brief Load and validate params, initialize required variables/pointers
    */
   void onInit() override;
@@ -73,6 +78,12 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   using ThrottledCallback =
       fuse_models::common::ThrottledCallback<SlamChunkMsg>;
   ThrottledCallback throttled_callback_;
+
+  /** subscribe to slam chunk data */
+  ros::Subscriber subscriber_;
+
+  // params that can only be set here:
+  int max_output_map_size_{3000000}; // limits output size of lidar maps
 };
 
 }  // namespace global_mapping

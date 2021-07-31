@@ -1,4 +1,5 @@
-# Type of lidar point, options: 0 - GENERAL, 1 - EDGE, 2 - SURFACE
+# Type of lidar point, options: 0 - GENERAL, 1 - EDGE strong, 2 - SURFACE strong, 
+# 3 - edge weak, 4 - surface weak
 uint8 point_type   
 
 # frame id associated with scan data

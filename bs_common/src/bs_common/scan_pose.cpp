@@ -67,6 +67,32 @@ void ScanPose::AddPointCloud(const beam_matching::LoamPointCloud& cloud,
   }
 }
 
+void ScanPose::AddPointCloud(const PointCloud& cloud, int type,
+                             bool override_cloud) {
+  if (type == 0) {
+    AddPointCloud(cloud, false);
+    return;
+  }
+
+  beam_matching::LoamPointCloud new_loam_cloud;
+  if (type == 1) {
+    new_loam_cloud.AddEdgeFeaturesStrong(cloud);
+  } else if (type == 2) {
+    new_loam_cloud.AddSurfaceFeaturesStrong(cloud);
+  } else if (type == 3) {
+    new_loam_cloud.AddEdgeFeaturesWeak(cloud);
+  } else if (type == 4) {
+    new_loam_cloud.AddSurfaceFeaturesWeak(cloud);
+  } else {
+    BEAM_ERROR(
+        "Invalid pointcloud type, not adding to submap. Input: {}, Options: "
+        "0, 1, 2, 3, 4. See LidarMeasurement.msg for more information,",
+        type);
+    return;
+  }
+  AddPointCloud(new_loam_cloud, override_cloud);
+}
+
 bool ScanPose::UpdatePose(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
   if (graph_msg->variableExists(position_.uuid()) &&
       graph_msg->variableExists(orientation_.uuid())) {

@@ -111,51 +111,12 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
   // Check if stamp already exists (we may be adding partial scans)
   auto iter = lidar_keyframe_poses_.find(stamp.toNSec());
   if (iter != lidar_keyframe_poses_.end()) {
-    // Stamp exists: add cloud to the corresponding submap
-
-    // if it's a normal cloud, we can just add it
-    if (type == 0) {
-      iter->second.AddPointCloud(cloud, false);
-      return;
-    }
-
-    // if it's a loamcloud, we need to add to the correct type
-    beam_matching::LoamPointCloud new_loam_cloud;
-    if (type == 1) {
-      new_loam_cloud.AddEdgeFeaturesStrong(cloud);
-    } else if (type == 2) {
-      new_loam_cloud.AddSurfaceFeaturesStrong(cloud);
-    } else {
-      BEAM_ERROR(
-          "Invalid pointcloud type, not adding to submap. Input: {}, Options: "
-          "0, 1, 2. See LidarMeasurement.msg for more information,",
-          type);
-      return;
-    }
-    iter->second.AddPointCloud(new_loam_cloud);
+    // Stamp exists: add cloud to the corresponding scan pose
+    iter->second.AddPointCloud(cloud, type, false);
   } else {
     // Stamp does not exist: add new scanpose to map
     bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_LIDAR, T_BASELINK_LIDAR);
-    if (type == 0) {
-      new_scan_pose.AddPointCloud(cloud, false);
-      lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
-          stamp.toNSec(), new_scan_pose));
-      return;
-    }
-
-    beam_matching::LoamPointCloud new_loam_cloud;
-    if (type == 1) {
-      new_loam_cloud.AddEdgeFeaturesStrong(cloud);
-    } else if (type == 2) {
-      new_loam_cloud.AddSurfaceFeaturesStrong(cloud);
-    } else {
-      BEAM_ERROR(
-          "Invalid pointcloud type, not adding to submap. Input: {}, Options: "
-          "0, 1, 2. See LidarMeasurement.msg for more information,",
-          type);
-      return;
-    }
-    new_scan_pose.AddPointCloud(new_loam_cloud, false);
+    new_scan_pose.AddPointCloud(cloud, type, false);
     lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
         stamp.toNSec(), new_scan_pose));
   }
@@ -207,14 +168,38 @@ void Submap::SaveKeypointsMapInWorldFrame(const std::string& filename,
                                           bool use_initial_world_frame) {
   BEAM_INFO("Saving final keypoints map to: {}", filename);
   PointCloud map = GetKeypointsInWorldFrame(use_initial_world_frame);
+  if (map.empty()) {
+    BEAM_WARN("No keypoints in submap, not saving.");
+    return;
+  }
   pcl::io::savePCDFileASCII(filename, map);
 }
 
 void Submap::SaveLidarMapInWorldFrame(const std::string& filename,
+                                      int max_output_map_size,
                                       bool use_initial_world_frame) const {
-  BEAM_INFO("Saving final lidar map to: {}", filename);
-  PointCloud map = GetLidarPointsInWorldFrame(use_initial_world_frame);
-  pcl::io::savePCDFileASCII(filename, map);
+  if (filename.find(".pcd") == std::string::npos) {
+    BEAM_ERROR(
+        "Invalid filename for saving lidar submap. Needs to be a pcd file. "
+        "Input: {}",
+        filename);
+  }
+
+  std::vector<PointCloud> map =
+      GetLidarPointsInWorldFrame(max_output_map_size, use_initial_world_frame);
+  if (map.empty()) {
+    BEAM_WARN("No regular lidar points in submap, not saving.");
+    return;
+  }
+
+  for (int i = 0; i < map.size(); i++) {
+    const PointCloud& cloud = map[i];
+    std::string current_filename = filename;
+    std::string replace = "_" + std::to_string(i) + ".pcd";
+    current_filename.replace(current_filename.find(".pcd"), 4, replace);
+    BEAM_INFO("Saving lidar submap to: {}", current_filename);
+    pcl::io::savePCDFileASCII(current_filename, cloud);
+  }
 }
 
 void Submap::SaveLidarLoamMapInWorldFrame(const std::string& path,
@@ -223,6 +208,10 @@ void Submap::SaveLidarLoamMapInWorldFrame(const std::string& path,
   BEAM_INFO("Saving final lidar loam map to: {}", path);
   beam_matching::LoamPointCloud map =
       GetLidarLoamPointsInWorldFrame(use_initial_world_frame);
+  if (map.Size() == 0) {
+    BEAM_WARN("No loam points in submap, not saving.");
+    return;
+  }
   map.Save(path, combine_features);
 }
 
@@ -245,9 +234,10 @@ PointCloud Submap::GetKeypointsInWorldFrame(bool use_initial_world_frame) {
   return cloud;
 }
 
-PointCloud Submap::GetLidarPointsInWorldFrame(
-    bool use_initial_world_frame) const {
-  PointCloud map;
+std::vector<PointCloud> Submap::GetLidarPointsInWorldFrame(
+    int max_output_map_size, bool use_initial_world_frame) const {
+  std::vector<PointCloud> map;
+  PointCloud map_current;
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
     const PointCloud& cloud_scanframe = it->second.Cloud();
@@ -261,8 +251,18 @@ PointCloud Submap::GetLidarPointsInWorldFrame(
 
     PointCloud cloud_worldframe;
     pcl::transformPointCloud(cloud_scanframe, cloud_worldframe, T_WORLD_SCAN);
-    map += cloud_worldframe;
+    if (map_current.empty()) {
+      map_current = cloud_worldframe;
+    } else if (map_current.size() + cloud_worldframe.size() >
+               max_output_map_size) {
+      map.push_back(map_current);
+      map_current = cloud_worldframe;
+    } else {
+      map_current += cloud_worldframe;
+    }
   }
+  map.push_back(map_current);
+  return map;
 }
 
 beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(

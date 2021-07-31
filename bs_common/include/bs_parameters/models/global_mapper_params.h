@@ -16,20 +16,22 @@ struct GlobalMapperParams : public ParameterBase {
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-    getParam<std::string>(nh, "global_mapper_config", global_mapper_config, "");
+    getParamRequired<std::string>(nh, "input_topic", input_topic);
+    getParam<std::string>(nh, "global_map_config", global_map_config, "");
     getParam<std::string>(nh, "output_path", output_path, "");
     getParam<bool>(nh, "save_submaps", save_submaps, false);
-    getParam<bool>(nh, "save_final_map", save_final_map, false);
+    getParam<bool>(nh, "save_submap_frames", save_submap_frames, true);
     getParam<bool>(nh, "save_trajectory_cloud", save_trajectory_cloud, true);
     getParam<bool>(nh, "save_local_mapper_trajectory",
                    save_local_mapper_trajectory, true);
     getParam<bool>(nh, "save_local_mapper_maps", save_local_mapper_maps, false);
   }
 
-  std::string global_mapper_config;
+  std::string input_topic;
+  std::string global_map_config;
   std::string output_path;
   bool save_submaps;
-  bool save_final_map;
+  bool save_submap_frames;
   bool save_trajectory_cloud;
   bool save_local_mapper_trajectory{true};
   bool save_local_mapper_maps{false};

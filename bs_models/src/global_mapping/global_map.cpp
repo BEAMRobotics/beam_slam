@@ -20,6 +20,8 @@ namespace bs_models {
 namespace global_mapping {
 
 void GlobalMap::Params::LoadJson(const std::string& config_path) {
+  BEAM_INFO("Loading global map config file: {}", config_path);
+
   nlohmann::json J;
   std::ifstream file(config_path);
   file >> J;
@@ -73,23 +75,38 @@ GlobalMap::GlobalMap(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::string& config_path)
     : camera_model_(camera_model) {
-  if (!boost::filesystem::exists(config_path)) {
+  std::string read_file = config_path;
+
+  if (config_path == "DEFAULT_PATH") {
+    std::string default_path = __FILE__;
+    size_t start_iter = default_path.find("bs_models");
+    size_t end_iter = default_path.size() - start_iter;
+    default_path.erase(start_iter, end_iter);
+    default_path += "beam_slam_launch/config/global_map/global_map.json";
+    if (!boost::filesystem::exists(default_path)) {
+      BEAM_WARN(
+          "Could not find default global map config file at: {}. Using "
+          "default params.",
+          default_path);
+      Setup();
+      return;
+    }
+    read_file = default_path;
+  } else if (!boost::filesystem::exists(config_path)) {
     BEAM_ERROR(
         "GlobalMap config file not found, using default parameters. Input: {}",
         config_path);
+    Setup();
     return;
   }
 
   if (!config_path.empty()) {
-    params_.LoadJson(config_path);
+    params_.LoadJson(read_file);
   }
   Setup();
 }
 
 void GlobalMap::Setup() {
-  baselink_frame_ = extrinsics_.GetImuFrameId();
-  world_frame_ = "world";
-
   // initiate loop closure candidate search
   if (params_.loop_closure_candidate_search_type == "EUCDIST") {
     loop_closure_candidate_search_ =
@@ -142,9 +159,12 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_.size()) {
     submaps_.push_back(Submap(stamp, T_WORLD_BASELINK, camera_model_));
+
     new_transaction = InitiateNewSubmapPose();
+
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
         FindLoopClosures();
+
     if (loop_closure_transaction != nullptr) {
       new_transaction->merge(*loop_closure_transaction);
     }
@@ -159,7 +179,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   }
 
   // add lidar measurement if not empty
-  if (!cam_measurement.landmarks.empty()) {
+  if (!lid_measurement.points.empty()) {
     std::vector<float> points = lid_measurement.points;
 
     // check dimensions of points first
@@ -169,20 +189,18 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
           "divisible by 3. Skipping lidar measurement.");
     } else {
       int num_points = static_cast<int>(points.size() / 3);
-
       PointCloud cloud;
       for (int iter = 0; iter < num_points; iter += 3) {
         pcl::PointXYZ p;
         p.x = points[iter];
         p.y = points[iter + 1];
         p.z = points[iter + 2];
+        cloud.points.push_back(p);
       }
-
       submaps_[submap_id].AddLidarMeasurement(cloud, T_WORLD_BASELINK, stamp,
                                               lid_measurement.point_type);
     }
   }
-
   // add trajectory measurement if not empty
   if (!traj_measurement.stamps.empty()) {
     std::vector<float> poses_vec = traj_measurement.poses;
@@ -215,7 +233,6 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
       submaps_[submap_id].AddTrajectoryMeasurement(poses, stamps, stamp);
     }
   }
-
   return new_transaction;
 }
 
@@ -223,11 +240,30 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // check if current pose is within "submap_size" from previous submap, or
   // current submap. We prioritize the previous submap for the case where data
   // isn't coming in in order (e.g., lidar data may come in slower)
-  Eigen::Vector3d t_WORLD_FRAME = T_WORLD_BASELINK.block(0, 3, 3, 3);
-  Eigen::Vector3d t_WORLD_SUBMAPPREV =
-      submaps_[submaps_.size() - 2].T_WORLD_SUBMAP_INIT().block(0, 3, 3, 3);
+
+  // first check if submaps is empty
+  if (submaps_.empty()) {
+    return 0;
+  }
+
+  Eigen::Vector3d t_WORLD_FRAME = T_WORLD_BASELINK.block(0, 3, 3, 1);
+
   Eigen::Vector3d t_WORLD_SUBMAPCUR =
-      submaps_[submaps_.size() - 1].T_WORLD_SUBMAP_INIT().block(0, 3, 3, 3);
+      submaps_.at(submaps_.size() - 1).T_WORLD_SUBMAP_INIT().block(0, 3, 3, 1);
+
+  // if only one submap exists, we only check the pose is within this first
+  // submap
+  if (submaps_.size() == 1) {
+    if ((t_WORLD_FRAME - t_WORLD_SUBMAPCUR).norm() < params_.submap_size) {
+      return 0;
+    } else {
+      return 1;
+    }
+  }
+
+  // otherwise, also check the prev submap and prioritize that one
+  Eigen::Vector3d t_WORLD_SUBMAPPREV =
+      submaps_.at(submaps_.size() - 2).T_WORLD_SUBMAP_INIT().block(0, 3, 3, 1);
 
   if ((t_WORLD_FRAME - t_WORLD_SUBMAPPREV).norm() < params_.submap_size) {
     return submaps_.size() - 2;
@@ -247,14 +283,17 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   new_transaction.AddPoseVariables(current_submap.Position(),
                                    current_submap.Orientation(),
                                    current_submap.Stamp());
+
   Eigen::Matrix4d T_PREVIOUS_CURRENT =
       beam::InvertTransform(previous_submap.T_WORLD_SUBMAP()) *
       current_submap.T_WORLD_SUBMAP();
+
   std::string source = "LOCALMAPPER";
   new_transaction.AddPoseConstraint(
       previous_submap.T_WORLD_SUBMAP(), current_submap.T_WORLD_SUBMAP(),
       previous_submap.Stamp(), current_submap.Stamp(), T_PREVIOUS_CURRENT,
       params_.local_mapper_covariance, source);
+
   return new_transaction.GetTransaction();
 }
 
@@ -303,7 +342,7 @@ void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
   for (int i = 0; i < submaps_.size(); i++) {
     std::string submap_name =
         submaps_path + "lidar_submap" + std::to_string(i) + ".pcd";
-    submaps_[i].SaveLidarMapInWorldFrame(submap_name);
+    submaps_[i].SaveLidarMapInWorldFrame(submap_name, max_output_map_size_);
   }
 
   if (!save_initial) {
@@ -316,7 +355,8 @@ void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
   for (int i = 0; i < submaps_.size(); i++) {
     std::string submap_name =
         submaps_path_initial + "lidar_submap" + std::to_string(i) + ".pcd";
-    submaps_[i].SaveLidarMapInWorldFrame(submap_name, true);
+    submaps_[i].SaveLidarMapInWorldFrame(submap_name, max_output_map_size_,
+                                         true);
   }
 }
 
@@ -350,66 +390,6 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
   }
 }
 
-void GlobalMap::SaveFullLidarMap(const std::string& output_path,
-                                 bool save_initial) {
-  if (!boost::filesystem::exists(output_path)) {
-    BEAM_ERROR("Invalid output path, not saving map. Input: {}", output_path);
-  }
-
-  // save optimized map
-  PointCloud keypoints_map;
-  for (int i = 0; i < submaps_.size(); i++) {
-    keypoints_map += submaps_[i].GetKeypointsInWorldFrame();
-  }
-  std::string filename = output_path + "keypoints_map_optimized.pcd";
-  BEAM_INFO("Saving keypoints map of size {} to: {}", keypoints_map.size(),
-            filename);
-  pcl::io::savePCDFileBinary(filename, keypoints_map);
-
-  if (!save_initial) {
-    return;
-  }
-
-  // save initial map
-  PointCloud keypoints_map_initial;
-  for (int i = 0; i < submaps_.size(); i++) {
-    keypoints_map_initial += submaps_[i].GetKeypointsInWorldFrame();
-  }
-  std::string filename_initial = output_path + "keypoints_map_initial.pcd";
-  BEAM_INFO("Saving initial keypoints map of size {} to: {}",
-            keypoints_map_initial.size(), filename_initial);
-  pcl::io::savePCDFileBinary(filename_initial, keypoints_map_initial);
-}
-
-void GlobalMap::SaveFullKeypointMap(const std::string& output_path,
-                                    bool save_initial) {
-  if (!boost::filesystem::exists(output_path)) {
-    BEAM_ERROR("Invalid output path, not saving map. Input: {}", output_path);
-  }
-
-  // save optimized map
-  PointCloud lidar_map;
-  for (int i = 0; i < submaps_.size(); i++) {
-    lidar_map += submaps_[i].GetLidarPointsInWorldFrame();
-  }
-  std::string filename = output_path + "lidar_map_optimized.pcd";
-  BEAM_INFO("Saving lidar map of size {} to: {}", lidar_map.size(), filename);
-  pcl::io::savePCDFileBinary(filename, lidar_map);
-
-  if (!save_initial) {
-    return;
-  }
-  // save initial map
-  PointCloud lidar_map_initial;
-  for (int i = 0; i < submaps_.size(); i++) {
-    lidar_map_initial += submaps_[i].GetLidarPointsInWorldFrame(true);
-  }
-  std::string filename_initial = output_path + "lidar_map_initial.pcd";
-  BEAM_INFO("Saving initial lidar map of size {} to: {}",
-            lidar_map_initial.size(), filename_initial);
-  pcl::io::savePCDFileBinary(filename_initial, lidar_map_initial);
-}
-
 void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
                                    bool save_initial) {
   std::string date = beam::ConvertTimeToDate(std::chrono::system_clock::now());
@@ -417,8 +397,8 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   // Get trajectory
   beam_mapping::Poses poses;
   poses.SetPoseFileDate(date);
-  poses.SetFixedFrame(world_frame_);
-  poses.SetMovingFrame(baselink_frame_);
+  poses.SetFixedFrame(extrinsics_.GetWorldFrameId());
+  poses.SetMovingFrame(extrinsics_.GetBaselinkFrameId());
   for (auto& submap : submaps_) {
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
     for (auto& pose_stamped : submap.GetTrajectory()) {
@@ -441,8 +421,8 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   // Get trajectory
   beam_mapping::Poses poses_initial;
   poses_initial.SetPoseFileDate(date);
-  poses_initial.SetFixedFrame(world_frame_);
-  poses_initial.SetMovingFrame(baselink_frame_);
+  poses_initial.SetFixedFrame(extrinsics_.GetWorldFrameId());
+  poses_initial.SetMovingFrame(extrinsics_.GetBaselinkFrameId());
   for (auto& submap : submaps_) {
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP_INIT();
     for (auto& pose_stamped : submap.GetTrajectory()) {
@@ -465,8 +445,9 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   for (auto& submap : submaps_) {
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
-    for (auto& pose_stamped : submap.GetTrajectory()) {
-      Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
+    std::vector<Submap::PoseStamped> poses_stamped = submap.GetTrajectory();
+    for (const Submap::PoseStamped& pose_stamped : poses_stamped) {
+      const Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
       Eigen::Vector4d p(0, 0, 0, 1);
       p = T_WORLD_SUBMAP * T_SUBMAP_BASELINK * p;
       pcl::PointXYZRGBL point;
@@ -477,8 +458,15 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
       cloud.push_back(point);
     }
   }
-  std::string output_file = output_path + "global_map_trajectory_optimized.pcd";
-  pcl::io::savePCDFileASCII(output_file, cloud);
+
+  if (!cloud.empty()) {
+    std::string output_file =
+        output_path + "global_map_trajectory_optimized.pcd";
+    BEAM_INFO("Saving trajectory cloud to: {}", output_file);    
+    pcl::io::savePCDFileASCII(output_file, cloud);
+  } else {
+    BEAM_WARN("Trajectory cloud empty, not saving poses cloud.");
+  }
 
   if (!save_initial) {
     return;
@@ -501,9 +489,15 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
       cloud_initial.push_back(point);
     }
   }
-  std::string output_file_initial =
-      output_path + "global_map_trajectory_initial.pcd";
-  pcl::io::savePCDFileASCII(output_file_initial, cloud_initial);
+
+  if (!cloud_initial.empty()) {
+    std::string output_file_initial =
+        output_path + "global_map_trajectory_initial.pcd";
+    BEAM_INFO("Saving trajectory cloud to: {}", output_file_initial); 
+    pcl::io::savePCDFileASCII(output_file_initial, cloud_initial);
+  } else {
+    BEAM_WARN("Trajectory cloud empty, not saving poses cloud.");
+  }
 }
 
 void GlobalMap::SaveSubmapFrames(const std::string& output_path,
@@ -518,6 +512,7 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
   }
   std::string output_file =
       output_path + "global_map_submap_poses_optimized.pcd";
+  BEAM_INFO("Saving submap frames to: {}", output_file);
   pcl::io::savePCDFileASCII(output_file, cloud);
 
   if (!save_initial) {
@@ -535,6 +530,7 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
   }
   std::string output_file_initial =
       output_path + "global_map_submap_poses_initial.pcd";
+  BEAM_INFO("Saving submap frames to: {}", output_file_initial);    
   pcl::io::savePCDFileASCII(output_file_initial, cloud_initial);
 }
 

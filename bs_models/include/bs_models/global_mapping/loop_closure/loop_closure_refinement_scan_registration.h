@@ -7,6 +7,8 @@
 
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/Matchers.h>
+#include <beam_filtering/VoxelDownsample.h>
+
 #include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <bs_models/global_mapping/submap.h>
@@ -91,6 +93,8 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
     std::ifstream file(config_path_);
     file >> J;
     matcher_config_ = J["matcher_config_path"];
+    downsampling_voxel_size_ = J["downsampling_voxel_size"];
+    downsampling_max_map_size_ = J["downsampling_max_map_size"];
   }
 
   /**
@@ -120,13 +124,35 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
                                const Submap& query_submap,
                                const Eigen::Matrix4d& T_MATCH_QUERY_EST,
                                Eigen::Matrix4d& T_MATCH_QUERY_OPT) {
-    PointCloudPtr cloud_match_world = std::make_shared<PointCloud>();
-    *cloud_match_world = matched_submap.GetLidarPointsInWorldFrame();
-    PointCloudPtr cloud_query_world = std::make_shared<PointCloud>();
-    *cloud_query_world = query_submap.GetLidarPointsInWorldFrame();
+    // setup downsampler
+    Eigen::Vector3f scan_voxel_size(downsampling_voxel_size_,
+                                    downsampling_voxel_size_,
+                                    downsampling_voxel_size_);
+    beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
 
-    matcher_->SetRef(cloud_match_world);
-    matcher_->SetTarget(cloud_query_world);
+    // extract and filter clouds from match submap
+    PointCloudPtr match_cloud_world = std::make_shared<PointCloud>();
+    std::vector<PointCloud> match_clouds_world_raw =
+        matched_submap.GetLidarPointsInWorldFrame(downsampling_max_map_size_);
+    for (const PointCloud& cloud : match_clouds_world_raw) {
+      PointCloud downsampled;
+      downsampler.Filter(cloud, downsampled);
+      (*match_cloud_world) += downsampled;
+    }
+
+    // extract and filter clouds from query submap
+    PointCloudPtr query_cloud_world = std::make_shared<PointCloud>();
+    std::vector<PointCloud> query_clouds_world_raw =
+        query_submap.GetLidarPointsInWorldFrame(downsampling_max_map_size_);
+    for (const PointCloud& cloud : query_clouds_world_raw) {
+      PointCloud downsampled;
+      downsampler.Filter(cloud, downsampled);
+      (*query_cloud_world) += downsampled;
+    }
+
+    // match clouds
+    matcher_->SetRef(match_cloud_world);
+    matcher_->SetTarget(query_cloud_world);
     if (!matcher_->Match()) {
       BEAM_WARN("Failed scan matching. Not adding loop closure constraint.");
       return false;
@@ -135,7 +161,19 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
   }
 
   std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
+
+  /** Path to matcher config. If empty, it will use default params. */
   std::string matcher_config_{""};
+
+  /** leaf size for downsampling filter on max map size. If set to zero, it will
+   * not downsample. */
+  float downsampling_voxel_size_{0.03};
+
+  /** Each submap will be combined into a few pointsclouds, then downsampled,
+   * then combined into one pointcloud. This sets the max size of these clouds.
+   */
+  int downsampling_max_map_size_{500000};
+
   bool covariance_set_{false};
   Eigen::Matrix<double, 6, 6> loop_closure_covariance_;
 };

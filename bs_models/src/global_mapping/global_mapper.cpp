@@ -6,7 +6,8 @@
 #include <beam_utils/math.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::global_mapping::GlobalMapper, fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::global_mapping::GlobalMapper,
+                       fuse_core::SensorModel)
 
 namespace bs_models {
 
@@ -27,6 +28,7 @@ void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
       global_map_->AddMeasurement(
           msg->camera_measurement, msg->lidar_measurement,
           msg->trajectory_measurement, T_WORLD_BASELINK, stamp);
+
   if (new_transaction != nullptr) {
     sendTransaction(new_transaction);
   }
@@ -37,13 +39,19 @@ void GlobalMapper::onInit() {
   global_params_.loadFromROS(private_node_handle_);
   std::shared_ptr<beam_calibration::CameraModel> camera_model =
       beam_calibration::CameraModel::Create(global_params_.cam_intrinsics_path);
-  if (!params_.global_mapper_config.empty()) {
+  if (!params_.global_map_config.empty()) {
     global_map_ =
-        std::make_unique<GlobalMap>(camera_model, params_.global_mapper_config);
+        std::make_unique<GlobalMap>(camera_model, params_.global_map_config);
   } else {
     global_map_ = std::make_unique<GlobalMap>(camera_model);
   }
 }
+
+void GlobalMapper::onStart() {
+  subscriber_ = node_handle_.subscribe(params_.input_topic, 100,
+                                       &ThrottledCallback::callback,
+                                       &throttled_callback_);
+};
 
 void GlobalMapper::onStop() {
   global_map_->SaveTrajectoryFile(params_.output_path,
@@ -52,18 +60,17 @@ void GlobalMapper::onStop() {
     global_map_->SaveTrajectoryClouds(params_.output_path,
                                       params_.save_local_mapper_trajectory);
   }
+  if (params_.save_submap_frames) {
+    global_map_->SaveSubmapFrames(params_.output_path,
+                                  params_.save_local_mapper_trajectory);
+  }
   if (params_.save_submaps) {
     global_map_->SaveLidarSubmaps(params_.output_path,
                                   params_.save_local_mapper_maps);
     global_map_->SaveKeypointSubmaps(params_.output_path,
                                      params_.save_local_mapper_maps);
   }
-  if (params_.save_final_map) {
-    global_map_->SaveFullLidarMap(params_.output_path,
-                                  params_.save_local_mapper_maps);
-    global_map_->SaveFullKeypointMap(params_.output_path,
-                                     params_.save_local_mapper_maps);
-  }
+  subscriber_.shutdown();
 }
 
 void GlobalMapper::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {

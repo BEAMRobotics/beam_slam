@@ -20,7 +20,6 @@ namespace bs_common {
  */
 class ScanPose {
  public:
-
   /**
    * @brief constructor for when inputting a regular pointcloud (not loam cloud)
    * @param cloud input pointcloud of type pcl::PointCloud<pcl::PointXYZ>> (this
@@ -73,6 +72,18 @@ class ScanPose {
    * will add to the cloud.
    */
   void AddPointCloud(const beam_matching::LoamPointCloud& cloud,
+                     bool override_cloud = false);
+
+  /**
+   * @brief add pointcloud based on type
+   * @param cloud input pointcloud where points are
+   * expressed in lidar frame
+   * @param type 0: regular points, 1: edge points strong, 2: surface points
+   * strong, 3: edge points weak, 4: surface points weak
+   * @param override_cloud whether or not to override the cloud, otherwise it
+   * will add to the cloud.
+   */
+  void AddPointCloud(const PointCloud& cloud, int type,
                      bool override_cloud = false);
 
   /**

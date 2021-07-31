@@ -161,27 +161,6 @@ class GlobalMap {
                            bool save_initial = false);
 
   /**
-   * @brief Save a map containing all lidar submaps expressed in the world frame
-   * @param output_path where to save the map
-   * @param save_initial set to true to save the initial map from the
-   * local mapper, before global optimization
-   */
-  void SaveFullLidarMap(const std::string& output_path,
-                        bool save_initial = false);
-
-  /**
-   * @brief Save a map containing all submap keypoints expressed in the world
-   * frame
-   * @param output_path where to save the map
-   * @param save_initial set to true to save the initial map from the
-   * local mapper, before global optimization
-   * @param save_initial set to true to save the initial map from the
-   * local mapper, before global optimization
-   */
-  void SaveFullKeypointMap(const std::string& output_path,
-                           bool save_initial = false);
-
-  /**
    * @brief saves the trajectory as a posefile
    * @param output_path where to save the trajectory
    * @param save_initial set to true to save the initial trajectory from the
@@ -249,11 +228,9 @@ class GlobalMap {
       loop_closure_candidate_search_;
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
 
-  // All poses will be stored w.r.t to these frame. By default, baselink is set
-  // to imu frame stored in extrinsics_ and world frame is set to "world".
-  // See Setup()
-  std::string baselink_frame_;
-  std::string world_frame_;
+
+  // params only tunable here
+  int max_output_map_size_{3000000};
 };
 
 }  // namespace global_mapping

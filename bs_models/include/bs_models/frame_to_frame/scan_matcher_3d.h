@@ -53,7 +53,7 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
       fuse_models::common::ThrottledCallback<sensor_msgs::PointCloud2>;
   ThrottledCallback throttled_callback_;
 
-  /** only needed if you want to output the final clouds or graph updates */
+  /** Needed for outputing the slam results or saving final clouds or graph updates */
   std::list<bs_common::ScanPose> active_clouds_;
 
   /** Only needed if using LoamMatcher */
