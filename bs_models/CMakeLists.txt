@@ -40,13 +40,13 @@ find_package(
     bs_constraints
     bs_common
     bs_variables
-    cv_bridge
     basalt)
 
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
+find_package(OpenCV 4.5.2 REQUIRED COMPONENTS)
 
 add_message_files(
   DIRECTORY
@@ -94,7 +94,6 @@ catkin_package(
     bs_constraints
     bs_common
     bs_variables
-    cv_bridge
     basalt
   DEPENDS
     Boost
@@ -111,6 +110,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${CERES_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library

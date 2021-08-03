@@ -3,7 +3,6 @@
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
-#include <cv_bridge/cv_bridge.h>
 #include <nlohmann/json.hpp>
 #include <std_msgs/UInt64MultiArray.h>
 
@@ -11,13 +10,15 @@
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
+#include <beam_cv/OpenCVConversions.h>
 #include <bs_common/utils.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::camera_to_camera::VisualInertialOdom,
                        fuse_core::SensorModel)
 
-namespace bs_models { namespace camera_to_camera {
+namespace bs_models {
+namespace camera_to_camera {
 
 VisualInertialOdom::VisualInertialOdom()
     : fuse_core::AsyncSensorModel(1),
@@ -123,10 +124,14 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       return;
     }
     // add image to tracker
-    tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
+    tracker_->AddImage(
+        beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
+        img_time);
     // process if in initialization mode
     if (!initializer_->Initialized()) {
-      tracker_->AddImage(ExtractImage(image_buffer_.front()), img_time);
+      tracker_->AddImage(
+          beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
+          img_time);
       if ((img_time - keyframes_.back().Stamp()).toSec() >= 1.0) {
         bs_models::camera_to_camera::Keyframe kf(img_time,
                                                  image_buffer_.front());
@@ -141,7 +146,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
           ROS_INFO("Initialization Failure: %f", img_time.toSec());
         }
       }
-    } else { // process if not initializing
+    } else {  // process if not initializing
       beam::HighResolutionTimer frame_timer;
       // localize frame
       std::vector<uint64_t> triangulated_ids;
@@ -389,7 +394,8 @@ void VisualInertialOdom::ExtendMap(
         visual_map_->AddConstraint(prev_kf_time, id, pixel_prv_kf, transaction);
         visual_map_->AddConstraint(cur_kf_time, id, pixel_cur_kf, transaction);
       }
-    } catch (const std::out_of_range& oor) {}
+    } catch (const std::out_of_range& oor) {
+    }
   }
   ROS_INFO("Added %zu new landmarks.", added_lms);
   // add inertial constraint
@@ -433,7 +439,9 @@ void VisualInertialOdom::NotifyNewKeyframe(
 
 void VisualInertialOdom::PublishSlamChunk() {
   // this just makes sure the visual map has the most recent variables
-  for (auto& kf : keyframes_) { visual_map_->GetPose(kf.Stamp()); }
+  for (auto& kf : keyframes_) {
+    visual_map_->GetPose(kf.Stamp());
+  }
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size) {
     SlamChunkMsg slam_chunk;
@@ -454,7 +462,9 @@ void VisualInertialOdom::PublishSlamChunk() {
       ros::Time stamp;
       stamp.fromNSec(it.first);
       trajectory.stamps.push_back(stamp.toSec());
-      for (auto& x : pose) { trajectory.poses.push_back(x); }
+      for (auto& x : pose) {
+        trajectory.poses.push_back(x);
+      }
     }
     slam_chunk.trajectory_measurement = trajectory;
     // camera measurements
@@ -487,18 +497,10 @@ void VisualInertialOdom::PublishSlamChunk() {
 
 void VisualInertialOdom::PublishLandmarkIDs(const std::vector<uint64_t>& ids) {
   std_msgs::UInt64MultiArray landmark_msg;
-  for (auto& id : ids) { landmark_msg.data.push_back(id); }
-  landmark_publisher_.publish(landmark_msg);
-}
-
-cv::Mat VisualInertialOdom::ExtractImage(const sensor_msgs::Image& msg) {
-  cv_bridge::CvImagePtr cv_ptr;
-  try {
-    cv_ptr = cv_bridge::toCvCopy(msg, msg.encoding);
-  } catch (cv_bridge::Exception& e) {
-    ROS_ERROR("cv_bridge exception: %s", e.what());
+  for (auto& id : ids) {
+    landmark_msg.data.push_back(id);
   }
-  return cv_ptr->image;
+  landmark_publisher_.publish(landmark_msg);
 }
 
 double VisualInertialOdom::ComputeAvgParallax(
@@ -512,11 +514,13 @@ double VisualInertialOdom::ComputeAvgParallax(
       Eigen::Vector2d p2 = tracker_->Get(t2, id);
       double dist = beam::distance(p1, p2);
       parallaxes.push_back(dist);
-    } catch (const std::out_of_range& oor) {}
+    } catch (const std::out_of_range& oor) {
+    }
   }
   // sort and find median parallax
   std::sort(parallaxes.begin(), parallaxes.end());
   return parallaxes[parallaxes.size() / 2];
 }
 
-}} // namespace bs_models::camera_to_camera
+}  // namespace camera_to_camera
+}  // namespace bs_models

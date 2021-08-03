@@ -172,12 +172,6 @@ private:
   void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
 
   /**
-   * @brief Converts ros image message to opencv image
-   * @param msg image message to convert to cv mat
-   */
-  cv::Mat ExtractImage(const sensor_msgs::Image& msg);
-
-  /**
    * @brief Computes the mean parallax between images at two times
    * @param t1 time of first image
    * @param t2 time of second image
