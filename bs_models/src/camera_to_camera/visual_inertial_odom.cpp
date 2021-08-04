@@ -11,11 +11,8 @@
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
-<<<<<<< HEAD
 #include <beam_cv/OpenCVConversions.h>
 #include <bs_common/utils.h>
-=======
->>>>>>> 87e9776540c0e57c366289d8067e307bd6671e37
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::camera_to_camera::VisualInertialOdom,
@@ -128,20 +125,12 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     }
     // add image to tracker
     tracker_->AddImage(
-<<<<<<< HEAD
         beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
         img_time);
     // process if in initialization mode
     if (!initializer_->Initialized()) {
       tracker_->AddImage(
           beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
-=======
-        beam_cv::OpenCVConversions::ImgToMat(image_buffer_.front()), img_time);
-    // process if in initialization mode
-    if (!initializer_->Initialized()) {
-      tracker_->AddImage(
-          beam_cv::OpenCVConversions::ImgToMat(image_buffer_.front()),
->>>>>>> 87e9776540c0e57c366289d8067e307bd6671e37
           img_time);
       if ((img_time - keyframes_.back().Stamp()).toSec() >= 1.0) {
         bs_models::camera_to_camera::Keyframe kf(img_time,
@@ -533,10 +522,5 @@ double VisualInertialOdom::ComputeAvgParallax(
   return parallaxes[parallaxes.size() / 2];
 }
 
-<<<<<<< HEAD
 }  // namespace camera_to_camera
 }  // namespace bs_models
-=======
-} // namespace camera_to_camera
-} // namespace bs_models
->>>>>>> 87e9776540c0e57c366289d8067e307bd6671e37
