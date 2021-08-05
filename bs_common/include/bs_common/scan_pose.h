@@ -228,8 +228,8 @@ class ScanPose {
    * @param to_reference_frame whether or not to confert to REFFRAME
    * @param add_frame whether or not to add coordinate frame to cloud
    */
-  void Save(const std::string& save_path, bool to_reference_frame = true,
-            bool add_frame = true) const;
+  void SaveCloud(const std::string& save_path, bool to_reference_frame = true,
+                 bool add_frame = true) const;
 
   /**
    * @brief save loam pointcloud of current scanpose
@@ -240,6 +240,33 @@ class ScanPose {
   void SaveLoamCloud(const std::string& save_path,
                      bool to_reference_frame = true,
                      bool add_frame = true) const;
+
+  /**
+   * @brief save all scan pose data to an output directory in a way that can be
+   * re-loaded using LoadData(). Output format:
+   *
+   *  /output_dir/
+   *    scan_pose.json (general data)
+   *    pointcloud.pcd
+   *    loam_edges_strong.pcd
+   *    loam_edges_weak.pcd
+   *    loam_surfaces_strong.pcd
+   *    loam_surfaces_weak.pcd
+   *    
+   *
+   * @param output_dir full path to empty directory. This path must exist, but
+   * must be empty.
+   */
+  void SaveData(const std::string& output_dir);
+
+  /**
+   * @brief load data from some root directory which has the data saved in
+   * the format that is output by SaveData (see above).
+   * @param root_dir root directory which has all data to be loaded. Note
+   * that this can only contain ScanPose data for one object.
+   * @return true if successful
+   */
+  bool LoadData(const std::string& root_dir);
 
  protected:
   // pose data

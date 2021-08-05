@@ -48,30 +48,29 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
       J["loop_closure_candidate_search_config"];
   loop_closure_refinement_config = J["loop_closure_refinement_config"];
 
-  std::vector<double> vec;
-  Eigen::VectorXd vec_eig(6);
-  for (const auto& value : J["local_mapper_covariance_diag"]) {
-    vec.push_back(value.get<double>());
-  }
+  std::vector<double> vec = J["local_mapper_covariance_diag"];
   if (vec.size() != 6) {
     BEAM_ERROR(
         "Invalid local mapper covariance diagonal (6 values required). Using "
         "default.");
-    vec_eig << 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3;
-    local_mapper_covariance = vec_eig.asDiagonal();
+    vec = std::vector<double>{1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3};
   }
-  vec.clear();
+  
+  Eigen::VectorXd vec_eig(6);
+  vec_eig << vec[0], vec[1], vec[2], vec[3], vec[4], vec[5]; 
+  local_mapper_covariance = vec_eig.asDiagonal();
 
-  for (const auto& value : J["loop_closure_covariance_diag"]) {
-    vec.push_back(value.get<double>());
-  }
-  if (vec.size() != 6) {
+  std::vector<double> vec2 = J["loop_closure_covariance_diag"];
+  if (vec2.size() != 6) {
     BEAM_ERROR(
         "Invalid loop closure covariance diagonal (6 values required). Using "
         "default.");
-    vec_eig << 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5;
-    loop_closure_covariance = vec_eig.asDiagonal();
+    vec2 = std::vector<double>{1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3};
   }
+
+  vec_eig = Eigen::VectorXd(6);
+  vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5]; 
+  loop_closure_covariance = vec_eig.asDiagonal();
 }
 
 void GlobalMap::Params::SaveJson(const std::string& filename) {
@@ -367,7 +366,7 @@ void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg) {
   }
 }
 
-void GlobalMap::SaveFullGlobalMap(const std::string& output_path) {
+void GlobalMap::SaveData(const std::string& output_path) {
   if (!boost::filesystem::exists(output_path)) {
     BEAM_ERROR(
         "Global map output path does not exist, not saving map. Input: {}",
@@ -394,11 +393,29 @@ bool GlobalMap::Load(const std::string& root_directory) {
         root_directory);
     return false;
   }
-
   BEAM_INFO("Loading full global map from: {}", root_directory);
+
+  // load params
+  if (!boost::filesystem::exists(root_directory + "params.json")) {
+    BEAM_ERROR(
+        "params.json not foudn in root directory, not loading GlobalMap. "
+        "Input root directory: {}",
+        root_directory);
+    return false;
+  }
   params_.LoadJson(root_directory + "params.json");
+
+  // load camera model
+  if (!boost::filesystem::exists(root_directory + "camera_model.json")) {
+    BEAM_ERROR(
+        "camera_model.json not foudn in root directory, not loading GlobalMap. "
+        "Input root directory: {}",
+        root_directory);
+    return false;
+  }
   std::string camera_filename = root_directory + "camera_model.json";
   camera_model_ = beam_calibration::CameraModel::Create(camera_filename);
+
   Setup();
 
   int submap_num = 0;
@@ -415,7 +432,11 @@ bool GlobalMap::Load(const std::string& root_directory) {
     submap_num++;
   }
 
-  BEAM_INFO("Done loading global map.");
+  if (submap_num == 0) {
+    BEAM_ERROR("No submaps loaded, root directory empty.");
+  } else {
+    BEAM_INFO("Done loading global map. Loaded {} submaps.", submap_num);
+  }
 }
 
 void GlobalMap::SaveLidarSubmaps(const std::string& output_path,

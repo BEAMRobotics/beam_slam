@@ -3,7 +3,6 @@
 #include <map>
 
 #include <boost/filesystem.hpp>
-#include <nlohmann/json.hpp>
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
@@ -24,12 +23,6 @@ namespace global_mapping {
 
 using pose_allocator = Eigen::aligned_allocator<Eigen::Matrix4d>;
 using namespace bs_common;
-
-nlohmann::json TransformToJson(const Eigen::Matrix4d& T, const std::string& name);
-
-void AddTransformToJson(nlohmann::json& J, const Eigen::Matrix4d& T, const std::string& name);
-
-nlohmann::json ToJsonPoseObject(uint64_t t, const Eigen::Matrix4d& T);
 
 /**
  * @brief class for holding and performing operation on locally consistent SLAM
@@ -288,8 +281,8 @@ class Submap {
    * @brief save all contents of this submap. Format is as follows:
    *
    * output_dir/
-   *    submap.json
-   *    camera_model.json
+   *    submap.json (general data)
+   *    camera_model.json (intrinsics object)
    *    landmarks.json
    *    camera_keyframes.json
    *    /lidar_keyframes/
@@ -300,18 +293,14 @@ class Submap {
    *        ...
    *        /keyframeN/
    *            ...
-   *    /camera_keyframes/
-   *        keyframe0.json
-   *        keyframe1.json
-   *        ...
-   *        keyframeN.json
    *    /subframes/
    *        subframe0.json
    *        subframe1.json
    *        ...
    *        subframeN.json
    * 
-   *    where lidar keyframe formats can be found in bs_common/ScanPose.h (see SaveData function), amd 
+   *    where lidar keyframe formats can be found in bs_common/ScanPose.h (see SaveData function),
+   *    camera_keyframes.json is a map from stamp (nsecs) to pose vector (1 x 16)
    *
    * @param output_dir full path to output directory. This should be an empty
    * directory so as to not confuse with previous data

@@ -167,7 +167,7 @@ class GlobalMap {
    *
    * @param output_path full path to directory
    */
-  void SaveFullGlobalMap(const std::string& output_path);
+  void SaveData(const std::string& output_path);
 
   /**
    * @brief load all global map data from a previous mapping session. This

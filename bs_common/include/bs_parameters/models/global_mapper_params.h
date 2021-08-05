@@ -19,7 +19,7 @@ struct GlobalMapperParams : public ParameterBase {
     getParamRequired<std::string>(nh, "input_topic", input_topic);
     getParam<std::string>(nh, "global_map_config", global_map_config, "");
     getParam<std::string>(nh, "output_path", output_path, "");
-    getParam<bool>(nh, "save_full_global_map", save_full_global_map, false);
+    getParam<bool>(nh, "save_global_map_data", save_global_map_data, false);
     getParam<bool>(nh, "save_submaps", save_submaps, false);
     getParam<bool>(nh, "save_submap_frames", save_submap_frames, true);
     getParam<bool>(nh, "save_trajectory_cloud", save_trajectory_cloud, true);
@@ -31,7 +31,7 @@ struct GlobalMapperParams : public ParameterBase {
   std::string input_topic;
   std::string global_map_config;
   std::string output_path;
-  bool save_full_global_map;
+  bool save_global_map_data;
   bool save_submaps;
   bool save_submap_frames;
   bool save_trajectory_cloud;

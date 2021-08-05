@@ -3,8 +3,10 @@
 #include <boost/filesystem.hpp>
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
+#include <nlohmann/json.hpp>
 
 #include <beam_utils/math.h>
+#include <beam_utils/filesystem.h>
 
 #include <bs_common/utils.h>
 
@@ -187,8 +189,147 @@ void ScanPose::Print(std::ostream& stream) const {
          << "  - w: " << orientation_.w() << "\n";
 }
 
-void ScanPose::Save(const std::string& save_path, bool to_reference_frame,
-                    bool add_frame) const {
+void ScanPose::SaveData(const std::string& output_dir) {
+  if (!boost::filesystem::exists(output_dir)) {
+    BEAM_ERROR("Invalid output directory, not saving ScanPose data. Input: {}",
+               output_dir);
+    return;
+  }
+
+  // save general data
+  nlohmann::json J_scanpose = {
+      {"stamp_nsecs", stamp_.toNSec()},
+      {"updates", updates_},
+      {"pointcloud_size", pointcloud_.size()},
+      {"loam_edges_strong", loampointcloud_.edges.strong.cloud.size()},
+      {"loam_surfaces_strong", loampointcloud_.surfaces.strong.cloud.size()},
+      {"loam_edges_weak", loampointcloud_.edges.weak.cloud.size()},
+      {"loam_surfaces_weak", loampointcloud_.surfaces.weak.cloud.size()},
+      {"cloud_type", cloud_type_},
+      {"device_id", fuse_core::uuid::to_string(position_.uuid())},
+      {"position_xyz", {position_.x(), position_.y(), position_.z()}},
+      {"orientation_xyzw",
+       {orientation_.x(), orientation_.y(), orientation_.z(),
+        orientation_.w()}}};
+  beam::AddTransformToJson(J_scanpose, T_BASELINK_LIDAR_, "T_BASELINK_LIDAR");
+  beam::AddTransformToJson(J_scanpose, T_REFFRAME_BASELINK_initial_,
+                           "T_REFFRAME_BASELINK_initial");
+  std::string scanpose_filename = output_dir + "scan_pose.json";
+  std::ofstream scanpose_file(scanpose_filename);
+  scanpose_file << std::setw(4) << J_scanpose << std::endl;
+
+  // save pointclouds
+  if (pointcloud_.size() > 0) {
+    pcl::io::savePCDFileBinary(output_dir + "pointcloud.pcd", pointcloud_);
+  }
+  if (loampointcloud_.edges.strong.cloud.size() > 0) {
+    pcl::io::savePCDFileBinary(output_dir + "loam_edges_strong.pcd",
+                               loampointcloud_.edges.strong.cloud);
+  }
+  if (loampointcloud_.edges.weak.cloud.size() > 0) {
+    pcl::io::savePCDFileBinary(output_dir + "loam_edges_weak.pcd",
+                               loampointcloud_.edges.weak.cloud);
+  }
+  if (loampointcloud_.surfaces.strong.cloud.size() > 0) {
+    pcl::io::savePCDFileBinary(output_dir + "loam_surfaces_strong.pcd",
+                               loampointcloud_.surfaces.strong.cloud);
+  }
+  if (loampointcloud_.surfaces.weak.cloud.size() > 0) {
+    pcl::io::savePCDFileBinary(output_dir + "loam_surfaces_weak.pcd",
+                               loampointcloud_.surfaces.weak.cloud);
+  }
+}
+
+bool ScanPose::LoadData(const std::string& root_dir) {
+  if (!boost::filesystem::exists(root_dir)) {
+    BEAM_ERROR("Invalid input directory, not loading scanpose data. Input: {}",
+               root_dir);
+    return false;
+  }
+
+  // load general data
+  nlohmann::json J;
+  std::ifstream file(root_dir + "scan_pose.json");
+  file >> J;
+  stamp_.fromNSec(J["stamp_nsecs"]);
+  updates_ = J["updates"];
+  std::string cloud_type_read = J["cloud_type"];
+  if (cloud_type_read == "PCLPOINTCLOUD" ||
+      cloud_type_read == "LOAMPOINTCLOUD") {
+    cloud_type_ = cloud_type_read;
+  } else {
+    cloud_type_ = "PCLPOINTCLOUD";
+  }
+
+  // load position data
+  position_ = fuse_variables::Position3DStamped(
+      stamp_, fuse_core::uuid::from_string(J["device_id"]));
+  std::vector<double> position_vector = J["position_xyz"];
+  position_.x() = position_vector.at(0);
+  position_.y() = position_vector.at(1);
+  position_.z() = position_vector.at(2);
+
+  orientation_ = fuse_variables::Orientation3DStamped(
+      stamp_, fuse_core::uuid::from_string(J["device_id"]));
+  std::vector<double> orientation_vector = J["orientation_xyzw"];
+  orientation_.x() = orientation_vector.at(0);
+  orientation_.y() = orientation_vector.at(1);
+  orientation_.z() = orientation_vector.at(2);
+  orientation_.w() = orientation_vector.at(3);
+
+  // load pointclouds
+  std::string pointcloud_filename;
+  pointcloud_filename = root_dir + "pointcloud.pcd";
+  if (boost::filesystem::exists(pointcloud_filename)) {
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pointcloud_filename, pointcloud_) ==
+        -1) {
+      BEAM_ERROR("Couldn't read pointcloud file: {}", pointcloud_filename);
+      return false;
+    }
+  }
+
+  pointcloud_filename = root_dir + "loam_edges_strong.pcd";
+  if (boost::filesystem::exists(pointcloud_filename)) {
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(
+            pointcloud_filename, loampointcloud_.edges.strong.cloud) == -1) {
+      BEAM_ERROR("Couldn't read pointcloud file: {}", pointcloud_filename);
+    }
+  }
+
+  pointcloud_filename = root_dir + "loam_edges_weak.pcd";
+  if (boost::filesystem::exists(pointcloud_filename)) {
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(
+            pointcloud_filename, loampointcloud_.edges.weak.cloud) == -1) {
+      BEAM_ERROR("Couldn't read pointcloud file: {}", pointcloud_filename);
+    }
+  }
+
+  pointcloud_filename = root_dir + "loam_surfaces_strong.pcd";
+  if (boost::filesystem::exists(pointcloud_filename)) {
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(
+            pointcloud_filename, loampointcloud_.surfaces.strong.cloud) == -1) {
+      BEAM_ERROR("Couldn't read pointcloud file: {}", pointcloud_filename);
+    }
+  }
+
+  pointcloud_filename = root_dir + "loam_surfaces_weak.pcd";
+  if (boost::filesystem::exists(pointcloud_filename)) {
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(
+            pointcloud_filename, loampointcloud_.surfaces.weak.cloud) == -1) {
+      BEAM_ERROR("Couldn't read pointcloud file: {}", pointcloud_filename);
+    }
+  }
+
+  if (loampointcloud_.edges.strong.cloud.size() > 0 ||
+      loampointcloud_.edges.weak.cloud.size() > 0 ||
+      loampointcloud_.surfaces.strong.cloud.size() > 0 ||
+      loampointcloud_.surfaces.weak.cloud.size() > 0) {
+    cloud_type_ = "PCLPOINTCLOUD";
+  }
+}
+
+void ScanPose::SaveCloud(const std::string& save_path, bool to_reference_frame,
+                         bool add_frame) const {
   if (!boost::filesystem::exists(save_path)) {
     ROS_ERROR("Cannot save cloud, directory does not exist: %s",
               save_path.c_str());
@@ -223,11 +364,14 @@ void ScanPose::Save(const std::string& save_path, bool to_reference_frame,
         beam::AddFrameToCloud(cloud_final_col, T_REFFRAME_LIDAR_final);
   }
 
-  pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
-                            cloud_initial_col);
-  pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd", cloud_final_col);
-
-  ROS_INFO("Saved cloud with stamp: %.5f", stamp_.toSec());
+  if (cloud_initial_col.size() == 0 || cloud_final_col.size() == 0) {
+    BEAM_ERROR("Could not save ScanPose cloud, cloud is empty.");
+  } else {
+    pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
+                              cloud_initial_col);
+    pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd", cloud_final_col);
+    ROS_INFO("Saved cloud with stamp: %.5f", stamp_.toSec());
+  }
 }
 
 void ScanPose::SaveLoamCloud(const std::string& save_path,

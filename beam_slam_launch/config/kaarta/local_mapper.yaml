@@ -27,11 +27,11 @@ motion_models:
   - name: 'unicycle_3d'
     type: 'bs_models::motion::Unicycle3D'
 
-publishers:
-  - name: 'odom_pub'
-    type: 'bs_publishers::Odometry3DPublisher'
-  - name: 'path_pub'
-    type: 'bs_publishers::Path3DPublisher'
+# publishers:
+#   - name: 'odom_pub'
+#     type: 'bs_publishers::Odometry3DPublisher'
+#   - name: 'path_pub'
+#     type: 'bs_publishers::Path3DPublisher'
 
 ## plugin params: specify all params for the plugins, using their unique name
 

@@ -63,14 +63,16 @@ void GlobalMapper::onStop() {
 
   std::string dateandtime =
       beam::ConvertTimeToDate(std::chrono::system_clock::now());
-  std::string save_path = params_.output_path + dateandtime + "/";
+  std::string save_path = params_.output_path + dateandtime + "_global_mapper_results/";
   boost::filesystem::create_directory(save_path);
 
   global_map_->SaveTrajectoryFile(save_path,
                                   params_.save_local_mapper_trajectory);
 
-  if (params_.save_full_global_map) {
-    global_map_->SaveFullGlobalMap(save_path);
+  if (params_.save_global_map_data) {
+    std::string global_map_path = save_path + "/GlobalMapData/";
+    boost::filesystem::create_directory(global_map_path);
+    global_map_->SaveData(global_map_path);
   }
 
   if (params_.save_trajectory_cloud) {

@@ -2,38 +2,17 @@
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
+#include <nlohmann/json.hpp>
 
-#include <bs_common/utils.h>
+#include <beam_utils/filesystem.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/descriptors/Descriptor.h>
+
+#include <bs_common/utils.h>
 
 namespace bs_models {
 
 namespace global_mapping {
-
-nlohmann::json TransformToJson(const Eigen::Matrix4d& T,
-                               const std::string& name) {
-  nlohmann::json J = {{name,
-                       {T(0, 0), T(0, 1), T(0, 2), T(0, 3), T(1, 0), T(1, 1),
-                        T(1, 2), T(1, 3), T(2, 0), T(2, 1), T(2, 2), T(2, 3),
-                        T(3, 0), T(3, 1), T(3, 2), T(3, 3)}}};
-  return J;
-}
-
-void AddTransformToJson(nlohmann::json& J, const Eigen::Matrix4d& T,
-                        const std::string& name) {
-  J.update(TransformToJson(T, name));
-}
-
-nlohmann::json ToJsonPoseObject(uint64_t t, const Eigen::Matrix4d& T) {
-  nlohmann::json pose_object = {
-      {"nsecs", t},
-      {"T",
-       {T(0, 0), T(0, 1), T(0, 2), T(0, 3), T(1, 0), T(1, 1), T(1, 2), T(1, 3),
-        T(2, 0), T(2, 1), T(2, 2), T(2, 3), T(3, 0), T(3, 1), T(3, 2),
-        T(3, 3)}}};
-  return pose_object;
-}
 
 Submap::Submap(
     const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP,
@@ -417,13 +396,18 @@ void Submap::SaveData(const std::string& output_dir) {
   nlohmann::json J_submap = {
       {"stamp_nsecs", stamp_.toNSec()},
       {"graph_updates", graph_updates_},
+      {"num_lidar_keyframes", lidar_keyframe_poses_.size()},
+      {"num_camera_keyframes", camera_keyframe_poses_.size()},
+      {"num_subframes", subframe_poses_.size()},
+      {"num_landmarks", landmarks_.size()},
+      {"device_id", fuse_core::uuid::to_string(position_.uuid())},
       {"position_xyz", {position_.x(), position_.y(), position_.z()}},
       {"orientation_xyzw",
        {orientation_.x(), orientation_.y(), orientation_.z(),
         orientation_.w()}}};
-  AddTransformToJson(J_submap, T_WORLD_SUBMAP_, "T_WORLD_SUBMAP");
-  AddTransformToJson(J_submap, T_WORLD_SUBMAP_initial_,
-                     "T_WORLD_SUBMAP_initial");
+  beam::AddTransformToJson(J_submap, T_WORLD_SUBMAP_, "T_WORLD_SUBMAP");
+  beam::AddTransformToJson(J_submap, T_WORLD_SUBMAP_initial_,
+                           "T_WORLD_SUBMAP_initial");
 
   std::string submap_filename = output_dir + "submap.json";
   std::ofstream submap_file(submap_filename);
@@ -437,23 +421,55 @@ void Submap::SaveData(const std::string& output_dir) {
   // TODO
 
   // save lidar keyframes
-  // TODO
+  std::string lidar_keyframes_dir = output_dir + "lidar_keyframes/";
+  boost::filesystem::create_directory(lidar_keyframes_dir);
+  int lidar_keyframes_counter = 0;
+  for (auto it = lidar_keyframe_poses_.begin();
+       it != lidar_keyframe_poses_.end(); it++) {
+    // create new directory
+    std::string keyframe_dir =
+        lidar_keyframes_dir + "keyframe" + std::to_string(lidar_keyframes_counter) + "/";
+    boost::filesystem::create_directory(keyframe_dir);
+
+    // call save on keyframe
+    it->second.SaveData(keyframe_dir);
+    lidar_keyframes_counter++;
+  }
 
   // save camera keyframes
-  nlohmann::json J_camera_keyframes_array = nlohmann::json::array();
+  nlohmann::json J_camera_keyframes;
   for (auto it = camera_keyframe_poses_.begin();
        it != camera_keyframe_poses_.end(); it++) {
-    const Eigen::Matrix4d& T = it->second;
-    J_camera_keyframes_array.push_back(ToJsonPoseObject(it->first, it->second));
+    beam::AddPoseToJson(J_camera_keyframes, it->first, it->second);
   }
-  nlohmann::json J_camera_keyframes;
-  J_camera_keyframes["poses"] = J_camera_keyframes_array;
   std::string camera_keyframes_filename = output_dir + "camera_keyframes.json";
   std::ofstream camera_keyframe_file(camera_keyframes_filename);
   camera_keyframe_file << std::setw(4) << J_camera_keyframes << std::endl;
 
   // save subframes
-  // TODO
+  std::string subframe_dir = output_dir + "subframes/";
+  boost::filesystem::create_directory(subframe_dir);
+  int subframes_counter = 0;
+  for (auto it = subframe_poses_.begin(); it != subframe_poses_.end(); it++) {
+    // create json
+    nlohmann::json J_subframes;
+    J_subframes["subframe_stamp_nsecs"] = it->first;
+
+    // add poses
+    nlohmann::json J_subframes_poses;
+    for (const auto& pose_stamped : it->second) {
+      beam::AddPoseToJson(J_subframes_poses, pose_stamped.stamp.toNSec(),
+                          pose_stamped.pose);
+    }
+    J_subframes["poses"] = J_subframes_poses;
+
+    // save to file
+    std::string subframe_filename =
+        subframe_dir + "subframe" + std::to_string(subframes_counter) + ".json";
+    std::ofstream subframe_file(subframe_filename);
+    subframe_file << std::setw(4) << J_subframes << std::endl;
+    subframes_counter++;
+  }
 }
 
 void Submap::TriangulateKeypoints(bool override_points) {
