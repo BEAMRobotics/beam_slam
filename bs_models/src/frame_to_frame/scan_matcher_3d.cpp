@@ -1,15 +1,17 @@
-#include <beam_filtering/VoxelDownsample.h>
-#include <beam_matching/Matchers.h>
-#include <beam_utils/filesystem.h>
-#include <bs_models/SlamChunkMsg.h>
-#include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/frame_to_frame/scan_matcher_3d.h>
-#include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
-#include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
+
+#include <boost/filesystem.hpp>
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
-#include <boost/filesystem.hpp>
+#include <beam_filtering/VoxelDownsample.h>
+#include <beam_matching/Matchers.h>
+#include <beam_utils/filesystem.h>
+
+#include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
+#include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
+#include <bs_models/frame_initializers/frame_initializers.h>
+#include <bs_models/SlamChunkMsg.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::ScanMatcher3D,
@@ -138,9 +140,8 @@ void ScanMatcher3D::onInit() {
 
 void ScanMatcher3D::onStart() {
   subscriber_ = node_handle_.subscribe<sensor_msgs::PointCloud2>(
-      ros::names::resolve(params_.input_topic), 1,
-      &ThrottledCallback::callback, &throttled_callback_,
-      ros::TransportHints().tcpNoDelay(false));
+      ros::names::resolve(params_.input_topic), 1, &ThrottledCallback::callback,
+      &throttled_callback_, ros::TransportHints().tcpNoDelay(false));
 
   results_publisher_ =
       private_node_handle_.advertise<SlamChunkMsg>(params_.output_topic, 100);

@@ -1,7 +1,9 @@
-#include <beam_utils/math.h>
 #include <bs_models/global_mapping/global_mapper.h>
+
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
+
+#include <beam_utils/math.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::global_mapping::GlobalMapper,
