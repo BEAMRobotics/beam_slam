@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="fixed_lag_smoother" output="screen">
+    <rosparam command="load" file="$(find beam_slam_launch)/config/kaarta/imu.yaml"/>
+  </node>
+</launch>
