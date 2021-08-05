@@ -1,16 +1,14 @@
-#include <bs_models/camera_to_camera/visual_inertial_odom.h>
-
-#include <fuse_core/transaction.h>
-#include <pluginlib/class_list_macros.h>
-
-#include <nlohmann/json.hpp>
-#include <std_msgs/UInt64MultiArray.h>
-
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/descriptors/Descriptors.h>
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
+#include <bs_models/camera_to_camera/visual_inertial_odom.h>
+#include <fuse_core/transaction.h>
+#include <pluginlib/class_list_macros.h>
+#include <std_msgs/UInt64MultiArray.h>
+
+#include <nlohmann/json.hpp>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::camera_to_camera::VisualInertialOdom,
@@ -20,7 +18,8 @@ namespace bs_models {
 namespace camera_to_camera {
 
 VisualInertialOdom::VisualInertialOdom()
-    : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL),
+    : fuse_core::AsyncSensorModel(1),
+      device_id_(fuse_core::uuid::NIL),
       throttled_image_callback_(std::bind(&VisualInertialOdom::processImage,
                                           this, std::placeholders::_1)),
       throttled_imu_callback_(std::bind(&VisualInertialOdom::processIMU, this,
@@ -82,12 +81,16 @@ void VisualInertialOdom::onStart() {
   /***********************************************************
    *                  Subscribe to topics                    *
    ***********************************************************/
-  image_subscriber_ = node_handle_.subscribe(camera_params_.image_topic, 1000,
-                                             &ThrottledImageCallback::callback,
-                                             &throttled_image_callback_);
-  imu_subscriber_ = node_handle_.subscribe(camera_params_.imu_topic, 10000,
-                                           &ThrottledIMUCallback::callback,
-                                           &throttled_imu_callback_);
+  image_subscriber_ = node_handle_.subscribe<sensor_msgs::Image>(
+      ros::names::resolve(camera_params_.image_topic), 1000,
+      &ThrottledImageCallback::callback, &throttled_image_callback_,
+      ros::TransportHints().tcpNoDelay(false));
+
+  imu_subscriber_ = node_handle_.subscribe<sensor_msgs::Imu>(
+      ros::names::resolve(camera_params_.imu_topic), 1000,
+      &ThrottledIMUCallback::callback, &throttled_imu_callback_,
+      ros::TransportHints().tcpNoDelay(false));
+
   path_subscriber_ = private_node_handle_.subscribe(
       camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
       this);
@@ -143,7 +146,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
           ROS_INFO("Initialization Failure: %f", img_time.toSec());
         }
       }
-    } else { // process if not initializing
+    } else {  // process if not initializing
       beam::HighResolutionTimer frame_timer;
       // localize frame
       std::vector<uint64_t> triangulated_ids;
@@ -519,5 +522,5 @@ double VisualInertialOdom::ComputeAvgParallax(
   return parallaxes[parallaxes.size() / 2];
 }
 
-} // namespace camera_to_camera
-} // namespace bs_models
+}  // namespace camera_to_camera
+}  // namespace bs_models

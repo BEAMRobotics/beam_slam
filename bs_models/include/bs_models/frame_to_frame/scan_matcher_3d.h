@@ -3,8 +3,8 @@
 #include <unordered_map>
 
 #include <fuse_core/async_sensor_model.h>
+#include <fuse_core/throttled_callback.h>
 #include <fuse_core/uuid.h>
-#include <fuse_models/common/throttled_callback.h>
 
 #include <beam_utils/pointclouds.h>
 
@@ -49,8 +49,7 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   ros::Publisher results_publisher_;
 
   /** callback for lidar data */
-  using ThrottledCallback =
-      fuse_models::common::ThrottledCallback<sensor_msgs::PointCloud2>;
+  using ThrottledCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::PointCloud2>;
   ThrottledCallback throttled_callback_;
 
   /** Needed for outputing the slam results or saving final clouds or graph updates */
