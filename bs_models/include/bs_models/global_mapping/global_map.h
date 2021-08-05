@@ -72,6 +72,10 @@ class GlobalMap {
 
     /** Loads config settings from a json file. */
     void LoadJson(const std::string& config_path);
+
+    /** Save contents of struct to a json which can be loaded using LoadJson()
+     */
+    void SaveJson(const std::string& filename);
   };
 
   /**
@@ -143,6 +147,36 @@ class GlobalMap {
    * @param graph_msg updated graph which should have all submap poses stored
    */
   void UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg);
+
+  /**
+   * @brief Save full global map to a format that can be reloaded later for new
+   * mapping sessions. Format will be as follows:
+   *
+   *  /output_path/
+   *    params.json
+   *    camera_model.json
+   *    /submap0/
+   *      ...
+   *    /submap1/
+   *      ...
+   *    ...
+   *    /submapN/
+   *       ...
+   *
+   *  Where the format of the submap data is described in submap.h
+   *
+   * @param output_path full path to directory
+   */
+  void SaveFullGlobalMap(const std::string& output_path);
+
+  /**
+   * @brief load all global map data from a previous mapping session. This
+   * requires the exact format show above in SaveFullGlobalMap() function. There
+   * must be no other data in this directory
+   * @param root_directory root directory of the global map data
+   * @return true if successful
+   */
+  bool Load(const std::string& root_directory);
 
   /**
    * @brief Save each lidar submap to pcd files. A lidar submap consists of an

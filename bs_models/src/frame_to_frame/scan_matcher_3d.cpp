@@ -164,7 +164,7 @@ ScanMatcher3D::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
-
+  
   if (params_.downsample_size > 0) {
     Eigen::Vector3f scan_voxel_size(params_.downsample_size,
                                     params_.downsample_size,
@@ -172,7 +172,7 @@ ScanMatcher3D::GenerateTransaction(
     beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
     downsampler.Filter(*cloud_current, *cloud_current);
   }
-
+  
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,
                                             msg->header.stamp,
@@ -181,7 +181,7 @@ ScanMatcher3D::GenerateTransaction(
     return bs_constraints::frame_to_frame::Pose3DStampedTransaction(
         msg->header.stamp);
   }
-
+  
   Eigen::Matrix4d T_BASELINK_LIDAR;
   if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, msg->header.stamp)) {
     ROS_ERROR(
@@ -191,15 +191,17 @@ ScanMatcher3D::GenerateTransaction(
     return bs_constraints::frame_to_frame::Pose3DStampedTransaction(
         msg->header.stamp);
   }
-
+  
   bs_common::ScanPose current_scan_pose(*cloud_current, msg->header.stamp,
                                         T_WORLD_BASELINKCURRENT,
                                         T_BASELINK_LIDAR, feature_extractor_);
-
+  
   active_clouds_.push_back(current_scan_pose);
 
   // build transaction of registration measurements
-  return scan_registration_->RegisterNewScan(current_scan_pose);
+  auto transaction = scan_registration_->RegisterNewScan(current_scan_pose);
+
+  return transaction;
 }
 
 void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {

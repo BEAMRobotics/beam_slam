@@ -4,7 +4,6 @@
 #include <ctime>
 
 #include <boost/filesystem.hpp>
-#include <nlohmann/json.hpp>
 #include <pcl/io/pcd_io.h>
 
 #include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
@@ -75,6 +74,27 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   }
 }
 
+void GlobalMap::Params::SaveJson(const std::string& filename) {
+  nlohmann::json J = {
+      {"submap_size_m", submap_size},
+      {"loop_closure_candidate_search_type",
+       loop_closure_candidate_search_type},
+      {"loop_closure_refinement_type", loop_closure_refinement_type},
+      {"loop_closure_candidate_search_config",
+       loop_closure_candidate_search_config},
+      {"local_mapper_covariance_diag",
+       {local_mapper_covariance(0, 0), local_mapper_covariance(1, 1),
+        local_mapper_covariance(2, 2), local_mapper_covariance(3, 3),
+        local_mapper_covariance(4, 4), local_mapper_covariance(5, 5)}},
+      {"loop_closure_covariance_diag",
+       {loop_closure_covariance(0, 0), loop_closure_covariance(1, 1),
+        loop_closure_covariance(2, 2), loop_closure_covariance(3, 3),
+        loop_closure_covariance(4, 4), loop_closure_covariance(5, 5)}}};
+
+  std::ofstream file(filename);
+  file << std::setw(4) << J << std::endl;
+}
+
 GlobalMap::GlobalMap(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model)
     : camera_model_(camera_model) {
@@ -111,7 +131,8 @@ GlobalMap::GlobalMap(
     read_file = default_path;
   } else if (!boost::filesystem::exists(config_path)) {
     BEAM_ERROR(
-        "GlobalMap config file not found, using default parameters. Input: {}",
+        "GlobalMap config file not found, using default parameters. Input: "
+        "{}",
         config_path);
     Setup();
     return;
@@ -226,7 +247,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
     // check dimensions of inputs first
     if (poses_vec.size() % 12 != 0) {
       BEAM_ERROR(
-          "Invalid size of poses vector, number of elements must be divisible "
+          "Invalid size of poses vector, number of elements must be "
+          "divisible "
           "by 4. Not adding trajectory measurement.");
     } else if (num_poses != traj_measurement.stamps.size()) {
       BEAM_ERROR(
@@ -345,11 +367,63 @@ void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg) {
   }
 }
 
+void GlobalMap::SaveFullGlobalMap(const std::string& output_path) {
+  if (!boost::filesystem::exists(output_path)) {
+    BEAM_ERROR(
+        "Global map output path does not exist, not saving map. Input: {}",
+        output_path);
+    return;
+  }
+
+  BEAM_INFO("Saving full global map to: {}", output_path);
+  params_.SaveJson(output_path + "params.json");
+  camera_model_->WriteJSON(output_path + "camera_model.json");
+  for (uint16_t i = 0; i < submaps_.size(); i++) {
+    std::string submap_dir = output_path + "submap" + std::to_string(i) + "/";
+    boost::filesystem::create_directory(submap_dir);
+    submaps_.at(i).SaveData(submap_dir);
+  }
+  BEAM_INFO("Done saving global map.");
+}
+
+bool GlobalMap::Load(const std::string& root_directory) {
+  if (!boost::filesystem::exists(root_directory)) {
+    BEAM_ERROR(
+        "Global map root directory path does not exist, not loading map. "
+        "Input: {}",
+        root_directory);
+    return false;
+  }
+
+  BEAM_INFO("Loading full global map from: {}", root_directory);
+  params_.LoadJson(root_directory + "params.json");
+  std::string camera_filename = root_directory + "camera_model.json";
+  camera_model_ = beam_calibration::CameraModel::Create(camera_filename);
+  Setup();
+
+  int submap_num = 0;
+  while (true) {
+    std::string submap_dir =
+        root_directory + "submap" + std::to_string(submap_num) + "/";
+    if (!boost::filesystem::exists(submap_dir)) {
+      break;
+    }
+    Submap current_submap(ros::Time(0), Eigen::Matrix4d::Identity(),
+                          camera_model_);
+    current_submap.LoadData(submap_dir, false);
+    submaps_.push_back(current_submap);
+    submap_num++;
+  }
+
+  BEAM_INFO("Done loading global map.");
+}
+
 void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
                                  bool save_initial) {
   if (!boost::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path, not saving submaps. Input: {}",
                output_path);
+    return;
   }
 
   // save optimized submap
@@ -381,6 +455,7 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
   if (!boost::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path, not saving submaps. Input: {}",
                output_path);
+    return;
   }
 
   // save optimized submaps
@@ -408,6 +483,12 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
 
 void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
                                    bool save_initial) {
+  if (!boost::filesystem::exists(output_path)) {
+    BEAM_ERROR("Invalid output path, not saving trajectory file. Input: {}",
+               output_path);
+    return;
+  }
+
   std::string date = beam::ConvertTimeToDate(std::chrono::system_clock::now());
 
   // Get trajectory
@@ -457,6 +538,12 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
 
 void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
                                      bool save_initial) {
+  if (!boost::filesystem::exists(output_path)) {
+    BEAM_ERROR("Invalid output path, not saving trajectory clouds. Input: {}",
+               output_path);
+    return;
+  }
+
   // get trajectory
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   for (auto& submap : submaps_) {
@@ -518,6 +605,12 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
 
 void GlobalMap::SaveSubmapFrames(const std::string& output_path,
                                  bool save_initial) {
+  if (!boost::filesystem::exists(output_path)) {
+    BEAM_ERROR("Invalid output path, not saving submap frames. Input: {}",
+               output_path);
+    return;
+  }
+
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   for (auto& submap : submaps_) {
     pcl::PointCloud<pcl::PointXYZRGBL> frame =

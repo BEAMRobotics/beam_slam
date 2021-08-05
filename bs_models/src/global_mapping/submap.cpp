@@ -11,6 +11,30 @@ namespace bs_models {
 
 namespace global_mapping {
 
+nlohmann::json TransformToJson(const Eigen::Matrix4d& T,
+                               const std::string& name) {
+  nlohmann::json J = {{name,
+                       {T(0, 0), T(0, 1), T(0, 2), T(0, 3), T(1, 0), T(1, 1),
+                        T(1, 2), T(1, 3), T(2, 0), T(2, 1), T(2, 2), T(2, 3),
+                        T(3, 0), T(3, 1), T(3, 2), T(3, 3)}}};
+  return J;
+}
+
+void AddTransformToJson(nlohmann::json& J, const Eigen::Matrix4d& T,
+                        const std::string& name) {
+  J.update(TransformToJson(T, name));
+}
+
+nlohmann::json ToJsonPoseObject(uint64_t t, const Eigen::Matrix4d& T) {
+  nlohmann::json pose_object = {
+      {"nsecs", t},
+      {"T",
+       {T(0, 0), T(0, 1), T(0, 2), T(0, 3), T(1, 0), T(1, 1), T(1, 2), T(1, 3),
+        T(2, 0), T(2, 1), T(2, 2), T(2, 3), T(3, 0), T(3, 1), T(3, 2),
+        T(3, 3)}}};
+  return pose_object;
+}
+
 Submap::Submap(
     const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP,
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model)
@@ -369,6 +393,67 @@ void Submap::Print(std::ostream& stream) const {
          << "\n"
          << "  Number of landmarks: " << landmarks_.size() << "\n"
          << "  Number of subframes: " << num_subframes << "\n";
+}
+
+bool Submap::LoadData(const std::string& input_dir,
+                      bool override_camera_model_pointer) {
+  if (!boost::filesystem::exists(input_dir)) {
+    BEAM_ERROR("Invalid input directory, not loading submap data. Input: {}",
+               input_dir);
+    return false;
+  }
+
+  // TODO
+}
+
+void Submap::SaveData(const std::string& output_dir) {
+  if (!boost::filesystem::exists(output_dir)) {
+    BEAM_ERROR("Invalid output directory, not saving submap data. Input: {}",
+               output_dir);
+    return;
+  }
+
+  // First, save general submap data to a json
+  nlohmann::json J_submap = {
+      {"stamp_nsecs", stamp_.toNSec()},
+      {"graph_updates", graph_updates_},
+      {"position_xyz", {position_.x(), position_.y(), position_.z()}},
+      {"orientation_xyzw",
+       {orientation_.x(), orientation_.y(), orientation_.z(),
+        orientation_.w()}}};
+  AddTransformToJson(J_submap, T_WORLD_SUBMAP_, "T_WORLD_SUBMAP");
+  AddTransformToJson(J_submap, T_WORLD_SUBMAP_initial_,
+                     "T_WORLD_SUBMAP_initial");
+
+  std::string submap_filename = output_dir + "submap.json";
+  std::ofstream submap_file(submap_filename);
+  submap_file << std::setw(4) << J_submap << std::endl;
+
+  // Save intrinsics
+  std::string camera_model_filename = output_dir + "camera_model.json";
+  camera_model_->WriteJSON(camera_model_filename);
+
+  // save landmarks
+  // TODO
+
+  // save lidar keyframes
+  // TODO
+
+  // save camera keyframes
+  nlohmann::json J_camera_keyframes_array = nlohmann::json::array();
+  for (auto it = camera_keyframe_poses_.begin();
+       it != camera_keyframe_poses_.end(); it++) {
+    const Eigen::Matrix4d& T = it->second;
+    J_camera_keyframes_array.push_back(ToJsonPoseObject(it->first, it->second));
+  }
+  nlohmann::json J_camera_keyframes;
+  J_camera_keyframes["poses"] = J_camera_keyframes_array;
+  std::string camera_keyframes_filename = output_dir + "camera_keyframes.json";
+  std::ofstream camera_keyframe_file(camera_keyframes_filename);
+  camera_keyframe_file << std::setw(4) << J_camera_keyframes << std::endl;
+
+  // save subframes
+  // TODO
 }
 
 void Submap::TriangulateKeypoints(bool override_points) {

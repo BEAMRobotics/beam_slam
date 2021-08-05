@@ -2,8 +2,10 @@
 
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
+#include <boost/filesystem.hpp>
 
 #include <beam_utils/math.h>
+#include <beam_utils/time.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::global_mapping::GlobalMapper,
@@ -54,21 +56,34 @@ void GlobalMapper::onStart() {
 };
 
 void GlobalMapper::onStop() {
-  global_map_->SaveTrajectoryFile(params_.output_path,
+  if (!boost::filesystem::exists(params_.output_path)) {
+    BEAM_ERROR("Output path does not exist, not saing results.");
+    return;
+  }
+
+  std::string dateandtime =
+      beam::ConvertTimeToDate(std::chrono::system_clock::now());
+  std::string save_path = params_.output_path + dateandtime + "/";
+  boost::filesystem::create_directory(save_path);
+
+  global_map_->SaveTrajectoryFile(save_path,
                                   params_.save_local_mapper_trajectory);
+
+  if (params_.save_full_global_map) {
+    global_map_->SaveFullGlobalMap(save_path);
+  }
+
   if (params_.save_trajectory_cloud) {
-    global_map_->SaveTrajectoryClouds(params_.output_path,
+    global_map_->SaveTrajectoryClouds(save_path,
                                       params_.save_local_mapper_trajectory);
   }
   if (params_.save_submap_frames) {
-    global_map_->SaveSubmapFrames(params_.output_path,
+    global_map_->SaveSubmapFrames(save_path,
                                   params_.save_local_mapper_trajectory);
   }
   if (params_.save_submaps) {
-    global_map_->SaveLidarSubmaps(params_.output_path,
-                                  params_.save_local_mapper_maps);
-    global_map_->SaveKeypointSubmaps(params_.output_path,
-                                     params_.save_local_mapper_maps);
+    global_map_->SaveLidarSubmaps(save_path, params_.save_local_mapper_maps);
+    global_map_->SaveKeypointSubmaps(save_path, params_.save_local_mapper_maps);
   }
   subscriber_.shutdown();
 }
