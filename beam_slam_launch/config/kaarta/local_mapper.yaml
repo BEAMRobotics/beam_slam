@@ -67,8 +67,8 @@ scan_matcher_3d:
   output_topic: '/slam_results' # if left blank, it will not publish results (for global mapper)
   frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
-  # scan_output_directory: '/home/nick/results/beam_slam/scan_matcher/' # Outputs scans as PCD files IFF not empty
-  scan_output_directory: ''
+  scan_output_directory: '/home/nick/results/beam_slam/scan_matcher/' # Outputs scans as PCD files IFF not empty
+  # scan_output_directory: ''
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom

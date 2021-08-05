@@ -19,6 +19,23 @@ namespace bs_models {
 
 namespace global_mapping {
 
+Eigen::Matrix4d VectorToTransform(const std::vector<float>& v) {
+  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
+  T(0, 0) = v[0];
+  T(0, 1) = v[1];
+  T(0, 2) = v[2];
+  T(0, 3) = v[3];
+  T(1, 0) = v[4];
+  T(1, 1) = v[5];
+  T(1, 2) = v[6];
+  T(1, 3) = v[7];
+  T(2, 0) = v[8];
+  T(2, 1) = v[9];
+  T(2, 2) = v[10];
+  T(2, 3) = v[11];
+  return T;
+}
+
 void GlobalMap::Params::LoadJson(const std::string& config_path) {
   BEAM_INFO("Loading global map config file: {}", config_path);
 
@@ -223,8 +240,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         for (int j = 0; j < 12; j++) {
           current_pose.push_back(traj_measurement.poses[12 * i + j]);
         }
-        Eigen::Matrix4d T_KEYFRAME_FRAME =
-            beam::VectorToEigenTransform(current_pose);
+        Eigen::Matrix4d T_KEYFRAME_FRAME = VectorToTransform(current_pose);
 
         poses.push_back(T_KEYFRAME_FRAME);
         stamps.push_back(ros::Time(traj_measurement.stamps[i]));
@@ -462,7 +478,7 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
   if (!cloud.empty()) {
     std::string output_file =
         output_path + "global_map_trajectory_optimized.pcd";
-    BEAM_INFO("Saving trajectory cloud to: {}", output_file);    
+    BEAM_INFO("Saving trajectory cloud to: {}", output_file);
     pcl::io::savePCDFileASCII(output_file, cloud);
   } else {
     BEAM_WARN("Trajectory cloud empty, not saving poses cloud.");
@@ -493,7 +509,7 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
   if (!cloud_initial.empty()) {
     std::string output_file_initial =
         output_path + "global_map_trajectory_initial.pcd";
-    BEAM_INFO("Saving trajectory cloud to: {}", output_file_initial); 
+    BEAM_INFO("Saving trajectory cloud to: {}", output_file_initial);
     pcl::io::savePCDFileASCII(output_file_initial, cloud_initial);
   } else {
     BEAM_WARN("Trajectory cloud empty, not saving poses cloud.");
@@ -530,7 +546,7 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
   }
   std::string output_file_initial =
       output_path + "global_map_submap_poses_initial.pcd";
-  BEAM_INFO("Saving submap frames to: {}", output_file_initial);    
+  BEAM_INFO("Saving submap frames to: {}", output_file_initial);
   pcl::io::savePCDFileASCII(output_file_initial, cloud_initial);
 }
 

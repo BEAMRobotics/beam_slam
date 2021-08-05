@@ -18,6 +18,13 @@ namespace bs_models {
 namespace global_mapping {
 
 /**
+ * @brief convert from a vector of [R | t] to an Eigen::Matrix4d transform
+ * @param v vector
+ * @return T eigen transform
+ */
+Eigen::Matrix4d VectorToTransform(const std::vector<float>& v);
+
+/**
  * @brief This class takes care of all global mapping functionality. It received
  * incoming slam data from the local mapper, saves it into submaps and then runs
  * loop closure on the submaps to refine the final map.
@@ -227,7 +234,6 @@ class GlobalMap {
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
-
 
   // params only tunable here
   int max_output_map_size_{3000000};
