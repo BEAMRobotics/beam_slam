@@ -6,7 +6,7 @@ This repo contains beam's lidar-camera-inertial SLAM code. All other SLAM code i
 
 ## Dependencies:
 
-* fuse: https://github.com/locusrobotics/fuse (kinetic-devel branch)
+* fuse: https://github.com/locusrobotics/fuse (kinetic-devel branch for ROS Kinetic, devel branch for ROS Melodic)
 * tf2_2d: https://github.com/locusrobotics/tf2_2d.git
 * qwt: sudo apt-get install libqwt-dev
 * basalt: https://github.com/BEAMRobotics/basalt-headers-mirror
@@ -28,4 +28,10 @@ Then add the following line to fuse_optimizer/CMakeLists.txt
 
 ```
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+
 ```
+* -j$(nproc):
+
+When compiling beam_slam modules on Ubuntu 18.04, specify the number of processors to be at most half of the number of processors (i.e. $(nproc)) available. For example:
+
+`catkin build -j4` if `$(nproc)` is eight or higher
