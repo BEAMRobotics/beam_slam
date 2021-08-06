@@ -382,7 +382,102 @@ bool Submap::LoadData(const std::string& input_dir,
     return false;
   }
 
+  // load general data
+  if (!boost::filesystem::exists(input_dir + "submap.json")) {
+    BEAM_ERROR(
+        "submap.json does not exist inside root directory, not loading submap "
+        "data. Input root directory: {}",
+        input_dir);
+    return false;
+  }
+  nlohmann::json J_submap;
+  std::ifstream file_submap(input_dir + "submap.json");
+  file_submap >> J_submap;
+  stamp_.fromNSec(J_submap["stamp_nsecs"]);
+  graph_updates_ = J_submap["graph_updates"];
+
+  // load position data
+  position_ = fuse_variables::Position3DStamped(
+      stamp_, fuse_core::uuid::from_string(J_submap["device_id"]));
+  std::vector<double> position_vector = J_submap["position_xyz"];
+  position_.x() = position_vector.at(0);
+  position_.y() = position_vector.at(1);
+  position_.z() = position_vector.at(2);
+
+  orientation_ = fuse_variables::Orientation3DStamped(
+      stamp_, fuse_core::uuid::from_string(J_submap["device_id"]));
+  std::vector<double> orientation_vector = J_submap["orientation_xyzw"];
+  orientation_.x() = orientation_vector.at(0);
+  orientation_.y() = orientation_vector.at(1);
+  orientation_.z() = orientation_vector.at(2);
+  orientation_.w() = orientation_vector.at(3);
+
+  std::vector<double> T_WORLD_SUBMAP_vec = J_submap["T_WORLD_SUBMAP"];
+  T_WORLD_SUBMAP_ = beam::VectorToEigenTransform(T_WORLD_SUBMAP_vec);
+
+  std::vector<double> T_WORLD_SUBMAP_initial_vec =
+      J_submap["T_WORLD_SUBMAP_initial"];
+  T_WORLD_SUBMAP_initial_ =
+      beam::VectorToEigenTransform(T_WORLD_SUBMAP_initial_vec);
+  T_SUBMAP_WORLD_initial_ = beam::InvertTransform(T_WORLD_SUBMAP_initial_);
+
+  // load camera model
+  if (override_camera_model_pointer) {
+    if (!boost::filesystem::exists(input_dir + "camera_model.json")) {
+      BEAM_ERROR(
+          "Cannot load camera model, camera_model.json does not exist inside "
+          "root folder. Not loading submap data. Input root directory: {}",
+          input_dir);
+      return false;
+    }
+    std::string camera_model_path = input_dir + "camera_model.json";
+    camera_model_ = beam_calibration::CameraModel::Create(camera_model_path);
+  }
+
+  // load camera keyframes
+  if (!boost::filesystem::exists(input_dir + "camera_keyframes.json")) {
+    BEAM_ERROR(
+        "camera_keyframes.json does not exist inside root directory, not "
+        "loading submap "
+        "data. Input root directory: {}",
+        input_dir);
+    return false;
+  }
+  nlohmann::json J_cam_keyframes;
+  std::ifstream file_cam_keyframes(input_dir + "camera_keyframes.json");
+  file_cam_keyframes >> J_cam_keyframes;
+
+  std::map<uint64_t, std::vector<double>> cam_keyframes_map = J_cam_keyframes;
+  for (auto it = cam_keyframes_map.begin(); it != cam_keyframes_map.end();
+       it++) {
+    Eigen::Matrix4d T = beam::VectorToEigenTransform(it->second);
+    camera_keyframe_poses_.emplace(it->first, T);
+  }
+
+  // load landmarks
   // TODO
+
+  // load lidar keyframes
+  std::string lidar_keyframes_root = input_dir + "lidar_keyframes/";
+  if (!boost::filesystem::exists(lidar_keyframes_root)) {
+    BEAM_ERROR(
+        "Lidar keyframes folder not found in input root directory, not loading "
+        "submap. Input: {}",
+        input_dir);
+    return false;
+  }
+  int lidar_keyframe_num = 0;
+  while (true) {
+    std::string lidar_keyframe_dir =
+        lidar_keyframes_root + "keyframe" + std::to_string(lidar_keyframe_num) + "/";
+    if (!boost::filesystem::exists(lidar_keyframe_dir)) {
+      break;
+    }
+    bs_common::ScanPose scan_pose(ros::Time(0), Eigen::Matrix4d::Identity());
+    scan_pose.LoadData(lidar_keyframe_dir);
+    lidar_keyframe_poses_.emplace(scan_pose.Stamp().toNSec(), scan_pose);
+    lidar_keyframe_num++;
+  }
 }
 
 void Submap::SaveData(const std::string& output_dir) {
@@ -427,8 +522,8 @@ void Submap::SaveData(const std::string& output_dir) {
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
     // create new directory
-    std::string keyframe_dir =
-        lidar_keyframes_dir + "keyframe" + std::to_string(lidar_keyframes_counter) + "/";
+    std::string keyframe_dir = lidar_keyframes_dir + "keyframe" +
+                               std::to_string(lidar_keyframes_counter) + "/";
     boost::filesystem::create_directory(keyframe_dir);
 
     // call save on keyframe

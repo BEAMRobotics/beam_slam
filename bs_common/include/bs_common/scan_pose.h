@@ -274,7 +274,7 @@ class ScanPose {
   int updates_{0};
   fuse_variables::Position3DStamped position_;
   fuse_variables::Orientation3DStamped orientation_;
-  const Eigen::Matrix4d T_REFFRAME_BASELINK_initial_;
+  Eigen::Matrix4d T_REFFRAME_BASELINK_initial_;
   Eigen::Matrix4d T_BASELINK_LIDAR_;
 
   // cloud data: all in lidar frame

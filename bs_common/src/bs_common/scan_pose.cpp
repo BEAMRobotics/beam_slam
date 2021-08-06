@@ -277,6 +277,12 @@ bool ScanPose::LoadData(const std::string& root_dir) {
   orientation_.z() = orientation_vector.at(2);
   orientation_.w() = orientation_vector.at(3);
 
+  std::vector<double> T_REFFRAME_BASELINK_initial_vec = J["T_REFFRAME_BASELINK_initial"];
+  T_REFFRAME_BASELINK_initial_ = beam::VectorToEigenTransform(T_REFFRAME_BASELINK_initial_vec);
+
+  std::vector<double> T_BASELINK_LIDAR_vec = J["T_BASELINK_LIDAR"];
+  T_BASELINK_LIDAR_ = beam::VectorToEigenTransform(T_BASELINK_LIDAR_vec);
+
   // load pointclouds
   std::string pointcloud_filename;
   pointcloud_filename = root_dir + "pointcloud.pcd";
@@ -326,6 +332,8 @@ bool ScanPose::LoadData(const std::string& root_dir) {
       loampointcloud_.surfaces.weak.cloud.size() > 0) {
     cloud_type_ = "PCLPOINTCLOUD";
   }
+
+  return true;
 }
 
 void ScanPose::SaveCloud(const std::string& save_path, bool to_reference_frame,
