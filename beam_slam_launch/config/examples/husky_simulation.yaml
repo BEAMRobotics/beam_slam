@@ -5,31 +5,27 @@ optimization_frequency: 1
 lag_duration: 5
 
 # frames
-imu_frame: "imu"
-lidar_frame: "velodyne"
-camera_frame: "camera"
+imu_frame: "imu_link"
 world_frame: "world"
-baselink_frame: "camera"
+baselink_frame: "base_link"
 
 # calibrations
 static_extrinsics: true
-camera_intrinsics_path: "/home/alex/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
-imu_intrinsics_path: "/home/alex/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
 
 ## model plugins: declare all plugins to use and give a unique name
 sensor_models:
   - name: 'imu_3d'
-    type: 'beam_models::frame_to_frame::Imu3D'
+    type: 'bs_models::frame_to_frame::Imu3D'
 
 motion_models:
   - name: 'unicycle_3d'
-    type: 'beam_models::motion::Unicycle3D'
+    type: 'bs_models::motion::Unicycle3D'
 
 publishers:
   - name: 'odom_pub'
-    type: 'beam_publishers::Odometry3DPublisher'
+    type: 'bs_publishers::Odometry3DPublisher'
   - name: 'path_pub'
-    type: 'beam_publishers::Path3DPublisher'    
+    type: 'bs_publishers::Path3DPublisher'    
 
 solver_options:
   minimizer_type: "TRUST_REGION"
@@ -54,17 +50,16 @@ unicycle_3d:
   buffer_length: 100000
 
 imu_3d:
-  subscriber_topic: "/imu/data"
-  sensor_frame: 'base_link'
-  frame_initializer_type: 'ODOMETRY'
-  frame_initializer_info: '/odometry/ground_truth'
+  input_topic: '/imu/data'
+  frame_initializer_type: 'ODOMETRY' # Default: ODOMETRY
+  frame_initializer_info: '/odometry/ground_truth' # Default: ""
+  sensor_frame_id_override: 'base_link'
   queue_size: 300 # Default: 300
-  window_time: 1.00 # Default: 1.00
   prior_noise: 1.0e-9 # Default: 1.0e-9
-  cov_gyro_noise: 0.02 # Required
-  cov_accel_noise: 0.02 # Required
-  cov_gyro_bias: 0.02 # Required
-  cov_accel_bias: 0.02 # Required
+  cov_gyro_noise: 2.5e-05 # as per angular_velocity_covariance field in /imu/data
+  cov_accel_noise: 2.6e-07 # as per linear_acceleration_covariance field in /imu/data
+  cov_gyro_bias: 2.5e-05 # assume two orders of magnitude less than cov_gyro_noise
+  cov_accel_bias: 2.5e-08 # assume one order of magnitude less than cov_accel_noise
 
 path_pub:
   frame_id: 'odom' # Stored in pose header. Default: odom

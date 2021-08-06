@@ -40,6 +40,7 @@ struct Imu3DParams : public ParameterBase {
   }
 
   std::string input_topic;
+  std::string sensor_frame;
 
   int queue_size{300};
   double prior_noise{1e-9};
