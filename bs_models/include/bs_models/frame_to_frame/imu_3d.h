@@ -40,32 +40,48 @@ class Imu3D : public fuse_core::AsyncSensorModel {
   void onStart() override;
 
   /**
+   * @brief Unsubscribe from the input topic to stop sending transactions to the
+   * optimizer
+   */
+  void onStop() override;
+
+  /**
    * @brief Callback for IMU messages
    * @param[in] msg - The IMU message to process
    */
   void process(const sensor_msgs::Imu::ConstPtr& msg);
 
   /**
-   * @brief Callback for transaction generation
-   * @param[in] msg - The IMU message to process
-   * @param[out] msg - transaction
+   * @brief Gets estimated pose of imu wrt world frame using frame initializer
+   * @param[out] R_WORLD_IMU - reference to orientation result
+   * @param[out] t_WORLD_IMU - reference to position result
+   * @param[in] t_now - stamp of requested pose
+   * @return true if pose lookup was successful
    */
-  fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const sensor_msgs::Imu::ConstPtr& msg);
+  bool GetPose(fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
+               fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
+               const ros::Time& time);
 
-  fuse_core::UUID device_id_;  //!< The UUID of this device
+  // The UUID of this device
+  fuse_core::UUID device_id_;
+
+  // timing parameters
   bool set_start_{true};
+  ros::Duration t_elapsed_;
+  ros::Time t_prev_;
 
+  // Frame-to-frame objects
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   std::unique_ptr<ImuPreintegration> imu_preintegration_;
   bs_parameters::models::Imu3DParams params_;
 
+  // Subscriber/Callback objects
   ros::Subscriber subscriber_;
-
   using ImuThrottledCallback =
       fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
   ImuThrottledCallback throttled_callback_;
 
+  // Extrinsics
   bs_common::ExtrinsicsLookup& extrinsics_ =
       bs_common::ExtrinsicsLookup::GetInstance();
 };

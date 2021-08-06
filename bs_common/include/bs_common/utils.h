@@ -20,6 +20,11 @@ void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                               fuse_variables::Position3DStamped& p,
                               fuse_variables::Orientation3DStamped& o);
 
+void EigenTransformToFusePose(
+    const Eigen::Matrix4d& T_WORLD_SENSOR,
+    fuse_variables::Position3DStamped::SharedPtr& p,
+    fuse_variables::Orientation3DStamped::SharedPtr& o);
+
 void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                               const fuse_variables::Orientation3DStamped& o,
                               Eigen::Matrix4d& T_WORLD_SENSOR);
@@ -81,5 +86,5 @@ void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
 void InterpolateTransformFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Matrix4d& T_WORLD_SENSOR);
-    
-} // namespace bs_common
+
+}  // namespace bs_common

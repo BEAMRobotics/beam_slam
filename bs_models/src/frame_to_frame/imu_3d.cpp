@@ -1,4 +1,5 @@
 #include <bs_models/frame_to_frame/imu_3d.h>
+#include <bs_common/utils.h>
 
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
@@ -47,6 +48,9 @@ void Imu3D::onInit() {
   };
   imu_preintegration_ =
       std::make_unique<ImuPreintegration>(imu_preintegration_params);
+
+  // init elapsed time for key-frame selection
+  t_elapsed_ = ros::Duration(0.0);
 }
 
 void Imu3D::onStart() {
@@ -56,44 +60,50 @@ void Imu3D::onStart() {
       ros::TransportHints().tcpNoDelay(false));
 };
 
-void process(const sensor_msgs::Imu::ConstPtr& msg){
-    // set start IMU state to Orientation = I, Position = 0, Velocity = 0
-    // if (set_start_) {
-    //   imu_preintegration_->SetStart(t_now);
-    //   set_start_ = false;
-    //   t_prev_ = t_now;
-    // }
+void Imu3D::onStop() { subscriber_.shutdown(); }
 
-    // // populate imu buffer
-    // imu_preintegration_->AddToBuffer(*msg);
+void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
+  // add msg to buffer
+  imu_preintegration_->AddToBuffer(*msg);
+  ros::Time t_now = msg->header.stamp;
+
+  // set start
+  if (set_start_) {
+    fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU;
+    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU;
+    GetPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
+    imu_preintegration_->SetStart(t_now, R_WORLD_IMU, t_WORLD_IMU);
+    set_start_ = false;
+    t_prev_ = t_now;
+  }
+
+  // increment time
+  t_elapsed_ += t_now - t_prev_;
+  t_prev_ = t_now;
+
+  // if key-frame ready
+  if (t_elapsed_ >= ros::Duration(params_.key_frame_rate)) {
+    t_elapsed_ = ros::Duration(0.0);
+    ROS_INFO_STREAM("KEYFRAME AT: " << t_now.toSec());
+  }
 };
 
-fuse_core::Transaction::SharedPtr Imu3D::GenerateTransaction(
-    const sensor_msgs::Imu::ConstPtr& msg) {
-  // ros::Time t_now = msg->header.stamp;
+bool Imu3D::GetPose(
+    fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
+    fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
+    const ros::Time& time) {
+  Eigen ::Matrix4d T_WORLD_IMU;
+  if (!frame_initializer_->GetEstimatedPose(T_WORLD_IMU, time,
+                                            extrinsics_.GetImuFrameId())) {
+    ROS_WARN(
+        "Cannot get transform from imu to world for stamp: %.8f. Skipping key "
+        "frame.",
+        time.toSec());
+    return false;
+  }
 
-  // // set start IMU state to Orientation = I, Position = 0, Velocity = 0
-  // if (set_start_) {
-  //   imu_preintegration_->SetStart(t_now);
-  //   set_start_ = false;
-  //   t_prev_ = t_now;
-  // }
-
-  // // increment elapsed window time
-  // elapsed_window_time_ += t_now - t_prev_;
-  // t_prev_ = t_now;
-
-  // // populate imu buffer
-  // imu_preintegration_->AddToBuffer(*msg);
-
-  // // generate transaction
-  // if (elapsed_window_time_ >= params_.key_frame_rate) {
-  //   elapsed_window_time_ = 0;
-  //   return imu_preintegration_->RegisterNewImuPreintegratedFactor(t_now);
-  // } else {
-  //   return bs_constraints::frame_to_frame::ImuState3DStampedTransaction(
-  //       t_now);
-  // }
+  bs_common::EigenTransformToFusePose(T_WORLD_IMU, t_WORLD_IMU, R_WORLD_IMU);
+  return true;
 }
 
 }  // namespace frame_to_frame
