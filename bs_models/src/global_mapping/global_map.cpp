@@ -209,6 +209,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
   // add camera measurement if not empty
   if (!cam_measurement.landmarks.empty()) {
+    ROS_DEBUG("Adding camera measurement to global map.");
     submaps_[submap_id].AddCameraMeasurement(
         cam_measurement.landmarks, cam_measurement.descriptor_type,
         T_WORLD_BASELINK, stamp, cam_measurement.sensor_id,
@@ -217,6 +218,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
   // add lidar measurement if not empty
   if (!lid_measurement.points.empty()) {
+    ROS_DEBUG("Adding lidar measurement to global map.");
     std::vector<float> points = lid_measurement.points;
 
     // check dimensions of points first
@@ -238,8 +240,10 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
                                               lid_measurement.point_type);
     }
   }
+
   // add trajectory measurement if not empty
   if (!traj_measurement.stamps.empty()) {
+    ROS_DEBUG("Adding trajectory measurement to global map.");
     std::vector<float> poses_vec = traj_measurement.poses;
     uint16_t num_poses = static_cast<uint16_t>(poses_vec.size() / 12);
 
@@ -248,7 +252,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
       BEAM_ERROR(
           "Invalid size of poses vector, number of elements must be "
           "divisible "
-          "by 4. Not adding trajectory measurement.");
+          "by 12. Not adding trajectory measurement.");
     } else if (num_poses != traj_measurement.stamps.size()) {
       BEAM_ERROR(
           "Number of poses is not equal to number of time stamps. Not adding "
@@ -262,11 +266,11 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
           current_pose.push_back(traj_measurement.poses[12 * i + j]);
         }
         Eigen::Matrix4d T_KEYFRAME_FRAME = VectorToTransform(current_pose);
-
         poses.push_back(T_KEYFRAME_FRAME);
-        stamps.push_back(ros::Time(traj_measurement.stamps[i]));
+        ros::Time new_stamp;
+        new_stamp.fromNSec(traj_measurement.stamps[i]);
+        stamps.push_back(new_stamp);
       }
-
       submaps_[submap_id].AddTrajectoryMeasurement(poses, stamps, stamp);
     }
   }

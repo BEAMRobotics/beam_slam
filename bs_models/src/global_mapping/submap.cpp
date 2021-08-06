@@ -468,8 +468,8 @@ bool Submap::LoadData(const std::string& input_dir,
   }
   int lidar_keyframe_num = 0;
   while (true) {
-    std::string lidar_keyframe_dir =
-        lidar_keyframes_root + "keyframe" + std::to_string(lidar_keyframe_num) + "/";
+    std::string lidar_keyframe_dir = lidar_keyframes_root + "keyframe" +
+                                     std::to_string(lidar_keyframe_num) + "/";
     if (!boost::filesystem::exists(lidar_keyframe_dir)) {
       break;
     }
@@ -477,6 +477,49 @@ bool Submap::LoadData(const std::string& input_dir,
     scan_pose.LoadData(lidar_keyframe_dir);
     lidar_keyframe_poses_.emplace(scan_pose.Stamp().toNSec(), scan_pose);
     lidar_keyframe_num++;
+  }
+
+  // load subframe poses
+  std::string subframes_root = input_dir + "subframes/";
+  if (!boost::filesystem::exists(subframes_root)) {
+    BEAM_ERROR(
+        "Subframes folder not found in input root directory, not loading "
+        "submap. Input: {}",
+        input_dir);
+    return false;
+  }
+  int subframe_num = 0;
+  while (true) {
+    // check if subframe exists
+    std::string subframe_filename =
+        subframes_root + "subframe" + std::to_string(subframe_num) + "/";
+    if (!boost::filesystem::exists(subframe_filename)) {
+      break;
+    }
+
+    // load subframe json
+    nlohmann::json J_subframe;
+    std::ifstream file_subframe(subframe_filename);
+    file_subframe >> J_subframe;
+    uint64_t subframe_stamp = J_subframe["subframe_stamp_nsecs"];
+    std::map<std::string, std::vector<double>> subframe_poses_map = J_subframe["poses"];
+    std::vector<PoseStamped> subframe_poses_vec;
+    for (auto it = subframe_poses_map.begin(); it != subframe_poses_map.end(); it++){
+      // convert string stamp to integer
+      std::istringstream stamp_ss(it->first);
+      uint64_t stamp_int;
+      stamp_ss >> stamp_int;
+
+      // add subframe pose stamped
+      PoseStamped pose_stamped;
+      pose_stamped.stamp.fromNSec(stamp_int);
+      pose_stamped.pose = beam::VectorToEigenTransform(it->second);
+      subframe_poses_vec.push_back(pose_stamped);
+    }
+
+    // add to subframes map
+    subframe_poses_.emplace(subframe_stamp, subframe_poses_vec);
+    subframe_num++;
   }
 }
 
