@@ -7,7 +7,7 @@ lag_duration: 5
 # frames
 imu_frame: "imu_link"
 world_frame: "world"
-baselink_frame: "base_link"
+baselink_frame: "imu_link"
 
 # calibrations
 static_extrinsics: true
@@ -59,7 +59,7 @@ imu_3d:
   cov_gyro_noise: 2.5e-05 # as per angular_velocity_covariance field in /imu/data
   cov_accel_noise: 2.6e-07 # as per linear_acceleration_covariance field in /imu/data
   cov_gyro_bias: 2.5e-05 # assume two orders of magnitude less than cov_gyro_noise
-  cov_accel_bias: 2.5e-08 # assume one order of magnitude less than cov_accel_noise
+  cov_accel_bias: 2.6e-08 # assume one order of magnitude less than cov_accel_noise
 
 path_pub:
   frame_id: 'odom' # Stored in pose header. Default: odom
