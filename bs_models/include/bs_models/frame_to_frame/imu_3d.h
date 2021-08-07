@@ -67,8 +67,10 @@ class Imu3D : public fuse_core::AsyncSensorModel {
 
   // timing parameters
   bool set_start_{true};
+  ros::Duration t_lag_;
   ros::Duration t_elapsed_;
   ros::Time t_prev_;
+  std::queue<ros::Time> t_buffer_;
 
   // Frame-to-frame objects
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;

@@ -23,7 +23,7 @@ void Imu3D::onInit() {
   if (params_.frame_initializer_type == "ODOMETRY") {
     frame_initializer_ =
         std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            params_.frame_initializer_info, 100, 30,
+            params_.frame_initializer_info, 100, 10 * params_.lag_duration,
             params_.sensor_frame_id_override);
   } else if (params_.frame_initializer_type == "POSEFILE") {
     frame_initializer_ =
@@ -51,6 +51,9 @@ void Imu3D::onInit() {
 
   // init elapsed time for key-frame selection
   t_elapsed_ = ros::Duration(0.0);
+
+  // init lag duration for frame initialization
+  t_lag_ = ros::Duration(params_.lag_duration);
 }
 
 void Imu3D::onStart() {
@@ -63,28 +66,46 @@ void Imu3D::onStart() {
 void Imu3D::onStop() { subscriber_.shutdown(); }
 
 void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
-  // add msg to buffer
+  // add msg to preintegration buffers
   imu_preintegration_->AddToBuffer(*msg);
-  ros::Time t_now = msg->header.stamp;
+  ros::Time t_proc = msg->header.stamp;
 
-  // set start
-  if (set_start_) {
-    fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU;
-    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU;
-    GetPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
-    imu_preintegration_->SetStart(t_now, R_WORLD_IMU, t_WORLD_IMU);
-    set_start_ = false;
+  // add time to queue for proper frame initialization
+  t_buffer_.push(t_proc);
+
+  // if lag duration exceeded
+  if (ros::Duration(t_buffer_.back() - t_buffer_.front()) > t_lag_) {
+    // process first out
+    ros::Time t_now = t_buffer_.front();
+    t_buffer_.pop();
+
+    // set first key frame
+    if (set_start_) {
+      // get pose from frame initializer
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU;
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU;
+      GetPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
+
+      // set start of preintegration from estimated pose
+      imu_preintegration_->SetStart(t_now, R_WORLD_IMU, t_WORLD_IMU);
+      set_start_ = false;
+      t_prev_ = t_now;
+    }
+
+    // increment time
+    t_elapsed_ += t_now - t_prev_;
     t_prev_ = t_now;
-  }
 
-  // increment time
-  t_elapsed_ += t_now - t_prev_;
-  t_prev_ = t_now;
+    // if key-frame ready
+    if (t_elapsed_ >= ros::Duration(params_.key_frame_rate)) {
+      // reset elapsed time
+      t_elapsed_ = ros::Duration(0.0);
 
-  // if key-frame ready
-  if (t_elapsed_ >= ros::Duration(params_.key_frame_rate)) {
-    t_elapsed_ = ros::Duration(0.0);
-    ROS_INFO_STREAM("KEYFRAME AT: " << t_now.toSec());
+      // get pose from frame initializer
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU;
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU;
+      GetPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
+    }
   }
 };
 
@@ -92,7 +113,7 @@ bool Imu3D::GetPose(
     fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
     const ros::Time& time) {
-  Eigen ::Matrix4d T_WORLD_IMU;
+  Eigen::Matrix4d T_WORLD_IMU;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_IMU, time,
                                             extrinsics_.GetImuFrameId())) {
     ROS_WARN(

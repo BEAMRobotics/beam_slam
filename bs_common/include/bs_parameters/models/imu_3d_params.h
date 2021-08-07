@@ -26,6 +26,7 @@ struct Imu3DParams : public ParameterBase {
     // Optional
     nh.getParam("queue_size", queue_size);
     nh.getParam("key_frame_rate", key_frame_rate);
+    nh.getParam("lag_duration", lag_duration);
     nh.getParam("prior_noise", prior_noise);
     nh.getParam("frame_initializer_type", frame_initializer_type);
     nh.getParam("frame_initializer_info", frame_initializer_info);
@@ -44,6 +45,7 @@ struct Imu3DParams : public ParameterBase {
 
   int queue_size{300};
   double key_frame_rate{1.0};
+  double lag_duration{1.0};
   double prior_noise{1e-9};
   std::string frame_initializer_type{"ODOMETRY"};
   std::string frame_initializer_info{""};
