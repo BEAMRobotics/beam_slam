@@ -438,8 +438,10 @@ bool GlobalMap::Load(const std::string& root_directory) {
 
   if (submap_num == 0) {
     BEAM_ERROR("No submaps loaded, root directory empty.");
+    return false;
   } else {
     BEAM_INFO("Done loading global map. Loaded {} submaps.", submap_num);
+    return true;
   }
 }
 

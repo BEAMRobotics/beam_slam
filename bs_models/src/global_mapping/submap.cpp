@@ -455,7 +455,9 @@ bool Submap::LoadData(const std::string& input_dir,
   }
 
   // load landmarks
-  // TODO
+  if(!landmarks_.LoadFromJson(input_dir + "landmarks.json"){
+    return false;
+  }
 
   // load lidar keyframes
   std::string lidar_keyframes_root = input_dir + "lidar_keyframes/";
@@ -556,7 +558,7 @@ void Submap::SaveData(const std::string& output_dir) {
   camera_model_->WriteJSON(camera_model_filename);
 
   // save landmarks
-  // TODO
+  landmarks_.SaveToJson( output_dir + "landmarks.json");
 
   // save lidar keyframes
   std::string lidar_keyframes_dir = output_dir + "lidar_keyframes/";
