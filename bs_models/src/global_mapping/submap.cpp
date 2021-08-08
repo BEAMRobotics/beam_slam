@@ -455,7 +455,7 @@ bool Submap::LoadData(const std::string& input_dir,
   }
 
   // load landmarks
-  if(!landmarks_.LoadFromJson(input_dir + "landmarks.json"){
+  if(!landmarks_.LoadFromJson(input_dir + "landmarks.json")){
     return false;
   }
 
