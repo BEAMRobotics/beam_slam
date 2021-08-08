@@ -152,8 +152,10 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
                                                   Eigen::Matrix4d& T_MAP_SCAN) {
   const Eigen::Matrix4d& T_MAPEST_SCAN = scan_pose.T_REFFRAME_LIDAR();
   const Eigen::Matrix4d& T_MAP_SCANPREV = scan_pose_prev_->T_REFFRAME_LIDAR();
+
   Eigen::Matrix4d T_SCANPREV_SCANNEW =
       beam::InvertTransform(T_MAP_SCANPREV) * T_MAPEST_SCAN;
+
   if (!PassedMinMotion(T_SCANPREV_SCANNEW)) {
     return false;
   }

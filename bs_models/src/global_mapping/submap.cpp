@@ -2,10 +2,13 @@
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
+#include <nlohmann/json.hpp>
 
-#include <bs_common/utils.h>
+#include <beam_utils/filesystem.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/descriptors/Descriptor.h>
+
+#include <bs_common/utils.h>
 
 namespace bs_models {
 
@@ -369,6 +372,244 @@ void Submap::Print(std::ostream& stream) const {
          << "\n"
          << "  Number of landmarks: " << landmarks_.size() << "\n"
          << "  Number of subframes: " << num_subframes << "\n";
+}
+
+bool Submap::LoadData(const std::string& input_dir,
+                      bool override_camera_model_pointer) {
+  if (!boost::filesystem::exists(input_dir)) {
+    BEAM_ERROR("Invalid input directory, not loading submap data. Input: {}",
+               input_dir);
+    return false;
+  }
+
+  // load general data
+  if (!boost::filesystem::exists(input_dir + "submap.json")) {
+    BEAM_ERROR(
+        "submap.json does not exist inside root directory, not loading submap "
+        "data. Input root directory: {}",
+        input_dir);
+    return false;
+  }
+  nlohmann::json J_submap;
+  std::ifstream file_submap(input_dir + "submap.json");
+  file_submap >> J_submap;
+  stamp_.fromNSec(J_submap["stamp_nsecs"]);
+  graph_updates_ = J_submap["graph_updates"];
+
+  // load position data
+  position_ = fuse_variables::Position3DStamped(
+      stamp_, fuse_core::uuid::from_string(J_submap["device_id"]));
+  std::vector<double> position_vector = J_submap["position_xyz"];
+  position_.x() = position_vector.at(0);
+  position_.y() = position_vector.at(1);
+  position_.z() = position_vector.at(2);
+
+  orientation_ = fuse_variables::Orientation3DStamped(
+      stamp_, fuse_core::uuid::from_string(J_submap["device_id"]));
+  std::vector<double> orientation_vector = J_submap["orientation_xyzw"];
+  orientation_.x() = orientation_vector.at(0);
+  orientation_.y() = orientation_vector.at(1);
+  orientation_.z() = orientation_vector.at(2);
+  orientation_.w() = orientation_vector.at(3);
+
+  std::vector<double> T_WORLD_SUBMAP_vec = J_submap["T_WORLD_SUBMAP"];
+  T_WORLD_SUBMAP_ = beam::VectorToEigenTransform(T_WORLD_SUBMAP_vec);
+
+  std::vector<double> T_WORLD_SUBMAP_initial_vec =
+      J_submap["T_WORLD_SUBMAP_initial"];
+  T_WORLD_SUBMAP_initial_ =
+      beam::VectorToEigenTransform(T_WORLD_SUBMAP_initial_vec);
+  T_SUBMAP_WORLD_initial_ = beam::InvertTransform(T_WORLD_SUBMAP_initial_);
+
+  // load camera model
+  if (override_camera_model_pointer) {
+    if (!boost::filesystem::exists(input_dir + "camera_model.json")) {
+      BEAM_ERROR(
+          "Cannot load camera model, camera_model.json does not exist inside "
+          "root folder. Not loading submap data. Input root directory: {}",
+          input_dir);
+      return false;
+    }
+    std::string camera_model_path = input_dir + "camera_model.json";
+    camera_model_ = beam_calibration::CameraModel::Create(camera_model_path);
+  }
+
+  // load camera keyframes
+  if (!boost::filesystem::exists(input_dir + "camera_keyframes.json")) {
+    BEAM_ERROR(
+        "camera_keyframes.json does not exist inside root directory, not "
+        "loading submap "
+        "data. Input root directory: {}",
+        input_dir);
+    return false;
+  }
+  nlohmann::json J_cam_keyframes;
+  std::ifstream file_cam_keyframes(input_dir + "camera_keyframes.json");
+  file_cam_keyframes >> J_cam_keyframes;
+
+  std::map<uint64_t, std::vector<double>> cam_keyframes_map = J_cam_keyframes;
+  for (auto it = cam_keyframes_map.begin(); it != cam_keyframes_map.end();
+       it++) {
+    Eigen::Matrix4d T = beam::VectorToEigenTransform(it->second);
+    camera_keyframe_poses_.emplace(it->first, T);
+  }
+
+  // load landmarks
+  if(!landmarks_.LoadFromJson(input_dir + "landmarks.json")){
+    return false;
+  }
+
+  // load lidar keyframes
+  std::string lidar_keyframes_root = input_dir + "lidar_keyframes/";
+  if (!boost::filesystem::exists(lidar_keyframes_root)) {
+    BEAM_ERROR(
+        "Lidar keyframes folder not found in input root directory, not loading "
+        "submap. Input: {}",
+        input_dir);
+    return false;
+  }
+  int lidar_keyframe_num = 0;
+  while (true) {
+    std::string lidar_keyframe_dir = lidar_keyframes_root + "keyframe" +
+                                     std::to_string(lidar_keyframe_num) + "/";
+    if (!boost::filesystem::exists(lidar_keyframe_dir)) {
+      break;
+    }
+    bs_common::ScanPose scan_pose(ros::Time(0), Eigen::Matrix4d::Identity());
+    scan_pose.LoadData(lidar_keyframe_dir);
+    lidar_keyframe_poses_.emplace(scan_pose.Stamp().toNSec(), scan_pose);
+    lidar_keyframe_num++;
+  }
+
+  // load subframe poses
+  std::string subframes_root = input_dir + "subframes/";
+  if (!boost::filesystem::exists(subframes_root)) {
+    BEAM_ERROR(
+        "Subframes folder not found in input root directory, not loading "
+        "submap. Input: {}",
+        input_dir);
+    return false;
+  }
+  int subframe_num = 0;
+  while (true) {
+    // check if subframe exists
+    std::string subframe_filename =
+        subframes_root + "subframe" + std::to_string(subframe_num) + "/";
+    if (!boost::filesystem::exists(subframe_filename)) {
+      break;
+    }
+
+    // load subframe json
+    nlohmann::json J_subframe;
+    std::ifstream file_subframe(subframe_filename);
+    file_subframe >> J_subframe;
+    uint64_t subframe_stamp = J_subframe["subframe_stamp_nsecs"];
+    std::map<std::string, std::vector<double>> subframe_poses_map = J_subframe["poses"];
+    std::vector<PoseStamped> subframe_poses_vec;
+    for (auto it = subframe_poses_map.begin(); it != subframe_poses_map.end(); it++){
+      // convert string stamp to integer
+      std::istringstream stamp_ss(it->first);
+      uint64_t stamp_int;
+      stamp_ss >> stamp_int;
+
+      // add subframe pose stamped
+      PoseStamped pose_stamped;
+      pose_stamped.stamp.fromNSec(stamp_int);
+      pose_stamped.pose = beam::VectorToEigenTransform(it->second);
+      subframe_poses_vec.push_back(pose_stamped);
+    }
+
+    // add to subframes map
+    subframe_poses_.emplace(subframe_stamp, subframe_poses_vec);
+    subframe_num++;
+  }
+}
+
+void Submap::SaveData(const std::string& output_dir) {
+  if (!boost::filesystem::exists(output_dir)) {
+    BEAM_ERROR("Invalid output directory, not saving submap data. Input: {}",
+               output_dir);
+    return;
+  }
+
+  // First, save general submap data to a json
+  nlohmann::json J_submap = {
+      {"stamp_nsecs", stamp_.toNSec()},
+      {"graph_updates", graph_updates_},
+      {"num_lidar_keyframes", lidar_keyframe_poses_.size()},
+      {"num_camera_keyframes", camera_keyframe_poses_.size()},
+      {"num_subframes", subframe_poses_.size()},
+      {"num_landmarks", landmarks_.size()},
+      {"device_id", fuse_core::uuid::to_string(position_.uuid())},
+      {"position_xyz", {position_.x(), position_.y(), position_.z()}},
+      {"orientation_xyzw",
+       {orientation_.x(), orientation_.y(), orientation_.z(),
+        orientation_.w()}}};
+  beam::AddTransformToJson(J_submap, T_WORLD_SUBMAP_, "T_WORLD_SUBMAP");
+  beam::AddTransformToJson(J_submap, T_WORLD_SUBMAP_initial_,
+                           "T_WORLD_SUBMAP_initial");
+
+  std::string submap_filename = output_dir + "submap.json";
+  std::ofstream submap_file(submap_filename);
+  submap_file << std::setw(4) << J_submap << std::endl;
+
+  // Save intrinsics
+  std::string camera_model_filename = output_dir + "camera_model.json";
+  camera_model_->WriteJSON(camera_model_filename);
+
+  // save landmarks
+  landmarks_.SaveToJson( output_dir + "landmarks.json");
+
+  // save lidar keyframes
+  std::string lidar_keyframes_dir = output_dir + "lidar_keyframes/";
+  boost::filesystem::create_directory(lidar_keyframes_dir);
+  int lidar_keyframes_counter = 0;
+  for (auto it = lidar_keyframe_poses_.begin();
+       it != lidar_keyframe_poses_.end(); it++) {
+    // create new directory
+    std::string keyframe_dir = lidar_keyframes_dir + "keyframe" +
+                               std::to_string(lidar_keyframes_counter) + "/";
+    boost::filesystem::create_directory(keyframe_dir);
+
+    // call save on keyframe
+    it->second.SaveData(keyframe_dir);
+    lidar_keyframes_counter++;
+  }
+
+  // save camera keyframes
+  nlohmann::json J_camera_keyframes;
+  for (auto it = camera_keyframe_poses_.begin();
+       it != camera_keyframe_poses_.end(); it++) {
+    beam::AddPoseToJson(J_camera_keyframes, it->first, it->second);
+  }
+  std::string camera_keyframes_filename = output_dir + "camera_keyframes.json";
+  std::ofstream camera_keyframe_file(camera_keyframes_filename);
+  camera_keyframe_file << std::setw(4) << J_camera_keyframes << std::endl;
+
+  // save subframes
+  std::string subframe_dir = output_dir + "subframes/";
+  boost::filesystem::create_directory(subframe_dir);
+  int subframes_counter = 0;
+  for (auto it = subframe_poses_.begin(); it != subframe_poses_.end(); it++) {
+    // create json
+    nlohmann::json J_subframes;
+    J_subframes["subframe_stamp_nsecs"] = it->first;
+
+    // add poses
+    nlohmann::json J_subframes_poses;
+    for (const auto& pose_stamped : it->second) {
+      beam::AddPoseToJson(J_subframes_poses, pose_stamped.stamp.toNSec(),
+                          pose_stamped.pose);
+    }
+    J_subframes["poses"] = J_subframes_poses;
+
+    // save to file
+    std::string subframe_filename =
+        subframe_dir + "subframe" + std::to_string(subframes_counter) + ".json";
+    std::ofstream subframe_file(subframe_filename);
+    subframe_file << std::setw(4) << J_subframes << std::endl;
+    subframes_counter++;
+  }
 }
 
 void Submap::TriangulateKeypoints(bool override_points) {
