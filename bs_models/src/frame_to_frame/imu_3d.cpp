@@ -23,7 +23,7 @@ void Imu3D::onInit() {
   if (params_.frame_initializer_type == "ODOMETRY") {
     frame_initializer_ =
         std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            params_.frame_initializer_info, 100, 10 * params_.lag_duration,
+            params_.frame_initializer_info, 100, 2 * params_.lag_duration,
             params_.sensor_frame_id_override);
   } else if (params_.frame_initializer_type == "POSEFILE") {
     frame_initializer_ =
@@ -74,7 +74,7 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
   t_buffer_.push(t_proc);
 
   // if lag duration exceeded
-  if (ros::Duration(t_buffer_.back() - t_buffer_.front()) > t_lag_) {
+  if (ros::Duration(t_buffer_.back() - t_buffer_.front()) >= t_lag_) {
     // process first out
     ros::Time t_now = t_buffer_.front();
     t_buffer_.pop();
@@ -84,7 +84,7 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
       // get pose from frame initializer
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU;
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU;
-      GetPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
+      GetEstimatedPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
 
       // set start of preintegration from estimated pose
       imu_preintegration_->SetStart(t_now, R_WORLD_IMU, t_WORLD_IMU);
@@ -104,12 +104,12 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
       // get pose from frame initializer
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU;
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU;
-      GetPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
+      GetEstimatedPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
     }
   }
 };
 
-bool Imu3D::GetPose(
+bool Imu3D::GetEstimatedPose(
     fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
     const ros::Time& time) {

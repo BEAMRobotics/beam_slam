@@ -58,26 +58,27 @@ class Imu3D : public fuse_core::AsyncSensorModel {
    * @param[in] t_now - stamp of requested pose
    * @return true if pose lookup was successful
    */
-  bool GetPose(fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
-               fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
-               const ros::Time& time);
+  bool GetEstimatedPose(
+      fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
+      fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
+      const ros::Time& time);
 
   // The UUID of this device
   fuse_core::UUID device_id_;
 
-  // timing parameters
+  // timing
   bool set_start_{true};
   ros::Duration t_lag_;
   ros::Duration t_elapsed_;
   ros::Time t_prev_;
   std::queue<ros::Time> t_buffer_;
 
-  // Frame-to-frame objects
+  // Frame-to-frame
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   std::unique_ptr<ImuPreintegration> imu_preintegration_;
   bs_parameters::models::Imu3DParams params_;
 
-  // Subscriber/Callback objects
+  // Subscriber/Callback
   ros::Subscriber subscriber_;
   using ImuThrottledCallback =
       fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
