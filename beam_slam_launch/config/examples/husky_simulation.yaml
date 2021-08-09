@@ -2,7 +2,6 @@
 
 # optimization params
 optimization_frequency: 1
-lag_duration: 5
 
 # frames
 imu_frame: "inertial_link"
@@ -15,41 +14,23 @@ baselink_frame: "inertial_link"
 static_extrinsics: true
 
 ## model plugins: declare all plugins to use and give a unique name
+
 sensor_models:
   - name: 'imu_3d'
     type: 'bs_models::frame_to_frame::Imu3D'
 
-motion_models:
-  - name: 'unicycle_3d'
-    type: 'bs_models::motion::Unicycle3D'
-
-publishers:
-  - name: 'odom_pub'
-    type: 'bs_publishers::Odometry3DPublisher'
-  - name: 'path_pub'
-    type: 'bs_publishers::Path3DPublisher'    
+## plugin params: specify all params for the plugins, using their unique name
 
 solver_options:
   minimizer_type: "TRUST_REGION"
   linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
-  minimizer_progress_to_stdout: true
+  minimizer_progress_to_stdout: false
   num_threads: 2
   num_linear_solver_threads: 2
   max_num_iterations: 50
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
-
-optimization_period: 1
-lag_duration: 10
-
-unicycle_3d:
-  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2]
-  buffer_length: 100000
 
 imu_3d:
   input_topic: '/imu/data'
@@ -64,22 +45,3 @@ imu_3d:
   cov_accel_noise: 2.6e-07 # as per linear_acceleration_covariance field in /imu/data
   cov_gyro_bias: 2.5e-05 # assume two orders of magnitude less than cov_gyro_noise
   cov_accel_bias: 2.6e-08 # assume one order of magnitude less than cov_accel_noise
-
-path_pub:
-  frame_id: 'odom' # Stored in pose header. Default: odom
-  path_topic: 'path' # Default: path
-  pose_array_topic: 'pose_array' # Default: pose_array
-
-odom_pub:
-  publish_tf: false # Default: true
-  predict_to_current_time: false # Default: false
-  tf_publish_frequency: 10 # Default: 10
-  tf_cache_time: 10 # Default: 10
-  tf_timeout: 0.1 # Default: 0.1
-  queue_size: 1 # Publisher queue size. Default: 1
-  map_frame_id: 'map' # I DONT THINK THIS IS USED. Default: map
-  odom_frame_id: 'odom' # I DONT THINK THIS IS USED. Default: odom
-  base_link_frame_id: 'base0_link' # I DONT THINK THIS IS USED. Default: base_link
-  base_link_output_frame_id: 'base0_link' # Stored in odometry.child_frame_id Default: base_link_frame_id
-  world_frame_id: 'odom' # Stored in odometry.header.frame_id. Default: odom_frame_id
-  topic: 'fixed_lag_smoother/optimized_odometry' # Output odometry topic

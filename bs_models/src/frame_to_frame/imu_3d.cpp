@@ -105,6 +105,19 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU;
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU;
       GetEstimatedPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
+
+      // send transaction
+      fuse_core::Transaction::SharedPtr new_transaction =
+          imu_preintegration_->RegisterNewImuPreintegratedFactor(
+              t_now, R_WORLD_IMU, t_WORLD_IMU);
+      if (new_transaction != nullptr) {
+        ROS_INFO("Sending transaction.");
+        try {
+          sendTransaction(new_transaction);
+        } catch (const std::exception& e) {
+          ROS_WARN("Cannot send transaction. Error: %s", e.what());
+        }
+      }
     }
   }
 };
