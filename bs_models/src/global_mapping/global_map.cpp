@@ -18,23 +18,6 @@ namespace bs_models {
 
 namespace global_mapping {
 
-Eigen::Matrix4d VectorToTransform(const std::vector<float>& v) {
-  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
-  T(0, 0) = v[0];
-  T(0, 1) = v[1];
-  T(0, 2) = v[2];
-  T(0, 3) = v[3];
-  T(1, 0) = v[4];
-  T(1, 1) = v[5];
-  T(1, 2) = v[6];
-  T(1, 3) = v[7];
-  T(2, 0) = v[8];
-  T(2, 1) = v[9];
-  T(2, 2) = v[10];
-  T(2, 3) = v[11];
-  return T;
-}
-
 void GlobalMap::Params::LoadJson(const std::string& config_path) {
   BEAM_INFO("Loading global map config file: {}", config_path);
 
@@ -55,9 +38,9 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
         "default.");
     vec = std::vector<double>{1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3};
   }
-  
+
   Eigen::VectorXd vec_eig(6);
-  vec_eig << vec[0], vec[1], vec[2], vec[3], vec[4], vec[5]; 
+  vec_eig << vec[0], vec[1], vec[2], vec[3], vec[4], vec[5];
   local_mapper_covariance = vec_eig.asDiagonal();
 
   std::vector<double> vec2 = J["loop_closure_covariance_diag"];
@@ -69,7 +52,7 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   }
 
   vec_eig = Eigen::VectorXd(6);
-  vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5]; 
+  vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
   loop_closure_covariance = vec_eig.asDiagonal();
 }
 
@@ -142,6 +125,8 @@ GlobalMap::GlobalMap(
   }
   Setup();
 }
+
+std::vector<Submap>& GlobalMap::GetSubmaps() { return submaps_; }
 
 void GlobalMap::Setup() {
   // initiate loop closure candidate search
@@ -265,7 +250,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         for (int j = 0; j < 12; j++) {
           current_pose.push_back(traj_measurement.poses[12 * i + j]);
         }
-        Eigen::Matrix4d T_KEYFRAME_FRAME = VectorToTransform(current_pose);
+        Eigen::Matrix4d T_KEYFRAME_FRAME =
+            beam::VectorToEigenTransform(current_pose);
         poses.push_back(T_KEYFRAME_FRAME);
         ros::Time new_stamp;
         new_stamp.fromNSec(traj_measurement.stamps[i]);

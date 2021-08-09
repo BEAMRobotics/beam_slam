@@ -24,7 +24,7 @@ GlobalMapper::GlobalMapper()
 void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
   ros::Time stamp = msg->stamp;
   std::vector<float> T = msg->T_WORLD_BASELINK;
-  Eigen::Matrix4d T_WORLD_BASELINK = VectorToTransform(T);
+  Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
 
   fuse_core::Transaction::SharedPtr new_transaction =
       global_map_->AddMeasurement(

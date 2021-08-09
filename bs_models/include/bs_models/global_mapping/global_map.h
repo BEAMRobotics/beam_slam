@@ -18,13 +18,6 @@ namespace bs_models {
 namespace global_mapping {
 
 /**
- * @brief convert from a vector of [R | t] to an Eigen::Matrix4d transform
- * @param v vector
- * @return T eigen transform
- */
-Eigen::Matrix4d VectorToTransform(const std::vector<float>& v);
-
-/**
  * @brief This class takes care of all global mapping functionality. It received
  * incoming slam data from the local mapper, saves it into submaps and then runs
  * loop closure on the submaps to refine the final map.
@@ -79,9 +72,9 @@ class GlobalMap {
   };
 
   /**
-   * @brief delete default constructor
+   * @brief default constructor
    */
-  GlobalMap() = delete;
+  GlobalMap() = default;
 
   /**
    * @brief constructor requiring only a pointer to camera model object
@@ -109,6 +102,13 @@ class GlobalMap {
    * @brief default destructor
    */
   ~GlobalMap() = default;
+
+  /**
+   * @brief get access to the submaps
+   * @return reference to vector of submaps stored in this global map
+   */
+  std::vector<Submap>& GetSubmaps();
+
 
   /**
    * @brief add a slam chunk measurement to the appropriate submap and returns a

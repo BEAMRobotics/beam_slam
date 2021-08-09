@@ -19,7 +19,6 @@ LoopClosureRefinementLoam::GenerateTransaction(
     const Submap& matched_submap, const Submap& query_submap,
     const Eigen::Matrix4d& T_MATCH_QUERY_EST) {
   LoadConfig();
-  Setup();
 
   Eigen::Matrix4d T_MATCH_QUERY_OPT;
   if (!GetRefinedT_MATCH_QUERY(matched_submap, query_submap, T_MATCH_QUERY_EST,
