@@ -158,6 +158,15 @@ add_dependencies(
     ${catkin_EXPORTED_TARGETS}
 )
 
+## Add executables
+add_executable(${PROJECT_NAME}_global_map_refinement_main
+	src/global_mapping/global_map_refinement_main.cpp
+)
+target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
+	${PROJECT_NAME}
+  beam::calibration
+	# gflags
+)
 
 #############
 ## Testing ##
