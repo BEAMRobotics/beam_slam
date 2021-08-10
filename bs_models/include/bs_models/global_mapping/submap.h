@@ -277,12 +277,58 @@ class Submap {
    */
   void Print(std::ostream& stream = std::cout) const;
 
+  /**
+   * @brief save all contents of this submap. Format is as follows:
+   *
+   * output_dir/
+   *    submap.json (general data)
+   *    camera_model.json (intrinsics object)
+   *    landmarks.json
+   *    camera_keyframes.json
+   *    /lidar_keyframes/
+   *        /keyframe0/
+   *            ...
+   *        /keyframe1/
+   *            ...
+   *        ...
+   *        /keyframeN/
+   *            ...
+   *    /subframes/
+   *        subframe0.json
+   *        subframe1.json
+   *        ...
+   *        subframeN.json
+   * 
+   *    where lidar keyframe formats can be found in bs_common/ScanPose.h (see SaveData function),
+   *    camera_keyframes.json is a map from stamp (nsecs) to pose vector (1 x 16)
+   *
+   * @param output_dir full path to output directory. This should be an empty
+   * directory so as to not confuse with previous data
+   */
+  void SaveData(const std::string& output_dir);
+
+  /**
+   * @brief load submap data. This expects the same exact structure as
+   * Save() function outputs to, as shown above. No other data can be in
+   * this input directory.
+   * @param input_dir full path to submap root directory
+   * @param override_camera_model_pointer if set to false, this function will
+   * not load the camera data from camera_model.json. The reason for this is
+   * that it's likely we want all submaps to point to the same camera model
+   * pointer, so we can construct the submaps with the same pointer, then not
+   * override it when loading the data. The GlobalMap does this with its load
+   * function.
+   * @return true if successful
+   */
+  bool LoadData(const std::string& input_dir,
+                bool override_camera_model_pointer);
+
  private:
   /**
-   * @brief Get 3D positions of each landmark given current tracks and camera
-   * poses. This fills in landmark_positions_
-   * @param override_points if set to false, it will skip triangulation if it
-   * has already been called
+   * @brief Get 3D positions of each landmark given current tracks and
+   * camera poses. This fills in landmark_positions_
+   * @param override_points if set to false, it will skip triangulation if
+   * it has already been called
    */
   void TriangulateKeypoints(bool override_points = false);
 
@@ -322,7 +368,6 @@ class Submap {
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;
 
   // NOTE: all frames are baselink frames
-
 };
 
 }  // namespace global_mapping

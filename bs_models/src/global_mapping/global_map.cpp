@@ -4,7 +4,6 @@
 #include <ctime>
 
 #include <boost/filesystem.hpp>
-#include <nlohmann/json.hpp>
 #include <pcl/io/pcd_io.h>
 
 #include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
@@ -49,30 +48,50 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
       J["loop_closure_candidate_search_config"];
   loop_closure_refinement_config = J["loop_closure_refinement_config"];
 
-  std::vector<double> vec;
-  Eigen::VectorXd vec_eig(6);
-  for (const auto& value : J["local_mapper_covariance_diag"]) {
-    vec.push_back(value.get<double>());
-  }
+  std::vector<double> vec = J["local_mapper_covariance_diag"];
   if (vec.size() != 6) {
     BEAM_ERROR(
         "Invalid local mapper covariance diagonal (6 values required). Using "
         "default.");
-    vec_eig << 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3;
-    local_mapper_covariance = vec_eig.asDiagonal();
+    vec = std::vector<double>{1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3};
   }
-  vec.clear();
+  
+  Eigen::VectorXd vec_eig(6);
+  vec_eig << vec[0], vec[1], vec[2], vec[3], vec[4], vec[5]; 
+  local_mapper_covariance = vec_eig.asDiagonal();
 
-  for (const auto& value : J["loop_closure_covariance_diag"]) {
-    vec.push_back(value.get<double>());
-  }
-  if (vec.size() != 6) {
+  std::vector<double> vec2 = J["loop_closure_covariance_diag"];
+  if (vec2.size() != 6) {
     BEAM_ERROR(
         "Invalid loop closure covariance diagonal (6 values required). Using "
         "default.");
-    vec_eig << 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5;
-    loop_closure_covariance = vec_eig.asDiagonal();
+    vec2 = std::vector<double>{1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3};
   }
+
+  vec_eig = Eigen::VectorXd(6);
+  vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5]; 
+  loop_closure_covariance = vec_eig.asDiagonal();
+}
+
+void GlobalMap::Params::SaveJson(const std::string& filename) {
+  nlohmann::json J = {
+      {"submap_size_m", submap_size},
+      {"loop_closure_candidate_search_type",
+       loop_closure_candidate_search_type},
+      {"loop_closure_refinement_type", loop_closure_refinement_type},
+      {"loop_closure_candidate_search_config",
+       loop_closure_candidate_search_config},
+      {"local_mapper_covariance_diag",
+       {local_mapper_covariance(0, 0), local_mapper_covariance(1, 1),
+        local_mapper_covariance(2, 2), local_mapper_covariance(3, 3),
+        local_mapper_covariance(4, 4), local_mapper_covariance(5, 5)}},
+      {"loop_closure_covariance_diag",
+       {loop_closure_covariance(0, 0), loop_closure_covariance(1, 1),
+        loop_closure_covariance(2, 2), loop_closure_covariance(3, 3),
+        loop_closure_covariance(4, 4), loop_closure_covariance(5, 5)}}};
+
+  std::ofstream file(filename);
+  file << std::setw(4) << J << std::endl;
 }
 
 GlobalMap::GlobalMap(
@@ -111,7 +130,8 @@ GlobalMap::GlobalMap(
     read_file = default_path;
   } else if (!boost::filesystem::exists(config_path)) {
     BEAM_ERROR(
-        "GlobalMap config file not found, using default parameters. Input: {}",
+        "GlobalMap config file not found, using default parameters. Input: "
+        "{}",
         config_path);
     Setup();
     return;
@@ -189,6 +209,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
   // add camera measurement if not empty
   if (!cam_measurement.landmarks.empty()) {
+    ROS_DEBUG("Adding camera measurement to global map.");
     submaps_[submap_id].AddCameraMeasurement(
         cam_measurement.landmarks, cam_measurement.descriptor_type,
         T_WORLD_BASELINK, stamp, cam_measurement.sensor_id,
@@ -197,6 +218,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
   // add lidar measurement if not empty
   if (!lid_measurement.points.empty()) {
+    ROS_DEBUG("Adding lidar measurement to global map.");
     std::vector<float> points = lid_measurement.points;
 
     // check dimensions of points first
@@ -218,16 +240,19 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
                                               lid_measurement.point_type);
     }
   }
+
   // add trajectory measurement if not empty
   if (!traj_measurement.stamps.empty()) {
+    ROS_DEBUG("Adding trajectory measurement to global map.");
     std::vector<float> poses_vec = traj_measurement.poses;
     uint16_t num_poses = static_cast<uint16_t>(poses_vec.size() / 12);
 
     // check dimensions of inputs first
     if (poses_vec.size() % 12 != 0) {
       BEAM_ERROR(
-          "Invalid size of poses vector, number of elements must be divisible "
-          "by 4. Not adding trajectory measurement.");
+          "Invalid size of poses vector, number of elements must be "
+          "divisible "
+          "by 12. Not adding trajectory measurement.");
     } else if (num_poses != traj_measurement.stamps.size()) {
       BEAM_ERROR(
           "Number of poses is not equal to number of time stamps. Not adding "
@@ -241,11 +266,11 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
           current_pose.push_back(traj_measurement.poses[12 * i + j]);
         }
         Eigen::Matrix4d T_KEYFRAME_FRAME = VectorToTransform(current_pose);
-
         poses.push_back(T_KEYFRAME_FRAME);
-        stamps.push_back(ros::Time(traj_measurement.stamps[i]));
+        ros::Time new_stamp;
+        new_stamp.fromNSec(traj_measurement.stamps[i]);
+        stamps.push_back(new_stamp);
       }
-
       submaps_[submap_id].AddTrajectoryMeasurement(poses, stamps, stamp);
     }
   }
@@ -345,11 +370,87 @@ void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg) {
   }
 }
 
+void GlobalMap::SaveData(const std::string& output_path) {
+  if (!boost::filesystem::exists(output_path)) {
+    BEAM_ERROR(
+        "Global map output path does not exist, not saving map. Input: {}",
+        output_path);
+    return;
+  }
+
+  BEAM_INFO("Saving full global map to: {}", output_path);
+  params_.SaveJson(output_path + "params.json");
+  camera_model_->WriteJSON(output_path + "camera_model.json");
+  for (uint16_t i = 0; i < submaps_.size(); i++) {
+    std::string submap_dir = output_path + "submap" + std::to_string(i) + "/";
+    boost::filesystem::create_directory(submap_dir);
+    submaps_.at(i).SaveData(submap_dir);
+  }
+  BEAM_INFO("Done saving global map.");
+}
+
+bool GlobalMap::Load(const std::string& root_directory) {
+  if (!boost::filesystem::exists(root_directory)) {
+    BEAM_ERROR(
+        "Global map root directory path does not exist, not loading map. "
+        "Input: {}",
+        root_directory);
+    return false;
+  }
+  BEAM_INFO("Loading full global map from: {}", root_directory);
+
+  // load params
+  if (!boost::filesystem::exists(root_directory + "params.json")) {
+    BEAM_ERROR(
+        "params.json not foudn in root directory, not loading GlobalMap. "
+        "Input root directory: {}",
+        root_directory);
+    return false;
+  }
+  params_.LoadJson(root_directory + "params.json");
+
+  // load camera model
+  if (!boost::filesystem::exists(root_directory + "camera_model.json")) {
+    BEAM_ERROR(
+        "camera_model.json not foudn in root directory, not loading GlobalMap. "
+        "Input root directory: {}",
+        root_directory);
+    return false;
+  }
+  std::string camera_filename = root_directory + "camera_model.json";
+  camera_model_ = beam_calibration::CameraModel::Create(camera_filename);
+
+  Setup();
+
+  int submap_num = 0;
+  while (true) {
+    std::string submap_dir =
+        root_directory + "submap" + std::to_string(submap_num) + "/";
+    if (!boost::filesystem::exists(submap_dir)) {
+      break;
+    }
+    Submap current_submap(ros::Time(0), Eigen::Matrix4d::Identity(),
+                          camera_model_);
+    current_submap.LoadData(submap_dir, false);
+    submaps_.push_back(current_submap);
+    submap_num++;
+  }
+
+  if (submap_num == 0) {
+    BEAM_ERROR("No submaps loaded, root directory empty.");
+    return false;
+  } else {
+    BEAM_INFO("Done loading global map. Loaded {} submaps.", submap_num);
+    return true;
+  }
+}
+
 void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
                                  bool save_initial) {
   if (!boost::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path, not saving submaps. Input: {}",
                output_path);
+    return;
   }
 
   // save optimized submap
@@ -381,6 +482,7 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
   if (!boost::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path, not saving submaps. Input: {}",
                output_path);
+    return;
   }
 
   // save optimized submaps
@@ -408,6 +510,12 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
 
 void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
                                    bool save_initial) {
+  if (!boost::filesystem::exists(output_path)) {
+    BEAM_ERROR("Invalid output path, not saving trajectory file. Input: {}",
+               output_path);
+    return;
+  }
+
   std::string date = beam::ConvertTimeToDate(std::chrono::system_clock::now());
 
   // Get trajectory
@@ -457,6 +565,12 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
 
 void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
                                      bool save_initial) {
+  if (!boost::filesystem::exists(output_path)) {
+    BEAM_ERROR("Invalid output path, not saving trajectory clouds. Input: {}",
+               output_path);
+    return;
+  }
+
   // get trajectory
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   for (auto& submap : submaps_) {
@@ -518,6 +632,12 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
 
 void GlobalMap::SaveSubmapFrames(const std::string& output_path,
                                  bool save_initial) {
+  if (!boost::filesystem::exists(output_path)) {
+    BEAM_ERROR("Invalid output path, not saving submap frames. Input: {}",
+               output_path);
+    return;
+  }
+
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   for (auto& submap : submaps_) {
     pcl::PointCloud<pcl::PointXYZRGBL> frame =

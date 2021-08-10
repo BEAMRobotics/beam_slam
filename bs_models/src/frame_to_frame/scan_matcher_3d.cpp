@@ -199,7 +199,9 @@ ScanMatcher3D::GenerateTransaction(
   active_clouds_.push_back(current_scan_pose);
 
   // build transaction of registration measurements
-  return scan_registration_->RegisterNewScan(current_scan_pose);
+  auto transaction = scan_registration_->RegisterNewScan(current_scan_pose);
+
+  return transaction;
 }
 
 void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
@@ -237,7 +239,7 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   boost::filesystem::create_directory(curent_path);
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
-    iter->Save(curent_path);
+    iter->SaveCloud(curent_path);
   }
 }
 
@@ -315,11 +317,12 @@ void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
       ROS_DEBUG("Publishing loam surface points");
       results_publisher_.publish(surfaces_msg);
     }
+
   }
 
   // save to disk
   if (!params_.scan_output_directory.empty()) {
-    scan_pose.Save(params_.scan_output_directory);
+    scan_pose.SaveCloud(params_.scan_output_directory);
   }
 }
 

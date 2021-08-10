@@ -11,15 +11,13 @@
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
-#include <beam_cv/OpenCVConversions.h>
 #include <bs_common/utils.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::camera_to_camera::VisualInertialOdom,
                        fuse_core::SensorModel)
 
-namespace bs_models {
-namespace camera_to_camera {
+namespace bs_models { namespace camera_to_camera {
 
 VisualInertialOdom::VisualInertialOdom()
     : fuse_core::AsyncSensorModel(1),
@@ -79,6 +77,10 @@ void VisualInertialOdom::onInit() {
       J["cov_gyro_bias"], J["cov_accel_bias"], false,
       camera_params_.init_max_optimization_time_in_seconds,
       camera_params_.init_map_output_directory);
+
+  sensor_msgs::Image image;
+  bs_models::camera_to_camera::Keyframe kf(ros::Time(0), image);
+  keyframes_.push_back(kf);
 }
 
 void VisualInertialOdom::onStart() {
@@ -114,6 +116,11 @@ void VisualInertialOdom::onStart() {
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
+  // get most recent extrinsics, if failure then process frame later
+  if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
+    ROS_ERROR("Unable to get camera to baselink transform.");
+    return;
+  }
   // push image onto buffer
   image_buffer_.push(*msg);
   // get current imu and image timestamps
@@ -123,20 +130,12 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
    *                    Add Image to map or initializer                     *
    **************************************************************************/
   if (imu_time > img_time && !imu_buffer_.empty()) {
-    // get most recent extrinsics, if failure then process frame later
-    if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
-      ROS_ERROR("Unable to get camera to baselink transform.");
-      return;
-    }
     // add image to tracker
     tracker_->AddImage(
         beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
         img_time);
-    // process if in initialization mode
+    // process in initialization mode
     if (!initializer_->Initialized()) {
-      tracker_->AddImage(
-          beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
-          img_time);
       if ((img_time - keyframes_.back().Stamp()).toSec() >= 1.0) {
         bs_models::camera_to_camera::Keyframe kf(img_time,
                                                  image_buffer_.front());
@@ -151,7 +150,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
           ROS_INFO("Initialization Failure: %f", img_time.toSec());
         }
       }
-    } else {  // process if not initializing
+    } else { // process in odometry mode
       beam::HighResolutionTimer frame_timer;
       // localize frame
       std::vector<uint64_t> triangulated_ids;
@@ -399,8 +398,7 @@ void VisualInertialOdom::ExtendMap(
         visual_map_->AddConstraint(prev_kf_time, id, pixel_prv_kf, transaction);
         visual_map_->AddConstraint(cur_kf_time, id, pixel_cur_kf, transaction);
       }
-    } catch (const std::out_of_range& oor) {
-    }
+    } catch (const std::out_of_range& oor) {}
   }
   ROS_INFO("Added %zu new landmarks.", added_lms);
   // add inertial constraint
@@ -444,9 +442,7 @@ void VisualInertialOdom::NotifyNewKeyframe(
 
 void VisualInertialOdom::PublishSlamChunk() {
   // this just makes sure the visual map has the most recent variables
-  for (auto& kf : keyframes_) {
-    visual_map_->GetPose(kf.Stamp());
-  }
+  for (auto& kf : keyframes_) { visual_map_->GetPose(kf.Stamp()); }
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size) {
     SlamChunkMsg slam_chunk;
@@ -467,9 +463,7 @@ void VisualInertialOdom::PublishSlamChunk() {
       ros::Time stamp;
       stamp.fromNSec(it.first);
       trajectory.stamps.push_back(stamp.toSec());
-      for (auto& x : pose) {
-        trajectory.poses.push_back(x);
-      }
+      for (auto& x : pose) { trajectory.poses.push_back(x); }
     }
     slam_chunk.trajectory_measurement = trajectory;
     // camera measurements
@@ -502,9 +496,7 @@ void VisualInertialOdom::PublishSlamChunk() {
 
 void VisualInertialOdom::PublishLandmarkIDs(const std::vector<uint64_t>& ids) {
   std_msgs::UInt64MultiArray landmark_msg;
-  for (auto& id : ids) {
-    landmark_msg.data.push_back(id);
-  }
+  for (auto& id : ids) { landmark_msg.data.push_back(id); }
   landmark_publisher_.publish(landmark_msg);
 }
 
@@ -519,13 +511,11 @@ double VisualInertialOdom::ComputeAvgParallax(
       Eigen::Vector2d p2 = tracker_->Get(t2, id);
       double dist = beam::distance(p1, p2);
       parallaxes.push_back(dist);
-    } catch (const std::out_of_range& oor) {
-    }
+    } catch (const std::out_of_range& oor) {}
   }
   // sort and find median parallax
   std::sort(parallaxes.begin(), parallaxes.end());
   return parallaxes[parallaxes.size() / 2];
 }
 
-}  // namespace camera_to_camera
-}  // namespace bs_models
+}} // namespace bs_models::camera_to_camera
