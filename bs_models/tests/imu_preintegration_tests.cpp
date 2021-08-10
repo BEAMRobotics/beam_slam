@@ -615,6 +615,48 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
   ros::Time t_end;
 };
 
+class ImuPreintegration_GaussianNoiseZeroBias : public ::testing::Test {
+ public:
+  void SetUp() override {
+    // generate random noise
+    std::random_device rd{};
+    std::mt19937 gen{rd()};
+
+    static const double ACCEL_STD_DEV = beam::randf(1e-4, 1e-5);
+    static const double GYRO_STD_DEV = beam::randf(1e-6, 1e-7);
+
+    std::normal_distribution<> gyro_noise_dist{0, GYRO_STD_DEV};
+    std::normal_distribution<> accel_noise_dist{0, ACCEL_STD_DEV};
+
+    // set intrinsic noise of imu
+    params.cov_gyro_noise.setIdentity() * GYRO_STD_DEV* GYRO_STD_DEV;
+    params.cov_accel_noise.setIdentity() * ACCEL_STD_DEV* ACCEL_STD_DEV;
+    params.cov_gyro_bias.setZero();
+    params.cov_accel_bias.setZero();
+
+    // instantiate preintegration class with gaussian noise. By default,
+    // bias terms (i.e. bg, ba) are set to zero
+    imu_preintegration = std::make_unique<ImuPreintegration>(params);
+
+    // populate ImuPreintegration with synthetic imu measurements with noise
+    for (bs_common::IMUData msg : data.imu_data_gt) {
+      msg.w[0] += gyro_noise_dist(gen);
+      msg.w[1] += gyro_noise_dist(gen);
+      msg.w[2] += gyro_noise_dist(gen);
+
+      msg.a[0] += accel_noise_dist(gen);
+      msg.a[1] += accel_noise_dist(gen);
+      msg.a[2] += accel_noise_dist(gen);
+
+      imu_preintegration->AddToBuffer(msg);
+    }
+  }
+
+  Data data;
+  ImuPreintegration::Params params;
+  std::unique_ptr<ImuPreintegration> imu_preintegration;
+};
+
 TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   /**
    * CheckParameters() functionality
