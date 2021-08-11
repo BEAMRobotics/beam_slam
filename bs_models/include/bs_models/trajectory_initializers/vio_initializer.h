@@ -122,6 +122,13 @@ private:
                      Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
+   * @brief Outputs frame poses to standard output
+   * @param frames vector of frames to output
+   */
+  void OutputFramePoses(
+      const std::vector<bs_models::camera_to_camera::Frame>& frames);
+
+  /**
    * @brief Optimizes the current local graph
    */
   void OptimizeGraph();
