@@ -113,6 +113,7 @@ class Data {
   Eigen::Matrix4d T_S1_S2;
   Eigen::Matrix4d T_S1_S3;
   Eigen::Matrix4d T_S2_S3;
+  Eigen::Matrix4d T_BASELINK_LIDAR = Eigen::Matrix4d::Identity();
   PointCloud S1;
   PointCloud S2;
   PointCloud S3;
@@ -132,10 +133,12 @@ TEST(ScanToMapLoamRegistration, 2Scans) {
       std::make_shared<LoamFeatureExtractor>(data_.loam_params);
 
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1, feature_extractor);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2, feature_extractor);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2,
-                    feature_extractor);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert,
+                    data_.T_BASELINK_LIDAR, feature_extractor);
 
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
       std::make_unique<ScanToMapLoamRegistration>(std::move(matcher),
@@ -170,10 +173,8 @@ TEST(ScanToMapLoamRegistration, 2Scans) {
   auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(SP2.Orientation().uuid()));
 
-  Eigen::Matrix4d T_WORLD_S1_mea =
-      bs_common::FusePoseToEigenTransform(p1, o1);
-  Eigen::Matrix4d T_WORLD_S2_mea =
-      bs_common::FusePoseToEigenTransform(p2, o2);
+  Eigen::Matrix4d T_WORLD_S1_mea = bs_common::FusePoseToEigenTransform(p1, o1);
+  Eigen::Matrix4d T_WORLD_S2_mea = bs_common::FusePoseToEigenTransform(p2, o2);
 
   EXPECT_TRUE(
       beam::ArePosesEqual(T_WORLD_S1_mea, data_.T_WORLD_S1, 1, 0.005, true));
@@ -191,13 +192,16 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
       std::make_shared<LoamFeatureExtractor>(data_.loam_params);
 
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1, feature_extractor);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2, feature_extractor);
-  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3, feature_extractor);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2,
-                    feature_extractor);
-  ScanPose SP3_pert(ros::Time(2), data_.T_WORLD_S3_pert, data_.S3,
-                    feature_extractor);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP3(data_.S3, ros::Time(2), data_.T_WORLD_S3, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert,
+                    data_.T_BASELINK_LIDAR, feature_extractor);
+  ScanPose SP3_pert(data_.S3, ros::Time(2), data_.T_WORLD_S3_pert,
+                    data_.T_BASELINK_LIDAR, feature_extractor);
   //   SP1.Save("/home/nick/tmp/loam_scan_registration/sp1/");
   //   SP2.Save("/home/nick/tmp/loam_scan_registration/sp2/");
   //   SP3.Save("/home/nick/tmp/loam_scan_registration/sp3/");
@@ -256,12 +260,9 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
   auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(SP3.Orientation().uuid()));
 
-  Eigen::Matrix4d T_WORLD_S1_mea =
-      bs_common::FusePoseToEigenTransform(p1, o1);
-  Eigen::Matrix4d T_WORLD_S2_mea =
-      bs_common::FusePoseToEigenTransform(p2, o2);
-  Eigen::Matrix4d T_WORLD_S3_mea =
-      bs_common::FusePoseToEigenTransform(p3, o3);
+  Eigen::Matrix4d T_WORLD_S1_mea = bs_common::FusePoseToEigenTransform(p1, o1);
+  Eigen::Matrix4d T_WORLD_S2_mea = bs_common::FusePoseToEigenTransform(p2, o2);
+  Eigen::Matrix4d T_WORLD_S3_mea = bs_common::FusePoseToEigenTransform(p3, o3);
 
   //   std::cout << "S1 ground truth: \n";
   //   beam::OutputTransformInformation(data_.T_WORLD_S1);
