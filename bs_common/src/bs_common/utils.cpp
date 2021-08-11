@@ -27,9 +27,9 @@ void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
   T_WORLD_SENSOR.block(0, 0, 3, 3) = q.toRotationMatrix();
 }
 
-Eigen::Matrix4d
-    FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
-                             const fuse_variables::Orientation3DStamped& o) {
+Eigen::Matrix4d FusePoseToEigenTransform(
+    const fuse_variables::Position3DStamped& p,
+    const fuse_variables::Orientation3DStamped& o) {
   Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
 
   // add position
@@ -206,4 +206,18 @@ void InterpolateTransformFromPath(
   }
 }
 
-} // namespace bs_common
+std::string GetBeamSlamConfigPath() {
+  std::string current_path_from_beam_slam = "bs_common/src/bs_common/utils.cpp";
+  std::string config_root_location = __FILE__;
+  config_root_location.erase(
+      config_root_location.end() - current_path_from_beam_slam.length(),
+      config_root_location.end());
+  config_root_location += "beam_slam_launch/config/";
+  if (!boost::filesystem::exists(config_root_location)) {
+    BEAM_ERROR("Cannot locate beam slam config folder. Expected to be at: {}",
+               config_root_location);           
+  }
+  return config_root_location;
+}
+
+}  // namespace bs_common

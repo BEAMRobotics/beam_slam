@@ -30,6 +30,9 @@ class GlobalMap {
    * file.
    */
   struct Params {
+    /** constructor to make sure covariances are set */
+    Params();
+
     /** Max linear distance between poses in a submap */
     double submap_size{10};
 
@@ -63,7 +66,10 @@ class GlobalMap {
     /** covariance matrix from binary factors between loop closures*/
     Eigen::Matrix<double, 6, 6> loop_closure_covariance;
 
-    /** Loads config settings from a json file. */
+    /** Loads config settings from a json file. If config_path empty, it will
+     * use default params defined herin. If config_path set to DEFAULT_PATH, it
+     * will use the file in
+     * beam_slam_launch/config/global_map/global_map.json */
     void LoadJson(const std::string& config_path);
 
     /** Save contents of struct to a json which can be loaded using LoadJson()
@@ -108,7 +114,6 @@ class GlobalMap {
    * @return reference to vector of submaps stored in this global map
    */
   std::vector<Submap>& GetSubmaps();
-
 
   /**
    * @brief add a slam chunk measurement to the appropriate submap and returns a

@@ -56,10 +56,6 @@ int main(int argc, char* argv[]) {
   }
 
   BEAM_INFO("Global map refinement completed successfully.");
-  std::string test_str = "test";
-  std::shared_ptr<beam_calibration::CameraModel> model = beam_calibration::CameraModel::Create(test_str);
-
-  beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement> ls;
 
   return 0;
 }

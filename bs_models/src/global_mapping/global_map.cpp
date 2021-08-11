@@ -6,23 +6,64 @@
 #include <boost/filesystem.hpp>
 #include <pcl/io/pcd_io.h>
 
-#include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
-#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
-
 #include <beam_utils/log.h>
 #include <beam_utils/time.h>
 #include <beam_utils/pointclouds.h>
 #include <beam_mapping/Poses.h>
 
+#include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
+#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_common/utils.h>
+
 namespace bs_models {
 
 namespace global_mapping {
 
+GlobalMap::Params::Params() {
+  double local_map_cov_diag = 1e-3;
+  double loop_cov_diag = 1e-5;
+
+  // clang-format off
+  local_mapper_covariance << local_map_cov_diag, 0, 0, 0, 0, 0,
+                             0, local_map_cov_diag, 0, 0, 0, 0,
+                             0, 0, local_map_cov_diag, 0, 0, 0,
+                             0, 0, 0, local_map_cov_diag, 0, 0,
+                             0, 0, 0, 0, local_map_cov_diag, 0,
+                             0, 0, 0, 0, 0, local_map_cov_diag;
+
+  loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
+                             0, loop_cov_diag, 0, 0, 0, 0,
+                             0, 0, loop_cov_diag, 0, 0, 0,
+                             0, 0, 0, loop_cov_diag, 0, 0,
+                             0, 0, 0, 0, loop_cov_diag, 0,
+                             0, 0, 0, 0, 0, loop_cov_diag;
+  // clang-format on
+}
+
 void GlobalMap::Params::LoadJson(const std::string& config_path) {
-  BEAM_INFO("Loading global map config file: {}", config_path);
+  std::string read_file = config_path;
+  if (read_file.empty()) {
+    BEAM_INFO(
+        "No config file provided to global map, using default parameters.");
+    return;
+  }
+
+  if (read_file == "DEFAULT_PATH") {
+    read_file =
+        bs_common::GetBeamSlamConfigPath() + "global_map/global_map.json";
+  }
+
+  if (!boost::filesystem::exists(read_file)) {
+    BEAM_ERROR(
+        "Cannot find global map config at: {}, using default parameters.",
+        read_file);
+    return;
+  }
+
+  BEAM_INFO("Loading global map config file: {}", read_file);
 
   nlohmann::json J;
-  std::ifstream file(config_path);
+  std::ifstream file(read_file);
   file >> J;
   submap_size = J["submap_size_m"];
   loop_closure_candidate_search_type = J["loop_closure_candidate_search_type"];
@@ -36,24 +77,22 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
     BEAM_ERROR(
         "Invalid local mapper covariance diagonal (6 values required). Using "
         "default.");
-    vec = std::vector<double>{1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3};
+  } else {
+    Eigen::VectorXd vec_eig(6);
+    vec_eig << vec[0], vec[1], vec[2], vec[3], vec[4], vec[5];
+    local_mapper_covariance = vec_eig.asDiagonal();
   }
-
-  Eigen::VectorXd vec_eig(6);
-  vec_eig << vec[0], vec[1], vec[2], vec[3], vec[4], vec[5];
-  local_mapper_covariance = vec_eig.asDiagonal();
 
   std::vector<double> vec2 = J["loop_closure_covariance_diag"];
   if (vec2.size() != 6) {
     BEAM_ERROR(
         "Invalid loop closure covariance diagonal (6 values required). Using "
         "default.");
-    vec2 = std::vector<double>{1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3};
+  } else {
+    Eigen::VectorXd  vec_eig = Eigen::VectorXd(6);
+    vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
+    loop_closure_covariance = vec_eig.asDiagonal();
   }
-
-  vec_eig = Eigen::VectorXd(6);
-  vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
-  loop_closure_covariance = vec_eig.asDiagonal();
 }
 
 void GlobalMap::Params::SaveJson(const std::string& filename) {
@@ -94,35 +133,7 @@ GlobalMap::GlobalMap(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::string& config_path)
     : camera_model_(camera_model) {
-  std::string read_file = config_path;
-
-  if (config_path == "DEFAULT_PATH") {
-    std::string default_path = __FILE__;
-    size_t start_iter = default_path.find("bs_models");
-    size_t end_iter = default_path.size() - start_iter;
-    default_path.erase(start_iter, end_iter);
-    default_path += "beam_slam_launch/config/global_map/global_map.json";
-    if (!boost::filesystem::exists(default_path)) {
-      BEAM_WARN(
-          "Could not find default global map config file at: {}. Using "
-          "default params.",
-          default_path);
-      Setup();
-      return;
-    }
-    read_file = default_path;
-  } else if (!boost::filesystem::exists(config_path)) {
-    BEAM_ERROR(
-        "GlobalMap config file not found, using default parameters. Input: "
-        "{}",
-        config_path);
-    Setup();
-    return;
-  }
-
-  if (!config_path.empty()) {
-    params_.LoadJson(read_file);
-  }
+  params_.LoadJson(config_path);
   Setup();
 }
 

@@ -18,8 +18,8 @@ namespace bs_models {
 namespace global_mapping {
 
 /**
- * @brief This class is used to refine a global map's submaps. 
- * 
+ * @brief This class is used to refine a global map's submaps.
+ *
  * This is intended to be used in 3 steps:
  *
  * (1) Construct the object and supply the list of submaps (or global map)
@@ -49,8 +49,8 @@ class GlobalMapRefinement {
    * file.
    */
   struct Params {
-    /** Max linear distance between poses in a submap */
-    double submap_size{10};
+    /** constructor to make sure covariances are set */
+    Params();
 
     /** String describing the loop closure type to use.
      * Options:
@@ -82,7 +82,10 @@ class GlobalMapRefinement {
     /** covariance matrix from binary factors between loop closures*/
     Eigen::Matrix<double, 6, 6> loop_closure_covariance;
 
-    /** Loads config settings from a json file. */
+    /** Loads config settings from a json file. If config_path empty, it will
+     * use default params defined herin. If config_path set to DEFAULT_PATH, it
+     * will use the file in
+     * beam_slam_launch/config/global_map/global_map_refinement.json */
     void LoadJson(const std::string& config_path);
 
     /** Save contents of struct to a json which can be loaded using LoadJson()
@@ -122,7 +125,8 @@ class GlobalMapRefinement {
   ~GlobalMapRefinement() = default;
 
   /**
-   * @brief TODO
+   * @brief Calls RefineSUbmap on all submaps, with a check to make sure each one passed, otherwise it exits
+   * @return true if successful
    */
   bool RunSubmapRefinement();
 
@@ -133,10 +137,17 @@ class GlobalMapRefinement {
 
  private:
   /**
+   * @brief Refines a single submap
+   * @param submap reference to submap to be refined
+   * @return true if successful
+   */
+  bool RefineSubmap(Submap& submap);
+
+  /**
    * @brief setup general things needed when class is instatiated, such as
    * initiating the loop closure pointer
    */
-  void Setup();
+  void Setup();  
 
   Params params_;
   std::vector<Submap>& submaps_;
