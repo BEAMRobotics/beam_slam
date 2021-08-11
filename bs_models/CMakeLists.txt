@@ -42,6 +42,7 @@ find_package(
     bs_variables
     basalt)
 
+find_package(gflags REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
@@ -135,6 +136,7 @@ add_library(
   src/camera_to_camera/keyframe.cpp
   src/global_mapping/global_mapper.cpp
   src/global_mapping/global_map.cpp
+  src/global_mapping/global_map_refinement.cpp
   src/global_mapping/submap.cpp
   src/global_mapping/loop_closure/loop_closure_candidate_search_eucdist.cpp
   src/global_mapping/loop_closure/loop_closure_refinement_loam_registration.cpp
@@ -165,7 +167,8 @@ add_executable(${PROJECT_NAME}_global_map_refinement_main
 target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
 	${PROJECT_NAME}
   beam::calibration
-	# gflags
+  beam::utils
+	gflags
 )
 
 #############
