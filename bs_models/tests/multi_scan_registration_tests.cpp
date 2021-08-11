@@ -115,7 +115,7 @@ class Data {
     scan_reg_params.disable_lidar_map = true;
 
     // create prior that will be used in optimization
-    ScanPose SP_TMP(ros::Time(0), T_WORLD_S1, S1);
+    ScanPose SP_TMP(S1, ros::Time(0), T_WORLD_S1);
 
     fuse_core::Vector7d mean;
     mean << SP_TMP.Position().x(), SP_TMP.Position().y(), SP_TMP.Position().z(),
@@ -138,6 +138,7 @@ class Data {
   Eigen::Matrix4d T_S1_S2;
   Eigen::Matrix4d T_S1_S3;
   Eigen::Matrix4d T_S2_S3;
+  Eigen::Matrix4d T_BASELINK_LIDAR = Eigen::Matrix4d::Identity();
   PointCloud S1;
   PointCloud S2;
   PointCloud S3;
@@ -209,9 +210,9 @@ TEST(MultiScanRegistration, 2ScansManualConstraintAdding) {
   data_ = Data();
 
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
@@ -297,11 +298,11 @@ TEST(MultiScanRegistration, 3ScansManualConstraintAdding) {
   data_ = Data();
 
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
-  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
-  ScanPose SP3_pert(ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP3(data_.S3, ros::Time(2), data_.T_WORLD_S3);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
+  ScanPose SP3_pert(data_.S3, ros::Time(2), data_.T_WORLD_S3_pert);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
@@ -400,11 +401,11 @@ TEST(MultiScanRegistration, TransactionsAndUpdates) {
   data_ = Data();
 
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
-  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
-  ScanPose SP3_pert(ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP3(data_.S3, ros::Time(2), data_.T_WORLD_S3);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
+  ScanPose SP3_pert(data_.S3, ros::Time(2), data_.T_WORLD_S3_pert);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
@@ -512,11 +513,11 @@ TEST(MultiScanRegistration, NumNeighbours) {
   data_ = Data();
 
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
-  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2);
-  ScanPose SP3_pert(ros::Time(2), data_.T_WORLD_S3_pert, data_.S3);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP3(data_.S3, ros::Time(2), data_.T_WORLD_S3);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
+  ScanPose SP3_pert(data_.S3, ros::Time(2), data_.T_WORLD_S3_pert);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher1 =
@@ -640,9 +641,9 @@ TEST(MultiScanRegistration, RegistrationCases) {
   data_ = Data();
 
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2);
-  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP3(data_.S3, ros::Time(2), data_.T_WORLD_S3);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
@@ -680,8 +681,8 @@ TEST(MultiScanRegistration, RegistrationCases) {
   perturb << -45, 30, 90, 10, -10, 8;
   Eigen::Matrix4d T_WORLD_S4_pert =
       beam::PerturbTransformDegM(data_.T_WORLD_S3, perturb);
-  ScanPose SP4_BADINIT(ros::Time(3), T_WORLD_S4_pert, data_.S3);
-  ScanPose SP4_EMPTY(ros::Time(3), T_WORLD_S4_pert, PointCloud());
+  ScanPose SP4_BADINIT(data_.S3, ros::Time(3), T_WORLD_S4_pert);
+  ScanPose SP4_EMPTY(PointCloud(), ros::Time(3), T_WORLD_S4_pert);
   auto transactionNULL1 =
       multi_scan_registration->RegisterNewScan(SP4_BADINIT).GetTransaction();
   auto transactionNULL2 =
@@ -700,10 +701,12 @@ TEST(MultiScanLoamRegistration, 2Scans) {
       std::make_shared<LoamFeatureExtractor>(data_.loam_params);
 
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1, feature_extractor);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2, feature_extractor);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2,
-                    feature_extractor);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert,
+                    data_.T_BASELINK_LIDAR, feature_extractor);
 
   auto scan_reg_params = data_.scan_reg_params;
   scan_reg_params.num_neighbors = 1;
@@ -742,10 +745,8 @@ TEST(MultiScanLoamRegistration, 2Scans) {
   auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(SP2.Orientation().uuid()));
 
-  Eigen::Matrix4d T_WORLD_S1_mea =
-      bs_common::FusePoseToEigenTransform(p1, o1);
-  Eigen::Matrix4d T_WORLD_S2_mea =
-      bs_common::FusePoseToEigenTransform(p2, o2);
+  Eigen::Matrix4d T_WORLD_S1_mea = bs_common::FusePoseToEigenTransform(p1, o1);
+  Eigen::Matrix4d T_WORLD_S2_mea = bs_common::FusePoseToEigenTransform(p2, o2);
 
   EXPECT_TRUE(
       beam::ArePosesEqual(T_WORLD_S1_mea, data_.T_WORLD_S1, 1, 0.005, true));
@@ -763,13 +764,16 @@ TEST(MultiScanLoamRegistration, 3Scans) {
       std::make_shared<LoamFeatureExtractor>(data_.loam_params);
 
   // create scan poses
-  ScanPose SP1(ros::Time(0), data_.T_WORLD_S1, data_.S1, feature_extractor);
-  ScanPose SP2(ros::Time(1), data_.T_WORLD_S2, data_.S2, feature_extractor);
-  ScanPose SP3(ros::Time(2), data_.T_WORLD_S3, data_.S3, feature_extractor);
-  ScanPose SP2_pert(ros::Time(1), data_.T_WORLD_S2_pert, data_.S2,
-                    feature_extractor);
-  ScanPose SP3_pert(ros::Time(2), data_.T_WORLD_S3_pert, data_.S3,
-                    feature_extractor);
+  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP3(data_.S3, ros::Time(2), data_.T_WORLD_S3, data_.T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert,
+                    data_.T_BASELINK_LIDAR, feature_extractor);
+  ScanPose SP3_pert(data_.S3, ros::Time(2), data_.T_WORLD_S3_pert,
+                    data_.T_BASELINK_LIDAR, feature_extractor);
   //   SP1.Save("/home/nick/tmp/loam_scan_registration/sp1/");
   //   SP2.Save("/home/nick/tmp/loam_scan_registration/sp2/");
   //   SP3.Save("/home/nick/tmp/loam_scan_registration/sp3/");
@@ -818,12 +822,9 @@ TEST(MultiScanLoamRegistration, 3Scans) {
   auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(SP3.Orientation().uuid()));
 
-  Eigen::Matrix4d T_WORLD_S1_mea =
-      bs_common::FusePoseToEigenTransform(p1, o1);
-  Eigen::Matrix4d T_WORLD_S2_mea =
-      bs_common::FusePoseToEigenTransform(p2, o2);
-  Eigen::Matrix4d T_WORLD_S3_mea =
-      bs_common::FusePoseToEigenTransform(p3, o3);
+  Eigen::Matrix4d T_WORLD_S1_mea = bs_common::FusePoseToEigenTransform(p1, o1);
+  Eigen::Matrix4d T_WORLD_S2_mea = bs_common::FusePoseToEigenTransform(p2, o2);
+  Eigen::Matrix4d T_WORLD_S3_mea = bs_common::FusePoseToEigenTransform(p3, o3);
 
   // print lidar map
   //   bs_common::LidarMap& map = bs_common::LidarMap::GetInstance();
