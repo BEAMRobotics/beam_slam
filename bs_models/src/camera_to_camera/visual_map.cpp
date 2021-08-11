@@ -226,7 +226,6 @@ void VisualMap::AddOrientation(
     orientations_[orientation->stamp().toNSec()] = orientation;
   } else if (local_graph_) {
     local_graph_->addVariable(orientation);
-    local_graph_->holdVariable(orientation->uuid());
   } else {
     ROS_WARN("Must input local graph or transaction.");
   }
@@ -245,7 +244,6 @@ void VisualMap::AddPosition(
     positions_[position->stamp().toNSec()] = position;
   } else if (local_graph_) {
     local_graph_->addVariable(position);
-    local_graph_->holdVariable(position->uuid());
   } else {
     ROS_WARN("Must input local graph or transaction.");
   }

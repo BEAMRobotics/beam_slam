@@ -1,10 +1,10 @@
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 
-#include <bs_common/utils.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/utils.h>
+#include <bs_common/utils.h>
 
 #include <boost/filesystem.hpp>
 
@@ -60,7 +60,11 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     // Add landmarks and visual constraints to graph
     init_lms += AddVisualConstraints(valid_frames);
     // optimize valid frames
+    std::cout << "\n\nFrame poses before optimization:\n" << std::endl;
+    OutputFramePoses(valid_frames);
     OptimizeGraph();
+    std::cout << "\n\nFrame poses after optimization:\n" << std::endl;
+    OutputFramePoses(valid_frames);
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
       Eigen::Matrix4d T_WORLD_CAMERA;
@@ -77,6 +81,14 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     is_initialized_ = true;
   }
   return is_initialized_;
+}
+
+void VIOInitializer::OutputFramePoses(
+    const std::vector<bs_models::camera_to_camera::Frame>& frames) {
+  for (auto& f : frames) {
+    std::cout << f.t << std::endl;
+    std::cout << visual_map_->GetPose(f.t) << std::endl;
+  }
 }
 
 void VIOInitializer::AddIMU(const sensor_msgs::Imu& msg) {
@@ -128,7 +140,7 @@ void VIOInitializer::BuildFrameVectors(
       // get pose of frame using path
       Eigen::Matrix4d T_WORLD_BASELINK;
       bs_common::InterpolateTransformFromPath(init_path_->poses, stamp,
-                                                T_WORLD_BASELINK);
+                                              T_WORLD_BASELINK);
       Eigen::Vector3d p_WORLD_BASELINK;
       Eigen::Quaterniond q_WORLD_BASELINK;
       beam::TransformMatrixToQuaternionAndTranslation(
@@ -232,7 +244,8 @@ size_t VIOInitializer::AddVisualConstraints(
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInWindow(start, end);
   for (auto& id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
+    fuse_variables::Point3DLandmark::SharedPtr lm =
+        visual_map_->GetLandmark(id);
     if (lm) { // if the landmark already exists then add constraint
       for (auto& f : frames) {
         try {
@@ -281,7 +294,8 @@ bool VIOInitializer::LocalizeFrame(
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
   // get 2d-3d correspondences
   for (auto& id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
+    fuse_variables::Point3DLandmark::SharedPtr lm =
+        visual_map_->GetLandmark(id);
     if (lm) {
       Eigen::Vector2i pixeli = tracker_->Get(frame.t, id).cast<int>();
       pixels.push_back(pixeli);
@@ -322,7 +336,7 @@ void VIOInitializer::OptimizeGraph() {
   options.max_solver_time_in_seconds = max_optimization_time_;
   options.max_num_iterations = 100;
   local_graph_->optimize(options);
-  //std::cout << local_graph_->optimize(options).FullReport() << std::endl;
+  // std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }
 
 void VIOInitializer::OutputResults(
@@ -344,7 +358,8 @@ void VIOInitializer::OutputResults(
         frames[0].t, frames[frames.size() - 1].t);
     pcl::PointCloud<pcl::PointXYZ> points_cloud;
     for (auto& id : landmarks) {
-      fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
+      fuse_variables::Point3DLandmark::SharedPtr lm =
+          visual_map_->GetLandmark(id);
       if (lm) {
         pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
         points_cloud.points.push_back(p);
