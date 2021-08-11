@@ -31,6 +31,7 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
   outlier_threshold_r = J["outlier_threshold_r"];
   min_motion_trans_m = J["min_motion_trans_m"];
   min_motion_rot_rad = J["min_motion_rot_rad"];
+  max_motion_trans_m = J["max_motion_trans_m"];
   source = J["source"];
   fix_first_scan = J["fix_first_scan"];
 }

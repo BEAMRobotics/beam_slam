@@ -157,8 +157,8 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
      *    T_BASELINKREF_LIDARREF * T_LIDARREF_LIDARNEW * T_LIDARNEW_BASELINKNEW
      */
     Eigen::Matrix4d T_BASELINKREF_BASELINKNEW = ref_iter->T_BASELINK_LIDAR() *
-                                               T_CLOUDREF_CLOUDCURRENT *
-                                               new_scan.T_LIDAR_BASELINK();
+                                                T_CLOUDREF_CLOUDCURRENT *
+                                                new_scan.T_LIDAR_BASELINK();
     fuse_variables::Position3DStamped position_relative;
     fuse_variables::Orientation3DStamped orientation_relative;
     bs_common::EigenTransformToFusePose(
@@ -266,10 +266,16 @@ void MultiScanRegistrationBase::RemoveMissingScans(
   }
 }
 
-bool MultiScanRegistrationBase::PassedMinMotion(
+bool MultiScanRegistrationBase::PassedMotionThresholds(
     const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
-  // check translation
-  if (T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm() >= params_.min_motion_trans_m) {
+  // check max translation
+  double d_12 = T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm();
+  if (d_12 > params_.max_motion_trans_m) {
+    return false;
+  }
+
+  // check min translation
+  if (d_12 >= params_.min_motion_trans_m) {
     return true;
   }
 
@@ -309,7 +315,7 @@ bool MultiScanRegistration::MatchScans(
       beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
       scan_pose_2.T_REFFRAME_LIDAR();
 
-  if (!PassedMinMotion(T_CLOUD1_CLOUD2_init)) {
+  if (!PassedMotionThresholds(T_CLOUD1_CLOUD2_init)) {
     return false;
   }
 
@@ -412,7 +418,7 @@ bool MultiScanLoamRegistration::MatchScans(
       beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
       scan_pose_2.T_REFFRAME_LIDAR();
 
-  if (!PassedMinMotion(T_CLOUD1_CLOUD2_init)) {
+  if (!PassedMotionThresholds(T_CLOUD1_CLOUD2_init)) {
     return false;
   }
 

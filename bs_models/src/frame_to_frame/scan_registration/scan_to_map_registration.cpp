@@ -156,7 +156,7 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   Eigen::Matrix4d T_SCANPREV_SCANNEW =
       beam::InvertTransform(T_MAP_SCANPREV) * T_MAPEST_SCAN;
 
-  if (!PassedMinMotion(T_SCANPREV_SCANNEW)) {
+  if (!PassedMotionThresholds(T_SCANPREV_SCANNEW)) {
     return false;
   }
 
@@ -207,10 +207,16 @@ bool ScanToMapLoamRegistration::PassedRegThreshold(
   return true;
 }
 
-bool ScanToMapLoamRegistration::PassedMinMotion(
+bool ScanToMapLoamRegistration::PassedMotionThresholds(
     const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
-  // check translation
-  if (T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm() >= params_.min_motion_trans_m) {
+  // check max translation
+  double d_12 = T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm();
+  if(d_12 > params_.max_motion_trans_m){
+    return false;
+  }
+  
+  // check min translation
+  if (d_12 >= params_.min_motion_trans_m) {
     return true;
   }
 

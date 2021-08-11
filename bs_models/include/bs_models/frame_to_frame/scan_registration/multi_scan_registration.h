@@ -89,7 +89,7 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 
   void PrintScanDetails(std::ostream& stream = std::cout);
 
-  bool PassedMinMotion(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
+  bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   bool PassedRegThreshold(const Eigen::Matrix4d& T_measured,
                           const Eigen::Matrix4d& T_estimated);

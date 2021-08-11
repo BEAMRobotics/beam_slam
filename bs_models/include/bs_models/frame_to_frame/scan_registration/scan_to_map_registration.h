@@ -121,7 +121,7 @@ class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
   void AddScanToMap(const ScanPose& scan_pose,
                     const Eigen::Matrix4d& T_MAP_SCAN) override;
 
-  bool PassedMinMotion(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
+  bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   bool PassedRegThreshold(const Eigen::Matrix4d& T_measured);
 

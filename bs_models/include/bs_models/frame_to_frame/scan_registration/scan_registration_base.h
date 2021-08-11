@@ -32,9 +32,15 @@ struct ScanRegistrationParamsBase {
   /** In some cases, we may not want to register scans that are too close
    * together. Setting these values to something >0 will enforce this
    * constraint. Empty transactions will be returned if they violate this
-   * constraint.*/
+   * constraint. Not this is an or, not and. Only needs to pass one. */
   double min_motion_trans_m{0};
   double min_motion_rot_rad{0};
+
+  /** We want to make sure we don't try to register scans that have very little
+   * overlap, this param helps reduce that chance. Set this to avoid registering
+   * a new scan if the estimated distance from this scan to the last scan is
+   * greater than this threshold. Set to zero to avoid this constraint*/
+  double max_motion_trans_m{10};
 
   /** Source to be added to the transaction */
   std::string source{"SCANREGISTRATIONBASE"};

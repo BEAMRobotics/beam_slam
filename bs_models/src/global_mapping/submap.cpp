@@ -66,6 +66,44 @@ int Submap::Updates() const { return graph_updates_; }
 
 ros::Time Submap::Stamp() const { return stamp_; }
 
+std::map<uint64_t, ScanPose>::iterator Submap::LidarKeyframesBegin() {
+  return lidar_keyframe_poses_.begin();
+}
+
+std::map<uint64_t, ScanPose>::iterator Submap::LidarKeyframesEnd() {
+  return lidar_keyframe_poses_.end();
+}
+
+std::map<uint64_t, Eigen::Matrix4d>::iterator Submap::CameraKeyframesBegin() {
+  return camera_keyframe_poses_.begin();
+}
+
+std::map<uint64_t, Eigen::Matrix4d>::iterator Submap::CameraKeyframesEnd() {
+  return camera_keyframe_poses_.end();
+}
+
+std::map<uint64_t, std::vector<Submap::PoseStamped>>::iterator
+Submap::SubframesBegin() {
+  return subframe_poses_.begin();
+}
+
+std::map<uint64_t, std::vector<Submap::PoseStamped>>::iterator
+Submap::SubframesEnd() {
+  return subframe_poses_.end();
+}
+
+beam_containers::LandmarkContainer<
+    beam_containers::LandmarkMeasurement>::iterator
+Submap::LandmarksBegin() {
+  return landmarks_.begin();
+}
+
+beam_containers::LandmarkContainer<
+    beam_containers::LandmarkMeasurement>::iterator
+Submap::LandmarksEnd() {
+  return landmarks_.end();
+}
+
 void Submap::AddCameraMeasurement(
     const std::vector<LandmarkMeasurementMsg>& landmarks,
     uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLDLM_BASELINK,
@@ -455,7 +493,7 @@ bool Submap::LoadData(const std::string& input_dir,
   }
 
   // load landmarks
-  if(!landmarks_.LoadFromJson(input_dir + "landmarks.json")){
+  if (!landmarks_.LoadFromJson(input_dir + "landmarks.json")) {
     return false;
   }
 
@@ -504,9 +542,11 @@ bool Submap::LoadData(const std::string& input_dir,
     std::ifstream file_subframe(subframe_filename);
     file_subframe >> J_subframe;
     uint64_t subframe_stamp = J_subframe["subframe_stamp_nsecs"];
-    std::map<std::string, std::vector<double>> subframe_poses_map = J_subframe["poses"];
+    std::map<std::string, std::vector<double>> subframe_poses_map =
+        J_subframe["poses"];
     std::vector<PoseStamped> subframe_poses_vec;
-    for (auto it = subframe_poses_map.begin(); it != subframe_poses_map.end(); it++){
+    for (auto it = subframe_poses_map.begin(); it != subframe_poses_map.end();
+         it++) {
       // convert string stamp to integer
       std::istringstream stamp_ss(it->first);
       uint64_t stamp_int;
@@ -558,7 +598,7 @@ void Submap::SaveData(const std::string& output_dir) {
   camera_model_->WriteJSON(camera_model_filename);
 
   // save landmarks
-  landmarks_.SaveToJson( output_dir + "landmarks.json");
+  landmarks_.SaveToJson(output_dir + "landmarks.json");
 
   // save lidar keyframes
   std::string lidar_keyframes_dir = output_dir + "lidar_keyframes/";

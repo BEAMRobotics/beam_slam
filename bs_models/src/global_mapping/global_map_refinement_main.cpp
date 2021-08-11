@@ -15,6 +15,14 @@ DEFINE_string(
     "DEFAULT_PATH, it will lookup the config file in "
     ".../beam_slam/beam_slam_launch/config/global_map/"
     "global_map_refinement.json");
+DEFINE_string(output_path, "", "Full path to output directory.");
+DEFINE_validator(output_path, &beam::gflags::ValidateDirMustExist);
+DEFINE_bool(output_globalmap_data, true,
+            "Set to true to output all global map data so that it can be "
+            "re-loaded later.");
+DEFINE_bool(output_results, true,
+            "Set to true to output all results in an easily viewable form "
+            "including lidar maps, keypoint maps, and trajectories.");
 DEFINE_bool(run_submap_refinement, true,
             "Set to true to refine the submaps before running the pose graph "
             "optimization. This should always be set to true, but there are "
@@ -57,5 +65,33 @@ int main(int argc, char* argv[]) {
 
   BEAM_INFO("Global map refinement completed successfully.");
 
+  std::string dateandtime =
+      beam::ConvertTimeToDate(std::chrono::system_clock::now());
+
+  if (FLAGS_output_path.back() != '/') {
+    dateandtime = "/" + dateandtime;
+  }
+
+  if (FLAGS_output_results) {
+    std::string save_path =
+        FLAGS_output_path + dateandtime + "_global_map_refined_results/";
+    boost::filesystem::create_directory(save_path);
+    BEAM_INFO("Outputting results to: {}", save_path);
+
+    global_map.SaveTrajectoryFile(save_path, true);
+    global_map.SaveTrajectoryClouds(save_path, true);
+    global_map.SaveSubmapFrames(save_path, true);
+    global_map.SaveLidarSubmaps(save_path, true);
+    global_map.SaveKeypointSubmaps(save_path, true);
+  }
+
+  if (FLAGS_output_globalmap_data) {
+    std::string save_path =
+        FLAGS_output_path + dateandtime + "_global_map_refined_data/";
+    boost::filesystem::create_directory(save_path);
+
+    BEAM_INFO("Outputting global map data to: {}", save_path);
+    global_map.SaveData(save_path);
+  }
   return 0;
 }

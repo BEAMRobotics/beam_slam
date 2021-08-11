@@ -8,10 +8,12 @@
 #include <fuse_graphs/hash_graph.h>
 
 #include <beam_utils/pointclouds.h>
+#include <beam_matching/Matchers.h>
 
 #include <bs_models/global_mapping/submap.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
 
 namespace bs_models {
 
@@ -49,7 +51,7 @@ class GlobalMapRefinement {
    * file.
    */
   struct Params {
-    /** constructor to make sure covariances are set */
+    /** constructor to make sure special default variables are set */
     Params();
 
     /** String describing the loop closure type to use.
@@ -75,12 +77,18 @@ class GlobalMapRefinement {
      * use default parameters.*/
     std::string loop_closure_refinement_config{""};
 
-    /** covariance matrix from binary factors between scan poses which are added
-     * from the local mapper results*/
-    Eigen::Matrix<double, 6, 6> local_mapper_covariance;
+    /** covariance matrix for binary factors between scan registration
+     * measurements during submap refinement*/
+    Eigen::Matrix<double, 6, 6> scan_reg_covariance;
 
     /** covariance matrix from binary factors between loop closures*/
     Eigen::Matrix<double, 6, 6> loop_closure_covariance;
+
+    /** multi scan registration params */
+    frame_to_frame::MultiScanLoamRegistration::Params scan_reg_params;
+
+    /** loam scan matcher params */
+    beam_matching::LoamParams loam_matcher_params;
 
     /** Loads config settings from a json file. If config_path empty, it will
      * use default params defined herin. If config_path set to DEFAULT_PATH, it
@@ -125,7 +133,8 @@ class GlobalMapRefinement {
   ~GlobalMapRefinement() = default;
 
   /**
-   * @brief Calls RefineSUbmap on all submaps, with a check to make sure each one passed, otherwise it exits
+   * @brief Calls RefineSUbmap on all submaps, with a check to make sure each
+   * one passed, otherwise it exits
    * @return true if successful
    */
   bool RunSubmapRefinement();
@@ -147,11 +156,12 @@ class GlobalMapRefinement {
    * @brief setup general things needed when class is instatiated, such as
    * initiating the loop closure pointer
    */
-  void Setup();  
+  void Setup();
 
   Params params_;
   std::vector<Submap>& submaps_;
 
+  // PGO:
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;

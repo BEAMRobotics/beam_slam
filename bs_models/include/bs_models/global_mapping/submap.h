@@ -59,6 +59,10 @@ class Submap {
     Eigen::Matrix4d pose;  // Either T_KEYFRAME_FRAME, or T_SUBMAP_FRAME
   };
 
+  /*--------------------------------/
+              CONSTRUCTORS
+  /--------------------------------*/
+
   /**
    * @brief constructor that requires a pose and stamp for the submap.
    * @param T_WORLD_SUBMAP pose in matrix form
@@ -84,6 +88,10 @@ class Submap {
    * @brief default destructor
    */
   ~Submap() = default;
+
+  /*--------------------------------/
+              ACCESSORS
+  /--------------------------------*/
 
   /**
    * @brief get current position estimate
@@ -120,6 +128,77 @@ class Submap {
    * @return stamp
    */
   ros::Time Stamp() const;
+
+  /*--------------------------------/
+              ITERATORS
+  /--------------------------------*/
+  /**
+   * @brief get an iterator to the begining of the lidar keyframes map
+   */
+  std::map<uint64_t, ScanPose>::iterator LidarKeyframesBegin();
+
+  /**
+   * @brief get an iterator to the end of the lidar keyframes map
+   */
+  std::map<uint64_t, ScanPose>::iterator LidarKeyframesEnd();
+
+  /**
+   * @brief get an iterator to the begining of the camera keyframes map
+   */
+  std::map<uint64_t, Eigen::Matrix4d>::iterator CameraKeyframesBegin();
+
+  /**
+   * @brief get an iterator to the end of the camera keyframes map
+   */
+  std::map<uint64_t, Eigen::Matrix4d>::iterator CameraKeyframesEnd();
+
+  /**
+   * @brief get an iterator to the begining of the subframes map
+   */
+  std::map<uint64_t, std::vector<PoseStamped>>::iterator SubframesBegin();
+
+  /**
+   * @brief get an iterator to the end of the subframes map
+   */
+  std::map<uint64_t, std::vector<PoseStamped>>::iterator SubframesEnd();
+
+  /**
+   * @brief get an iterator to the begining of the landmarks measurement
+   * container
+   */
+  beam_containers::LandmarkContainer<
+      beam_containers::LandmarkMeasurement>::iterator
+  LandmarksBegin();
+
+  /**
+   * @brief get an iterator to the end of the landmarks measurement container
+   */
+  beam_containers::LandmarkContainer<
+      beam_containers::LandmarkMeasurement>::iterator
+  LandmarksEnd();
+
+  /*--------------------------------/
+              COMPARATORS
+  /--------------------------------*/
+
+  /**
+   * @brief check if submap time is within some range of another timestamp
+   * @param time query time
+   * @param tolerance max time difference for this to return true
+   * @return true if query time difference is within some tolorance
+   */
+  bool Near(const ros::Time& time, const double tolerance) const;
+
+  /**
+   * @brief check if the submap was generated before or after some other submap
+   * @return true if time of this submap is less than the time of the input
+   * submap
+   */
+  bool operator<(const Submap& rhs) const;
+
+  /*-------------------------------/
+         ADDING/UPDATING DATA
+  /-------------------------------*/
 
   /**
    * @brief add a set of camera measurements associated with one image frame
@@ -173,20 +252,9 @@ class Submap {
    */
   bool UpdatePose(fuse_core::Graph::ConstSharedPtr graph_msg);
 
-  /**
-   * @brief check if submap time is within some range of another timestamp
-   * @param time query time
-   * @param tolerance max time difference for this to return true
-   * @return true if query time difference is within some tolorance
-   */
-  bool Near(const ros::Time& time, const double tolerance) const;
-
-  /**
-   * @brief check if the submap was generated before or after some other submap
-   * @return true if time of this submap is less than the time of the input
-   * submap
-   */
-  bool operator<(const Submap& rhs) const;
+  /*-------------------------------/
+            SAVING DATA
+  /-------------------------------*/
 
   /**
    * @brief save all 3D keypoints in landmark measurements to a single
@@ -226,6 +294,10 @@ class Submap {
   void SaveLidarLoamMapInWorldFrame(const std::string& path,
                                     bool combine_features = true,
                                     bool use_initial_world_frame = false) const;
+
+  /*-------------------------------/
+         OUTPUT COMBINED DATA
+  /-------------------------------*/
 
   /**
    * @brief output all 3D keypoints in landmark measurements to a single
@@ -270,6 +342,10 @@ class Submap {
    */
   std::vector<Submap::PoseStamped> GetTrajectory() const;
 
+  /*-------------------------------/
+            READ/WRITE DATA
+  /-------------------------------*/
+
   /**
    * @brief print relevant information about what is currently contained in this
    * submap. Example: pose, number of lidar scans and keypoints, etc...
@@ -298,9 +374,10 @@ class Submap {
    *        subframe1.json
    *        ...
    *        subframeN.json
-   * 
-   *    where lidar keyframe formats can be found in bs_common/ScanPose.h (see SaveData function),
-   *    camera_keyframes.json is a map from stamp (nsecs) to pose vector (1 x 16)
+   *
+   *    where lidar keyframe formats can be found in bs_common/ScanPose.h (see
+   * SaveData function), camera_keyframes.json is a map from stamp (nsecs) to
+   * pose vector (1 x 16)
    *
    * @param output_dir full path to output directory. This should be an empty
    * directory so as to not confuse with previous data

@@ -8,16 +8,16 @@ namespace bs_models {
 namespace global_mapping {
 
 GlobalMapRefinement::Params::Params() {
-  double local_map_cov_diag = 1e-3;
+  double scan_reg_cov_diag = 1e-3;
   double loop_cov_diag = 1e-5;
 
   // clang-format off
-  local_mapper_covariance << local_map_cov_diag, 0, 0, 0, 0, 0,
-                             0, local_map_cov_diag, 0, 0, 0, 0,
-                             0, 0, local_map_cov_diag, 0, 0, 0,
-                             0, 0, 0, local_map_cov_diag, 0, 0,
-                             0, 0, 0, 0, local_map_cov_diag, 0,
-                             0, 0, 0, 0, 0, local_map_cov_diag;
+  scan_reg_covariance << scan_reg_cov_diag, 0, 0, 0, 0, 0,
+                             0, scan_reg_cov_diag, 0, 0, 0, 0,
+                             0, 0, scan_reg_cov_diag, 0, 0, 0,
+                             0, 0, 0, scan_reg_cov_diag, 0, 0,
+                             0, 0, 0, 0, scan_reg_cov_diag, 0,
+                             0, 0, 0, 0, 0, scan_reg_cov_diag;
 
   loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
                              0, loop_cov_diag, 0, 0, 0, 0,
@@ -26,6 +26,30 @@ GlobalMapRefinement::Params::Params() {
                              0, 0, 0, 0, loop_cov_diag, 0,
                              0, 0, 0, 0, 0, loop_cov_diag;
   // clang-format on
+
+  scan_reg_params.outlier_threshold_t = 0.1;
+  scan_reg_params.outlier_threshold_r = 20;
+  scan_reg_params.min_motion_trans_m = 0;
+  scan_reg_params.min_motion_rot_rad = 0;
+  scan_reg_params.max_motion_trans_m = 5;
+  scan_reg_params.source = "MULTISCANREGISTRATION";
+  scan_reg_params.num_neighbors = 10;
+  scan_reg_params.disable_lidar_map = true;  // don't need
+
+  // set this high because we don't want to remove any scans due to lag duration
+  // overflow (this is offline)
+  scan_reg_params.lag_duration = 100000;
+
+  // TODO: Do we want this to always be true? What about when we have vision?
+  scan_reg_params.fix_first_scan = true;
+
+  loam_matcher_params.max_correspondence_distance = 0.3;
+  loam_matcher_params.validate_correspondences = false;
+  loam_matcher_params.iterate_correspondences = true;
+  loam_matcher_params.convergence_criteria_translation_m = 0.001;
+  loam_matcher_params.convergence_criteria_rotation_deg = 0.1;
+  loam_matcher_params.max_correspondence_iterations = 5;
+  loam_matcher_params.output_ceres_summary = false;
 }
 
 void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
@@ -61,7 +85,7 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
       J["loop_closure_candidate_search_config"];
   loop_closure_refinement_config = J["loop_closure_refinement_config"];
 
-  std::vector<double> vec = J["local_mapper_covariance_diag"];
+  std::vector<double> vec = J["scan_reg_covariance_diag"];
   if (vec.size() != 6) {
     BEAM_ERROR(
         "Invalid local mapper covariance diagonal (6 values required). Using "
@@ -69,7 +93,7 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   } else {
     Eigen::VectorXd vec_eig(6);
     vec_eig << vec[0], vec[1], vec[2], vec[3], vec[4], vec[5];
-    local_mapper_covariance = vec_eig.asDiagonal();
+    scan_reg_covariance = vec_eig.asDiagonal();
   }
 
   std::vector<double> vec2 = J["loop_closure_covariance_diag"];
@@ -82,6 +106,30 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
     vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
     loop_closure_covariance = vec_eig.asDiagonal();
   }
+
+  nlohmann::json J_scanreg = J["multi_scan_registration"];
+  scan_reg_params.outlier_threshold_t = J_scanreg["outlier_threshold_t"];
+  scan_reg_params.outlier_threshold_r = J_scanreg["outlier_threshold_r"];
+  scan_reg_params.min_motion_trans_m = J_scanreg["min_motion_trans_m"];
+  scan_reg_params.min_motion_rot_rad = J_scanreg["min_motion_rot_rad"];
+  scan_reg_params.max_motion_trans_m = J_scanreg["max_motion_trans_m"];
+  scan_reg_params.num_neighbors = J_scanreg["num_neighbors"];
+
+  nlohmann::json J_loammatcher = J["loam_matcher_params"];
+  loam_matcher_params.max_correspondence_distance =
+      J_loammatcher["max_correspondence_distance"];
+  loam_matcher_params.validate_correspondences =
+      J_loammatcher["validate_correspondences"];
+  loam_matcher_params.iterate_correspondences =
+      J_loammatcher["iterate_correspondences"];
+  loam_matcher_params.convergence_criteria_translation_m =
+      J_loammatcher["convergence_criteria_translation_m"];
+  loam_matcher_params.convergence_criteria_rotation_deg =
+      J_loammatcher["convergence_criteria_rotation_deg"];
+  loam_matcher_params.max_correspondence_iterations =
+      J_loammatcher["max_correspondence_iterations"];
+  loam_matcher_params.output_ceres_summary =
+      J_loammatcher["output_ceres_summary"];
 }
 
 void GlobalMapRefinement::Params::SaveJson(const std::string& filename) {
@@ -91,10 +139,10 @@ void GlobalMapRefinement::Params::SaveJson(const std::string& filename) {
       {"loop_closure_refinement_type", loop_closure_refinement_type},
       {"loop_closure_candidate_search_config",
        loop_closure_candidate_search_config},
-      {"local_mapper_covariance_diag",
-       {local_mapper_covariance(0, 0), local_mapper_covariance(1, 1),
-        local_mapper_covariance(2, 2), local_mapper_covariance(3, 3),
-        local_mapper_covariance(4, 4), local_mapper_covariance(5, 5)}},
+      {"scan_reg_covariance_diag",
+       {scan_reg_covariance(0, 0), scan_reg_covariance(1, 1),
+        scan_reg_covariance(2, 2), scan_reg_covariance(3, 3),
+        scan_reg_covariance(4, 4), scan_reg_covariance(5, 5)}},
       {"loop_closure_covariance_diag",
        {loop_closure_covariance(0, 0), loop_closure_covariance(1, 1),
         loop_closure_covariance(2, 2), loop_closure_covariance(3, 3),
@@ -164,9 +212,9 @@ void GlobalMapRefinement::Setup() {
 }
 
 bool GlobalMapRefinement::RunSubmapRefinement() {
-  for(uint16_t i = 0; i < submaps_.size(); i++){
+  for (uint16_t i = 0; i < submaps_.size(); i++) {
     BEAM_INFO("Refining submap No. {}", static_cast<int>(i));
-    if(!RefineSubmap(submaps_[i])){
+    if (!RefineSubmap(submaps_[i])) {
       BEAM_ERROR("Submap refinement failed, exiting.");
       return false;
     }
@@ -174,8 +222,45 @@ bool GlobalMapRefinement::RunSubmapRefinement() {
   return true;
 }
 
-bool GlobalMapRefinement::RefineSubmap(Submap& submap){
-  // TODO
+bool GlobalMapRefinement::RefineSubmap(Submap& submap) {
+  // Create optimization graph
+  std::shared_ptr<fuse_graphs::HashGraph> graph =
+      fuse_graphs::HashGraph::make_shared();
+
+  // create scan matching tools
+  std::unique_ptr<beam_matching::LoamMatcher> matcher =
+      std::make_unique<beam_matching::LoamMatcher>(params_.loam_matcher_params);
+
+  std::unique_ptr<frame_to_frame::MultiScanLoamRegistration>
+      multi_scan_registration =
+          std::make_unique<frame_to_frame::MultiScanLoamRegistration>(
+              std::move(matcher), params_.scan_reg_params);
+  multi_scan_registration->SetFixedCovariance(params_.scan_reg_covariance);
+
+  // iterate through stored scan poses and add scan registration factors to the
+  // graph
+  BEAM_INFO("Registering scans");
+  for (auto scan_iter = submap.LidarKeyframesBegin();
+       scan_iter != submap.LidarKeyframesEnd(); scan_iter++) {
+    auto transaction =
+        multi_scan_registration->RegisterNewScan(scan_iter->second)
+            .GetTransaction();
+    graph->update(*transaction);
+  }
+
+  // TODO: Add visual BA constraints
+
+  // Optimize graph and update data
+  BEAM_INFO("Optimizing graph");
+  graph->optimize();
+
+  BEAM_INFO("updating scan poses");
+  for (auto scan_iter = submap.LidarKeyframesBegin();
+       scan_iter != submap.LidarKeyframesEnd(); scan_iter++) {
+    scan_iter->second.UpdatePose(graph);
+  }
+
+  // TODO: update visual data (just frame poses?)
 }
 
 bool GlobalMapRefinement::RunPoseGraphOptimization() {
