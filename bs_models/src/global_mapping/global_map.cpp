@@ -89,7 +89,7 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
         "Invalid loop closure covariance diagonal (6 values required). Using "
         "default.");
   } else {
-    Eigen::VectorXd  vec_eig = Eigen::VectorXd(6);
+    Eigen::VectorXd vec_eig = Eigen::VectorXd(6);
     vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
     loop_closure_covariance = vec_eig.asDiagonal();
   }
@@ -225,13 +225,16 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
     } else {
       int num_points = static_cast<int>(points.size() / 3);
       PointCloud cloud;
-      for (int iter = 0; iter < num_points; iter += 3) {
+      uint32_t point_counter = 0;
+      while(point_counter < points.size()){
         pcl::PointXYZ p;
-        p.x = points[iter];
-        p.y = points[iter + 1];
-        p.z = points[iter + 2];
+        p.x = points[point_counter];
+        p.y = points[point_counter + 1];
+        p.z = points[point_counter + 2];
         cloud.points.push_back(p);
+        point_counter+=3;
       }
+
       submaps_[submap_id].AddLidarMeasurement(cloud, T_WORLD_BASELINK, stamp,
                                               lid_measurement.point_type);
     }
