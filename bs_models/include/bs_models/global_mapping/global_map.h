@@ -111,9 +111,15 @@ class GlobalMap {
 
   /**
    * @brief get access to the submaps
-   * @return reference to vector of submaps stored in this global map
+   * @return pointer to vector of submaps stored in this global map
    */
-  std::vector<Submap>& GetSubmaps();
+  std::shared_ptr<std::vector<Submap>> GetSubmaps();
+
+  /**
+   * @brief set the submaps
+   * @param submaps pointer to vector of submaps to be stored in this global map
+   */
+  void SetSubmaps(const std::shared_ptr<std::vector<Submap>>& submaps);  
 
   /**
    * @brief add a slam chunk measurement to the appropriate submap and returns a
@@ -263,7 +269,7 @@ class GlobalMap {
   fuse_core::Transaction::SharedPtr FindLoopClosures();
 
   Params params_;
-  std::vector<Submap> submaps_;
+  std::shared_ptr<std::vector<Submap>> submaps_;
 
   bs_common::ExtrinsicsLookup& extrinsics_ =
       bs_common::ExtrinsicsLookup::GetInstance();
@@ -275,7 +281,7 @@ class GlobalMap {
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
 
   // params only tunable here
-  int max_output_map_size_{3000000};
+  int max_output_map_size_{1000000};
 };
 
 }  // namespace global_mapping

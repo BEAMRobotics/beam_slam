@@ -137,9 +137,19 @@ GlobalMap::GlobalMap(
   Setup();
 }
 
-std::vector<Submap>& GlobalMap::GetSubmaps() { return submaps_; }
+std::shared_ptr<std::vector<Submap>> GlobalMap::GetSubmaps() {
+  return submaps_;
+}
+
+void GlobalMap::SetSubmaps(
+    const std::shared_ptr<std::vector<Submap>>& submaps) {
+  submaps_ = submaps;
+}
 
 void GlobalMap::Setup() {
+  // init submaps
+  submaps_ = std::make_shared<std::vector<Submap>>();
+
   // initiate loop closure candidate search
   if (params_.loop_closure_candidate_search_type == "EUCDIST") {
     loop_closure_candidate_search_ =
@@ -190,8 +200,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   int submap_id = GetSubmapId(T_WORLD_BASELINK);
 
   // if id is equal to submap size then we need to create a new submap
-  if (submap_id == submaps_.size()) {
-    submaps_.push_back(Submap(stamp, T_WORLD_BASELINK, camera_model_));
+  if (submap_id == submaps_->size()) {
+    submaps_->push_back(Submap(stamp, T_WORLD_BASELINK, camera_model_));
 
     new_transaction = InitiateNewSubmapPose();
 
@@ -206,7 +216,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   // add camera measurement if not empty
   if (!cam_measurement.landmarks.empty()) {
     ROS_DEBUG("Adding camera measurement to global map.");
-    submaps_[submap_id].AddCameraMeasurement(
+    submaps_->at(submap_id).AddCameraMeasurement(
         cam_measurement.landmarks, cam_measurement.descriptor_type,
         T_WORLD_BASELINK, stamp, cam_measurement.sensor_id,
         cam_measurement.measurement_id);
@@ -226,17 +236,17 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
       int num_points = static_cast<int>(points.size() / 3);
       PointCloud cloud;
       uint32_t point_counter = 0;
-      while(point_counter < points.size()){
+      while (point_counter < points.size()) {
         pcl::PointXYZ p;
         p.x = points[point_counter];
         p.y = points[point_counter + 1];
         p.z = points[point_counter + 2];
         cloud.points.push_back(p);
-        point_counter+=3;
+        point_counter += 3;
       }
 
-      submaps_[submap_id].AddLidarMeasurement(cloud, T_WORLD_BASELINK, stamp,
-                                              lid_measurement.point_type);
+      submaps_->at(submap_id).AddLidarMeasurement(
+          cloud, T_WORLD_BASELINK, stamp, lid_measurement.point_type);
     }
   }
 
@@ -271,7 +281,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         new_stamp.fromNSec(traj_measurement.stamps[i]);
         stamps.push_back(new_stamp);
       }
-      submaps_[submap_id].AddTrajectoryMeasurement(poses, stamps, stamp);
+      submaps_->at(submap_id).AddTrajectoryMeasurement(poses, stamps, stamp);
     }
   }
   return new_transaction;
@@ -283,18 +293,19 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // isn't coming in in order (e.g., lidar data may come in slower)
 
   // first check if submaps is empty
-  if (submaps_.empty()) {
+  if (submaps_->empty()) {
     return 0;
   }
 
   Eigen::Vector3d t_WORLD_FRAME = T_WORLD_BASELINK.block(0, 3, 3, 1);
 
-  Eigen::Vector3d t_WORLD_SUBMAPCUR =
-      submaps_.at(submaps_.size() - 1).T_WORLD_SUBMAP_INIT().block(0, 3, 3, 1);
+  Eigen::Vector3d t_WORLD_SUBMAPCUR = submaps_->at(submaps_->size() - 1)
+                                          .T_WORLD_SUBMAP_INIT()
+                                          .block(0, 3, 3, 1);
 
   // if only one submap exists, we only check the pose is within this first
   // submap
-  if (submaps_.size() == 1) {
+  if (submaps_->size() == 1) {
     if ((t_WORLD_FRAME - t_WORLD_SUBMAPCUR).norm() < params_.submap_size) {
       return 0;
     } else {
@@ -303,21 +314,22 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   }
 
   // otherwise, also check the prev submap and prioritize that one
-  Eigen::Vector3d t_WORLD_SUBMAPPREV =
-      submaps_.at(submaps_.size() - 2).T_WORLD_SUBMAP_INIT().block(0, 3, 3, 1);
+  Eigen::Vector3d t_WORLD_SUBMAPPREV = submaps_->at(submaps_->size() - 2)
+                                           .T_WORLD_SUBMAP_INIT()
+                                           .block(0, 3, 3, 1);
 
   if ((t_WORLD_FRAME - t_WORLD_SUBMAPPREV).norm() < params_.submap_size) {
-    return submaps_.size() - 2;
+    return submaps_->size() - 2;
   } else if ((t_WORLD_FRAME - t_WORLD_SUBMAPCUR).norm() < params_.submap_size) {
-    return submaps_.size() - 1;
+    return submaps_->size() - 1;
   } else {
-    return submaps_.size();
+    return submaps_->size();
   }
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
-  const Submap& current_submap = submaps_[submaps_.size() - 1];
-  const Submap& previous_submap = submaps_[submaps_.size() - 2];
+  const Submap& current_submap = submaps_->at(submaps_->size() - 1);
+  const Submap& previous_submap = submaps_->at(submaps_->size() - 2);
   bs_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction(
       current_submap.Stamp());
 
@@ -339,7 +351,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
-  int current_index = submaps_.size() - 2;
+  int current_index = submaps_->size() - 2;
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
   loop_closure_candidate_search_->FindLoopClosureCandidates(
@@ -354,7 +366,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
   for (int i = 0; i < matched_indices.size(); i++) {
     fuse_core::Transaction::SharedPtr new_transaction =
         loop_closure_refinement_->GenerateTransaction(
-            submaps_[matched_indices[i]], submaps_[current_index],
+            submaps_->at(matched_indices[i]), submaps_->at(current_index),
             Ts_MATCH_QUERY[i]);
     transaction->merge(*new_transaction);
   }
@@ -365,8 +377,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
 }
 
 void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  for (auto& submap : submaps_) {
-    submap.UpdatePose(graph_msg);
+  for (uint16_t i = 0; i < submaps_->size(); i++) {
+    submaps_->at(i).UpdatePose(graph_msg);
   }
 }
 
@@ -381,10 +393,10 @@ void GlobalMap::SaveData(const std::string& output_path) {
   BEAM_INFO("Saving full global map to: {}", output_path);
   params_.SaveJson(output_path + "params.json");
   camera_model_->WriteJSON(output_path + "camera_model.json");
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
+  for (uint16_t i = 0; i < submaps_->size(); i++) {
     std::string submap_dir = output_path + "submap" + std::to_string(i) + "/";
     boost::filesystem::create_directory(submap_dir);
-    submaps_.at(i).SaveData(submap_dir);
+    submaps_->at(i).SaveData(submap_dir);
   }
   BEAM_INFO("Done saving global map.");
 }
@@ -432,7 +444,7 @@ bool GlobalMap::Load(const std::string& root_directory) {
     Submap current_submap(ros::Time(0), Eigen::Matrix4d::Identity(),
                           camera_model_);
     current_submap.LoadData(submap_dir, false);
-    submaps_.push_back(current_submap);
+    submaps_->push_back(current_submap);
     submap_num++;
   }
 
@@ -456,10 +468,10 @@ void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
   // save optimized submap
   std::string submaps_path = output_path + "lidar_submaps_optimized/";
   boost::filesystem::create_directory(submaps_path);
-  for (int i = 0; i < submaps_.size(); i++) {
+  for (int i = 0; i < submaps_->size(); i++) {
     std::string submap_name =
         submaps_path + "lidar_submap" + std::to_string(i) + ".pcd";
-    submaps_[i].SaveLidarMapInWorldFrame(submap_name, max_output_map_size_);
+    submaps_->at(i).SaveLidarMapInWorldFrame(submap_name, max_output_map_size_);
   }
 
   if (!save_initial) {
@@ -469,11 +481,13 @@ void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
   // save initial submap
   std::string submaps_path_initial = output_path + "lidar_submaps_initial/";
   boost::filesystem::create_directory(submaps_path_initial);
-  for (int i = 0; i < submaps_.size(); i++) {
+  for (int i = 0; i < submaps_->size(); i++) {
     std::string submap_name =
         submaps_path_initial + "lidar_submap" + std::to_string(i) + ".pcd";
-    submaps_[i].SaveLidarMapInWorldFrame(submap_name, max_output_map_size_,
-                                         true);
+    std::cout << "test1\n";
+    submaps_->at(i).SaveLidarMapInWorldFrame(submap_name, max_output_map_size_,
+                                             true);
+    std::cout << "test2\n";
   }
 }
 
@@ -488,10 +502,10 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
   // save optimized submaps
   std::string submaps_path = output_path + "keypoint_submaps_optimized/";
   boost::filesystem::create_directory(submaps_path);
-  for (int i = 0; i < submaps_.size(); i++) {
+  for (int i = 0; i < submaps_->size(); i++) {
     std::string submap_name =
         submaps_path + "keypoint_submap" + std::to_string(i) + ".pcd";
-    submaps_[i].SaveKeypointsMapInWorldFrame(submap_name);
+    submaps_->at(i).SaveKeypointsMapInWorldFrame(submap_name);
   }
 
   if (!save_initial) {
@@ -501,10 +515,10 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
   // save initial submaps
   std::string submaps_path_initial = output_path + "keypoint_submaps_initial/";
   boost::filesystem::create_directory(submaps_path_initial);
-  for (int i = 0; i < submaps_.size(); i++) {
+  for (int i = 0; i < submaps_->size(); i++) {
     std::string submap_name =
         submaps_path_initial + "keypoint_submap" + std::to_string(i) + ".pcd";
-    submaps_[i].SaveKeypointsMapInWorldFrame(submap_name, true);
+    submaps_->at(i).SaveKeypointsMapInWorldFrame(submap_name, true);
   }
 }
 
@@ -523,7 +537,8 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   poses.SetPoseFileDate(date);
   poses.SetFixedFrame(extrinsics_.GetWorldFrameId());
   poses.SetMovingFrame(extrinsics_.GetBaselinkFrameId());
-  for (auto& submap : submaps_) {
+  for (uint16_t i = 0; i < submaps_->size(); i++) {
+    const Submap& submap = submaps_->at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
     for (auto& pose_stamped : submap.GetTrajectory()) {
       Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
@@ -547,7 +562,8 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   poses_initial.SetPoseFileDate(date);
   poses_initial.SetFixedFrame(extrinsics_.GetWorldFrameId());
   poses_initial.SetMovingFrame(extrinsics_.GetBaselinkFrameId());
-  for (auto& submap : submaps_) {
+  for (uint16_t i = 0; i < submaps_->size(); i++) {
+    const Submap& submap = submaps_->at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP_INIT();
     for (auto& pose_stamped : submap.GetTrajectory()) {
       Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
@@ -573,7 +589,8 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
 
   // get trajectory
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
-  for (auto& submap : submaps_) {
+  for (uint16_t i = 0; i < submaps_->size(); i++) {
+    const Submap& submap = submaps_->at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
     std::vector<Submap::PoseStamped> poses_stamped = submap.GetTrajectory();
     for (const Submap::PoseStamped& pose_stamped : poses_stamped) {
@@ -604,7 +621,8 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
 
   // get trajectory initial
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_initial;
-  for (auto& submap : submaps_) {
+  for (uint16_t i = 0; i < submaps_->size(); i++) {
+    const Submap& submap = submaps_->at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP_INIT();
     auto poses_stamped = submap.GetTrajectory();
     for (const Submap::PoseStamped& pose_stamped : poses_stamped) {
@@ -639,7 +657,8 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
   }
 
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
-  for (auto& submap : submaps_) {
+  for (uint16_t i = 0; i < submaps_->size(); i++) {
+    const Submap& submap = submaps_->at(i);
     pcl::PointCloud<pcl::PointXYZRGBL> frame =
         beam::CreateFrameCol(submap.Stamp());
     pcl::PointCloud<pcl::PointXYZRGBL> frame_transformed;
@@ -656,7 +675,8 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
   }
 
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_initial;
-  for (auto& submap : submaps_) {
+  for (uint16_t i = 0; i < submaps_->size(); i++) {
+    const Submap& submap = submaps_->at(i);
     pcl::PointCloud<pcl::PointXYZRGBL> frame =
         beam::CreateFrameCol(submap.Stamp());
     pcl::PointCloud<pcl::PointXYZRGBL> frame_transformed;

@@ -226,21 +226,33 @@ void Submap::SaveLidarMapInWorldFrame(const std::string& filename,
         filename);
   }
 
+  // std::cout << "test1.1\n";
   std::vector<PointCloud> map =
       GetLidarPointsInWorldFrame(max_output_map_size, use_initial_world_frame);
+  // std::cout << "test1.2\n";    
   if (map.empty()) {
     BEAM_WARN("No regular lidar points in submap, not saving.");
     return;
   }
+  // std::cout << "test1.3\n";
 
   for (int i = 0; i < map.size(); i++) {
+    // std::cout << "test1.3.1\n";
     const PointCloud& cloud = map[i];
+    // std::cout << "test1.3.2\n";
     std::string current_filename = filename;
+    // std::cout << "test1.3.3\n";
     std::string replace = "_" + std::to_string(i) + ".pcd";
+    // std::cout << "test1.3.4\n";
     current_filename.replace(current_filename.find(".pcd"), 4, replace);
+    std::cout << "test1.3.5\n";
     BEAM_INFO("Saving lidar submap to: {}", current_filename);
+    std::cout << "Cloud size: " << cloud.size() <<"\n";
+    std::cout << "filename: " << current_filename <<"\n";
     pcl::io::savePCDFileASCII(current_filename, cloud);
+    std::cout << "test1.3.6\n";
   }
+  // std::cout << "test1.4\n";
 }
 
 void Submap::SaveLidarLoamMapInWorldFrame(const std::string& path,
@@ -279,19 +291,24 @@ std::vector<PointCloud> Submap::GetLidarPointsInWorldFrame(
     int max_output_map_size, bool use_initial_world_frame) const {
   std::vector<PointCloud> map;
   PointCloud map_current;
+  // std::cout << "test1.1.2\n";
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
+        //  std::cout << "test1.1.3\n";
     const PointCloud& cloud_scanframe = it->second.Cloud();
+    // std::cout << "test1.1.4\n";
     const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
+    // std::cout << "test1.1.5\n";
     Eigen::Matrix4d T_WORLD_SCAN;
     if (use_initial_world_frame) {
       T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
     } else {
       T_WORLD_SCAN = T_WORLD_SUBMAP_ * T_SUBMAP_SCAN;
     }
-
+    // std::cout << "test1.1.6\n";
     PointCloud cloud_worldframe;
     pcl::transformPointCloud(cloud_scanframe, cloud_worldframe, T_WORLD_SCAN);
+    // std::cout << "test1.1.7\n";
     if (map_current.empty()) {
       map_current = cloud_worldframe;
     } else if (map_current.size() + cloud_worldframe.size() >
@@ -301,8 +318,11 @@ std::vector<PointCloud> Submap::GetLidarPointsInWorldFrame(
     } else {
       map_current += cloud_worldframe;
     }
+    // std::cout << "test1.1.8\n";
   }
+  // std::cout << "test1.1.9\n";
   map.push_back(map_current);
+  // std::cout << "test1.1.10\n";
   return map;
 }
 
