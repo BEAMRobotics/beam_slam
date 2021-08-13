@@ -292,6 +292,29 @@ void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
   }
 }
 
+fuse_core::UUID VisualMap::GetLandmarkUUID(uint64_t landmark_id) {
+  fuse_variables::Point3DLandmark::SharedPtr landmark =
+      fuse_variables::Point3DLandmark::make_shared();
+  auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
+  return landmark_uuid;
+}
+
+fuse_core::UUID VisualMap::GetPositionUUID(ros::Time stamp) {
+  fuse_variables::Position3DStamped::SharedPtr corr_position =
+      fuse_variables::Position3DStamped::make_shared();
+  auto corr_position_uuid = fuse_core::uuid::generate(
+      corr_position->type(), stamp, fuse_core::uuid::NIL);
+  return corr_position_uuid;
+}
+
+fuse_core::UUID VisualMap::GetOrientationUUID(ros::Time stamp) {
+  fuse_variables::Orientation3DStamped::SharedPtr corr_orientation =
+      fuse_variables::Orientation3DStamped::make_shared();
+  auto corr_orientation_uuid = fuse_core::uuid::generate(
+      corr_orientation->type(), stamp, fuse_core::uuid::NIL);
+  return corr_orientation_uuid;
+}
+
 void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   graph_ = std::move(graph_msg);
 }
