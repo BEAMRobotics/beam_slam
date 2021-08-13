@@ -82,5 +82,6 @@ add_executable(${PROJECT_NAME}_global_map_refinement_main
 target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
 	${PROJECT_NAME}
   beam::utils
+  beam::matching
 	gflags
 )

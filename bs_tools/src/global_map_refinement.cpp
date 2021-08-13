@@ -1,8 +1,8 @@
 #include <bs_tools/global_map_refinement.h>
 
-#include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
-#include <bs_models/global_mapping/global_map.h>
 #include <bs_common/utils.h>
+#include <bs_models/global_mapping/global_map.h>
+#include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
 
 namespace bs_tools {
 
@@ -33,7 +33,7 @@ GlobalMapRefinement::Params::Params() {
   scan_reg_params.max_motion_trans_m = 5;
   scan_reg_params.source = "MULTISCANREGISTRATION";
   scan_reg_params.num_neighbors = 10;
-  scan_reg_params.disable_lidar_map = true;  // don't need
+  scan_reg_params.disable_lidar_map = true; // don't need
 
   // set this high because we don't want to remove any scans due to lag duration
   // overflow (this is offline)
@@ -54,9 +54,8 @@ GlobalMapRefinement::Params::Params() {
 void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   std::string read_file = config_path;
   if (read_file.empty()) {
-    BEAM_INFO(
-        "No config file provided to global map refinement, using default "
-        "parameters.");
+    BEAM_INFO("No config file provided to global map refinement, using default "
+              "parameters.");
     return;
   }
 
@@ -66,10 +65,9 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   }
 
   if (!boost::filesystem::exists(read_file)) {
-    BEAM_ERROR(
-        "Cannot find global map refinement config at: {}, using default "
-        "parameters.",
-        read_file);
+    BEAM_ERROR("Cannot find global map refinement config at: {}, using default "
+               "parameters.",
+               read_file);
     return;
   }
 
@@ -258,9 +256,10 @@ bool GlobalMapRefinement::RefineSubmap(gm::Submap& submap) {
   std::unique_ptr<beam_matching::LoamMatcher> matcher =
       std::make_unique<beam_matching::LoamMatcher>(params_.loam_matcher_params);
 
-  std::unique_ptr<f2f::MultiScanLoamRegistration> multi_scan_registration =
-      std::make_unique<f2f::MultiScanLoamRegistration>(std::move(matcher),
-                                                       params_.scan_reg_params);
+  std::unique_ptr<f2f::ScanRegistrationBase> multi_scan_registration;
+
+  multi_scan_registration = std::make_unique<f2f::MultiScanLoamRegistration>(
+      std::move(matcher), params_.scan_reg_params);
   multi_scan_registration->SetFixedCovariance(params_.scan_reg_covariance);
 
   // iterate through stored scan poses and add scan registration factors to the
@@ -348,4 +347,4 @@ void GlobalMapRefinement::SaveGlobalMapData(const std::string& output_path) {
   global_map.SaveData(save_dir);
 }
 
-}  // namespace bs_tools
+} // namespace bs_tools
