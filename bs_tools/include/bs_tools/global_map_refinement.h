@@ -1,12 +1,5 @@
 #pragma once
 
-#include <fuse_core/transaction.h>
-#include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
-#include <fuse_core/constraint.h>
-#include <fuse_core/uuid.h>
-#include <fuse_core/variable.h>
-#include <fuse_graphs/hash_graph.h>
-
 #include <bs_models/global_mapping/submap.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>

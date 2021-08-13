@@ -1,5 +1,8 @@
 #include <bs_tools/global_map_refinement.h>
 
+#include <fuse_core/transaction.h>
+#include <fuse_graphs/hash_graph.h>
+
 #include <bs_common/utils.h>
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
