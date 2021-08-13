@@ -19,8 +19,8 @@
 // beam_slam
 #include <bs_common/extrinsics_lookup.h>
 #include <bs_models/camera_to_camera/keyframe.h>
-#include <bs_models/camera_to_camera/visual_submap.h>
 #include <bs_models/camera_to_camera/visual_map.h>
+#include <bs_models/camera_to_camera/visual_submap.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 #include <bs_parameters/models/camera_params.h>
@@ -55,9 +55,9 @@ public:
   void processImage(const sensor_msgs::Image::ConstPtr& msg);
 
   /**
-   * @brief Callback for image processing, this callback will add visual
-   * constraints and triangulate new landmarks when required
-   * @param[in] msg - The image to process
+   * @brief Callback for imu processing, this will make sure the imu messages
+   * are added to the buffer at the correct time
+   * @param[in] msg - The imu msg to process
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
