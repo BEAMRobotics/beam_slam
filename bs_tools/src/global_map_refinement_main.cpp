@@ -36,46 +36,46 @@ int main(int argc, char* argv[]) {
 
   bs_tools::GlobalMapRefinement refinement(FLAGS_globalmap_dir, FLAGS_refinement_config);
 
-  // if (FLAGS_run_submap_refinement) {
-  //   if (!refinement.RunSubmapRefinement()) {
-  //     BEAM_ERROR("Submap refinement failed, exiting global map refinement.");
-  //     return 0;
-  //   }
-  // }
+  if (FLAGS_run_submap_refinement) {
+    if (!refinement.RunSubmapRefinement()) {
+      BEAM_ERROR("Submap refinement failed, exiting global map refinement.");
+      return 0;
+    }
+  }
 
-  // if (FLAGS_run_posegraph_optimization) {
-  //   if (!refinement.RunPoseGraphOptimization()) {
-  //     BEAM_ERROR(
-  //         "Pose graph optimization failed, exiting global map refinement.");
-  //     return 0;
-  //   }
-  // }
+  if (FLAGS_run_posegraph_optimization) {
+    if (!refinement.RunPoseGraphOptimization()) {
+      BEAM_ERROR(
+          "Pose graph optimization failed, exiting global map refinement.");
+      return 0;
+    }
+  }
 
-  // BEAM_INFO("Global map refinement completed successfully.");
+  BEAM_INFO("Global map refinement completed successfully.");
 
-  // std::string dateandtime =
-  //     beam::ConvertTimeToDate(std::chrono::system_clock::now());
+  std::string dateandtime =
+      beam::ConvertTimeToDate(std::chrono::system_clock::now());
 
-  // if (FLAGS_output_path.back() != '/') {
-  //   dateandtime = "/" + dateandtime;
-  // }
+  if (FLAGS_output_path.back() != '/') {
+    dateandtime = "/" + dateandtime;
+  }
 
-  // if (FLAGS_output_results) {
-  //   std::string save_path =
-  //       FLAGS_output_path + dateandtime + "_global_map_refined_results/";
-  //   boost::filesystem::create_directory(save_path);
-  //   BEAM_INFO("Outputting results to: {}", save_path);
+  if (FLAGS_output_results) {
+    std::string save_path =
+        FLAGS_output_path + dateandtime + "_global_map_refined_results/";
+    boost::filesystem::create_directory(save_path);
+    BEAM_INFO("Outputting results to: {}", save_path);
 
-  //   refinement.SaveResults(save_path, true);
-  // }
+    refinement.SaveResults(save_path, true);
+  }
 
-  // if (FLAGS_output_globalmap_data) {
-  //   std::string save_path =
-  //       FLAGS_output_path + dateandtime + "_global_map_refined_data/";
-  //   boost::filesystem::create_directory(save_path);
+  if (FLAGS_output_globalmap_data) {
+    std::string save_path =
+        FLAGS_output_path + dateandtime + "_global_map_refined_data/";
+    boost::filesystem::create_directory(save_path);
 
-  //   BEAM_INFO("Outputting global map data to: {}", save_path);
-  //   refinement.SaveGlobalMapData(save_path);
-  // }
+    BEAM_INFO("Outputting global map data to: {}", save_path);
+    refinement.SaveGlobalMapData(save_path);
+  }
   return 0;
 }
