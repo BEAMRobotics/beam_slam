@@ -158,6 +158,24 @@ public:
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
+   * @brief Gets fuse uuid of landmark
+   * @param landmark_id of landmark
+   */
+  fuse_core::UUID GetLandmarkUUID(uint64_t landmark_id);
+
+  /**
+   * @brief Gets fuse uuid of stamped position
+   * @param stamp of position
+   */
+  fuse_core::UUID GetPositionUUID(ros::Time stamp);
+
+  /**
+   * @brief Gets fuse uuid of stamped orientation
+   * @param stamp of orientation
+   */
+  fuse_core::UUID GetOrientationUUID(ros::Time stamp);
+
+  /**
    * @brief Updates current graph copy
    * @param graph_msg graph to update with
    */
@@ -173,7 +191,7 @@ protected:
 
   // memory management variables
   size_t tracked_features_{100}; // # of features tracked per frame
-  size_t window_size_{20}; // # of keyframe poses to retain in local maps
+  size_t window_size_{20};       // # of keyframe poses to retain in local maps
 
   // local graph for direct use
   fuse_core::Graph::SharedPtr local_graph_;
