@@ -42,23 +42,32 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     BuildFrameVectors(valid_frames, invalid_frames);
     // Initialize imu preintegration
     PerformIMUInitialization(valid_frames);
+    Eigen::Vector3d gravity_nominal{0, 0, -9.8};
     bs_models::frame_to_frame::ImuPreintegration::Params imu_params;
-    imu_params.gravity = gravity_;
+    imu_params.gravity = gravity_nominal;
     imu_params.cov_gyro_noise = cov_gyro_noise_;
     imu_params.cov_accel_noise = cov_accel_noise_;
     imu_params.cov_gyro_bias = cov_gyro_bias_;
     imu_params.cov_accel_bias = cov_accel_bias_;
     imu_preint_ =
         std::make_shared<bs_models::frame_to_frame::ImuPreintegration>(
-            imu_params, bg_, ba_);
-    size_t init_lms = 0;
-    // Apply scale estimate if desired
-    if (use_scale_estimate_)
-      for (auto& f : valid_frames) { f.p = scale_ * f.p; }
+            imu_params);
+    // align poses to estimated gravity
+    Eigen::Quaterniond q =
+        Eigen::Quaterniond::FromTwoVectors(gravity_, gravity_nominal);
+    for (auto& f : valid_frames) {
+      f.q = q * f.q;
+      f.p = q * f.p;
+      // Apply scale estimate if desired
+      if (use_scale_estimate_) f.p = scale_ * f.p;
+    }
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames, true);
+
+    // TODO: refine biases through optimization awith constant poses
+
     // Add landmarks and visual constraints to graph
-    init_lms += AddVisualConstraints(valid_frames);
+    size_t init_lms = AddVisualConstraints(valid_frames);
     // optimize valid frames
     std::cout << "\n\nFrame poses before optimization:\n" << std::endl;
     OutputFramePoses(valid_frames);
@@ -221,17 +230,12 @@ void VIOInitializer::AddPosesAndInertialConstraints(
     if (set_start && i == 0) {
       imu_preint_->SetStart(frame.t, img_orientation, img_position);
     } else {
-      // // get imu transaction
-      // fuse_core::Transaction::SharedPtr transaction =
-      //     imu_preint_->RegisterNewImuPreintegratedFactor(
-      //         frame.t, img_orientation, img_position);
-      // // add constituent variables and constraints
-      // for (auto& var : transaction->addedVariables()) {
-      //   local_graph_->addVariable(std::move(var.clone()));
-      // }
-      // for (auto& constraint : transaction->addedConstraints()) {
-      //   local_graph_->addConstraint(std::move(constraint.clone()));
-      // }
+      // get imu transaction
+      fuse_core::Transaction::SharedPtr transaction =
+          imu_preint_->RegisterNewImuPreintegratedFactor(
+              frame.t, img_orientation, img_position);
+      // update graph with the transaction
+      local_graph_->update(*transaction);
     }
   }
 }

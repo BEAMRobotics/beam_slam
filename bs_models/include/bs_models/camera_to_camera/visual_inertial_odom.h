@@ -7,7 +7,7 @@
 #include <bs_models/CameraMeasurementMsg.h>
 #include <bs_models/InitializedPathMsg.h>
 #include <bs_models/LandmarkMeasurementMsg.h>
-#include <bs_models/SlamChunkMsg.h>
+#include <bs_models/SubmapMsg.h>
 #include <bs_models/TrajectoryMeasurementMsg.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
@@ -20,6 +20,7 @@
 #include <bs_common/extrinsics_lookup.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
+#include <bs_models/camera_to_camera/visual_submap.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 #include <bs_parameters/models/camera_params.h>
@@ -30,8 +31,7 @@
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
-namespace bs_models {
-namespace camera_to_camera {
+namespace bs_models { namespace camera_to_camera {
 
 class VisualInertialOdom : public fuse_core::AsyncSensorModel {
 public:
@@ -55,9 +55,9 @@ public:
   void processImage(const sensor_msgs::Image::ConstPtr& msg);
 
   /**
-   * @brief Callback for image processing, this callback will add visual
-   * constraints and triangulate new landmarks when required
-   * @param[in] msg - The image to process
+   * @brief Callback for imu processing, this will make sure the imu messages
+   * are added to the buffer at the correct time
+   * @param[in] msg - The imu msg to process
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
@@ -67,6 +67,12 @@ public:
    * @param[in] msg - The path to process
    */
   void processInitPath(const InitializedPathMsg::ConstPtr& msg);
+
+  /**
+   * @brief Callback for global submap processing
+   * @param[in] msg - The submap to process
+   */
+  void processSubmap(const SubmapMsg::ConstPtr& msg);
 
 protected:
   fuse_core::UUID device_id_; //!< The UUID of this device
@@ -176,11 +182,21 @@ private:
    * @brief Computes the mean parallax between images at two times
    * @param t1 time of first image
    * @param t2 time of second image
-   * @param t2_landmarks id's of landmarks that have been seen in tw
+   * @param t2_landmarks id's of landmarks that have been seen in t2
    * @return mean parallax
    */
   double ComputeAvgParallax(const ros::Time& t1, const ros::Time& t2,
                             const std::vector<uint64_t>& t2_landmarks);
+
+  /**
+   * @brief Matches current untriangulated id's to the current submap if its
+   * available
+   * @param untriangulated_landmarks id's of landmarks that have been seen in
+   * the current keyframe
+   * @return 1:1 vector of vector3d's to untriangulated id's
+   */
+  std::vector<beam::opt<Eigen::Vector3d>>
+      MatchKeyframeToSubmap(const std::vector<uint64_t>& untriangulated_ids);
 
 protected:
   // loadable camera parameters
@@ -189,14 +205,20 @@ protected:
   // global parameters
   bs_parameters::models::GlobalParams global_params_;
 
-  // topic publishers, subscribers and buffers
+  // subscribers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
   ros::Subscriber path_subscriber_;
+  ros::Subscriber submap_subscriber_;
+
+  // publishers
   ros::Publisher init_odom_publisher_;
   ros::Publisher new_keyframe_publisher_;
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher landmark_publisher_;
+  ros::Publisher reloc_publisher_;
+
+  // image and imu queues for proper synchronization
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
 
@@ -211,6 +233,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
+  std::shared_ptr<bs_models::camera_to_camera::VisualSubmap> current_submap_;
 
   // initialization object
   std::shared_ptr<bs_models::camera_to_camera::VIOInitializer> initializer_;
@@ -228,5 +251,4 @@ protected:
       bs_common::ExtrinsicsLookup::GetInstance();
 };
 
-} // namespace camera_to_camera
-} // namespace bs_models
+}} // namespace bs_models::camera_to_camera

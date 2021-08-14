@@ -4,7 +4,6 @@ project(bs_publishers)
 set(build_depends
   fuse_core
   fuse_variables
-  bs_models
   geometry_msgs
   nav_msgs
   pluginlib
@@ -12,6 +11,9 @@ set(build_depends
   tf2
   tf2_geometry_msgs
   tf2_ros
+  bs_models
+  bs_common
+  bs_constraints
   )
 
 find_package(catkin REQUIRED COMPONENTS
