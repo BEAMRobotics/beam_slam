@@ -15,7 +15,7 @@
 #include <beam_matching/loam/LoamPointCloud.h>
 #include <bs_models/LandmarkMeasurementMsg.h>
 #include <bs_common/scan_pose.h>
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 
 namespace bs_models {
 
@@ -64,9 +64,12 @@ class Submap {
    * @param T_WORLD_SUBMAP pose in matrix form
    * @param stamp timestamp associated with the submap pose
    * @param camera_model camera model, used for kepoint triangulation and BA
+   * @param extrinsics pointer to extrinsics. This can be updated by the source
+   * if these are changing
    */
   Submap(const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP,
-         const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
+         const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+         const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics);
 
   /**
    * @brief constructor that requires a pose and stamp for the submap.
@@ -74,11 +77,14 @@ class Submap {
    * @param orientation R_WORLD_SUBMAP
    * @param stamp timestamp associated with the submap pose
    * @param camera_model camera model, used for kepoint triangulation and BA
+   * @param extrinsics pointer to extrinsics. This can be updated by the source
+   * if these are changing
    */
   Submap(const ros::Time& stamp,
          const fuse_variables::Position3DStamped& position,
          const fuse_variables::Orientation3DStamped& orientation,
-         const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
+         const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+         const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics);
 
   /**
    * @brief default destructor
@@ -298,9 +304,10 @@ class Submap {
    *        subframe1.json
    *        ...
    *        subframeN.json
-   * 
-   *    where lidar keyframe formats can be found in bs_common/ScanPose.h (see SaveData function),
-   *    camera_keyframes.json is a map from stamp (nsecs) to pose vector (1 x 16)
+   *
+   *    where lidar keyframe formats can be found in bs_common/ScanPose.h (see
+   * SaveData function), camera_keyframes.json is a map from stamp (nsecs) to
+   * pose vector (1 x 16)
    *
    * @param output_dir full path to output directory. This should be an empty
    * directory so as to not confuse with previous data
@@ -348,8 +355,7 @@ class Submap {
   int graph_updates_{0};
   fuse_variables::Position3DStamped position_;        // t_WORLD_SUBMAP
   fuse_variables::Orientation3DStamped orientation_;  // R_WORLD_SUBMAP
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   Eigen::Matrix4d T_WORLD_SUBMAP_;  // this get recomputed when fuse vars change
   Eigen::Matrix4d T_WORLD_SUBMAP_initial_;  // = T_WORLDLM_SUBMAP
   Eigen::Matrix4d T_SUBMAP_WORLD_initial_;  // = T_SUBMAP_WORLDLM
