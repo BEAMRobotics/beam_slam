@@ -3,12 +3,10 @@
 // std
 #include <queue>
 
-// messages
-#include <bs_models/CameraMeasurementMsg.h>
-#include <bs_models/LandmarkMeasurementMsg.h>
-#include <bs_models/TrajectoryMeasurementMsg.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/Imu.h>
+// libbeam
+#include <beam_calibration/CameraModel.h>
+#include <beam_cv/geometry/PoseRefinement.h>
+#include <beam_cv/trackers/Trackers.h>
 
 // fuse
 #include <fuse_core/async_sensor_model.h>
@@ -24,10 +22,13 @@
 #include <bs_parameters/models/camera_params.h>
 #include <bs_parameters/models/global_params.h>
 
-// libbeam
-#include <beam_calibration/CameraModel.h>
-#include <beam_cv/geometry/PoseRefinement.h>
-#include <beam_cv/trackers/Trackers.h>
+// ros
+#include <bs_models/CameraMeasurementMsg.h>
+#include <bs_models/LandmarkMeasurementMsg.h>
+#include <bs_models/TrajectoryMeasurementMsg.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/Imu.h>
+
 
 namespace bs_models { namespace camera_to_camera {
 

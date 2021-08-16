@@ -26,13 +26,13 @@ public:
     getParam<std::string>(nh, "source", source, "VIO");
     getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
+    getParam<std::string>(nh, "reloc_request_topic", reloc_request_topic, "");
     getParam<std::string>(nh, "init_map_output_directory",
                           init_map_output_directory, "");
 
     getParam<std::string>(nh, "frame_odometry_output_topic",
                           frame_odometry_output_topic, "/vio_init");
-    getParam<std::string>(nh, "landmark_topic", landmark_topic,
-                          "/landmarks");
+    getParam<std::string>(nh, "landmark_topic", landmark_topic, "/landmarks");
     getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
                           "/slam_chunks");
     getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
@@ -54,6 +54,7 @@ public:
   std::string image_topic{};
   std::string init_path_topic{};
   std::string imu_topic{};
+  std::string reloc_request_topic{};
   std::string source{};
   std::string frame_odometry_output_topic{};
   std::string new_keyframes_topic{};

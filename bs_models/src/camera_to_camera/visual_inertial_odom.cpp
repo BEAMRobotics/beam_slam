@@ -115,8 +115,8 @@ void VisualInertialOdom::onStart() {
   landmark_publisher_ =
       private_node_handle_.advertise<std_msgs::UInt64MultiArray>(
           camera_params_.landmark_topic, 10);
-  reloc_publisher_ =
-      private_node_handle_.advertise<RelocRequestMsg>("/reloc_request", 10);
+  reloc_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
+      camera_params_.reloc_request_topic, 10);
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {

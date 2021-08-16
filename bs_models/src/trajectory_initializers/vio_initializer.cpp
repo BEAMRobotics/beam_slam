@@ -344,7 +344,6 @@ void VIOInitializer::OptimizeGraph() {
   options.max_solver_time_in_seconds = max_optimization_time_;
   options.max_num_iterations = 100;
   local_graph_->optimize(options);
-  // std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }
 
 void VIOInitializer::OutputResults(
