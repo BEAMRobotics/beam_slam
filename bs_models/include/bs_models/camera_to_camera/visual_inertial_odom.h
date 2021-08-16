@@ -5,7 +5,6 @@
 
 // messages
 #include <bs_models/CameraMeasurementMsg.h>
-#include <bs_models/InitializedPathMsg.h>
 #include <bs_models/LandmarkMeasurementMsg.h>
 #include <bs_models/TrajectoryMeasurementMsg.h>
 #include <sensor_msgs/Image.h>
@@ -59,13 +58,6 @@ public:
    * @param[in] msg - The imu msg to process
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
-
-  /**
-   * @brief Callback for path processing, this path is provided by LIO for
-   * initialization
-   * @param[in] msg - The path to process
-   */
-  void processInitPath(const InitializedPathMsg::ConstPtr& msg);
 
 protected:
   fuse_core::UUID device_id_; //!< The UUID of this device
@@ -201,7 +193,6 @@ protected:
   // subscribers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
-  ros::Subscriber path_subscriber_;
 
   // publishers
   ros::Publisher init_odom_publisher_;

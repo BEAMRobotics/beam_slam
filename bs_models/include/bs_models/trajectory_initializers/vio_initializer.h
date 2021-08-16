@@ -29,9 +29,9 @@ public:
    */
   VIOInitializer(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                  std::shared_ptr<beam_cv::Tracker> tracker,
-                 const double& gyro_noise, const double& accel_noise,
-                 const double& gyro_bias, const double& accel_bias,
-                 bool use_scale_estimate = false,
+                 const std::string& path_topic, const double& gyro_noise,
+                 const double& accel_noise, const double& gyro_bias,
+                 const double& accel_bias, bool use_scale_estimate = false,
                  double max_optimization_time = 5.0,
                  const std::string& output_directory = "");
 
@@ -47,12 +47,6 @@ public:
    * @param msg imu message to add
    */
   void AddIMU(const sensor_msgs::Imu& msg);
-
-  /**
-   * @brief Sets the initialized path to use
-   * @param msg The init path to use for intialization
-   */
-  void SetPath(const InitializedPathMsg& msg);
 
   /**
    * @brief Returns the current state
@@ -72,6 +66,13 @@ public:
    */
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration>
       GetPreintegrator();
+
+  /**
+   * @brief Callback for path processing, this path is provided by LIO for
+   * initialization
+   * @param[in] msg - The path to process
+   */
+  void ProcessInitPath(const InitializedPathMsg::ConstPtr& msg);
 
 private:
   /**
@@ -141,6 +142,9 @@ private:
       const std::vector<bs_models::camera_to_camera::Frame>& frames);
 
 protected:
+  // subscriber for initialized path
+  ros::Subscriber path_subscriber_;
+
   // computer vision objects
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;

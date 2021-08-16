@@ -81,8 +81,8 @@ void VisualInertialOdom::onInit() {
   std::ifstream file(global_params_.imu_intrinsics_path);
   file >> J;
   initializer_ = std::make_shared<bs_models::camera_to_camera::VIOInitializer>(
-      cam_model_, tracker_, J["cov_gyro_noise"], J["cov_accel_noise"],
-      J["cov_gyro_bias"], J["cov_accel_bias"], false,
+      cam_model_, tracker_, camera_params_.init_path_topic, J["cov_gyro_noise"],
+      J["cov_accel_noise"], J["cov_gyro_bias"], J["cov_accel_bias"], false,
       camera_params_.init_max_optimization_time_in_seconds,
       camera_params_.init_map_output_directory);
 
@@ -102,9 +102,6 @@ void VisualInertialOdom::onStart() {
   imu_subscriber_ = node_handle_.subscribe(camera_params_.imu_topic, 10000,
                                            &ThrottledIMUCallback::callback,
                                            &throttled_imu_callback_);
-  path_subscriber_ = private_node_handle_.subscribe(
-      camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
-      this);
   /***********************************************************
    *                 Advertise publishers                    *
    ***********************************************************/
@@ -223,11 +220,6 @@ void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
     }
     imu_buffer_.pop();
   }
-}
-
-void VisualInertialOdom::processInitPath(
-    const InitializedPathMsg::ConstPtr& msg) {
-  initializer_->SetPath(*msg);
 }
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
