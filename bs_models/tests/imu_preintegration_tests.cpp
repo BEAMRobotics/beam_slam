@@ -15,10 +15,9 @@ using namespace bs_models::frame_to_frame;
 void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
                              Eigen::Quaterniond& delta_q,
                              Eigen::Vector3d& delta_p, Eigen::Vector3d& delta_v,
-                             const Eigen::Vector3d& gravity,
                              bool imu_preintegration = true) {
   double dt = ros::Duration(IS2.Stamp() - IS1.Stamp()).toSec();
-  Eigen::Vector3d g{gravity};
+  Eigen::Vector3d g{GRAVITY_WORLD};
 
   if (!imu_preintegration) {
     dt = 0;
@@ -38,7 +37,6 @@ class Data {
   Data() {
     // set time of simulation and gravity vector
     int64_t time_simulation_ns = start_time_ns + time_duration;
-    gravity << 0, 0, -GRAVITY;
 
     // set times of imu states
     ros::Time t1_ros = ros::Time(start_time_ns * 1e-9);
@@ -58,7 +56,7 @@ class Data {
       Eigen::Vector3d rot_vel_body = gt_spline.rotVelBody(t_ns + dt_ns / 2);
       Eigen::Vector3d lin_accel_body =
           pose.so3().inverse() *
-          (gt_spline.transAccelWorld(t_ns + dt_ns / 2) - gravity);
+          (gt_spline.transAccelWorld(t_ns + dt_ns / 2) - GRAVITY_WORLD);
 
       // assign info to start of interval in imu data
       bs_common::IMUData imu_data;
@@ -109,10 +107,8 @@ class Data {
     IS3 = std::move(IS3_temp);
 
     // calculate relative motion deltas between states
-    CalculateRelativeMotion(IS1, IS2, delta_q_12, delta_p_12, delta_v_12,
-                            gravity);
-    CalculateRelativeMotion(IS2, IS3, delta_q_23, delta_p_23, delta_v_23,
-                            gravity);
+    CalculateRelativeMotion(IS1, IS2, delta_q_12, delta_p_12, delta_v_12);
+    CalculateRelativeMotion(IS2, IS3, delta_q_23, delta_p_23, delta_v_23);
 
     delta_t_12 = ros::Duration(IS2.Stamp() - IS1.Stamp());
     delta_t_23 = ros::Duration(IS3.Stamp() - IS2.Stamp());
@@ -125,7 +121,6 @@ class Data {
   int64_t time_duration = 20e9;     // [nano sec]
   int64_t dt_ns = 1e7;              // [nano sec]
 
-  Eigen::Vector3d gravity;
   std::vector<bs_common::IMUData> imu_data_gt;
   std::vector<Eigen::Matrix4d> pose_gt;
 
@@ -164,9 +159,7 @@ Eigen::Matrix<double, 16, 1> CalculateRelativeStateDelta(const ImuState& IS1,
   Eigen::Quaterniond delta_q;
   Eigen::Vector3d delta_p;
   Eigen::Vector3d delta_v;
-  Eigen::Vector3d dummy_gravity{Eigen::Vector3d::Zero()};
-  CalculateRelativeMotion(IS1, IS2, delta_q, delta_p, delta_v, dummy_gravity,
-                          false);
+  CalculateRelativeMotion(IS1, IS2, delta_q, delta_p, delta_v, false);
 
   Eigen::Vector3d delta_bg = IS2.GyroBiasVec() - IS1.GyroBiasVec();
   Eigen::Vector3d delta_ba = IS2.AccelBiasVec() - IS1.AccelBiasVec();

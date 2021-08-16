@@ -4,7 +4,8 @@
 
 #include <beam_utils/math.h>
 
-namespace bs_models { namespace frame_to_frame {
+namespace bs_models {
+namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
   CheckParameters();
@@ -57,16 +58,24 @@ void ImuPreintegration::SetStart(
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   // adjust imu buffer
-  while (t_start > imu_data_buffer_.front().t) { imu_data_buffer_.pop(); }
+  while (t_start > imu_data_buffer_.front().t) {
+    imu_data_buffer_.pop();
+  }
 
   // set imu state
   ImuState imu_state_i(t_start);
 
-  if (R_WORLD_IMU) { imu_state_i.SetOrientation(R_WORLD_IMU->data()); }
+  if (R_WORLD_IMU) {
+    imu_state_i.SetOrientation(R_WORLD_IMU->data());
+  }
 
-  if (t_WORLD_IMU) { imu_state_i.SetPosition(t_WORLD_IMU->data()); }
+  if (t_WORLD_IMU) {
+    imu_state_i.SetPosition(t_WORLD_IMU->data());
+  }
 
-  if (velocity) { imu_state_i.SetVelocity(velocity->data()); }
+  if (velocity) {
+    imu_state_i.SetVelocity(velocity->data());
+  }
 
   imu_state_i.SetGyroBias(bg_);
   imu_state_i.SetAccelBias(ba_);
@@ -84,25 +93,26 @@ ImuState ImuPreintegration::PredictState(
   double dt = pre_integrator.delta.t.toSec();
   Eigen::Matrix3d or_curr = imu_state_curr.OrientationQuat().toRotationMatrix();
   Eigen::Matrix3d or_new_mat = or_curr * pre_integrator.delta.q.matrix();
-  Eigen::Vector3d vel_new = imu_state_curr.VelocityVec() +
-                            params_.gravity * dt +
+  Eigen::Vector3d vel_new = imu_state_curr.VelocityVec() + GRAVITY_WORLD * dt +
                             or_curr * pre_integrator.delta.v;
   Eigen::Vector3d pos_new =
       imu_state_curr.PositionVec() + imu_state_curr.VelocityVec() * dt +
-      0.5 * params_.gravity * dt * dt + or_curr * pre_integrator.delta.p;
+      0.5 * GRAVITY_WORLD * dt * dt + or_curr * pre_integrator.delta.p;
 
   // instantiate new imu state
   Eigen::Quaterniond or_new(or_new_mat);
   ros::Time t_new = imu_state_curr.Stamp() + pre_integrator.delta.t;
-  if (t_now != ros::Time(0)) { t_new = t_now; }
+  if (t_now != ros::Time(0)) {
+    t_new = t_now;
+  }
   ImuState imu_state_new(t_new, or_new, pos_new, vel_new,
                          imu_state_curr.GyroBiasVec(),
                          imu_state_curr.AccelBiasVec());
   return imu_state_new;
 }
 
-Eigen::Matrix<double, 16, 1>
-    ImuPreintegration::CalculateRelativeChange(const ImuState& imu_state_new) {
+Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
+    const ImuState& imu_state_new) {
   Eigen::Matrix3d or_curr_rot_trans = imu_state_i_.OrientationQuat()
                                           .normalized()
                                           .toRotationMatrix()
@@ -132,7 +142,9 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
   bs_common::PreIntegrator pre_integrator_interval;
 
   // check requested time
-  if (t_now < imu_data_buffer_.front().t) { return false; }
+  if (t_now < imu_data_buffer_.front().t) {
+    return false;
+  }
   std::cout << "Imu buffer size: " << imu_data_buffer_.size() << std::endl;
   // Populate integrators
   while (t_now > imu_data_buffer_.front().t) {
@@ -156,15 +168,17 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
 }
 
 fuse_core::Transaction::SharedPtr
-    ImuPreintegration::RegisterNewImuPreintegratedFactor(
-        const ros::Time& t_now,
-        fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
-        fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
+ImuPreintegration::RegisterNewImuPreintegratedFactor(
+    const ros::Time& t_now,
+    fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
+    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
   bs_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
       t_now);
 
   // check requested time
-  if (t_now < imu_data_buffer_.front().t) { return nullptr; }
+  if (t_now < imu_data_buffer_.front().t) {
+    return nullptr;
+  }
   // generate prior constraint at start
   if (first_window_) {
     Eigen::Matrix<double, 15, 15> prior_covariance;
@@ -240,4 +254,5 @@ fuse_core::Transaction::SharedPtr
   return transaction.GetTransaction();
 }
 
-}} // namespace bs_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace bs_models
