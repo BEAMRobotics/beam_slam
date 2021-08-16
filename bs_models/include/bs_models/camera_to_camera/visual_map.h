@@ -13,6 +13,7 @@
 #include <fuse_core/util.h>
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
+#include <fuse_variables/point_3d_fixed_landmark.h>
 #include <fuse_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
@@ -75,11 +76,11 @@ public:
    * @brief Helper function to add a new landmark variable to a transaction or
    * graph
    * @param position of the landmark to add
-   * @param lm_id of the landmark to add
+   * @param id of the landmark to add
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void AddLandmark(const Eigen::Vector3d& position, uint64_t lm_id,
+  void AddLandmark(const Eigen::Vector3d& position, uint64_t id,
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
@@ -91,6 +92,29 @@ public:
    */
   void AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Helper function to add a new landmark variable to a transaction or
+   * graph
+   * @param position of the landmark to add
+   * @param id of the landmark to add
+   * @param transaction (optional) if provided will add to transaction,
+   * otherwise will add to loca graph
+   */
+  void
+      AddFixedLandmark(const Eigen::Vector3d& position, uint64_t id,
+                       fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Helper function to add a new landmark variable to a transaction or
+   * graph
+   * @param landmark to add
+   * @param transaction (optional) if provided will add to transaction,
+   * otherwise will add to loca graph
+   */
+  void
+      AddFixedLandmark(fuse_variables::Point3DFixedLandmark::SharedPtr landmark,
+                       fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Helper function to add a constraint between a landmark and a pose
@@ -188,6 +212,8 @@ protected:
   std::map<uint64_t, fuse_variables::Position3DStamped::SharedPtr> positions_;
   std::map<uint64_t, fuse_variables::Point3DLandmark::SharedPtr>
       landmark_positions_;
+  std::map<uint64_t, fuse_variables::Point3DFixedLandmark::SharedPtr>
+      fixed_landmark_positions_;
 
   // memory management variables
   size_t tracked_features_{100}; // # of features tracked per frame

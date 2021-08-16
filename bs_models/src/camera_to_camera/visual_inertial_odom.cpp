@@ -62,8 +62,6 @@ void VisualInertialOdom::onInit() {
   visual_map_ = std::make_shared<VisualMap>(
       cam_model_, camera_params_.source, camera_params_.num_features_to_track,
       camera_params_.keyframe_window_size);
-  current_submap_ =
-      std::make_shared<bs_models::camera_to_camera::VisualSubmap>();
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
@@ -107,8 +105,6 @@ void VisualInertialOdom::onStart() {
   path_subscriber_ = private_node_handle_.subscribe(
       camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
       this);
-  submap_subscriber_ = private_node_handle_.subscribe(
-      "/visual_submap", 10, &VisualInertialOdom::processSubmap, this);
   /***********************************************************
    *                 Advertise publishers                    *
    ***********************************************************/
@@ -233,10 +229,6 @@ void VisualInertialOdom::processInitPath(
   initializer_->SetPath(*msg);
 }
 
-void VisualInertialOdom::processSubmap(const SubmapMsg::ConstPtr& msg) {
-  current_submap_->SetSubmap(msg);
-}
-
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   visual_map_->UpdateGraph(graph);
 }
@@ -354,9 +346,8 @@ bool VisualInertialOdom::IsKeyframe(
   return is_keyframe;
 }
 
-void VisualInertialOdom::ExtendMap(
-    const std::vector<uint64_t>& triangulated_ids,
-    const std::vector<uint64_t>& untriangulated_ids) {
+void VisualInertialOdom::ExtendMap(std::vector<uint64_t>& triangulated_ids,
+                                   std::vector<uint64_t>& untriangulated_ids) {
   // get current and previous keyframe timestamps
   ros::Time prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
   ros::Time cur_kf_time = keyframes_.back().Stamp();
@@ -369,9 +360,22 @@ void VisualInertialOdom::ExtendMap(
     visual_map_->AddConstraint(cur_kf_time, id, tracker_->Get(cur_kf_time, id),
                                transaction);
   }
+  // match against submap before triangulating fresh landmarks
+  std::vector<beam::opt<Eigen::Vector3d>> points =
+      MatchKeyframeToSubmap(untriangulated_ids);
+  for (int i = 0; i < points.size(); i++) {
+    beam::opt<Eigen::Vector3d> p = points[i];
+    if (p.has_value()) {
+      visual_map_->AddLandmark(p.value(), untriangulated_ids[i], transaction);
+      visual_map_->AddConstraint(
+          cur_kf_time, untriangulated_ids[i],
+          tracker_->Get(cur_kf_time, untriangulated_ids[i]), transaction);
+      untriangulated_ids.erase(untriangulated_ids.begin() + i);
+    }
+  }
+
   // triangulate untriangulated ids and add constraints
   for (auto& id : untriangulated_ids) {
-    // TODO: match against submap before triangulating fresh
     Eigen::Vector2d pixel_prv_kf, pixel_cur_kf;
     Eigen::Matrix4d T_cam_world_prv_kf, T_cam_world_cur_kf;
     try {
@@ -543,12 +547,12 @@ std::vector<beam::opt<Eigen::Vector3d>>
   Eigen::Matrix4d T_WORLD_CAMERA =
       visual_map_->GetPose(keyframes_.back().Stamp()).value();
   std::vector<Eigen::Vector3d> points_camera =
-      current_submap_->GetVisualMapPoints(T_WORLD_CAMERA);
-  std::vector<cv::Mat> descriptors = current_submap_->GetDescriptors();
+      submap_.GetVisualMapPoints(T_WORLD_CAMERA);
+  std::vector<cv::Mat> descriptors = submap_.GetDescriptors();
 
-  // project each point to get keypoints
   std::vector<cv::KeyPoint> projected_keypoints, current_keypoints;
   cv::Mat projected_descriptors, current_descriptors;
+  // project each point to get keypoints
   for (size_t i = 0; i < points_camera.size(); i++) {
     Eigen::Vector3d point = points_camera[i];
     // project point into image plane
@@ -590,7 +594,7 @@ std::vector<beam::opt<Eigen::Vector3d>>
     Eigen::Vector3d p_camera = points_camera[m.queryIdx];
     // get matching keypoints and test pixel distance
     Eigen::Vector2d kp1 =
-        beamcv_::ConvertKeypoint(projected_keypoints[m.queryIdx]);
+        beam_cv::ConvertKeypoint(projected_keypoints[m.queryIdx]);
     Eigen::Vector2d kp2 =
         beam_cv::ConvertKeypoint(current_keypoints[m.trainIdx]);
     // if the match is less than pixel threshold then add point to return list
@@ -598,8 +602,10 @@ std::vector<beam::opt<Eigen::Vector3d>>
     if (beam::distance(kp1, kp2) < 20) {
       // transform point back into world frame
       Eigen::Vector4d ph_camera{p_camera[0], p_camera[1], p_camera[2], 1};
-      Eigen::Vector3d p_world(T_WORLD_CAMERA * ph_camera).hnormalized();
+      Eigen::Vector3d p_world = (T_WORLD_CAMERA * ph_camera).hnormalized();
       p.value() = p_world;
+      // remove match from submap
+      submap_.RemoveVisualMapPoint(m.queryIdx);
     }
     matched_points.push_back(p);
   }

@@ -1,7 +1,7 @@
 #include <bs_models/camera_to_camera/visual_map.h>
 
-#include <bs_constraints/camera_to_camera/visual_constraint.h>
 #include <beam_utils/math.h>
+#include <bs_constraints/camera_to_camera/visual_constraint.h>
 
 namespace bs_models { namespace camera_to_camera {
 
@@ -213,6 +213,19 @@ void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
   AddLandmark(landmark, transaction);
 }
 
+void VisualMap::AddFixedLandmark(
+    const Eigen::Vector3d& position, uint64_t id,
+    fuse_core::Transaction::SharedPtr transaction) {
+  // construct landmark variable
+  fuse_variables::Point3DFixedLandmark::SharedPtr landmark =
+      fuse_variables::Point3DFixedLandmark::make_shared(id);
+  landmark->x() = position[0];
+  landmark->y() = position[1];
+  landmark->z() = position[2];
+  // add fuse landmark variable
+  AddFixedLandmark(landmark, transaction);
+}
+
 void VisualMap::AddOrientation(
     fuse_variables::Orientation3DStamped::SharedPtr orientation,
     fuse_core::Transaction::SharedPtr transaction) {
@@ -259,6 +272,23 @@ void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
   if (transaction) {
     transaction->addVariable(landmark);
     landmark_positions_[landmark->id()] = landmark;
+  } else if (local_graph_) {
+    local_graph_->addVariable(landmark);
+  } else {
+    ROS_WARN("Must input local graph or transaction.");
+  }
+}
+
+void VisualMap::AddFixedLandmark(
+    fuse_variables::Point3DFixedLandmark::SharedPtr landmark,
+    fuse_core::Transaction::SharedPtr transaction) { // clear local map
+  if (fixed_landmark_positions_.size() > window_size_ * tracked_features_) {
+    fixed_landmark_positions_.erase(fixed_landmark_positions_.begin());
+  }
+  // add to graph or transaction
+  if (transaction) {
+    transaction->addVariable(landmark);
+    fixed_landmark_positions_[landmark->id()] = landmark;
   } else if (local_graph_) {
     local_graph_->addVariable(landmark);
   } else {

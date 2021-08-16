@@ -16,6 +16,13 @@ find_package(
     std_msgs
   )
 
+  add_message_files(
+  DIRECTORY
+    ../bs_models/msg
+  FILES
+    SubmapMsg.msg
+)
+
 catkin_package(
   INCLUDE_DIRS
     include
@@ -47,6 +54,7 @@ add_library(${PROJECT_NAME}
   src/bs_common/pose_lookup.cpp
   src/bs_common/scan_pose.cpp
   src/bs_common/lidar_map.cpp
+  src/bs_common/submap.cpp
   src/bs_common/preintegrator.cpp
   src/bs_common/utils.cpp
   )

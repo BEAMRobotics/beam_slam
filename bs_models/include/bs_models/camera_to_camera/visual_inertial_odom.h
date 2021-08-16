@@ -7,7 +7,6 @@
 #include <bs_models/CameraMeasurementMsg.h>
 #include <bs_models/InitializedPathMsg.h>
 #include <bs_models/LandmarkMeasurementMsg.h>
-#include <bs_models/SubmapMsg.h>
 #include <bs_models/TrajectoryMeasurementMsg.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
@@ -18,9 +17,9 @@
 
 // beam_slam
 #include <bs_common/extrinsics_lookup.h>
+#include <bs_common/submap.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
-#include <bs_models/camera_to_camera/visual_submap.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 #include <bs_parameters/models/camera_params.h>
@@ -67,12 +66,6 @@ public:
    * @param[in] msg - The path to process
    */
   void processInitPath(const InitializedPathMsg::ConstPtr& msg);
-
-  /**
-   * @brief Callback for global submap processing
-   * @param[in] msg - The submap to process
-   */
-  void processSubmap(const SubmapMsg::ConstPtr& msg);
 
 protected:
   fuse_core::UUID device_id_; //!< The UUID of this device
@@ -150,8 +143,8 @@ private:
    * @param untriangulated_ids id's of landmarks that have not been
    * triangulated
    */
-  void ExtendMap(const std::vector<uint64_t>& triangulated_ids,
-                 const std::vector<uint64_t>& untriangulated_ids);
+  void ExtendMap(std::vector<uint64_t>& triangulated_ids,
+                 std::vector<uint64_t>& untriangulated_ids);
 
   /**
    * @brief creates inertial cosntraint for the current keyframe and merges with
@@ -209,7 +202,6 @@ protected:
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
   ros::Subscriber path_subscriber_;
-  ros::Subscriber submap_subscriber_;
 
   // publishers
   ros::Publisher init_odom_publisher_;
@@ -235,7 +227,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
-  std::shared_ptr<bs_models::camera_to_camera::VisualSubmap> current_submap_;
+  bs_common::Submap& submap_ = bs_common::Submap::GetInstance();
 
   // initialization object
   std::shared_ptr<bs_models::camera_to_camera::VIOInitializer> initializer_;
