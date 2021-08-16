@@ -353,14 +353,17 @@ void VisualInertialOdom::ExtendMap(std::vector<uint64_t>& triangulated_ids,
   ros::Time prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
   ros::Time cur_kf_time = keyframes_.back().Stamp();
   std::vector<uint64_t> new_landmarks;
+
   // make transaction
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(cur_kf_time);
+
   // add constraints to triangulated ids
   for (auto& id : triangulated_ids) {
     visual_map_->AddConstraint(cur_kf_time, id, tracker_->Get(cur_kf_time, id),
                                transaction);
   }
+
   // match against submap before triangulating fresh landmarks
   std::vector<beam::opt<Eigen::Vector3d>> points =
       MatchKeyframeToSubmap(untriangulated_ids);
@@ -546,15 +549,19 @@ double VisualInertialOdom::ComputeAvgParallax(
 std::vector<beam::opt<Eigen::Vector3d>>
     VisualInertialOdom::MatchKeyframeToSubmap(
         const std::vector<uint64_t>& untriangulated_ids) {
+  // vector of poitns to return
+  std::vector<beam::opt<Eigen::Vector3d>> matched_points;
+
   // get map points in current camera frame
   Eigen::Matrix4d T_WORLD_CAMERA =
       visual_map_->GetPose(keyframes_.back().Stamp()).value();
   std::vector<Eigen::Vector3d> points_camera =
       submap_.GetVisualMapPoints(T_WORLD_CAMERA);
   std::vector<cv::Mat> descriptors = submap_.GetDescriptors();
-  if(point_camera.size() == 0){
-    return;
-  }
+
+  // if submap empty then true empty vector
+  if (points_camera.size() == 0) { return matched_points; }
+
   std::vector<cv::KeyPoint> projected_keypoints, current_keypoints;
   cv::Mat projected_descriptors, current_descriptors;
   // project each point to get keypoints
@@ -595,7 +602,6 @@ std::vector<beam::opt<Eigen::Vector3d>>
       matcher->MatchDescriptors(projected_descriptors, current_descriptors,
                                 projected_keypoints, current_keypoints);
   // filter matches by pixel distance
-  std::vector<beam::opt<Eigen::Vector3d>> matched_points;
   for (auto& m : matches) {
     Eigen::Vector2d kp1 =
         beam_cv::ConvertKeypoint(projected_keypoints[m.queryIdx]);

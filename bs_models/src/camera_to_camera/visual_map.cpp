@@ -2,6 +2,7 @@
 
 #include <beam_utils/math.h>
 #include <bs_constraints/camera_to_camera/visual_constraint.h>
+#include <bs_constraints/camera_to_camera/visual_constraint_fixed.h>
 
 namespace bs_models { namespace camera_to_camera {
 
@@ -75,6 +76,44 @@ fuse_variables::Point3DLandmark::SharedPtr
   } else {
     try {
       *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(
+          local_graph_->getVariable(landmark_uuid));
+      return landmark;
+    } catch (const std::out_of_range& oor) {}
+  }
+  return nullptr;
+}
+
+fuse_variables::Point3DFixedLandmark::SharedPtr
+    VisualMap::GetFixedLandmark(uint64_t landmark_id) {
+  fuse_variables::Point3DFixedLandmark::SharedPtr landmark =
+      fuse_variables::Point3DFixedLandmark::make_shared();
+  auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
+  // first check the graph for the variable if its initialized
+  if (!local_graph_) {
+    if (graph_) {
+      try {
+        *landmark = dynamic_cast<const fuse_variables::Point3DFixedLandmark&>(
+            graph_->getVariable(landmark_uuid));
+        // update local maps with most recent update
+        fixed_landmark_positions_[landmark_id] = landmark;
+        return landmark;
+      } catch (const std::out_of_range& oor) {
+        if (fixed_landmark_positions_.find(landmark_id) ==
+            fixed_landmark_positions_.end()) {
+          return nullptr;
+        } else {
+          return fixed_landmark_positions_[landmark_id];
+        }
+      }
+    }
+    // if its not initialized check local maps
+    if (fixed_landmark_positions_.find(landmark_id) !=
+        fixed_landmark_positions_.end()) {
+      return fixed_landmark_positions_[landmark_id];
+    }
+  } else {
+    try {
+      *landmark = dynamic_cast<const fuse_variables::Point3DFixedLandmark&>(
           local_graph_->getVariable(landmark_uuid));
       return landmark;
     } catch (const std::out_of_range& oor) {}
@@ -303,21 +342,41 @@ void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
     ROS_ERROR("Unable to get baselink to camera transform.");
     return;
   }
+  // get landmark (fixed or not fixed)
   fuse_variables::Point3DLandmark::SharedPtr lm = GetLandmark(lm_id);
+  fuse_variables::Point3DFixedLandmark::SharedPtr lm_fixed =
+      GetFixedLandmark(lm_id);
+  // get robot pose
   fuse_variables::Position3DStamped::SharedPtr position = GetPosition(img_time);
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
       GetOrientation(img_time);
-  if (position && orientation && lm) {
-    fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
-        fuse_constraints::VisualConstraint::make_shared(
-            source_, *orientation, *position, *lm, pixel, T_cam_baselink_,
-            cam_model_);
-    if (transaction) {
-      transaction->addConstraint(vis_constraint);
-    } else if (local_graph_) {
-      local_graph_->addConstraint(vis_constraint);
-    } else {
-      ROS_WARN("Must input local graph or transaction.");
+  if (position && orientation) {
+    if (lm) {
+      // add normal visual constraint
+      fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
+          fuse_constraints::VisualConstraint::make_shared(
+              source_, *orientation, *position, *lm, pixel, T_cam_baselink_,
+              cam_model_);
+      if (transaction) {
+        transaction->addConstraint(vis_constraint);
+      } else if (local_graph_) {
+        local_graph_->addConstraint(vis_constraint);
+      } else {
+        ROS_WARN("Must input local graph or transaction.");
+      }
+    } else if (lm_fixed) {
+      // add fixed visual constraint
+      fuse_constraints::VisualConstraintFixed::SharedPtr vis_constraint =
+          fuse_constraints::VisualConstraintFixed::make_shared(
+              source_, *orientation, *position, *lm_fixed, pixel,
+              T_cam_baselink_, cam_model_);
+      if (transaction) {
+        transaction->addConstraint(vis_constraint);
+      } else if (local_graph_) {
+        local_graph_->addConstraint(vis_constraint);
+      } else {
+        ROS_WARN("Must input local graph or transaction.");
+      }
     }
   }
 }

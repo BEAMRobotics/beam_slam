@@ -56,12 +56,6 @@ public:
   beam::opt<Eigen::Matrix4d> GetPose(const ros::Time& stamp);
 
   /**
-   * @brief Helper function to get a landmark by id
-   * @param landmark_id to retrieve
-   */
-  fuse_variables::Point3DLandmark::SharedPtr GetLandmark(uint64_t landmark_id);
-
-  /**
    * @brief Helper function to add a pose at time t to a transaction or graph
    * The pose being added will be a camera pose, transform it to baselink
    * @param T_WORLD_CAMERA pose of camera to add to graph or transaction
@@ -127,6 +121,19 @@ public:
   void AddConstraint(const ros::Time& img_time, uint64_t lm_id,
                      const Eigen::Vector2d& pixel,
                      fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Helper function to get a landmark by id
+   * @param landmark_id to retrieve
+   */
+  fuse_variables::Point3DLandmark::SharedPtr GetLandmark(uint64_t landmark_id);
+
+  /**
+   * @brief Helper function to get a landmark by id
+   * @param landmark_id to retrieve
+   */
+  fuse_variables::Point3DFixedLandmark::SharedPtr
+      GetFixedLandmark(uint64_t landmark_id);
 
   /**
    * @brief Retrieves q_WORLD_BASELINK
