@@ -147,6 +147,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         bs_models::camera_to_camera::Keyframe kf(img_time,
                                                  image_buffer_.front());
         keyframes_.push_back(kf);
+        added_since_kf_ = 0;
         if (initializer_->AddImage(img_time)) {
           ROS_INFO("Initialization Success: %f", img_time.toSec());
           // get the preintegration object
@@ -464,7 +465,6 @@ void VisualInertialOdom::PublishSlamChunk() {
     // keyframe pose
     Eigen::Matrix4d T_WORLD_BASELINK =
         visual_map_->GetPose(kf_to_publish).value() * T_cam_baselink_;
-    // flatten 4x4 pose
     std::vector<float> pose;
     for (uint8_t i = 0; i < 3; i++) {
       for (uint8_t j = 0; j < 4; j++) {
@@ -475,7 +475,6 @@ void VisualInertialOdom::PublishSlamChunk() {
     // trajectory
     TrajectoryMeasurementMsg trajectory;
     for (auto& it : keyframes_.front().Trajectory()) {
-      // flatten 4x4 pose
       std::vector<float> pose;
       for (uint8_t i = 0; i < 3; i++) {
         for (uint8_t j = 0; j < 4; j++) {
@@ -501,7 +500,11 @@ void VisualInertialOdom::PublishSlamChunk() {
     for (auto& id : landmark_ids) {
       LandmarkMeasurementMsg lm;
       lm.landmark_id = id;
-      // lm.descriptor = ;
+      cv::Mat descriptor = tracker_->GetDescriptor(kf_to_publish, id);
+      std::vector<float> descriptor_v;
+      descriptor_v.assign((float*)descriptor.datastart,
+                          (float*)descriptor.dataend);
+      lm.descriptor = descriptor_v;
       Eigen::Vector2d pixel = tracker_->Get(kf_to_publish, id);
       lm.pixel_u = pixel[0];
       lm.pixel_v = pixel[1];
@@ -549,7 +552,9 @@ std::vector<beam::opt<Eigen::Vector3d>>
   std::vector<Eigen::Vector3d> points_camera =
       submap_.GetVisualMapPoints(T_WORLD_CAMERA);
   std::vector<cv::Mat> descriptors = submap_.GetDescriptors();
-
+  if(point_camera.size() == 0){
+    return;
+  }
   std::vector<cv::KeyPoint> projected_keypoints, current_keypoints;
   cv::Mat projected_descriptors, current_descriptors;
   // project each point to get keypoints
@@ -589,10 +594,9 @@ std::vector<beam::opt<Eigen::Vector3d>>
   std::vector<cv::DMatch> matches =
       matcher->MatchDescriptors(projected_descriptors, current_descriptors,
                                 projected_keypoints, current_keypoints);
+  // filter matches by pixel distance
   std::vector<beam::opt<Eigen::Vector3d>> matched_points;
   for (auto& m : matches) {
-    Eigen::Vector3d p_camera = points_camera[m.queryIdx];
-    // get matching keypoints and test pixel distance
     Eigen::Vector2d kp1 =
         beam_cv::ConvertKeypoint(projected_keypoints[m.queryIdx]);
     Eigen::Vector2d kp2 =
@@ -600,6 +604,7 @@ std::vector<beam::opt<Eigen::Vector3d>>
     // if the match is less than pixel threshold then add point to return list
     beam::opt<Eigen::Vector3d> p;
     if (beam::distance(kp1, kp2) < 20) {
+      Eigen::Vector3d p_camera = points_camera[m.queryIdx];
       // transform point back into world frame
       Eigen::Vector4d ph_camera{p_camera[0], p_camera[1], p_camera[2], 1};
       Eigen::Vector3d p_world = (T_WORLD_CAMERA * ph_camera).hnormalized();
