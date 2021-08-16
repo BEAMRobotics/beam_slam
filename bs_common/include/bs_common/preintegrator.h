@@ -29,9 +29,9 @@ struct IMUData {
     a[2] = msg.linear_acceleration.z;
   }
 
-  ros::Time t;       // timestamp
-  Eigen::Vector3d w; // gyro measurement
-  Eigen::Vector3d a; // accelerometer measurement
+  ros::Time t;        // timestamp
+  Eigen::Vector3d w;  // gyro measurement
+  Eigen::Vector3d a;  // accelerometer measurement
 };
 
 /**
@@ -42,7 +42,7 @@ struct Delta {
   Eigen::Quaterniond q;
   Eigen::Vector3d p;
   Eigen::Vector3d v;
-  Eigen::Matrix<double, 15, 15> cov; // ordered in q, p, v, bg, ba
+  Eigen::Matrix<double, 15, 15> cov;  // ordered in q, p, v, bg, ba
   Eigen::Matrix<double, 15, 15> sqrt_inv_cov;
 };
 
@@ -62,7 +62,7 @@ struct Jacobian {
  * is used with ImuPreintegration for creating constraints and estimating states
  */
 class PreIntegrator {
-public:
+ public:
   /**
    * @brief Default Constructor
    */
@@ -99,15 +99,21 @@ public:
                  const Eigen::Vector3d& ba, bool compute_jacobian,
                  bool compute_covariance);
 
-  Eigen::Matrix3d cov_w; // continuous noise covariance
+  Eigen::Matrix3d cov_w;  // continuous noise covariance
   Eigen::Matrix3d cov_a;
-  Eigen::Matrix3d cov_bg; // continuous random walk noise covariance
+  Eigen::Matrix3d cov_bg;  // continuous random walk noise covariance
   Eigen::Matrix3d cov_ba;
 
   Delta delta;
   Jacobian jacobian;
-  // vector of imu data (buffer)
-  std::vector<IMUData> data;
+  std::vector<IMUData> data;  // vector of imu data (buffer)
+
+ private:
+  /**
+   * @brief Computes the square-root, inverted information matrix from the
+   * covariance matrix calculated during preintegration
+   */
+  void ComputeSqrtInvCov();
 };
 
-} // namespace bs_common
+}  // namespace bs_common

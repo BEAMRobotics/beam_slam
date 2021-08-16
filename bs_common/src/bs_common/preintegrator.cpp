@@ -94,7 +94,17 @@ bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg,
          (t >= data.back().t));
   Increment(t - data.back().t, data.back(), bg, ba, compute_jacobian,
             compute_covariance);
+  if (compute_covariance) {
+    ComputeSqrtInvCov();
+  }
   return true;
 }
 
-} // namespace bs_common
+void PreIntegrator::ComputeSqrtInvCov() {
+  delta.sqrt_inv_cov =
+      Eigen::LLT<Eigen::Matrix<double, 15, 15>>(delta.cov.inverse())
+          .matrixL()
+          .transpose();
+}
+
+}  // namespace bs_common
