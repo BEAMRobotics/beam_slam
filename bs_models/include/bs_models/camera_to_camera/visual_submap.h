@@ -16,7 +16,7 @@ public:
   VisualSubmap();
 
   /**
-   * @brief Set the submap with a enw submap message
+   * @brief Set the submap with a new submap message
    * @param msg submap message to update with
    */
   void SetSubmap(const SubmapMsg::ConstPtr& msg);

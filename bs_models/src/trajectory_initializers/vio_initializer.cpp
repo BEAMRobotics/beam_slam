@@ -51,7 +51,7 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     imu_params.cov_accel_bias = cov_accel_bias_;
     imu_preint_ =
         std::make_shared<bs_models::frame_to_frame::ImuPreintegration>(
-            imu_params);
+            imu_params, bg_, ba_);
     // align poses to estimated gravity
     Eigen::Quaterniond q =
         Eigen::Quaterniond::FromTwoVectors(gravity_, gravity_nominal);
@@ -64,7 +64,7 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames, true);
 
-    // TODO: refine biases through optimization awith constant poses
+    // TODO: refine biases through optimization with constant poses
 
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames);
@@ -235,7 +235,7 @@ void VIOInitializer::AddPosesAndInertialConstraints(
           imu_preint_->RegisterNewImuPreintegratedFactor(
               frame.t, img_orientation, img_position);
       // update graph with the transaction
-      local_graph_->update(*transaction);
+      // local_graph_->update(*transaction);
     }
   }
 }
@@ -256,7 +256,7 @@ size_t VIOInitializer::AddVisualConstraints(
           visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id));
         } catch (const std::out_of_range& oor) {}
       }
-    } else { // otherwise then triangulate then add the constraints
+    } else { // otherwise triangulate then add the constraints
       std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
       std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;

@@ -12,10 +12,13 @@
 
 // libbeam
 #include <beam_cv/OpenCVConversions.h>
+#include <beam_cv/Utils.h>
 #include <beam_cv/descriptors/Descriptors.h>
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
+#include <beam_cv/matchers/Matchers.h>
+
 #include <bs_common/utils.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -334,33 +337,15 @@ bool VisualInertialOdom::IsKeyframe(
                                   true, false)) {
     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
     is_keyframe = true;
-    // // combine all the id's seen in the image
-    // std::vector<uint64_t> all_ids;
-    // all_ids.insert(all_ids.end(), triangulated_ids.begin(),
-    //                triangulated_ids.end());
-    // all_ids.insert(all_ids.end(), untriangulated_ids.begin(),
-    //                untriangulated_ids.end());
-    // // compute the parallax between this frame and the last keyframe
-    // double avg_parallax = ComputeAvgParallax(keyframes_.back().Stamp(),
-    // img_time, all_ids);
-    // // test against parameters to see if this frame is a keyframe
-    // if (beam::PassedMotionThreshold(T_WORLD_prevkf, T_WORLD_CAMERA, 0.0,
-    // 0.05,
-    //                                 true, true, false)) {
-    //   if (triangulated_ids.size() < camera_params_.keyframe_tracks_drop ||
-    //       avg_parallax > camera_params_.keyframe_parallax) {
-    //     is_keyframe = true;
-    //     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
-    //     ROS_INFO("Avg parallax: %f", avg_parallax);
-    //     ROS_INFO("Visible landmarks: %zu", triangulated_ids.size());
-    //   } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
-    //     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
-    //     ROS_INFO("Max # of frames reached.");
-    //     is_keyframe = true;
-    //   }
-    // } else {
-    //   is_keyframe = false;
-    // }
+    // combine all the id's seen in the image
+    std::vector<uint64_t> all_ids;
+    all_ids.insert(all_ids.end(), triangulated_ids.begin(),
+                   triangulated_ids.end());
+    all_ids.insert(all_ids.end(), untriangulated_ids.begin(),
+                   untriangulated_ids.end());
+    // compute the parallax between this frame and the last keyframe
+    double avg_parallax =
+        ComputeAvgParallax(keyframes_.back().Stamp(), img_time, all_ids);
   } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
     is_keyframe = true;
   } else {
@@ -386,6 +371,7 @@ void VisualInertialOdom::ExtendMap(
   }
   // triangulate untriangulated ids and add constraints
   for (auto& id : untriangulated_ids) {
+    // TODO: match against submap before triangulating fresh
     Eigen::Vector2d pixel_prv_kf, pixel_cur_kf;
     Eigen::Matrix4d T_cam_world_prv_kf, T_cam_world_cur_kf;
     try {
@@ -422,15 +408,11 @@ void VisualInertialOdom::ExtendMap(
 void VisualInertialOdom::AddInertialConstraint(
     fuse_core::Transaction::SharedPtr transaction) {
   ros::Time cur_kf_time = keyframes_.back().Stamp();
-  // get robot pose variables at timestamp
-  fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
-      visual_map_->GetOrientation(cur_kf_time);
-  fuse_variables::Position3DStamped::SharedPtr img_position =
-      visual_map_->GetPosition(cur_kf_time);
   // get inertial constraint transaction
   fuse_core::Transaction::SharedPtr inertial_transaction =
       imu_preint_->RegisterNewImuPreintegratedFactor(
-          cur_kf_time, img_orientation, img_position);
+          cur_kf_time, visual_map_->GetOrientation(cur_kf_time),
+          visual_map_->GetPosition(cur_kf_time));
   // merge with existing transaction
   transaction->merge(*inertial_transaction);
 }
@@ -557,14 +539,70 @@ double VisualInertialOdom::ComputeAvgParallax(
 std::vector<beam::opt<Eigen::Vector3d>>
     VisualInertialOdom::MatchKeyframeToSubmap(
         const std::vector<uint64_t>& untriangulated_ids) {
-  /* TODO:
-   * 1. get all visual map points in current frame
-   * 2. project all points into image to get list of keypoints
-   * 3. get list of descriptors for each untriangulated id in the current image
-   * 4. get list of keypoints for each untriangulated id in the current image
-   * 5. match using a bruteforce matcher
-   * 6. filter matches using pixel distance
-   */
+  // get map points in current camera frame
+  Eigen::Matrix4d T_WORLD_CAMERA =
+      visual_map_->GetPose(keyframes_.back().Stamp()).value();
+  std::vector<Eigen::Vector3d> points_camera =
+      current_submap_->GetVisualMapPoints(T_WORLD_CAMERA);
+  std::vector<cv::Mat> descriptors = current_submap_->GetDescriptors();
+
+  // project each point to get keypoints
+  std::vector<cv::KeyPoint> projected_keypoints, current_keypoints;
+  cv::Mat projected_descriptors, current_descriptors;
+  for (size_t i = 0; i < points_camera.size(); i++) {
+    Eigen::Vector3d point = points_camera[i];
+    // project point into image plane
+    bool in_image = false;
+    Eigen::Vector2d pixel;
+    cam_model_->ProjectPoint(point, pixel, in_image);
+    // make cv keypoint for pixel
+    cv::KeyPoint kp;
+    kp.pt.x = (float)pixel[0];
+    kp.pt.y = (float)pixel[1];
+    // get descriptor
+    cv::Mat desc = descriptors[i];
+    // push to results
+    projected_descriptors.push_back(desc);
+    projected_keypoints.push_back(kp);
+  }
+
+  // get keypoints and descriptors in current image
+  for (size_t i = 0; i < untriangulated_ids.size(); i++) {
+    Eigen::Vector2d pixel =
+        tracker_->Get(keyframes_.back().Stamp(), untriangulated_ids[i]);
+    cv::KeyPoint kp;
+    kp.pt.x = (float)pixel[0];
+    kp.pt.y = (float)pixel[1];
+    cv::Mat desc = tracker_->GetDescriptor(keyframes_.back().Stamp(),
+                                           untriangulated_ids[i]);
+    current_descriptors.push_back(desc);
+    current_keypoints.push_back(kp);
+  }
+
+  // match features
+  std::shared_ptr<beam_cv::Matcher> matcher =
+      std::make_shared<beam_cv::BFMatcher>(cv::NORM_HAMMING);
+  std::vector<cv::DMatch> matches =
+      matcher->MatchDescriptors(projected_descriptors, current_descriptors,
+                                projected_keypoints, current_keypoints);
+  std::vector<beam::opt<Eigen::Vector3d>> matched_points;
+  for (auto& m : matches) {
+    Eigen::Vector3d p_camera = points_camera[m.queryIdx];
+    // get matching keypoints and test pixel distance
+    Eigen::Vector2d kp1 =
+        beamcv_::ConvertKeypoint(projected_keypoints[m.queryIdx]);
+    Eigen::Vector2d kp2 =
+        beam_cv::ConvertKeypoint(current_keypoints[m.trainIdx]);
+    // if the match is less than pixel threshold then add point to return list
+    beam::opt<Eigen::Vector3d> p;
+    if (beam::distance(kp1, kp2) < 20) {
+      // transform point back into world frame
+      Eigen::Vector4d ph_camera{p_camera[0], p_camera[1], p_camera[2], 1};
+      Eigen::Vector3d p_world(T_WORLD_CAMERA * ph_camera).hnormalized();
+      p.value() = p_world;
+    }
+    matched_points.push_back(p);
+  }
 }
 
 }} // namespace bs_models::camera_to_camera
