@@ -8,7 +8,7 @@
 #include <bs_models/LidarMeasurementMsg.h>
 #include <bs_models/TrajectoryMeasurementMsg.h>
 #include <bs_models/LandmarkMeasurementMsg.h>
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/global_mapping/submap.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
@@ -85,23 +85,29 @@ class GlobalMap {
   /**
    * @brief constructor requiring only a pointer to camera model object
    * @param camera_model shared pointer to a camera model class
+   * @param extrinsics pointer to extrinsics
    */
-  GlobalMap(const std::shared_ptr<beam_calibration::CameraModel>& camera_model);
+  GlobalMap(const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+            const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics);
 
   /**
    * @brief constructor that also takes a params struct.
    * @param camera_model shared pointer to a camera model class
+   * @param extrinsics pointer to extrinsics
    * @param params see struct above
    */
   GlobalMap(const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+            const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics,
             const Params& params);
 
   /**
    * @brief constructor that also takes a path to config file.
    * @param camera_model shared pointer to a camera model class
+   * @param extrinsics pointer to extrinsics
    * @param config_path full path to json config file
    */
   GlobalMap(const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+            const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics,
             const std::string& config_path);
 
   /**
@@ -269,12 +275,11 @@ class GlobalMap {
   fuse_core::Transaction::SharedPtr FindLoopClosures();
 
   Params params_;
-  std::shared_ptr<std::vector<Submap>> submaps_;
 
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
-
+  std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
+
+  std::shared_ptr<std::vector<Submap>> submaps_;
 
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;

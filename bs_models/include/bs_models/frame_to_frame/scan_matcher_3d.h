@@ -12,7 +12,7 @@
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_registration_base.h>
 #include <bs_common/scan_pose.h>
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_parameters/models/scan_matcher_3d_params.h>
 
 namespace bs_models {
@@ -67,8 +67,8 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   /** Used to get initial pose estimates */
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
 
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   bs_parameters::models::ScanMatcher3DParams params_;
   bool output_graph_updates_{false};

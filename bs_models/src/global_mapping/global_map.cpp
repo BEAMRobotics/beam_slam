@@ -117,22 +117,25 @@ void GlobalMap::Params::SaveJson(const std::string& filename) {
 }
 
 GlobalMap::GlobalMap(
-    const std::shared_ptr<beam_calibration::CameraModel>& camera_model)
-    : camera_model_(camera_model) {
+    const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+    const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics)
+    : camera_model_(camera_model), extrinsics_(extrinsics) {
   Setup();
 }
 
 GlobalMap::GlobalMap(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+    const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics,
     const Params& params)
-    : camera_model_(camera_model), params_(params) {
+    : camera_model_(camera_model), params_(params), extrinsics_(extrinsics) {
   Setup();
 }
 
 GlobalMap::GlobalMap(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+    const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics,
     const std::string& config_path)
-    : camera_model_(camera_model) {
+    : camera_model_(camera_model),  extrinsics_(extrinsics) {
   params_.LoadJson(config_path);
   Setup();
 }
@@ -201,7 +204,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == submaps_->size()) {
-    submaps_->push_back(Submap(stamp, T_WORLD_BASELINK, camera_model_));
+    submaps_->push_back(
+        Submap(stamp, T_WORLD_BASELINK, camera_model_, extrinsics_));
 
     new_transaction = InitiateNewSubmapPose();
 
@@ -442,7 +446,7 @@ bool GlobalMap::Load(const std::string& root_directory) {
       break;
     }
     Submap current_submap(ros::Time(0), Eigen::Matrix4d::Identity(),
-                          camera_model_);
+                          camera_model_, extrinsics_);
     current_submap.LoadData(submap_dir, false);
     submaps_->push_back(current_submap);
     submap_num++;
@@ -535,8 +539,8 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   // Get trajectory
   beam_mapping::Poses poses;
   poses.SetPoseFileDate(date);
-  poses.SetFixedFrame(extrinsics_.GetWorldFrameId());
-  poses.SetMovingFrame(extrinsics_.GetBaselinkFrameId());
+  poses.SetFixedFrame(extrinsics_->GetWorldFrameId());
+  poses.SetMovingFrame(extrinsics_->GetBaselinkFrameId());
   for (uint16_t i = 0; i < submaps_->size(); i++) {
     const Submap& submap = submaps_->at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP();
@@ -560,8 +564,8 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   // Get trajectory
   beam_mapping::Poses poses_initial;
   poses_initial.SetPoseFileDate(date);
-  poses_initial.SetFixedFrame(extrinsics_.GetWorldFrameId());
-  poses_initial.SetMovingFrame(extrinsics_.GetBaselinkFrameId());
+  poses_initial.SetFixedFrame(extrinsics_->GetWorldFrameId());
+  poses_initial.SetMovingFrame(extrinsics_->GetBaselinkFrameId());
   for (uint16_t i = 0; i < submaps_->size(); i++) {
     const Submap& submap = submaps_->at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap.T_WORLD_SUBMAP_INIT();

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <bs_models/frame_initializers/frame_initializer_base.h>
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 
 namespace bs_models {
 namespace frame_initializers {
