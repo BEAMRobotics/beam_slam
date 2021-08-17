@@ -134,6 +134,7 @@ add_library(
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
   src/camera_to_camera/keyframe.cpp
+  src/camera_to_camera/utils.cpp
   src/global_mapping/global_mapper.cpp
   src/global_mapping/global_map.cpp
   src/global_mapping/submap.cpp
