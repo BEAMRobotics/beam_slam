@@ -3,11 +3,12 @@
 // libbeam
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/trackers/Trackers.h>
+#include <beam_cv/geometry/PoseRefinement.h>
 
 // fuse
 #include <fuse_graphs/hash_graph.h>
 
-//beam_slam
+// beam_slam
 #include <bs_common/extrinsics_lookup.h>
 #include <bs_common/submap.h>
 #include <bs_models/camera_to_camera/visual_map.h>
@@ -117,15 +118,6 @@ private:
       const std::vector<bs_models::camera_to_camera::Frame>& frames);
 
   /**
-   * @brief Localizes a given frame using the current landmarks
-   * @param frames input frames
-   * @param T_WORLD_BASELINK[out] estimated pose of the camera
-   * @return true or false if it succeeded or not
-   */
-  bool LocalizeFrame(const bs_models::camera_to_camera::Frame& frame,
-                     Eigen::Matrix4d& T_WORLD_BASELINK);
-
-  /**
    * @brief Outputs frame poses to standard output
    * @param frames vector of frames to output
    */
@@ -152,7 +144,8 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
-    bs_common::Submap& submap_ = bs_common::Submap::GetInstance();
+  std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
+  bs_common::Submap& submap_ = bs_common::Submap::GetInstance();
 
   // imu preintegration object
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;

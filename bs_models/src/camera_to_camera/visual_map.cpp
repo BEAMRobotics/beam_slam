@@ -24,7 +24,7 @@ VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
       tracked_features_(tracked_features),
       window_size_(window_size) {}
 
-beam::opt<Eigen::Matrix4d> VisualMap::GetPose(const ros::Time& stamp) {
+beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time& stamp) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
     return {};
@@ -41,6 +41,25 @@ beam::opt<Eigen::Matrix4d> VisualMap::GetPose(const ros::Time& stamp) {
     Eigen::Matrix4d T_WORLD_CAMERA =
         T_WORLD_BASELINK * T_cam_baselink_.inverse();
     return T_WORLD_CAMERA;
+  } else {
+    return {};
+  }
+}
+
+beam::opt<Eigen::Matrix4d> VisualMap::GetBaselinkPose(const ros::Time& stamp) {
+  if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
+    ROS_ERROR("Unable to get baselink to camera transform.");
+    return {};
+  }
+  fuse_variables::Position3DStamped::SharedPtr p = GetPosition(stamp);
+  fuse_variables::Orientation3DStamped::SharedPtr q = GetOrientation(stamp);
+  if (p && q) {
+    Eigen::Vector3d position(p->data());
+    Eigen::Quaterniond orientation(q->w(), q->x(), q->y(), q->z());
+    Eigen::Matrix4d T_WORLD_BASELINK;
+    beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
+                                                    T_WORLD_BASELINK);
+    return T_WORLD_BASELINK;
   } else {
     return {};
   }

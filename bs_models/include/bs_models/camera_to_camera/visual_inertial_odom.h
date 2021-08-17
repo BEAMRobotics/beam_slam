@@ -14,7 +14,6 @@
 
 // beam_slam
 #include <bs_common/extrinsics_lookup.h>
-#include <bs_common/submap.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
@@ -97,15 +96,14 @@ private:
    */
   void SendInitializationGraph(const fuse_graphs::HashGraph& init_graph);
 
-
   /**
    * @brief Determines if a frame is a keyframe
    * @param img_time time of image to determine if its a keyframe
-   * @param T_WORLD_CAMERA pose of the frame in question
+   * @param T_WORLD_BASELINK pose of the frame in question
    * @return true or false decision
    */
   bool IsKeyframe(const ros::Time& img_time,
-                  const Eigen::Matrix4d& T_WORLD_CAMERA);
+                  const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief Extends the map at an image time and adds the visual constraints
@@ -174,7 +172,6 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
-  bs_common::Submap& submap_ = bs_common::Submap::GetInstance();
 
   // initialization object
   std::shared_ptr<bs_models::camera_to_camera::VIOInitializer> initializer_;

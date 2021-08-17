@@ -691,18 +691,18 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
       delta_start_end.isApprox(CalculateRelativeStateDelta(IS1, IS3), 1e-6));
 
   /**
-   * GetPose() functionality
+   * GetCameraPose() functionality
    */
 
   for (int i = 1; i - 1 < data.pose_gt.size(); i++) {
     Eigen::Matrix4d T_WORLD_IMU;
-    imu_preintegration->GetPose(T_WORLD_IMU, ros::Time(i));
+    imu_preintegration->GetCameraPose(T_WORLD_IMU, ros::Time(i));
     ExpectTransformsNear(T_WORLD_IMU, data.pose_gt[i - 1]);
   }
 
   // expect false from incorrect time
   Eigen::Matrix4d T_WORLD_IMU;
-  EXPECT_FALSE(imu_preintegration->GetPose(T_WORLD_IMU, t_start));
+  EXPECT_FALSE(imu_preintegration->GetCameraPose(T_WORLD_IMU, t_start));
 
   /**
    * RegisterNewImuPreintegratedFactor() functionality
@@ -818,10 +818,10 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
   imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
 
-  // for testing, call GetPose() from start to middle
+  // for testing, call GetCameraPose() from start to middle
   for (int i = t_start.toSec() + 1; i - 1 < t_middle.toSec(); i++) {
     Eigen::Matrix4d dummy_T_WORLD_IMU;
-    imu_preintegration->GetPose(dummy_T_WORLD_IMU, ros::Time(i));
+    imu_preintegration->GetCameraPose(dummy_T_WORLD_IMU, ros::Time(i));
   }
 
   // generate transactions, taking start, middle, and end as key frames

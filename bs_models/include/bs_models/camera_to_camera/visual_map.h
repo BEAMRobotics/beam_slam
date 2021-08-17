@@ -49,11 +49,18 @@ public:
   ~VisualMap() = default;
 
   /**
-   * @brief Helper function to get T_WORLD_CAMERA at
+   * @brief Helper function to get T_WORLD_CAMERA at tiemstamp
    * @param stamp timestamp to get pose at
    * @return T_WORLD_CAMERA
    */
-  beam::opt<Eigen::Matrix4d> GetPose(const ros::Time& stamp);
+  beam::opt<Eigen::Matrix4d> GetCameraPose(const ros::Time& stamp);
+
+  /**
+   * @brief Helper function to get T_WORLD_BASELINK at tiemstamp
+   * @param stamp timestamp to get pose at
+   * @return T_WORLD_CAMERA
+   */
+  beam::opt<Eigen::Matrix4d> GetBaselinkPose(const ros::Time& stamp);
 
   /**
    * @brief Helper function to add a pose at time t to a transaction or graph

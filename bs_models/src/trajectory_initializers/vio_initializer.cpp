@@ -1,10 +1,9 @@
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 
-#include <beam_cv/geometry/AbsolutePoseEstimator.h>
-#include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/utils.h>
 #include <bs_common/utils.h>
+#include <bs_models/camera_to_camera/utils.h>
 
 #include <boost/filesystem.hpp>
 
@@ -30,15 +29,12 @@ VIOInitializer::VIOInitializer(
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
   // create visual map
   visual_map_ = std::make_shared<VisualMap>(cam_model_, local_graph_);
+  // make pose refiner to frame localization
+  pose_refiner_ = bs_models::camera_to_camera::PoseRefiner();
   // make subscriber for init path
   ros::NodeHandle n;
   path_subscriber_ =
       n.subscribe(path_topic, 10, &VIOInitializer::ProcessInitPath, this);
-}
-
-void VIOInitializer::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
-  init_path_ = std::make_shared<InitializedPathMsg>();
-  *init_path_ = *msg;
 }
 
 bool VIOInitializer::AddImage(ros::Time cur_time) {
@@ -72,9 +68,6 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     }
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames, true);
-
-    // TODO: refine biases through optimization with constant poses
-
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames);
     // optimize valid frames
@@ -85,10 +78,13 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     OutputFramePoses(valid_frames);
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
-      Eigen::Matrix4d T_WORLD_CAMERA;
       // if failure to localize next frame then init is a failure
-      if (!LocalizeFrame(f, T_WORLD_CAMERA)) { return false; }
-      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA, f.q, f.p);
+      beam::opt<Eigen::Matrix4d> T_WORLD_CAMERA =
+          bs_models::camera_to_camera::LocalizeFrame(
+              tracker_, visual_map_, pose_refiner_, cam_model_, f.t);
+      if (!T_WORLD_CAMERA.has_value()) { return false; }
+      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA.value(),
+                                                      f.q, f.p);
     }
     // add localized poses and imu constraints
     AddPosesAndInertialConstraints(invalid_frames, false);
@@ -101,16 +97,13 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
   return is_initialized_;
 }
 
-void VIOInitializer::OutputFramePoses(
-    const std::vector<bs_models::camera_to_camera::Frame>& frames) {
-  for (auto& f : frames) {
-    std::cout << f.t << std::endl;
-    std::cout << visual_map_->GetPose(f.t) << std::endl;
-  }
-}
-
 void VIOInitializer::AddIMU(const sensor_msgs::Imu& msg) {
   imu_buffer_.push(msg);
+}
+
+void VIOInitializer::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
+  init_path_ = std::make_shared<InitializedPathMsg>();
+  *init_path_ = *msg;
 }
 
 bool VIOInitializer::Initialized() {
@@ -266,7 +259,7 @@ size_t VIOInitializer::AddVisualConstraints(
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
       for (auto& m : track) {
-        beam::opt<Eigen::Matrix4d> T = visual_map_->GetPose(m.time_point);
+        beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
         // check if the pose is in the graph (keyframe)
         if (T.has_value()) {
           pixels.push_back(m.value.cast<int>());
@@ -294,45 +287,6 @@ size_t VIOInitializer::AddVisualConstraints(
   return num_landmarks;
 }
 
-bool VIOInitializer::LocalizeFrame(
-    const bs_models::camera_to_camera::Frame& frame,
-    Eigen::Matrix4d& T_WORLD_BASELINK) {
-  std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
-  std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
-  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
-  // get 2d-3d correspondences
-  for (auto& id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm =
-        visual_map_->GetLandmark(id);
-    if (lm) {
-      Eigen::Vector2i pixeli = tracker_->Get(frame.t, id).cast<int>();
-      pixels.push_back(pixeli);
-      Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-      points.push_back(point);
-    }
-  }
-  if (points.size() < 15) { return false; }
-  // estimate with ransac pnp
-  Eigen::Matrix4d T_CAMERA_WORLD_est =
-      beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
-                                                      points);
-  ceres::Solver::Options ceres_solver_options;
-  ceres_solver_options.minimizer_progress_to_stdout = false;
-  ceres_solver_options.max_solver_time_in_seconds = 1e-1;
-  ceres_solver_options.logging_type = ceres::SILENT;
-  ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
-  ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
-  beam_cv::PoseRefinement refiner(ceres_solver_options);
-  // refine pose using reprojection error
-  Eigen::Matrix4d T_CAMERA_WORLD_ref =
-      refiner.RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points);
-  Eigen::Matrix4d T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
-  extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
-  // transform into baselink frame
-  T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-  return true;
-}
-
 void VIOInitializer::OptimizeGraph() {
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = true;
@@ -358,7 +312,7 @@ void VIOInitializer::OutputResults(
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
     for (auto& f : frames) {
       frame_cloud = beam::AddFrameToCloud(
-          frame_cloud, visual_map_->GetPose(f.t).value(), 0.001);
+          frame_cloud, visual_map_->GetCameraPose(f.t).value(), 0.001);
     }
     // add all landmark points to cloud and save
     std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
@@ -374,6 +328,14 @@ void VIOInitializer::OutputResults(
     }
     pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);
     pcl::io::savePCDFileBinary(output_directory_ + "/points.pcd", points_cloud);
+  }
+}
+
+void VIOInitializer::OutputFramePoses(
+    const std::vector<bs_models::camera_to_camera::Frame>& frames) {
+  for (auto& f : frames) {
+    std::cout << f.t << std::endl;
+    std::cout << visual_map_->GetCameraPose(f.t) << std::endl;
   }
 }
 

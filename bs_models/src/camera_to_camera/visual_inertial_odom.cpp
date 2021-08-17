@@ -17,9 +17,7 @@
 #include <beam_cv/Utils.h>
 #include <beam_cv/descriptors/Descriptors.h>
 #include <beam_cv/detectors/Detectors.h>
-#include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
-#include <beam_cv/matchers/Matchers.h>
 
 #include <bs_common/utils.h>
 #include <bs_models/camera_to_camera/utils.h>
@@ -163,7 +161,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
                                                pose);
       init_odom_publisher_.publish(pose);
       // process keyframe
-      if (IsKeyframe(img_time, T_WORLD_CAMERA.value())) {
+      if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
         // update keyframe info
         bs_models::camera_to_camera::Keyframe kf(img_time,
                                                  image_buffer_.front());
@@ -181,7 +179,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       } else {
         // compute relative pose to most recent kf
         Eigen::Matrix4d T_WORLD_CAMERA_curkf =
-            visual_map_->GetPose(keyframes_.back().Stamp()).value();
+            visual_map_->GetCameraPose(keyframes_.back().Stamp()).value();
         Eigen::Matrix4d T_WORLD_BASELINK_curkf =
             T_WORLD_CAMERA_curkf * T_cam_baselink_;
         Eigen::Matrix4d T_curframe_curkeyframe =
@@ -265,13 +263,13 @@ void VisualInertialOdom::SendInitializationGraph(
 }
 
 bool VisualInertialOdom::IsKeyframe(const ros::Time& img_time,
-                                    const Eigen::Matrix4d& T_WORLD_CAMERA) {
+                                    const Eigen::Matrix4d& T_WORLD_BASELINK) {
   Eigen::Matrix4d T_WORLD_curkf =
-      visual_map_->GetPose(keyframes_.back().Stamp()).value();
+      visual_map_->GetBaselinkPose(keyframes_.back().Stamp()).value();
   bool is_keyframe = false;
   if ((img_time - keyframes_.back().Stamp()).toSec() >=
           camera_params_.keyframe_min_time_in_seconds &&
-      beam::PassedMotionThreshold(T_WORLD_curkf, T_WORLD_CAMERA, 0.0, 0.05, true,
+      beam::PassedMotionThreshold(T_WORLD_curkf, T_WORLD_BASELINK, 0.0, 0.05, true,
                                   true, false)) {
     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
     is_keyframe = true;
@@ -292,6 +290,7 @@ void VisualInertialOdom::ExtendMap(const ros::Time& img_time) {
   // make transaction
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(cur_kf_time);
+
   // match against current submap and add fixed landmarks
   std::map<uint64_t, Eigen::Vector3d> matched_points =
       bs_models::camera_to_camera::MatchFrameToCurrentSubmap(
@@ -299,6 +298,7 @@ void VisualInertialOdom::ExtendMap(const ros::Time& img_time) {
   for (auto& it : matched_points) {
     visual_map_->AddFixedLandmark(it.second, it.first, transaction);
   }
+
   // add visual constraints
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
   for (auto& id : landmarks) {
@@ -315,9 +315,9 @@ void VisualInertialOdom::ExtendMap(const ros::Time& img_time) {
         pixel_prv_kf = tracker_->Get(prev_kf_time, id);
         pixel_cur_kf = tracker_->Get(cur_kf_time, id);
         T_cam_world_prv_kf =
-            visual_map_->GetPose(prev_kf_time).value().inverse();
+            visual_map_->GetCameraPose(prev_kf_time).value().inverse();
         T_cam_world_cur_kf =
-            visual_map_->GetPose(cur_kf_time).value().inverse();
+            visual_map_->GetCameraPose(cur_kf_time).value().inverse();
         // triangulate point
         Eigen::Vector2i pixel_prv_kf_i = pixel_prv_kf.cast<int>();
         Eigen::Vector2i pixel_cur_kf_i = pixel_cur_kf.cast<int>();
@@ -389,7 +389,7 @@ void VisualInertialOdom::NotifyNewKeyframe(
 
 void VisualInertialOdom::PublishSlamChunk() {
   // this just makes sure the visual map has the most recent variables
-  for (auto& kf : keyframes_) { visual_map_->GetPose(kf.Stamp()); }
+  for (auto& kf : keyframes_) { visual_map_->GetCameraPose(kf.Stamp()); }
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size - 1) {
     // remove keyframe placeholder if first keyframe
@@ -401,7 +401,7 @@ void VisualInertialOdom::PublishSlamChunk() {
     slam_chunk.stamp = kf_to_publish;
     // keyframe pose
     Eigen::Matrix4d T_WORLD_BASELINK =
-        visual_map_->GetPose(kf_to_publish).value() * T_cam_baselink_;
+        visual_map_->GetCameraPose(kf_to_publish).value() * T_cam_baselink_;
     std::vector<float> pose;
     for (uint8_t i = 0; i < 3; i++) {
       for (uint8_t j = 0; j < 4; j++) {

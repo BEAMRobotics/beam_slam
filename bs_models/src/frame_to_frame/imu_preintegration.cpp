@@ -126,7 +126,7 @@ Eigen::Matrix<double, 16, 1>
   return delta;
 }
 
-bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
+bool ImuPreintegration::GetCameraPose(Eigen::Matrix4d& T_WORLD_IMU,
                                 const ros::Time& t_now) {
   // encapsulate imu measurements between frames
   bs_common::PreIntegrator pre_integrator_interval;

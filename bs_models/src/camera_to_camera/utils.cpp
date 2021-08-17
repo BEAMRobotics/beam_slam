@@ -1,5 +1,9 @@
 #include <bs_models/camera_to_camera/utils.h>
 
+#include <bs_common/submap.h>
+#include <beam_cv/matchers/Matchers.h>
+#include <beam_cv/geometry/AbsolutePoseEstimator.h>
+
 namespace bs_models { namespace camera_to_camera {
 
 std::shared_ptr<beam_cv::PoseRefinement> PoseRefiner() {
@@ -37,7 +41,7 @@ beam::opt<Eigen::Matrix4d> LocalizeFrame(
     }
   }
   // perform ransac pnp for initial estimate
-  if (points.size() >= 15) {
+  if (points.size() >= 10) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
         beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model, pixels,
                                                         points);
@@ -47,6 +51,7 @@ beam::opt<Eigen::Matrix4d> LocalizeFrame(
     Eigen::Matrix4d T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
     return T_WORLD_CAMERA;
   } else {
+    ROS_DEBUG("Not enough visual points to localize, using IMU.");
     return {};
   }
 }
@@ -60,7 +65,8 @@ std::map<uint64_t, Eigen::Vector3d> MatchFrameToCurrentSubmap(
   std::map<uint64_t, Eigen::Vector3d> matched_points;
   bs_common::Submap& submap = bs_common::Submap::GetInstance();
   // get map points in current camera frame
-  Eigen::Matrix4d T_WORLD_CAMERA = visual_map->GetPose(frame_time).value();
+  Eigen::Matrix4d T_WORLD_CAMERA =
+      visual_map->GetCameraPose(frame_time).value();
   std::vector<Eigen::Vector3d> points_camera =
       submap.GetVisualMapPoints(T_WORLD_CAMERA);
   std::vector<cv::Mat> descriptors = submap.GetDescriptors();

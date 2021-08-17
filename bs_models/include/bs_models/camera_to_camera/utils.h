@@ -4,12 +4,9 @@
 
 // libbeam
 #include <beam_calibration/CameraModel.h>
-#include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/PoseRefinement.h>
-#include <beam_cv/matchers/Matchers.h>
 #include <beam_cv/trackers/Trackers.h>
 #include <beam_utils/utils.h>
-#include <bs_common/submap.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 
 namespace bs_models { namespace camera_to_camera {
