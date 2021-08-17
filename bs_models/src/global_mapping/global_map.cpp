@@ -209,17 +209,16 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
     std::shared_ptr<Submap> new_submap = std::make_shared<Submap>(
         stamp, T_WORLD_BASELINK, camera_model_, extrinsics_);
     submaps_.push_back(new_submap);
-
     new_transaction = InitiateNewSubmapPose();
 
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
         FindLoopClosures();
-
+    
     if (loop_closure_transaction != nullptr) {
       new_transaction->merge(*loop_closure_transaction);
     }
   }
-
+  
   // add camera measurement if not empty
   if (!cam_measurement.landmarks.empty()) {
     ROS_DEBUG("Adding camera measurement to global map.");
@@ -256,7 +255,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
           cloud, T_WORLD_BASELINK, stamp, lid_measurement.point_type);
     }
   }
-
+  
   // add trajectory measurement if not empty
   if (!traj_measurement.stamps.empty()) {
     ROS_DEBUG("Adding trajectory measurement to global map.");
@@ -291,6 +290,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
       submaps_.at(submap_id)->AddTrajectoryMeasurement(poses, stamps, stamp);
     }
   }
+  
   return new_transaction;
 }
 
@@ -335,13 +335,28 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   const std::shared_ptr<Submap>& current_submap =
       submaps_.at(submaps_.size() - 1);
-  const std::shared_ptr<Submap>& previous_submap =
-      submaps_.at(submaps_.size() - 2);
   bs_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction(
       current_submap->Stamp());
   new_transaction.AddPoseVariables(current_submap->Position(),
                                    current_submap->Orientation(),
                                    current_submap->Stamp());
+
+  // if first submap, add prior then return
+  if (submaps_.size() == 1) {
+    // build covariance
+    fuse_core::Matrix6d prior_covariance;
+    prior_covariance.setIdentity();
+    prior_covariance = prior_covariance * pose_prior_noise_;
+
+    new_transaction.AddPosePrior(current_submap->Position(),
+                                 current_submap->Orientation(),
+                                 prior_covariance, "FIRSTSUBMAPPRIOR");
+    return new_transaction.GetTransaction();
+  }
+
+  // If not first submap add constraint to previous
+  const std::shared_ptr<Submap>& previous_submap =
+      submaps_.at(submaps_.size() - 2);
 
   Eigen::Matrix4d T_PREVIOUS_CURRENT =
       beam::InvertTransform(previous_submap->T_WORLD_SUBMAP()) *
@@ -357,16 +372,22 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
-  int current_index = submaps_.size() - 2;
-  std::vector<int> matched_indices;
-  std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
-  loop_closure_candidate_search_->FindLoopClosureCandidates(
-      submaps_, current_index, matched_indices, Ts_MATCH_QUERY);
-
-  if (matched_indices.size() == 0) {
+  // if first submap, don't look for loop closures
+  if(submaps_.size() == 1){
     return nullptr;
   }
 
+  int current_index = submaps_.size() - 2;
+  std::vector<int> matched_indices;
+  std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
+  
+  loop_closure_candidate_search_->FindLoopClosureCandidates(
+      submaps_, current_index, matched_indices, Ts_MATCH_QUERY);
+  
+  if (matched_indices.size() == 0) {
+    return nullptr;
+  }
+  
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
   for (int i = 0; i < matched_indices.size(); i++) {
@@ -376,7 +397,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
             Ts_MATCH_QUERY[i]);
     transaction->merge(*new_transaction);
   }
-
+  
   // TODO: Implement this
   // SendSubmap(best_index);
   return transaction;
@@ -399,6 +420,8 @@ void GlobalMap::SaveData(const std::string& output_path) {
   BEAM_INFO("Saving full global map to: {}", output_path);
   params_.SaveJson(output_path + "params.json");
   camera_model_->WriteJSON(output_path + "camera_model.json");
+  extrinsics_->SaveExtrinsicsToJson(output_path + "extrinsics.json");
+  extrinsics_->SaveFrameIdsToJson(output_path + "frame_ids.json");
   for (uint16_t i = 0; i < submaps_.size(); i++) {
     std::string submap_dir = output_path + "submap" + std::to_string(i) + "/";
     boost::filesystem::create_directory(submap_dir);

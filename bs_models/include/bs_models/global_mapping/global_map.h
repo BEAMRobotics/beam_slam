@@ -295,6 +295,7 @@ class GlobalMap {
 
   // params only tunable here
   int max_output_map_size_{1000000};
+  double pose_prior_noise_{1e-9};
 };
 
 }  // namespace global_mapping

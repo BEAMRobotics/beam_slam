@@ -4,7 +4,6 @@
 #include <fuse_graphs/hash_graph.h>
 
 #include <bs_common/utils.h>
-#include <bs_models/global_mapping/global_map.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
 
 namespace bs_tools {
@@ -140,13 +139,9 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
   Setup();
 
   // load global map to get submaps
-  gm::GlobalMap global_map;
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
-  if (!global_map.Load(global_map_data_dir)) {
-    BEAM_ERROR("Cannot load global map, exiting global map refinement.");
-    throw std::runtime_error{"cannot load global map."};
-  }
-  submaps_ = global_map.GetSubmaps();
+  global_map_ = std::make_shared<gm::GlobalMap>(global_map_data_dir);
+  submaps_ = global_map_->GetSubmaps();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
@@ -156,26 +151,23 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
   Setup();
 
   // load global map to get submaps
-  gm::GlobalMap global_map;
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
-  if (!global_map.Load(global_map_data_dir)) {
-    BEAM_ERROR("Cannot load global map, exiting global map refinement.");
-    throw std::runtime_error{"cannot load global map."};
-  }
-  submaps_ = global_map.GetSubmaps();
+  global_map_ = std::make_shared<gm::GlobalMap>(global_map_data_dir);
+  submaps_ = global_map_->GetSubmaps();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(
-    std::vector<std::shared_ptr<gm::Submap>>& submaps, const Params& params)
-    : submaps_(submaps), params_(params) {
+    std::shared_ptr<gm::GlobalMap>& global_map, const Params& params)
+    : global_map_(global_map), params_(params) {
+  submaps_ = global_map_->GetSubmaps();
   Setup();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(
-    std::vector<std::shared_ptr<gm::Submap>>& submaps,
-    const std::string& config_path)
-    : submaps_(submaps) {
+    std::shared_ptr<gm::GlobalMap>& global_map, const std::string& config_path)
+    : global_map_(global_map) {
   params_.LoadJson(config_path);
+  submaps_ = global_map_->GetSubmaps();
   Setup();
 }
 
@@ -278,10 +270,6 @@ bool GlobalMapRefinement::RunPoseGraphOptimization() {
 
 void GlobalMapRefinement::SaveResults(const std::string& output_path,
                                       bool save_initial) {
-  // load into global map for easy saving of data
-  gm::GlobalMap global_map;
-  global_map.SetSubmaps(submaps_);
-
   // create results directory
   if (!boost::filesystem::exists(output_path)) {
     BEAM_ERROR(
@@ -300,18 +288,14 @@ void GlobalMapRefinement::SaveResults(const std::string& output_path,
   boost::filesystem::create_directory(save_dir);
 
   // save
-  global_map.SaveTrajectoryFile(save_dir, save_initial);
-  global_map.SaveTrajectoryClouds(save_dir, save_initial);
-  global_map.SaveSubmapFrames(save_dir, save_initial);
-  global_map.SaveLidarSubmaps(save_dir, save_initial);
-  global_map.SaveKeypointSubmaps(save_dir, save_initial);
+  global_map_->SaveTrajectoryFile(save_dir, save_initial);
+  global_map_->SaveTrajectoryClouds(save_dir, save_initial);
+  global_map_->SaveSubmapFrames(save_dir, save_initial);
+  global_map_->SaveLidarSubmaps(save_dir, save_initial);
+  global_map_->SaveKeypointSubmaps(save_dir, save_initial);
 }
 
 void GlobalMapRefinement::SaveGlobalMapData(const std::string& output_path) {
-  // load into global map for easy saving of data
-  gm::GlobalMap global_map;
-  global_map.SetSubmaps(submaps_);
-
   // create results directory
   if (!boost::filesystem::exists(output_path)) {
     BEAM_ERROR(
@@ -330,7 +314,7 @@ void GlobalMapRefinement::SaveGlobalMapData(const std::string& output_path) {
   boost::filesystem::create_directory(save_dir);
 
   // save
-  global_map.SaveData(save_dir);
+  global_map_->SaveData(save_dir);
 }
 
 }  // namespace bs_tools

@@ -151,7 +151,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     return;
   }
   Eigen::Matrix4d T_SUBMAP_LIDAR = T_SUBMAP_BASELINK * T_BASELINK_LIDAR;
-
+  
   // Check if stamp already exists (we may be adding partial scans)
   auto iter = lidar_keyframe_poses_.find(stamp.toNSec());
   if (iter != lidar_keyframe_poses_.end()) {
@@ -164,6 +164,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
         stamp.toNSec(), new_scan_pose));
   }
+
 }
 
 void Submap::AddTrajectoryMeasurement(

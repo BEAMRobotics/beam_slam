@@ -1,6 +1,6 @@
 #pragma once
 
-#include <bs_models/global_mapping/submap.h>
+#include <bs_models/global_mapping/global_map.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
 #include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
@@ -118,7 +118,7 @@ class GlobalMapRefinement {
    * @param submaps  vector of pointers to submaps to refine
    * @param params see struct above
    */
-  GlobalMapRefinement(std::vector<std::shared_ptr<gm::Submap>>& submaps,
+  GlobalMapRefinement(std::shared_ptr<gm::GlobalMap>& global_map,
                       const Params& params = Params());
 
   /**
@@ -127,7 +127,7 @@ class GlobalMapRefinement {
    * @param submaps pointer to a vector of submaps to refine
    * @param config_path full path to json config file
    */
-  GlobalMapRefinement(std::vector<std::shared_ptr<gm::Submap>>& submaps,
+  GlobalMapRefinement(std::shared_ptr<gm::GlobalMap>& global_map,
                       const std::string& config_path = "");
 
   /**
@@ -178,6 +178,7 @@ class GlobalMapRefinement {
   void Setup();
 
   Params params_;
+  std::shared_ptr<gm::GlobalMap> global_map_;
   std::vector<std::shared_ptr<gm::Submap>> submaps_;
 
   // PGO:
