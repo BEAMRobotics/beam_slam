@@ -616,7 +616,7 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   // instantiate preintegration class with invalid prior noise
   EXPECT_ANY_THROW({
     ImuPreintegration::Params params;
-    params.prior_noise = 0;
+    params.cov_prior_noise = 0;
     std::unique_ptr<ImuPreintegration> dummy_imu_preintegration =
         std::make_unique<ImuPreintegration>(params);
   });

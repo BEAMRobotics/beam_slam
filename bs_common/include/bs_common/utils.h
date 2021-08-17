@@ -12,6 +12,8 @@
 #include <bs_common/scan_pose.h>
 #include <beam_matching/loam/LoamPointCloud.h>
 
+static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, -9.80655};
+
 namespace bs_common {
 
 static std::string default_string{""};
@@ -81,5 +83,5 @@ void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
 void InterpolateTransformFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Matrix4d& T_WORLD_SENSOR);
-    
-} // namespace bs_common
+
+}  // namespace bs_common

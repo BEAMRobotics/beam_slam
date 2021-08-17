@@ -53,11 +53,6 @@ class LoopClosureRefinementLoam : public LoopClosureRefinementBase {
   void LoadConfig() override;
 
   /**
-   * @brief initiate variables
-   */
-  void Setup();
-
-  /**
    * @brief Calculate a refined pose between submaps using scan registration
    * @param matched_submap submap that a new query submap matches to
    * @param query_submap new submap that we are adding constraints with previous

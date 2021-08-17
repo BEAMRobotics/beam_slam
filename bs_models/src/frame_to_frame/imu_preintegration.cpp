@@ -34,8 +34,8 @@ void ImuPreintegration::AddToBuffer(const bs_common::IMUData& imu_data) {
 }
 
 void ImuPreintegration::CheckParameters() {
-  if (params_.prior_noise <= 0) {
-    BEAM_ERROR("Prior noise on IMU preintegration must be positive");
+  if (params_.cov_prior_noise <= 0) {
+    BEAM_ERROR("Prior noise on IMU state must be positive");
     throw std::invalid_argument{"Inputs to ImuPreintegration invalid."};
   }
 }
@@ -57,12 +57,12 @@ void ImuPreintegration::SetStart(
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
-  // adjust imu buffer
+  // adjust IMU buffer
   while (t_start > imu_data_buffer_.front().t) {
     imu_data_buffer_.pop();
   }
 
-  // set imu state
+  // set IMU state
   ImuState imu_state_i(t_start);
 
   if (R_WORLD_IMU) {
@@ -82,30 +82,33 @@ void ImuPreintegration::SetStart(
 
   imu_state_i_ = std::move(imu_state_i);
 
-  // copy start imu state to initialize kth frame between keyframes
+  // copy start IMU state to initialize kth frame between keyframes
   imu_state_k_ = imu_state_i_;
 }
 
 ImuState ImuPreintegration::PredictState(
     const bs_common::PreIntegrator& pre_integrator,
     const ImuState& imu_state_curr, const ros::Time& t_now) {
-  // calculate new states
+  // get commonly used variables
   double dt = pre_integrator.delta.t.toSec();
-  Eigen::Matrix3d or_curr = imu_state_curr.OrientationQuat().toRotationMatrix();
-  Eigen::Matrix3d or_new_mat = or_curr * pre_integrator.delta.q.matrix();
-  Eigen::Vector3d vel_new = imu_state_curr.VelocityVec() + GRAVITY_WORLD * dt +
-                            or_curr * pre_integrator.delta.v;
-  Eigen::Vector3d pos_new =
-      imu_state_curr.PositionVec() + imu_state_curr.VelocityVec() * dt +
-      0.5 * GRAVITY_WORLD * dt * dt + or_curr * pre_integrator.delta.p;
+  const Eigen::Matrix3d& q_curr = imu_state_curr.OrientationMat();
 
-  // instantiate new imu state
-  Eigen::Quaterniond or_new(or_new_mat);
+  // predict new states
+  Eigen::Quaterniond q_new(q_curr * pre_integrator.delta.q.matrix());
+  Eigen::Vector3d v_new = imu_state_curr.VelocityVec() + GRAVITY_WORLD * dt +
+                          q_curr * pre_integrator.delta.v;
+  Eigen::Vector3d p_new =
+      imu_state_curr.PositionVec() + imu_state_curr.VelocityVec() * dt +
+      0.5 * GRAVITY_WORLD * dt * dt + q_curr * pre_integrator.delta.p;
+
+  // set time
   ros::Time t_new = imu_state_curr.Stamp() + pre_integrator.delta.t;
   if (t_now != ros::Time(0)) {
     t_new = t_now;
   }
-  ImuState imu_state_new(t_new, or_new, pos_new, vel_new,
+
+  // return predicted IMU state
+  ImuState imu_state_new(t_new, q_new, p_new, v_new,
                          imu_state_curr.GyroBiasVec(),
                          imu_state_curr.AccelBiasVec());
   return imu_state_new;
@@ -113,39 +116,38 @@ ImuState ImuPreintegration::PredictState(
 
 Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
     const ImuState& imu_state_new) {
-  Eigen::Matrix3d or_curr_rot_trans = imu_state_i_.OrientationQuat()
-                                          .normalized()
-                                          .toRotationMatrix()
-                                          .transpose();
-  Eigen::Matrix3d or_delta_mat =
-      or_curr_rot_trans *
-      imu_state_new.OrientationQuat().normalized().toRotationMatrix();
-  Eigen::Quaterniond or_delta(or_delta_mat);
-  Eigen::Vector3d pos_delta = or_curr_rot_trans * (imu_state_new.PositionVec() -
-                                                   imu_state_i_.PositionVec());
-  Eigen::Vector3d vel_delta = or_curr_rot_trans * (imu_state_new.VelocityVec() -
-                                                   imu_state_i_.VelocityVec());
+  // get commonly used variables
+  const Eigen::Matrix3d& q_curr_transpose =
+      imu_state_i_.OrientationMat().transpose();
+
+  // calculate relative change
+  Eigen::Quaterniond q_delta(q_curr_transpose * imu_state_new.OrientationMat());
+  Eigen::Vector3d p_delta = q_curr_transpose * (imu_state_new.PositionVec() -
+                                                imu_state_i_.PositionVec());
+  Eigen::Vector3d v_delta = q_curr_transpose * (imu_state_new.VelocityVec() -
+                                                imu_state_i_.VelocityVec());
   Eigen::Vector3d bias_gyro_delta =
       imu_state_new.GyroBiasVec() - imu_state_i_.GyroBiasVec();
   Eigen::Vector3d bias_accel_delta =
       imu_state_new.AccelBiasVec() - imu_state_i_.AccelBiasVec();
 
+  // return delta
   Eigen::Matrix<double, 16, 1> delta;
-  delta << or_delta.w(), or_delta.vec(), pos_delta, vel_delta, bias_gyro_delta,
+  delta << q_delta.w(), q_delta.vec(), p_delta, v_delta, bias_gyro_delta,
       bias_accel_delta;
   return delta;
 }
 
 bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
                                 const ros::Time& t_now) {
-  // encapsulate imu measurements between frames
+  // encapsulate IMU measurements between frames
   bs_common::PreIntegrator pre_integrator_interval;
 
   // check requested time
   if (t_now < imu_data_buffer_.front().t) {
     return false;
   }
-  std::cout << "Imu buffer size: " << imu_data_buffer_.size() << std::endl;
+
   // Populate integrators
   while (t_now > imu_data_buffer_.front().t) {
     pre_integrator_interval.data.emplace_back(imu_data_buffer_.front());
@@ -156,11 +158,12 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
   pre_integrator_interval.Integrate(t_now, imu_state_i_.GyroBiasVec(),
                                     imu_state_i_.AccelBiasVec(), false, false);
 
-  // predict state at end of window using integrated imu measurements
+  // predict state at end of window using integrated IMU measurements
   ImuState imu_state_k =
       PredictState(pre_integrator_interval, imu_state_k_, t_now);
   imu_state_k_ = std::move(imu_state_k);
 
+  // populate transformation matrix
   beam::QuaternionAndTranslationToTransformMatrix(
       imu_state_k_.OrientationQuat(), imu_state_k_.PositionVec(), T_WORLD_IMU);
 
@@ -179,11 +182,12 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   if (t_now < imu_data_buffer_.front().t) {
     return nullptr;
   }
+
   // generate prior constraint at start
   if (first_window_) {
     Eigen::Matrix<double, 15, 15> prior_covariance;
     prior_covariance.setIdentity();
-    prior_covariance *= params_.prior_noise;
+    prior_covariance *= params_.cov_prior_noise;
 
     transaction.AddImuStatePrior(
         imu_state_i_.Orientation(), imu_state_i_.Position(),
@@ -198,7 +202,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     first_window_ = false;
   }
 
-  // Populate integrator
+  // populate integrator
   while (t_now > imu_data_buffer_.front().t && !imu_data_buffer_.empty()) {
     pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
     imu_data_buffer_.pop();
@@ -218,7 +222,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   Eigen::Matrix<double, 15, 15> covariance_ij{pre_integrator_ij.delta.cov};
   if (covariance_ij.isZero(1e-9)) {
     covariance_ij.setIdentity();
-    covariance_ij *= params_.prior_noise;
+    covariance_ij *= params_.cov_prior_noise;
   }
 
   // make preintegrator a shared pointer for constraint

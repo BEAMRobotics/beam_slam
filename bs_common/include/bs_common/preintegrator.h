@@ -7,11 +7,23 @@
 namespace bs_common {
 
 /**
- * @brief Struct representating a single imu measurement
+ * @brief Enum class representing order of states in covariance matrix
+ */
+enum ErrorStateLocation {
+  ES_Q = 0,
+  ES_P = 3,
+  ES_V = 6,
+  ES_BG = 9,
+  ES_BA = 12,
+  ES_SIZE = 15
+};
+
+/**
+ * @brief Struct representing a single imu measurement
  */
 struct IMUData {
   /**
-   * @brief Defualt Constructor
+   * @brief Default Constructor
    */
   IMUData() = default;
 
@@ -35,7 +47,7 @@ struct IMUData {
 };
 
 /**
- * @brief Struct representating the changes between imu states
+ * @brief Struct representing the changes between imu states
  */
 struct Delta {
   ros::Duration t;

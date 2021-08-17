@@ -9,10 +9,11 @@
 #include <bs_variables/accel_bias_3d_stamped.h>
 #include <bs_variables/gyro_bias_3d_stamped.h>
 
-namespace bs_models { namespace frame_to_frame {
+namespace bs_models {
+namespace frame_to_frame {
 
 class ImuState {
-public:
+ public:
   /**
    * @brief default constructor
    */
@@ -80,9 +81,15 @@ public:
 
   /**
    * @brief return the current estimate of the orientation
-   * @return orientation quaternion
+   * @return orientation as a quaternion
    */
   Eigen::Quaterniond OrientationQuat() const;
+
+  /**
+   * @brief return the current estimate of the orientation
+   * @return orientation as a rotation matrix
+   */
+  Eigen::Matrix3d OrientationMat() const;
 
   /**
    * @brief return the current estimate of the position
@@ -215,7 +222,7 @@ public:
    */
   void Print(std::ostream& stream = std::cout) const;
 
-private:
+ private:
   /**
    * @brief instantiates fuse/beam variables contained in this ImuState
    */
@@ -230,4 +237,5 @@ private:
   bs_variables::AccelerationBias3DStamped accelbias_;
 };
 
-}}  // namespace bs_models::frame_to_frame
+}  // namespace frame_to_frame
+}  // namespace bs_models
