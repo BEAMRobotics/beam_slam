@@ -10,7 +10,6 @@
 
 // beam_slam
 #include <bs_common/extrinsics_lookup.h>
-#include <bs_common/submap.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/imu_initializer.h>
@@ -145,7 +144,6 @@ protected:
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
-  bs_common::Submap& submap_ = bs_common::Submap::GetInstance();
 
   // imu preintegration object
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;

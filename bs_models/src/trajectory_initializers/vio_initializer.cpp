@@ -239,15 +239,23 @@ void VIOInitializer::AddPosesAndInertialConstraints(
 
 size_t VIOInitializer::AddVisualConstraints(
     const std::vector<bs_models::camera_to_camera::Frame>& frames) {
+  // match against current submap and add fixed landmarks
+  for (auto& frame : frames) {
+    std::map<uint64_t, Eigen::Vector3d> matched_points =
+        bs_models::camera_to_camera::MatchFrameToCurrentSubmap(
+            tracker_, visual_map_, cam_model_, frame.t);
+    for (auto& it : matched_points) {
+      visual_map_->AddFixedLandmark(it.second, it.first);
+    }
+  }
+  // add all constraints to frames
   ros::Time start = frames[0].t, end = frames[frames.size() - 1].t;
   size_t num_landmarks = 0;
   // get all landmarks in the window
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInWindow(start, end);
   for (auto& id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm =
-        visual_map_->GetLandmark(id);
-    if (lm) { // if the landmark already exists then add constraint
+    if (visual_map_->GetLandmark(id) || visual_map_->GetFixedLandmark(id)) {
       for (auto& f : frames) {
         try {
           visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id));
@@ -321,8 +329,13 @@ void VIOInitializer::OutputResults(
     for (auto& id : landmarks) {
       fuse_variables::Point3DLandmark::SharedPtr lm =
           visual_map_->GetLandmark(id);
+      fuse_variables::Point3DFixedLandmark::SharedPtr flm =
+          visual_map_->GetFixedLandmark(id);
       if (lm) {
         pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
+        points_cloud.points.push_back(p);
+      } else if (flm) {
+        pcl::PointXYZ p(flm->x(), flm->y(), flm->z());
         points_cloud.points.push_back(p);
       }
     }
