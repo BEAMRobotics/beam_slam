@@ -34,17 +34,23 @@ class ExtrinsicsLookupOnline {
   ExtrinsicsLookupOnline& operator=(const ExtrinsicsLookupOnline& other) =
       delete;
 
-/**
+  /**
    * @brief Get a copy of the instrinsics stored herein
    * @param extrinsics copy of the extrinsics_
    */
-ExtrinsicsLookupBase GetExtrinsicsCopy();
+  ExtrinsicsLookupBase GetExtrinsicsCopy();
 
   /**
    * @brief See definition in ExtrinsicsLookupBase
    * @param save_filename full path to filename
    */
-  void SaveToJson(const std::string& save_filename);
+  void SaveExtrinsicsToJson(const std::string& save_filename);
+
+  /**
+   * @brief See definition in ExtrinsicsLookupBase
+   * @param save_filename full path to filename
+   */
+  void SaveFrameIdsToJson(const std::string& save_filename);
 
   /**
    * @brief get transform from any two frames

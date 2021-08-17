@@ -13,7 +13,39 @@ namespace bs_common {
 
 ExtrinsicsLookupBase::ExtrinsicsLookupBase(const FrameIds& frame_ids)
     : frame_ids_(frame_ids) {
-  // validate parameters
+  ValidateFrameIds();
+}
+
+ExtrinsicsLookupBase::ExtrinsicsLookupBase(
+    const FrameIds& frame_ids, const std::string& extrinsics_filepath)
+    : frame_ids_(frame_ids) {
+  ValidateFrameIds();
+  LoadExtrinsics(extrinsics_filepath);
+}
+
+ExtrinsicsLookupBase::ExtrinsicsLookupBase(
+    const std::string& frame_ids_filepath,
+    const std::string& extrinsics_filepath) {
+  // Load frame ids
+  nlohmann::json J;
+  if (!beam::ReadJson(frame_ids_filepath, J)) {
+    throw std::runtime_error{"Invalid frame ids filepath"};
+  }
+
+  BEAM_INFO("Loading frame ids from: {}", frame_ids_filepath);
+
+  frame_ids_.baselink = J["baselink"];
+  frame_ids_.imu = J["imu"];
+  frame_ids_.camera = J["camera"];
+  frame_ids_.lidar = J["lidar"];
+  frame_ids_.world = J["world"];
+
+  // validate and load estrinsics
+  ValidateFrameIds();
+  LoadExtrinsics(extrinsics_filepath);
+}
+
+void ExtrinsicsLookupBase::ValidateFrameIds() {
   if (frame_ids_.imu.empty() || frame_ids_.camera.empty() ||
       frame_ids_.lidar.empty() || frame_ids_.baselink.empty() ||
       frame_ids_.world.empty()) {
@@ -29,28 +61,15 @@ ExtrinsicsLookupBase::ExtrinsicsLookupBase(const FrameIds& frame_ids)
   }
 }
 
-ExtrinsicsLookupBase::ExtrinsicsLookupBase(
-    const FrameIds& frame_ids, const std::string& extrinsics_filepath) {
-  if (!boost::filesystem::exists(extrinsics_filepath)) {
-    BEAM_ERROR("Invalid extrinsics file path, exiting. Input: {}",
-               extrinsics_filepath);
+void ExtrinsicsLookupBase::LoadExtrinsics(const std::string& filepath) {
+  nlohmann::json J;
+  if (!beam::ReadJson(filepath, J)) {
     throw std::runtime_error{"Invalid extrinsics filepath"};
   }
 
-  if (!beam::HasExtension(extrinsics_filepath, ".json")) {
-    BEAM_ERROR(
-        "Invalid file extension for extrinsics, must be json. Exiting. Input "
-        "{}",
-        extrinsics_filepath);
-    throw std::runtime_error{"Invalid extrinsics file extension."};
-  }
-
-  BEAM_INFO("Loading extrinsics from: {}", extrinsics_filepath);
+  BEAM_INFO("Loading extrinsics from: {}", filepath);
 
   // load general data
-  nlohmann::json J;
-  std::ifstream file(extrinsics_filepath);
-  file >> J;
   for (auto calib : J["calibrations"]) {
     Eigen::Matrix4d::Identity();
     std::vector<double> v = calib["transform"];
@@ -65,13 +84,13 @@ ExtrinsicsLookupBase::ExtrinsicsLookupBase(
   }
 }
 
-void ExtrinsicsLookupBase::SaveToJson(const std::string& save_filename) {
+void ExtrinsicsLookupBase::SaveExtrinsicsToJson(const std::string& save_filename) {
   // check input
   boost::filesystem::path path(save_filename);
   path.remove_filename();
   if (!boost::filesystem::exists(path)) {
     BEAM_ERROR(
-        "Invalid save path path does not exist, not outputting to json. Input: "
+        "Invalid save path for extrinsics, path does not exist, not outputting to json. Input: "
         "{}",
         save_filename);
   }
@@ -113,6 +132,38 @@ void ExtrinsicsLookupBase::SaveToJson(const std::string& save_filename) {
   J_calibrations.push_back(J_imu_camera);
 
   J_out["calibrations"] = J_calibrations;
+
+  // output to file
+  std::ofstream file(save_filename);
+  file << std::setw(4) << J_out << std::endl;
+}
+
+void ExtrinsicsLookupBase::SaveFrameIdsToJson(const std::string& save_filename) {
+  // check input
+  boost::filesystem::path path(save_filename);
+  path.remove_filename();
+  if (!boost::filesystem::exists(path)) {
+    BEAM_ERROR(
+        "Invalid save path for frame ids, path does not exist, not outputting to json. Input: "
+        "{}",
+        save_filename);
+  }
+
+  if (!beam::HasExtension(save_filename, ".json")) {
+    BEAM_ERROR(
+        "Invalid file extension for frame ids, must be json. Exiting. Input "
+        "{}",
+        save_filename);
+    return;
+  }
+
+  // create output json 
+  nlohmann::json J_out;
+  J_out["baselink"] = frame_ids_.baselink;
+  J_out["world"] = frame_ids_.world;
+  J_out["imu"] = frame_ids_.imu;
+  J_out["camera"] = frame_ids_.camera;
+  J_out["lidar"] = frame_ids_.lidar;
 
   // output to file
   std::ofstream file(save_filename);
