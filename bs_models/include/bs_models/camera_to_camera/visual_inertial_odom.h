@@ -17,7 +17,7 @@
 #include <fuse_models/common/throttled_callback.h>
 
 // beam_slam
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/camera_to_camera/visual_submap.h>
@@ -249,8 +249,8 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
 }} // namespace bs_models::camera_to_camera

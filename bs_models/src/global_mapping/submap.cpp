@@ -16,8 +16,9 @@ namespace global_mapping {
 
 Submap::Submap(
     const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP,
-    const std::shared_ptr<beam_calibration::CameraModel>& camera_model)
-    : stamp_(stamp), camera_model_(camera_model) {
+    const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+    const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics)
+    : stamp_(stamp), camera_model_(camera_model), extrinsics_(extrinsics) {
   // create fuse variables
   position_ = fuse_variables::Position3DStamped(stamp, fuse_core::uuid::NIL);
   orientation_ =
@@ -35,11 +36,13 @@ Submap::Submap(
 Submap::Submap(
     const ros::Time& stamp, const fuse_variables::Position3DStamped& position,
     const fuse_variables::Orientation3DStamped& orientation,
-    const std::shared_ptr<beam_calibration::CameraModel>& camera_model)
+    const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+    const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics)
     : position_(position),
       orientation_(orientation),
       stamp_(stamp),
-      camera_model_(camera_model) {
+      camera_model_(camera_model),
+      extrinsics_(extrinsics) {
   // convert to eigen transform
   Eigen::Matrix4d T_WORLD_SUBMAP;
   FusePoseToEigenTransform(position_, orientation_, T_WORLD_SUBMAP);
@@ -104,7 +107,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
   Eigen::Matrix4d T_SUBMAP_BASELINK =
       T_SUBMAP_WORLD_initial_ * T_WORLDLM_BASELINK;
   Eigen::Matrix4d T_BASELINK_LIDAR;
-  if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, stamp)) {
+  if (!extrinsics_->GetT_BASELINK_LIDAR(T_BASELINK_LIDAR)) {
     BEAM_ERROR(
         "Cannot get extrinsics, not adding lidar measurement to submap.");
     return;
@@ -308,7 +311,7 @@ std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {
       ros::Time stamp;
       stamp.fromNSec(it->first);
       Eigen::Matrix4d T_LIDAR_BASELINK;
-      if (!extrinsics_.GetT_LIDAR_BASELINK(T_LIDAR_BASELINK, stamp)) {
+      if (!extrinsics_->GetT_LIDAR_BASELINK(T_LIDAR_BASELINK)) {
         BEAM_ERROR(
             "Cannot get extrinsics, not adding lidar pose to trajectory.");
         continue;
@@ -455,7 +458,7 @@ bool Submap::LoadData(const std::string& input_dir,
   }
 
   // load landmarks
-  if(!landmarks_.LoadFromJson(input_dir + "landmarks.json")){
+  if (!landmarks_.LoadFromJson(input_dir + "landmarks.json")) {
     return false;
   }
 
@@ -504,9 +507,11 @@ bool Submap::LoadData(const std::string& input_dir,
     std::ifstream file_subframe(subframe_filename);
     file_subframe >> J_subframe;
     uint64_t subframe_stamp = J_subframe["subframe_stamp_nsecs"];
-    std::map<std::string, std::vector<double>> subframe_poses_map = J_subframe["poses"];
+    std::map<std::string, std::vector<double>> subframe_poses_map =
+        J_subframe["poses"];
     std::vector<PoseStamped> subframe_poses_vec;
-    for (auto it = subframe_poses_map.begin(); it != subframe_poses_map.end(); it++){
+    for (auto it = subframe_poses_map.begin(); it != subframe_poses_map.end();
+         it++) {
       // convert string stamp to integer
       std::istringstream stamp_ss(it->first);
       uint64_t stamp_int;
@@ -558,7 +563,7 @@ void Submap::SaveData(const std::string& output_dir) {
   camera_model_->WriteJSON(camera_model_filename);
 
   // save landmarks
-  landmarks_.SaveToJson( output_dir + "landmarks.json");
+  landmarks_.SaveToJson(output_dir + "landmarks.json");
 
   // save lidar keyframes
   std::string lidar_keyframes_dir = output_dir + "lidar_keyframes/";
@@ -653,7 +658,7 @@ void Submap::TriangulateKeypoints(bool override_points) {
       Eigen::Matrix4d T_BASELINK_SUBMAP =
           beam::InvertTransform(T_SUBMAP_BASELINK);
       Eigen::Matrix4d T_CAM_BASELINK(Eigen::Matrix4d::Identity());
-      if (!extrinsics_.GetT_CAMERA_IMU(T_CAM_BASELINK)) {
+      if (!extrinsics_->GetT_CAMERA_IMU(T_CAM_BASELINK)) {
         BEAM_ERROR(
             "Cannot lookup transform from camera to IMU. Using identity.");
       }
