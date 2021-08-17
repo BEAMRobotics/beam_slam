@@ -78,9 +78,16 @@ class GlobalMap {
   };
 
   /**
-   * @brief default constructor
+   * @brief delete default constructor
    */
-  GlobalMap() = default;
+  GlobalMap() = delete;
+
+  /**
+   * @brief constructor that requires a root directory to global map data. For
+   * data format, see SaveData function
+   * @param data_root_directory full path to global map data.
+   */
+  GlobalMap(const std::string& data_root_directory);
 
   /**
    * @brief constructor requiring only a pointer to camera model object
@@ -117,15 +124,16 @@ class GlobalMap {
 
   /**
    * @brief get access to the submaps
-   * @return pointer to vector of submaps stored in this global map
+   * @return vector of pointers to submaps stored in this global map
    */
-  std::shared_ptr<std::vector<Submap>> GetSubmaps();
+  std::vector<std::shared_ptr<Submap>> GetSubmaps();
 
   /**
    * @brief set the submaps
-   * @param submaps pointer to vector of submaps to be stored in this global map
+   * @param submaps vector of pointers to submaps to be stored in this global
+   * map
    */
-  void SetSubmaps(const std::shared_ptr<std::vector<Submap>>& submaps);  
+  void SetSubmaps(std::vector<std::shared_ptr<Submap>>& submaps);
 
   /**
    * @brief add a slam chunk measurement to the appropriate submap and returns a
@@ -279,7 +287,7 @@ class GlobalMap {
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 
-  std::shared_ptr<std::vector<Submap>> submaps_;
+  std::vector<std::shared_ptr<Submap>> submaps_;
 
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;

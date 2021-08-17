@@ -41,6 +41,8 @@ int main(int argc, char* argv[]) {
       BEAM_ERROR("Submap refinement failed, exiting global map refinement.");
       return 0;
     }
+  } else {
+    BEAM_INFO("Skipping submap refinement.");
   }
 
   if (FLAGS_run_posegraph_optimization) {
@@ -49,6 +51,8 @@ int main(int argc, char* argv[]) {
           "Pose graph optimization failed, exiting global map refinement.");
       return 0;
     }
+  } else {
+    BEAM_INFO("Skipping pose graph optimization");
   }
 
   BEAM_INFO("Global map refinement completed successfully.");

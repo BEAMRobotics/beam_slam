@@ -34,18 +34,18 @@ void LoopClosureCandidateSearchEucDist::LoadConfig() {
 }
 
 void LoopClosureCandidateSearchEucDist::FindLoopClosureCandidates(
-    const std::shared_ptr<std::vector<Submap>>& submaps, int query_index,
+    const std::vector<std::shared_ptr<Submap>>& submaps, int query_index,
     std::vector<int>& matched_indices,
     std::vector<Eigen::Matrix4d, pose_allocator>& estimated_poses) {
   LoadConfig();
   matched_indices.clear();
   estimated_poses.clear();
-  const Eigen::Matrix4d& T_WORLD_QUERY = submaps->at(query_index).T_WORLD_SUBMAP();
-  for (int i = 0; i < submaps->size(); i++) {
+  const Eigen::Matrix4d& T_WORLD_QUERY = submaps.at(query_index)->T_WORLD_SUBMAP();
+  for (int i = 0; i < submaps.size(); i++) {
     if (i == query_index) {
       continue;
     }
-    const Eigen::Matrix4d& T_WORLD_MATCHCANDIDATE = submaps->at(i).T_WORLD_SUBMAP();
+    const Eigen::Matrix4d& T_WORLD_MATCHCANDIDATE = submaps.at(i)->T_WORLD_SUBMAP();
     Eigen::Matrix4d T_MATCHCANDIDATE_QUERY =
         beam::InvertTransform(T_WORLD_MATCHCANDIDATE) * T_WORLD_QUERY;
     double distance = T_MATCHCANDIDATE_QUERY.block(0, 3, 3, 1).norm();

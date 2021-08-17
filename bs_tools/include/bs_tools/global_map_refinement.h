@@ -86,10 +86,6 @@ class GlobalMapRefinement {
      * will use the file in
      * beam_slam_launch/config/global_map/global_map_refinement.json */
     void LoadJson(const std::string& config_path);
-
-    /** Save contents of struct to a json which can be loaded using LoadJson()
-     */
-    void SaveJson(const std::string& filename);
   };
 
   /**
@@ -119,10 +115,10 @@ class GlobalMapRefinement {
 
   /**
    * @brief constructor requiring a list of submaps and optional params struct.
-   * @param submaps pointer to a vector of submaps to refine
+   * @param submaps  vector of pointers to submaps to refine
    * @param params see struct above
    */
-  GlobalMapRefinement(const std::shared_ptr<std::vector<gm::Submap>>& submaps,
+  GlobalMapRefinement(std::vector<std::shared_ptr<gm::Submap>>& submaps,
                       const Params& params = Params());
 
   /**
@@ -131,7 +127,7 @@ class GlobalMapRefinement {
    * @param submaps pointer to a vector of submaps to refine
    * @param config_path full path to json config file
    */
-  GlobalMapRefinement(const std::shared_ptr<std::vector<gm::Submap>>& submaps,
+  GlobalMapRefinement(std::vector<std::shared_ptr<gm::Submap>>& submaps,
                       const std::string& config_path = "");
 
   /**
@@ -173,7 +169,7 @@ class GlobalMapRefinement {
    * @param submap reference to submap to be refined
    * @return true if successful
    */
-  bool RefineSubmap(gm::Submap& submap);
+  bool RefineSubmap(std::shared_ptr<gm::Submap>& submap);
 
   /**
    * @brief setup general things needed when class is instatiated, such as
@@ -182,7 +178,7 @@ class GlobalMapRefinement {
   void Setup();
 
   Params params_;
-  std::shared_ptr<std::vector<gm::Submap>> submaps_;
+  std::vector<std::shared_ptr<gm::Submap>> submaps_;
 
   // PGO:
   std::unique_ptr<gm::LoopClosureCandidateSearchBase>

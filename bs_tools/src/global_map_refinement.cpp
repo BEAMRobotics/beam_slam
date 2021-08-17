@@ -36,7 +36,7 @@ GlobalMapRefinement::Params::Params() {
   scan_reg_params.max_motion_trans_m = 5;
   scan_reg_params.source = "MULTISCANREGISTRATION";
   scan_reg_params.num_neighbors = 10;
-  scan_reg_params.disable_lidar_map = true; // don't need
+  scan_reg_params.disable_lidar_map = true;  // don't need
 
   // set this high because we don't want to remove any scans due to lag duration
   // overflow (this is offline)
@@ -57,8 +57,9 @@ GlobalMapRefinement::Params::Params() {
 void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   std::string read_file = config_path;
   if (read_file.empty()) {
-    BEAM_INFO("No config file provided to global map refinement, using default "
-              "parameters.");
+    BEAM_INFO(
+        "No config file provided to global map refinement, using default "
+        "parameters.");
     return;
   }
 
@@ -68,13 +69,14 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   }
 
   if (!boost::filesystem::exists(read_file)) {
-    BEAM_ERROR("Cannot find global map refinement config at: {}, using default "
-               "parameters.",
-               read_file);
+    BEAM_ERROR(
+        "Cannot find global map refinement config at: {}, using default "
+        "parameters.",
+        read_file);
     return;
   }
 
-  BEAM_INFO("Loading global map config file: {}", read_file);
+  BEAM_INFO("Loading global map refinement config file: {}", read_file);
 
   nlohmann::json J;
   std::ifstream file(read_file);
@@ -132,26 +134,6 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
       J_loammatcher["output_ceres_summary"];
 }
 
-void GlobalMapRefinement::Params::SaveJson(const std::string& filename) {
-  nlohmann::json J = {
-      {"loop_closure_candidate_search_type",
-       loop_closure_candidate_search_type},
-      {"loop_closure_refinement_type", loop_closure_refinement_type},
-      {"loop_closure_candidate_search_config",
-       loop_closure_candidate_search_config},
-      {"scan_reg_covariance_diag",
-       {scan_reg_covariance(0, 0), scan_reg_covariance(1, 1),
-        scan_reg_covariance(2, 2), scan_reg_covariance(3, 3),
-        scan_reg_covariance(4, 4), scan_reg_covariance(5, 5)}},
-      {"loop_closure_covariance_diag",
-       {loop_closure_covariance(0, 0), loop_closure_covariance(1, 1),
-        loop_closure_covariance(2, 2), loop_closure_covariance(3, 3),
-        loop_closure_covariance(4, 4), loop_closure_covariance(5, 5)}}};
-
-  std::ofstream file(filename);
-  file << std::setw(4) << J << std::endl;
-}
-
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
                                          const Params& params)
     : params_(params) {
@@ -184,14 +166,13 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
 }
 
 GlobalMapRefinement::GlobalMapRefinement(
-    const std::shared_ptr<std::vector<gm::Submap>>& submaps,
-    const Params& params)
+    std::vector<std::shared_ptr<gm::Submap>>& submaps, const Params& params)
     : submaps_(submaps), params_(params) {
   Setup();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(
-    const std::shared_ptr<std::vector<gm::Submap>>& submaps,
+    std::vector<std::shared_ptr<gm::Submap>>& submaps,
     const std::string& config_path)
     : submaps_(submaps) {
   params_.LoadJson(config_path);
@@ -240,9 +221,9 @@ void GlobalMapRefinement::Setup() {
 }
 
 bool GlobalMapRefinement::RunSubmapRefinement() {
-  for (uint16_t i = 0; i < submaps_->size(); i++) {
+  for (uint16_t i = 0; i < submaps_.size(); i++) {
     BEAM_INFO("Refining submap No. {}", static_cast<int>(i));
-    if (!RefineSubmap(submaps_->at(i))) {
+    if (!RefineSubmap(submaps_.at(i))) {
       BEAM_ERROR("Submap refinement failed, exiting.");
       return false;
     }
@@ -250,7 +231,7 @@ bool GlobalMapRefinement::RunSubmapRefinement() {
   return true;
 }
 
-bool GlobalMapRefinement::RefineSubmap(gm::Submap& submap) {
+bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<gm::Submap>& submap) {
   // Create optimization graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
       fuse_graphs::HashGraph::make_shared();
@@ -268,8 +249,8 @@ bool GlobalMapRefinement::RefineSubmap(gm::Submap& submap) {
   // iterate through stored scan poses and add scan registration factors to the
   // graph
   BEAM_INFO("Registering scans");
-  for (auto scan_iter = submap.LidarKeyframesBegin();
-       scan_iter != submap.LidarKeyframesEnd(); scan_iter++) {
+  for (auto scan_iter = submap->LidarKeyframesBegin();
+       scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
     auto transaction =
         multi_scan_registration->RegisterNewScan(scan_iter->second)
             .GetTransaction();
@@ -283,8 +264,8 @@ bool GlobalMapRefinement::RefineSubmap(gm::Submap& submap) {
   graph->optimize();
 
   BEAM_INFO("updating scan poses");
-  for (auto scan_iter = submap.LidarKeyframesBegin();
-       scan_iter != submap.LidarKeyframesEnd(); scan_iter++) {
+  for (auto scan_iter = submap->LidarKeyframesBegin();
+       scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
     scan_iter->second.UpdatePose(graph);
   }
 
@@ -316,6 +297,7 @@ void GlobalMapRefinement::SaveResults(const std::string& output_path,
   } else {
     save_dir = output_path + "refinement_results/";
   }
+  boost::filesystem::create_directory(save_dir);
 
   // save
   global_map.SaveTrajectoryFile(save_dir, save_initial);
@@ -345,9 +327,10 @@ void GlobalMapRefinement::SaveGlobalMapData(const std::string& output_path) {
   } else {
     save_dir = output_path + "global_map_data_refined/";
   }
+  boost::filesystem::create_directory(save_dir);
 
   // save
   global_map.SaveData(save_dir);
 }
 
-} // namespace bs_tools
+}  // namespace bs_tools
