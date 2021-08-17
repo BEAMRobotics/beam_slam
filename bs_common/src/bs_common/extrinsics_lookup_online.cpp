@@ -25,8 +25,12 @@ ExtrinsicsLookupOnline::ExtrinsicsLookupOnline() {
   extrinsics_ = std::make_shared<ExtrinsicsLookupBase>(frame_ids);
 }
 
-void ExtrinsicsLookupOnline::SaveToJson(const std::string& save_filename) {
-  extrinsics_->SaveToJson(save_filename);
+void ExtrinsicsLookupOnline::SaveExtrinsicsToJson(const std::string& save_filename) {
+  extrinsics_->SaveExtrinsicsToJson(save_filename);
+}
+
+void ExtrinsicsLookupOnline::SaveFrameIdsToJson(const std::string& save_filename) {
+  extrinsics_->SaveFrameIdsToJson(save_filename);
 }
 
 ExtrinsicsLookupBase ExtrinsicsLookupOnline::GetExtrinsicsCopy() {

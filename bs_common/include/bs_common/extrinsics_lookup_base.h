@@ -45,6 +45,17 @@ class ExtrinsicsLookupBase {
                        const std::string& extrinsics_filepath);
 
   /**
+   * @brief constructor requiring a path to a json with the file ids, and a path
+   * to a json with the extrinsics.
+   * @param frame_ids full path to frame ids json file. For format,
+   * see SaveToJson function
+   * @param extrinsics_filepath full path to extrinsics json file. For format,
+   * see SaveToJson function
+   */
+  ExtrinsicsLookupBase(const std::string& frame_ids_filepath,
+                       const std::string& extrinsics_filepath);
+
+  /**
    * @brief Default copy constructor
    */
   ExtrinsicsLookupBase(const ExtrinsicsLookupBase& other) = default;
@@ -55,12 +66,30 @@ class ExtrinsicsLookupBase {
   ExtrinsicsLookupBase& operator=(const ExtrinsicsLookupBase& other) = default;
 
   /**
+   * @brief check that frame ids are valid, if not throw exception
+   */
+  void ValidateFrameIds();
+
+  /**
+   * @brief Load extrinscs from json. See SaveExtrinsicsToJson for format
+   * @param filepath full path to json file
+   */
+  void LoadExtrinsics(const std::string& filepath);
+
+  /**
    * @brief Save all extrinsics to a json file;. For output format, see
    * extrinsics.json examples in beam_calibration/tests
    * @param save_filename full path to filename to save. E.g.,
    * /tmp/extrinsics/extrinsics.json. Directory to save file must exist.
    */
-  void SaveToJson(const std::string& save_filename);
+  void SaveExtrinsicsToJson(const std::string& save_filename);
+
+  /**
+   * @brief Save all frame ids to a json file.
+   * @param save_filename full path to filename to save. E.g.,
+   * /tmp/extrinsics/frame_ids.json. Directory to save file must exist.
+   */
+  void SaveFrameIdsToJson(const std::string& save_filename);
 
   /**
    * @brief Gets the extrinsics between camera and IMU
