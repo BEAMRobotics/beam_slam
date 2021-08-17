@@ -326,47 +326,50 @@ bool ExtrinsicsLookupBase::GetTransform(Eigen::Matrix4d& T,
   // TODO: this isn't the most efficient way to do this, might be better to do a
   // map, but for now this will do. We don't expect this function to be used
   // often anyways.
-  if (to_frame == frame_ids_.baselink && from_frame == frame_ids_.imu) {
-    return GetT_BASELINK_IMU(T);
-  } else if (to_frame == frame_ids_.baselink &&
-             from_frame == frame_ids_.camera) {
-    return GetT_BASELINK_CAMERA(T);
-  } else if (to_frame == frame_ids_.baselink &&
-             from_frame == frame_ids_.lidar) {
-    return GetT_BASELINK_LIDAR(T);
-  } else if (to_frame == frame_ids_.baselink &&
-             from_frame == frame_ids_.baselink) {
-    T = Eigen::Matrix4d::Identity();
-    return true;
-  } else if (to_frame == frame_ids_.imu && from_frame == frame_ids_.baselink) {
-    return GetT_IMU_BASELINK(T);
-  } else if (to_frame == frame_ids_.imu && from_frame == frame_ids_.lidar) {
-    return GetT_IMU_LIDAR(T);
-  } else if (to_frame == frame_ids_.imu && from_frame == frame_ids_.camera) {
-    return GetT_IMU_CAMERA(T);
-  } else if (to_frame == frame_ids_.imu && from_frame == frame_ids_.imu) {
-    T = Eigen::Matrix4d::Identity();
-    return true;
-  } else if (to_frame == frame_ids_.camera &&
-             from_frame == frame_ids_.baselink) {
-    return GetT_CAMERA_BASELINK(T);
-  } else if (to_frame == frame_ids_.camera && from_frame == frame_ids_.imu) {
-    return GetT_CAMERA_IMU(T);
-  } else if (to_frame == frame_ids_.camera && from_frame == frame_ids_.lidar) {
-    return GetT_CAMERA_LIDAR(T);
-  } else if (to_frame == frame_ids_.camera && from_frame == frame_ids_.camera) {
-    T = Eigen::Matrix4d::Identity();
-    return true;
-  } else if (to_frame == frame_ids_.lidar &&
-             from_frame == frame_ids_.baselink) {
-    return GetT_LIDAR_BASELINK(T);
-  } else if (to_frame == frame_ids_.lidar && from_frame == frame_ids_.imu) {
-    return GetT_LIDAR_IMU(T);
-  } else if (to_frame == frame_ids_.lidar && from_frame == frame_ids_.camera) {
-    return GetT_LIDAR_CAMERA(T);
-  } else if (to_frame == frame_ids_.lidar && from_frame == frame_ids_.lidar) {
-    T = Eigen::Matrix4d::Identity();
-    return true;
+  if (to_frame == frame_ids_.baselink) {
+    if (from_frame == frame_ids_.imu) {
+      return GetT_BASELINK_IMU(T);
+    } else if (from_frame == frame_ids_.camera) {
+      return GetT_BASELINK_CAMERA(T);
+    } else if (from_frame == frame_ids_.lidar) {
+      return GetT_BASELINK_LIDAR(T);
+    } else if (from_frame == frame_ids_.baselink) {
+      T = Eigen::Matrix4d::Identity();
+      return true;
+    }
+  } else if (to_frame == frame_ids_.imu) {
+    if (from_frame == frame_ids_.baselink) {
+      return GetT_IMU_BASELINK(T);
+    } else if (from_frame == frame_ids_.camera) {
+      return GetT_IMU_CAMERA(T);
+    } else if (from_frame == frame_ids_.lidar) {
+      return GetT_IMU_LIDAR(T);
+    } else if (from_frame == frame_ids_.imu) {
+      T = Eigen::Matrix4d::Identity();
+      return true;
+    }
+  } else if (to_frame == frame_ids_.camera) {
+    if (from_frame == frame_ids_.baselink) {
+      return GetT_CAMERA_BASELINK(T);
+    } else if (from_frame == frame_ids_.imu) {
+      return GetT_CAMERA_IMU(T);
+    } else if (from_frame == frame_ids_.lidar) {
+      return GetT_CAMERA_LIDAR(T);
+    } else if (from_frame == frame_ids_.camera) {
+      T = Eigen::Matrix4d::Identity();
+      return true;
+    }
+  } else if (to_frame == frame_ids_.lidar) {
+    if (from_frame == frame_ids_.baselink) {
+      return GetT_LIDAR_BASELINK(T);
+    } else if (from_frame == frame_ids_.imu) {
+      return GetT_LIDAR_IMU(T);
+    } else if (from_frame == frame_ids_.camera) {
+      return GetT_LIDAR_CAMERA(T);
+    } else if (from_frame == frame_ids_.lidar) {
+      T = Eigen::Matrix4d::Identity();
+      return true;
+    }
   } else {
     BEAM_ERROR("Invalid to_frame and from_frame combination.");
     return false;

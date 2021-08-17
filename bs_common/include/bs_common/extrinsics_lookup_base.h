@@ -39,7 +39,7 @@ class ExtrinsicsLookupBase {
    * extrinsics.
    * @param frame_ids see struct above
    * @param extrinsics_filepath full path to extrinsics json file. For format,
-   * see SaveToJson function in
+   * see SaveToJson function
    */
   ExtrinsicsLookupBase(const FrameIds& frame_ids,
                        const std::string& extrinsics_filepath);
