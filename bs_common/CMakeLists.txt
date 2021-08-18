@@ -14,6 +14,7 @@ find_package(
     sensor_msgs
     geometry_msgs
     std_msgs
+    bs_variables
   )
 
 catkin_package(
@@ -29,6 +30,7 @@ catkin_package(
     sensor_msgs
     std_msgs
     geometry_msgs
+    bs_variables
 )
 
 ###########
@@ -44,6 +46,7 @@ add_library(${PROJECT_NAME}
   src/bs_parameters/publishers/publisher_params.cpp
   src/bs_common/common.cpp
   src/bs_common/extrinsics_lookup.cpp
+  src/bs_common/imu_state.cpp
   src/bs_common/pose_lookup.cpp
   src/bs_common/scan_pose.cpp
   src/bs_common/lidar_map.cpp

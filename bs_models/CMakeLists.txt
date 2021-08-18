@@ -124,7 +124,6 @@ add_library(
   src/frame_to_frame/scan_registration/multi_scan_registration.cpp
   src/frame_to_frame/scan_registration/scan_to_map_registration.cpp
   src/frame_to_frame/imu_preintegration.cpp
-  src/frame_to_frame/imu_state.cpp
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp

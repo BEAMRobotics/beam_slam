@@ -3,8 +3,8 @@
 #include <queue>
 
 #include <bs_common/preintegrator.h>
+#include <bs_common/imu_state.h>
 #include <bs_constraints/frame_to_frame/imu_state_3d_stamped_transaction.h>
-#include <bs_models/frame_to_frame/imu_state.h>
 #include <sensor_msgs/Imu.h>
 
 namespace bs_models {
@@ -94,9 +94,10 @@ class ImuPreintegration {
    * @param t_now time at which to stamp new IMU state if specified
    * @return ImuState
    */
-  ImuState PredictState(const bs_common::PreIntegrator& pre_integrator,
-                        const ImuState& imu_state_curr,
-                        const ros::Time& t_now = ros::Time(0));
+  bs_common::ImuState PredictState(
+      const bs_common::PreIntegrator& pre_integrator,
+      const bs_common::ImuState& imu_state_curr,
+      const ros::Time& t_now = ros::Time(0));
 
   /**
    * @brief Calculates relative change between new and current IMU states
@@ -104,13 +105,13 @@ class ImuPreintegration {
    * @return delta vector in order [q, p, v, bg, ba]
    */
   Eigen::Matrix<double, 16, 1> CalculateRelativeChange(
-      const ImuState& imu_state_new);
+      const bs_common::ImuState& imu_state_new);
 
   /**
    * @brief Gets current IMU state, which is the last registered key frame
    * @return ImuState
    */
-  ImuState GetImuState() const { return imu_state_i_; }
+  bs_common::ImuState GetImuState() const { return imu_state_i_; }
 
   /**
    * @brief Gets pose of IMU with respect to world frame
@@ -153,8 +154,8 @@ class ImuPreintegration {
   Params params_;            // class parameters
   bool first_window_{true};  // flag for first window between key frames
 
-  ImuState imu_state_i_;  // current key frame
-  ImuState imu_state_k_;  // intermediate frame
+  bs_common::ImuState imu_state_i_;  // current key frame
+  bs_common::ImuState imu_state_k_;  // intermediate frame
   bs_common::PreIntegrator
       pre_integrator_ij;  // preintegrate between key frames
   std::queue<bs_common::IMUData> imu_data_buffer_;  // store imu data

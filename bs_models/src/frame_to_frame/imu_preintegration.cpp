@@ -63,7 +63,7 @@ void ImuPreintegration::SetStart(
   }
 
   // set IMU state
-  ImuState imu_state_i(t_start);
+  bs_common::ImuState imu_state_i(t_start);
 
   if (R_WORLD_IMU) {
     imu_state_i.SetOrientation(R_WORLD_IMU->data());
@@ -86,9 +86,9 @@ void ImuPreintegration::SetStart(
   imu_state_k_ = imu_state_i_;
 }
 
-ImuState ImuPreintegration::PredictState(
+bs_common::ImuState ImuPreintegration::PredictState(
     const bs_common::PreIntegrator& pre_integrator,
-    const ImuState& imu_state_curr, const ros::Time& t_now) {
+    const bs_common::ImuState& imu_state_curr, const ros::Time& t_now) {
   // get commonly used variables
   double dt = pre_integrator.delta.t.toSec();
   const Eigen::Matrix3d& q_curr = imu_state_curr.OrientationMat();
@@ -108,14 +108,14 @@ ImuState ImuPreintegration::PredictState(
   }
 
   // return predicted IMU state
-  ImuState imu_state_new(t_new, q_new, p_new, v_new,
-                         imu_state_curr.GyroBiasVec(),
-                         imu_state_curr.AccelBiasVec());
+  bs_common::ImuState imu_state_new(t_new, q_new, p_new, v_new,
+                                    imu_state_curr.GyroBiasVec(),
+                                    imu_state_curr.AccelBiasVec());
   return imu_state_new;
 }
 
 Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
-    const ImuState& imu_state_new) {
+    const bs_common::ImuState& imu_state_new) {
   // get commonly used variables
   const Eigen::Matrix3d& q_curr_transpose =
       imu_state_i_.OrientationMat().transpose();
@@ -159,7 +159,7 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
                                     imu_state_i_.AccelBiasVec(), false, false);
 
   // predict state at end of window using integrated IMU measurements
-  ImuState imu_state_k =
+  bs_common::ImuState imu_state_k =
       PredictState(pre_integrator_interval, imu_state_k_, t_now);
   imu_state_k_ = std::move(imu_state_k);
 
@@ -213,7 +213,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
                               imu_state_i_.AccelBiasVec(), true, true);
 
   // predict state at end of window using integrated imu measurements
-  ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_, t_now);
+  bs_common::ImuState imu_state_j =
+      PredictState(pre_integrator_ij, imu_state_i_, t_now);
 
   // calculate relative change in imu state between key frames
   auto delta_ij = CalculateRelativeChange(imu_state_j);

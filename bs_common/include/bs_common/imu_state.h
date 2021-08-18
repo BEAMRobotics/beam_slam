@@ -9,8 +9,7 @@
 #include <bs_variables/accel_bias_3d_stamped.h>
 #include <bs_variables/gyro_bias_3d_stamped.h>
 
-namespace bs_models {
-namespace frame_to_frame {
+namespace bs_common {
 
 class ImuState {
  public:
@@ -237,5 +236,4 @@ class ImuState {
   bs_variables::AccelerationBias3DStamped accelbias_;
 };
 
-}  // namespace frame_to_frame
-}  // namespace bs_models
+}  // namespace bs_common

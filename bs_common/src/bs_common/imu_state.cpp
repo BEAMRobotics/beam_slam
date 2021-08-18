@@ -1,7 +1,6 @@
-#include <bs_models/frame_to_frame/imu_state.h>
+#include <bs_common/imu_state.h>
 
-namespace bs_models {
-namespace frame_to_frame {
+namespace bs_common {
 
 ImuState::ImuState(const ros::Time& time) : stamp_(time) {
   InstantiateVariables();
@@ -248,5 +247,4 @@ void ImuState::InstantiateVariables() {
       bs_variables::AccelerationBias3DStamped(stamp_, fuse_core::uuid::NIL);
 }
 
-}  // namespace frame_to_frame
-}  // namespace bs_models
+}  // namespace bs_common

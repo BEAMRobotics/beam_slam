@@ -8,6 +8,7 @@
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <beam_utils/math.h>
 
+using namespace bs_common;
 using namespace bs_constraints::frame_to_frame;
 using namespace bs_constraints::global;
 using namespace bs_models::frame_to_frame;

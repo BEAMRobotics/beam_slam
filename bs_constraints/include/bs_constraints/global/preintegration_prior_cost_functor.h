@@ -3,8 +3,8 @@
 #include <ceres/ceres.h>
 
 #include <bs_common/preintegrator.h>
+#include <bs_common/imu_state.h>
 #include <bs_constraints/frame_to_frame/preintegration_delta_cost_functor.h>
-#include <bs_models/frame_to_frame/imu_state.h>
 
 #include <beam_utils/math.h>
 
@@ -21,7 +21,8 @@ class PreIntegrationPriorCost
    * and current IMU states
    */
   PreIntegrationPriorCost(
-      const ImuState &imu_state_i, const ImuState &imu_state_j,
+      const bs_common::ImuState &imu_state_i,
+      const bs_common::ImuState &imu_state_j,
       const std::shared_ptr<bs_common::PreIntegrator> pre_integrator)
       : error(imu_state_i, imu_state_j, pre_integrator),
         imu_state_i_(imu_state_i) {}
@@ -54,5 +55,5 @@ class PreIntegrationPriorCost
 
  private:
   bs_constraints::frame_to_frame::PreIntegrationDeltaCost error;
-  const ImuState &imu_state_i_;
+  const bs_common::ImuState &imu_state_i_;
 };

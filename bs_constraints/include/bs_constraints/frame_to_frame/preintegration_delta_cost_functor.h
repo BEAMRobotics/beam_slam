@@ -3,7 +3,7 @@
 #include <ceres/ceres.h>
 
 #include <bs_common/preintegrator.h>
-#include <bs_models/frame_to_frame/imu_state.h>
+#include <bs_common/imu_state.h>
 
 #include <beam_utils/math.h>
 
@@ -20,7 +20,8 @@ class PreIntegrationDeltaCost
    * and current IMU states
    */
   PreIntegrationDeltaCost(
-      const ImuState &imu_state_i, const ImuState &imu_state_j,
+      const bs_common::ImuState &imu_state_i,
+      const bs_common::ImuState &imu_state_j,
       const std::shared_ptr<bs_common::PreIntegrator> pre_integrator)
       : imu_state_i_(imu_state_i),
         imu_state_j_(imu_state_j),
@@ -174,7 +175,7 @@ class PreIntegrationDeltaCost
   }
 
  private:
-  const ImuState &imu_state_i_;
-  const ImuState &imu_state_j_;
+  const bs_common::ImuState &imu_state_i_;
+  const bs_common::ImuState &imu_state_j_;
   std::shared_ptr<bs_common::PreIntegrator> pre_integrator_;
 };
