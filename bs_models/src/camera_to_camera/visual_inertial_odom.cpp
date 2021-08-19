@@ -41,6 +41,7 @@ void VisualInertialOdom::onInit() {
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   camera_params_.loadFromROS(private_node_handle_);
   global_params_.loadFromROS(private_node_handle_);
+
   /***********************************************************
    *  Load camera model, create visual map and pose refiner  *
    ***********************************************************/
@@ -50,6 +51,7 @@ void VisualInertialOdom::onInit() {
       cam_model_, camera_params_.source, camera_params_.num_features_to_track,
       camera_params_.keyframe_window_size);
   pose_refiner_ = bs_models::camera_to_camera::PoseRefiner();
+
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
@@ -62,6 +64,7 @@ void VisualInertialOdom::onInit() {
           camera_params_.num_features_to_track);
   tracker_ = std::make_shared<beam_cv::KLTracker>(detector, descriptor,
                                                   camera_params_.window_size);
+
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
@@ -126,6 +129,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     tracker_->AddImage(
         beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
         img_time);
+
     // process in initialization mode
     if (!initializer_->Initialized()) {
       if ((img_time - keyframes_.back().Stamp()).toSec() >= 1.0) {
@@ -145,6 +149,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       }
     } else { // process in odometry mode
       beam::HighResolutionTimer frame_timer;
+
       // localize frame
       beam::opt<Eigen::Matrix4d> T_WORLD_CAMERA =
           bs_models::camera_to_camera::LocalizeFrame(
@@ -155,11 +160,13 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       } else {
         // TODO: get pose from imu
       }
+
       // publish pose to odom topic
       geometry_msgs::PoseStamped pose;
       bs_common::TransformationMatrixToPoseMsg(T_WORLD_BASELINK, img_time,
                                                pose);
       init_odom_publisher_.publish(pose);
+
       // process keyframe
       if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
         // update keyframe info
@@ -269,8 +276,8 @@ bool VisualInertialOdom::IsKeyframe(const ros::Time& img_time,
   bool is_keyframe = false;
   if ((img_time - keyframes_.back().Stamp()).toSec() >=
           camera_params_.keyframe_min_time_in_seconds &&
-      beam::PassedMotionThreshold(T_WORLD_curkf, T_WORLD_BASELINK, 0.0, 0.05, true,
-                                  true, false)) {
+      beam::PassedMotionThreshold(T_WORLD_curkf, T_WORLD_BASELINK, 0.0, 0.05,
+                                  true, true, false)) {
     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
     is_keyframe = true;
   } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
@@ -366,12 +373,14 @@ void VisualInertialOdom::NotifyNewKeyframe(
   transaction->stamp(keyframes_.back().Stamp());
   visual_map_->AddPose(T_WORLD_CAMERA, keyframes_.back().Stamp(), transaction);
   sendTransaction(transaction);
+
   // build header message and publish for lidar slam
   std_msgs::Header keyframe_header;
   keyframe_header.stamp = keyframes_.back().Stamp();
   keyframe_header.frame_id = global_params_.baselink_frame;
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
+
   // make and publish reloc request
   RelocRequestMsg reloc_msg;
   reloc_msg.image = keyframes_.back().Image();
@@ -461,6 +470,5 @@ void VisualInertialOdom::PublishLandmarkIDs(const std::vector<uint64_t>& ids) {
   for (auto& id : ids) { landmark_msg.data.push_back(id); }
   landmark_publisher_.publish(landmark_msg);
 }
-
 
 }} // namespace bs_models::camera_to_camera

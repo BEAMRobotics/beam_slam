@@ -1,6 +1,6 @@
 #include <bs_models/camera_to_camera/utils.h>
 
-#include <bs_common/submap.h>
+#include <bs_common/current_submap.h>
 #include <beam_cv/matchers/Matchers.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 
@@ -63,7 +63,7 @@ std::map<uint64_t, Eigen::Vector3d> MatchFrameToCurrentSubmap(
     const ros::Time& frame_time) {
   // vector of poitns to return
   std::map<uint64_t, Eigen::Vector3d> matched_points;
-  bs_common::Submap& submap = bs_common::Submap::GetInstance();
+  bs_common::CurrentSubmap& submap = bs_common::CurrentSubmap::GetInstance();
   // get map points in current camera frame
   Eigen::Matrix4d T_WORLD_CAMERA =
       visual_map->GetCameraPose(frame_time).value();

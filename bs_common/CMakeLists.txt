@@ -54,7 +54,7 @@ add_library(${PROJECT_NAME}
   src/bs_common/pose_lookup.cpp
   src/bs_common/scan_pose.cpp
   src/bs_common/lidar_map.cpp
-  src/bs_common/submap.cpp
+  src/bs_common/current_submap.cpp
   src/bs_common/preintegrator.cpp
   src/bs_common/utils.cpp
   )

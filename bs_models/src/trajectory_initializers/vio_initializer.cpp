@@ -342,6 +342,8 @@ void VIOInitializer::OutputResults(
     pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);
     pcl::io::savePCDFileBinary(output_directory_ + "/points.pcd", points_cloud);
   }
+
+  // build submap and save to json file
 }
 
 void VIOInitializer::OutputFramePoses(
