@@ -189,15 +189,10 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     prior_covariance.setIdentity();
     prior_covariance *= params_.cov_prior_noise;
 
-    transaction.AddImuStatePrior(
-        imu_state_i_.Orientation(), imu_state_i_.Position(),
-        imu_state_i_.Velocity(), imu_state_i_.GyroBias(),
-        imu_state_i_.AccelBias(), prior_covariance, "FIRST_IMU_STATE_PRIOR");
+    transaction.AddPriorImuStateConstraint(imu_state_i_, prior_covariance,
+                                           "FIRST_IMU_STATE_PRIOR");
 
-    transaction.AddImuStateVariables(
-        imu_state_i_.Orientation(), imu_state_i_.Position(),
-        imu_state_i_.Velocity(), imu_state_i_.GyroBias(),
-        imu_state_i_.AccelBias(), imu_state_i_.Stamp());
+    transaction.AddImuStateVariables(imu_state_i_);
 
     first_window_ = false;
   }
@@ -216,31 +211,15 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   bs_common::ImuState imu_state_j =
       PredictState(pre_integrator_ij, imu_state_i_, t_now);
 
-  // calculate relative change in imu state between key frames
-  auto delta_ij = CalculateRelativeChange(imu_state_j);
-
-  // Determine covariance and ensure non-zero
-  Eigen::Matrix<double, 15, 15> covariance_ij{pre_integrator_ij.delta.cov};
-  if (covariance_ij.isZero(1e-9)) {
-    covariance_ij.setIdentity();
-    covariance_ij *= params_.cov_prior_noise;
-  }
-
   // make preintegrator a shared pointer for constraint
   auto pre_integrator =
       std::make_shared<bs_common::PreIntegrator>(pre_integrator_ij);
 
   // generate relative constraints between key frames
-  transaction.AddImuStateConstraint(
-      imu_state_i_.Orientation(), imu_state_j.Orientation(),
-      imu_state_i_.Position(), imu_state_j.Position(), imu_state_i_.Velocity(),
-      imu_state_j.Velocity(), imu_state_i_.GyroBias(), imu_state_j.GyroBias(),
-      imu_state_i_.AccelBias(), imu_state_j.AccelBias(), delta_ij,
-      covariance_ij, pre_integrator);
+  transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j,
+                                            pre_integrator);
 
-  transaction.AddImuStateVariables(
-      imu_state_j.Orientation(), imu_state_j.Position(), imu_state_j.Velocity(),
-      imu_state_j.GyroBias(), imu_state_j.AccelBias(), imu_state_j.Stamp());
+  transaction.AddImuStateVariables(imu_state_j);
 
   // update orientation and position of predicted imu state with arguments
   if (R_WORLD_IMU && t_WORLD_IMU) {

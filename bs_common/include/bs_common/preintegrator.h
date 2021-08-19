@@ -111,6 +111,14 @@ class PreIntegrator {
                  const Eigen::Vector3d& ba, bool compute_jacobian,
                  bool compute_covariance);
 
+  /**
+   * @brief Computes the square-root, inverted information matrix from the
+   * covariance matrix calculated during preintegration
+   */
+  void ComputeSqrtInvCov();
+
+  double cov_tol_{1e-9};  // tolarance on zero covariance matrix
+
   Eigen::Matrix3d cov_w;  // continuous noise covariance
   Eigen::Matrix3d cov_a;
   Eigen::Matrix3d cov_bg;  // continuous random walk noise covariance
@@ -119,13 +127,6 @@ class PreIntegrator {
   Delta delta;
   Jacobian jacobian;
   std::vector<IMUData> data;  // vector of imu data (buffer)
-
- private:
-  /**
-   * @brief Computes the square-root, inverted information matrix from the
-   * covariance matrix calculated during preintegration
-   */
-  void ComputeSqrtInvCov();
 };
 
 }  // namespace bs_common
