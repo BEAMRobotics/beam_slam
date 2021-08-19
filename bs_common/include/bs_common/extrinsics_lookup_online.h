@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bs_common/extrinsics_lookup_base.h>
+#include <bs_parameters/models/calibration_params.h>
 
 #include <Eigen/Dense>
 #include <tf/transform_listener.h>
@@ -251,6 +252,8 @@ class ExtrinsicsLookupOnline {
   bool LookupTransform(Eigen::Matrix4d& T, const std::string& to_frame,
                        const std::string& from_frame,
                        const ros::Time& time = ros::Time(0));
+
+  bs_parameters::models::CalibrationParams calibration_params_;
 
   tf::TransformListener tf_listener_;
 

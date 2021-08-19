@@ -24,7 +24,7 @@
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 #include <bs_parameters/models/camera_params.h>
-#include <bs_parameters/models/global_params.h>
+#include <bs_parameters/models/calibration_params.h>
 
 // libbeam
 #include <beam_calibration/CameraModel.h>
@@ -202,8 +202,8 @@ protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;
 
-  // global parameters
-  bs_parameters::models::GlobalParams global_params_;
+  // calibration parameters
+  bs_parameters::models::CalibrationParams calibration_params_;
 
   // subscribers
   ros::Subscriber image_subscriber_;
