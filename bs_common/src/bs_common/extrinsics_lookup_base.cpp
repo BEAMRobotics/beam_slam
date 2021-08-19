@@ -120,15 +120,15 @@ void ExtrinsicsLookupBase::SaveExtrinsicsToJson(const std::string& save_filename
   J_calibrations.push_back(J_lidar_imu);
 
   nlohmann::json J_lidar_camera;
-  J_lidar_imu["to_frame"] = frame_ids_.lidar;
-  J_lidar_imu["from_frame"] = frame_ids_.camera;
-  J_lidar_imu["transform"] = beam::EigenTransformToVector(T_LIDAR_CAMERA_);
+  J_lidar_camera["to_frame"] = frame_ids_.lidar;
+  J_lidar_camera["from_frame"] = frame_ids_.camera;
+  J_lidar_camera["transform"] = beam::EigenTransformToVector(T_LIDAR_CAMERA_);
   J_calibrations.push_back(J_lidar_camera);
 
   nlohmann::json J_imu_camera;
-  J_lidar_imu["to_frame"] = frame_ids_.imu;
-  J_lidar_imu["from_frame"] = frame_ids_.camera;
-  J_lidar_imu["transform"] = beam::EigenTransformToVector(T_IMU_CAMERA_);
+  J_imu_camera["to_frame"] = frame_ids_.imu;
+  J_imu_camera["from_frame"] = frame_ids_.camera;
+  J_imu_camera["transform"] = beam::EigenTransformToVector(T_IMU_CAMERA_);
   J_calibrations.push_back(J_imu_camera);
 
   J_out["calibrations"] = J_calibrations;
