@@ -1,11 +1,14 @@
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 
+#include <beam_cv/descriptors/Descriptor.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/utils.h>
 #include <bs_common/utils.h>
 #include <bs_models/camera_to_camera/utils.h>
 
 #include <boost/filesystem.hpp>
+
+#include <nlohmann/json.hpp>
 
 namespace bs_models { namespace camera_to_camera {
 
@@ -76,6 +79,7 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     OptimizeGraph();
     std::cout << "\n\nFrame poses after optimization:\n" << std::endl;
     OutputFramePoses(valid_frames);
+    OutputResults(valid_frames);
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
       // if failure to localize next frame then init is a failure
@@ -316,6 +320,7 @@ void VIOInitializer::OutputResults(
                 "Initializer results.");
     }
   } else {
+    nlohmann::json J;
     // add frame poses to cloud and save
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
     for (auto& f : frames) {
@@ -331,18 +336,33 @@ void VIOInitializer::OutputResults(
           visual_map_->GetLandmark(id);
       fuse_variables::Point3DFixedLandmark::SharedPtr flm =
           visual_map_->GetFixedLandmark(id);
+
+      // get first measurements descriptor
+      cv::Mat descriptor =
+          tracker_->GetDescriptor(tracker_->GetTrack(id)[0].time_point, id);
+      std::vector<float> descriptor_v = beam_cv::Descriptor::ConvertDescriptor(
+          descriptor, beam_cv::DescriptorType::ORB);
+
       if (lm) {
         pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
         points_cloud.points.push_back(p);
+        std::vector<double> point{lm->x(), lm->y(), lm->z()};
+        J["points"].push_back(point);
+        J["descriptors"].push_back(descriptor_v);
       } else if (flm) {
         pcl::PointXYZ p(flm->x(), flm->y(), flm->z());
         points_cloud.points.push_back(p);
+        std::vector<double> point{lm->x(), lm->y(), lm->z()};
+        J["points"].push_back(point);
+        J["descriptors"].push_back(descriptor_v);
       }
     }
     pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);
     pcl::io::savePCDFileBinary(output_directory_ + "/points.pcd", points_cloud);
+    std::string file_location = output_directory_ + "/init_submap.json";
+    std::ofstream out(file_location);
+    out << std::setw(4) << J << std::endl;
   }
-
   // build submap and save to json file
 }
 

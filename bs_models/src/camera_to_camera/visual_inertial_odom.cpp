@@ -55,10 +55,10 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
-  beam_cv::DescriptorType descriptor_type =
+  descriptor_type_ =
       beam_cv::DescriptorTypeStringMap[camera_params_.descriptor];
   std::shared_ptr<beam_cv::Descriptor> descriptor =
-      beam_cv::Descriptor::Create(descriptor_type);
+      beam_cv::Descriptor::Create(descriptor_type_);
   std::shared_ptr<beam_cv::Detector> detector =
       std::make_shared<beam_cv::GFTTDetector>(
           camera_params_.num_features_to_track);
@@ -447,9 +447,8 @@ void VisualInertialOdom::PublishSlamChunk() {
       LandmarkMeasurementMsg lm;
       lm.landmark_id = id;
       cv::Mat descriptor = tracker_->GetDescriptor(kf_to_publish, id);
-      std::vector<float> descriptor_v;
-      descriptor_v.assign((float*)descriptor.datastart,
-                          (float*)descriptor.dataend);
+      std::vector<float> descriptor_v =
+          beam_cv::Descriptor::ConvertDescriptor(descriptor, descriptor_type_);
       lm.descriptor = descriptor_v;
       Eigen::Vector2d pixel = tracker_->Get(kf_to_publish, id);
       lm.pixel_u = pixel[0];
