@@ -12,24 +12,25 @@ ExtrinsicsLookupOnline& ExtrinsicsLookupOnline::GetInstance() {
 }
 
 ExtrinsicsLookupOnline::ExtrinsicsLookupOnline() {
-  ExtrinsicsLookupBase::FrameIds frame_ids;
+  calibration_params_.loadFromROS();
 
-  // get parameters from global namespace
-  ros::param::get("~imu_frame", frame_ids.imu);
-  ros::param::get("~camera_frame", frame_ids.camera);
-  ros::param::get("~lidar_frame", frame_ids.lidar);
-  ros::param::get("~world_frame", frame_ids.world);
-  ros::param::get("~baselink_frame", frame_ids.baselink);
-  ros::param::get("~static_extrinsics", static_extrinsics_);
+  ExtrinsicsLookupBase::FrameIds frame_ids{
+      .imu = calibration_params_.imu_frame,
+      .camera = calibration_params_.camera_frame,
+      .lidar = calibration_params_.lidar_frame,
+      .world = calibration_params_.world_frame,
+      .baselink = calibration_params_.baselink_frame};  
 
   extrinsics_ = std::make_shared<ExtrinsicsLookupBase>(frame_ids);
 }
 
-void ExtrinsicsLookupOnline::SaveExtrinsicsToJson(const std::string& save_filename) {
+void ExtrinsicsLookupOnline::SaveExtrinsicsToJson(
+    const std::string& save_filename) {
   extrinsics_->SaveExtrinsicsToJson(save_filename);
 }
 
-void ExtrinsicsLookupOnline::SaveFrameIdsToJson(const std::string& save_filename) {
+void ExtrinsicsLookupOnline::SaveFrameIdsToJson(
+    const std::string& save_filename) {
   extrinsics_->SaveFrameIdsToJson(save_filename);
 }
 

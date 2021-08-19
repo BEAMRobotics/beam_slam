@@ -43,7 +43,7 @@ void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
 
 void GlobalMapper::onInit() {
   params_.loadFromROS(private_node_handle_);
-  global_params_.loadFromROS(private_node_handle_);
+  calibration_params_.loadFromROS();
 }
 
 void GlobalMapper::onStart() {
@@ -52,7 +52,8 @@ void GlobalMapper::onStart() {
                                        &throttled_callback_);
   // get intrinsics
   std::shared_ptr<beam_calibration::CameraModel> camera_model =
-      beam_calibration::CameraModel::Create(global_params_.cam_intrinsics_path);
+      beam_calibration::CameraModel::Create(
+          calibration_params_.cam_intrinsics_path);
 
   // get extrinsics
   extrinsics_data_ = std::make_shared<bs_common::ExtrinsicsLookupBase>(

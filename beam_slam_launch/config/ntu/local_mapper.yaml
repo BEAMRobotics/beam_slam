@@ -1,20 +1,6 @@
-## global parameters: These will be used in multiple locations
-
-# optimization params
+## optimization params - these can be accessed by anything under the namespace /fixed_lag_smoother
 optimization_frequency: 1
 lag_duration: 5
-
-# frames
-imu_frame: "imu"
-lidar_frame: "lidar_horz"
-camera_frame: "camera_left"
-world_frame: "world"
-baselink_frame: "imu"
-
-# calibrations
-static_extrinsics: true,
-camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/ntu/camera.json"
-imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/ntu/imu.json"
 
 ## model plugins: declare all plugins to use and give a unique name
 
