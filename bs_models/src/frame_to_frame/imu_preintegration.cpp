@@ -90,7 +90,7 @@ bs_common::ImuState ImuPreintegration::PredictState(
     const bs_common::PreIntegrator& pre_integrator,
     const bs_common::ImuState& imu_state_curr, const ros::Time& t_now) {
   // get commonly used variables
-  double dt = pre_integrator.delta.t.toSec();
+  const double& dt = pre_integrator.delta.t.toSec();
   const Eigen::Matrix3d& q_curr = imu_state_curr.OrientationMat();
 
   // predict new states
@@ -112,30 +112,6 @@ bs_common::ImuState ImuPreintegration::PredictState(
                                     imu_state_curr.GyroBiasVec(),
                                     imu_state_curr.AccelBiasVec());
   return imu_state_new;
-}
-
-Eigen::Matrix<double, 16, 1> ImuPreintegration::CalculateRelativeChange(
-    const bs_common::ImuState& imu_state_new) {
-  // get commonly used variables
-  const Eigen::Matrix3d& q_curr_transpose =
-      imu_state_i_.OrientationMat().transpose();
-
-  // calculate relative change
-  Eigen::Quaterniond q_delta(q_curr_transpose * imu_state_new.OrientationMat());
-  Eigen::Vector3d p_delta = q_curr_transpose * (imu_state_new.PositionVec() -
-                                                imu_state_i_.PositionVec());
-  Eigen::Vector3d v_delta = q_curr_transpose * (imu_state_new.VelocityVec() -
-                                                imu_state_i_.VelocityVec());
-  Eigen::Vector3d bias_gyro_delta =
-      imu_state_new.GyroBiasVec() - imu_state_i_.GyroBiasVec();
-  Eigen::Vector3d bias_accel_delta =
-      imu_state_new.AccelBiasVec() - imu_state_i_.AccelBiasVec();
-
-  // return delta
-  Eigen::Matrix<double, 16, 1> delta;
-  delta << q_delta.w(), q_delta.vec(), p_delta, v_delta, bias_gyro_delta,
-      bias_accel_delta;
-  return delta;
 }
 
 bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
@@ -203,7 +179,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     imu_data_buffer_.pop();
   }
 
-  // integrate between key frames
+  // integrate between key frames, incrementally calculating covariance and
+  // jacobians
   pre_integrator_ij.Integrate(t_now, imu_state_i_.GyroBiasVec(),
                               imu_state_i_.AccelBiasVec(), true, true);
 

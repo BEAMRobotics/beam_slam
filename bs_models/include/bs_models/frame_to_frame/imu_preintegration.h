@@ -75,9 +75,9 @@ class ImuPreintegration {
 
   /**
    * @brief Sets the initial IMU state with respect to world frame
-   * @param t_starttime of initial IMU state
+   * @param t_start time of initial IMU state
    * @param R_WORLD_IMU orientation of initial IMU state (if null set to id.)
-   * @param t_WORLD_IMU position of initial IMU state (if nullset to zero)
+   * @param t_WORLD_IMU position of initial IMU state (if null set to zero)
    * @param velocity velocity of initial IMU state (if null set to zero)
    */
   void SetStart(
@@ -98,14 +98,6 @@ class ImuPreintegration {
       const bs_common::PreIntegrator& pre_integrator,
       const bs_common::ImuState& imu_state_curr,
       const ros::Time& t_now = ros::Time(0));
-
-  /**
-   * @brief Calculates relative change between new and current IMU states
-   * @param imu_state_new new IMU state
-   * @return delta vector in order [q, p, v, bg, ba]
-   */
-  Eigen::Matrix<double, 16, 1> CalculateRelativeChange(
-      const bs_common::ImuState& imu_state_new);
 
   /**
    * @brief Gets current IMU state, which is the last registered key frame
