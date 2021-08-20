@@ -17,14 +17,14 @@ class Data {
  public:
   Data() {
     // generate measurements on IMU state
-    Eigen::Quaterniond q_quat(1.0, 0.0, 0.0, 0.0);
-    Eigen::Vector3d p_vec(1.0, 2.0, 3.0);
-    Eigen::Vector3d v_vec(1.0, 2.0, 3.0);
-    Eigen::Vector3d bg_vec(0.1, 0.2, 0.3);
-    Eigen::Vector3d ba_vec(0.1, 0.2, 0.3);
+    Eigen::Quaterniond q_quat(0.952, 0.038, -0.189, 0.239);
+    Eigen::Vector3d p_vec(1.5, -3.0, 10.0);
+    Eigen::Vector3d v_vec(1.5, -3.0, 10.0);
+    Eigen::Vector3d bg_vec(0.15, -0.30, 1.0);
+    Eigen::Vector3d ba_vec(0.15, -0.30, 1.0);
 
     // populate IMU state with measurements
-    ros::Time stamp = ros::Time(1234, 5678);
+    ros::Time stamp = ros::Time(1, 0);
     bs_common::ImuState tmp(stamp, q_quat, p_vec, v_vec, bg_vec, ba_vec);
     imu_state = std::move(tmp);
 
@@ -32,23 +32,21 @@ class Data {
     mean << q_quat.w(), q_quat.vec(), p_vec, v_vec, bg_vec, ba_vec;
 
     // clang-format off
-    // Generated PD matrix using Octave: R = rand(15, 15); A = R * R' (use format long g to get the required precision)
-    cov << 
-      5.5165988279, 4.0920785731, 4.5353194492, 3.9147668573, 3.4503533721, 4.0809815566, 3.6977042284, 4.6219832603, 4.7697473290, 4.6700232116, 3.0295792180, 3.4228667454, 5.3123614126, 3.9579995536, 3.9758866470,
-      4.0920785731, 4.9912686190, 3.2719101722, 3.6587999231, 2.8949346773, 4.1386316339, 3.3628533116, 3.2393099362, 4.4176311649, 4.1573976182, 2.5700883009, 3.1086510531, 4.3918109384, 3.2158738411, 4.0209533734,
-      4.5353194492, 3.2719101722, 5.3352853791, 4.2456729101, 3.3104551942, 3.2019919287, 3.9431094640, 4.1156702411, 4.8226689134, 4.6960233501, 3.6300629881, 3.4161050839, 5.0461351255, 4.3989509370, 3.2300508874,
-      3.9147668573, 3.6587999231, 4.2456729101, 4.7566000840, 3.2223410183, 3.3787324525, 3.2176565831, 3.5363966070, 4.8439417530, 3.9209165267, 2.7628716045, 3.1120315851, 4.6932292978, 3.5715506578, 3.5515560550,
-      3.4503533721, 2.8949346773, 3.3104551942, 3.2223410183, 3.1548446899, 2.9983788638, 2.7492381552, 3.1539654643, 3.6707299955, 3.1325416500, 2.5090056117, 2.2634890365, 3.8945441300, 2.5589761003, 2.9551312449,
-      4.0809815566, 4.1386316339, 3.2019919287, 3.3787324525, 2.9983788638, 4.8158857490, 2.8312898852, 3.4854024003, 4.2220605650, 4.5021390274, 2.8471831112, 2.9159393801, 3.9622769359, 3.4269865189, 4.1649514254,
-      3.6977042284, 3.3628533116, 3.9431094640, 3.2176565831, 2.7492381552, 2.8312898852, 4.6461333896, 3.7925918936, 4.8257327333, 3.7641556270, 3.1444868558, 3.2152233661, 4.2080836233, 3.8009955144, 2.5738179376,
-      4.6219832603, 3.2393099362, 4.1156702411, 3.5363966070, 3.1539654643, 3.4854024003, 3.7925918936, 5.0794711253, 4.9846867932, 4.0662620555, 3.4390257612, 3.1657614352, 4.4588984789, 3.8174463423, 3.4959320122,
-      4.7697473290, 4.4176311649, 4.8226689134, 4.8439417530, 3.6707299955, 4.2220605650, 4.8257327333, 4.9846867932, 6.5621161761, 5.1442730425, 3.8398093098, 3.8948878877, 5.7955658147, 4.8876594732, 4.4084558238,
-      4.6700232116, 4.1573976182, 4.6960233501, 3.9209165267, 3.1325416500, 4.5021390274, 3.7641556270, 4.0662620555, 5.1442730425, 6.2415142871, 3.5054322622, 4.0392086198, 4.9476688261, 4.5164750574, 4.4459634520,
-      3.0295792180, 2.5700883009, 3.6300629881, 2.7628716045, 2.5090056117, 2.8471831112, 3.1444868558, 3.4390257612, 3.8398093098, 3.5054322622, 3.7180570703, 2.4676128781, 3.1521821278, 3.4139055574, 2.6214054991,
-      3.4228667454, 3.1086510531, 3.4161050839, 3.1120315851, 2.2634890365, 2.9159393801, 3.2152233661, 3.1657614352, 3.8948878877, 4.0392086198, 2.4676128781, 3.5666671828, 3.3938678992, 2.8491591911, 3.0973321995,
-      5.3123614126, 4.3918109384, 5.0461351255, 4.6932292978, 3.8945441300, 3.9622769359, 4.2080836233, 4.4588984789, 5.7955658147, 4.9476688261, 3.1521821278, 3.3938678992, 7.1778928469, 4.4108531520, 4.7505196128,
-      3.9579995536, 3.2158738411, 4.3989509370, 3.5715506578, 2.5589761003, 3.4269865189, 3.8009955144, 3.8174463423, 4.8876594732, 4.5164750574, 3.4139055574, 2.8491591911, 4.4108531520, 5.2335226389, 3.3119965472,
-      3.9758866470, 4.0209533734, 3.2300508874, 3.5515560550, 2.9551312449, 4.1649514254, 2.5738179376, 3.4959320122, 4.4084558238, 4.4459634520, 2.6214054991, 3.0973321995, 4.7505196128, 3.3119965472, 4.9944254214;
+    cov << 1.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,  1.0,  1.1,  1.2,  1.3,  1.4,
+           0.1, 2.0, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8,  0.7,  0.6,  0.5,  0.4,  0.3,
+           0.2, 1.5, 3.0, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9,  0.8,  0.7,  0.6,  0.5,  0.4,
+           0.3, 1.4, 1.5, 4.0, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0,  0.9,  0.8,  0.7,  0.6,  0.5,
+           0.4, 1.3, 1.4, 1.5, 5.0, 1.5, 1.4, 1.3, 1.2, 1.1,  1.0,  0.9,  0.8,  0.7,  0.6,
+           0.5, 1.2, 1.3, 1.4, 1.5, 6.0, 1.5, 1.4, 1.3, 1.2,  1.1,  1.0,  0.9,  0.8,  0.7,
+           0.6, 1.1, 1.2, 1.3, 1.4, 1.5, 7.0, 1.5, 1.4, 1.3,  1.2,  1.1,  1.0,  0.9,  0.8,
+           0.7, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 8.0, 1.5, 1.4,  1.3,  1.2,  1.1,  1.0,  0.9,
+           0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 9.0, 1.5,  1.4,  1.3,  1.2,  1.1,  1.0,
+           0.9, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 10.0, 1.5,  1.4,  1.3,  1.2,  1.1,
+           1.0, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5,  11.0, 1.5,  1.4,  1.3,  1.2,
+           1.1, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4,  1.5,  12.0, 1.5,  1.4,  1.3,
+           1.2, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3,  1.4,  1.5,  13.0, 1.5,  1.4,
+           1.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2,  1.3,  1.4,  1.5,  14.0, 1.5,
+           1.4, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1,  1.2,  1.3,  1.4,  1.5,  15.0;
     // clang-format on
 
     absolute_imu_state_constraint = std::make_shared<
@@ -87,61 +85,27 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
   expected value and covariance are generated. Create the variables
   */
 
-  // generate measurements on IMU state
-  Eigen::Quaterniond q_quat(0.952, 0.038, -0.189, 0.239);
-  Eigen::Vector3d p_vec(1.5, -3.0, 10.0);
-  Eigen::Vector3d v_vec(1.5, -3.0, 10.0);
-  Eigen::Vector3d bg_vec(0.15, -0.30, 1.0);
-  Eigen::Vector3d ba_vec(0.15, -0.30, 1.0);
-
-  // populate IMU state with measurements
-  ros::Time stamp = ros::Time(1, 0);
-  bs_common::ImuState imu_state(stamp, q_quat, p_vec, v_vec, bg_vec, ba_vec);
-
   // extract fuse/beam variables
   auto orientation_variable = fuse_variables::Orientation3DStamped::make_shared(
-      imu_state.Orientation());
+      data_.imu_state.Orientation());
 
-  auto position_variable =
-      fuse_variables::Position3DStamped::make_shared(imu_state.Position());
+  auto position_variable = fuse_variables::Position3DStamped::make_shared(
+      data_.imu_state.Position());
 
   auto velocity_variable = fuse_variables::VelocityLinear3DStamped::make_shared(
-      imu_state.Velocity());
+      data_.imu_state.Velocity());
 
-  auto gyro_bias_variable =
-      bs_variables::GyroscopeBias3DStamped::make_shared(imu_state.GyroBias());
+  auto gyro_bias_variable = bs_variables::GyroscopeBias3DStamped::make_shared(
+      data_.imu_state.GyroBias());
 
   auto accel_bias_variable =
       bs_variables::AccelerationBias3DStamped::make_shared(
-          imu_state.AccelBias());
+          data_.imu_state.AccelBias());
 
   // Create an absolute pose constraint
-  Eigen::Matrix<double, 16, 1> mean;
-  mean << 1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 0.1, 0.2, 0.3, 0.1,
-      0.2, 0.3;
-
-  // clang-format off
-  Eigen::Matrix<double, 15, 15> cov;
-  cov << 1.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,  1.0,  1.1,  1.2,  1.3,  1.4,
-         0.1, 2.0, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8,  0.7,  0.6,  0.5,  0.4,  0.3,
-         0.2, 1.5, 3.0, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9,  0.8,  0.7,  0.6,  0.5,  0.4,
-         0.3, 1.4, 1.5, 4.0, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0,  0.9,  0.8,  0.7,  0.6,  0.5,
-         0.4, 1.3, 1.4, 1.5, 5.0, 1.5, 1.4, 1.3, 1.2, 1.1,  1.0,  0.9,  0.8,  0.7,  0.6,
-         0.5, 1.2, 1.3, 1.4, 1.5, 6.0, 1.5, 1.4, 1.3, 1.2,  1.1,  1.0,  0.9,  0.8,  0.7,
-         0.6, 1.1, 1.2, 1.3, 1.4, 1.5, 7.0, 1.5, 1.4, 1.3,  1.2,  1.1,  1.0,  0.9,  0.8,
-         0.7, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 8.0, 1.5, 1.4,  1.3,  1.2,  1.1,  1.0,  0.9,
-         0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 9.0, 1.5,  1.4,  1.3,  1.2,  1.1,  1.0,
-         0.9, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 10.0, 1.5,  1.4,  1.3,  1.2,  1.1,
-         1.0, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5,  11.0, 1.5,  1.4,  1.3,  1.2,
-         1.1, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4,  1.5,  12.0, 1.5,  1.4,  1.3,
-         1.2, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3,  1.4,  1.5,  13.0, 1.5,  1.4,
-         1.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2,  1.3,  1.4,  1.5,  14.0, 1.5,
-         1.4, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1,  1.2,  1.3,  1.4,  1.5,  15.0;
-  // clang-format on
-
   auto constraint =
       bs_constraints::global::AbsoluteImuState3DStampedConstraint::make_shared(
-          "test", imu_state, mean, cov);
+          "test", data_.imu_state, data_.mean, data_.cov);
 
   // Build the problem
   ceres::Problem::Options problem_options;
@@ -180,22 +144,22 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
   ceres::Solve(options, &problem, &summary);
 
   // Check
-  EXPECT_NEAR(1.0, orientation_variable->w(), 1.0e-3);
-  EXPECT_NEAR(0.0, orientation_variable->x(), 1.0e-3);
-  EXPECT_NEAR(0.0, orientation_variable->y(), 1.0e-3);
-  EXPECT_NEAR(0.0, orientation_variable->z(), 1.0e-3);
-  EXPECT_NEAR(1.0, position_variable->x(), 1.0e-5);
-  EXPECT_NEAR(2.0, position_variable->y(), 1.0e-5);
-  EXPECT_NEAR(3.0, position_variable->z(), 1.0e-5);
-  EXPECT_NEAR(1.0, velocity_variable->x(), 1.0e-5);
-  EXPECT_NEAR(2.0, velocity_variable->y(), 1.0e-5);
-  EXPECT_NEAR(3.0, velocity_variable->z(), 1.0e-5);
-  EXPECT_NEAR(0.1, gyro_bias_variable->x(), 1.0e-5);
-  EXPECT_NEAR(0.2, gyro_bias_variable->y(), 1.0e-5);
-  EXPECT_NEAR(0.3, gyro_bias_variable->z(), 1.0e-5);
-  EXPECT_NEAR(0.1, accel_bias_variable->x(), 1.0e-5);
-  EXPECT_NEAR(0.2, accel_bias_variable->y(), 1.0e-5);
-  EXPECT_NEAR(0.3, accel_bias_variable->z(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[0], orientation_variable->w(), 1.0e-3);
+  EXPECT_NEAR(data_.mean[1], orientation_variable->x(), 1.0e-3);
+  EXPECT_NEAR(data_.mean[2], orientation_variable->y(), 1.0e-3);
+  EXPECT_NEAR(data_.mean[3], orientation_variable->z(), 1.0e-3);
+  EXPECT_NEAR(data_.mean[4], position_variable->x(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[5], position_variable->y(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[6], position_variable->z(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[7], velocity_variable->x(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[8], velocity_variable->y(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[9], velocity_variable->z(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[10], gyro_bias_variable->x(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[11], gyro_bias_variable->y(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[12], gyro_bias_variable->z(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[13], accel_bias_variable->x(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[14], accel_bias_variable->y(), 1.0e-5);
+  EXPECT_NEAR(data_.mean[15], accel_bias_variable->z(), 1.0e-5);
 
   // Compute the covariance
   std::vector<std::pair<const double *, const double *>> covariance_blocks;
@@ -325,8 +289,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
       cov_ba_ba;
 
   // Define the expected covariance
-  Eigen::Matrix<double, 15, 15> expected_covariance;
-  expected_covariance = cov;
+  Eigen::Matrix<double, 15, 15> expected_covariance{data_.cov};
 
   EXPECT_MATRIX_NEAR(expected_covariance, actual_covariance, 1.0e-5);
 }
