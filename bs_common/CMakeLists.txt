@@ -67,12 +67,26 @@ target_link_libraries(
     ${catkin_LIBRARIES}
     ${tf_LIBRARIES}
     beam::utils
+    beam::matching
   )
 
 #############
 ## Testing ##
 #############
 if(CATKIN_ENABLE_TESTING)
+  # Imu State tests
+  catkin_add_gtest(imu_state_tests_tests 
+    tests/imu_state_tests.cpp
+  )
+  target_link_libraries(imu_state_tests_tests 
+    ${PROJECT_NAME}
+  )
+  set_target_properties(imu_state_tests_tests 
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )  
+
   add_executable(${PROJECT_NAME}_scan_pose_tests 
     tests/scan_pose_tests.cpp)
   target_link_libraries(${PROJECT_NAME}_scan_pose_tests 
