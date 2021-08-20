@@ -12,6 +12,7 @@
   "max_correspondence_distance": 0.5,
   "validate_correspondences": false,
   "iterate_correspondences": true,
+  "min_number_measurements": 30,
   "convergence_criteria_translation_m": 0.001,
   "convergence_criteria_rotation_deg": 1,
   "max_correspondence_iterations": 5,
