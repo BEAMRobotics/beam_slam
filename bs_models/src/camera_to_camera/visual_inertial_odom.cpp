@@ -22,7 +22,8 @@
 PLUGINLIB_EXPORT_CLASS(bs_models::camera_to_camera::VisualInertialOdom,
                        fuse_core::SensorModel)
 
-namespace bs_models { namespace camera_to_camera {
+namespace bs_models {
+namespace camera_to_camera {
 
 VisualInertialOdom::VisualInertialOdom()
     : fuse_core::AsyncSensorModel(1),
@@ -36,7 +37,7 @@ void VisualInertialOdom::onInit() {
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   camera_params_.loadFromROS(private_node_handle_);
-  global_params_.loadFromROS(private_node_handle_);
+  calibration_params_.loadFromROS();
   /***********************************************************
    *       Initialize pose refiner object with params        *
    ***********************************************************/
@@ -54,8 +55,8 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *        Load camera model and Create Map object          *
    ***********************************************************/
-  cam_model_ =
-      beam_calibration::CameraModel::Create(global_params_.cam_intrinsics_path);
+  cam_model_ = beam_calibration::CameraModel::Create(
+      calibration_params_.cam_intrinsics_path);
   visual_map_ = std::make_shared<VisualMap>(
       cam_model_, camera_params_.source, camera_params_.num_features_to_track,
       camera_params_.keyframe_window_size);
@@ -77,7 +78,7 @@ void VisualInertialOdom::onInit() {
    *               Create initializer object                 *
    ***********************************************************/
   nlohmann::json J;
-  std::ifstream file(global_params_.imu_intrinsics_path);
+  std::ifstream file(calibration_params_.imu_intrinsics_path);
   file >> J;
   initializer_ = std::make_shared<bs_models::camera_to_camera::VIOInitializer>(
       cam_model_, tracker_, J["cov_gyro_noise"], J["cov_accel_noise"],
@@ -162,7 +163,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
           ROS_INFO("Initialization Failure: %f", img_time.toSec());
         }
       }
-    } else { // process in odometry mode
+    } else {  // process in odometry mode
       beam::HighResolutionTimer frame_timer;
       // localize frame
       std::vector<uint64_t> triangulated_ids;
@@ -281,7 +282,7 @@ void VisualInertialOdom::SendInitializationGraph(
   // announce the first keyframe
   std_msgs::Header keyframe_header;
   keyframe_header.stamp = keyframes_.back().Stamp();
-  keyframe_header.frame_id = global_params_.baselink_frame;
+  keyframe_header.frame_id = calibration_params_.baselink_frame;
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
   // publish landmarks
@@ -412,7 +413,8 @@ void VisualInertialOdom::ExtendMap(
         visual_map_->AddConstraint(prev_kf_time, id, pixel_prv_kf, transaction);
         visual_map_->AddConstraint(cur_kf_time, id, pixel_cur_kf, transaction);
       }
-    } catch (const std::out_of_range& oor) {}
+    } catch (const std::out_of_range& oor) {
+    }
   }
   ROS_INFO("Added %zu new landmarks.", new_landmarks.size());
   // add inertial constraint
@@ -449,7 +451,7 @@ void VisualInertialOdom::NotifyNewKeyframe(
   // build header message and publish for lidar slam
   std_msgs::Header keyframe_header;
   keyframe_header.stamp = keyframes_.back().Stamp();
-  keyframe_header.frame_id = global_params_.baselink_frame;
+  keyframe_header.frame_id = calibration_params_.baselink_frame;
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
   // make and publish reloc request
@@ -469,11 +471,15 @@ void VisualInertialOdom::NotifyNewKeyframe(
 
 void VisualInertialOdom::PublishSlamChunk() {
   // this just makes sure the visual map has the most recent variables
-  for (auto& kf : keyframes_) { visual_map_->GetPose(kf.Stamp()); }
+  for (auto& kf : keyframes_) {
+    visual_map_->GetPose(kf.Stamp());
+  }
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size - 1) {
     // remove keyframe placeholder if first keyframe
-    if (keyframes_.front().Stamp() == ros::Time(0)) { keyframes_.pop_front(); }
+    if (keyframes_.front().Stamp() == ros::Time(0)) {
+      keyframes_.pop_front();
+    }
     // build slam chunk
     SlamChunkMsg slam_chunk;
     // stamp
@@ -503,7 +509,9 @@ void VisualInertialOdom::PublishSlamChunk() {
       ros::Time stamp;
       stamp.fromNSec(it.first);
       trajectory.stamps.push_back(stamp.toSec());
-      for (auto& x : pose) { trajectory.poses.push_back(x); }
+      for (auto& x : pose) {
+        trajectory.poses.push_back(x);
+      }
     }
     slam_chunk.trajectory_measurement = trajectory;
     // camera measurements
@@ -536,7 +544,9 @@ void VisualInertialOdom::PublishSlamChunk() {
 
 void VisualInertialOdom::PublishLandmarkIDs(const std::vector<uint64_t>& ids) {
   std_msgs::UInt64MultiArray landmark_msg;
-  for (auto& id : ids) { landmark_msg.data.push_back(id); }
+  for (auto& id : ids) {
+    landmark_msg.data.push_back(id);
+  }
   landmark_publisher_.publish(landmark_msg);
 }
 
@@ -551,7 +561,8 @@ double VisualInertialOdom::ComputeAvgParallax(
       Eigen::Vector2d p2 = tracker_->Get(t2, id);
       double dist = beam::distance(p1, p2);
       parallaxes.push_back(dist);
-    } catch (const std::out_of_range& oor) {}
+    } catch (const std::out_of_range& oor) {
+    }
   }
   // sort and find median parallax
   std::sort(parallaxes.begin(), parallaxes.end());
@@ -559,8 +570,8 @@ double VisualInertialOdom::ComputeAvgParallax(
 }
 
 std::vector<beam::opt<Eigen::Vector3d>>
-    VisualInertialOdom::MatchKeyframeToSubmap(
-        const std::vector<uint64_t>& untriangulated_ids) {
+VisualInertialOdom::MatchKeyframeToSubmap(
+    const std::vector<uint64_t>& untriangulated_ids) {
   /* TODO:
    * 1. get all visual map points in current frame
    * 2. project all points into image to get list of keypoints
@@ -571,4 +582,5 @@ std::vector<beam::opt<Eigen::Vector3d>>
    */
 }
 
-}} // namespace bs_models::camera_to_camera
+}  // namespace camera_to_camera
+}  // namespace bs_models

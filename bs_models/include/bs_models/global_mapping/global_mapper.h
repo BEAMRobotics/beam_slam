@@ -7,7 +7,7 @@
 #include <bs_models/SlamChunkMsg.h>
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_parameters/models/global_mapper_params.h>
-#include <bs_parameters/models/global_params.h>
+#include <bs_parameters/models/calibration_params.h>
 
 namespace bs_models {
 namespace global_mapping {
@@ -71,7 +71,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
 
   fuse_core::UUID device_id_;  //!< The UUID of this device
   bs_parameters::models::GlobalMapperParams params_;
-  bs_parameters::models::GlobalParams global_params_;
+  bs_parameters::models::CalibrationParams calibration_params_;
   std::unique_ptr<GlobalMap> global_map_;
 
   using ThrottledCallback = fuse_core::ThrottledMessageCallback<SlamChunkMsg>;

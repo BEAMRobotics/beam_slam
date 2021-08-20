@@ -1,20 +1,3 @@
-## global parameters: These will be used in multiple locations
-
-# optimization params
-optimization_frequency: 0.2 
-
-# frames
-imu_frame: "imu"
-lidar_frame: "velodyne"
-camera_frame: "camera"
-world_frame: "world"
-baselink_frame: "camera"
-
-# calibrations
-static_extrinsics: true,
-camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
-imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
-
 ## model plugins: declare all plugins to use and give a unique name
 
 sensor_models:

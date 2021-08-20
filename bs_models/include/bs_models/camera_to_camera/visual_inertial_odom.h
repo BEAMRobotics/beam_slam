@@ -17,14 +17,14 @@
 #include <fuse_core/throttled_callback.h>
 
 // beam_slam
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/camera_to_camera/visual_submap.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 #include <bs_parameters/models/camera_params.h>
-#include <bs_parameters/models/global_params.h>
+#include <bs_parameters/models/calibration_params.h>
 
 // libbeam
 #include <beam_calibration/CameraModel.h>
@@ -202,8 +202,8 @@ protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;
 
-  // global parameters
-  bs_parameters::models::GlobalParams global_params_;
+  // calibration parameters
+  bs_parameters::models::CalibrationParams calibration_params_;
 
   // subscribers
   ros::Subscriber image_subscriber_;
@@ -247,8 +247,8 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
 }} // namespace bs_models::camera_to_camera
