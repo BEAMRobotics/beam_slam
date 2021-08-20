@@ -287,11 +287,12 @@ std::vector<PointCloud> Submap::GetLidarPointsInWorldFrame(
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
     const PointCloud& cloud_scanframe = it->second.Cloud();
-    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
     Eigen::Matrix4d T_WORLD_SCAN;
     if (use_initial_world_frame) {
+      const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR_INIT();
       T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
     } else {
+      Eigen::Matrix4d T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
       T_WORLD_SCAN = T_WORLD_SUBMAP_ * T_SUBMAP_SCAN;
     }
 
