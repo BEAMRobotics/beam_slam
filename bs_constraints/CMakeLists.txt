@@ -71,6 +71,7 @@ target_link_libraries(${PROJECT_NAME}
   ${CERES_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   beam::calibration
+  beam::matching
   beam::optimization
 )
 
@@ -111,27 +112,27 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD_REQUIRED YES
   )
 
-  # Relative Imu State 3D Stamped Constraint Tests
-  catkin_add_gtest(test_relative_imu_state_3d_stamped_constraint
-    tests/test_relative_imu_state_3d_stamped_constraint.cpp
-  )
-  add_dependencies(test_relative_imu_state_3d_stamped_constraint
-    ${catkin_EXPORTED_TARGETS}
-  )
-  target_include_directories(test_relative_imu_state_3d_stamped_constraint
-    PRIVATE
-      include
-      ${catkin_INCLUDE_DIRS}
-      ${CERES_INCLUDE_DIRS}
-  )
-  target_link_libraries(test_relative_imu_state_3d_stamped_constraint
-    ${PROJECT_NAME}
-    ${catkin_LIBRARIES}
-    ${CERES_LIBRARIES}
-  )
-  set_target_properties(test_relative_imu_state_3d_stamped_constraint
-    PROPERTIES
-      CXX_STANDARD 14
-      CXX_STANDARD_REQUIRED YES
-  )
+  # # Relative Imu State 3D Stamped Constraint Tests
+  # catkin_add_gtest(test_relative_imu_state_3d_stamped_constraint
+  #   tests/test_relative_imu_state_3d_stamped_constraint.cpp
+  # )
+  # add_dependencies(test_relative_imu_state_3d_stamped_constraint
+  #   ${catkin_EXPORTED_TARGETS}
+  # )
+  # target_include_directories(test_relative_imu_state_3d_stamped_constraint
+  #   PRIVATE
+  #     include
+  #     ${catkin_INCLUDE_DIRS}
+  #     ${CERES_INCLUDE_DIRS}
+  # )
+  # target_link_libraries(test_relative_imu_state_3d_stamped_constraint
+  #   ${PROJECT_NAME}
+  #   ${catkin_LIBRARIES}
+  #   ${CERES_LIBRARIES}
+  # )
+  # set_target_properties(test_relative_imu_state_3d_stamped_constraint
+  #   PROPERTIES
+  #     CXX_STANDARD 14
+  #     CXX_STANDARD_REQUIRED YES
+  # )
 endif()
