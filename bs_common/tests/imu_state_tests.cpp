@@ -1,9 +1,8 @@
 #include <gtest/gtest.h>
 
-#include <bs_common/utils.h>
 #include <bs_common/imu_state.h>
 
-TEST(ImuPreintegration, ImuState) {
+TEST(ImuState, ImuState) {
   // create arbitrary state values
   Eigen::Quaterniond q_quat{Eigen::Quaterniond::UnitRandom()};
   Eigen::Vector3d p_vec{1, 2, 3};
