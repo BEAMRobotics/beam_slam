@@ -120,6 +120,15 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
 
   int counter = 0;
   int num_constraints = 0;
+
+  // open output file
+  std::ofstream measurements_file;
+  if (output_scan_registration_results_) {
+    measurements_file.open(tmp_output_path_ + "absolute_pose_measurements.txt");
+    measurements_file << "New Scan Stamp: " << new_scan.Stamp().sec << "."
+                      << new_scan.Stamp().nsec << "\n\n";
+  }
+
   for (auto ref_iter = reference_clouds_.begin();
        ref_iter != reference_clouds_.end(); ref_iter++) {
     counter++;
@@ -127,23 +136,23 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     ROS_DEBUG("Matching against neighbor no. %d", counter);
 
     // run matcher to get refined cloud pose
-    Eigen::Matrix4d T_CLOUDREF_CLOUDCURRENT;
+    Eigen::Matrix4d T_LIDARREF_LIDARTGT;
     Eigen::Matrix<double, 6, 6> covariance;
-    if (!MatchScans(*ref_iter, new_scan, T_CLOUDREF_CLOUDCURRENT, covariance)) {
+    if (!MatchScans(*ref_iter, new_scan, T_LIDARREF_LIDARTGT, covariance)) {
       continue;
     }
 
     // keep track of all results so that we can average the transform for the
     // lidar map
     if (!params_.disable_lidar_map) {
-      const Eigen::Matrix4d& T_WORLD_CLOUDREF = (*ref_iter).T_REFFRAME_LIDAR();
-      Eigen::Matrix4d T_WORLD_CLOUDCURRENT =
-          T_WORLD_CLOUDREF * T_CLOUDREF_CLOUDCURRENT;
+      Eigen::Matrix4d T_WORLD_LIDARREF = (*ref_iter).T_REFFRAME_LIDAR();
+      Eigen::Matrix4d T_WORLD_LIDARCURRENT =
+          T_WORLD_LIDARREF * T_LIDARREF_LIDARTGT;
       Eigen::Vector3d r =
-          beam::RToLieAlgebra(T_WORLD_CLOUDCURRENT.block(0, 0, 3, 3));
-      estimated_scan_poses_sum[0] += T_WORLD_CLOUDCURRENT(0, 3);
-      estimated_scan_poses_sum[1] += T_WORLD_CLOUDCURRENT(1, 3);
-      estimated_scan_poses_sum[2] += T_WORLD_CLOUDCURRENT(2, 3);
+          beam::RToLieAlgebra(T_WORLD_LIDARCURRENT.block(0, 0, 3, 3));
+      estimated_scan_poses_sum[0] += T_WORLD_LIDARCURRENT(0, 3);
+      estimated_scan_poses_sum[1] += T_WORLD_LIDARCURRENT(1, 3);
+      estimated_scan_poses_sum[2] += T_WORLD_LIDARCURRENT(2, 3);
       estimated_scan_poses_sum[3] += r[0];
       estimated_scan_poses_sum[4] += r[1];
       estimated_scan_poses_sum[5] += r[2];
@@ -157,12 +166,32 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
      *    T_BASELINKREF_LIDARREF * T_LIDARREF_LIDARNEW * T_LIDARNEW_BASELINKNEW
      */
     Eigen::Matrix4d T_BASELINKREF_BASELINKNEW = ref_iter->T_BASELINK_LIDAR() *
-                                                T_CLOUDREF_CLOUDCURRENT *
+                                                T_LIDARREF_LIDARTGT *
                                                 new_scan.T_LIDAR_BASELINK();
     fuse_variables::Position3DStamped position_relative;
     fuse_variables::Orientation3DStamped orientation_relative;
     bs_common::EigenTransformToFusePose(
         T_BASELINKREF_BASELINKNEW, position_relative, orientation_relative);
+
+    if (output_scan_registration_results_) {
+      // calculate measured pose of target (new scan)
+      Eigen::Matrix4d T_REFFRAME_BASELINKNEW =
+          ref_iter->T_REFFRAME_BASELINK() * T_BASELINKREF_BASELINKNEW;
+
+      // convert to quaternion
+      Eigen::Matrix3d R = T_REFFRAME_BASELINKNEW.block(0, 0, 3, 3);
+      Eigen::Quaterniond q(R);
+
+      // add measurement to file
+      measurements_file << "Ref Scan No. " << counter << ":\n"
+                        << "stamp: " << new_scan.Stamp().sec << "."
+                        << new_scan.Stamp().nsec << "\n"
+                        << "translation: " << T_REFFRAME_BASELINKNEW(0, 3)
+                        << ", " << T_REFFRAME_BASELINKNEW(1, 3) << ", "
+                        << T_REFFRAME_BASELINKNEW(2, 3) << "\n"
+                        << "orientation: " << q.x() << ", " << q.y() << ", "
+                        << q.z() << ", " << q.w() << "\n\n";
+    }
 
     // add measurement to transaction
     transaction.AddPoseConstraint(
@@ -173,17 +202,22 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     num_constraints++;
   }
 
+  // close output file
+  if (output_scan_registration_results_) {
+    measurements_file.close();
+  }
+
   // calculate average and add to lidar map
   if (!params_.disable_lidar_map) {
-    Eigen::Matrix4d T_WORLD_CLOUD_AVG = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4d T_WORLD_LIDAR_AVG = Eigen::Matrix4d::Identity();
     Eigen::Vector3d r(estimated_scan_poses_sum[3] / num_constraints,
                       estimated_scan_poses_sum[4] / num_constraints,
                       estimated_scan_poses_sum[5] / num_constraints);
-    T_WORLD_CLOUD_AVG.block(0, 0, 3, 3) = beam::LieAlgebraToR(r);
-    T_WORLD_CLOUD_AVG(0, 3) = estimated_scan_poses_sum[0] / num_constraints;
-    T_WORLD_CLOUD_AVG(1, 3) = estimated_scan_poses_sum[1] / num_constraints;
-    T_WORLD_CLOUD_AVG(2, 3) = estimated_scan_poses_sum[2] / num_constraints;
-    map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(), T_WORLD_CLOUD_AVG);
+    T_WORLD_LIDAR_AVG.block(0, 0, 3, 3) = beam::LieAlgebraToR(r);
+    T_WORLD_LIDAR_AVG(0, 3) = estimated_scan_poses_sum[0] / num_constraints;
+    T_WORLD_LIDAR_AVG(1, 3) = estimated_scan_poses_sum[1] / num_constraints;
+    T_WORLD_LIDAR_AVG(2, 3) = estimated_scan_poses_sum[2] / num_constraints;
+    map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(), T_WORLD_LIDAR_AVG);
   }
 
   // if no constraints were added for this scan, send empty transaction (don't
@@ -267,9 +301,9 @@ void MultiScanRegistrationBase::RemoveMissingScans(
 }
 
 bool MultiScanRegistrationBase::PassedMotionThresholds(
-    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
+    const Eigen::Matrix4d& T_LIDARREF_LIDARTGT) {
   // check max translation
-  double d_12 = T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm();
+  double d_12 = T_LIDARREF_LIDARTGT.block(0, 3, 3, 1).norm();
   if (d_12 > params_.max_motion_trans_m) {
     return false;
   }
@@ -280,7 +314,7 @@ bool MultiScanRegistrationBase::PassedMotionThresholds(
   }
 
   // check rotation
-  Eigen::Matrix3d R = T_CLOUD1_CLOUD2.block(0, 0, 3, 3);
+  Eigen::Matrix3d R = T_LIDARREF_LIDARTGT.block(0, 0, 3, 3);
   if (Eigen::AngleAxis<double>(R).angle() >= params_.min_motion_rot_rad) {
     return true;
   }
@@ -304,44 +338,119 @@ void MultiScanRegistrationBase::PrintScanDetails(std::ostream& stream) {
   }
 }
 
+void MultiScanRegistrationBase::OutputResults(
+    const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
+    const Eigen::Matrix4d& T_LIDARREF_LIDARTGT, bool output_loam_cloud) {
+  if (!output_scan_registration_results_) {
+    return;
+  }
+
+  // get transforms
+  Eigen::Matrix4d T_WORLD_LIDARREF = scan_pose_ref.T_REFFRAME_LIDAR();
+  Eigen::Matrix4d T_WORLD_LIDARTGT_INIT = scan_pose_tgt.T_REFFRAME_LIDAR();
+  Eigen::Matrix4d T_WORLD_LIDARREF_OPT = T_WORLD_LIDARREF * T_LIDARREF_LIDARTGT;
+
+  // get regular clouds
+  PointCloud cloud_ref_world;
+  PointCloud cloud_tgt_in_world_init;
+  PointCloud cloud_tgt_in_world_aligned;
+
+  pcl::transformPointCloud(scan_pose_ref.Cloud(), cloud_ref_world,
+                           T_WORLD_LIDARREF);
+  pcl::transformPointCloud(scan_pose_tgt.Cloud(), cloud_tgt_in_world_init,
+                           T_WORLD_LIDARTGT_INIT);
+  pcl::transformPointCloud(scan_pose_tgt.Cloud(), cloud_tgt_in_world_aligned,
+                           T_WORLD_LIDARREF_OPT);
+
+  PointCloudCol cloud_ref_world_col =
+      beam::ColorPointCloud(cloud_ref_world, 0, 0, 255);
+  PointCloudCol cloud_tgt_in_world_init_col =
+      beam::ColorPointCloud(cloud_tgt_in_world_init, 255, 0, 0);
+  PointCloudCol cloud_tgt_in_world_aligned_col =
+      beam::ColorPointCloud(cloud_tgt_in_world_aligned, 0, 255, 0);
+
+  cloud_ref_world_col = beam::AddFrameToCloud(cloud_ref_world_col, coord_frame_,
+                                              T_WORLD_LIDARREF);
+  cloud_tgt_in_world_init_col = beam::AddFrameToCloud(
+      cloud_tgt_in_world_init_col, coord_frame_, T_WORLD_LIDARTGT_INIT);
+  cloud_tgt_in_world_aligned_col = beam::AddFrameToCloud(
+      cloud_tgt_in_world_aligned_col, coord_frame_, T_WORLD_LIDARREF_OPT);
+
+  // get loam clouds
+  LoamPointCloud loam_cloud_ref_world;
+  LoamPointCloud loam_cloud_tgt_in_world_init;
+  LoamPointCloud loam_cloud_tgt_in_world_aligned;
+
+  if (output_loam_cloud) {
+    loam_cloud_ref_world = scan_pose_ref.LoamCloud();
+    loam_cloud_tgt_in_world_init = scan_pose_tgt.LoamCloud();
+    loam_cloud_tgt_in_world_aligned = scan_pose_tgt.LoamCloud();
+
+    loam_cloud_ref_world.TransformPointCloud(T_WORLD_LIDARREF);
+    loam_cloud_tgt_in_world_init.TransformPointCloud(T_WORLD_LIDARTGT_INIT);
+    loam_cloud_tgt_in_world_aligned.TransformPointCloud(T_WORLD_LIDARREF_OPT);
+  }
+
+  // create directories
+  double t = scan_pose_ref.Stamp().toSec();
+  std::string filename = current_scan_path_ + std::to_string(t);
+  boost::filesystem::create_directory(filename + "_ref/");
+  boost::filesystem::create_directory(filename + "_tgt_init/");
+  boost::filesystem::create_directory(filename + "_tgt_alig/");
+
+  // save clouds
+  BEAM_INFO("Saving scan registration results to %s", filename.c_str());
+
+  pcl::io::savePCDFileASCII(filename + "_ref.pcd", cloud_ref_world_col);
+  pcl::io::savePCDFileASCII(filename + "_tgt_init.pcd",
+                            cloud_tgt_in_world_init_col);
+  pcl::io::savePCDFileASCII(filename + "_tgt_alig.pcd",
+                            cloud_tgt_in_world_aligned_col);
+
+  if (output_loam_cloud) {
+    loam_cloud_ref_world.Save(filename + "_ref/", true);
+    loam_cloud_tgt_in_world_init.Save(filename + "_tgt_init/", true);
+    loam_cloud_tgt_in_world_aligned.Save(filename + "_tgt_alig/", true);
+  }
+}
+
 MultiScanRegistration::MultiScanRegistration(
     std::unique_ptr<Matcher<PointCloudPtr>> matcher, const Params& params)
     : matcher_(std::move(matcher)), MultiScanRegistrationBase(params) {}
 
 bool MultiScanRegistration::MatchScans(
-    const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-    Eigen::Matrix4d& T_CLOUD1_CLOUD2, Eigen::Matrix<double, 6, 6>& covariance) {
-  Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
-      beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
-      scan_pose_2.T_REFFRAME_LIDAR();
+    const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
+    Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
+    Eigen::Matrix<double, 6, 6>& covariance) {
+  Eigen::Matrix4d T_LidarRefEst_LidarTgt =
+      beam::InvertTransform(scan_pose_ref.T_REFFRAME_LIDAR()) *
+      scan_pose_tgt.T_REFFRAME_LIDAR();
 
-  if (!PassedMotionThresholds(T_CLOUD1_CLOUD2_init)) {
+  if (!PassedMotionThresholds(T_LidarRefEst_LidarTgt)) {
     return false;
   }
 
-  // transform cloud2 into cloud1 frame
-  PointCloud cloud2_RefFInit;
-  pcl::transformPointCloud(scan_pose_2.Cloud(), cloud2_RefFInit,
-                           T_CLOUD1_CLOUD2_init);
-  matcher_->SetRef(std::make_shared<PointCloud>(cloud2_RefFInit));
-  matcher_->SetTarget(std::make_shared<PointCloud>(scan_pose_1.Cloud()));
+  // transform tgt cloud into est ref frame
+  PointCloud tgtcloud_in_ref_est_frame;
+  pcl::transformPointCloud(scan_pose_tgt.Cloud(), tgtcloud_in_ref_est_frame,
+                           T_LidarRefEst_LidarTgt);
 
   // match clouds
+  matcher_->SetRef(std::make_shared<PointCloud>(scan_pose_ref.Cloud()));
+  matcher_->SetTarget(std::make_shared<PointCloud>(tgtcloud_in_ref_est_frame));
   if (!matcher_->Match()) {
-    ROS_ERROR("Failed scan matching. Skipping measurement.");
+    BEAM_ERROR("Failed scan matching. Skipping measurement.");
     return false;
   }
 
-  Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher_->GetResult().matrix();
-  T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
+  Eigen::Matrix4d T_RefEst_Ref = matcher_->GetResult().matrix();
+  T_LIDARREF_LIDARTGT =
+      beam::InvertTransform(T_RefEst_Ref) * T_LidarRefEst_LidarTgt;
 
-  OutputResults(scan_pose_1, scan_pose_2, T_CLOUD1_CLOUD2);
+  OutputResults(scan_pose_ref, scan_pose_tgt, T_LIDARREF_LIDARTGT, false);
 
-  if (!PassedRegThreshold(
-          T_CLOUD1_CLOUD2,
-          beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
-              scan_pose_2.T_REFFRAME_LIDAR())) {
-    ROS_ERROR(
+  if (!PassedRegThreshold(T_LIDARREF_LIDARTGT, T_LidarRefEst_LidarTgt)) {
+    BEAM_ERROR(
         "Failed scan matcher transform threshold check. Skipping "
         "measurement.");
     return false;
@@ -350,61 +459,13 @@ bool MultiScanRegistration::MatchScans(
   if (use_fixed_covariance_) {
     covariance = covariance_;
   } else {
+    BEAM_ERROR(
+        "Automated covariance estimation not tested, use fixed covariance!");
     matcher_->EstimateInfo();
     covariance = matcher_->GetInfo();
   }
 
   return true;
-}
-
-void MultiScanRegistration::OutputResults(
-    const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
-  if (!output_scan_registration_results_) {
-    return;
-  }
-
-  const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
-      scan_pose_2.T_REFFRAME_LIDAR();
-  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_REFFRAME_LIDAR();
-  Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
-      T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
-
-  PointCloud cloud_ref = scan_pose_1.Cloud();
-  PointCloud cloud_ref_world;
-  PointCloud cloud_cur_initial_world;
-  PointCloud cloud_cur_aligned_world;
-
-  pcl::transformPointCloud(cloud_ref, cloud_ref_world, T_WORLD_CLOUDREF_INIT);
-  pcl::transformPointCloud(scan_pose_2.Cloud(), cloud_cur_initial_world,
-                           T_WORLD_CLOUDCURRENT_INIT);
-  pcl::transformPointCloud(scan_pose_2.Cloud(), cloud_cur_aligned_world,
-                           T_WORLD_CLOUDCURRENT_OPT);
-
-  PointCloudCol cloud_ref_world_col =
-      beam::ColorPointCloud(cloud_ref_world, 0, 0, 255);
-  PointCloudCol cloud_cur_initial_world_col =
-      beam::ColorPointCloud(cloud_cur_initial_world, 255, 0, 0);
-  PointCloudCol cloud_cur_aligned_world_col =
-      beam::ColorPointCloud(cloud_cur_aligned_world, 0, 255, 0);
-
-  cloud_ref_world_col = beam::AddFrameToCloud(cloud_ref_world_col, coord_frame_,
-                                              T_WORLD_CLOUDREF_INIT);
-  cloud_cur_initial_world_col = beam::AddFrameToCloud(
-      cloud_cur_initial_world_col, coord_frame_, T_WORLD_CLOUDCURRENT_INIT);
-  cloud_cur_aligned_world_col = beam::AddFrameToCloud(
-      cloud_cur_aligned_world_col, coord_frame_, T_WORLD_CLOUDCURRENT_OPT);
-
-  double t = scan_pose_1.Stamp().toSec();
-  std::string filename = current_scan_path_ + std::to_string(t);
-
-  pcl::io::savePCDFileASCII(filename + "_ref.pcd", cloud_ref_world_col);
-  pcl::io::savePCDFileASCII(filename + "_cur_init.pcd",
-                            cloud_cur_initial_world_col);
-  pcl::io::savePCDFileASCII(filename + "_cur_alig.pcd",
-                            cloud_cur_aligned_world_col);
-
-  ROS_INFO("Saved scan registration results to %s", filename.c_str());
 }
 
 MultiScanLoamRegistration::MultiScanLoamRegistration(
@@ -412,41 +473,40 @@ MultiScanLoamRegistration::MultiScanLoamRegistration(
     : matcher_(std::move(matcher)), MultiScanRegistrationBase(params) {}
 
 bool MultiScanLoamRegistration::MatchScans(
-    const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-    Eigen::Matrix4d& T_CLOUD1_CLOUD2, Eigen::Matrix<double, 6, 6>& covariance) {
-  Eigen::Matrix4d T_CLOUD1_CLOUD2_init =
-      beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
-      scan_pose_2.T_REFFRAME_LIDAR();
+    const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
+    Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
+    Eigen::Matrix<double, 6, 6>& covariance) {
+  Eigen::Matrix4d T_LidarRefEst_LidarTgt =
+      beam::InvertTransform(scan_pose_ref.T_REFFRAME_LIDAR()) *
+      scan_pose_tgt.T_REFFRAME_LIDAR();
 
-  if (!PassedMotionThresholds(T_CLOUD1_CLOUD2_init)) {
+  if (!PassedMotionThresholds(T_LidarRefEst_LidarTgt)) {
     return false;
   }
 
-  std::shared_ptr<LoamPointCloud> cloud2_RefFInit =
-      std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
-  cloud2_RefFInit->TransformPointCloud(T_CLOUD1_CLOUD2_init);
-  matcher_->SetRef(cloud2_RefFInit);
+  std::shared_ptr<LoamPointCloud> tgtcloud_in_ref_est_frame =
+      std::make_shared<LoamPointCloud>(scan_pose_tgt.LoamCloud());
+  tgtcloud_in_ref_est_frame->TransformPointCloud(T_LidarRefEst_LidarTgt);
 
-  std::shared_ptr<LoamPointCloud> tgt =
-      std::make_shared<LoamPointCloud>(scan_pose_1.LoamCloud());
-  matcher_->SetTarget(tgt);
+  std::shared_ptr<LoamPointCloud> refcloud_in_ref_frame =
+      std::make_shared<LoamPointCloud>(scan_pose_ref.LoamCloud());
 
   // match clouds
+  matcher_->SetRef(refcloud_in_ref_frame);
+  matcher_->SetTarget(tgtcloud_in_ref_est_frame);
   if (!matcher_->Match()) {
-    ROS_ERROR("Failed scan matching. Skipping measurement.");
+    BEAM_ERROR("Failed scan matching. Skipping measurement.");
     return false;
   }
 
-  Eigen::Matrix4d T_CLOUD1Est_CLOUD1Ini = matcher_->GetResult().matrix();
-  T_CLOUD1_CLOUD2 = T_CLOUD1Est_CLOUD1Ini * T_CLOUD1_CLOUD2_init;
+  Eigen::Matrix4d T_RefEst_Ref = matcher_->GetResult().matrix();
+  T_LIDARREF_LIDARTGT =
+      beam::InvertTransform(T_RefEst_Ref) * T_LidarRefEst_LidarTgt;
 
-  OutputResults(scan_pose_1, scan_pose_2, T_CLOUD1_CLOUD2);
+  OutputResults(scan_pose_ref, scan_pose_tgt, T_LIDARREF_LIDARTGT, true);
 
-  if (!PassedRegThreshold(
-          T_CLOUD1_CLOUD2,
-          beam::InvertTransform(scan_pose_1.T_REFFRAME_LIDAR()) *
-              scan_pose_2.T_REFFRAME_LIDAR())) {
-    ROS_ERROR(
+  if (!PassedRegThreshold(T_LIDARREF_LIDARTGT, T_LidarRefEst_LidarTgt)) {
+    BEAM_ERROR(
         "Failed scan matcher transform threshold check. Skipping "
         "measurement.");
     return false;
@@ -455,47 +515,11 @@ bool MultiScanLoamRegistration::MatchScans(
   if (use_fixed_covariance_) {
     covariance = covariance_;
   } else {
-    matcher_->EstimateInfo();
-    covariance = matcher_->GetInfo();
+    BEAM_ERROR("Must use fixed covariance for loam registration.");
+    covariance = covariance_;
   }
 
   return true;
-}
-
-void MultiScanLoamRegistration::OutputResults(
-    const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
-  if (!output_scan_registration_results_) {
-    return;
-  }
-
-  LoamPointCloudPtr cloud_ref_world =
-      std::make_shared<LoamPointCloud>(scan_pose_1.LoamCloud());
-  LoamPointCloudPtr cloud_cur_initial_world =
-      std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
-  LoamPointCloudPtr cloud_cur_aligned_world =
-      std::make_shared<LoamPointCloud>(scan_pose_2.LoamCloud());
-
-  const Eigen::Matrix4d& T_WORLD_CLOUDCURRENT_INIT =
-      scan_pose_2.T_REFFRAME_LIDAR();
-  const Eigen::Matrix4d& T_WORLD_CLOUDREF_INIT = scan_pose_1.T_REFFRAME_LIDAR();
-  Eigen::Matrix4d T_WORLD_CLOUDCURRENT_OPT =
-      T_WORLD_CLOUDREF_INIT * T_CLOUD1_CLOUD2;
-
-  cloud_ref_world->TransformPointCloud(T_WORLD_CLOUDREF_INIT);
-  cloud_cur_initial_world->TransformPointCloud(T_WORLD_CLOUDCURRENT_INIT);
-  cloud_cur_aligned_world->TransformPointCloud(T_WORLD_CLOUDCURRENT_OPT);
-
-  double t = scan_pose_1.Stamp().toSec();
-  std::string filename = current_scan_path_ + std::to_string(t);
-
-  ROS_INFO("Saved scan registration results to %s", filename.c_str());
-  boost::filesystem::create_directory(filename + "_ref/");
-  cloud_ref_world->Save(filename + "_ref/", true);
-  boost::filesystem::create_directory(filename + "_cur_init/");
-  cloud_cur_initial_world->Save(filename + "_cur_init/", true);
-  boost::filesystem::create_directory(filename + "_cur_alig/");
-  cloud_cur_aligned_world->Save(filename + "_cur_alig/", true);
 }
 
 }  // namespace frame_to_frame

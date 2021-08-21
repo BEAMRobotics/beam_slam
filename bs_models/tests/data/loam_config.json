@@ -13,9 +13,9 @@
   "validate_correspondences": false,
   "iterate_correspondences": true,
   "min_number_measurements": 30,
-  "convergence_criteria_translation_m": 0.001,
+  "convergence_criteria_translation_m": 0.005,
   "convergence_criteria_rotation_deg": 1,
-  "max_correspondence_iterations": 5,
+  "max_correspondence_iterations": 10,
   "output_ceres_summary": false,
   "ceres_config": ""
 }

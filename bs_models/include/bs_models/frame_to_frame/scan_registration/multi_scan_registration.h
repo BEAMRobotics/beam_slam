@@ -72,9 +72,9 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
    * @brief pure virtual function that must be overridden in each derived multi
    * scan registraion classes
    */
-  virtual bool MatchScans(const ScanPose& scan_pose_1,
-                          const ScanPose& scan_pose_2,
-                          Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+  virtual bool MatchScans(const ScanPose& scan_pose_ref,
+                          const ScanPose& scan_pose_tgt,
+                          Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                           Eigen::Matrix<double, 6, 6>& covariance) = 0;
 
   void RemoveOldScans(const ros::Time& new_scan_time);
@@ -89,10 +89,16 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 
   void PrintScanDetails(std::ostream& stream = std::cout);
 
-  bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
+  bool PassedMotionThresholds(const Eigen::Matrix4d& T_LIDARREF_LIDARTGT);
 
   bool PassedRegThreshold(const Eigen::Matrix4d& T_measured,
                           const Eigen::Matrix4d& T_estimated);
+
+  // Output results to world frame (estimated world frame from the ref cloud)
+  void OutputResults(const ScanPose& scan_pose_ref,
+                     const ScanPose& scan_pose_tgt,
+                     const Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
+                     bool output_loam_cloud = false);                          
 
   std::list<ScanPose> reference_clouds_;
   Params params_;
@@ -102,7 +108,7 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
   bool output_scan_registration_results_{false};
   std::string current_scan_path_;
   std::string tmp_output_path_{
-      "/home/nick/results/beam_slam/scan_registration/"};
+      "/home/nick/results/beam_slam/scan_registration/multi_scan/"};
   PointCloudCol coord_frame_;
 };
 
@@ -114,12 +120,9 @@ class MultiScanLoamRegistration : public MultiScanRegistrationBase {
                             const Params& params);
 
  private:
-  bool MatchScans(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-                  Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+  bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
+                  Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                   Eigen::Matrix<double, 6, 6>& covariance) override;
-
-  void OutputResults(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-                     const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher_;
 };
@@ -132,12 +135,9 @@ class MultiScanRegistration : public MultiScanRegistrationBase {
                         const Params& params);
 
  private:
-  bool MatchScans(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-                  Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+  bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
+                  Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                   Eigen::Matrix<double, 6, 6>& covariance) override;
-
-  void OutputResults(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-                     const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
 };

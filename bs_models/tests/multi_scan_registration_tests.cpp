@@ -23,6 +23,16 @@ using namespace bs_models;
 using namespace frame_to_frame;
 using namespace bs_common;
 
+Eigen::Matrix4d PerturbPoseRandom(const Eigen::Matrix4d& T, double max_trans,
+                                  double max_rot) {
+  //   srand(time(NULL));
+  Eigen::VectorXd perturb(6);
+  perturb << beam::randf(max_rot, -max_rot), beam::randf(max_rot, -max_rot),
+      beam::randf(max_rot, -max_rot), beam::randf(max_trans, -max_trans),
+      beam::randf(max_trans, -max_trans), beam::randf(max_trans, -max_trans);
+  return beam::PerturbTransformDegM(T, perturb);
+}
+
 class MultiScanRegistrationTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -45,47 +55,20 @@ class MultiScanRegistrationTest : public ::testing::Test {
     downsampler.Filter(test_cloud_tmp, test_cloud);
 
     // create poses
-    // srand(time(NULL));
     double max_pose_rot{20};
     double max_pose_trans{1};
     double max_pert_rot{10};
     double max_pert_trans{0.05};
 
-    T_WORLD_S1_ = Eigen::Matrix4d::Identity();
-    Eigen::VectorXd perturb(6);
-    perturb << beam::randf(max_pose_rot, -max_pose_rot),
-        beam::randf(max_pose_rot, -max_pose_rot),
-        beam::randf(max_pose_rot, -max_pose_rot),
-        beam::randf(max_pose_trans, -max_pose_trans),
-        beam::randf(max_pose_trans, -max_pose_trans),
-        beam::randf(max_pose_trans, -max_pose_trans);
-    T_WORLD_S2_ = beam::PerturbTransformDegM(T_WORLD_S1_, perturb);
-    Eigen::VectorXd perturb2(6);
-    perturb2 << beam::randf(max_pert_rot, -max_pert_rot),
-        beam::randf(max_pert_rot, -max_pert_rot),
-        beam::randf(max_pert_rot, -max_pert_rot),
-        beam::randf(max_pert_trans, -max_pert_trans),
-        beam::randf(max_pert_trans, -max_pert_trans),
-        beam::randf(max_pert_trans, -max_pert_trans);
-    T_WORLD_S2_pert_ = beam::PerturbTransformDegM(T_WORLD_S2_, perturb2);
+    T_WORLD_S1_ = PerturbPoseRandom(Eigen::Matrix4d::Identity(), max_pose_trans,
+                                    max_pose_rot);
+    T_WORLD_S2_ = PerturbPoseRandom(T_WORLD_S1_, max_pose_trans, max_pose_rot);
+    T_WORLD_S3_ = PerturbPoseRandom(T_WORLD_S2_, max_pose_trans, max_pose_rot);
+    T_WORLD_S2_pert_ =
+        PerturbPoseRandom(T_WORLD_S2_, max_pert_trans, max_pert_rot);
     T_S1_S2_ = beam::InvertTransform(T_WORLD_S1_) * T_WORLD_S2_;
-
-    Eigen::VectorXd perturb3(6);
-    perturb3 << beam::randf(max_pose_rot, -max_pose_rot),
-        beam::randf(max_pose_rot, -max_pose_rot),
-        beam::randf(max_pose_rot, -max_pose_rot),
-        beam::randf(max_pose_trans, -max_pose_trans),
-        beam::randf(max_pose_trans, -max_pose_trans),
-        beam::randf(max_pose_trans, -max_pose_trans);
-    T_WORLD_S3_ = beam::PerturbTransformDegM(T_WORLD_S2_, perturb3);
-    Eigen::VectorXd perturb4(6);
-    perturb4 << beam::randf(max_pert_rot, -max_pert_rot),
-        beam::randf(max_pert_rot, -max_pert_rot),
-        beam::randf(max_pert_rot, -max_pert_rot),
-        beam::randf(max_pert_trans, -max_pert_trans),
-        beam::randf(max_pert_trans, -max_pert_trans),
-        beam::randf(max_pert_trans, -max_pert_trans);
-    T_WORLD_S3_pert_ = beam::PerturbTransformDegM(T_WORLD_S3_, perturb4);
+    T_WORLD_S3_pert_ =
+        PerturbPoseRandom(T_WORLD_S3_, max_pert_trans, max_pert_rot);
     T_S1_S3_ = beam::InvertTransform(T_WORLD_S1_) * T_WORLD_S3_;
     T_S2_S3_ = beam::InvertTransform(T_WORLD_S2_) * T_WORLD_S3_;
 
@@ -108,7 +91,7 @@ class MultiScanRegistrationTest : public ::testing::Test {
     scan_reg_params_.outlier_threshold_r = 30;
     scan_reg_params_.min_motion_trans_m = 0;
     scan_reg_params_.min_motion_rot_rad = 0;
-    scan_reg_params_.source = "TEST_F";
+    scan_reg_params_.source = "TEST";
     scan_reg_params_.fix_first_scan = true;
     scan_reg_params_.num_neighbors = 3;
     scan_reg_params_.lag_duration = 100;
@@ -233,6 +216,9 @@ TEST_F(MultiScanRegistrationTest, 2ScansManualConstraintAdding) {
   auto transaction2 =
       multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
 
+  EXPECT_TRUE(transaction1 != nullptr);
+  EXPECT_TRUE(transaction2 != nullptr);
+
   // validate stamps
   EXPECT_EQ(transaction1->stamp(), SP1.Stamp());
   EXPECT_EQ(transaction2->stamp(), SP2.Stamp());
@@ -244,13 +230,16 @@ TEST_F(MultiScanRegistrationTest, 2ScansManualConstraintAdding) {
   std::vector<fuse_core::UUID> uuids;
   uuids = AddVariables(transaction1, graph);
   EXPECT_EQ(uuids.size(), 2);
+
   for (auto uuid : uuids) {
     bool should_be_true =
         uuid == SP1.Position().uuid() || uuid == SP1.Orientation().uuid();
     EXPECT_TRUE(should_be_true);
   }
+
   uuids = AddVariables(transaction2, graph);
   EXPECT_EQ(uuids.size(), 2);
+
   for (auto uuid : uuids) {
     bool should_be_true =
         uuid == SP2.Position().uuid() || uuid == SP2.Orientation().uuid();
@@ -286,6 +275,7 @@ TEST_F(MultiScanRegistrationTest, 2ScansManualConstraintAdding) {
     EXPECT_TRUE(std::abs(SP1.Position().data()[i] - p1.data()[i]) < 0.001);
     EXPECT_TRUE(std::abs(SP2.Position().data()[i] - p2.data()[i]) < 0.001);
   }
+
   for (int i = 0; i < 4; i++) {
     EXPECT_TRUE(std::abs(SP1.Orientation().data()[i] - o1.data()[i]) < 0.001);
     EXPECT_TRUE(std::abs(SP2.Orientation().data()[i] - o2.data()[i]) < 0.001);
@@ -793,13 +783,6 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
   SP2_pert.UpdatePose(graph);
   SP3_pert.UpdatePose(graph);
 
-  //   SP1.SaveCloud("/home/nick/tmp/loam_scan_registration/sp1_opt/", true,
-  //   true);
-  //   SP2_pert.SaveCloud("/home/nick/tmp/loam_scan_registration/sp2_opt/",
-  //   true, true);
-  //   SP3_pert.SaveCloud("/home/nick/tmp/loam_scan_registration/sp3_opt/",
-  //   true, true);
-
   // Check results
   auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
       graph->getVariable(SP1.Position().uuid()));
@@ -829,6 +812,110 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, T_WORLD_S1_, 1, 0.005, true));
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, T_WORLD_S2_, 1, 0.05, true));
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S3_mea, T_WORLD_S3_, 1, 0.05, true));
+}
+
+TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
+  // init scan registration
+  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
+  matcher = std::make_unique<LoamMatcher>(*loam_params_);
+  std::shared_ptr<LoamFeatureExtractor> feature_extractor =
+      std::make_shared<LoamFeatureExtractor>(loam_params_);
+
+  // perturb lidar extrinsics
+  Eigen::Matrix4d T_BASELINK_LIDAR = T_WORLD_S1_ =
+      PerturbPoseRandom(Eigen::Matrix4d::Identity(), 0.1, 30);
+
+  // transform scans
+  PointCloud S1 = S1_;  // in lidar frame
+
+  PointCloud S2;
+  Eigen::Matrix4d T_LIDAR2_LIDAR1 = beam::InvertTransform(T_BASELINK_LIDAR) *
+                                    beam::InvertTransform(T_WORLD_S2_) *
+                                    T_WORLD_S1_ * T_BASELINK_LIDAR;
+  pcl::transformPointCloud(S1, S2, T_LIDAR2_LIDAR1);
+
+  PointCloud S3;
+  Eigen::Matrix4d T_LIDAR3_LIDAR1 = beam::InvertTransform(T_BASELINK_LIDAR) *
+                                    beam::InvertTransform(T_WORLD_S3_) *
+                                    T_WORLD_S1_ * T_BASELINK_LIDAR;
+  pcl::transformPointCloud(S1, S3, T_LIDAR3_LIDAR1);
+
+  // create scan poses
+  ScanPose SP1(S1, ros::Time(0), T_WORLD_S1_, T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2(S2, ros::Time(1), T_WORLD_S2_, T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP3(S3, ros::Time(2), T_WORLD_S3_, T_BASELINK_LIDAR,
+               feature_extractor);
+  ScanPose SP2_pert(S2, ros::Time(1), T_WORLD_S2_pert_, T_BASELINK_LIDAR,
+                    feature_extractor);
+  ScanPose SP3_pert(S3, ros::Time(2), T_WORLD_S3_pert_, T_BASELINK_LIDAR,
+                    feature_extractor);
+
+  // init scan registration
+  auto scan_reg_params = scan_reg_params_;
+  scan_reg_params.disable_lidar_map = false;
+
+  std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
+      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
+                                                  scan_reg_params);
+
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+  multi_scan_registration->SetFixedCovariance(covariance);
+
+  // Create the graph
+  std::shared_ptr<fuse_graphs::HashGraph> graph =
+      std::make_shared<fuse_graphs::HashGraph>();
+
+  // add transactions
+  auto transaction1 =
+      multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
+  auto transaction2 =
+      multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
+  auto transaction3 =
+      multi_scan_registration->RegisterNewScan(SP3_pert).GetTransaction();
+
+  graph->update(*transaction1);
+  graph->update(*transaction2);
+  graph->update(*transaction3);
+  graph->optimize();
+
+  SP1.UpdatePose(graph);
+  SP2_pert.UpdatePose(graph);
+  SP3_pert.UpdatePose(graph);
+
+  //   SP1.SaveCloud("/home/nick/tmp/loam_scan_registration/sp1/", true, true);
+  //   SP2_pert.SaveCloud("/home/nick/tmp/loam_scan_registration/sp2/", true,
+  //                      true);
+  //   SP3_pert.SaveCloud("/home/nick/tmp/loam_scan_registration/sp3/", true,
+  //                      true);
+
+  // Check results
+  auto p1 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph->getVariable(SP1.Position().uuid()));
+  auto p2 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph->getVariable(SP2.Position().uuid()));
+  auto p3 = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      graph->getVariable(SP3.Position().uuid()));
+
+  auto o1 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph->getVariable(SP1.Orientation().uuid()));
+  auto o2 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph->getVariable(SP2.Orientation().uuid()));
+  auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      graph->getVariable(SP3.Orientation().uuid()));
+
+  Eigen::Matrix4d T_WORLD_S1_mea = bs_common::FusePoseToEigenTransform(p1, o1);
+  Eigen::Matrix4d T_WORLD_S2_mea = bs_common::FusePoseToEigenTransform(p2, o2);
+  Eigen::Matrix4d T_WORLD_S3_mea = bs_common::FusePoseToEigenTransform(p3, o3);
+
+  EXPECT_TRUE(multi_scan_registration->GetMap().NumPointClouds() == 3);
+
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, T_WORLD_S1_, 1, 0.005, true));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, T_WORLD_S2_, 1.5, 0.15, true));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S3_mea, T_WORLD_S3_, 1.5, 0.15, true));
 }
 
 int main(int argc, char** argv) {
