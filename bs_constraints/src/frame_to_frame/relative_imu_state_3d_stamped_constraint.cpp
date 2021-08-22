@@ -1,5 +1,5 @@
 #include <bs_constraints/frame_to_frame/relative_imu_state_3d_stamped_constraint.h>
-#include <bs_constraints/frame_to_frame/delta_imu_state_3D_cost_function.h>
+#include <bs_constraints/frame_to_frame/delta_imu_state_3d_cost_function.h>
 
 #include <string>
 
