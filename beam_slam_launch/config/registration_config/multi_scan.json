@@ -6,6 +6,6 @@
   "max_motion_trans_m": 10,
   "source": "MULTISCANREGISTRATION",
   "fix_first_scan": true,
-  "num_neighbors": 1,
+  "num_neighbors": 3,
   "disable_lidar_map": false
 }

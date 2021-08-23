@@ -28,21 +28,33 @@ GlobalMapRefinement::Params::Params() {
                              0, 0, 0, 0, 0, loop_cov_diag;
   // clang-format on
 
-  scan_reg_params.outlier_threshold_t = 0.1;
-  scan_reg_params.outlier_threshold_r = 20;
-  scan_reg_params.min_motion_trans_m = 0;
-  scan_reg_params.min_motion_rot_rad = 0;
-  scan_reg_params.max_motion_trans_m = 5;
-  scan_reg_params.source = "MULTISCANREGISTRATION";
-  scan_reg_params.num_neighbors = 10;
-  scan_reg_params.disable_lidar_map = true;  // don't need
+  multi_scan_reg_params.outlier_threshold_t = 0.1;
+  multi_scan_reg_params.outlier_threshold_r = 20;
+  multi_scan_reg_params.min_motion_trans_m = 0;
+  multi_scan_reg_params.min_motion_rot_rad = 0;
+  multi_scan_reg_params.max_motion_trans_m = 5;
+  multi_scan_reg_params.source = "MULTISCANREGISTRATION";
+  multi_scan_reg_params.num_neighbors = 10;
+  multi_scan_reg_params.disable_lidar_map = true;  // don't need
 
   // set this high because we don't want to remove any scans due to lag duration
   // overflow (this is offline)
-  scan_reg_params.lag_duration = 100000;
+  multi_scan_reg_params.lag_duration = 100000;
 
   // TODO: Do we want this to always be true? What about when we have vision?
-  scan_reg_params.fix_first_scan = true;
+  multi_scan_reg_params.fix_first_scan = true;
+
+  scan_to_map_reg_params.outlier_threshold_t = 0.1;
+  scan_to_map_reg_params.outlier_threshold_r = 20;
+  scan_to_map_reg_params.min_motion_trans_m = 0;
+  scan_to_map_reg_params.min_motion_rot_rad = 0;
+  scan_to_map_reg_params.max_motion_trans_m = 5;
+  scan_to_map_reg_params.source = "SCANTOMAPREGISTRATION";
+  scan_to_map_reg_params.map_size = 20;
+  scan_to_map_reg_params.store_full_cloud = false;  // don't need
+
+  // TODO: Do we want this to always be true? What about when we have vision?
+  scan_to_map_reg_params.fix_first_scan = true;
 
   loam_matcher_params.max_correspondence_distance = 0.3;
   loam_matcher_params.validate_correspondences = false;
@@ -85,6 +97,7 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   loop_closure_candidate_search_config =
       J["loop_closure_candidate_search_config"];
   loop_closure_refinement_config = J["loop_closure_refinement_config"];
+  scan_registration_type = J["scan_registration_type"];
 
   std::vector<double> vec = J["scan_reg_covariance_diag"];
   if (vec.size() != 6) {
@@ -108,13 +121,31 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
     loop_closure_covariance = vec_eig.asDiagonal();
   }
 
-  nlohmann::json J_scanreg = J["multi_scan_registration"];
-  scan_reg_params.outlier_threshold_t = J_scanreg["outlier_threshold_t"];
-  scan_reg_params.outlier_threshold_r = J_scanreg["outlier_threshold_r"];
-  scan_reg_params.min_motion_trans_m = J_scanreg["min_motion_trans_m"];
-  scan_reg_params.min_motion_rot_rad = J_scanreg["min_motion_rot_rad"];
-  scan_reg_params.max_motion_trans_m = J_scanreg["max_motion_trans_m"];
-  scan_reg_params.num_neighbors = J_scanreg["num_neighbors"];
+  nlohmann::json J_multiscanreg = J["multi_scan_registration"];
+  multi_scan_reg_params.outlier_threshold_t =
+      J_multiscanreg["outlier_threshold_t"];
+  multi_scan_reg_params.outlier_threshold_r =
+      J_multiscanreg["outlier_threshold_r"];
+  multi_scan_reg_params.min_motion_trans_m =
+      J_multiscanreg["min_motion_trans_m"];
+  multi_scan_reg_params.min_motion_rot_rad =
+      J_multiscanreg["min_motion_rot_rad"];
+  multi_scan_reg_params.max_motion_trans_m =
+      J_multiscanreg["max_motion_trans_m"];
+  multi_scan_reg_params.num_neighbors = J_multiscanreg["num_neighbors"];
+
+  nlohmann::json J_scantomapreg = J["scan_to_map_registration"];
+  scan_to_map_reg_params.outlier_threshold_t =
+      J_scantomapreg["outlier_threshold_t"];
+  scan_to_map_reg_params.outlier_threshold_r =
+      J_scantomapreg["outlier_threshold_r"];
+  scan_to_map_reg_params.min_motion_trans_m =
+      J_scantomapreg["min_motion_trans_m"];
+  scan_to_map_reg_params.min_motion_rot_rad =
+      J_scantomapreg["min_motion_rot_rad"];
+  scan_to_map_reg_params.max_motion_trans_m =
+      J_scantomapreg["max_motion_trans_m"];
+  scan_to_map_reg_params.map_size = J_scantomapreg["map_size"];
 
   nlohmann::json J_loammatcher = J["loam_matcher_params"];
   loam_matcher_params.max_correspondence_distance =
@@ -232,21 +263,37 @@ bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<gm::Submap>& submap) {
   std::unique_ptr<beam_matching::LoamMatcher> matcher =
       std::make_unique<beam_matching::LoamMatcher>(params_.loam_matcher_params);
 
-  std::unique_ptr<f2f::ScanRegistrationBase> multi_scan_registration;
+  std::unique_ptr<f2f::ScanRegistrationBase> scan_registration;
 
-  multi_scan_registration = std::make_unique<f2f::MultiScanLoamRegistration>(
-      std::move(matcher), params_.scan_reg_params);
-  multi_scan_registration->SetFixedCovariance(params_.scan_reg_covariance);
+  if (params_.scan_registration_type == "MULTISCAN") {
+    scan_registration = std::make_unique<f2f::MultiScanLoamRegistration>(
+        std::move(matcher), params_.multi_scan_reg_params);
+    scan_registration->SetFixedCovariance(params_.scan_reg_covariance);
+  } else if (params_.scan_registration_type == "SCANTOMAP") {
+    scan_registration = std::make_unique<f2f::ScanToMapLoamRegistration>(
+        std::move(matcher), params_.scan_to_map_reg_params);
+    scan_registration->SetFixedCovariance(params_.scan_reg_covariance);
+  } else {
+    BEAM_ERROR(
+        "Invalid scan registration type. Options: MULTISCAN, SCANTOMAP. Input: "
+        "{}",
+        params_.scan_registration_type);
+  }
+
+  // clear lidar map
+  scan_registration->GetMapMutable().Clear();
 
   // iterate through stored scan poses and add scan registration factors to the
   // graph
   BEAM_INFO("Registering scans");
   for (auto scan_iter = submap->LidarKeyframesBegin();
        scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
+    const gm::ScanPose& scan_pose = scan_iter->second;
     auto transaction =
-        multi_scan_registration->RegisterNewScan(scan_iter->second)
-            .GetTransaction();
-    graph->update(*transaction);
+        scan_registration->RegisterNewScan(scan_pose).GetTransaction();
+    if (transaction != nullptr) {
+      graph->update(*transaction);
+    }
   }
 
   // TODO: Add visual BA constraints
@@ -262,10 +309,14 @@ bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<gm::Submap>& submap) {
   }
 
   // TODO: update visual data (just frame poses?)
+
+  return true;
 }
 
 bool GlobalMapRefinement::RunPoseGraphOptimization() {
   // TODO
+  BEAM_ERROR("PGO NOT YET IMPLEMENTED");
+  return true;
 }
 
 void GlobalMapRefinement::SaveResults(const std::string& output_path,

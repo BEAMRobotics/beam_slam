@@ -79,7 +79,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
 
   fuse_core::UUID device_id_;  //!< The UUID of this device
   bs_parameters::models::GlobalMapperParams params_;
-  bs_parameters::models::GlobalParams global_params_;
+  bs_parameters::models::CalibrationParams calibration_params_;
 
   /** Extrinsics: store shared pointer to base data to pass to global map, then
    * keep a reference to the online intrinsics so that we can update the shared
@@ -93,7 +93,6 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   bool extrinsics_initialized_{false};
 
-  bs_parameters::models::CalibrationParams calibration_params_;
   std::unique_ptr<GlobalMap> global_map_;
 
   using ThrottledCallback =

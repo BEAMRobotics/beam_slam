@@ -3,6 +3,7 @@
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 #include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
 
 namespace gm = bs_models::global_mapping;
@@ -60,6 +61,13 @@ class GlobalMapRefinement {
      */
     std::string loop_closure_refinement_type{"ICP"};
 
+    /** String describing the type of scan registrattion to use
+     * Options:
+     * - MULTISCAN
+     * - SCANTOMAP
+     */
+    std::string scan_registration_type{"SCANTOMAP"};
+
     /** Full path to config file for loop closure candidate search. If blank, it
      * will use default parameters.*/
     std::string loop_closure_candidate_search_config{""};
@@ -76,7 +84,10 @@ class GlobalMapRefinement {
     Eigen::Matrix<double, 6, 6> loop_closure_covariance;
 
     /** multi scan registration params */
-    f2f::MultiScanLoamRegistration::Params scan_reg_params;
+    f2f::MultiScanLoamRegistration::Params multi_scan_reg_params;
+
+    /** scan to map registration params */
+    f2f::ScanToMapLoamRegistration::Params scan_to_map_reg_params;
 
     /** loam scan matcher params */
     beam_matching::LoamParams loam_matcher_params;

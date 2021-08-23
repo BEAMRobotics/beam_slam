@@ -124,7 +124,8 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   // open output file
   std::ofstream measurements_file;
   if (output_scan_registration_results_) {
-    measurements_file.open(tmp_output_path_ + "absolute_pose_measurements.txt");
+    measurements_file.open(current_scan_path_ +
+                           "absolute_pose_measurements.txt");
     measurements_file << "New Scan Stamp: " << new_scan.Stamp().sec << "."
                       << new_scan.Stamp().nsec << "\n\n";
   }
@@ -399,7 +400,7 @@ void MultiScanRegistrationBase::OutputResults(
   boost::filesystem::create_directory(filename + "_tgt_alig/");
 
   // save clouds
-  BEAM_INFO("Saving scan registration results to %s", filename.c_str());
+  BEAM_INFO("Saving scan registration results to {}", filename);
 
   pcl::io::savePCDFileASCII(filename + "_ref.pcd", cloud_ref_world_col);
   pcl::io::savePCDFileASCII(filename + "_tgt_init.pcd",

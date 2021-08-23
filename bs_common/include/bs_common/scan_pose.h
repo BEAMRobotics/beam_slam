@@ -42,8 +42,8 @@ class ScanPose {
 
   /**
    * @brief constructor that does not require an input cloud. YOU WILL NEED TO
-   * MANUALLY ADD CLOUDS AFTER INSTANTIATION USING: AddPointCloud() and/or
-   * AddLoamCloud
+   * MANUALLY ADD CLOUDS AFTER INSTANTIATION USING: AddPointCloud(...) and/or
+   * AddLoamCloud(...)
    * @param stamp timestamp for this scan frame
    * @param T_REFFRAME_BASELINK transformation from the cloud (scan frame) to
    * the reference frame (usually WORLD or SUBMAP)
