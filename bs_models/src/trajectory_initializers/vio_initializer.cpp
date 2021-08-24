@@ -1,7 +1,6 @@
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
-#include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/utils.h>
 #include <bs_common/utils.h>
@@ -30,6 +29,18 @@ VIOInitializer::VIOInitializer(
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
   // create visual map
   visual_map_ = std::make_shared<VisualMap>(cam_model_, local_graph_);
+  // create pose refiner
+  ceres::Solver::Options pose_refinement_options;
+  pose_refinement_options.minimizer_progress_to_stdout = false;
+  pose_refinement_options.logging_type = ceres::SILENT;
+  pose_refinement_options.max_solver_time_in_seconds = 1e-3;
+  pose_refinement_options.function_tolerance = 1e-4;
+  pose_refinement_options.gradient_tolerance = 1e-6;
+  pose_refinement_options.parameter_tolerance = 1e-4;
+  pose_refinement_options.linear_solver_type = ceres::SPARSE_SCHUR;
+  pose_refinement_options.preconditioner_type = ceres::SCHUR_JACOBI;
+  pose_refiner_ =
+      std::make_shared<beam_cv::PoseRefinement>(pose_refinement_options);
 }
 
 bool VIOInitializer::AddImage(ros::Time cur_time) {
@@ -63,23 +74,21 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     }
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames, true);
-
-    // TODO: refine biases through optimization awith constant poses
-
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames);
     // optimize valid frames
-    std::cout << "\n\nFrame poses before optimization:\n" << std::endl;
+    ROS_INFO("Frame poses before optimization:");
     OutputFramePoses(valid_frames);
     OptimizeGraph();
-    std::cout << "\n\nFrame poses after optimization:\n" << std::endl;
+    ROS_INFO("Frame poses after optimization:");
     OutputFramePoses(valid_frames);
+    OutputResults(valid_frames);
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
-      Eigen::Matrix4d T_WORLD_CAMERA;
+      Eigen::Matrix4d T_WORLD_BASELINK;
       // if failure to localize next frame then init is a failure
-      if (!LocalizeFrame(f, T_WORLD_CAMERA)) { return false; }
-      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA, f.q, f.p);
+      if (!LocalizeFrame(f, T_WORLD_BASELINK)) { return false; }
+      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q, f.p);
     }
     // add localized poses and imu constraints
     AddPosesAndInertialConstraints(invalid_frames, false);
@@ -312,16 +321,9 @@ bool VIOInitializer::LocalizeFrame(
   Eigen::Matrix4d T_CAMERA_WORLD_est =
       beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
                                                       points);
-  ceres::Solver::Options ceres_solver_options;
-  ceres_solver_options.minimizer_progress_to_stdout = false;
-  ceres_solver_options.max_solver_time_in_seconds = 1e-1;
-  ceres_solver_options.logging_type = ceres::SILENT;
-  ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
-  ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
-  beam_cv::PoseRefinement refiner(ceres_solver_options);
   // refine pose using reprojection error
   Eigen::Matrix4d T_CAMERA_WORLD_ref =
-      refiner.RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points);
+      pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points);
   Eigen::Matrix4d T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
   // transform into baselink frame

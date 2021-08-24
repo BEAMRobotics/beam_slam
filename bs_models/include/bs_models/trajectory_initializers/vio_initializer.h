@@ -3,6 +3,7 @@
 // libbeam
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/trackers/Trackers.h>
+#include <beam_cv/geometry/PoseRefinement.h>
 
 // fuse
 #include <bs_common/extrinsics_lookup_online.h>
@@ -142,6 +143,7 @@ private:
 
 protected:
   // computer vision objects
+  std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
