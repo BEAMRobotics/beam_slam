@@ -151,7 +151,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     return;
   }
   Eigen::Matrix4d T_SUBMAP_LIDAR = T_SUBMAP_BASELINK * T_BASELINK_LIDAR;
-  
+
   // Check if stamp already exists (we may be adding partial scans)
   auto iter = lidar_keyframe_poses_.find(stamp.toNSec());
   if (iter != lidar_keyframe_poses_.end()) {
@@ -164,7 +164,6 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
         stamp.toNSec(), new_scan_pose));
   }
-
 }
 
 void Submap::AddTrajectoryMeasurement(
@@ -239,12 +238,19 @@ void Submap::SaveLidarMapInWorldFrame(const std::string& filename,
   }
 
   for (int i = 0; i < map.size(); i++) {
-    const PointCloud& cloud = map[i];
+    const PointCloud& cloud = map.at(i);
     std::string current_filename = filename;
     std::string replace = "_" + std::to_string(i) + ".pcd";
     current_filename.replace(current_filename.find(".pcd"), 4, replace);
-    BEAM_INFO("Saving lidar submap to: {}", current_filename);
-    pcl::io::savePCDFileASCII(current_filename, cloud);
+    BEAM_INFO("Saving lidar submap of size {} to: {}", cloud.size(),
+              current_filename);
+    try {
+      pcl::io::savePCDFileASCII(current_filename, cloud);
+    } catch (pcl::PCLException& e) {
+      BEAM_ERROR("unable to save cloud: {}", e.detailedMessage());
+    }
+
+    BEAM_INFO("Done saving submap.");
   }
 }
 

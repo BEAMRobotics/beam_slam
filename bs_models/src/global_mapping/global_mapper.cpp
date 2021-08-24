@@ -98,8 +98,8 @@ void GlobalMapper::onStop() {
                                   params_.save_local_mapper_trajectory);
   }
   if (params_.save_submaps) {
-    global_map_->SaveLidarSubmaps(save_path, params_.save_local_mapper_maps);
     global_map_->SaveKeypointSubmaps(save_path, params_.save_local_mapper_maps);
+    global_map_->SaveLidarSubmaps(save_path, params_.save_local_mapper_maps);
   }
   subscriber_.shutdown();
 }

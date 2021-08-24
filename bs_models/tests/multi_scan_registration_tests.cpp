@@ -14,6 +14,7 @@
 #include <beam_matching/Matchers.h>
 #include <beam_utils/math.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/simple_path_generator.h>
 
 #include <bs_common/sensor_proc.h>
 #include <bs_common/utils.h>
@@ -914,8 +915,94 @@ TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
   EXPECT_TRUE(multi_scan_registration->GetMap().NumPointClouds() == 3);
 
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, T_WORLD_S1_, 1, 0.005, true));
-  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, T_WORLD_S2_, 1.5, 0.15, true));
-  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S3_mea, T_WORLD_S3_, 1.5, 0.15, true));
+  EXPECT_TRUE(
+      beam::ArePosesEqual(T_WORLD_S2_mea, T_WORLD_S2_, 1.5, 0.15, true));
+  EXPECT_TRUE(
+      beam::ArePosesEqual(T_WORLD_S3_mea, T_WORLD_S3_, 1.5, 0.15, true));
+}
+
+TEST_F(MultiScanRegistrationTest, NScans) {
+  // init scan registration
+  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
+  matcher = std::make_unique<LoamMatcher>(*loam_params_);
+  std::shared_ptr<LoamFeatureExtractor> feature_extractor =
+      std::make_shared<LoamFeatureExtractor>(loam_params_);
+
+  // create path
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> nodes;
+  nodes.push_back(Eigen::Vector3d(0, 0, 0));
+  nodes.push_back(Eigen::Vector3d(2, -0.5, 0));
+  nodes.push_back(Eigen::Vector3d(4, 0.5, 0));
+  nodes.push_back(Eigen::Vector3d(6, 0.7, 0));
+  beam::SimplePathGenerator path(nodes);
+
+  // create a vec of N scan poses where their initial poses are the ground truth
+  int num_scans = 15;
+  ros::Time stamp_current = ros::Time(0);
+  ros::Duration time_inc = ros::Duration(1);  // increment by 1 s
+  std::vector<ScanPose> scan_poses;
+  for (size_t i = 0; i < num_scans; i++) {
+    // get pose
+    double interpolation_point =
+        static_cast<double>(i) / static_cast<double>(num_scans);
+    Eigen::Matrix4d T_WORLD_LIDAR = path.GetPose(interpolation_point);
+    Eigen::Matrix4d T_WORLD_LIDAR_pert =
+        PerturbPoseRandom(Eigen::Matrix4d::Identity(), 0.05, 5);
+
+    // transform pointcloud
+    PointCloud pc;
+    pcl::transformPointCloud(S1_, pc, beam::InvertTransform(T_WORLD_LIDAR));
+
+    // create scan pose
+    ScanPose SP(pc, stamp_current, T_WORLD_LIDAR, T_BASELINK_LIDAR_,
+                feature_extractor);
+    SP.UpdatePose(T_WORLD_LIDAR_pert);
+    scan_poses.push_back(SP);
+    stamp_current = stamp_current + time_inc;
+  }
+
+  // init scan registration
+  auto scan_reg_params = scan_reg_params_;
+  scan_reg_params.disable_lidar_map = false;
+
+  std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
+      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
+                                                  scan_reg_params);
+
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance.setIdentity();
+  covariance = covariance * 0.1;
+  multi_scan_registration->SetFixedCovariance(covariance);
+
+  // Create the graph
+  std::shared_ptr<fuse_graphs::HashGraph> graph =
+      std::make_shared<fuse_graphs::HashGraph>();
+
+  // add run scan registration and add transactions
+  for (auto& scan_pose : scan_poses) {
+    auto transaction =
+        multi_scan_registration->RegisterNewScan(scan_pose).GetTransaction();
+    graph->update(*transaction);
+  }
+
+  // optimize
+  graph->optimize();
+
+  //  Update poses
+  for (auto& scan_pose : scan_poses) {
+    scan_pose.UpdatePose(graph);
+
+    // save scans
+    scan_pose.SaveCloud("/home/nick/tmp/multi_scan_tests/");
+  }
+
+  //  Check poses
+  for (auto& scan_pose : scan_poses) {
+    Eigen::Matrix4d T_WORLD_LIDAR_gt =
+        scan_pose.T_REFFRAME_BASELINK_INIT() * scan_pose.T_BASELINK_LIDAR();
+    EXPECT_TRUE(beam::ArePosesEqual(scan_pose.T_REFFRAME_LIDAR(),
+                                    T_WORLD_LIDAR_gt, 1, 0.01, true));
+  }
 }
 
 int main(int argc, char** argv) {
