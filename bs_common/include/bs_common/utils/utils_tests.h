@@ -4,6 +4,7 @@
 #include <Eigen/Geometry>
 
 #include <beam_utils/math.h>
+#include <bs_common/imu_state.h>
 
 namespace bs_common {
 
@@ -22,13 +23,13 @@ void ExpectTransformsNear(const Eigen::Matrix4d& T1,
   EXPECT_NEAR(q1.x(), q2.x(), 1e-6);
   EXPECT_NEAR(q1.y(), q2.y(), 1e-6);
   EXPECT_NEAR(q1.z(), q2.z(), 1e-6);
-  EXPECT_NEAR(p1[0], p2[0], 1e-3);
-  EXPECT_NEAR(p1[1], p2[1], 1e-3);
-  EXPECT_NEAR(p1[2], p2[2], 1e-4);
+  EXPECT_NEAR(p1.x(), p2.x(), 1e-3);
+  EXPECT_NEAR(p1.y(), p2.y(), 1e-3);
+  EXPECT_NEAR(p1.z(), p2.z(), 1e-4);
 }
 
-void ExpectImuStateEq(const ImuState& IS1, const ImuState& IS2) {
-  double tol = 1e-12;
+void ExpectImuStateEq(const ImuState& IS1, const ImuState& IS2,
+                      double tol = 1e-12) {
   EXPECT_EQ(IS1.Stamp(), IS2.Stamp());
   EXPECT_NEAR(IS1.Orientation().w(), IS2.Orientation().w(), tol);
   EXPECT_NEAR(IS1.Orientation().x(), IS2.Orientation().x(), tol);

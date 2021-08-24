@@ -27,7 +27,7 @@ VIOInitializer::VIOInitializer(
   cov_accel_noise_ = Eigen::Matrix3d::Identity() * accel_noise;
   cov_gyro_bias_ = Eigen::Matrix3d::Identity() * gyro_bias;
   cov_accel_bias_ = Eigen::Matrix3d::Identity() * accel_bias;
-  // create optimzation graph
+  // create optimization graph
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
   // create visual map
   visual_map_ = std::make_shared<VisualMap>(cam_model_, local_graph_);

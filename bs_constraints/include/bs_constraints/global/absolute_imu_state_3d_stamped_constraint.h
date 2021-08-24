@@ -95,7 +95,7 @@ class AbsoluteImuState3DStampedConstraint : public fuse_core::Constraint {
    * the Ceres::Problem object will takes ownership of the pointer and delete it
    * during destruction.
    *
-   * @return A base pointer to an instance of a derived CostFunction.
+   * @return a base pointer to an instance of a derived CostFunction.
    */
   ceres::CostFunction* costFunction() const override;
 

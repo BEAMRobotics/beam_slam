@@ -5,18 +5,13 @@
 #include <fuse_core/variable.h>
 #include <fuse_graphs/hash_graph.h>
 
+#include <bs_common/utils/utils_tests.h>
 #include <bs_constraints/frame_to_frame/relative_constraint.h>
 #include <bs_constraints/global/absolute_constraint.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
-#include <bs_common/utils/utils_tests.h>
 
-using namespace fuse_constraints;
-using namespace bs_common;
-using namespace bs_constraints::frame_to_frame;
-using namespace bs_constraints::global;
-using namespace bs_models::frame_to_frame;
-
-void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
+void CalculateRelativeMotion(const bs_common::ImuState& IS1,
+                             const bs_common::ImuState& IS2,
                              ros::Duration& delta_t,
                              Eigen::Quaterniond& delta_q,
                              Eigen::Vector3d& delta_p,
@@ -38,23 +33,22 @@ void CalculateRelativeMotion(const ImuState& IS1, const ImuState& IS2,
 class Data {
  public:
   Data() {
-    // set time of simulation and gravity vector
-    int64_t time_simulation_ns = start_time_ns + time_duration;
+    // set time of simulation
+    int64_t t_simulation = t_sim_start + t_sim_duration;
 
-    // set times of imu states
-    ros::Time t1_ros = ros::Time(start_time_ns * 1e-9);
-    ros::Time t2_ros =
-        ros::Time((start_time_ns + time_simulation_ns) * 0.5 * 1e-9);
-    ros::Time t3_ros = ros::Time(time_simulation_ns * 1e-9);
+    // set times of IMU states by converting nSec to Sec
+    ros::Time t1_ros = ros::Time(t_sim_start * 1e-9);
+    ros::Time t2_ros = ros::Time((t_sim_start + t_simulation) * 0.5 * 1e-9);
+    ros::Time t3_ros = ros::Time(t_simulation * 1e-9);
 
     // generate spline
-    basalt::Se3Spline<5> gt_spline(time_interval_ns, start_time_ns);
+    basalt::Se3Spline<5> gt_spline(t_sim_interval, t_sim_start);
     gt_spline.genRandomTrajectory(num_knots);
 
     // create synthetic imu measurements
-    for (int64_t t_ns = start_time_ns; t_ns < time_simulation_ns + dt_ns;
+    for (int64_t t_ns = t_sim_start; t_ns < t_simulation + dt_ns;
          t_ns += dt_ns) {
-      // get state info in middle of interval
+      // get state in middle of interval
       Sophus::SE3d pose = gt_spline.pose(t_ns + dt_ns / 2);
       Eigen::Vector3d rot_vel_body = gt_spline.rotVelBody(t_ns + dt_ns / 2);
       Eigen::Vector3d lin_accel_body =
@@ -71,8 +65,8 @@ class Data {
       imu_data_gt.emplace_back(imu_data);
 
       // get ground truth pose every second between start and end exclusive
-      if (t_ns % int64_t(1e9) == 0 && t_ns > start_time_ns &&
-          t_ns < time_simulation_ns) {
+      if (t_ns % int64_t(1e9) == 0 && t_ns > t_sim_start &&
+          t_ns < t_simulation) {
         Eigen::Matrix3d q_k_mat = gt_spline.pose(t_ns).so3().matrix();
         Eigen::Vector3d p_k_vec = gt_spline.pose(t_ns).translation();
         Eigen::Quaterniond q_k_quat(q_k_mat);
@@ -83,7 +77,7 @@ class Data {
       }
     }
 
-    // set Imu State 1
+    // set IMU State 1
     Sophus::SE3d pose1 = gt_spline.pose(t1_ros.toNSec());
     Eigen::Matrix3d q1_mat = pose1.so3().matrix();
     q1_quat = q1_mat;
@@ -92,7 +86,7 @@ class Data {
     bs_common::ImuState IS1_temp(t1_ros, q1_quat, p1_vec, v1_vec);
     IS1 = std::move(IS1_temp);
 
-    // set Imu State 2
+    // set IMU State 2
     Sophus::SE3d pose2 = gt_spline.pose(t2_ros.toNSec());
     Eigen::Matrix3d q2_mat = pose2.so3().matrix();
     q2_quat = q2_mat;
@@ -101,7 +95,7 @@ class Data {
     bs_common::ImuState IS2_temp(t2_ros, q2_quat, p2_vec, v2_vec);
     IS2 = std::move(IS2_temp);
 
-    // set Imu State 3
+    // set IMU State 3
     Sophus::SE3d pose3 = gt_spline.pose(t3_ros.toNSec());
     Eigen::Matrix3d q3_mat = pose3.so3().matrix();
     q3_quat = q3_mat;
@@ -119,10 +113,10 @@ class Data {
 
   // spline parameters
   int num_knots = 15;
-  int64_t start_time_ns = 0;        // [nano sec]
-  int64_t time_interval_ns = 10e9;  // [nano sec]
-  int64_t time_duration = 20e9;     // [nano sec]
-  int64_t dt_ns = 1e7;              // [nano sec]
+  int64_t t_sim_start = 0;        // [nano sec]
+  int64_t t_sim_interval = 10e9;  // [nano sec]
+  int64_t t_sim_duration = 20e9;  // [nano sec]
+  int64_t dt_ns = 1e7;            // [nano sec]
 
   // buffers
   std::vector<bs_common::IMUData> imu_data_gt;
@@ -175,15 +169,17 @@ int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
        iter++) {
     if (iter->type() == dummy_relative_constraint.type()) {
       auto constraint =
-          dynamic_cast<const RelativeImuState3DStampedConstraint&>(*iter);
-      fuse_core::Constraint::SharedPtr constraint_ptr =
+          dynamic_cast<const bs_constraints::frame_to_frame::
+                           RelativeImuState3DStampedConstraint&>(*iter);
+      auto constraint_ptr = bs_constraints::frame_to_frame::
           RelativeImuState3DStampedConstraint::make_shared(constraint);
       graph.addConstraint(constraint_ptr);
       counter++;
     } else if (iter->type() == dummy_absolute_constraint.type()) {
-      auto constraint =
-          dynamic_cast<const AbsoluteImuState3DStampedConstraint&>(*iter);
-      fuse_core::Constraint::SharedPtr constraint_ptr =
+      auto constraint = dynamic_cast<
+          const bs_constraints::global::AbsoluteImuState3DStampedConstraint&>(
+          *iter);
+      auto constraint_ptr = bs_constraints::global::
           AbsoluteImuState3DStampedConstraint::make_shared(constraint);
       graph.addConstraint(constraint_ptr);
       counter++;
@@ -308,47 +304,55 @@ TEST(ImuPreintegration, Simple2StateFG) {
   fuse_core::Vector7d pose_mean_origin;
   pose_mean_origin << 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;
   fuse_core::Matrix6d pose_cov_origin = fuse_core::Matrix6d::Identity();
-  auto prior_pose = AbsolutePose3DStampedConstraint::make_shared(
-      "test", *p1, *o1, pose_mean_origin, pose_cov_origin);
+  auto prior_pose =
+      fuse_constraints::AbsolutePose3DStampedConstraint::make_shared(
+          "test", *p1, *o1, pose_mean_origin, pose_cov_origin);
 
   // Create an absolute linear velocity constraint at the origin
   fuse_core::Vector3d vel_mean_origin;
   vel_mean_origin << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d vel_cov_origin = fuse_core::Matrix3d::Identity();
-  auto prior_vel = AbsoluteVelocityLinear3DStampedConstraint::make_shared(
-      "test", *v1, vel_mean_origin, vel_cov_origin);
+  auto prior_vel =
+      bs_constraints::global::AbsoluteVelocityLinear3DStampedConstraint::
+          make_shared("test", *v1, vel_mean_origin, vel_cov_origin);
 
   // Create absolute bias constraint at zero
   fuse_core::Vector3d bias_mean_origin;
   bias_mean_origin << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d bias_cov_origin = fuse_core::Matrix3d::Identity();
-  auto prior_bg = AbsoluteGyroBias3DStampedConstraint::make_shared(
-      "test", *bg1, bias_mean_origin, bias_cov_origin);
-  auto prior_ba = AbsoluteAccelBias3DStampedConstraint::make_shared(
-      "test", *ba1, bias_mean_origin, bias_cov_origin);
+  auto prior_bg =
+      bs_constraints::global::AbsoluteGyroBias3DStampedConstraint::make_shared(
+          "test", *bg1, bias_mean_origin, bias_cov_origin);
+  auto prior_ba =
+      bs_constraints::global::AbsoluteAccelBias3DStampedConstraint::make_shared(
+          "test", *ba1, bias_mean_origin, bias_cov_origin);
 
   // Create a relative pose constraint for 1m in the x direction
   fuse_core::Vector7d pose_mean_delta;
   pose_mean_delta << 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;
   fuse_core::Matrix6d pose_cov_delta = fuse_core::Matrix6d::Identity();
-  auto relative_pose = RelativePose3DStampedConstraint::make_shared(
-      "test", *p1, *o1, *p2, *o2, pose_mean_delta, pose_cov_delta);
+  auto relative_pose =
+      fuse_constraints::RelativePose3DStampedConstraint::make_shared(
+          "test", *p1, *o1, *p2, *o2, pose_mean_delta, pose_cov_delta);
 
   // Create a relative linear velocity constraint for 1m/s in the x direction
   fuse_core::Vector3d vel_mean_delta;
   vel_mean_delta << 1.0, 0.0, 0.0;
   fuse_core::Matrix3d vel_cov_delta = fuse_core::Matrix3d::Identity();
-  auto relative_vel = RelativeVelocityLinear3DStampedConstraint::make_shared(
-      "test", *v1, *v2, vel_mean_delta, vel_cov_delta);
+  auto relative_vel = bs_constraints::frame_to_frame::
+      RelativeVelocityLinear3DStampedConstraint::make_shared(
+          "test", *v1, *v2, vel_mean_delta, vel_cov_delta);
 
   // Create relative bias constraints for 0.001 in the x direction
   fuse_core::Vector3d bias_mean_delta;
   bias_mean_delta << 0.001, 0.0, 0.0;
   fuse_core::Matrix3d bias_cov_delta = fuse_core::Matrix3d::Identity();
-  auto relative_bg = RelativeGyroBias3DStampedConstraint::make_shared(
-      "test", *bg1, *bg2, bias_mean_delta, bias_cov_delta);
-  auto relative_ba = RelativeAccelBias3DStampedConstraint::make_shared(
-      "test", *ba1, *ba2, bias_mean_delta, bias_cov_delta);
+  auto relative_bg =
+      bs_constraints::frame_to_frame::RelativeGyroBias3DStampedConstraint::
+          make_shared("test", *bg1, *bg2, bias_mean_delta, bias_cov_delta);
+  auto relative_ba =
+      bs_constraints::frame_to_frame::RelativeAccelBias3DStampedConstraint::
+          make_shared("test", *ba1, *ba2, bias_mean_delta, bias_cov_delta);
 
   // get means
   Eigen::Matrix<double, 16, 1> mean_origin;
@@ -418,8 +422,10 @@ TEST(ImuPreintegration, Simple2StateFG) {
 class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
  public:
   void SetUp() override {
-    // set intrinsic noise of imu to zero
+    // set prior noise to a small value
     params.cov_prior_noise = 1e9;
+
+    // set intrinsic noise of imu to zero
     params.cov_gyro_noise.setZero();
     params.cov_accel_noise.setZero();
     params.cov_gyro_bias.setZero();
@@ -427,7 +433,8 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
 
     // instantiate preintegration class with zero noise. By default,
     // bias terms (i.e. bg, ba) are set to zero
-    imu_preintegration = std::make_unique<ImuPreintegration>(params);
+    imu_preintegration =
+        std::make_unique<bs_models::frame_to_frame::ImuPreintegration>(params);
 
     // populate ImuPreintegration with synthetic imu measurements
     for (bs_common::IMUData msg : data.imu_data_gt)
@@ -445,12 +452,13 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
   }
 
   Data data;
-  ImuPreintegration::Params params;
-  std::unique_ptr<ImuPreintegration> imu_preintegration;
+  bs_models::frame_to_frame::ImuPreintegration::Params params;
+  std::unique_ptr<bs_models::frame_to_frame::ImuPreintegration>
+      imu_preintegration;
 
-  ImuState IS1;
-  ImuState IS2;
-  ImuState IS3;
+  bs_common::ImuState IS1;
+  bs_common::ImuState IS2;
+  bs_common::ImuState IS3;
 
   ros::Time t_start;
   ros::Time t_middle;
@@ -464,10 +472,12 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
 
   // instantiate preintegration class with invalid prior noise
   EXPECT_ANY_THROW({
-    ImuPreintegration::Params params;
+    bs_models::frame_to_frame::ImuPreintegration::Params params;
     params.cov_prior_noise = 0;
-    std::unique_ptr<ImuPreintegration> dummy_imu_preintegration =
-        std::make_unique<ImuPreintegration>(params);
+    std::unique_ptr<bs_models::frame_to_frame::ImuPreintegration>
+        dummy_imu_preintegration =
+            std::make_unique<bs_models::frame_to_frame::ImuPreintegration>(
+                params);
   });
 
   /**
@@ -487,12 +497,12 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   imu_preintegration->SetStart(t_start);
   bs_common::ImuState IS_default(t_start);
   bs_common::ImuState IS_start_default = imu_preintegration->GetImuState();
-  ExpectImuStateEq(IS_start_default, IS_default);
+  bs_common::ExpectImuStateEq(IS_start_default, IS_default);
 
   // check optional initialization
   imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
   bs_common::ImuState IS_start = imu_preintegration->GetImuState();
-  ExpectImuStateEq(IS_start, IS1);
+  bs_common::ExpectImuStateEq(IS_start, IS1);
 
   /**
    * PredictState() functionality
@@ -520,8 +530,8 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
       imu_preintegration->PredictState(pre_integrator_23, IS_middle_predict);
 
   // check
-  ExpectImuStateEq(IS_middle_predict, IS2);
-  ExpectImuStateEq(IS_end_predict, IS3);
+  bs_common::ExpectImuStateEq(IS_middle_predict, IS2);
+  bs_common::ExpectImuStateEq(IS_end_predict, IS3);
 
   /**
    * GetPose() functionality
@@ -530,7 +540,7 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   for (int i = 1; i - 1 < data.pose_gt.size(); i++) {
     Eigen::Matrix4d T_WORLD_IMU;
     imu_preintegration->GetPose(T_WORLD_IMU, ros::Time(i));
-    ExpectTransformsNear(T_WORLD_IMU, data.pose_gt[i - 1]);
+    bs_common::ExpectTransformsNear(T_WORLD_IMU, data.pose_gt[i - 1]);
   }
 
   // expect false from incorrect time
@@ -552,7 +562,7 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   bs_common::ImuState IS_end = imu_preintegration->GetImuState();
 
   // check
-  ExpectImuStateNear(IS_end, IS3);
+  bs_common::ExpectImuStateNear(IS_end, IS3);
 
   // validate stamps
   EXPECT_TRUE(transaction->stamp() == IS_end.Stamp());
@@ -595,8 +605,8 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   IS_end.Update(g);
 
   // check
-  ExpectImuStateNear(IS1, IS_start);
-  ExpectImuStateNear(IS3, IS_end);
+  bs_common::ExpectImuStateNear(IS1, IS_start);
+  bs_common::ExpectImuStateNear(IS3, IS_end);
 }
 
 TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
@@ -641,13 +651,10 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
   IS_middle.Update(g);
   IS_end.Update(g);
 
-  IS_start.Update(g);
-  IS_end.Update(g);
-
   // check
-  ExpectImuStateNear(IS1, IS_start);
-  ExpectImuStateNear(IS2, IS_middle);
-  ExpectImuStateNear(IS3, IS_end);
+  bs_common::ExpectImuStateNear(IS1, IS_start);
+  bs_common::ExpectImuStateNear(IS2, IS_middle);
+  bs_common::ExpectImuStateNear(IS3, IS_end);
 }
 
 int main(int argc, char** argv) {

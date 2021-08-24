@@ -2,8 +2,8 @@
 
 #include <queue>
 
-#include <bs_common/preintegrator.h>
 #include <bs_common/imu_state.h>
+#include <bs_common/preintegrator.h>
 #include <bs_constraints/frame_to_frame/imu_state_3d_stamped_transaction.h>
 #include <sensor_msgs/Imu.h>
 

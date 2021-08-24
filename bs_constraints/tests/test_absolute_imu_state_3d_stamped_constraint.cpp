@@ -24,12 +24,13 @@ class Data {
     Eigen::Vector3d ba_vec(0.15, -0.30, 1.0);
 
     // populate IMU state with measurements
-    ros::Time stamp = ros::Time(1, 0);
-    bs_common::ImuState tmp(stamp, q_quat, p_vec, v_vec, bg_vec, ba_vec);
+    bs_common::ImuState tmp(ros::Time(1, 0), q_quat, p_vec, v_vec, bg_vec,
+                            ba_vec);
     imu_state = std::move(tmp);
 
-    // populate with measurements
-    mean << q_quat.w(), q_quat.vec(), p_vec, v_vec, bg_vec, ba_vec;
+    // populate mean with arbitrary measurements
+    mean << 1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 0.1, 0.2, 0.3,
+        0.1, 0.2, 0.3;
 
     // clang-format off
     cov << 1.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,  1.0,  1.1,  1.2,  1.3,  1.4,

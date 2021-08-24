@@ -112,8 +112,8 @@ class PreIntegrator {
                  bool compute_covariance);
 
   /**
-   * @brief Computes the square-root, inverted information matrix from the
-   * covariance matrix calculated during preintegration
+   * @brief Computes the square-root information matrix from the covariance
+   * matrix calculated during preintegration
    */
   void ComputeSqrtInvCov();
 

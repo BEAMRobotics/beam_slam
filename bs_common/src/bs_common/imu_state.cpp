@@ -70,8 +70,7 @@ fuse_variables::Orientation3DStamped ImuState::Orientation() const {
 Eigen::Quaterniond ImuState::OrientationQuat() const {
   Eigen::Quaterniond q(orientation_.w(), orientation_.x(), orientation_.y(),
                        orientation_.z());
-  q.normalize();
-  return q;
+  return q.normalized();
 }
 
 Eigen::Matrix3d ImuState::OrientationMat() const {

@@ -7,6 +7,7 @@
 
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
+#include <bs_common/utils.h>
 
 namespace bs_constraints {
 namespace frame_to_frame {
@@ -44,7 +45,7 @@ class NormalDeltaImuState3DCostFunctor {
 };
 
 template <typename T>
-inline Eigen::Quaternion<T> deltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
+inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
   Eigen::Quaternion<T> dq;
   Eigen::Matrix<T, 3, 1> half_theta = theta;
   half_theta /= static_cast<T>(2.0);
@@ -85,7 +86,7 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
   Eigen::Matrix<T, 3, 1> ba_j(accelbias2[0], accelbias2[1], accelbias2[2]);
 
   // map preintegrator to templated
-  T dt = (T)pre_integrator_.delta.t.toSec();
+  T dt = static_cast<T>(pre_integrator_.delta.t.toSec());
   Eigen::Quaternion<T> dq = pre_integrator_.delta.q.cast<T>();
   Eigen::Matrix<T, 3, 1> dp = pre_integrator_.delta.p.cast<T>();
   Eigen::Matrix<T, 3, 1> dv = pre_integrator_.delta.v.cast<T>();
@@ -102,9 +103,9 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
 
   // calculate orientation residuals
   Eigen::Matrix<T, 3, 1> q_tmp = dq_dbg * dbg;
-  Eigen::Quaternion<T> q_corrected = dq * deltaQ(q_tmp);
+  Eigen::Quaternion<T> q_corrected = dq * DeltaQ(q_tmp);
   Eigen::Matrix<T, 3, 1> res_q =
-      (T)2 * (q_corrected.inverse() * (q_i.inverse() * q_j)).vec();
+      static_cast<T>(2) * (q_corrected.inverse() * (q_i.inverse() * q_j)).vec();
   residual[0] = res_q[0];
   residual[1] = res_q[1];
   residual[2] = res_q[2];
@@ -112,7 +113,8 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
   // calculate position residuals
   Eigen::Matrix<T, 3, 1> p_corrected = dp + dp_dbg * dbg + dp_dba * dba;
   Eigen::Matrix<T, 3, 1> p_delta =
-      q_i.conjugate() * (p_j - p_i - dt * v_i - (T)0.5 * dt * dt * G);
+      q_i.conjugate() *
+      (p_j - p_i - dt * v_i - static_cast<T>(0.5) * dt * dt * G);
   Eigen::Matrix<T, 3, 1> res_p = p_delta - p_corrected;
   residual[3] = res_p[0];
   residual[4] = res_p[1];

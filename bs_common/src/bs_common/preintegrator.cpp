@@ -111,7 +111,7 @@ void PreIntegrator::ComputeSqrtInvCov() {
   }
 
   delta.sqrt_inv_cov =
-      Eigen::LLT<Eigen::Matrix<double, 15, 15>>(delta.cov.inverse())
+      Eigen::LLT<Eigen::Matrix<double, ES_SIZE, ES_SIZE>>(delta.cov.inverse())
           .matrixL()
           .transpose();
 }
