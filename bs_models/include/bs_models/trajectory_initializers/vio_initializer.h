@@ -31,9 +31,9 @@ public:
    */
   VIOInitializer(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                  std::shared_ptr<beam_cv::Tracker> tracker,
-                 const std::string& path_topic, const double& gyro_noise,
-                 const double& accel_noise, const double& gyro_bias,
-                 const double& accel_bias, bool use_scale_estimate = false,
+                 const std::string& path_topic,
+                 const std::string& imu_intrinsics_path,
+                 bool use_scale_estimate = false,
                  double max_optimization_time = 5.0,
                  const std::string& output_directory = "");
 
@@ -146,7 +146,7 @@ private:
 protected:
   // subscriber for initialized path
   ros::Subscriber path_subscriber_;
-  
+
   // computer vision objects
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
@@ -156,6 +156,7 @@ protected:
 
   // imu preintegration object
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;
+  bs_models::frame_to_frame::ImuPreintegration::Params imu_params_;
 
   // graph object for optimization
   std::shared_ptr<fuse_graphs::HashGraph> local_graph_;

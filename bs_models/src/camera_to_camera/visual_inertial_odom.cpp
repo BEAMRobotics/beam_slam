@@ -3,8 +3,6 @@
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
-#include <nlohmann/json.hpp>
-
 // messages
 #include <bs_models/RelocRequestMsg.h>
 #include <bs_models/SlamChunkMsg.h>
@@ -67,12 +65,9 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
-  nlohmann::json J;
-  std::ifstream file(calibration_params_.imu_intrinsics_path);
-  file >> J;
   initializer_ = std::make_shared<bs_models::camera_to_camera::VIOInitializer>(
-      cam_model_, tracker_, camera_params_.init_path_topic, J["cov_gyro_noise"],
-      J["cov_accel_noise"], J["cov_gyro_bias"], J["cov_accel_bias"], false,
+      cam_model_, tracker_, camera_params_.init_path_topic,
+      calibration_params_.imu_intrinsics_path, false,
       camera_params_.init_max_optimization_time_in_seconds,
       camera_params_.init_map_output_directory);
 
@@ -134,6 +129,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         bs_models::camera_to_camera::Keyframe kf(img_time,
                                                  image_buffer_.front());
         keyframes_.push_back(kf);
+        added_since_kf_ = 0;
         if (initializer_->AddImage(img_time)) {
           ROS_INFO("Initialization Success: %f", img_time.toSec());
           // get the preintegration object
