@@ -60,8 +60,6 @@ void VisualInertialOdom::onInit() {
   visual_map_ = std::make_shared<VisualMap>(
       cam_model_, camera_params_.source, camera_params_.num_features_to_track,
       camera_params_.keyframe_window_size);
-  current_submap_ =
-      std::make_shared<bs_models::camera_to_camera::VisualSubmap>();
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
@@ -105,8 +103,6 @@ void VisualInertialOdom::onStart() {
   path_subscriber_ = private_node_handle_.subscribe(
       camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
       this);
-  submap_subscriber_ = private_node_handle_.subscribe(
-      "/visual_submap", 10, &VisualInertialOdom::processSubmap, this);
   /***********************************************************
    *                 Advertise publishers                    *
    ***********************************************************/
@@ -193,7 +189,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       } else {
         // compute relative pose to most recent kf
         Eigen::Matrix4d T_WORLD_CAMERA_curkf =
-            visual_map_->GetPose(keyframes_.back().Stamp()).value();
+            visual_map_->GetCameraPose(keyframes_.back().Stamp()).value();
         Eigen::Matrix4d T_WORLD_BASELINK_curkf =
             T_WORLD_CAMERA_curkf * T_cam_baselink_;
         Eigen::Matrix4d T_curframe_curkeyframe =
@@ -229,10 +225,6 @@ void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 void VisualInertialOdom::processInitPath(
     const InitializedPathMsg::ConstPtr& msg) {
   initializer_->SetPath(*msg);
-}
-
-void VisualInertialOdom::processSubmap(const SubmapMsg::ConstPtr& msg) {
-  current_submap_->SetSubmap(msg);
 }
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
@@ -327,7 +319,7 @@ bool VisualInertialOdom::IsKeyframe(
     const std::vector<uint64_t>& untriangulated_ids,
     const Eigen::Matrix4d& T_WORLD_CAMERA) {
   Eigen::Matrix4d T_WORLD_curkf =
-      visual_map_->GetPose(keyframes_.back().Stamp()).value();
+      visual_map_->GetCameraPose(keyframes_.back().Stamp()).value();
   bool is_keyframe = false;
   if ((img_time - keyframes_.back().Stamp()).toSec() >=
           camera_params_.keyframe_min_time_in_seconds &&
@@ -335,33 +327,6 @@ bool VisualInertialOdom::IsKeyframe(
                                   true, false)) {
     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
     is_keyframe = true;
-    // // combine all the id's seen in the image
-    // std::vector<uint64_t> all_ids;
-    // all_ids.insert(all_ids.end(), triangulated_ids.begin(),
-    //                triangulated_ids.end());
-    // all_ids.insert(all_ids.end(), untriangulated_ids.begin(),
-    //                untriangulated_ids.end());
-    // // compute the parallax between this frame and the last keyframe
-    // double avg_parallax = ComputeAvgParallax(keyframes_.back().Stamp(),
-    // img_time, all_ids);
-    // // test against parameters to see if this frame is a keyframe
-    // if (beam::PassedMotionThreshold(T_WORLD_prevkf, T_WORLD_CAMERA, 0.0,
-    // 0.05,
-    //                                 true, true, false)) {
-    //   if (triangulated_ids.size() < camera_params_.keyframe_tracks_drop ||
-    //       avg_parallax > camera_params_.keyframe_parallax) {
-    //     is_keyframe = true;
-    //     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
-    //     ROS_INFO("Avg parallax: %f", avg_parallax);
-    //     ROS_INFO("Visible landmarks: %zu", triangulated_ids.size());
-    //   } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
-    //     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
-    //     ROS_INFO("Max # of frames reached.");
-    //     is_keyframe = true;
-    //   }
-    // } else {
-    //   is_keyframe = false;
-    // }
   } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
     is_keyframe = true;
   } else {
@@ -393,8 +358,8 @@ void VisualInertialOdom::ExtendMap(
       // get measurements
       pixel_prv_kf = tracker_->Get(prev_kf_time, id);
       pixel_cur_kf = tracker_->Get(cur_kf_time, id);
-      T_cam_world_prv_kf = visual_map_->GetPose(prev_kf_time).value().inverse();
-      T_cam_world_cur_kf = visual_map_->GetPose(cur_kf_time).value().inverse();
+      T_cam_world_prv_kf = visual_map_->GetCameraPose(prev_kf_time).value().inverse();
+      T_cam_world_cur_kf = visual_map_->GetCameraPose(cur_kf_time).value().inverse();
       // triangulate point
       Eigen::Vector2i pixel_prv_kf_i = pixel_prv_kf.cast<int>();
       Eigen::Vector2i pixel_cur_kf_i = pixel_cur_kf.cast<int>();
@@ -468,7 +433,7 @@ void VisualInertialOdom::NotifyNewKeyframe(
 void VisualInertialOdom::PublishSlamChunk() {
   // this just makes sure the visual map has the most recent variables
   for (auto& kf : keyframes_) {
-    visual_map_->GetPose(kf.Stamp());
+    visual_map_->GetCameraPose(kf.Stamp());
   }
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size - 1) {
@@ -483,7 +448,7 @@ void VisualInertialOdom::PublishSlamChunk() {
     slam_chunk.stamp = kf_to_publish;
     // keyframe pose
     Eigen::Matrix4d T_WORLD_BASELINK =
-        visual_map_->GetPose(kf_to_publish).value() * T_cam_baselink_;
+        visual_map_->GetCameraPose(kf_to_publish).value() * T_cam_baselink_;
     // flatten 4x4 pose
     std::vector<float> pose;
     for (uint8_t i = 0; i < 3; i++) {
@@ -563,19 +528,6 @@ double VisualInertialOdom::ComputeAvgParallax(
   // sort and find median parallax
   std::sort(parallaxes.begin(), parallaxes.end());
   return parallaxes[parallaxes.size() / 2];
-}
-
-std::vector<beam::opt<Eigen::Vector3d>>
-VisualInertialOdom::MatchKeyframeToSubmap(
-    const std::vector<uint64_t>& untriangulated_ids) {
-  /* TODO:
-   * 1. get all visual map points in current frame
-   * 2. project all points into image to get list of keypoints
-   * 3. get list of descriptors for each untriangulated id in the current image
-   * 4. get list of keypoints for each untriangulated id in the current image
-   * 5. match using a bruteforce matcher
-   * 6. filter matches using pixel distance
-   */
 }
 
 }  // namespace camera_to_camera

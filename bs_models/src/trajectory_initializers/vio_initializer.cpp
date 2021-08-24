@@ -96,7 +96,7 @@ void VIOInitializer::OutputFramePoses(
     const std::vector<bs_models::camera_to_camera::Frame>& frames) {
   for (auto& f : frames) {
     std::cout << f.t << std::endl;
-    std::cout << visual_map_->GetPose(f.t) << std::endl;
+    std::cout << visual_map_->GetCameraPose(f.t) << std::endl;
   }
 }
 
@@ -235,7 +235,7 @@ void VIOInitializer::AddPosesAndInertialConstraints(
           imu_preint_->RegisterNewImuPreintegratedFactor(
               frame.t, img_orientation, img_position);
       // update graph with the transaction
-      local_graph_->update(*transaction);
+      // local_graph_->update(*transaction);
     }
   }
 }
@@ -262,7 +262,7 @@ size_t VIOInitializer::AddVisualConstraints(
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
       for (auto& m : track) {
-        beam::opt<Eigen::Matrix4d> T = visual_map_->GetPose(m.time_point);
+        beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
         // check if the pose is in the graph (keyframe)
         if (T.has_value()) {
           pixels.push_back(m.value.cast<int>());
@@ -340,7 +340,6 @@ void VIOInitializer::OptimizeGraph() {
   options.max_solver_time_in_seconds = max_optimization_time_;
   options.max_num_iterations = 100;
   local_graph_->optimize(options);
-  // std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }
 
 void VIOInitializer::OutputResults(
@@ -355,7 +354,7 @@ void VIOInitializer::OutputResults(
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
     for (auto& f : frames) {
       frame_cloud = beam::AddFrameToCloud(
-          frame_cloud, visual_map_->GetPose(f.t).value(), 0.001);
+          frame_cloud, visual_map_->GetCameraPose(f.t).value(), 0.001);
     }
     // add all landmark points to cloud and save
     std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(

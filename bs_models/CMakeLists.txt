@@ -132,7 +132,6 @@ add_library(
   src/trajectory_initializers/vio_initializer.cpp
   src/trajectory_initializers/lo_initializer.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
-  src/camera_to_camera/visual_submap.cpp
   src/camera_to_camera/visual_map.cpp
   src/camera_to_camera/keyframe.cpp
   src/global_mapping/global_mapper.cpp
