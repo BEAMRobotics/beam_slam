@@ -3,7 +3,7 @@
 #include <Eigen/Dense>
 #include <tf2/buffer_core.h>
 
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 
 namespace bs_common {
 
@@ -46,8 +46,8 @@ class PoseLookup {
                            const ros::Time& time);
 
  private:
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   std::shared_ptr<tf2::BufferCore> poses_{nullptr};
 };

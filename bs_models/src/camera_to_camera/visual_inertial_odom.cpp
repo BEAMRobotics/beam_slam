@@ -8,6 +8,7 @@
 // messages
 #include <bs_models/RelocRequestMsg.h>
 #include <bs_models/SlamChunkMsg.h>
+#include <bs_models/SubmapMsg.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Header.h>
 #include <std_msgs/UInt64MultiArray.h>
@@ -19,6 +20,7 @@
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/Triangulation.h>
 
+#include <bs_common/current_submap.h>
 #include <bs_common/utils.h>
 #include <bs_models/camera_to_camera/utils.h>
 
@@ -40,13 +42,12 @@ void VisualInertialOdom::onInit() {
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   camera_params_.loadFromROS(private_node_handle_);
-  global_params_.loadFromROS(private_node_handle_);
-
+  calibration_params_.loadFromROS();
   /***********************************************************
    *  Load camera model, create visual map and pose refiner  *
    ***********************************************************/
-  cam_model_ =
-      beam_calibration::CameraModel::Create(global_params_.cam_intrinsics_path);
+  cam_model_ = beam_calibration::CameraModel::Create(
+      calibration_params_.cam_intrinsics_path);
   visual_map_ = std::make_shared<VisualMap>(
       cam_model_, camera_params_.source, camera_params_.num_features_to_track,
       camera_params_.keyframe_window_size);
@@ -61,7 +62,7 @@ void VisualInertialOdom::onInit() {
       beam_cv::Descriptor::Create(descriptor_type_);
   std::shared_ptr<beam_cv::Detector> detector =
       std::make_shared<beam_cv::GFTTDetector>(
-          camera_params_.num_features_to_track);
+          camera_params_.num_features_to_track, 0.01, 1, 3, false, 0.04, 1, 1);
   tracker_ = std::make_shared<beam_cv::KLTracker>(detector, descriptor,
                                                   camera_params_.window_size);
 
@@ -69,7 +70,7 @@ void VisualInertialOdom::onInit() {
    *               Create initializer object                 *
    ***********************************************************/
   nlohmann::json J;
-  std::ifstream file(global_params_.imu_intrinsics_path);
+  std::ifstream file(calibration_params_.imu_intrinsics_path);
   file >> J;
   initializer_ = std::make_shared<bs_models::camera_to_camera::VIOInitializer>(
       cam_model_, tracker_, camera_params_.init_path_topic, J["cov_gyro_noise"],
@@ -108,9 +109,32 @@ void VisualInertialOdom::onStart() {
           camera_params_.landmark_topic, 10);
   reloc_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
       camera_params_.reloc_request_topic, 10);
+  // temp
+  submap_publisher_ = private_node_handle_.advertise<SubmapMsg>("/submap", 10);
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
+  if (do_once == true) {
+    nlohmann::json J2;
+    std::ifstream file2("/home/jake/results/init_submap.json");
+    file2 >> J2;
+    bs_models::SubmapMsg submap_msg;
+    for (auto& p : J2["points"]) {
+      geometry_msgs::Vector3 point;
+      point.x = p[0];
+      point.y = p[1];
+      point.z = p[2];
+      submap_msg.visual_map_points.push_back(point);
+    }
+    for (auto& d : J2["descriptors"]) {
+      DescriptorMsg desc;
+      for (float it : d) { desc.data.push_back(it); }
+      submap_msg.visual_map_descriptors.push_back(desc);
+    }
+    submap_msg.descriptor_type = 0;
+    submap_publisher_.publish(submap_msg);
+    do_once = false;
+  }
   // get most recent extrinsics, if failure then process frame later
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get camera to baselink transform.");
@@ -237,7 +261,6 @@ void VisualInertialOdom::SendInitializationGraph(
         fuse_variables::Position3DStamped::make_shared();
     fuse_variables::Orientation3DStamped::SharedPtr orientation =
         fuse_variables::Orientation3DStamped::make_shared();
-
     if (var.type() == landmark->type()) {
       *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(var);
       visual_map_->AddLandmark(landmark, transaction);
@@ -262,7 +285,7 @@ void VisualInertialOdom::SendInitializationGraph(
   // announce the first keyframe
   std_msgs::Header keyframe_header;
   keyframe_header.stamp = keyframes_.back().Stamp();
-  keyframe_header.frame_id = global_params_.baselink_frame;
+  keyframe_header.frame_id = calibration_params_.baselink_frame;
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
   // publish landmarks
@@ -377,7 +400,7 @@ void VisualInertialOdom::NotifyNewKeyframe(
   // build header message and publish for lidar slam
   std_msgs::Header keyframe_header;
   keyframe_header.stamp = keyframes_.back().Stamp();
-  keyframe_header.frame_id = global_params_.baselink_frame;
+  keyframe_header.frame_id = calibration_params_.baselink_frame;
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
 

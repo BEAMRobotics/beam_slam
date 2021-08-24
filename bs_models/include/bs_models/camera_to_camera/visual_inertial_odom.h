@@ -13,13 +13,14 @@
 #include <fuse_models/common/throttled_callback.h>
 
 // beam_slam
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
+#include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/camera_params.h>
-#include <bs_parameters/models/global_params.h>
+#include <bs_common/current_submap.h>
 
 // ros
 #include <bs_models/CameraMeasurementMsg.h>
@@ -141,8 +142,8 @@ protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;
 
-  // global parameters
-  bs_parameters::models::GlobalParams global_params_;
+  // calibration parameters
+  bs_parameters::models::CalibrationParams calibration_params_;
 
   // subscribers
   ros::Subscriber image_subscriber_;
@@ -154,6 +155,7 @@ protected:
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher landmark_publisher_;
   ros::Publisher reloc_publisher_;
+  ros::Publisher submap_publisher_;
 
   // image and imu queues for proper synchronization
   std::queue<sensor_msgs::Image> image_buffer_;
@@ -173,6 +175,7 @@ protected:
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
   beam_cv::DescriptorType descriptor_type_;
+  bs_common::CurrentSubmap& submap_ = bs_common::CurrentSubmap::GetInstance();
 
   // initialization object
   std::shared_ptr<bs_models::camera_to_camera::VIOInitializer> initializer_;
@@ -186,8 +189,11 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  // temp
+  bool do_once = true;
 };
 
 }} // namespace bs_models::camera_to_camera

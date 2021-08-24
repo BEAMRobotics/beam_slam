@@ -9,10 +9,11 @@
 #include <fuse_graphs/hash_graph.h>
 
 // beam_slam
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/imu_initializer.h>
+#include <bs_common/current_submap.h>
 
 // ros
 #include <bs_models/InitializedPathMsg.h>
@@ -144,6 +145,7 @@ protected:
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
+  bs_common::CurrentSubmap& submap_ = bs_common::CurrentSubmap::GetInstance();
 
   // imu preintegration object
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;
@@ -175,8 +177,8 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // directory to optionally output the initialization results
   std::string output_directory_{};

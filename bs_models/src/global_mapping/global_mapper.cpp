@@ -38,21 +38,32 @@ void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
 
 void GlobalMapper::onInit() {
   params_.loadFromROS(private_node_handle_);
-  global_params_.loadFromROS(private_node_handle_);
-  std::shared_ptr<beam_calibration::CameraModel> camera_model =
-      beam_calibration::CameraModel::Create(global_params_.cam_intrinsics_path);
-  if (!params_.global_map_config.empty()) {
-    global_map_ =
-        std::make_unique<GlobalMap>(camera_model, params_.global_map_config);
-  } else {
-    global_map_ = std::make_unique<GlobalMap>(camera_model);
-  }
+  calibration_params_.loadFromROS();
 }
 
 void GlobalMapper::onStart() {
   subscriber_ = node_handle_.subscribe(params_.input_topic, 100,
                                        &ThrottledCallback::callback,
                                        &throttled_callback_);
+  // get intrinsics
+  std::shared_ptr<beam_calibration::CameraModel> camera_model =
+      beam_calibration::CameraModel::Create(
+          calibration_params_.cam_intrinsics_path);
+
+  // get extrinsics
+  bs_common::ExtrinsicsLookupOnline& extrinsics_online =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
+  std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics =
+      std::make_shared<bs_common::ExtrinsicsLookupBase>(
+          extrinsics_online.GetExtrinsicsCopy());
+
+  // init global map
+  if (!params_.global_map_config.empty()) {
+    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics,
+                                              params_.global_map_config);
+  } else {
+    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics);
+  }
 };
 
 void GlobalMapper::onStop() {
@@ -63,7 +74,8 @@ void GlobalMapper::onStop() {
 
   std::string dateandtime =
       beam::ConvertTimeToDate(std::chrono::system_clock::now());
-  std::string save_path = params_.output_path + dateandtime + "_global_mapper_results/";
+  std::string save_path =
+      params_.output_path + dateandtime + "_global_mapper_results/";
   boost::filesystem::create_directory(save_path);
 
   global_map_->SaveTrajectoryFile(save_path,

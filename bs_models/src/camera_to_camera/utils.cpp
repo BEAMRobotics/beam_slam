@@ -1,8 +1,8 @@
 #include <bs_models/camera_to_camera/utils.h>
 
-#include <bs_common/current_submap.h>
-#include <beam_cv/matchers/Matchers.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
+#include <beam_cv/matchers/Matchers.h>
+#include <bs_common/current_submap.h>
 
 namespace bs_models { namespace camera_to_camera {
 
@@ -30,6 +30,7 @@ beam::opt<Eigen::Matrix4d> LocalizeFrame(
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker->GetLandmarkIDsInImage(frame_time);
+
   // get 2d-3d correspondences
   for (auto& id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm = visual_map->GetLandmark(id);
@@ -40,6 +41,7 @@ beam::opt<Eigen::Matrix4d> LocalizeFrame(
       points.push_back(point);
     }
   }
+
   // perform ransac pnp for initial estimate
   if (points.size() >= 10) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
@@ -64,6 +66,7 @@ std::map<uint64_t, Eigen::Vector3d> MatchFrameToCurrentSubmap(
   // vector of poitns to return
   std::map<uint64_t, Eigen::Vector3d> matched_points;
   bs_common::CurrentSubmap& submap = bs_common::CurrentSubmap::GetInstance();
+
   // get map points in current camera frame
   Eigen::Matrix4d T_WORLD_CAMERA =
       visual_map->GetCameraPose(frame_time).value();
@@ -84,14 +87,16 @@ std::map<uint64_t, Eigen::Vector3d> MatchFrameToCurrentSubmap(
     Eigen::Vector2d pixel;
     cam_model->ProjectPoint(point, pixel, in_image);
     // make cv keypoint for pixel
-    cv::KeyPoint kp;
-    kp.pt.x = (float)pixel[0];
-    kp.pt.y = (float)pixel[1];
-    // get descriptor
-    cv::Mat desc = descriptors[i];
-    // push to results
-    projected_descriptors.push_back(desc);
-    projected_keypoints.push_back(kp);
+    if (in_image) {
+      cv::KeyPoint kp;
+      kp.pt.x = (float)pixel[0];
+      kp.pt.y = (float)pixel[1];
+      // get descriptor
+      cv::Mat desc = descriptors[i];
+      // push to results
+      projected_descriptors.push_back(desc);
+      projected_keypoints.push_back(kp);
+    }
   }
   std::vector<uint64_t> untriangulated_ids;
   std::vector<uint64_t> landmarks = tracker->GetLandmarkIDsInImage(frame_time);
@@ -104,8 +109,14 @@ std::map<uint64_t, Eigen::Vector3d> MatchFrameToCurrentSubmap(
       cv::Mat desc = tracker->GetDescriptor(frame_time, id);
       current_descriptors.push_back(desc);
       current_keypoints.push_back(kp);
+      untriangulated_ids.push_back(id);
     }
   }
+
+  std::cout << "projected: " << projected_keypoints.size()
+            << " current:" << current_keypoints.size() << std::endl;
+  std::cout << "projected: " << projected_descriptors.size()
+            << " current:" << current_descriptors.size() << std::endl;
 
   // match features
   std::shared_ptr<beam_cv::Matcher> matcher =
@@ -113,22 +124,16 @@ std::map<uint64_t, Eigen::Vector3d> MatchFrameToCurrentSubmap(
   std::vector<cv::DMatch> matches =
       matcher->MatchDescriptors(projected_descriptors, current_descriptors,
                                 projected_keypoints, current_keypoints);
+  std::cout << matches.size() << std::endl;
   // filter matches by pixel distance
   for (auto& m : matches) {
-    Eigen::Vector2d kp1 =
-        beam_cv::ConvertKeypoint(projected_keypoints[m.queryIdx]);
-    Eigen::Vector2d kp2 =
-        beam_cv::ConvertKeypoint(current_keypoints[m.trainIdx]);
-    // if the match is less than pixel threshold then add point to return map
-    if (beam::distance(kp1, kp2) < 20) {
-      Eigen::Vector3d p_camera = points_camera[m.queryIdx];
-      // transform point back into world frame
-      Eigen::Vector4d ph_camera{p_camera[0], p_camera[1], p_camera[2], 1};
-      Eigen::Vector3d p_world = (T_WORLD_CAMERA * ph_camera).hnormalized();
-      // remove match from submap
-      submap.RemoveVisualMapPoint(m.queryIdx);
-      matched_points[untriangulated_ids[m.queryIdx]] = p_world;
-    }
+    Eigen::Vector3d p_camera = points_camera[m.queryIdx];
+    // transform point back into world frame
+    Eigen::Vector4d ph_camera{p_camera[0], p_camera[1], p_camera[2], 1};
+    Eigen::Vector3d p_world = (T_WORLD_CAMERA * ph_camera).hnormalized();
+    // remove match from submap
+    submap.RemoveVisualMapPoint(m.queryIdx);
+    matched_points[untriangulated_ids[m.queryIdx]] = p_world;
   }
   return matched_points;
 }

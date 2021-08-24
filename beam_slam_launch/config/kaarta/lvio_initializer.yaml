@@ -2,18 +2,6 @@
 optimization_period: 1
 lag_duration: 10
 
-# frames
-imu_frame: "imu"
-lidar_frame: "velodyne"
-camera_frame: "camera1"
-baselink_frame: "imu"
-world_frame: "world"
-
-# calibrations
-static_extrinsics: true
-camera_intrinsics_path: "/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
-imu_intrinsics_path: "/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
-
 # sensor models
 sensor_models:
   - name: 'camera'
@@ -61,7 +49,7 @@ camera:
   landmark_topic: "/landmarks"
   reloc_request_topic: "/reloc_request"
   descriptor: "ORB"
-  window_size: 150 # number of images to store landmark information for before clearing for new images
+  window_size: 1000 # number of images to store landmark information for before clearing for new images
   num_features_to_track: 100 # number of features to track from image to image
   keyframe_window_size: 20 # number of keyframes to store before wiping for new images
   keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe

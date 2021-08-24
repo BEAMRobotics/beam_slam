@@ -79,7 +79,7 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     OptimizeGraph();
     std::cout << "\n\nFrame poses after optimization:\n" << std::endl;
     OutputFramePoses(valid_frames);
-    OutputResults(valid_frames);
+    //OutputResults(valid_frames);
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
       // if failure to localize next frame then init is a failure
@@ -363,7 +363,6 @@ void VIOInitializer::OutputResults(
     std::ofstream out(file_location);
     out << std::setw(4) << J << std::endl;
   }
-  // build submap and save to json file
 }
 
 void VIOInitializer::OutputFramePoses(
