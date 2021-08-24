@@ -40,17 +40,7 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *       Initialize pose refiner object with params        *
    ***********************************************************/
-  ceres::Solver::Options pose_refinement_options;
-  pose_refinement_options.minimizer_progress_to_stdout = false;
-  pose_refinement_options.logging_type = ceres::SILENT;
-  pose_refinement_options.max_solver_time_in_seconds = 1e-3;
-  pose_refinement_options.function_tolerance = 1e-4;
-  pose_refinement_options.gradient_tolerance = 1e-6;
-  pose_refinement_options.parameter_tolerance = 1e-4;
-  pose_refinement_options.linear_solver_type = ceres::SPARSE_SCHUR;
-  pose_refinement_options.preconditioner_type = ceres::SCHUR_JACOBI;
-  pose_refiner_ =
-      std::make_shared<beam_cv::PoseRefinement>(pose_refinement_options);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
   /***********************************************************
    *        Load camera model and Create Map object          *
    ***********************************************************/
@@ -62,10 +52,13 @@ void VisualInertialOdom::onInit() {
   /***********************************************************
    *              Initialize tracker variables               *
    ***********************************************************/
-  beam_cv::DescriptorType descriptor_type =
+  descriptor_type_ =
       beam_cv::DescriptorTypeStringMap[camera_params_.descriptor];
+  for (auto& it : beam_cv::DescriptorTypeIntMap) {
+    if (it.second == descriptor_type_) { descriptor_type_int_ = it.first; }
+  }
   std::shared_ptr<beam_cv::Descriptor> descriptor =
-      beam_cv::Descriptor::Create(descriptor_type);
+      beam_cv::Descriptor::Create(descriptor_type_);
   std::shared_ptr<beam_cv::Detector> detector =
       std::make_shared<beam_cv::GFTTDetector>(
           camera_params_.num_features_to_track);
@@ -78,8 +71,8 @@ void VisualInertialOdom::onInit() {
   std::ifstream file(calibration_params_.imu_intrinsics_path);
   file >> J;
   initializer_ = std::make_shared<bs_models::camera_to_camera::VIOInitializer>(
-      cam_model_, tracker_, J["cov_gyro_noise"], J["cov_accel_noise"],
-      J["cov_gyro_bias"], J["cov_accel_bias"], false,
+      cam_model_, tracker_, camera_params_.init_path_topic, J["cov_gyro_noise"],
+      J["cov_accel_noise"], J["cov_gyro_bias"], J["cov_accel_bias"], false,
       camera_params_.init_max_optimization_time_in_seconds,
       camera_params_.init_map_output_directory);
 
@@ -99,9 +92,6 @@ void VisualInertialOdom::onStart() {
   imu_subscriber_ = node_handle_.subscribe(camera_params_.imu_topic, 10000,
                                            &ThrottledIMUCallback::callback,
                                            &throttled_imu_callback_);
-  path_subscriber_ = private_node_handle_.subscribe(
-      camera_params_.init_path_topic, 1, &VisualInertialOdom::processInitPath,
-      this);
   /***********************************************************
    *                 Advertise publishers                    *
    ***********************************************************/
@@ -163,7 +153,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       if (visual_localization_passed) {
         T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
       } else {
-        imu_preint_->GetPose(T_WORLD_BASELINK, img_time);
+        // imu_preint_->GetPose(T_WORLD_BASELINK, img_time);
       }
       // publish pose to odom topic
       geometry_msgs::PoseStamped pose;
@@ -188,10 +178,8 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         PublishSlamChunk();
       } else {
         // compute relative pose to most recent kf
-        Eigen::Matrix4d T_WORLD_CAMERA_curkf =
-            visual_map_->GetCameraPose(keyframes_.back().Stamp()).value();
         Eigen::Matrix4d T_WORLD_BASELINK_curkf =
-            T_WORLD_CAMERA_curkf * T_cam_baselink_;
+            visual_map_->GetBaselinkPose(keyframes_.back().Stamp()).value();
         Eigen::Matrix4d T_curframe_curkeyframe =
             T_WORLD_BASELINK.inverse() * T_WORLD_BASELINK_curkf;
         // add to current keyframes trajectory
@@ -220,11 +208,6 @@ void VisualInertialOdom::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
     }
     imu_buffer_.pop();
   }
-}
-
-void VisualInertialOdom::processInitPath(
-    const InitializedPathMsg::ConstPtr& msg) {
-  initializer_->SetPath(*msg);
 }
 
 void VisualInertialOdom::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
@@ -471,7 +454,7 @@ void VisualInertialOdom::PublishSlamChunk() {
     slam_chunk.trajectory_measurement = trajectory;
     // camera measurements
     CameraMeasurementMsg camera_measurement;
-    camera_measurement.descriptor_type = 0;
+    camera_measurement.descriptor_type = descriptor_type_int_;
     camera_measurement.sensor_id = 0;
     camera_measurement.measurement_id = keyframes_.front().SequenceNumber();
     camera_measurement.image = keyframes_.front().Image();
@@ -482,7 +465,10 @@ void VisualInertialOdom::PublishSlamChunk() {
     for (auto& id : landmark_ids) {
       LandmarkMeasurementMsg lm;
       lm.landmark_id = id;
-      // lm.descriptor = ;
+      cv::Mat descriptor = tracker_->GetDescriptor(kf_to_publish, id);
+      std::vector<float> descriptor_v =
+          beam_cv::Descriptor::ConvertDescriptor(descriptor, descriptor_type_);
+      lm.descriptor = descriptor_v;
       Eigen::Vector2d pixel = tracker_->Get(kf_to_publish, id);
       lm.pixel_u = pixel[0];
       lm.pixel_v = pixel[1];

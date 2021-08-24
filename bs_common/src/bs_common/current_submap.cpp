@@ -5,8 +5,9 @@
 namespace bs_common {
 
 CurrentSubmap::CurrentSubmap() {
+  ros::NodeHandle n;
   submap_subscriber_ =
-      n_.subscribe("/submap", 10, &CurrentSubmap::CurrentSubmapCallback, this);
+      n.subscribe("/submap", 10, &CurrentSubmap::CurrentSubmapCallback, this);
 }
 
 CurrentSubmap& CurrentSubmap::GetInstance() {

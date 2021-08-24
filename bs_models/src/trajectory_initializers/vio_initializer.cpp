@@ -11,9 +11,9 @@ namespace bs_models { namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
-    std::shared_ptr<beam_cv::Tracker> tracker, const double& gyro_noise,
-    const double& accel_noise, const double& gyro_bias,
-    const double& accel_bias, bool use_scale_estimate,
+    std::shared_ptr<beam_cv::Tracker> tracker, const std::string& path_topic,
+    const double& gyro_noise, const double& accel_noise,
+    const double& gyro_bias, const double& accel_bias, bool use_scale_estimate,
     double max_optimization_time, const std::string& output_directory)
     : cam_model_(cam_model),
       tracker_(tracker),
@@ -30,17 +30,11 @@ VIOInitializer::VIOInitializer(
   // create visual map
   visual_map_ = std::make_shared<VisualMap>(cam_model_, local_graph_);
   // create pose refiner
-  ceres::Solver::Options pose_refinement_options;
-  pose_refinement_options.minimizer_progress_to_stdout = false;
-  pose_refinement_options.logging_type = ceres::SILENT;
-  pose_refinement_options.max_solver_time_in_seconds = 1e-3;
-  pose_refinement_options.function_tolerance = 1e-4;
-  pose_refinement_options.gradient_tolerance = 1e-6;
-  pose_refinement_options.parameter_tolerance = 1e-4;
-  pose_refinement_options.linear_solver_type = ceres::SPARSE_SCHUR;
-  pose_refinement_options.preconditioner_type = ceres::SCHUR_JACOBI;
-  pose_refiner_ =
-      std::make_shared<beam_cv::PoseRefinement>(pose_refinement_options);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
+  // make subscriber for init path
+  ros::NodeHandle n;
+  path_subscriber_ =
+      n.subscribe(path_topic, 10, &VIOInitializer::ProcessInitPath, this);
 }
 
 bool VIOInitializer::AddImage(ros::Time cur_time) {
@@ -116,9 +110,9 @@ void VIOInitializer::AddIMU(const sensor_msgs::Imu& msg) {
   imu_buffer_.push(msg);
 }
 
-void VIOInitializer::SetPath(const InitializedPathMsg& msg) {
+void VIOInitializer::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
   init_path_ = std::make_shared<InitializedPathMsg>();
-  *init_path_ = msg;
+  *init_path_ = *msg;
 }
 
 bool VIOInitializer::Initialized() {

@@ -73,7 +73,6 @@ private:
   std::vector<cv::Mat> descriptors_;
 
   ros::Subscriber submap_subscriber_;
-  ros::NodeHandle n_;
 };
 
 } // namespace bs_common

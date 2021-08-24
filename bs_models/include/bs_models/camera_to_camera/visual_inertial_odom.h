@@ -18,6 +18,7 @@
 
 // beam_slam
 #include <bs_common/extrinsics_lookup_online.h>
+#include <bs_common/current_submap.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
@@ -164,7 +165,6 @@ protected:
   // subscribers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
-  ros::Subscriber path_subscriber_;
 
   // publishers
   ros::Publisher init_odom_publisher_;
@@ -190,6 +190,9 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
+  bs_common::CurrentSubmap& submap_ = bs_common::CurrentSubmap::GetInstance();
+  beam_cv::DescriptorType descriptor_type_;
+  uint8_t descriptor_type_int_;
 
   // initialization object
   std::shared_ptr<bs_models::camera_to_camera::VIOInitializer> initializer_;
