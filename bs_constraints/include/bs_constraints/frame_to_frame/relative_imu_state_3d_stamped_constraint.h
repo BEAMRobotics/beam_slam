@@ -24,7 +24,9 @@ namespace frame_to_frame {
  * @brief A constraint that represents a measurement on the difference between
  * IMU states using the methods outlined in DOI: 10.15607/RSS.2015.XI.006
  *
- * This constraint holds both IMU states and their associated preintegrator
+ * This constraint holds both IMU states and their associated preintegrator to
+ * allow for fast updating of predicted states if bias estimates change during
+ * optimization
  */
 class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
  public:
@@ -57,7 +59,7 @@ class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
   /**
    * @brief Print a human-readable description of the constraint to the provided
    * stream.
-   * @param stream The stream to write to. Defaults to stdout.
+   * @param stream the stream to write to. Defaults to stdout.
    */
   void print(std::ostream& stream = std::cout) const override;
 
@@ -70,7 +72,7 @@ class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
    * the Ceres::Problem object will takes ownership of the pointer and delete it
    * during destruction.
    *
-   * @return A base pointer to an instance of a derived CostFunction.
+   * @return a base pointer to an instance of a derived CostFunction.
    */
   ceres::CostFunction* costFunction() const override;
 
@@ -86,8 +88,8 @@ class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
   /**
    * @brief The Boost Serialize method that serializes all of the data members
    * in to/out of the archive
-   * @param archive - The archive object that holds the serialized class members
-   * @param version - The version of the archive being read/written. Generally
+   * @param archive the archive object that holds the serialized class members
+   * @param version the version of the archive being read/written. Generally
    * unused.
    */
   template <class Archive>

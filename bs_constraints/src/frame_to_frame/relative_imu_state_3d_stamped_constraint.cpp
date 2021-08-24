@@ -1,11 +1,12 @@
 #include <bs_constraints/frame_to_frame/relative_imu_state_3d_stamped_constraint.h>
-#include <bs_constraints/frame_to_frame/delta_imu_state_3d_cost_function.h>
 
 #include <string>
 
 #include <boost/serialization/export.hpp>
 #include <ceres/autodiff_cost_function.h>
 #include <pluginlib/class_list_macros.h>
+
+#include <bs_constraints/frame_to_frame/normal_delta_imu_state_3d_cost_functor.h>
 
 namespace bs_constraints {
 namespace frame_to_frame {
@@ -42,8 +43,9 @@ void RelativeImuState3DStampedConstraint::print(std::ostream& stream) const {
 }
 
 ceres::CostFunction* RelativeImuState3DStampedConstraint::costFunction() const {
-  return new DeltaImuState3DCostFunction(imu_state_i_, imu_state_j_,
-                                         pre_integrator_);
+  return new ceres::AutoDiffCostFunction<NormalDeltaImuState3DCostFunctor, 15,
+                                         4, 3, 3, 3, 3, 4, 3, 3, 3, 3>(
+      new NormalDeltaImuState3DCostFunctor(imu_state_i_, pre_integrator_));
 }
 
 }  // namespace frame_to_frame
