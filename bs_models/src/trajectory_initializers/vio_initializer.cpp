@@ -76,11 +76,13 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     AddPosesAndInertialConstraints(valid_frames, true);
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames);
-    // optimize valid frames
+    // output pre optimization poses
     ROS_INFO("Frame poses before optimization:");
     OutputFramePoses(valid_frames);
+    // optimize valid frames
     OptimizeGraph();
     ROS_INFO("Frame poses after optimization:");
+    // output post optimization poses
     OutputFramePoses(valid_frames);
     OutputResults(valid_frames);
     // localize the frames that are outside of the given path
@@ -88,7 +90,8 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
       Eigen::Matrix4d T_WORLD_BASELINK;
       // if failure to localize next frame then init is a failure
       if (!LocalizeFrame(f, T_WORLD_BASELINK)) { return false; }
-      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q, f.p);
+      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
+                                                      f.p);
     }
     // add localized poses and imu constraints
     AddPosesAndInertialConstraints(invalid_frames, false);
@@ -346,11 +349,10 @@ void VIOInitializer::OptimizeGraph() {
 
 void VIOInitializer::OutputResults(
     const std::vector<bs_models::camera_to_camera::Frame>& frames) {
-  if (!boost::filesystem::exists(output_directory_)) {
-    if (!output_directory_.empty()) {
-      ROS_ERROR("Output directory does not exist. Not outputting VIO "
-                "Initializer results.");
-    }
+  if (!boost::filesystem::exists(output_directory_) ||
+      output_directory_.empty()) {
+    ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
+             "Initializer results.");
   } else {
     // add frame poses to cloud and save
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;

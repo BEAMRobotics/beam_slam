@@ -115,8 +115,8 @@ void VisualInertialOdom::onStart() {
   landmark_publisher_ =
       private_node_handle_.advertise<std_msgs::UInt64MultiArray>(
           camera_params_.landmark_topic, 10);
-  reloc_publisher_ =
-      private_node_handle_.advertise<RelocRequestMsg>("/reloc_request", 10);
+  reloc_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
+      camera_params_.reloc_topic, 10);
 }
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -140,7 +140,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         img_time);
     // process in initialization mode
     if (!initializer_->Initialized()) {
-      if ((img_time - keyframes_.back().Stamp()).toSec() >= 1.0) {
+      if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.5) {
         bs_models::camera_to_camera::Keyframe kf(img_time,
                                                  image_buffer_.front());
         keyframes_.push_back(kf);
@@ -163,7 +163,7 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       if (visual_localization_passed) {
         T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
       } else {
-        // TODO: use imu to get T_WORLD_BASELINK
+        imu_preint_->GetPose(T_WORLD_BASELINK, img_time);
       }
       // publish pose to odom topic
       geometry_msgs::PoseStamped pose;
