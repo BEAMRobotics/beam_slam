@@ -105,9 +105,9 @@ bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg,
 void PreIntegrator::ComputeSqrtInvCov() {
   // Ensure covariance non-zero (within pre-defined tolarance) to avoid
   // ill-conditioned matrix during optimization
-  if (delta.cov.isZero(cov_tol_)) {
+  if (delta.cov.isZero(cov_tol)) {
     delta.cov.setIdentity();
-    delta.cov *= cov_tol_;
+    delta.cov *= cov_tol;
   }
 
   delta.sqrt_inv_cov =

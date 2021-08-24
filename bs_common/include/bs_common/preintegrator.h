@@ -54,8 +54,8 @@ struct Delta {
   Eigen::Quaterniond q;
   Eigen::Vector3d p;
   Eigen::Vector3d v;
-  Eigen::Matrix<double, 15, 15> cov;  // ordered in q, p, v, bg, ba
-  Eigen::Matrix<double, 15, 15> sqrt_inv_cov;
+  Eigen::Matrix<double, ES_SIZE, ES_SIZE> cov;  // ordered in q, p, v, bg, ba
+  Eigen::Matrix<double, ES_SIZE, ES_SIZE> sqrt_inv_cov;
 };
 
 /**
@@ -117,7 +117,7 @@ class PreIntegrator {
    */
   void ComputeSqrtInvCov();
 
-  double cov_tol_{1e-9};  // tolarance on zero covariance matrix
+  double cov_tol{1e-9};  // tolarance on zero covariance matrix
 
   Eigen::Matrix3d cov_w;  // continuous noise covariance
   Eigen::Matrix3d cov_a;
