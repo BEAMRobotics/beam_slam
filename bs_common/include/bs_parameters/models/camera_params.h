@@ -26,6 +26,7 @@ public:
     getParam<std::string>(nh, "source", source, "VIO");
     getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
+    getParam<std::string>(nh, "reloc_topic", reloc_topic, "");
     getParam<std::string>(nh, "init_map_output_directory",
                           init_map_output_directory, "");
 
@@ -54,6 +55,7 @@ public:
   std::string image_topic{};
   std::string init_path_topic{};
   std::string imu_topic{};
+  std::string reloc_topic{};
   std::string source{};
   std::string frame_odometry_output_topic{};
   std::string new_keyframes_topic{};

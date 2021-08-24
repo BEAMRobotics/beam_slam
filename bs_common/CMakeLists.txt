@@ -50,6 +50,7 @@ add_library(${PROJECT_NAME}
   src/bs_common/lidar_map.cpp
   src/bs_common/preintegrator.cpp
   src/bs_common/utils.cpp
+  src/bs_common/current_submap.cpp
   )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
