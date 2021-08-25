@@ -13,8 +13,8 @@
 #include <fuse_models/common/throttled_callback.h>
 
 // beam_slam
-#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_common/current_submap.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
@@ -27,7 +27,7 @@
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
-using namespace bs_common; 
+using namespace bs_common;
 
 namespace bs_models { namespace camera_to_camera {
 
@@ -145,6 +145,13 @@ private:
    * @brief Publishes landmark ids
    */
   void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
+
+  /**
+   * @brief Matches an image in the tracker to the current submap
+   * @param img_time time of image to match against submap
+   */
+  std::map<uint64_t, Eigen::Vector3d>
+      MatchFrameToCurrentSubmap(const ros::Time& img_time);
 
 protected:
   // loadable camera parameters
