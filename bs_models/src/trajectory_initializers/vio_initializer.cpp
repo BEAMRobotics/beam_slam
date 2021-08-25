@@ -6,25 +6,30 @@
 #include <bs_common/utils.h>
 
 #include <boost/filesystem.hpp>
+#include <nlohmann/json.hpp>
 
 namespace bs_models { namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
     std::shared_ptr<beam_cv::Tracker> tracker, const std::string& path_topic,
-    const double& gyro_noise, const double& accel_noise,
-    const double& gyro_bias, const double& accel_bias, bool use_scale_estimate,
+    const std::string& imu_intrinsics_path, bool use_scale_estimate,
     double max_optimization_time, const std::string& output_directory)
     : cam_model_(cam_model),
       tracker_(tracker),
       use_scale_estimate_(use_scale_estimate),
       max_optimization_time_(max_optimization_time),
       output_directory_(output_directory) {
-  // set covariance matrices for imu
-  cov_gyro_noise_ = Eigen::Matrix3d::Identity() * gyro_noise;
-  cov_accel_noise_ = Eigen::Matrix3d::Identity() * accel_noise;
-  cov_gyro_bias_ = Eigen::Matrix3d::Identity() * gyro_bias;
-  cov_accel_bias_ = Eigen::Matrix3d::Identity() * accel_bias;
+  // set imu preintegration params
+  nlohmann::json J;
+  std::ifstream file(imu_intrinsics_path);
+  file >> J;
+  Eigen::Vector3d gravity_nominal{0, 0, -9.8};
+  imu_params_.gravity = gravity_nominal;
+  imu_params_.cov_gyro_noise = Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
+  imu_params_.cov_accel_noise = Eigen::Matrix3d::Identity() * J["cov_accel_noise"];
+  imu_params_.cov_gyro_bias = Eigen::Matrix3d::Identity() * J["cov_gyro_bias"];
+  imu_params_.cov_accel_bias = Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
   // create optimzation graph
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
   // create visual map
@@ -47,19 +52,12 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     BuildFrameVectors(valid_frames, invalid_frames);
     // Initialize imu preintegration
     PerformIMUInitialization(valid_frames);
-    Eigen::Vector3d gravity_nominal{0, 0, -9.8};
-    bs_models::frame_to_frame::ImuPreintegration::Params imu_params;
-    imu_params.gravity = gravity_nominal;
-    imu_params.cov_gyro_noise = cov_gyro_noise_;
-    imu_params.cov_accel_noise = cov_accel_noise_;
-    imu_params.cov_gyro_bias = cov_gyro_bias_;
-    imu_params.cov_accel_bias = cov_accel_bias_;
     imu_preint_ =
         std::make_shared<bs_models::frame_to_frame::ImuPreintegration>(
-            imu_params);
+            imu_params_, bg_, ba_);
     // align poses to estimated gravity
     Eigen::Quaterniond q =
-        Eigen::Quaterniond::FromTwoVectors(gravity_, gravity_nominal);
+        Eigen::Quaterniond::FromTwoVectors(gravity_, imu_params_.gravity);
     for (auto& f : valid_frames) {
       f.q = q * f.q;
       f.p = q * f.p;
@@ -142,10 +140,10 @@ void VIOInitializer::BuildFrameVectors(
     if (stamp < start) continue;
     // add imu data to frames preintegrator
     bs_common::PreIntegrator preintegrator;
-    preintegrator.cov_w = cov_gyro_noise_;
-    preintegrator.cov_a = cov_accel_noise_;
-    preintegrator.cov_bg = cov_gyro_bias_;
-    preintegrator.cov_ba = cov_accel_bias_;
+    preintegrator.cov_w = imu_params_.cov_gyro_noise;
+    preintegrator.cov_a = imu_params_.cov_accel_noise;
+    preintegrator.cov_bg = imu_params_.cov_gyro_bias;
+    preintegrator.cov_ba = imu_params_.cov_accel_bias;
     while (imu_buffer_.front().header.stamp <= stamp && !imu_buffer_.empty()) {
       bs_common::IMUData imu_data(imu_buffer_.front());
       preintegrator.data.push_back(imu_data);

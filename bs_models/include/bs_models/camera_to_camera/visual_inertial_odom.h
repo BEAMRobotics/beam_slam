@@ -61,13 +61,6 @@ public:
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
-  /**
-   * @brief Callback for path processing, this path is provided by LIO for
-   * initialization
-   * @param[in] msg - The path to process
-   */
-  void processInitPath(const InitializedPathMsg::ConstPtr& msg);
-
 protected:
   fuse_core::UUID device_id_; //!< The UUID of this device
 
