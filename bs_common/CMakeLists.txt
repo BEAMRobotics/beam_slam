@@ -15,7 +15,23 @@ find_package(
     geometry_msgs
     std_msgs
     bs_variables
+    message_generation
   )
+
+add_message_files(
+  DIRECTORY
+    ../bs_models/msg
+  FILES
+    SubmapMsg.msg
+    DescriptorMsg.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+  sensor_msgs
+)
 
 catkin_package(
   INCLUDE_DIRS
@@ -51,6 +67,7 @@ add_library(${PROJECT_NAME}
   src/bs_common/pose_lookup.cpp
   src/bs_common/scan_pose.cpp
   src/bs_common/lidar_map.cpp
+  src/bs_common/current_submap.cpp
   src/bs_common/preintegrator.cpp
   src/bs_common/utils.cpp
   )

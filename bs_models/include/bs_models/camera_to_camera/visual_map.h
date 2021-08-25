@@ -13,6 +13,7 @@
 #include <fuse_core/util.h>
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
+#include <fuse_variables/point_3d_fixed_landmark.h>
 #include <fuse_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
@@ -48,17 +49,18 @@ public:
   ~VisualMap() = default;
 
   /**
-   * @brief Helper function to get T_WORLD_CAMERA at
+   * @brief Helper function to get T_WORLD_CAMERA at tiemstamp
    * @param stamp timestamp to get pose at
    * @return T_WORLD_CAMERA
    */
-  beam::opt<Eigen::Matrix4d> GetPose(const ros::Time& stamp);
+  beam::opt<Eigen::Matrix4d> GetCameraPose(const ros::Time& stamp);
 
   /**
-   * @brief Helper function to get a landmark by id
-   * @param landmark_id to retrieve
+   * @brief Helper function to get T_WORLD_BASELINK at tiemstamp
+   * @param stamp timestamp to get pose at
+   * @return T_WORLD_CAMERA
    */
-  fuse_variables::Point3DLandmark::SharedPtr GetLandmark(uint64_t landmark_id);
+  beam::opt<Eigen::Matrix4d> GetBaselinkPose(const ros::Time& stamp);
 
   /**
    * @brief Helper function to add a pose at time t to a transaction or graph
@@ -75,11 +77,11 @@ public:
    * @brief Helper function to add a new landmark variable to a transaction or
    * graph
    * @param position of the landmark to add
-   * @param lm_id of the landmark to add
+   * @param id of the landmark to add
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void AddLandmark(const Eigen::Vector3d& position, uint64_t lm_id,
+  void AddLandmark(const Eigen::Vector3d& position, uint64_t id,
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
@@ -93,6 +95,29 @@ public:
                    fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
+   * @brief Helper function to add a new landmark variable to a transaction or
+   * graph
+   * @param position of the landmark to add
+   * @param id of the landmark to add
+   * @param transaction (optional) if provided will add to transaction,
+   * otherwise will add to loca graph
+   */
+  void
+      AddFixedLandmark(const Eigen::Vector3d& position, uint64_t id,
+                       fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Helper function to add a new landmark variable to a transaction or
+   * graph
+   * @param landmark to add
+   * @param transaction (optional) if provided will add to transaction,
+   * otherwise will add to loca graph
+   */
+  void
+      AddFixedLandmark(fuse_variables::Point3DFixedLandmark::SharedPtr landmark,
+                       fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
    * @brief Helper function to add a constraint between a landmark and a pose
    * @param img_time associated image timestamp to add constraint to
    * @param landmark_id landmark to add constraint to
@@ -103,6 +128,19 @@ public:
   void AddConstraint(const ros::Time& img_time, uint64_t lm_id,
                      const Eigen::Vector2d& pixel,
                      fuse_core::Transaction::SharedPtr transaction = nullptr);
+
+  /**
+   * @brief Helper function to get a landmark by id
+   * @param landmark_id to retrieve
+   */
+  fuse_variables::Point3DLandmark::SharedPtr GetLandmark(uint64_t landmark_id);
+
+  /**
+   * @brief Helper function to get a landmark by id
+   * @param landmark_id to retrieve
+   */
+  fuse_variables::Point3DFixedLandmark::SharedPtr
+      GetFixedLandmark(uint64_t landmark_id);
 
   /**
    * @brief Retrieves q_WORLD_BASELINK
@@ -188,6 +226,8 @@ protected:
   std::map<uint64_t, fuse_variables::Position3DStamped::SharedPtr> positions_;
   std::map<uint64_t, fuse_variables::Point3DLandmark::SharedPtr>
       landmark_positions_;
+  std::map<uint64_t, fuse_variables::Point3DFixedLandmark::SharedPtr>
+      fixed_landmark_positions_;
 
   // memory management variables
   size_t tracked_features_{100}; // # of features tracked per frame

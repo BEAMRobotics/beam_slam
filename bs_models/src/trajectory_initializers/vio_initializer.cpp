@@ -1,36 +1,45 @@
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
-#include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/utils.h>
 #include <bs_common/utils.h>
 
 #include <boost/filesystem.hpp>
+#include <nlohmann/json.hpp>
 
 namespace bs_models {
 namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
-    std::shared_ptr<beam_cv::Tracker> tracker, const double& gyro_noise,
-    const double& accel_noise, const double& gyro_bias,
-    const double& accel_bias, bool use_scale_estimate,
+    std::shared_ptr<beam_cv::Tracker> tracker, const std::string& path_topic,
+    const std::string& imu_intrinsics_path, bool use_scale_estimate,
     double max_optimization_time, const std::string& output_directory)
     : cam_model_(cam_model),
       tracker_(tracker),
       use_scale_estimate_(use_scale_estimate),
       max_optimization_time_(max_optimization_time),
       output_directory_(output_directory) {
-  // set covariance matrices for imu
-  cov_gyro_noise_ = Eigen::Matrix3d::Identity() * gyro_noise;
-  cov_accel_noise_ = Eigen::Matrix3d::Identity() * accel_noise;
-  cov_gyro_bias_ = Eigen::Matrix3d::Identity() * gyro_bias;
-  cov_accel_bias_ = Eigen::Matrix3d::Identity() * accel_bias;
-  // create optimization graph
+  // set imu preintegration params
+  nlohmann::json J;
+  std::ifstream file(imu_intrinsics_path);
+  file >> J;
+  imu_params_.gravity = GRAVITY_WORLD;
+  imu_params_.cov_gyro_noise = Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
+  imu_params_.cov_accel_noise = Eigen::Matrix3d::Identity() * J["cov_accel_noise"];
+  imu_params_.cov_gyro_bias = Eigen::Matrix3d::Identity() * J["cov_gyro_bias"];
+  imu_params_.cov_accel_bias = Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
+  // create optimzation graph
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
   // create visual map
   visual_map_ = std::make_shared<VisualMap>(cam_model_, local_graph_);
+  // create pose refiner
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
+  // make subscriber for init path
+  ros::NodeHandle n;
+  path_subscriber_ =
+      n.subscribe(path_topic, 10, &VIOInitializer::ProcessInitPath, this);
 }
 
 bool VIOInitializer::AddImage(ros::Time cur_time) {
@@ -43,14 +52,9 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     BuildFrameVectors(valid_frames, invalid_frames);
     // Initialize imu preintegration
     PerformIMUInitialization(valid_frames);
-    bs_models::frame_to_frame::ImuPreintegration::Params imu_params;
-    imu_params.cov_gyro_noise = cov_gyro_noise_;
-    imu_params.cov_accel_noise = cov_accel_noise_;
-    imu_params.cov_gyro_bias = cov_gyro_bias_;
-    imu_params.cov_accel_bias = cov_accel_bias_;
     imu_preint_ =
         std::make_shared<bs_models::frame_to_frame::ImuPreintegration>(
-            imu_params);
+            imu_params_, bg_, ba_);
     // align poses to estimated gravity
     Eigen::Quaterniond q =
         Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
@@ -62,25 +66,24 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     }
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames, true);
-
-    // TODO: refine biases through optimization awith constant poses
-
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames);
+    // output pre optimization poses
+    ROS_INFO("Frame poses before optimization:");
+    OutputFramePoses(valid_frames);
     // optimize valid frames
-    std::cout << "\n\nFrame poses before optimization:\n" << std::endl;
-    OutputFramePoses(valid_frames);
     OptimizeGraph();
-    std::cout << "\n\nFrame poses after optimization:\n" << std::endl;
+    ROS_INFO("Frame poses after optimization:");
+    // output post optimization poses
     OutputFramePoses(valid_frames);
+    OutputResults(valid_frames);
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames) {
-      Eigen::Matrix4d T_WORLD_CAMERA;
+      Eigen::Matrix4d T_WORLD_BASELINK;
       // if failure to localize next frame then init is a failure
-      if (!LocalizeFrame(f, T_WORLD_CAMERA)) {
-        return false;
-      }
-      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_CAMERA, f.q, f.p);
+      if (!LocalizeFrame(f, T_WORLD_BASELINK)) { return false; }
+      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
+                                                      f.p);
     }
     // add localized poses and imu constraints
     AddPosesAndInertialConstraints(invalid_frames, false);
@@ -97,7 +100,7 @@ void VIOInitializer::OutputFramePoses(
     const std::vector<bs_models::camera_to_camera::Frame>& frames) {
   for (auto& f : frames) {
     std::cout << f.t << std::endl;
-    std::cout << visual_map_->GetPose(f.t) << std::endl;
+    std::cout << visual_map_->GetCameraPose(f.t) << std::endl;
   }
 }
 
@@ -105,9 +108,9 @@ void VIOInitializer::AddIMU(const sensor_msgs::Imu& msg) {
   imu_buffer_.push(msg);
 }
 
-void VIOInitializer::SetPath(const InitializedPathMsg& msg) {
+void VIOInitializer::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
   init_path_ = std::make_shared<InitializedPathMsg>();
-  *init_path_ = msg;
+  *init_path_ = *msg;
 }
 
 bool VIOInitializer::Initialized() { return is_initialized_; }
@@ -135,10 +138,10 @@ void VIOInitializer::BuildFrameVectors(
     if (stamp < start) continue;
     // add imu data to frames preintegrator
     bs_common::PreIntegrator preintegrator;
-    preintegrator.cov_w = cov_gyro_noise_;
-    preintegrator.cov_a = cov_accel_noise_;
-    preintegrator.cov_bg = cov_gyro_bias_;
-    preintegrator.cov_ba = cov_accel_bias_;
+    preintegrator.cov_w = imu_params_.cov_gyro_noise;
+    preintegrator.cov_a = imu_params_.cov_accel_noise;
+    preintegrator.cov_bg = imu_params_.cov_gyro_bias;
+    preintegrator.cov_ba = imu_params_.cov_accel_bias;
     while (imu_buffer_.front().header.stamp <= stamp && !imu_buffer_.empty()) {
       bs_common::IMUData imu_data(imu_buffer_.front());
       preintegrator.data.push_back(imu_data);
@@ -234,7 +237,7 @@ void VIOInitializer::AddPosesAndInertialConstraints(
           imu_preint_->RegisterNewImuPreintegratedFactor(
               frame.t, img_orientation, img_position);
       // update graph with the transaction
-      local_graph_->update(*transaction);
+      // local_graph_->update(*transaction);
     }
   }
 }
@@ -262,7 +265,7 @@ size_t VIOInitializer::AddVisualConstraints(
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
       for (auto& m : track) {
-        beam::opt<Eigen::Matrix4d> T = visual_map_->GetPose(m.time_point);
+        beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
         // check if the pose is in the graph (keyframe)
         if (T.has_value()) {
           pixels.push_back(m.value.cast<int>());
@@ -314,16 +317,9 @@ bool VIOInitializer::LocalizeFrame(
   Eigen::Matrix4d T_CAMERA_WORLD_est =
       beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
                                                       points);
-  ceres::Solver::Options ceres_solver_options;
-  ceres_solver_options.minimizer_progress_to_stdout = false;
-  ceres_solver_options.max_solver_time_in_seconds = 1e-1;
-  ceres_solver_options.logging_type = ceres::SILENT;
-  ceres_solver_options.linear_solver_type = ceres::SPARSE_SCHUR;
-  ceres_solver_options.preconditioner_type = ceres::SCHUR_JACOBI;
-  beam_cv::PoseRefinement refiner(ceres_solver_options);
   // refine pose using reprojection error
   Eigen::Matrix4d T_CAMERA_WORLD_ref =
-      refiner.RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points);
+      pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points);
   Eigen::Matrix4d T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
   // transform into baselink frame
@@ -342,23 +338,20 @@ void VIOInitializer::OptimizeGraph() {
   options.max_solver_time_in_seconds = max_optimization_time_;
   options.max_num_iterations = 100;
   local_graph_->optimize(options);
-  // std::cout << local_graph_->optimize(options).FullReport() << std::endl;
 }
 
 void VIOInitializer::OutputResults(
     const std::vector<bs_models::camera_to_camera::Frame>& frames) {
-  if (!boost::filesystem::exists(output_directory_)) {
-    if (!output_directory_.empty()) {
-      ROS_ERROR(
-          "Output directory does not exist. Not outputting VIO "
-          "Initializer results.");
-    }
+  if (!boost::filesystem::exists(output_directory_) ||
+      output_directory_.empty()) {
+    ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
+             "Initializer results.");
   } else {
     // add frame poses to cloud and save
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
     for (auto& f : frames) {
       frame_cloud = beam::AddFrameToCloud(
-          frame_cloud, visual_map_->GetPose(f.t).value(), 0.001);
+          frame_cloud, visual_map_->GetCameraPose(f.t).value(), 0.001);
     }
     // add all landmark points to cloud and save
     std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
@@ -369,7 +362,7 @@ void VIOInitializer::OutputResults(
           visual_map_->GetLandmark(id);
       if (lm) {
         pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
-        points_cloud.points.push_back(p);
+        points_cloud.push_back(p);
       }
     }
     pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);
