@@ -108,8 +108,8 @@ void VIOInitializer::AddIMU(const sensor_msgs::Imu& msg) {
   imu_buffer_.push(msg);
 }
 
-void VIOInitializer::ProcessInitPath(const bs_common::InitializedPathMsg::ConstPtr& msg) {
-  init_path_ = std::make_shared<bs_common::InitializedPathMsg>();
+void VIOInitializer::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
+  init_path_ = std::make_shared<InitializedPathMsg>();
   *init_path_ = *msg;
 }
 
@@ -139,20 +139,20 @@ void VIOInitializer::BuildFrameVectors(
     stamp.fromNSec(kf);
     if (stamp < start) continue;
     // add imu data to frames preintegrator
-    bs_common::PreIntegrator preintegrator;
+    PreIntegrator preintegrator;
     preintegrator.cov_w = imu_params_.cov_gyro_noise;
     preintegrator.cov_a = imu_params_.cov_accel_noise;
     preintegrator.cov_bg = imu_params_.cov_gyro_bias;
     preintegrator.cov_ba = imu_params_.cov_accel_bias;
     while (imu_buffer_.front().header.stamp <= stamp && !imu_buffer_.empty()) {
-      bs_common::IMUData imu_data(imu_buffer_.front());
+      IMUData imu_data(imu_buffer_.front());
       preintegrator.data.push_back(imu_data);
       imu_buffer_.pop();
     }
     if (stamp <= end) {
       // get pose of frame using path
       Eigen::Matrix4d T_WORLD_BASELINK;
-      bs_common::InterpolateTransformFromPath(init_path_->poses, stamp,
+      InterpolateTransformFromPath(init_path_->poses, stamp,
                                               T_WORLD_BASELINK);
       Eigen::Vector3d p_WORLD_BASELINK;
       Eigen::Quaterniond q_WORLD_BASELINK;

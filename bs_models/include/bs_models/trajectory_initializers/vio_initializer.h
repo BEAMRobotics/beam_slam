@@ -17,6 +17,8 @@
 #include <bs_common/bs_msgs.h>
 #include <sensor_msgs/Imu.h>
 
+using namespace bs_common; 
+
 namespace bs_models { namespace camera_to_camera {
 
 class VIOInitializer {
@@ -74,7 +76,7 @@ public:
    * initialization
    * @param[in] msg - The path to process
    */
-  void ProcessInitPath(const bs_common::InitializedPathMsg::ConstPtr& msg);
+  void ProcessInitPath(const InitializedPathMsg::ConstPtr& msg);
 
 private:
   /**
@@ -152,7 +154,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
-  bs_common::CurrentSubmap& submap_ = bs_common::CurrentSubmap::GetInstance();
+  CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
 
   // imu preintegration object
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;
@@ -181,12 +183,12 @@ protected:
   double scale_;
 
   // initialization path
-  std::shared_ptr<bs_common::InitializedPathMsg> init_path_;
+  std::shared_ptr<InitializedPathMsg> init_path_;
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
-      bs_common::ExtrinsicsLookupOnline::GetInstance();
+  ExtrinsicsLookupOnline& extrinsics_ =
+      ExtrinsicsLookupOnline::GetInstance();
 
   // directory to optionally output the initialization results
   std::string output_directory_{};
