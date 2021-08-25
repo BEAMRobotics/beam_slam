@@ -920,7 +920,7 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
   scan_reg_params.min_motion_rot_rad = 0;
   scan_reg_params.source = "TEST";
   scan_reg_params.fix_first_scan = true;
-  scan_reg_params.num_neighbors = 5;
+  scan_reg_params.num_neighbors = 7;
   scan_reg_params.lag_duration = 1000;
   scan_reg_params.disable_lidar_map = true;
 
