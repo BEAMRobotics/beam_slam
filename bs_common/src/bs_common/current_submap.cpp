@@ -16,7 +16,7 @@ CurrentSubmap& CurrentSubmap::GetInstance() {
 }
 
 void CurrentSubmap::CurrentSubmapCallback(
-    const bs_models::SubmapMsg::ConstPtr& msg) {
+    const bs_common::SubmapMsg::ConstPtr& msg) {
   descriptors_.clear();
   visual_map_points_.clear();
   point_cloud_.points.clear();

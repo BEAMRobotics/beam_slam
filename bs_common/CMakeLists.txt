@@ -14,13 +14,22 @@ find_package(
     sensor_msgs
     geometry_msgs
     std_msgs
+    message_generation
   )
 
-  add_message_files(
+add_message_files(
   DIRECTORY
     ../bs_models/msg
   FILES
     SubmapMsg.msg
+    DescriptorMsg.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+  sensor_msgs
 )
 
 catkin_package(

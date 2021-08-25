@@ -1,7 +1,7 @@
 #pragma once
 
 #include <beam_utils/utils.h>
-#include <bs_models/SubmapMsg.h>
+#include <bs_common/SubmapMsg.h>
 #include <opencv2/opencv.hpp>
 #include <ros/ros.h>
 
@@ -34,7 +34,7 @@ public:
    * @brief Updates the data with the new submap message
    * @param message odometry message
    */
-  void CurrentSubmapCallback(const bs_models::SubmapMsg::ConstPtr& msg);
+  void CurrentSubmapCallback(const bs_common::SubmapMsg::ConstPtr& msg);
 
   /**
    * @brief Gets a list of visual map points in the camera frame
