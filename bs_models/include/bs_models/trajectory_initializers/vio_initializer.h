@@ -14,7 +14,7 @@
 #include <fuse_graphs/hash_graph.h>
 
 // ros
-#include <bs_models/InitializedPathMsg.h>
+#include <bs_common/bs_msgs.h>
 #include <sensor_msgs/Imu.h>
 
 namespace bs_models { namespace camera_to_camera {
@@ -74,7 +74,7 @@ public:
    * initialization
    * @param[in] msg - The path to process
    */
-  void ProcessInitPath(const InitializedPathMsg::ConstPtr& msg);
+  void ProcessInitPath(const bs_common::InitializedPathMsg::ConstPtr& msg);
 
 private:
   /**
@@ -181,7 +181,7 @@ protected:
   double scale_;
 
   // initialization path
-  std::shared_ptr<InitializedPathMsg> init_path_;
+  std::shared_ptr<bs_common::InitializedPathMsg> init_path_;
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;

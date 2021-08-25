@@ -1,0 +1,1 @@
+#include <bs_common/bs_msgs.h>

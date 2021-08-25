@@ -4,8 +4,6 @@
 #include <pluginlib/class_list_macros.h>
 
 // messages
-#include <bs_models/RelocRequestMsg.h>
-#include <bs_models/SlamChunkMsg.h>
 #include <std_msgs/UInt64MultiArray.h>
 
 // libbeam

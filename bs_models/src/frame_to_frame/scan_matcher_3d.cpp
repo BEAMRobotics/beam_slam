@@ -11,7 +11,7 @@
 #include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_models/SlamChunkMsg.h>
+#include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::ScanMatcher3D,

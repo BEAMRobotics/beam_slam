@@ -108,8 +108,8 @@ void VIOInitializer::AddIMU(const sensor_msgs::Imu& msg) {
   imu_buffer_.push(msg);
 }
 
-void VIOInitializer::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
-  init_path_ = std::make_shared<InitializedPathMsg>();
+void VIOInitializer::ProcessInitPath(const bs_common::InitializedPathMsg::ConstPtr& msg) {
+  init_path_ = std::make_shared<bs_common::InitializedPathMsg>();
   *init_path_ = *msg;
 }
 
