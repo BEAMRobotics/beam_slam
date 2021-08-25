@@ -4,10 +4,7 @@
 
 #include <beam_utils/pointclouds.h>
 
-#include <bs_models/CameraMeasurementMsg.h>
-#include <bs_models/LidarMeasurementMsg.h>
-#include <bs_models/TrajectoryMeasurementMsg.h>
-#include <bs_models/LandmarkMeasurementMsg.h>
+#include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/global_mapping/submap.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>

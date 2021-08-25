@@ -52,28 +52,6 @@ find_package(bs_common REQUIRED)
 find_package(bs_variables REQUIRED)
 
 
-add_message_files(
-  DIRECTORY
-    msg
-  FILES
-    InitializedPathMsg.msg
-    LandmarkMeasurementMsg.msg
-    CameraMeasurementMsg.msg    
-    LidarMeasurementMsg.msg
-    TrajectoryMeasurementMsg.msg
-    SlamChunkMsg.msg
-    SubmapMsg.msg
-    RelocRequestMsg.msg
-    DescriptorMsg.msg
-)
-
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  geometry_msgs
-  sensor_msgs
-)
-
 catkin_package(
   INCLUDE_DIRS
     include
