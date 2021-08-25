@@ -361,7 +361,7 @@ void VIOInitializer::OutputResults(
           visual_map_->GetLandmark(id);
       if (lm) {
         pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
-        points_cloud.points.push_back(p);
+        points_cloud.push_back(p);
       }
     }
     pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);

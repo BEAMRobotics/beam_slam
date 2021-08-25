@@ -247,7 +247,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         p.x = points[point_counter];
         p.y = points[point_counter + 1];
         p.z = points[point_counter + 2];
-        cloud.points.push_back(p);
+        cloud.push_back(p);
         point_counter += 3;
       }
 
