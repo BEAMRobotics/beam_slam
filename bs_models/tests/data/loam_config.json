@@ -17,5 +17,6 @@
   "convergence_criteria_rotation_deg": 1,
   "max_correspondence_iterations": 10,
   "output_ceres_summary": false,
+  "output_optimization_summary": false,
   "ceres_config": ""
 }

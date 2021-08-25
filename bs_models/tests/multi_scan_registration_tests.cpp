@@ -39,15 +39,15 @@ class MultiScanRegistrationTest : public ::testing::Test {
   void SetUp() override {
     // read input cloud
     std::string current_file = "multi_scan_registration_tests.cpp";
-    std::string test_path = __FILE__;
-    test_path.erase(test_path.end() - current_file.size(), test_path.end());
-    std::string scan_path = test_path + "data/test_scan_vlp16.pcd";
+    test_path_ = __FILE__;
+    test_path_.erase(test_path_.end() - current_file.size(), test_path_.end());
+    std::string scan_path = test_path_ + "data/test_scan_vlp16.pcd";
     PointCloud test_cloud_tmp;
     PointCloud test_cloud;
     pcl::io::loadPCDFile(scan_path, test_cloud_tmp);
 
     // create loam params from config
-    std::string config_path = test_path + "data/loam_config.json";
+    std::string config_path = test_path_ + "data/loam_config.json";
     loam_params_ = std::make_shared<LoamParams>(config_path);
 
     // downsample input cloud
@@ -107,15 +107,20 @@ class MultiScanRegistrationTest : public ::testing::Test {
         SP_TMP.Orientation().y(), SP_TMP.Orientation().z();
     fuse_core::Matrix6d prior_covariance;
     prior_covariance.setIdentity();
-    prior_covariance = prior_covariance * 0.0000000001;
+    prior_covariance = prior_covariance * 1e-12;
 
     prior_ = fuse_constraints::AbsolutePose3DStampedConstraint(
         "PRIOR", SP_TMP.Position(), SP_TMP.Orientation(), mean,
         prior_covariance);
+
+    // scan reg cov:
+    covariance_.setIdentity();
+    covariance_ = covariance_ * 0.1;    
   }
 
   // void TearDown() override {}
 
+  std::string test_path_;
   Eigen::Matrix4d T_WORLD_S1_;
   Eigen::Matrix4d T_WORLD_S2_;
   Eigen::Matrix4d T_WORLD_S2_pert_;
@@ -131,7 +136,8 @@ class MultiScanRegistrationTest : public ::testing::Test {
   beam_matching::IcpMatcherParams icp_params_;
   std::shared_ptr<LoamParams> loam_params_;
   fuse_constraints::AbsolutePose3DStampedConstraint prior_;
-  MultiScanRegistration::Params scan_reg_params_;
+  MultiScanLoamRegistration::Params scan_reg_params_;
+  Eigen::Matrix<double, 6, 6> covariance_;
 };
 
 int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
@@ -206,11 +212,7 @@ TEST_F(MultiScanRegistrationTest, 2ScansManualConstraintAdding) {
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
       std::make_unique<MultiScanRegistration>(std::move(matcher),
                                               scan_reg_params);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  multi_scan_registration->SetFixedCovariance(covariance);
+  multi_scan_registration->SetFixedCovariance(covariance_);
 
   auto transaction1 =
       multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
@@ -301,11 +303,7 @@ TEST_F(MultiScanRegistrationTest, 3ScansManualConstraintAdding) {
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
       std::make_unique<MultiScanRegistration>(std::move(matcher),
                                               scan_reg_params);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  multi_scan_registration->SetFixedCovariance(covariance);
+  multi_scan_registration->SetFixedCovariance(covariance_);
 
   auto transaction1 =
       multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
@@ -402,11 +400,7 @@ TEST_F(MultiScanRegistrationTest, TransactionsAndUpdates) {
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
       std::make_unique<MultiScanRegistration>(std::move(matcher),
                                               scan_reg_params);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  multi_scan_registration->SetFixedCovariance(covariance);
+  multi_scan_registration->SetFixedCovariance(covariance_);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -521,12 +515,8 @@ TEST_F(MultiScanRegistrationTest, NumNeighbours) {
   std::unique_ptr<MultiScanRegistration> multi_scan_registration2 =
       std::make_unique<MultiScanRegistration>(std::move(matcher2),
                                               scan_reg_params2);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  multi_scan_registration1->SetFixedCovariance(covariance);
-  multi_scan_registration2->SetFixedCovariance(covariance);
+  multi_scan_registration1->SetFixedCovariance(covariance_);
+  multi_scan_registration2->SetFixedCovariance(covariance_);
 
   // get transactions for each new scan
   auto transaction11 =
@@ -636,11 +626,7 @@ TEST_F(MultiScanRegistrationTest, RegistrationCases) {
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
       std::make_unique<MultiScanRegistration>(std::move(matcher),
                                               scan_reg_params);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  multi_scan_registration->SetFixedCovariance(covariance);
+  multi_scan_registration->SetFixedCovariance(covariance_);
 
   // get transactions for each new scan
   auto transaction1 =
@@ -693,11 +679,7 @@ TEST_F(MultiScanRegistrationTest, 2Scans) {
   std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
       std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
                                                   scan_reg_params);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  multi_scan_registration->SetFixedCovariance(covariance);
+  multi_scan_registration->SetFixedCovariance(covariance_);
 
   auto transaction1 =
       multi_scan_registration->RegisterNewScan(SP1).GetTransaction();
@@ -757,11 +739,7 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
   std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
       std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
                                                   scan_reg_params);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  multi_scan_registration->SetFixedCovariance(covariance);
+  multi_scan_registration->SetFixedCovariance(covariance_);
 
   // Create the graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
@@ -860,11 +838,7 @@ TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
   std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
       std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
                                                   scan_reg_params);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  multi_scan_registration->SetFixedCovariance(covariance);
+  multi_scan_registration->SetFixedCovariance(covariance_);
 
   // Create the graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
@@ -921,12 +895,39 @@ TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
       beam::ArePosesEqual(T_WORLD_S3_mea, T_WORLD_S3_, 1.5, 0.15, true));
 }
 
-TEST_F(MultiScanRegistrationTest, NScans) {
-  // init scan registration
+TEST_F(MultiScanRegistrationTest, NScansWNoise) {
+  // Setup scan registration
+  std::shared_ptr<LoamParams> loam_params = std::make_shared<LoamParams>();
+  *loam_params = *loam_params_;
+  loam_params->max_correspondence_distance = 0.3;
+  loam_params->convergence_criteria_translation_m = 0.001;
+  loam_params->convergence_criteria_rotation_deg = 0.1;
+  loam_params->max_correspondence_iterations = 20;
+  loam_params->output_ceres_summary = false;
+  loam_params->output_optimization_summary = false;
+  loam_params->optimizer_params =
+      beam_optimization::CeresParams(test_path_ + "data/ceres_config.json");
+
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
-  matcher = std::make_unique<LoamMatcher>(*loam_params_);
+  matcher = std::make_unique<LoamMatcher>(*loam_params);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
-      std::make_shared<LoamFeatureExtractor>(loam_params_);
+      std::make_shared<LoamFeatureExtractor>(loam_params);
+
+  MultiScanLoamRegistration::Params scan_reg_params;
+  scan_reg_params.outlier_threshold_t = 1;
+  scan_reg_params.outlier_threshold_r = 30;
+  scan_reg_params.min_motion_trans_m = 0;
+  scan_reg_params.min_motion_rot_rad = 0;
+  scan_reg_params.source = "TEST";
+  scan_reg_params.fix_first_scan = true;
+  scan_reg_params.num_neighbors = 5;
+  scan_reg_params.lag_duration = 1000;
+  scan_reg_params.disable_lidar_map = true;
+
+  std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
+      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
+                                                  scan_reg_params);
+  multi_scan_registration->SetFixedCovariance(covariance_);
 
   // create path
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> nodes;
@@ -941,38 +942,35 @@ TEST_F(MultiScanRegistrationTest, NScans) {
   ros::Time stamp_current = ros::Time(0);
   ros::Duration time_inc = ros::Duration(1);  // increment by 1 s
   std::vector<ScanPose> scan_poses;
+  std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d>>
+      gt_poses;
   for (size_t i = 0; i < num_scans; i++) {
     // get pose
     double interpolation_point =
         static_cast<double>(i) / static_cast<double>(num_scans);
-    Eigen::Matrix4d T_WORLD_LIDAR = path.GetPose(interpolation_point);
-    Eigen::Matrix4d T_WORLD_LIDAR_pert =
-        PerturbPoseRandom(Eigen::Matrix4d::Identity(), 0.05, 5);
+    Eigen::Matrix4d T_WORLD_BASELINK = path.GetPose(interpolation_point);
 
-    // transform pointcloud
+    // perturb pose if not first pose
+    Eigen::Matrix4d T_WORLD_BASELINK_pert;
+    if (i == 0) {
+      T_WORLD_BASELINK_pert = T_WORLD_BASELINK;
+    } else {
+      T_WORLD_BASELINK_pert = PerturbPoseRandom(T_WORLD_BASELINK, 0.05, 5);
+    }
+
+    // transform pointcloud & add noise
     PointCloud pc;
-    pcl::transformPointCloud(S1_, pc, beam::InvertTransform(T_WORLD_LIDAR));
+    pcl::transformPointCloud(
+        S1_, pc, beam::InvertTransform(T_WORLD_BASELINK * T_BASELINK_LIDAR_));
+    beam::AddNoiseToCloud(pc, 0.01, false);
 
     // create scan pose
-    ScanPose SP(pc, stamp_current, T_WORLD_LIDAR, T_BASELINK_LIDAR_,
+    ScanPose SP(pc, stamp_current, T_WORLD_BASELINK_pert, T_BASELINK_LIDAR_,
                 feature_extractor);
-    SP.UpdatePose(T_WORLD_LIDAR_pert);
     scan_poses.push_back(SP);
+    gt_poses.push_back(T_WORLD_BASELINK);
     stamp_current = stamp_current + time_inc;
   }
-
-  // init scan registration
-  auto scan_reg_params = scan_reg_params_;
-  scan_reg_params.disable_lidar_map = false;
-
-  std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
-      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
-                                                  scan_reg_params);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  multi_scan_registration->SetFixedCovariance(covariance);
 
   // Create the graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
@@ -982,26 +980,36 @@ TEST_F(MultiScanRegistrationTest, NScans) {
   for (auto& scan_pose : scan_poses) {
     auto transaction =
         multi_scan_registration->RegisterNewScan(scan_pose).GetTransaction();
-    graph->update(*transaction);
+    if (transaction != nullptr) {
+      graph->update(*transaction);
+    }
   }
 
   // optimize
   graph->optimize();
 
   //  Update poses
-  for (auto& scan_pose : scan_poses) {
+  for (size_t i = 0; i < num_scans; i++) {
+    ScanPose& scan_pose = scan_poses.at(i);
     scan_pose.UpdatePose(graph);
 
     // save scans
-    scan_pose.SaveCloud("/home/nick/tmp/multi_scan_tests/");
+    // scan_pose.SaveCloud("/home/nick/tmp/multi_scan_tests/");
+    // PointCloud pc;
+    // pcl::transformPointCloud(scan_pose.Cloud(), pc, gt_poses.at(i));
+    // PointCloudCol pc_col = beam::ColorPointCloud(pc, 0, 0, 255);
+
+    // std::string filename = "/home/nick/tmp/multi_scan_tests/" +
+    //                        std::to_string(scan_pose.Stamp().toSec()) +
+    //                        "_ground_truth.pcd";
+    // pcl::io::savePCDFileASCII(filename, pc_col);
   }
 
   //  Check poses
-  for (auto& scan_pose : scan_poses) {
-    Eigen::Matrix4d T_WORLD_LIDAR_gt =
-        scan_pose.T_REFFRAME_BASELINK_INIT() * scan_pose.T_BASELINK_LIDAR();
-    EXPECT_TRUE(beam::ArePosesEqual(scan_pose.T_REFFRAME_LIDAR(),
-                                    T_WORLD_LIDAR_gt, 1, 0.01, true));
+  for (size_t i = 0; i < num_scans; i++) {
+    const ScanPose& scan_pose = scan_poses.at(i);
+    EXPECT_TRUE(beam::ArePosesEqual(scan_pose.T_REFFRAME_BASELINK(),
+                                    gt_poses.at(i), 1, 0.03, true));
   }
 }
 
