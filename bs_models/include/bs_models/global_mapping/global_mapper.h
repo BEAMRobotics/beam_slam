@@ -4,7 +4,7 @@
 #include <fuse_core/uuid.h>
 #include <fuse_models/common/throttled_callback.h>
 
-#include <bs_models/SlamChunkMsg.h>
+#include <bs_common/bs_msgs.h>
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_parameters/models/global_mapper_params.h>
 #include <bs_parameters/models/calibration_params.h>

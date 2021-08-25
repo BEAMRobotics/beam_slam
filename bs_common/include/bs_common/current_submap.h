@@ -1,7 +1,7 @@
 #pragma once
 
 #include <beam_utils/utils.h>
-#include <bs_common/SubmapMsg.h>
+#include <bs_common/bs_msgs.h>
 #include <opencv2/opencv.hpp>
 #include <ros/ros.h>
 

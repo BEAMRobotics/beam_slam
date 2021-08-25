@@ -48,28 +48,6 @@ find_package(Boost REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(OpenCV 4.5.2 REQUIRED COMPONENTS)
 
-add_message_files(
-  DIRECTORY
-    msg
-  FILES
-    InitializedPathMsg.msg
-    LandmarkMeasurementMsg.msg
-    CameraMeasurementMsg.msg    
-    LidarMeasurementMsg.msg
-    TrajectoryMeasurementMsg.msg
-    SlamChunkMsg.msg
-    SubmapMsg.msg
-    RelocRequestMsg.msg
-    DescriptorMsg.msg
-)
-
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  geometry_msgs
-  sensor_msgs
-)
-
 catkin_package(
   INCLUDE_DIRS
     include

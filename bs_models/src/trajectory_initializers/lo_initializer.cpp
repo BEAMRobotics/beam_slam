@@ -9,7 +9,7 @@
 #include <beam_utils/math.h>
 #include <beam_utils/pointclouds.h>
 
-#include <bs_models/InitializedPathMsg.h>
+#include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::LoInitializer,

@@ -14,8 +14,10 @@
 #include <fuse_graphs/hash_graph.h>
 
 // ros
-#include <bs_models/InitializedPathMsg.h>
+#include <bs_common/bs_msgs.h>
 #include <sensor_msgs/Imu.h>
+
+using namespace bs_common; 
 
 namespace bs_models { namespace camera_to_camera {
 
@@ -152,7 +154,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
-  bs_common::CurrentSubmap& submap_ = bs_common::CurrentSubmap::GetInstance();
+  CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
 
   // imu preintegration object
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;
@@ -185,8 +187,8 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
-      bs_common::ExtrinsicsLookupOnline::GetInstance();
+  ExtrinsicsLookupOnline& extrinsics_ =
+      ExtrinsicsLookupOnline::GetInstance();
 
   // directory to optionally output the initialization results
   std::string output_directory_{};

@@ -4,11 +4,7 @@
 #include <queue>
 
 // messages
-#include <bs_models/CameraMeasurementMsg.h>
-#include <bs_models/InitializedPathMsg.h>
-#include <bs_models/LandmarkMeasurementMsg.h>
-#include <bs_models/SubmapMsg.h>
-#include <bs_models/TrajectoryMeasurementMsg.h>
+#include <bs_common/bs_msgs.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 
@@ -30,6 +26,8 @@
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
+
+using namespace bs_common; 
 
 namespace bs_models { namespace camera_to_camera {
 
