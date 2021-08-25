@@ -238,7 +238,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         p.x = points[iter];
         p.y = points[iter + 1];
         p.z = points[iter + 2];
-        cloud.points.push_back(p);
+        cloud.push_back(p);
       }
       submaps_[submap_id].AddLidarMeasurement(cloud, T_WORLD_BASELINK, stamp,
                                               lid_measurement.point_type);
