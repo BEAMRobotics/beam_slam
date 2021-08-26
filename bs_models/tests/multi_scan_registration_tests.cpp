@@ -520,7 +520,8 @@ TEST_F(MultiScanRegistrationTest, NumNeighbours) {
   scan_reg_params1.num_neighbors = 2;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration2 =
-      std::make_unique<MultiScanRegistration>std::move(matcher2), scan_reg_params2.GetBaseParams(),
+      std::make_unique<MultiScanRegistration>(
+          std::move(matcher2), scan_reg_params2.GetBaseParams(),
           scan_reg_params2.num_neighbors, scan_reg_params2.lag_duration,
           scan_reg_params2.disable_lidar_map);
   multi_scan_registration1->SetFixedCovariance(covariance_);
