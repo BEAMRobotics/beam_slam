@@ -105,10 +105,10 @@ void VisualInertialOdom::onStart() {
 
 void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
   // get most recent extrinsics, if failure then process frame later
-  if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
-    ROS_ERROR("Unable to get camera to baselink transform.");
-    return;
-  }
+  // if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
+  //   ROS_ERROR("Unable to get camera to baselink transform.");
+  //   return;
+  // }
   // push image onto buffer
   image_buffer_.push(*msg);
   // get current imu and image timestamps
@@ -130,13 +130,13 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
         if (initializer_->AddImage(img_time)) {
-          ROS_INFO("Initialization Success: %f", img_time.toSec());
+          ROS_DEBUG("Initialization Success: %f", img_time.toSec());
           // get the preintegration object
           imu_preint_ = initializer_->GetPreintegrator();
           // copy init graph and send to fuse optimizer
           SendInitializationGraph(initializer_->GetGraph());
         } else {
-          ROS_INFO("Initialization Failure: %f", img_time.toSec());
+          ROS_DEBUG("Initialization Failure: %f", img_time.toSec());
         }
       }
     } else { // process in odometry mode
@@ -163,8 +163,8 @@ void VisualInertialOdom::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
         // log pose info
-        ROS_INFO("Estimated Keyframe Pose:");
-        std::cout << T_WORLD_BASELINK << std::endl;
+        ROS_DEBUG("Estimated Keyframe Pose:");
+        // std::cout << T_WORLD_BASELINK << std::endl;
         // notify that a new keyframe is detected
         NotifyNewKeyframe(T_WORLD_CAMERA);
         // extend map
@@ -295,7 +295,7 @@ bool VisualInertialOdom::IsKeyframe(const ros::Time& img_time,
           camera_params_.keyframe_min_time_in_seconds &&
       beam::PassedMotionThreshold(T_WORLD_curkf, T_WORLD_CAMERA, 0.0, 0.05,
                                   true, true, false)) {
-    ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
+    ROS_DEBUG("New keyframe chosen at: %f", img_time.toSec());
     is_keyframe = true;
   } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
     is_keyframe = true;
@@ -355,7 +355,7 @@ void VisualInertialOdom::ExtendMap() {
     }
   }
 
-  ROS_INFO("Added %zu new landmarks.", new_landmarks.size());
+  ROS_DEBUG("Added %zu new landmarks.", new_landmarks.size());
   // add inertial constraint
   // AddInertialConstraint(cur_kf_time, transaction);
   // send transaction to graph
@@ -490,8 +490,7 @@ std::map<uint64_t, Eigen::Vector3d>
   std::map<uint64_t, Eigen::Vector3d> matched_points;
 
   // get map points in current camera frame
-  Eigen::Matrix4d T_WORLD_CAMERA =
-      visual_map_->GetCameraPose(img_time).value();
+  Eigen::Matrix4d T_WORLD_CAMERA = visual_map_->GetCameraPose(img_time).value();
   std::vector<Eigen::Vector3d> points_camera =
       submap_.GetVisualMapPoints(T_WORLD_CAMERA);
   std::vector<cv::Mat> descriptors = submap_.GetDescriptors();
@@ -541,7 +540,6 @@ std::map<uint64_t, Eigen::Vector3d>
   std::vector<cv::DMatch> matches =
       matcher->MatchDescriptors(projected_descriptors, current_descriptors,
                                 projected_keypoints, current_keypoints);
-  std::cout << matches.size() << std::endl;
   // filter matches by pixel distance
   for (auto& m : matches) {
     Eigen::Vector3d p_camera = points_camera[m.queryIdx];
