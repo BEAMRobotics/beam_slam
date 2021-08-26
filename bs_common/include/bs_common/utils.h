@@ -13,6 +13,8 @@
 
 #include <bs_common/scan_pose.h>
 
+static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, -9.80655};
+
 namespace bs_common {
 
 static std::string default_string{""};
@@ -82,7 +84,7 @@ void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
 void InterpolateTransformFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Matrix4d& T_WORLD_SENSOR);
-
+    
 /**
  * @brief Get full path the the config root directory in beam_slam_launch
  * @return path

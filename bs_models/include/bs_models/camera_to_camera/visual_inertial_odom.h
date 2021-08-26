@@ -10,7 +10,7 @@
 
 // fuse
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_models/common/throttled_callback.h>
+#include <fuse_core/throttled_callback.h>
 
 // beam_slam
 #include <bs_common/current_submap.h>
@@ -176,10 +176,8 @@ protected:
   std::queue<sensor_msgs::Imu> imu_buffer_;
 
   // callbacks for messages
-  using ThrottledImageCallback =
-      fuse_models::common::ThrottledCallback<sensor_msgs::Image>;
-  using ThrottledIMUCallback =
-      fuse_models::common::ThrottledCallback<sensor_msgs::Imu>;
+  using ThrottledImageCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::Image>;
+  using ThrottledIMUCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
   ThrottledImageCallback throttled_image_callback_;
   ThrottledIMUCallback throttled_imu_callback_;
 

@@ -47,6 +47,7 @@ catkin_package(
 
 # fuse_constraints library
 add_library(${PROJECT_NAME}
+  src/frame_to_frame/relative_constraint.cpp
   src/frame_to_frame/frame_to_frame_transaction_base.cpp
   src/frame_to_frame/imu_state_3d_stamped_transaction.cpp
   src/frame_to_frame/pose_3d_stamped_transaction.cpp
@@ -72,6 +73,7 @@ target_link_libraries(${PROJECT_NAME}
   ${CERES_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   beam::calibration
+  beam::matching
   beam::optimization
 )
 
@@ -112,27 +114,7 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD_REQUIRED YES
   )
 
-  # Relative Imu State 3D Stamped Constraint Tests
-  catkin_add_gtest(test_relative_imu_state_3d_stamped_constraint
-    tests/test_relative_imu_state_3d_stamped_constraint.cpp
-  )
-  add_dependencies(test_relative_imu_state_3d_stamped_constraint
-    ${catkin_EXPORTED_TARGETS}
-  )
-  target_include_directories(test_relative_imu_state_3d_stamped_constraint
-    PRIVATE
-      include
-      ${catkin_INCLUDE_DIRS}
-      ${CERES_INCLUDE_DIRS}
-  )
-  target_link_libraries(test_relative_imu_state_3d_stamped_constraint
-    ${PROJECT_NAME}
-    ${catkin_LIBRARIES}
-    ${CERES_LIBRARIES}
-  )
-  set_target_properties(test_relative_imu_state_3d_stamped_constraint
-    PROPERTIES
-      CXX_STANDARD 14
-      CXX_STANDARD_REQUIRED YES
-  )
+  # Relative Imu State Stamped Constraint Tests
+  #
+  # testing has been moved to imu_preintegration_tests.cpp in bs_models
 endif()

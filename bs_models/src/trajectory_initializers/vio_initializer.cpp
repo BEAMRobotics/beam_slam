@@ -8,7 +8,8 @@
 #include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
 
-namespace bs_models { namespace camera_to_camera {
+namespace bs_models {
+namespace camera_to_camera {
 
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
@@ -24,8 +25,7 @@ VIOInitializer::VIOInitializer(
   nlohmann::json J;
   std::ifstream file(imu_intrinsics_path);
   file >> J;
-  Eigen::Vector3d gravity_nominal{0, 0, -9.8};
-  imu_params_.gravity = gravity_nominal;
+  imu_params_.gravity = GRAVITY_WORLD;
   imu_params_.cov_gyro_noise = Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
   imu_params_.cov_accel_noise = Eigen::Matrix3d::Identity() * J["cov_accel_noise"];
   imu_params_.cov_gyro_bias = Eigen::Matrix3d::Identity() * J["cov_gyro_bias"];
@@ -57,7 +57,7 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
             imu_params_, bg_, ba_);
     // align poses to estimated gravity
     Eigen::Quaterniond q =
-        Eigen::Quaterniond::FromTwoVectors(gravity_, imu_params_.gravity);
+        Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
     for (auto& f : valid_frames) {
       f.q = q * f.q;
       f.p = q * f.p;
@@ -113,16 +113,14 @@ void VIOInitializer::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
   *init_path_ = *msg;
 }
 
-bool VIOInitializer::Initialized() {
-  return is_initialized_;
-}
+bool VIOInitializer::Initialized() { return is_initialized_; }
 
 const fuse_graphs::HashGraph& VIOInitializer::GetGraph() {
   return *local_graph_;
 }
 
 std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration>
-    VIOInitializer::GetPreintegrator() {
+VIOInitializer::GetPreintegrator() {
   return imu_preint_;
 }
 
@@ -254,13 +252,14 @@ size_t VIOInitializer::AddVisualConstraints(
   for (auto& id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
-    if (lm) { // if the landmark already exists then add constraint
+    if (lm) {  // if the landmark already exists then add constraint
       for (auto& f : frames) {
         try {
           visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id));
-        } catch (const std::out_of_range& oor) {}
+        } catch (const std::out_of_range& oor) {
+        }
       }
-    } else { // otherwise then triangulate then add the constraints
+    } else {  // otherwise then triangulate then add the constraints
       std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
       std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
@@ -311,7 +310,9 @@ bool VIOInitializer::LocalizeFrame(
       points.push_back(point);
     }
   }
-  if (points.size() < 15) { return false; }
+  if (points.size() < 15) {
+    return false;
+  }
   // estimate with ransac pnp
   Eigen::Matrix4d T_CAMERA_WORLD_est =
       beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
@@ -369,4 +370,5 @@ void VIOInitializer::OutputResults(
   }
 }
 
-}} // namespace bs_models::camera_to_camera
+}  // namespace camera_to_camera
+}  // namespace bs_models

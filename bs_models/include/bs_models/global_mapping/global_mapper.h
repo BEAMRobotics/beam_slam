@@ -2,7 +2,7 @@
 
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/uuid.h>
-#include <fuse_models/common/throttled_callback.h>
+#include <fuse_core/throttled_callback.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_models/global_mapping/global_map.h>
@@ -10,7 +10,6 @@
 #include <bs_parameters/models/calibration_params.h>
 
 namespace bs_models {
-
 namespace global_mapping {
 
 /**
@@ -95,8 +94,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
 
   std::unique_ptr<GlobalMap> global_map_;
 
-  using ThrottledCallback =
-      fuse_models::common::ThrottledCallback<SlamChunkMsg>;
+  using ThrottledCallback = fuse_core::ThrottledMessageCallback<SlamChunkMsg>;
   ThrottledCallback throttled_callback_;
 
   /** subscribe to slam chunk data */
@@ -107,5 +105,4 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
 };
 
 }  // namespace global_mapping
-
 }  // namespace bs_models

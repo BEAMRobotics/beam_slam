@@ -47,9 +47,11 @@ void GlobalMapper::onInit() {
 }
 
 void GlobalMapper::onStart() {
-  subscriber_ = node_handle_.subscribe(params_.input_topic, 100,
-                                       &ThrottledCallback::callback,
-                                       &throttled_callback_);
+  subscriber_ = node_handle_.subscribe<SlamChunkMsg>(
+      ros::names::resolve(params_.input_topic), 100,
+      &ThrottledCallback::callback, &throttled_callback_,
+      ros::TransportHints().tcpNoDelay(false));
+
   // get intrinsics
   std::shared_ptr<beam_calibration::CameraModel> camera_model =
       beam_calibration::CameraModel::Create(

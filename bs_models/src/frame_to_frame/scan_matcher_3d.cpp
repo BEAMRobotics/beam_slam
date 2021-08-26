@@ -145,9 +145,9 @@ void ScanMatcher3D::onInit() {
 }
 
 void ScanMatcher3D::onStart() {
-  subscriber_ = node_handle_.subscribe(params_.input_topic, 1,
-                                       &ThrottledCallback::callback,
-                                       &throttled_callback_);
+  subscriber_ = node_handle_.subscribe<sensor_msgs::PointCloud2>(
+      ros::names::resolve(params_.input_topic), 1, &ThrottledCallback::callback,
+      &throttled_callback_, ros::TransportHints().tcpNoDelay(false));
 
   results_publisher_ =
       private_node_handle_.advertise<SlamChunkMsg>(params_.output_topic, 100);

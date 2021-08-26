@@ -80,12 +80,15 @@ void VisualInertialOdom::onStart() {
   /***********************************************************
    *                  Subscribe to topics                    *
    ***********************************************************/
-  image_subscriber_ = node_handle_.subscribe(camera_params_.image_topic, 1000,
-                                             &ThrottledImageCallback::callback,
-                                             &throttled_image_callback_);
-  imu_subscriber_ = node_handle_.subscribe(camera_params_.imu_topic, 10000,
-                                           &ThrottledIMUCallback::callback,
-                                           &throttled_imu_callback_);
+  image_subscriber_ = node_handle_.subscribe<sensor_msgs::Image>(
+      ros::names::resolve(camera_params_.image_topic), 1000,
+      &ThrottledImageCallback::callback, &throttled_image_callback_,
+      ros::TransportHints().tcpNoDelay(false));
+
+  imu_subscriber_ = node_handle_.subscribe<sensor_msgs::Imu>(
+      ros::names::resolve(camera_params_.imu_topic), 10000,
+      &ThrottledIMUCallback::callback, &throttled_imu_callback_,
+      ros::TransportHints().tcpNoDelay(false));
   /***********************************************************
    *                 Advertise publishers                    *
    ***********************************************************/

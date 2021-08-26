@@ -23,5 +23,7 @@
   <depend>fuse_variables</depend>
   <depend>fuse_constraints</depend>
   <depend>fuse_models</depend>
+
+  <depend>bs_variables</depend>
   
 </package>
