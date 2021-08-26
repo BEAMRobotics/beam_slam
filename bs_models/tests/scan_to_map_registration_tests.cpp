@@ -15,7 +15,6 @@
 #include <beam_utils/math.h>
 #include <beam_utils/pointclouds.h>
 
-#include <bs_common/sensor_proc.h>
 #include <bs_common/utils.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 

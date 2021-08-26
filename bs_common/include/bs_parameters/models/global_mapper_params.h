@@ -2,8 +2,6 @@
 
 #include <ros/node_handle.h>
 
-#include <bs_common/sensor_config.h>
-
 #include <bs_parameters/parameter_base.h>
 
 namespace bs_parameters {

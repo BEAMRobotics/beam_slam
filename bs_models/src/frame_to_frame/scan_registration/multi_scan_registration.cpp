@@ -5,7 +5,6 @@
 
 #include <beam_matching/Matchers.h>
 
-#include <bs_common/sensor_proc.h>
 #include <bs_common/utils.h>
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 

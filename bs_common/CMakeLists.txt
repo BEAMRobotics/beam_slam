@@ -69,7 +69,6 @@ add_library(${PROJECT_NAME}
   src/bs_parameters/params.cpp
   src/bs_parameters/models/model_params.cpp
   src/bs_parameters/publishers/publisher_params.cpp
-  src/bs_common/common.cpp
   src/bs_common/extrinsics_lookup_base.cpp
   src/bs_common/extrinsics_lookup_online.cpp
   src/bs_common/imu_state.cpp
