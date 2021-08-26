@@ -1,8 +1,9 @@
 #include <bs_models/trajectory_initializers/imu_initializer.h>
 
-#define GRAVITY_NOMINAL 9.86055
+#include <bs_common/utils.h>
 
-namespace bs_models { namespace camera_to_camera {
+namespace bs_models {
+namespace camera_to_camera {
 
 IMUInitializer::IMUInitializer(
     const std::vector<bs_models::camera_to_camera::Frame>& frames)
@@ -40,8 +41,8 @@ void IMUInitializer::SolveGyroBias() {
     b += dq_dbg.transpose() * beam::RToLieAlgebra(tmp_R);
   }
 
-  Eigen::JacobiSVD<Eigen::Matrix3d> svd(A, Eigen::ComputeFullU |
-                                               Eigen::ComputeFullV);
+  Eigen::JacobiSVD<Eigen::Matrix3d> svd(
+      A, Eigen::ComputeFullU | Eigen::ComputeFullV);
   bg_ = svd.solve(b);
 }
 
@@ -82,8 +83,8 @@ void IMUInitializer::SolveAccelBias() {
     b += C.transpose() * d;
   }
 
-  Eigen::JacobiSVD<Eigen::Matrix4d> svd(A, Eigen::ComputeFullU |
-                                               Eigen::ComputeFullV);
+  Eigen::JacobiSVD<Eigen::Matrix4d> svd(
+      A, Eigen::ComputeFullU | Eigen::ComputeFullV);
   Eigen::Vector4d x = svd.solve(b);
   ba_ = x.segment<3>(1);
 }
@@ -116,8 +117,8 @@ void IMUInitializer::SolveGravityAndScale() {
     b += C.transpose() * d;
   }
 
-  Eigen::JacobiSVD<Eigen::Matrix4d> svd(A, Eigen::ComputeFullU |
-                                               Eigen::ComputeFullV);
+  Eigen::JacobiSVD<Eigen::Matrix4d> svd(
+      A, Eigen::ComputeFullU | Eigen::ComputeFullV);
   Eigen::Vector4d x = svd.solve(b);
   gravity_ = x.segment<3>(0).normalized() * GRAVITY_NOMINAL;
   scale_ = x(3);
@@ -165,20 +166,13 @@ void IMUInitializer::RefineGravityAndScale() {
   scale_ = x(2);
 }
 
-const Eigen::Vector3d& IMUInitializer::GetGyroBias() {
-  return bg_;
-}
+const Eigen::Vector3d& IMUInitializer::GetGyroBias() { return bg_; }
 
-const Eigen::Vector3d& IMUInitializer::GetAccelBias() {
-  return ba_;
-}
+const Eigen::Vector3d& IMUInitializer::GetAccelBias() { return ba_; }
 
-const Eigen::Vector3d& IMUInitializer::GetGravity() {
-  return gravity_;
-}
+const Eigen::Vector3d& IMUInitializer::GetGravity() { return gravity_; }
 
-const double& IMUInitializer::GetScale() {
-  return scale_;
-}
+const double& IMUInitializer::GetScale() { return scale_; }
 
-}} // namespace bs_models::camera_to_camera
+}  // namespace camera_to_camera
+}  // namespace bs_models

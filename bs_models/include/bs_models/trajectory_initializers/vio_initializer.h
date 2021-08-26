@@ -1,21 +1,18 @@
 #pragma once
 
-// libbeam
+#include <fuse_graphs/hash_graph.h>
+#include <sensor_msgs/Imu.h>
+
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
-// fuse
+#include <bs_common/bs_msgs.h>
 #include <bs_common/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/imu_initializer.h>
-#include <fuse_graphs/hash_graph.h>
-
-// ros
-#include <bs_common/bs_msgs.h>
-#include <sensor_msgs/Imu.h>
 
 using namespace bs_common; 
 
@@ -162,7 +159,7 @@ protected:
 
   // graph object for optimization
   std::shared_ptr<fuse_graphs::HashGraph> local_graph_;
-  double max_optimization_time_{};
+  double max_optimization_time_;
 
   // stores the added imu messages and times of keyframes to use for init
   std::queue<sensor_msgs::Imu> imu_buffer_;
@@ -179,7 +176,9 @@ protected:
   Eigen::Matrix3d cov_accel_bias_;
 
   // preintegration parameters
-  Eigen::Vector3d gravity_, bg_, ba_;
+  Eigen::Vector3d gravity_;
+  Eigen::Vector3d bg_;
+  Eigen::Vector3d ba_;
   double scale_;
 
   // initialization path
@@ -191,7 +190,7 @@ protected:
       ExtrinsicsLookupOnline::GetInstance();
 
   // directory to optionally output the initialization results
-  std::string output_directory_{};
+  std::string output_directory_;
 };
 
 }} // namespace bs_models::camera_to_camera
