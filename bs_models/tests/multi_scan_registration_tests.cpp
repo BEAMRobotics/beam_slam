@@ -88,11 +88,10 @@ class MultiScanRegistrationTest : public ::testing::Test {
     icp_params_.multiscale_steps = 0;
     icp_params_.res = 0;
 
-    scan_reg_params_.outlier_threshold_t = 1;
-    scan_reg_params_.outlier_threshold_r = 30;
+    scan_reg_params_.outlier_threshold_trans_m = 1;
+    scan_reg_params_.outlier_threshold_rot_deg = 30;
     scan_reg_params_.min_motion_trans_m = 0;
-    scan_reg_params_.min_motion_rot_rad = 0;
-    scan_reg_params_.source = "TEST";
+    scan_reg_params_.min_motion_rot_deg = 0;
     scan_reg_params_.fix_first_scan = true;
     scan_reg_params_.num_neighbors = 3;
     scan_reg_params_.lag_duration = 100;
@@ -115,7 +114,7 @@ class MultiScanRegistrationTest : public ::testing::Test {
 
     // scan reg cov:
     covariance_.setIdentity();
-    covariance_ = covariance_ * 0.1;    
+    covariance_ = covariance_ * 0.1;
   }
 
   // void TearDown() override {}
@@ -210,8 +209,10 @@ TEST_F(MultiScanRegistrationTest, 2ScansManualConstraintAdding) {
   scan_reg_params.fix_first_scan = false;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
-      std::make_unique<MultiScanRegistration>(std::move(matcher),
-                                              scan_reg_params);
+      std::make_unique<MultiScanRegistration>(
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
   multi_scan_registration->SetFixedCovariance(covariance_);
 
   auto transaction1 =
@@ -301,8 +302,10 @@ TEST_F(MultiScanRegistrationTest, 3ScansManualConstraintAdding) {
   scan_reg_params.fix_first_scan = false;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
-      std::make_unique<MultiScanRegistration>(std::move(matcher),
-                                              scan_reg_params);
+      std::make_unique<MultiScanRegistration>(
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
   multi_scan_registration->SetFixedCovariance(covariance_);
 
   auto transaction1 =
@@ -398,8 +401,10 @@ TEST_F(MultiScanRegistrationTest, TransactionsAndUpdates) {
   scan_reg_params.disable_lidar_map = false;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
-      std::make_unique<MultiScanRegistration>(std::move(matcher),
-                                              scan_reg_params);
+      std::make_unique<MultiScanRegistration>(
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
   multi_scan_registration->SetFixedCovariance(covariance_);
 
   // Create the graph
@@ -506,15 +511,18 @@ TEST_F(MultiScanRegistrationTest, NumNeighbours) {
   scan_reg_params1.num_neighbors = 1;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration1 =
-      std::make_unique<MultiScanRegistration>(std::move(matcher1),
-                                              scan_reg_params1);
+      std::make_unique<MultiScanRegistration>(
+          std::move(matcher1), scan_reg_params1.GetBaseParams(),
+          scan_reg_params1.num_neighbors, scan_reg_params1.lag_duration,
+          scan_reg_params1.disable_lidar_map);
 
   auto scan_reg_params2 = scan_reg_params_;
   scan_reg_params1.num_neighbors = 2;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration2 =
-      std::make_unique<MultiScanRegistration>(std::move(matcher2),
-                                              scan_reg_params2);
+      std::make_unique<MultiScanRegistration>std::move(matcher2), scan_reg_params2.GetBaseParams(),
+          scan_reg_params2.num_neighbors, scan_reg_params2.lag_duration,
+          scan_reg_params2.disable_lidar_map);
   multi_scan_registration1->SetFixedCovariance(covariance_);
   multi_scan_registration2->SetFixedCovariance(covariance_);
 
@@ -624,8 +632,10 @@ TEST_F(MultiScanRegistrationTest, RegistrationCases) {
   scan_reg_params.num_neighbors = 5;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
-      std::make_unique<MultiScanRegistration>(std::move(matcher),
-                                              scan_reg_params);
+      std::make_unique<MultiScanRegistration>(
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
   multi_scan_registration->SetFixedCovariance(covariance_);
 
   // get transactions for each new scan
@@ -675,10 +685,11 @@ TEST_F(MultiScanRegistrationTest, 2Scans) {
 
   auto scan_reg_params = scan_reg_params_;
   scan_reg_params.num_neighbors = 1;
-
   std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
-      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
-                                                  scan_reg_params);
+      std::make_unique<MultiScanLoamRegistration>(
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
   multi_scan_registration->SetFixedCovariance(covariance_);
 
   auto transaction1 =
@@ -737,8 +748,10 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
   scan_reg_params.disable_lidar_map = false;
 
   std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
-      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
-                                                  scan_reg_params);
+      std::make_unique<MultiScanLoamRegistration>(
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
   multi_scan_registration->SetFixedCovariance(covariance_);
 
   // Create the graph
@@ -836,8 +849,10 @@ TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
   scan_reg_params.disable_lidar_map = false;
 
   std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
-      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
-                                                  scan_reg_params);
+      std::make_unique<MultiScanLoamRegistration>(
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
   multi_scan_registration->SetFixedCovariance(covariance_);
 
   // Create the graph
@@ -914,19 +929,20 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
       std::make_shared<LoamFeatureExtractor>(loam_params);
 
   MultiScanLoamRegistration::Params scan_reg_params;
-  scan_reg_params.outlier_threshold_t = 1;
-  scan_reg_params.outlier_threshold_r = 30;
+  scan_reg_params.outlier_threshold_trans_m = 1;
+  scan_reg_params.outlier_threshold_rot_deg = 30;
   scan_reg_params.min_motion_trans_m = 0;
-  scan_reg_params.min_motion_rot_rad = 0;
-  scan_reg_params.source = "TEST";
+  scan_reg_params.min_motion_rot_deg = 0;
   scan_reg_params.fix_first_scan = true;
-  scan_reg_params.num_neighbors = 7;
+  scan_reg_params.num_neighbors = 1;  // use 7
   scan_reg_params.lag_duration = 1000;
   scan_reg_params.disable_lidar_map = true;
 
   std::unique_ptr<MultiScanLoamRegistration> multi_scan_registration =
-      std::make_unique<MultiScanLoamRegistration>(std::move(matcher),
-                                                  scan_reg_params);
+      std::make_unique<MultiScanLoamRegistration>(
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
   multi_scan_registration->SetFixedCovariance(covariance_);
 
   // create path
@@ -937,8 +953,8 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
   nodes.push_back(Eigen::Vector3d(6, 0.7, 0));
   beam::SimplePathGenerator path(nodes);
 
-  // create a vec of N scan poses where their initial poses are the ground truth
-  int num_scans = 15;
+  // create a vec of N scan poses
+  int num_scans = 2;  // use 15
   ros::Time stamp_current = ros::Time(0);
   ros::Duration time_inc = ros::Duration(1);  // increment by 1 s
   std::vector<ScanPose> scan_poses;
@@ -978,6 +994,7 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
 
   // add run scan registration and add transactions
   for (auto& scan_pose : scan_poses) {
+    scan_pose.Print();
     auto transaction =
         multi_scan_registration->RegisterNewScan(scan_pose).GetTransaction();
     if (transaction != nullptr) {

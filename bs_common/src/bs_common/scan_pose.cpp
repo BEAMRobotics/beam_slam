@@ -189,7 +189,7 @@ void ScanPose::Print(std::ostream& stream) const {
          << "  - w: " << orientation_.w() << "\n";
 }
 
-void ScanPose::SaveData(const std::string& output_dir) {
+void ScanPose::SaveData(const std::string& output_dir) const {
   if (!boost::filesystem::exists(output_dir)) {
     BEAM_ERROR("Invalid output directory, not saving ScanPose data. Input: {}",
                output_dir);

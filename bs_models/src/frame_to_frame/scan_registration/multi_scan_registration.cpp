@@ -63,8 +63,25 @@ void MultiScanRegistrationBase::Params::LoadFromJson(
   disable_lidar_map = J["disable_lidar_map"];
 }
 
-MultiScanRegistrationBase::MultiScanRegistrationBase(const Params& params)
-    : params_(params) {
+ScanRegistrationParamsBase MultiScanRegistrationBase::Params::GetBaseParams() {
+  ScanRegistrationParamsBase base_params{
+      .outlier_threshold_trans_m = outlier_threshold_trans_m,
+      .outlier_threshold_rot_deg = outlier_threshold_rot_deg,
+      .min_motion_trans_m = min_motion_trans_m,
+      .min_motion_rot_deg = min_motion_rot_deg,
+      .max_motion_trans_m = max_motion_trans_m,
+      .fix_first_scan = fix_first_scan};
+  return base_params;
+}
+
+MultiScanRegistrationBase::MultiScanRegistrationBase(
+    const ScanRegistrationParamsBase& base_params, int num_neighbors,
+    double lag_duration, bool disable_lidar_map)
+    : ScanRegistrationBase(base_params) {
+  params_.num_neighbors = num_neighbors;
+  params_.lag_duration = lag_duration;
+  params_.disable_lidar_map = disable_lidar_map;
+
   // if outputting results, clear output folder:
   if (!output_scan_registration_results_) {
     return;
@@ -195,10 +212,10 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     }
 
     // add measurement to transaction
-    transaction.AddPoseConstraint(
-        ref_iter->Position(), new_scan.Position(), ref_iter->Orientation(),
-        new_scan.Orientation(), position_relative, orientation_relative,
-        covariance, params_.source);
+    transaction.AddPoseConstraint(ref_iter->Position(), new_scan.Position(),
+                                  ref_iter->Orientation(),
+                                  new_scan.Orientation(), position_relative,
+                                  orientation_relative, covariance, source_);
 
     num_constraints++;
   }
@@ -235,23 +252,6 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   reference_clouds_.push_front(new_scan);
 
   return transaction;
-}
-
-bool MultiScanRegistrationBase::PassedRegThreshold(
-    const Eigen::Matrix4d& T_measured, const Eigen::Matrix4d& T_estimated) {
-  Eigen::Matrix3d R1 = T_measured.block(0, 0, 3, 3);
-  Eigen::Matrix3d R2 = T_estimated.block(0, 0, 3, 3);
-
-  double t_error =
-      (T_measured.block(0, 3, 3, 1) - T_estimated.block(0, 3, 3, 1)).norm();
-  double r_error = std::abs(Eigen::AngleAxis<double>(R1).angle() -
-                            Eigen::AngleAxis<double>(R2).angle());
-
-  if (t_error > params_.outlier_threshold_t ||
-      r_error > params_.outlier_threshold_r) {
-    return false;
-  }
-  return true;
 }
 
 void MultiScanRegistrationBase::UpdateScanPoses(
@@ -299,27 +299,6 @@ void MultiScanRegistrationBase::RemoveMissingScans(
       ++i;
     }
   }
-}
-
-bool MultiScanRegistrationBase::PassedMotionThresholds(
-    const Eigen::Matrix4d& T_LIDARREF_LIDARTGT) {
-  // check max translation
-  double d_12 = T_LIDARREF_LIDARTGT.block(0, 3, 3, 1).norm();
-  if (d_12 > params_.max_motion_trans_m) {
-    return false;
-  }
-
-  // check min translation
-  if (d_12 >= params_.min_motion_trans_m) {
-    return true;
-  }
-
-  // check rotation
-  Eigen::Matrix3d R = T_LIDARREF_LIDARTGT.block(0, 0, 3, 3);
-  if (Eigen::AngleAxis<double>(R).angle() >= params_.min_motion_rot_rad) {
-    return true;
-  }
-  return false;
 }
 
 ScanPose MultiScanRegistrationBase::GetScan(const ros::Time& t, bool& success) {
@@ -416,8 +395,12 @@ void MultiScanRegistrationBase::OutputResults(
 }
 
 MultiScanRegistration::MultiScanRegistration(
-    std::unique_ptr<Matcher<PointCloudPtr>> matcher, const Params& params)
-    : matcher_(std::move(matcher)), MultiScanRegistrationBase(params) {}
+    std::unique_ptr<Matcher<PointCloudPtr>> matcher,
+    const ScanRegistrationParamsBase& base_params, int num_neighbors,
+    double lag_duration, bool disable_lidar_map)
+    : MultiScanRegistrationBase(base_params, num_neighbors, lag_duration,
+                                disable_lidar_map),
+      matcher_(std::move(matcher)) {}
 
 bool MultiScanRegistration::MatchScans(
     const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
@@ -440,7 +423,8 @@ bool MultiScanRegistration::MatchScans(
   matcher_->SetRef(std::make_shared<PointCloud>(scan_pose_ref.Cloud()));
   matcher_->SetTarget(std::make_shared<PointCloud>(tgtcloud_in_ref_est_frame));
   if (!matcher_->Match()) {
-    BEAM_ERROR("Failed scan matching. Skipping measurement.");
+    BEAM_WARN(
+        "Failed scan matching within matcher class. Skipping measurement.");
     return false;
   }
 
@@ -450,17 +434,20 @@ bool MultiScanRegistration::MatchScans(
 
   OutputResults(scan_pose_ref, scan_pose_tgt, T_LIDARREF_LIDARTGT, false);
 
-  if (!PassedRegThreshold(T_LIDARREF_LIDARTGT, T_LidarRefEst_LidarTgt)) {
-    BEAM_ERROR(
-        "Failed scan matcher transform threshold check. Skipping "
-        "measurement.");
+  std::string summary;
+  if (!PassedRegThreshold(T_RefEst_Ref, summary)) {
+    BEAM_WARN(
+        "Failed scan matcher transform threshold check for stamp {}.{}. to "
+        "stamp {}.{}. Skipping measurement. Reason: {}",
+        scan_pose_tgt.Stamp().sec, scan_pose_tgt.Stamp().nsec,
+        scan_pose_ref.Stamp().sec, scan_pose_ref.Stamp().nsec, summary);
     return false;
   }
 
   if (use_fixed_covariance_) {
     covariance = covariance_;
   } else {
-    BEAM_ERROR(
+    BEAM_WARN(
         "Automated covariance estimation not tested, use fixed covariance!");
     matcher_->EstimateInfo();
     covariance = matcher_->GetInfo();
@@ -470,8 +457,12 @@ bool MultiScanRegistration::MatchScans(
 }
 
 MultiScanLoamRegistration::MultiScanLoamRegistration(
-    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher, const Params& params)
-    : matcher_(std::move(matcher)), MultiScanRegistrationBase(params) {}
+    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
+    const ScanRegistrationParamsBase& base_params, int num_neighbors,
+    double lag_duration, bool disable_lidar_map)
+    : MultiScanRegistrationBase(base_params, num_neighbors, lag_duration,
+                                disable_lidar_map),
+      matcher_(std::move(matcher)) {}
 
 bool MultiScanLoamRegistration::MatchScans(
     const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
@@ -496,7 +487,8 @@ bool MultiScanLoamRegistration::MatchScans(
   matcher_->SetRef(refcloud_in_ref_frame);
   matcher_->SetTarget(tgtcloud_in_ref_est_frame);
   if (!matcher_->Match()) {
-    BEAM_ERROR("Failed scan matching. Skipping measurement.");
+    BEAM_WARN(
+        "Failed scan matching within matcher class. Skipping measurement.");
     return false;
   }
 
@@ -506,10 +498,13 @@ bool MultiScanLoamRegistration::MatchScans(
 
   OutputResults(scan_pose_ref, scan_pose_tgt, T_LIDARREF_LIDARTGT, true);
 
-  if (!PassedRegThreshold(T_LIDARREF_LIDARTGT, T_LidarRefEst_LidarTgt)) {
-    BEAM_ERROR(
-        "Failed scan matcher transform threshold check. Skipping "
-        "measurement.");
+  std::string summary;
+  if (!PassedRegThreshold(T_RefEst_Ref, summary)) {
+    BEAM_WARN(
+        "Failed scan matcher transform threshold check for stamp {}.{}. to "
+        "stamp {}.{}. Skipping measurement. Reason: {}",
+        scan_pose_tgt.Stamp().sec, scan_pose_tgt.Stamp().nsec,
+        scan_pose_ref.Stamp().sec, scan_pose_ref.Stamp().nsec, summary);
     return false;
   }
 

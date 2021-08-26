@@ -266,11 +266,11 @@ class Submap {
    * @brief save all 3D keypoints in landmark measurements to a single
    * pointcloud map. Points will be converted to world frame before saving
    * @param filename filename to save to including full path
-   * @param use_initial_world_frame set to true to use the initial world frame
+   * @param use_initials set to true to use the initial world frame
    * from the local mapper, before global optimization
    */
   void SaveKeypointsMapInWorldFrame(const std::string& filename,
-                                    bool use_initial_world_frame = false);
+                                    bool use_initials = false);
 
   /**
    * @brief save all lidar points to a single pointcloud map. Points will be
@@ -279,12 +279,12 @@ class Submap {
    * @param max_output_map_size this function will convert all submap lidar
    * points to the world frame, but it's possible the map still gets too large,
    * so this will break it up
-   * @param use_initial_world_frame set to true to use the initial world frame
+   * @param use_initials set to true to use the initial world frame
    * from the local mapper, before global optimization
    */
   void SaveLidarMapInWorldFrame(const std::string& filename,
                                 int max_output_map_size,
-                                bool use_initial_world_frame = false) const;
+                                bool use_initials = false) const;
 
   /**
    * @brief save all lidar loam pointclouds. Points will be
@@ -294,12 +294,12 @@ class Submap {
    * multiple files will be outputted)
    * @param combine_features set to true to also output a combined map of all
    * features
-   * @param use_initial_world_frame set to true to use the initial world frame
+   * @param use_initials set to true to use the initial world frame
    * from the local mapper, before global optimization
    */
   void SaveLidarLoamMapInWorldFrame(const std::string& path,
                                     bool combine_features = true,
-                                    bool use_initial_world_frame = false) const;
+                                    bool use_initials = false) const;
 
   /*-------------------------------/
          OUTPUT COMBINED DATA
@@ -308,11 +308,11 @@ class Submap {
   /**
    * @brief output all 3D keypoints in landmark measurements to a single
    * pointcloud. Points will be converted to world frame before outputting
-   * @param use_initial_world_frame set to true to use the initial world frame
+   * @param use_initials set to true to use the initial world frame
    * from the local mapper, before global optimization
    * @return cloud
    */
-  PointCloud GetKeypointsInWorldFrame(bool use_initial_world_frame = false);
+  PointCloud GetKeypointsInWorldFrame(bool use_initials = false);
 
   /**
    * @brief output all lidar points to a vector of pointcloud maps. Points will
@@ -322,22 +322,22 @@ class Submap {
    * @param max_output_map_size this function will convert all submap lidar
    * points to the world frame, but it's possible the map still gets too large,
    * so this will break it up
-   * @param use_initial_world_frame set to true to use the initial world frame
+   * @param use_initials set to true to use the initial world frame
    * from the local mapper, before global optimization
    * @param return vector of clouds
    */
   std::vector<PointCloud> GetLidarPointsInWorldFrame(
-      int max_output_map_size, bool use_initial_world_frame = false) const;
+      int max_output_map_size, bool use_initials = false) const;
 
   /**
    * @brief output all lidar LOAM points to a single pointcloud map. Points will
    * be converted to world frame before outputting
-   * @param use_initial_world_frame set to true to use the initial world frame
+   * @param use_initials set to true to use the initial world frame
    * from the local mapper, before global optimization
    * @param return cloud
    */
   beam_matching::LoamPointCloud GetLidarLoamPointsInWorldFrame(
-      bool use_initial_world_frame = false) const;
+      bool use_initials = false) const;
 
   /**
    * @brief return a vector of stamped poses for all keyframes and their

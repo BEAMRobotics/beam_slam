@@ -85,3 +85,18 @@ target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
   beam::matching
 	gflags
 )
+
+# if(CATKIN_ENABLE_TESTING)
+  # global map refinement tests
+  add_executable(${PROJECT_NAME}_global_map_refinement_tests 
+    tests/global_map_refinement_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_global_map_refinement_tests 
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils
+    beam::filtering
+    beam::matching)
+  add_test(NAME ${PROJECT_NAME}_global_map_refinement_tests 
+          COMMAND ${PROJECT_NAME}_global_map_refinement_tests)
+
+# endif()

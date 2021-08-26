@@ -28,12 +28,11 @@ GlobalMapRefinement::Params::Params() {
                              0, 0, 0, 0, 0, loop_cov_diag;
   // clang-format on
 
-  multi_scan_reg_params.outlier_threshold_t = 0.1;
-  multi_scan_reg_params.outlier_threshold_r = 20;
+  multi_scan_reg_params.outlier_threshold_trans_m = 0.1;
+  multi_scan_reg_params.outlier_threshold_rot_deg = 20;
   multi_scan_reg_params.min_motion_trans_m = 0;
-  multi_scan_reg_params.min_motion_rot_rad = 0;
+  multi_scan_reg_params.min_motion_rot_deg = 0;
   multi_scan_reg_params.max_motion_trans_m = 5;
-  multi_scan_reg_params.source = "MULTISCANREGISTRATION";
   multi_scan_reg_params.num_neighbors = 10;
   multi_scan_reg_params.disable_lidar_map = true;  // don't need
 
@@ -44,12 +43,11 @@ GlobalMapRefinement::Params::Params() {
   // TODO: Do we want this to always be true? What about when we have vision?
   multi_scan_reg_params.fix_first_scan = true;
 
-  scan_to_map_reg_params.outlier_threshold_t = 0.1;
-  scan_to_map_reg_params.outlier_threshold_r = 20;
+  scan_to_map_reg_params.outlier_threshold_trans_m = 0.1;
+  scan_to_map_reg_params.outlier_threshold_rot_deg = 20;
   scan_to_map_reg_params.min_motion_trans_m = 0;
-  scan_to_map_reg_params.min_motion_rot_rad = 0;
+  scan_to_map_reg_params.min_motion_rot_deg = 0;
   scan_to_map_reg_params.max_motion_trans_m = 5;
-  scan_to_map_reg_params.source = "SCANTOMAPREGISTRATION";
   scan_to_map_reg_params.map_size = 20;
   scan_to_map_reg_params.store_full_cloud = false;  // don't need
 
@@ -62,6 +60,7 @@ GlobalMapRefinement::Params::Params() {
   loam_matcher_params.convergence_criteria_translation_m = 0.001;
   loam_matcher_params.convergence_criteria_rotation_deg = 0.1;
   loam_matcher_params.max_correspondence_iterations = 5;
+  loam_matcher_params.output_optimization_summary = false;
   loam_matcher_params.output_ceres_summary = false;
 }
 
@@ -122,27 +121,27 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   }
 
   nlohmann::json J_multiscanreg = J["multi_scan_registration"];
-  multi_scan_reg_params.outlier_threshold_t =
-      J_multiscanreg["outlier_threshold_t"];
-  multi_scan_reg_params.outlier_threshold_r =
-      J_multiscanreg["outlier_threshold_r"];
+  multi_scan_reg_params.outlier_threshold_trans_m =
+      J_multiscanreg["outlier_threshold_trans_m"];
+  multi_scan_reg_params.outlier_threshold_rot_deg =
+      J_multiscanreg["outlier_threshold_rot_deg"];
   multi_scan_reg_params.min_motion_trans_m =
       J_multiscanreg["min_motion_trans_m"];
-  multi_scan_reg_params.min_motion_rot_rad =
-      J_multiscanreg["min_motion_rot_rad"];
+  multi_scan_reg_params.min_motion_rot_deg =
+      J_multiscanreg["min_motion_rot_deg"];
   multi_scan_reg_params.max_motion_trans_m =
       J_multiscanreg["max_motion_trans_m"];
   multi_scan_reg_params.num_neighbors = J_multiscanreg["num_neighbors"];
 
   nlohmann::json J_scantomapreg = J["scan_to_map_registration"];
-  scan_to_map_reg_params.outlier_threshold_t =
-      J_scantomapreg["outlier_threshold_t"];
-  scan_to_map_reg_params.outlier_threshold_r =
-      J_scantomapreg["outlier_threshold_r"];
+  scan_to_map_reg_params.outlier_threshold_trans_m =
+      J_scantomapreg["outlier_threshold_trans_m"];
+  scan_to_map_reg_params.outlier_threshold_rot_deg =
+      J_scantomapreg["outlier_threshold_rot_deg"];
   scan_to_map_reg_params.min_motion_trans_m =
       J_scantomapreg["min_motion_trans_m"];
-  scan_to_map_reg_params.min_motion_rot_rad =
-      J_scantomapreg["min_motion_rot_rad"];
+  scan_to_map_reg_params.min_motion_rot_deg =
+      J_scantomapreg["min_motion_rot_deg"];
   scan_to_map_reg_params.max_motion_trans_m =
       J_scantomapreg["max_motion_trans_m"];
   scan_to_map_reg_params.map_size = J_scantomapreg["map_size"];
@@ -162,6 +161,8 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
       J_loammatcher["max_correspondence_iterations"];
   loam_matcher_params.output_ceres_summary =
       J_loammatcher["output_ceres_summary"];
+  loam_matcher_params.output_optimization_summary =
+      J_loammatcher["output_optimization_summary"];
 }
 
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
@@ -267,11 +268,16 @@ bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<gm::Submap>& submap) {
 
   if (params_.scan_registration_type == "MULTISCAN") {
     scan_registration = std::make_unique<f2f::MultiScanLoamRegistration>(
-        std::move(matcher), params_.multi_scan_reg_params);
+        std::move(matcher), params_.multi_scan_reg_params.GetBaseParams(),
+        params_.multi_scan_reg_params.num_neighbors,
+        params_.multi_scan_reg_params.lag_duration,
+        params_.multi_scan_reg_params.disable_lidar_map);
     scan_registration->SetFixedCovariance(params_.scan_reg_covariance);
   } else if (params_.scan_registration_type == "SCANTOMAP") {
     scan_registration = std::make_unique<f2f::ScanToMapLoamRegistration>(
-        std::move(matcher), params_.scan_to_map_reg_params);
+        std::move(matcher), params_.scan_to_map_reg_params.GetBaseParams(),
+        params_.scan_to_map_reg_params.map_size,
+        params_.scan_to_map_reg_params.store_full_cloud);
     scan_registration->SetFixedCovariance(params_.scan_reg_covariance);
   } else {
     BEAM_ERROR(
@@ -281,7 +287,7 @@ bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<gm::Submap>& submap) {
   }
 
   // clear lidar map
-  scan_registration->GetMapMutable().Clear();
+  // scan_registration->GetMapMutable().Clear();
 
   // iterate through stored scan poses and add scan registration factors to the
   // graph

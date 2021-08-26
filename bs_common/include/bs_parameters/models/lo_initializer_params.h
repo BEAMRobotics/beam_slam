@@ -28,8 +28,8 @@ struct LoInitializerParams : public ParameterBase {
     getParamRequired<std::string>(nh, "lidar_topic", lidar_topic);
     getParamRequired<std::string>(nh, "output_topic", output_topic);
     getParam<double>(nh, "min_trajectory_distance", min_trajectory_distance, 3);
-    getParam<double>(nh, "outlier_threshold_t_m", outlier_threshold_t_m, 0.3);
-    getParam<double>(nh, "outlier_threshold_r_deg", outlier_threshold_r_deg, 15);
+    getParam<double>(nh, "outlier_threshold_trans_m", outlier_threshold_trans_m, 0.3);
+    getParam<double>(nh, "outlier_threshold_rot_deg", outlier_threshold_rot_deg, 15);
     getParam<int>(nh, "scan_registration_map_size", scan_registration_map_size, 5);
 
     double aggregation_time_double;
@@ -50,8 +50,8 @@ struct LoInitializerParams : public ParameterBase {
   std::string output_topic;
   
   double min_trajectory_distance;
-  double outlier_threshold_t_m;
-  double outlier_threshold_r_deg;
+  double outlier_threshold_trans_m;
+  double outlier_threshold_rot_deg;
 
   int scan_registration_map_size;
 

@@ -150,7 +150,6 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
         "Cannot get extrinsics, not adding lidar measurement to submap.");
     return;
   }
-  Eigen::Matrix4d T_SUBMAP_LIDAR = T_SUBMAP_BASELINK * T_BASELINK_LIDAR;
 
   // Check if stamp already exists (we may be adding partial scans)
   auto iter = lidar_keyframe_poses_.find(stamp.toNSec());
@@ -159,7 +158,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     iter->second.AddPointCloud(cloud, type, false);
   } else {
     // Stamp does not exist: add new scanpose to map
-    bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_LIDAR, T_BASELINK_LIDAR);
+    bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, T_BASELINK_LIDAR);
     new_scan_pose.AddPointCloud(cloud, type, false);
     lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
         stamp.toNSec(), new_scan_pose));
@@ -209,9 +208,9 @@ bool Submap::operator<(const Submap& rhs) const {
 }
 
 void Submap::SaveKeypointsMapInWorldFrame(const std::string& filename,
-                                          bool use_initial_world_frame) {
+                                          bool use_initials) {
   BEAM_INFO("Saving final keypoints map to: {}", filename);
-  PointCloud map = GetKeypointsInWorldFrame(use_initial_world_frame);
+  PointCloud map = GetKeypointsInWorldFrame(use_initials);
   if (map.empty()) {
     BEAM_WARN("No keypoints in submap, not saving.");
     return;
@@ -221,7 +220,7 @@ void Submap::SaveKeypointsMapInWorldFrame(const std::string& filename,
 
 void Submap::SaveLidarMapInWorldFrame(const std::string& filename,
                                       int max_output_map_size,
-                                      bool use_initial_world_frame) const {
+                                      bool use_initials) const {
   if (filename.find(".pcd") == std::string::npos) {
     BEAM_ERROR(
         "Invalid filename for saving lidar submap. Needs to be a pcd file. "
@@ -230,7 +229,7 @@ void Submap::SaveLidarMapInWorldFrame(const std::string& filename,
   }
 
   std::vector<PointCloud> map =
-      GetLidarPointsInWorldFrame(max_output_map_size, use_initial_world_frame);
+      GetLidarPointsInWorldFrame(max_output_map_size, use_initials);
 
   if (map.empty()) {
     BEAM_WARN("No regular lidar points in submap, not saving.");
@@ -256,10 +255,10 @@ void Submap::SaveLidarMapInWorldFrame(const std::string& filename,
 
 void Submap::SaveLidarLoamMapInWorldFrame(const std::string& path,
                                           bool combine_features,
-                                          bool use_initial_world_frame) const {
+                                          bool use_initials) const {
   BEAM_INFO("Saving final lidar loam map to: {}", path);
   beam_matching::LoamPointCloud map =
-      GetLidarLoamPointsInWorldFrame(use_initial_world_frame);
+      GetLidarLoamPointsInWorldFrame(use_initials);
   if (map.Size() == 0) {
     BEAM_WARN("No loam points in submap, not saving.");
     return;
@@ -267,7 +266,7 @@ void Submap::SaveLidarLoamMapInWorldFrame(const std::string& path,
   map.Save(path, combine_features);
 }
 
-PointCloud Submap::GetKeypointsInWorldFrame(bool use_initial_world_frame) {
+PointCloud Submap::GetKeypointsInWorldFrame(bool use_initials) {
   TriangulateKeypoints();
 
   PointCloud cloud;
@@ -275,7 +274,7 @@ PointCloud Submap::GetKeypointsInWorldFrame(bool use_initial_world_frame) {
        it++) {
     const Eigen::Vector3d& P_SUBMAP = it->second;
     Eigen::Vector4d P_WORLD;
-    if (use_initial_world_frame) {
+    if (use_initials) {
       P_WORLD = T_WORLD_SUBMAP_initial_ * P_SUBMAP.homogeneous();
     } else {
       P_WORLD = T_WORLD_SUBMAP_ * P_SUBMAP.homogeneous();
@@ -287,14 +286,14 @@ PointCloud Submap::GetKeypointsInWorldFrame(bool use_initial_world_frame) {
 }
 
 std::vector<PointCloud> Submap::GetLidarPointsInWorldFrame(
-    int max_output_map_size, bool use_initial_world_frame) const {
+    int max_output_map_size, bool use_initials) const {
   std::vector<PointCloud> map;
   PointCloud map_current;
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
     const PointCloud& cloud_scanframe = it->second.Cloud();
     Eigen::Matrix4d T_WORLD_SCAN;
-    if (use_initial_world_frame) {
+    if (use_initials) {
       const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR_INIT();
       T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
     } else {
@@ -320,7 +319,7 @@ std::vector<PointCloud> Submap::GetLidarPointsInWorldFrame(
 }
 
 beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
-    bool use_initial_world_frame) const {
+    bool use_initials) const {
   beam_matching::LoamPointCloud map;
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
@@ -328,7 +327,7 @@ beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
         it->second.LoamCloud();
     const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
     Eigen::Matrix4d T_WORLD_SCAN;
-    if (use_initial_world_frame) {
+    if (use_initials) {
       T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
     } else {
       T_WORLD_SCAN = T_WORLD_SUBMAP_ * T_SUBMAP_SCAN;

@@ -257,7 +257,7 @@ class ScanPose {
    * @param output_dir full path to empty directory. This path must exist, but
    * must be empty.
    */
-  void SaveData(const std::string& output_dir);
+  void SaveData(const std::string& output_dir) const;
 
   /**
    * @brief load data from some root directory which has the data saved in

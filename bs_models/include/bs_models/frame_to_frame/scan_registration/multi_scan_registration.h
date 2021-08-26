@@ -43,12 +43,16 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 
     /** load derived params & base params */
     void LoadFromJson(const std::string& config);
+
+    /** Get the base class params */
+    ScanRegistrationParamsBase GetBaseParams();
   };
 
-  // Inherit base class constructors
-  using ScanRegistrationBase::ScanRegistrationBase;
+  MultiScanRegistrationBase(
+      const ScanRegistrationParamsBase& base_params, int num_neighbors = 10,
+      double lag_duration = 0, bool disable_lidar_map = false);
 
-  MultiScanRegistrationBase(const Params& params);
+  MultiScanRegistrationBase() = delete;
 
   ~MultiScanRegistrationBase() = default;
 
@@ -89,20 +93,16 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 
   void PrintScanDetails(std::ostream& stream = std::cout);
 
-  bool PassedMotionThresholds(const Eigen::Matrix4d& T_LIDARREF_LIDARTGT);
-
-  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured,
-                          const Eigen::Matrix4d& T_estimated);
-
   // Output results to world frame (estimated world frame from the ref cloud)
   void OutputResults(const ScanPose& scan_pose_ref,
                      const ScanPose& scan_pose_tgt,
                      const Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
-                     bool output_loam_cloud = false);                          
+                     bool output_loam_cloud = false);
 
   std::list<ScanPose> reference_clouds_;
   Params params_;
-  double pose_prior_noise_{1e-9};
+
+  const std::string source_{"MULTISCANREGISTRATION"};
 
   // Extra debugging tools: these must be set here, not in the config file
   bool output_scan_registration_results_{false};
@@ -116,8 +116,10 @@ class MultiScanLoamRegistration : public MultiScanRegistrationBase {
  public:
   using Params = MultiScanRegistrationBase::Params;
 
-  MultiScanLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
-                            const Params& params);
+  MultiScanLoamRegistration(
+      std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
+      const ScanRegistrationParamsBase& base_params, int num_neighbors = 10,
+      double lag_duration = 0, bool disable_lidar_map = false);
 
  private:
   bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
@@ -131,8 +133,10 @@ class MultiScanRegistration : public MultiScanRegistrationBase {
  public:
   using Params = MultiScanRegistrationBase::Params;
 
-  MultiScanRegistration(std::unique_ptr<Matcher<PointCloudPtr>> matcher,
-                        const Params& params);
+  MultiScanRegistration(
+      std::unique_ptr<Matcher<PointCloudPtr>> matcher,
+      const ScanRegistrationParamsBase& base_params, int num_neighbors = 10,
+      double lag_duration = 0, bool disable_lidar_map = false);
 
  private:
   bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
