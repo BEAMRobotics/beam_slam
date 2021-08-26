@@ -3,11 +3,14 @@
 #include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
 
-#include <bs_common/utils.h>
+#include <beam_calibration/TfTree.h>
 #include <beam_utils/log.h>
 #include <beam_utils/filesystem.h>
 #include <beam_utils/math.h>
 #include <beam_utils/time.h>
+
+#include <bs_common/utils.h>
+
 
 namespace bs_common {
 
@@ -69,28 +72,39 @@ void ExtrinsicsLookupBase::LoadExtrinsics(const std::string& filepath) {
 
   BEAM_INFO("Loading extrinsics from: {}", filepath);
 
-  // load general data
+  // load data
+
+  // we will use a tf tree to help deal with calibrations. There's a possibility that the input transforms do not correspond to the exact same transforms as is needed in the extrinsics_lookup_base
+  beam_calibration::TfTree tf_tree;
+
+  // iterate through calibrations and add to the tftree
   for (auto calib : J["calibrations"]) {
     Eigen::Matrix4d::Identity();
     std::vector<double> v = calib["transform"];
-    Eigen::Matrix4d T = beam::VectorToEigenTransform(v);
-    if (!SetTransform(T, calib["to_frame"], calib["from_frame"])) {
-      BEAM_WARN(
-          "Cannot set calibration from {} to {} since at least one frame does "
-          "not correspond to the sensor frame ids provided to "
-          "ExtrinsicsLookupBase. Skipping this calibration.",
-          calib["to_frame"], calib["from_frame"]);
-    }
+    Eigen::Affine3d T;
+    T.matrix() = beam::VectorToEigenTransform(v);
+    tf_tree.AddTransform(T, calib["to_frame"], calib["from_frame"]);
   }
+
+  // not retrieve the proper transforms we need
+  T_LIDAR_IMU_ = tf_tree.GetTransformEigen(frame_ids_.lidar, frame_ids_.imu).matrix();
+  T_LIDAR_IMU_set_ = true;
+  T_LIDAR_CAMERA_ = tf_tree.GetTransformEigen(frame_ids_.lidar, frame_ids_.camera).matrix();
+  T_LIDAR_CAMERA_set_ = true;
+  T_IMU_CAMERA_ = tf_tree.GetTransformEigen(frame_ids_.imu, frame_ids_.camera).matrix();
+  T_IMU_CAMERA_set_ = true;
+
 }
 
-void ExtrinsicsLookupBase::SaveExtrinsicsToJson(const std::string& save_filename) {
+void ExtrinsicsLookupBase::SaveExtrinsicsToJson(
+    const std::string& save_filename) {
   // check input
   boost::filesystem::path path(save_filename);
   path.remove_filename();
   if (!boost::filesystem::exists(path)) {
     BEAM_ERROR(
-        "Invalid save path for extrinsics, path does not exist, not outputting to json. Input: "
+        "Invalid save path for extrinsics, path does not exist, not outputting "
+        "to json. Input: "
         "{}",
         save_filename);
   }
@@ -138,13 +152,15 @@ void ExtrinsicsLookupBase::SaveExtrinsicsToJson(const std::string& save_filename
   file << std::setw(4) << J_out << std::endl;
 }
 
-void ExtrinsicsLookupBase::SaveFrameIdsToJson(const std::string& save_filename) {
+void ExtrinsicsLookupBase::SaveFrameIdsToJson(
+    const std::string& save_filename) {
   // check input
   boost::filesystem::path path(save_filename);
   path.remove_filename();
   if (!boost::filesystem::exists(path)) {
     BEAM_ERROR(
-        "Invalid save path for frame ids, path does not exist, not outputting to json. Input: "
+        "Invalid save path for frame ids, path does not exist, not outputting "
+        "to json. Input: "
         "{}",
         save_filename);
   }
@@ -157,7 +173,7 @@ void ExtrinsicsLookupBase::SaveFrameIdsToJson(const std::string& save_filename) 
     return;
   }
 
-  // create output json 
+  // create output json
   nlohmann::json J_out;
   J_out["baselink"] = frame_ids_.baselink;
   J_out["world"] = frame_ids_.world;

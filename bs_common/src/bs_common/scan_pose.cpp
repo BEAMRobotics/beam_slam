@@ -43,9 +43,9 @@ ScanPose::ScanPose(const ros::Time& stamp,
       T_REFFRAME_BASELINK_initial_(T_REFFRAME_BASELINK),
       T_BASELINK_LIDAR_(T_BASELINK_LIDAR) {
   // create fuse variables
-  position_ = fuse_variables::Position3DStamped(stamp, fuse_core::uuid::NIL);
+  position_ = fuse_variables::Position3DStamped(stamp_, fuse_core::uuid::NIL);
   orientation_ =
-      fuse_variables::Orientation3DStamped(stamp, fuse_core::uuid::NIL);
+      fuse_variables::Orientation3DStamped(stamp_, fuse_core::uuid::NIL);
 
   // add transform
   bs_common::EigenTransformToFusePose(T_REFFRAME_BASELINK, position_,
@@ -189,7 +189,7 @@ void ScanPose::Print(std::ostream& stream) const {
          << "  - w: " << orientation_.w() << "\n";
 }
 
-void ScanPose::SaveData(const std::string& output_dir) {
+void ScanPose::SaveData(const std::string& output_dir) const {
   if (!boost::filesystem::exists(output_dir)) {
     BEAM_ERROR("Invalid output directory, not saving ScanPose data. Input: {}",
                output_dir);
@@ -206,7 +206,7 @@ void ScanPose::SaveData(const std::string& output_dir) {
       {"loam_edges_weak", loampointcloud_.edges.weak.cloud.size()},
       {"loam_surfaces_weak", loampointcloud_.surfaces.weak.cloud.size()},
       {"cloud_type", cloud_type_},
-      {"device_id", fuse_core::uuid::to_string(position_.uuid())},
+      {"device_id", fuse_core::uuid::to_string(position_.deviceId())},
       {"position_xyz", {position_.x(), position_.y(), position_.z()}},
       {"orientation_xyzw",
        {orientation_.x(), orientation_.y(), orientation_.z(),
@@ -277,8 +277,10 @@ bool ScanPose::LoadData(const std::string& root_dir) {
   orientation_.z() = orientation_vector.at(2);
   orientation_.w() = orientation_vector.at(3);
 
-  std::vector<double> T_REFFRAME_BASELINK_initial_vec = J["T_REFFRAME_BASELINK_initial"];
-  T_REFFRAME_BASELINK_initial_ = beam::VectorToEigenTransform(T_REFFRAME_BASELINK_initial_vec);
+  std::vector<double> T_REFFRAME_BASELINK_initial_vec =
+      J["T_REFFRAME_BASELINK_initial"];
+  T_REFFRAME_BASELINK_initial_ =
+      beam::VectorToEigenTransform(T_REFFRAME_BASELINK_initial_vec);
 
   std::vector<double> T_BASELINK_LIDAR_vec = J["T_BASELINK_LIDAR"];
   T_BASELINK_LIDAR_ = beam::VectorToEigenTransform(T_BASELINK_LIDAR_vec);

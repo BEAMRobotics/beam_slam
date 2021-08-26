@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(bs_common)
 
 find_package(tf REQUIRED)
-find_package(beam REQUIRED COMPONENTS utils filtering matching)
+find_package(beam REQUIRED COMPONENTS utils filtering matching calibration)
 
 find_package(
   catkin REQUIRED 
@@ -20,17 +20,25 @@ find_package(
 
 add_message_files(
   DIRECTORY
-    ../bs_models/msg
+    msg
   FILES
+    InitializedPathMsg.msg
+    LandmarkMeasurementMsg.msg
+    CameraMeasurementMsg.msg    
+    LidarMeasurementMsg.msg
+    TrajectoryMeasurementMsg.msg
+    SlamChunkMsg.msg
     SubmapMsg.msg
+    RelocRequestMsg.msg
     DescriptorMsg.msg
 )
 
 generate_messages(
   DEPENDENCIES
-  std_msgs
-  geometry_msgs
-  sensor_msgs
+    std_msgs
+    geometry_msgs
+    sensor_msgs
+    nav_msgs
 )
 
 catkin_package(
@@ -48,6 +56,7 @@ catkin_package(
     geometry_msgs
     bs_variables
 )
+
 
 ###########
 ## Build ##
@@ -70,6 +79,7 @@ add_library(${PROJECT_NAME}
   src/bs_common/current_submap.cpp
   src/bs_common/preintegrator.cpp
   src/bs_common/utils.cpp
+  src/bs_common/bs_msgs.cpp
   )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}

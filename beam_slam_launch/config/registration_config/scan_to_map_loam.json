@@ -1,9 +1,9 @@
 {
-  "outlier_threshold_t": 0.3,
-  "outlier_threshold_r": 20,
+  "outlier_threshold_trans_m": 0.1,
+  "outlier_threshold_rot_deg": 15,
   "min_motion_trans_m": 0,
-  "min_motion_rot_rad": 0,
-  "source": "SCANTOMAPREGISTRATION",
+  "min_motion_rot_deg": 0,
+  "max_motion_trans_m": 10,
   "fix_first_scan": true,
   "map_size": 10,
   "store_full_cloud": true

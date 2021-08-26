@@ -4,8 +4,6 @@
 #include <pluginlib/class_list_macros.h>
 
 // messages
-#include <bs_models/RelocRequestMsg.h>
-#include <bs_models/SlamChunkMsg.h>
 #include <std_msgs/UInt64MultiArray.h>
 
 // libbeam
@@ -14,6 +12,7 @@
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
+#include <beam_cv/matchers/Matchers.h>
 #include <bs_common/utils.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -486,6 +485,77 @@ void VisualInertialOdom::PublishLandmarkIDs(const std::vector<uint64_t>& ids) {
   std_msgs::UInt64MultiArray landmark_msg;
   for (auto& id : ids) { landmark_msg.data.push_back(id); }
   landmark_publisher_.publish(landmark_msg);
+}
+
+std::map<uint64_t, Eigen::Vector3d>
+    VisualInertialOdom::MatchFrameToCurrentSubmap(const ros::Time& img_time) {
+  // vector of points to return
+  std::map<uint64_t, Eigen::Vector3d> matched_points;
+
+  // get map points in current camera frame
+  Eigen::Matrix4d T_WORLD_CAMERA =
+      visual_map_->GetCameraPose(img_time).value();
+  std::vector<Eigen::Vector3d> points_camera =
+      submap_.GetVisualMapPoints(T_WORLD_CAMERA);
+  std::vector<cv::Mat> descriptors = submap_.GetDescriptors();
+
+  // if submap empty then true empty vector
+  if (points_camera.size() == 0) { return matched_points; }
+
+  std::vector<cv::KeyPoint> projected_keypoints, current_keypoints;
+  cv::Mat projected_descriptors, current_descriptors;
+  // project each point to get keypoints
+  for (size_t i = 0; i < points_camera.size(); i++) {
+    Eigen::Vector3d point = points_camera[i];
+    // project point into image plane
+    bool in_image = false;
+    Eigen::Vector2d pixel;
+    cam_model_->ProjectPoint(point, pixel, in_image);
+    // make cv keypoint for pixel
+    if (in_image) {
+      cv::KeyPoint kp;
+      kp.pt.x = (float)pixel[0];
+      kp.pt.y = (float)pixel[1];
+      // get descriptor
+      cv::Mat desc = descriptors[i];
+      // push to results
+      projected_descriptors.push_back(desc);
+      projected_keypoints.push_back(kp);
+    }
+  }
+  std::vector<uint64_t> untriangulated_ids;
+  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
+  for (auto& id : landmarks) {
+    if (!visual_map_->GetLandmark(id) && !visual_map_->GetFixedLandmark(id)) {
+      Eigen::Vector2d pixel = tracker_->Get(img_time, id);
+      cv::KeyPoint kp;
+      kp.pt.x = (float)pixel[0];
+      kp.pt.y = (float)pixel[1];
+      cv::Mat desc = tracker_->GetDescriptor(img_time, id);
+      current_descriptors.push_back(desc);
+      current_keypoints.push_back(kp);
+      untriangulated_ids.push_back(id);
+    }
+  }
+
+  // match features
+  std::shared_ptr<beam_cv::Matcher> matcher =
+      std::make_shared<beam_cv::BFMatcher>(cv::NORM_HAMMING);
+  std::vector<cv::DMatch> matches =
+      matcher->MatchDescriptors(projected_descriptors, current_descriptors,
+                                projected_keypoints, current_keypoints);
+  std::cout << matches.size() << std::endl;
+  // filter matches by pixel distance
+  for (auto& m : matches) {
+    Eigen::Vector3d p_camera = points_camera[m.queryIdx];
+    // transform point back into world frame
+    Eigen::Vector4d ph_camera{p_camera[0], p_camera[1], p_camera[2], 1};
+    Eigen::Vector3d p_world = (T_WORLD_CAMERA * ph_camera).hnormalized();
+    // remove match from submap
+    submap_.RemoveVisualMapPoint(m.queryIdx);
+    matched_points[untriangulated_ids[m.queryIdx]] = p_world;
+  }
+  return matched_points;
 }
 
 }} // namespace bs_models::camera_to_camera

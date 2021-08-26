@@ -24,13 +24,18 @@ GlobalMapper::GlobalMapper()
 void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
   ros::Time stamp = msg->stamp;
   std::vector<float> T = msg->T_WORLD_BASELINK;
-  Eigen::Matrix4d T_WORLD_BASELINK = VectorToTransform(T);
+  Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
 
+  // update extrinsics if necessary
+  UpdateExtrinsics();
+
+  // create add to map and transaction
   fuse_core::Transaction::SharedPtr new_transaction =
       global_map_->AddMeasurement(
           msg->camera_measurement, msg->lidar_measurement,
           msg->trajectory_measurement, T_WORLD_BASELINK, stamp);
 
+  // send transaction if not empty
   if (new_transaction != nullptr) {
     sendTransaction(new_transaction);
   }
@@ -53,18 +58,15 @@ void GlobalMapper::onStart() {
           calibration_params_.cam_intrinsics_path);
 
   // get extrinsics
-  bs_common::ExtrinsicsLookupOnline& extrinsics_online =
-      bs_common::ExtrinsicsLookupOnline::GetInstance();
-  std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics =
-      std::make_shared<bs_common::ExtrinsicsLookupBase>(
-          extrinsics_online.GetExtrinsicsCopy());
+  extrinsics_data_ = std::make_shared<bs_common::ExtrinsicsLookupBase>(
+      extrinsics_online_.GetExtrinsicsCopy());
 
   // init global map
   if (!params_.global_map_config.empty()) {
-    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics,
+    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_,
                                               params_.global_map_config);
   } else {
-    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics);
+    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_);
   }
 };
 
@@ -98,14 +100,33 @@ void GlobalMapper::onStop() {
                                   params_.save_local_mapper_trajectory);
   }
   if (params_.save_submaps) {
-    global_map_->SaveLidarSubmaps(save_path, params_.save_local_mapper_maps);
     global_map_->SaveKeypointSubmaps(save_path, params_.save_local_mapper_maps);
+    global_map_->SaveLidarSubmaps(save_path, params_.save_local_mapper_maps);
   }
   subscriber_.shutdown();
 }
 
 void GlobalMapper::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   global_map_->UpdateSubmapPoses(graph_msg);
+}
+
+void GlobalMapper::UpdateExtrinsics() {
+  if (extrinsics_online_.IsStatic() && extrinsics_initialized_) {
+    return;
+  }
+
+  // update all three transforms
+  Eigen::Matrix4d T;
+  extrinsics_online_.GetT_LIDAR_IMU(T);
+  extrinsics_data_->SetTransform(T, extrinsics_online_.GetLidarFrameId(),
+                                 extrinsics_online_.GetImuFrameId());
+  extrinsics_online_.GetT_LIDAR_CAMERA(T);
+  extrinsics_data_->SetTransform(T, extrinsics_online_.GetLidarFrameId(),
+                                 extrinsics_online_.GetCameraFrameId());
+  extrinsics_online_.GetT_IMU_CAMERA(T);
+  extrinsics_data_->SetTransform(T, extrinsics_online_.GetImuFrameId(),
+                                 extrinsics_online_.GetCameraFrameId());
+  extrinsics_initialized_ = true;
 }
 
 }  // namespace global_mapping

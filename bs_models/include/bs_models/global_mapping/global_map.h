@@ -4,10 +4,7 @@
 
 #include <beam_utils/pointclouds.h>
 
-#include <bs_models/CameraMeasurementMsg.h>
-#include <bs_models/LidarMeasurementMsg.h>
-#include <bs_models/TrajectoryMeasurementMsg.h>
-#include <bs_models/LandmarkMeasurementMsg.h>
+#include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/global_mapping/submap.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
@@ -16,13 +13,6 @@
 namespace bs_models {
 
 namespace global_mapping {
-
-/**
- * @brief convert from a vector of [R | t] to an Eigen::Matrix4d transform
- * @param v vector
- * @return T eigen transform
- */
-Eigen::Matrix4d VectorToTransform(const std::vector<float>& v);
 
 /**
  * @brief This class takes care of all global mapping functionality. It received
@@ -37,6 +27,9 @@ class GlobalMap {
    * file.
    */
   struct Params {
+    /** constructor to make sure covariances are set */
+    Params();
+
     /** Max linear distance between poses in a submap */
     double submap_size{10};
 
@@ -70,7 +63,10 @@ class GlobalMap {
     /** covariance matrix from binary factors between loop closures*/
     Eigen::Matrix<double, 6, 6> loop_closure_covariance;
 
-    /** Loads config settings from a json file. */
+    /** Loads config settings from a json file. If config_path empty, it will
+     * use default params defined herin. If config_path set to DEFAULT_PATH, it
+     * will use the file in
+     * beam_slam_launch/config/global_map/global_map.json */
     void LoadJson(const std::string& config_path);
 
     /** Save contents of struct to a json which can be loaded using LoadJson()
@@ -82,6 +78,13 @@ class GlobalMap {
    * @brief delete default constructor
    */
   GlobalMap() = delete;
+
+  /**
+   * @brief constructor that requires a root directory to global map data. For
+   * data format, see SaveData function
+   * @param data_root_directory full path to global map data.
+   */
+  GlobalMap(const std::string& data_root_directory);
 
   /**
    * @brief constructor requiring only a pointer to camera model object
@@ -115,6 +118,19 @@ class GlobalMap {
    * @brief default destructor
    */
   ~GlobalMap() = default;
+
+  /**
+   * @brief get access to the submaps
+   * @return vector of pointers to submaps stored in this global map
+   */
+  std::vector<std::shared_ptr<Submap>> GetSubmaps();
+
+  /**
+   * @brief set the submaps
+   * @param submaps vector of pointers to submaps to be stored in this global
+   * map
+   */
+  void SetSubmaps(std::vector<std::shared_ptr<Submap>>& submaps);
 
   /**
    * @brief add a slam chunk measurement to the appropriate submap and returns a
@@ -268,14 +284,15 @@ class GlobalMap {
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 
-  std::vector<Submap> submaps_;
+  std::vector<std::shared_ptr<Submap>> submaps_;
 
   std::unique_ptr<LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
   std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
 
   // params only tunable here
-  int max_output_map_size_{3000000};
+  int max_output_map_size_{1000000};
+  double pose_prior_noise_{1e-9};
 };
 
 }  // namespace global_mapping

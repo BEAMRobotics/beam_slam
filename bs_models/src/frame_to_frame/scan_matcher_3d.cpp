@@ -11,7 +11,7 @@
 #include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_models/SlamChunkMsg.h>
+#include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::ScanMatcher3D,
@@ -56,8 +56,9 @@ void ScanMatcher3D::onInit() {
         std::make_unique<LoamMatcher>(*matcher_params);
     ScanToMapLoamRegistration::Params params;
     params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ =
-        std::make_unique<ScanToMapLoamRegistration>(std::move(matcher), params);
+    scan_registration_ = std::make_unique<ScanToMapLoamRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.map_size,
+        params.store_full_cloud);
     feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
   } else if (params_.type == "MULTIICP") {
     std::unique_ptr<Matcher<PointCloudPtr>> matcher =
@@ -65,24 +66,27 @@ void ScanMatcher3D::onInit() {
             IcpMatcher::Params(params_.matcher_params_path));
     MultiScanRegistrationBase::Params params;
     params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ =
-        std::make_unique<MultiScanRegistration>(std::move(matcher), params);
+    scan_registration_ = std::make_unique<MultiScanRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
+        params.lag_duration, params.disable_lidar_map);
   } else if (params_.type == "MULTINDT") {
     std::unique_ptr<Matcher<PointCloudPtr>> matcher =
         std::make_unique<NdtMatcher>(
             NdtMatcher::Params(params_.matcher_params_path));
     MultiScanRegistrationBase::Params params;
     params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ =
-        std::make_unique<MultiScanRegistration>(std::move(matcher), params);
+    scan_registration_ = std::make_unique<MultiScanRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
+        params.lag_duration, params.disable_lidar_map);
   } else if (params_.type == "MULTIGICP") {
     std::unique_ptr<Matcher<PointCloudPtr>> matcher =
         std::make_unique<GicpMatcher>(
             GicpMatcher::Params(params_.matcher_params_path));
     MultiScanRegistrationBase::Params params;
     params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ =
-        std::make_unique<MultiScanRegistration>(std::move(matcher), params);
+    scan_registration_ = std::make_unique<MultiScanRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
+        params.lag_duration, params.disable_lidar_map);
   } else if (params_.type == "MULTILOAM") {
     std::shared_ptr<LoamParams> matcher_params =
         std::make_shared<LoamParams>(params_.matcher_params_path);
@@ -90,8 +94,9 @@ void ScanMatcher3D::onInit() {
         std::make_unique<LoamMatcher>(*matcher_params);
     MultiScanRegistrationBase::Params params;
     params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ =
-        std::make_unique<MultiScanLoamRegistration>(std::move(matcher), params);
+    scan_registration_ = std::make_unique<MultiScanLoamRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
+        params.lag_duration, params.disable_lidar_map);
     feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
   } else {
     BEAM_ERROR(
@@ -103,8 +108,9 @@ void ScanMatcher3D::onInit() {
         std::make_unique<LoamMatcher>(*matcher_params);
     ScanToMapLoamRegistration::Params params;
     params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ =
-        std::make_unique<ScanToMapLoamRegistration>(std::move(matcher), params);
+    scan_registration_ = std::make_unique<ScanToMapLoamRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.map_size,
+        params.store_full_cloud);
     feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
   }
 
@@ -317,7 +323,6 @@ void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
       ROS_DEBUG("Publishing loam surface points");
       results_publisher_.publish(surfaces_msg);
     }
-
   }
 
   // save to disk

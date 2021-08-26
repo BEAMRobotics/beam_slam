@@ -25,11 +25,15 @@ using namespace bs_common;
 class ScanToMapRegistrationBase : public ScanRegistrationBase {
  public:
   /**
-   * @brief Constructor that requires initial params
-   * @param fix_first_scan set to true to give an almost perfect prior to the
-   * first scan pose
+   * @brief Constructor that requires base params
+   * @brief base_params
    */
-  ScanToMapRegistrationBase(bool fix_first_scan);
+  ScanToMapRegistrationBase(const ScanRegistrationParamsBase& base_params);
+
+  /**
+   * @brief delete default constructor
+   */
+  ScanToMapRegistrationBase() = delete;
 
   /**
    * @brief Default constructor which uses default class parameters
@@ -67,17 +71,15 @@ class ScanToMapRegistrationBase : public ScanRegistrationBase {
   virtual void AddScanToMap(const ScanPose& scan_pose,
                             const Eigen::Matrix4d& T_MAP_SCAN) = 0;
 
-  double pose_prior_noise_{1e-9};
-  bool fix_first_scan_{true};
   const std::string source_{"SCANTOMAPREGISTRATION"};
 
   /** This is used for calculating relative pose between scans instead of a
    * global pose for each scan. To create these transactions, we need the actual
    * variables that are in the graph, and the measure transform from map to scan
-   * frame. 
-   * 
-   * NOTE: This scan pose only contains poses, no scan. 
-   * 
+   * frame.
+   *
+   * NOTE: This scan pose only contains poses, no scan.
+   *
    */
   std::unique_ptr<bs_common::ScanPose> scan_pose_prev_;
 };
@@ -107,10 +109,14 @@ class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
 
     /** load derived params & base params */
     void LoadFromJson(const std::string& config);
+
+    /** Get the base class params */
+    ScanRegistrationParamsBase GetBaseParams();
   };
 
   ScanToMapLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
-                            const Params& params);
+                            const ScanRegistrationParamsBase& base_params,
+                            int map_size = 10, bool store_full_cloud = true);                          
 
  private:
   bool IsMapEmpty() override;
@@ -120,10 +126,6 @@ class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
 
   void AddScanToMap(const ScanPose& scan_pose,
                     const Eigen::Matrix4d& T_MAP_SCAN) override;
-
-  bool PassedMinMotion(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
-
-  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured);
 
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher_;
   Params params_;
