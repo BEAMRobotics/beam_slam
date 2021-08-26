@@ -40,11 +40,10 @@ class Data {
     loam_params = std::make_shared<LoamParams>(config_path);
 
     // create scan reg params
-    scan_reg_params.outlier_threshold_t = 1;
-    scan_reg_params.outlier_threshold_r = 30;
+    scan_reg_params.outlier_threshold_trans_m = 1;
+    scan_reg_params.outlier_threshold_rot_deg = 30;
     scan_reg_params.min_motion_trans_m = 0;
-    scan_reg_params.min_motion_rot_rad = 0;
-    scan_reg_params.source = "TEST";
+    scan_reg_params.min_motion_rot_deg = 0;
     scan_reg_params.fix_first_scan = true;
     scan_reg_params.map_size = 3;
     scan_reg_params.store_full_cloud = false;
@@ -141,8 +140,10 @@ TEST(ScanToMapLoamRegistration, 2Scans) {
                     data_.T_BASELINK_LIDAR, feature_extractor);
 
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
-      std::make_unique<ScanToMapLoamRegistration>(std::move(matcher),
-                                                  data_.scan_reg_params);
+      std::make_unique<ScanToMapLoamRegistration>(
+          std::move(matcher), data_.scan_reg_params.GetBaseParams(),
+          data_.scan_reg_params.map_size,
+          data_.scan_reg_params.store_full_cloud);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
@@ -208,8 +209,10 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
 
   // init scan registration
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
-      std::make_unique<ScanToMapLoamRegistration>(std::move(matcher),
-                                                  data_.scan_reg_params);
+      std::make_unique<ScanToMapLoamRegistration>(
+          std::move(matcher), data_.scan_reg_params.GetBaseParams(),
+          data_.scan_reg_params.map_size,
+          data_.scan_reg_params.store_full_cloud);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();

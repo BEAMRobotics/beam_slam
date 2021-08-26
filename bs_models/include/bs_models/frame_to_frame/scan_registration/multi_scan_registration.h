@@ -43,12 +43,16 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 
     /** load derived params & base params */
     void LoadFromJson(const std::string& config);
+
+    /** Get the base class params */
+    ScanRegistrationParamsBase GetBaseParams();
   };
 
-  // Inherit base class constructors
-  using ScanRegistrationBase::ScanRegistrationBase;
+  MultiScanRegistrationBase(
+      const ScanRegistrationParamsBase& base_params, int num_neighbors = 10,
+      double lag_duration = 0, bool disable_lidar_map = false);
 
-  MultiScanRegistrationBase(const Params& params);
+  MultiScanRegistrationBase() = delete;
 
   ~MultiScanRegistrationBase() = default;
 
@@ -72,9 +76,9 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
    * @brief pure virtual function that must be overridden in each derived multi
    * scan registraion classes
    */
-  virtual bool MatchScans(const ScanPose& scan_pose_1,
-                          const ScanPose& scan_pose_2,
-                          Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+  virtual bool MatchScans(const ScanPose& scan_pose_ref,
+                          const ScanPose& scan_pose_tgt,
+                          Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                           Eigen::Matrix<double, 6, 6>& covariance) = 0;
 
   void RemoveOldScans(const ros::Time& new_scan_time);
@@ -89,20 +93,22 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 
   void PrintScanDetails(std::ostream& stream = std::cout);
 
-  bool PassedMinMotion(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
-
-  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured,
-                          const Eigen::Matrix4d& T_estimated);
+  // Output results to world frame (estimated world frame from the ref cloud)
+  void OutputResults(const ScanPose& scan_pose_ref,
+                     const ScanPose& scan_pose_tgt,
+                     const Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
+                     bool output_loam_cloud = false);
 
   std::list<ScanPose> reference_clouds_;
   Params params_;
-  double pose_prior_noise_{1e-9};
+
+  const std::string source_{"MULTISCANREGISTRATION"};
 
   // Extra debugging tools: these must be set here, not in the config file
   bool output_scan_registration_results_{false};
   std::string current_scan_path_;
   std::string tmp_output_path_{
-      "/home/nick/results/beam_slam/scan_registration/"};
+      "/home/nick/results/beam_slam/scan_registration/multi_scan/"};
   PointCloudCol coord_frame_;
 };
 
@@ -110,16 +116,15 @@ class MultiScanLoamRegistration : public MultiScanRegistrationBase {
  public:
   using Params = MultiScanRegistrationBase::Params;
 
-  MultiScanLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
-                            const Params& params);
+  MultiScanLoamRegistration(
+      std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
+      const ScanRegistrationParamsBase& base_params, int num_neighbors = 10,
+      double lag_duration = 0, bool disable_lidar_map = false);
 
  private:
-  bool MatchScans(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-                  Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+  bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
+                  Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                   Eigen::Matrix<double, 6, 6>& covariance) override;
-
-  void OutputResults(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-                     const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher_;
 };
@@ -128,16 +133,15 @@ class MultiScanRegistration : public MultiScanRegistrationBase {
  public:
   using Params = MultiScanRegistrationBase::Params;
 
-  MultiScanRegistration(std::unique_ptr<Matcher<PointCloudPtr>> matcher,
-                        const Params& params);
+  MultiScanRegistration(
+      std::unique_ptr<Matcher<PointCloudPtr>> matcher,
+      const ScanRegistrationParamsBase& base_params, int num_neighbors = 10,
+      double lag_duration = 0, bool disable_lidar_map = false);
 
  private:
-  bool MatchScans(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-                  Eigen::Matrix4d& T_CLOUD1_CLOUD2,
+  bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
+                  Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                   Eigen::Matrix<double, 6, 6>& covariance) override;
-
-  void OutputResults(const ScanPose& scan_pose_1, const ScanPose& scan_pose_2,
-                     const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
 };

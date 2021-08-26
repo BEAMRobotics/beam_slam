@@ -42,8 +42,8 @@ class ScanPose {
 
   /**
    * @brief constructor that does not require an input cloud. YOU WILL NEED TO
-   * MANUALLY ADD CLOUDS AFTER INSTANTIATION USING: AddPointCloud() and/or
-   * AddLoamCloud
+   * MANUALLY ADD CLOUDS AFTER INSTANTIATION USING: AddPointCloud(...) and/or
+   * AddLoamCloud(...)
    * @param stamp timestamp for this scan frame
    * @param T_REFFRAME_BASELINK transformation from the cloud (scan frame) to
    * the reference frame (usually WORLD or SUBMAP)
@@ -257,7 +257,7 @@ class ScanPose {
    * @param output_dir full path to empty directory. This path must exist, but
    * must be empty.
    */
-  void SaveData(const std::string& output_dir);
+  void SaveData(const std::string& output_dir) const;
 
   /**
    * @brief load data from some root directory which has the data saved in

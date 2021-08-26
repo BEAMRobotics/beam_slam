@@ -70,9 +70,29 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
    */
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
+  /**
+   * @brief Update extrinsics if they have not been initialized, or if they are
+   * not static. This will use ros::Time(0) which means it takes the most
+   * recently available transforms
+   */
+  void UpdateExtrinsics();
+
   fuse_core::UUID device_id_;  //!< The UUID of this device
   bs_parameters::models::GlobalMapperParams params_;
   bs_parameters::models::CalibrationParams calibration_params_;
+
+  /** Extrinsics: store shared pointer to base data to pass to global map, then
+   * keep a reference to the online intrinsics so that we can update the shared
+   * pointer. Also, keep a bool to know if extrinsics have been initialized.
+   * NOTE: We have found that if we try to initialize the intrinsics at
+   * instantiation of the GlobalMapper, the online extrinsics isn't available
+   * yet. So we initialize the first time we receive data.
+   */
+  std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_data_;
+  bs_common::ExtrinsicsLookupOnline& extrinsics_online_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
+  bool extrinsics_initialized_{false};
+
   std::unique_ptr<GlobalMap> global_map_;
 
   using ThrottledCallback =
@@ -83,7 +103,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   ros::Subscriber subscriber_;
 
   // params that can only be set here:
-  int max_output_map_size_{3000000}; // limits output size of lidar maps
+  int max_output_map_size_{3000000};  // limits output size of lidar maps
 };
 
 }  // namespace global_mapping

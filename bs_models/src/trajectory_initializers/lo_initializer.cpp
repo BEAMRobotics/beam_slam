@@ -50,12 +50,13 @@ void LoInitializer::onInit() {
   std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
       matcher = std::make_unique<LoamMatcher>(*matcher_params);
   ScanToMapLoamRegistration::Params params;
-  params.outlier_threshold_t = params_.outlier_threshold_t_m;
-  params.outlier_threshold_r = params_.outlier_threshold_r_deg;
+  params.outlier_threshold_trans_m = params_.outlier_threshold_trans_m;
+  params.outlier_threshold_rot_deg = params_.outlier_threshold_rot_deg;
   params.map_size = params_.scan_registration_map_size;
   params.store_full_cloud = false;
-  scan_registration_ =
-      std::make_unique<ScanToMapLoamRegistration>(std::move(matcher), params);
+  scan_registration_ = std::make_unique<ScanToMapLoamRegistration>(
+      std::move(matcher), params.GetBaseParams(), params.map_size,
+      params.store_full_cloud);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
 
   // set covariance if not set to zero in config

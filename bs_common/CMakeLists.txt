@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(bs_common)
 
 find_package(tf REQUIRED)
-find_package(beam REQUIRED COMPONENTS utils filtering matching)
+find_package(beam REQUIRED COMPONENTS utils filtering matching calibration)
 
 find_package(
   catkin REQUIRED 

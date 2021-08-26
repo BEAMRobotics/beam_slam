@@ -1,0 +1,7 @@
+{
+    "baselink": "imu",
+    "camera": "camera",
+    "imu": "imu",
+    "lidar": "velodyne",
+    "world": "world"
+}

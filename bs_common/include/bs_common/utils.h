@@ -9,8 +9,9 @@
 #include <nav_msgs/Path.h>
 #include <tf/transform_datatypes.h>
 
-#include <bs_common/scan_pose.h>
 #include <beam_matching/loam/LoamPointCloud.h>
+
+#include <bs_common/scan_pose.h>
 
 namespace bs_common {
 
@@ -81,5 +82,11 @@ void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
 void InterpolateTransformFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Matrix4d& T_WORLD_SENSOR);
+
+/**
+ * @brief Get full path the the config root directory in beam_slam_launch
+ * @return path
+ */
+std::string GetBeamSlamConfigPath();    
     
 } // namespace bs_common

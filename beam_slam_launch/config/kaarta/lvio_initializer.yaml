@@ -86,8 +86,8 @@ lo_initializer:
   aggregation_time: 0.1
   trajectory_time_window: 5
   min_trajectory_distance: 1
-  outlier_threshold_t_m: 0.3
-  outlier_threshold_r_deg: 15
+  outlier_threshold_trans_m: 0.3
+  outlier_threshold_rot_deg: 15
   scan_registration_map_size: 10
   scan_output_directory: '' # Outputs scans as PCD files IFF not empty
 
