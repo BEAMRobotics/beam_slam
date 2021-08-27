@@ -98,6 +98,7 @@ include_directories(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
+  src/imu_3d.cpp
   src/lo_initializer.cpp
   src/unicycle_3d.cpp
   src/unicycle_3d_ignition.cpp

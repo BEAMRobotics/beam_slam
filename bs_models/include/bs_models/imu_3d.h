@@ -11,7 +11,6 @@
 #include <bs_parameters/models/imu_3d_params.h>
 
 namespace bs_models {
-namespace frame_to_frame {
 
 class Imu3D : public fuse_core::AsyncSensorModel {
  public:
@@ -89,5 +88,4 @@ class Imu3D : public fuse_core::AsyncSensorModel {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
-}  // namespace frame_to_frame
 }  // namespace bs_models

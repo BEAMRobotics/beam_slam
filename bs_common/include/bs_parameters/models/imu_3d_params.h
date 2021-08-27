@@ -46,7 +46,7 @@ struct Imu3DParams : public ParameterBase {
   int queue_size{300};
   double key_frame_rate{1.0};
   double lag_duration{1.0};
-  double prior_noise{1e-9};
+  double cov_prior_noise{1e-9};
   std::string frame_initializer_type{"ODOMETRY"};
   std::string frame_initializer_info{""};
   std::string sensor_frame_id_override{""};
