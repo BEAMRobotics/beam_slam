@@ -27,7 +27,7 @@ struct Imu3DParams : public ParameterBase {
     nh.getParam("queue_size", queue_size);
     nh.getParam("key_frame_rate", key_frame_rate);
     nh.getParam("lag_duration", lag_duration);
-    nh.getParam("prior_noise", prior_noise);
+    nh.getParam("cov_prior_noise", cov_prior_noise);
     nh.getParam("frame_initializer_type", frame_initializer_type);
     nh.getParam("frame_initializer_info", frame_initializer_info);
     nh.getParam("sensor_frame_id_override", sensor_frame_id_override);
