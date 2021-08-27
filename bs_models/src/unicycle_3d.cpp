@@ -1,4 +1,4 @@
-#include <bs_models/motion/unicycle_3d.h>
+#include <bs_models/unicycle_3d.h>
 
 #include <stdexcept>
 
@@ -16,13 +16,13 @@
 #include <bs_constraints/motion/unicycle_3d_state_kinematic_constraint.h>
 
 // Register this motion model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::motion::Unicycle3D, fuse_core::MotionModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::Unicycle3D, fuse_core::MotionModel)
 
-namespace bs_models { namespace motion {
+namespace bs_models {
 
 static constexpr double EPSILON =
-    1.0e-9; //!< "Small" value used to check if state variables are effectively
-            //!< zero
+    1.0e-9;  //!< "Small" value used to check if state variables are effectively
+             //!< zero
 
 Unicycle3D::Unicycle3D()
     : fuse_core::AsyncMotionModel(1),
@@ -61,7 +61,8 @@ void Unicycle3D::onInit() {
                              process_noise_diagonal);
 
   if (process_noise_diagonal.size() != 15) {
-    ROS_ERROR("Process noise diagonal must be of length 15. Length given: %d", process_noise_diagonal.size());
+    ROS_ERROR("Process noise diagonal must be of length 15. Length given: %d",
+              process_noise_diagonal.size());
     throw std::runtime_error("Process noise diagonal must be of length 15!");
   }
 
@@ -277,7 +278,9 @@ void Unicycle3D::generateMotionModel(
 void Unicycle3D::updateStateHistoryEstimates(
     const fuse_core::Graph& graph, StateHistory& state_history,
     const ros::Duration& buffer_length) {
-  if (state_history.empty()) { return; }
+  if (state_history.empty()) {
+    return;
+  }
 
   ros::Time expiration_time;
 
@@ -374,4 +377,4 @@ void Unicycle3D::updateStateHistoryEstimates(
   }
 }
 
-}} // namespace bs_models::motion
+}  // namespace bs_models

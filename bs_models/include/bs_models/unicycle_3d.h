@@ -13,10 +13,10 @@
 #include <ros/ros.h>
 #include <tf2/utils.h>
 
-namespace bs_models { namespace motion {
+namespace bs_models {
 
 class Unicycle3D : public fuse_core::AsyncMotionModel {
-public:
+ public:
   SMART_PTR_DEFINITIONS_WITH_EIGEN(Unicycle3D);
 
   /**
@@ -31,21 +31,21 @@ public:
    */
   ~Unicycle3D() = default;
 
-protected:
+ protected:
   /**
    * @brief Structure used to maintain a history of "good" pose estimates
    */
   struct StateHistoryElement {
     fuse_core::UUID
-        position_uuid; //!< The uuid of the associated position variable
+        position_uuid;  //!< The uuid of the associated position variable
     fuse_core::UUID
-        orientation_uuid; //!< The uuid of the associated orientation variable
+        orientation_uuid;  //!< The uuid of the associated orientation variable
     fuse_core::UUID
-        vel_linear_uuid; //!< The uuid of the associated orientation variable
+        vel_linear_uuid;  //!< The uuid of the associated orientation variable
     fuse_core::UUID
-        vel_angular_uuid; //!< The uuid of the associated orientation variable
+        vel_angular_uuid;  //!< The uuid of the associated orientation variable
     fuse_core::UUID
-        acc_linear_uuid; //!< The uuid of the associated orientation variable
+        acc_linear_uuid;  //!< The uuid of the associated orientation variable
     tf2::Transform pose;
     tf2::Vector3 velocity_linear;
     tf2::Vector3 velocity_angular;
@@ -119,15 +119,15 @@ protected:
                                           StateHistory& state_history,
                                           const ros::Duration& buffer_length);
 
-  ros::Duration buffer_length_; //!< The length of the state history
-  fuse_core::UUID device_id_;   //!< The UUID of the device to be published
+  ros::Duration buffer_length_;  //!< The length of the state history
+  fuse_core::UUID device_id_;    //!< The UUID of the device to be published
   fuse_core::TimestampManager
-      timestamp_manager_; //!< Tracks timestamps and previously created motion
-                          //!< model segments
+      timestamp_manager_;  //!< Tracks timestamps and previously created motion
+                           //!< model segments
   Eigen::Matrix<double, 15, 15, Eigen::RowMajor>
-      process_noise_covariance_; //!< Process noise covariance matrix
+      process_noise_covariance_;  //!< Process noise covariance matrix
 
-  StateHistory state_history_; //!< History of optimized graph pose estimates
+  StateHistory state_history_;  //!< History of optimized graph pose estimates
 };
 
-}} // namespace bs_models::motion
+}  // namespace bs_models

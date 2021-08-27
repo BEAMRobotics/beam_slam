@@ -12,7 +12,7 @@
 
 #include <bs_parameters/models/unicycle_3d_ignition_params.h>
 
-namespace bs_models { namespace motion {
+namespace bs_models {
 
 /**
  * @brief A fuse_models ignition sensor designed to be used in conjunction with
@@ -140,4 +140,4 @@ protected:
                                //!< PoseWithCovarianceStamped messages
 };
 
-}} // namespace bs_models::motion
+} // namespace bs_models

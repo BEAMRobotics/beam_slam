@@ -96,8 +96,6 @@ include_directories(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
-  src/motion/unicycle_3d.cpp
-  src/motion/unicycle_3d_ignition.cpp
   src/frame_to_frame/scan_matcher_3d.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
@@ -119,6 +117,8 @@ add_library(
   src/lib/trajectory_initializers/imu_initializer.cpp
   src/lib/trajectory_initializers/vio_initializer.cpp
   src/lo_initializer.cpp
+  src/unicycle_3d.cpp
+  src/unicycle_3d_ignition.cpp
 )
 
 ## Specify libraries to link a library or executable target against

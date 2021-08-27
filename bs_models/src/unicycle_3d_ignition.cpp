@@ -1,4 +1,4 @@
-#include <bs_models/motion/unicycle_3d_ignition.h>
+#include <bs_models/unicycle_3d_ignition.h>
 
 #include <Eigen/Eigenvalues>
 #include <fuse_constraints/absolute_constraint.h>
@@ -23,10 +23,9 @@
 #include <bs_constraints/global/absolute_constraint.h>
 
 // Register this motion model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::motion::Unicycle3DIgnition,
-                       fuse_core::SensorModel);
+PLUGINLIB_EXPORT_CLASS(bs_models::Unicycle3DIgnition, fuse_core::SensorModel);
 
-namespace bs_models { namespace motion {
+namespace bs_models {
 
 Unicycle3DIgnition::Unicycle3DIgnition()
     : fuse_core::AsyncSensorModel(1),
@@ -101,9 +100,7 @@ void Unicycle3DIgnition::start() {
   }
 }
 
-void Unicycle3DIgnition::stop() {
-  started_ = false;
-}
+void Unicycle3DIgnition::stop() { started_ = false; }
 
 void Unicycle3DIgnition::subscriberCallback(
     const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg) {
@@ -171,12 +168,13 @@ void Unicycle3DIgnition::process(
   position_cov << pose.pose.covariance[0], pose.pose.covariance[1],
       pose.pose.covariance[6], pose.pose.covariance[7];
   if (!position_cov.isApprox(position_cov.transpose())) {
-    throw std::invalid_argument("Attempting to set the pose with a "
-                                "non-symmetric position covariance matrix [" +
-                                std::to_string(position_cov(0)) + ", " +
-                                std::to_string(position_cov(1)) + " ; " +
-                                std::to_string(position_cov(2)) + ", " +
-                                std::to_string(position_cov(3)) + "].");
+    throw std::invalid_argument(
+        "Attempting to set the pose with a "
+        "non-symmetric position covariance matrix [" +
+        std::to_string(position_cov(0)) + ", " +
+        std::to_string(position_cov(1)) + " ; " +
+        std::to_string(position_cov(2)) + ", " +
+        std::to_string(position_cov(3)) + "].");
   }
   Eigen::SelfAdjointEigenSolver<fuse_core::Matrix2d> solver(position_cov);
   if (solver.eigenvalues().minCoeff() <= 0.0) {
@@ -191,10 +189,11 @@ void Unicycle3DIgnition::process(
   auto orientation_cov = fuse_core::Matrix1d();
   orientation_cov << pose.pose.covariance[35];
   if (orientation_cov(0) <= 0.0) {
-    throw std::invalid_argument("Attempting to set the pose with a "
-                                "non-positive-definite orientation covariance "
-                                "matrix [" +
-                                std::to_string(orientation_cov(0)) + "].");
+    throw std::invalid_argument(
+        "Attempting to set the pose with a "
+        "non-positive-definite orientation covariance "
+        "matrix [" +
+        std::to_string(orientation_cov(0)) + "].");
   }
 
   // Now that the pose has been validated and the optimizer has been reset,
@@ -286,20 +285,20 @@ void Unicycle3DIgnition::sendPrior(
                               orientation->y(), orientation->z()),
           orientation_cov);
 
-  auto linear_velocity_constraint =
-      bs_constraints::global::AbsoluteVelocityLinear3DStampedConstraint::make_shared(
+  auto linear_velocity_constraint = bs_constraints::global::
+      AbsoluteVelocityLinear3DStampedConstraint::make_shared(
           name(), *linear_velocity,
           fuse_core::Vector3d(linear_velocity->x(), linear_velocity->y(),
                               linear_velocity->z()),
           linear_velocity_cov);
 
   auto angular_velocity_constraint =
-      bs_constraints::global::AbsoluteVelocityAngular3DStampedConstraint::make_shared(
-          name(), *angular_velocity,
-          fuse_core::Vector3d(angular_velocity->roll(),
-                              angular_velocity->pitch(),
-                              angular_velocity->yaw()),
-          angular_velocity_cov);
+      bs_constraints::global::AbsoluteVelocityAngular3DStampedConstraint::
+          make_shared(name(), *angular_velocity,
+                      fuse_core::Vector3d(angular_velocity->roll(),
+                                          angular_velocity->pitch(),
+                                          angular_velocity->yaw()),
+                      angular_velocity_cov);
 
   auto linear_acceleration_constraint =
       bs_constraints::global::AbsoluteAccelerationLinear3DStampedConstraint::
@@ -332,4 +331,4 @@ void Unicycle3DIgnition::sendPrior(
                   << position->y() << ", yaw: " << orientation->yaw() << ")");
 }
 
-}} // namespace bs_models::motion
+}  // namespace bs_models

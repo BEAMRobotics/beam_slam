@@ -10,7 +10,7 @@ sensor_models:
 
 motion_models:
   - name: 'unicycle_3d'
-    type: 'bs_models::motion::Unicycle3D'
+    type: 'bs_models::Unicycle3D'
 
 # publishers:
 #   - name: 'odom_pub'

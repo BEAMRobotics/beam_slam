@@ -29,7 +29,7 @@ sensor_models:
 # motion models
 motion_models:
   - name: 'unicycle_3d'
-    type: 'bs_models::motion::Unicycle3D'
+    type: 'bs_models::Unicycle3D'
 
 # solver options
 solver_options:
