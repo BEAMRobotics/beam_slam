@@ -38,8 +38,7 @@ void Imu3D::onInit() {
 
   // init imu preintegration
   ImuPreintegration::Params imu_preintegration_params{
-    prior_noise : params_.prior_noise,
-    gravity : Eigen::Vector3d(0, 0, -GRAVITY),
+    cov_prior_noise : params_.prior_noise,
     cov_gyro_noise : params_.cov_gyro_noise,
     cov_accel_noise : params_.cov_accel_noise,
     cov_gyro_bias : params_.cov_gyro_bias,

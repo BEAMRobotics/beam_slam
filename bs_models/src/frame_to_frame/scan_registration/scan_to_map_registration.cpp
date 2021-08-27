@@ -15,8 +15,9 @@ namespace frame_to_frame {
 using namespace beam_matching;
 using namespace bs_common;
 
-ScanToMapRegistrationBase::ScanToMapRegistrationBase(bool fix_first_scan)
-    : fix_first_scan_(fix_first_scan) {}
+ScanToMapRegistrationBase::ScanToMapRegistrationBase(
+    const ScanRegistrationParamsBase& base_params)
+    : ScanRegistrationBase(base_params) {}
 
 bs_constraints::frame_to_frame::Pose3DStampedTransaction
 ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
@@ -32,7 +33,7 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   if (IsMapEmpty()) {
     T_MAP_SCAN = new_scan.T_REFFRAME_LIDAR();
     AddScanToMap(new_scan, T_MAP_SCAN);
-    if (fix_first_scan_) {
+    if (base_params_.fix_first_scan) {
       // build covariance
       fuse_core::Matrix6d prior_covariance;
       prior_covariance.setIdentity();
@@ -136,11 +137,24 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
   store_full_cloud = J["store_full_cloud"];
 }
 
+ScanRegistrationParamsBase ScanToMapLoamRegistration::Params::GetBaseParams() {
+  ScanRegistrationParamsBase base_params{
+      .outlier_threshold_trans_m = outlier_threshold_trans_m,
+      .outlier_threshold_rot_deg = outlier_threshold_rot_deg,
+      .min_motion_trans_m = min_motion_trans_m,
+      .min_motion_rot_deg = min_motion_rot_deg,
+      .max_motion_trans_m = max_motion_trans_m,
+      .fix_first_scan = fix_first_scan};
+  return base_params;
+}
+
 ScanToMapLoamRegistration::ScanToMapLoamRegistration(
-    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher, const Params& params)
-    : ScanToMapRegistrationBase(params.fix_first_scan),
-      matcher_(std::move(matcher)),
-      params_(params) {
+    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
+    const ScanRegistrationParamsBase& base_params, int map_size,
+    bool store_full_cloud)
+    : ScanToMapRegistrationBase(base_params), matcher_(std::move(matcher)) {
+  params_.map_size = map_size;
+  params_.store_full_cloud = store_full_cloud;
   map_.SetParams(params_.map_size);
 }
 
@@ -150,11 +164,13 @@ bool ScanToMapLoamRegistration::IsMapEmpty() {
 
 bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
                                                   Eigen::Matrix4d& T_MAP_SCAN) {
-  const Eigen::Matrix4d& T_MAPEST_SCAN = scan_pose.T_REFFRAME_LIDAR();
-  const Eigen::Matrix4d& T_MAP_SCANPREV = scan_pose_prev_->T_REFFRAME_LIDAR();
+  Eigen::Matrix4d T_MAPEST_SCAN = scan_pose.T_REFFRAME_LIDAR();
+  Eigen::Matrix4d T_MAP_SCANPREV = scan_pose_prev_->T_REFFRAME_LIDAR();
+
   Eigen::Matrix4d T_SCANPREV_SCANNEW =
       beam::InvertTransform(T_MAP_SCANPREV) * T_MAPEST_SCAN;
-  if (!PassedMinMotion(T_SCANPREV_SCANNEW)) {
+
+  if (!PassedMotionThresholds(T_SCANPREV_SCANNEW)) {
     return false;
   }
 
@@ -175,7 +191,12 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
 
   Eigen::Matrix4d T_MAPEST_MAP = matcher_->GetResult().matrix();
 
-  if (!PassedRegThreshold(T_MAPEST_MAP)) {
+  std::string summary;
+  if (!PassedRegThreshold(T_MAPEST_MAP, summary)) {
+    BEAM_WARN(
+        "Failed scan matcher transform threshold check for stamp {}.{}. "
+        "Skipping measurement. Reason: {}",
+        scan_pose.Stamp().sec, scan_pose.Stamp().nsec, summary);
     return false;
   }
 
@@ -190,34 +211,6 @@ void ScanToMapLoamRegistration::AddScanToMap(
   if (params_.store_full_cloud) {
     map_.AddPointCloud(scan_pose.Cloud(), scan_pose.Stamp(), T_MAP_SCAN);
   }
-}
-
-bool ScanToMapLoamRegistration::PassedRegThreshold(
-    const Eigen::Matrix4d& T_measured) {
-  double t_error = T_measured.block(0, 3, 3, 1).norm();
-  Eigen::Matrix3d R = T_measured.block(0, 0, 3, 3);
-  double r_error = std::abs(Eigen::AngleAxis<double>(R).angle());
-
-  if (t_error > params_.outlier_threshold_t ||
-      r_error > params_.outlier_threshold_r) {
-    return false;
-  }
-  return true;
-}
-
-bool ScanToMapLoamRegistration::PassedMinMotion(
-    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
-  // check translation
-  if (T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm() >= params_.min_motion_trans_m) {
-    return true;
-  }
-
-  // check rotation
-  Eigen::Matrix3d R = T_CLOUD1_CLOUD2.block(0, 0, 3, 3);
-  if (Eigen::AngleAxis<double>(R).angle() >= params_.min_motion_rot_rad) {
-    return true;
-  }
-  return false;
 }
 
 }  // namespace frame_to_frame

@@ -39,7 +39,8 @@ class LoopClosureRefinementBase {
    * @param query_submap
    */
   virtual fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const Submap& matched_submap, const Submap& query_submap,
+      const std::shared_ptr<Submap>& matched_submap,
+      const std::shared_ptr<Submap>& query_submap,
       const Eigen::Matrix4d& T_MATCH_QUERY_EST) = 0;
 
  protected:

@@ -17,12 +17,6 @@ find_package(
 find_package(
   catkin REQUIRED
   COMPONENTS
-    fuse_core
-    fuse_graphs
-    fuse_publishers
-    fuse_variables
-    fuse_models
-    fuse_constraints
     std_msgs
     geometry_msgs
     nav_msgs
@@ -37,37 +31,26 @@ find_package(
     tf2_geometry_msgs
     tf2_ros
     message_generation
-    bs_constraints
-    bs_common
-    bs_variables
-    basalt)
+    )
 
+find_package(gflags REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
-find_package(Catch2 REQUIRED)
 find_package(OpenCV 4.5.2 REQUIRED COMPONENTS)
+find_package(basalt REQUIRED)
 
-add_message_files(
-  DIRECTORY
-    msg
-  FILES
-    InitializedPathMsg.msg
-    LandmarkMeasurementMsg.msg
-    CameraMeasurementMsg.msg    
-    LidarMeasurementMsg.msg
-    TrajectoryMeasurementMsg.msg
-    SlamChunkMsg.msg
-    SubmapMsg.msg
-    RelocRequestMsg.msg
-)
+find_package(fuse_core REQUIRED)
+find_package(fuse_publishers REQUIRED)
+find_package(fuse_variables REQUIRED)
+find_package(fuse_graphs REQUIRED)
+find_package(fuse_models REQUIRED)
+find_package(fuse_constraints REQUIRED)
 
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  geometry_msgs
-  sensor_msgs
-)
+find_package(bs_constraints REQUIRED)
+find_package(bs_common REQUIRED)
+find_package(bs_variables REQUIRED)
+
 
 catkin_package(
   INCLUDE_DIRS
@@ -75,26 +58,17 @@ catkin_package(
   LIBRARIES
     ${PROJECT_NAME}
   CATKIN_DEPENDS 
-    fuse_graphs
-    fuse_models
-    fuse_publishers
-    fuse_variables
-    fuse_constraints
     std_msgs
     geometry_msgs
     message_runtime
     nav_msgs
-    pcl_conversions
     pluginlib
+    rosbag
     roscpp
     sensor_msgs
     tf2
     tf2_geometry_msgs
     tf2_ros
-    bs_constraints
-    bs_common
-    bs_variables
-    basalt
   DEPENDS
     Boost
     CERES
@@ -111,6 +85,15 @@ include_directories(
   ${CERES_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${basalt_INCLUDE_DIRS}
+  ${fuse_graphs_INCLUDE_DIRS}
+  ${fuse_models_INCLUDE_DIRS}
+  ${fuse_publishers_INCLUDE_DIRS}
+  ${fuse_variables_INCLUDE_DIRS}
+  ${fuse_constraints_INCLUDE_DIRS}
+  ${bs_constraints_INCLUDE_DIRS}
+  ${bs_common_INCLUDE_DIRS}
+  ${bs_variables_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -124,7 +107,6 @@ add_library(
   src/frame_to_frame/scan_registration/scan_to_map_registration.cpp
   src/frame_to_frame/imu_3d.cpp
   src/frame_to_frame/imu_preintegration.cpp
-  src/frame_to_frame/imu_state.cpp
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
@@ -146,6 +128,15 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
+    ${basalt_LIBRARIES}
+    ${fuse_graphs_LIBRARIES}
+    ${fuse_models_LIBRARIES}
+    ${fuse_publishers_LIBRARIES}
+    ${fuse_variables_LIBRARIES}
+    ${fuse_constraints_LIBRARIES}
+    ${bs_constraints_LIBRARIES}
+    ${bs_common_LIBRARIES}
+    ${bs_variables_LIBRARIES}
     beam::utils
     beam::matching
     beam::filtering
@@ -153,12 +144,6 @@ target_link_libraries(
     beam::calibration
     beam::cv
 )
-add_dependencies(
-  ${PROJECT_NAME}
-    ${${PROJECT_NAME}_EXPORTED_TARGETS}
-    ${catkin_EXPORTED_TARGETS}
-)
-
 
 #############
 ## Testing ##

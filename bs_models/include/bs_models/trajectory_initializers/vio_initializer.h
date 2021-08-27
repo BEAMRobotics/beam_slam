@@ -1,19 +1,20 @@
 #pragma once
 
-// libbeam
+#include <fuse_graphs/hash_graph.h>
+#include <sensor_msgs/Imu.h>
+
 #include <beam_calibration/CameraModel.h>
+#include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
-// fuse
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/bs_msgs.h>
+#include <bs_common/current_submap.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/imu_initializer.h>
-#include <fuse_graphs/hash_graph.h>
 
-// ros
-#include <bs_models/InitializedPathMsg.h>
-#include <sensor_msgs/Imu.h>
+using namespace bs_common; 
 
 namespace bs_models { namespace camera_to_camera {
 
@@ -29,8 +30,8 @@ public:
    */
   VIOInitializer(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                  std::shared_ptr<beam_cv::Tracker> tracker,
-                 const double& gyro_noise, const double& accel_noise,
-                 const double& gyro_bias, const double& accel_bias,
+                 const std::string& path_topic,
+                 const std::string& imu_intrinsics_path,
                  bool use_scale_estimate = false,
                  double max_optimization_time = 5.0,
                  const std::string& output_directory = "");
@@ -47,12 +48,6 @@ public:
    * @param msg imu message to add
    */
   void AddIMU(const sensor_msgs::Imu& msg);
-
-  /**
-   * @brief Sets the initialized path to use
-   * @param msg The init path to use for intialization
-   */
-  void SetPath(const InitializedPathMsg& msg);
 
   /**
    * @brief Returns the current state
@@ -72,6 +67,13 @@ public:
    */
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration>
       GetPreintegrator();
+
+  /**
+   * @brief Callback for path processing, this path is provided by LIO for
+   * initialization
+   * @param[in] msg - The path to process
+   */
+  void ProcessInitPath(const InitializedPathMsg::ConstPtr& msg);
 
 private:
   /**
@@ -122,6 +124,13 @@ private:
                      Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
+   * @brief Outputs frame poses to standard output
+   * @param frames vector of frames to output
+   */
+  void OutputFramePoses(
+      const std::vector<bs_models::camera_to_camera::Frame>& frames);
+
+  /**
    * @brief Optimizes the current local graph
    */
   void OptimizeGraph();
@@ -134,17 +143,23 @@ private:
       const std::vector<bs_models::camera_to_camera::Frame>& frames);
 
 protected:
+  // subscriber for initialized path
+  ros::Subscriber path_subscriber_;
+
   // computer vision objects
+  std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
+  CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
 
   // imu preintegration object
   std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;
+  bs_models::frame_to_frame::ImuPreintegration::Params imu_params_;
 
   // graph object for optimization
   std::shared_ptr<fuse_graphs::HashGraph> local_graph_;
-  double max_optimization_time_{};
+  double max_optimization_time_;
 
   // stores the added imu messages and times of keyframes to use for init
   std::queue<sensor_msgs::Imu> imu_buffer_;
@@ -161,7 +176,9 @@ protected:
   Eigen::Matrix3d cov_accel_bias_;
 
   // preintegration parameters
-  Eigen::Vector3d gravity_, bg_, ba_;
+  Eigen::Vector3d gravity_;
+  Eigen::Vector3d bg_;
+  Eigen::Vector3d ba_;
   double scale_;
 
   // initialization path
@@ -169,11 +186,11 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  ExtrinsicsLookupOnline& extrinsics_ =
+      ExtrinsicsLookupOnline::GetInstance();
 
   // directory to optionally output the initialization results
-  std::string output_directory_{};
+  std::string output_directory_;
 };
 
 }} // namespace bs_models::camera_to_camera

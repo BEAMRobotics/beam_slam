@@ -13,7 +13,7 @@
 
 #include <bs_parameters/models/lo_initializer_params.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_common/scan_pose.h>
 
 namespace bs_models {
@@ -122,8 +122,8 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   bs_parameters::models::LoInitializerParams params_;
 
   // get access to extrinsics singleton
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // scan registration objects
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration_;

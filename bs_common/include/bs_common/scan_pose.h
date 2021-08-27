@@ -42,8 +42,8 @@ class ScanPose {
 
   /**
    * @brief constructor that does not require an input cloud. YOU WILL NEED TO
-   * MANUALLY ADD CLOUDS AFTER INSTANTIATION USING: AddPointCloud() and/or
-   * AddLoamCloud
+   * MANUALLY ADD CLOUDS AFTER INSTANTIATION USING: AddPointCloud(...) and/or
+   * AddLoamCloud(...)
    * @param stamp timestamp for this scan frame
    * @param T_REFFRAME_BASELINK transformation from the cloud (scan frame) to
    * the reference frame (usually WORLD or SUBMAP)
@@ -228,8 +228,8 @@ class ScanPose {
    * @param to_reference_frame whether or not to confert to REFFRAME
    * @param add_frame whether or not to add coordinate frame to cloud
    */
-  void Save(const std::string& save_path, bool to_reference_frame = true,
-            bool add_frame = true) const;
+  void SaveCloud(const std::string& save_path, bool to_reference_frame = true,
+                 bool add_frame = true) const;
 
   /**
    * @brief save loam pointcloud of current scanpose
@@ -241,13 +241,40 @@ class ScanPose {
                      bool to_reference_frame = true,
                      bool add_frame = true) const;
 
+  /**
+   * @brief save all scan pose data to an output directory in a way that can be
+   * re-loaded using LoadData(). Output format:
+   *
+   *  /output_dir/
+   *    scan_pose.json (general data)
+   *    pointcloud.pcd
+   *    loam_edges_strong.pcd
+   *    loam_edges_weak.pcd
+   *    loam_surfaces_strong.pcd
+   *    loam_surfaces_weak.pcd
+   *    
+   *
+   * @param output_dir full path to empty directory. This path must exist, but
+   * must be empty.
+   */
+  void SaveData(const std::string& output_dir) const;
+
+  /**
+   * @brief load data from some root directory which has the data saved in
+   * the format that is output by SaveData (see above).
+   * @param root_dir root directory which has all data to be loaded. Note
+   * that this can only contain ScanPose data for one object.
+   * @return true if successful
+   */
+  bool LoadData(const std::string& root_dir);
+
  protected:
   // pose data
   ros::Time stamp_;
   int updates_{0};
   fuse_variables::Position3DStamped position_;
   fuse_variables::Orientation3DStamped orientation_;
-  const Eigen::Matrix4d T_REFFRAME_BASELINK_initial_;
+  Eigen::Matrix4d T_REFFRAME_BASELINK_initial_;
   Eigen::Matrix4d T_BASELINK_LIDAR_;
 
   // cloud data: all in lidar frame

@@ -1,8 +1,9 @@
 #pragma once
 
+#include <bs_common/extrinsics_lookup_base.h>
+#include <bs_parameters/models/calibration_params.h>
+
 #include <Eigen/Dense>
-#include <fuse_variables/orientation_3d_stamped.h>
-#include <fuse_variables/position_3d_stamped.h>
 #include <tf/transform_listener.h>
 
 namespace bs_common {
@@ -15,23 +16,54 @@ namespace bs_common {
  * frames, then each of the sensor models can get the instance of this class
  * with those same global params. See global_mapper.cpp for an example use case.
  */
-class ExtrinsicsLookup {
+class ExtrinsicsLookupOnline {
  public:
   /**
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
    */
-  static ExtrinsicsLookup& GetInstance();
+  static ExtrinsicsLookupOnline& GetInstance();
 
   /**
    * @brief Delete copy constructor
    */
-  ExtrinsicsLookup(const ExtrinsicsLookup& other) = delete;
+  ExtrinsicsLookupOnline(const ExtrinsicsLookupOnline& other) = delete;
 
   /**
    * @brief Delete copy assignment operator
    */
-  ExtrinsicsLookup& operator=(const ExtrinsicsLookup& other) = delete;
+  ExtrinsicsLookupOnline& operator=(const ExtrinsicsLookupOnline& other) =
+      delete;
+
+  /**
+   * @brief Get a copy of the instrinsics stored herein
+   * @param extrinsics copy of the extrinsics_
+   */
+  ExtrinsicsLookupBase GetExtrinsicsCopy();
+
+  /**
+   * @brief See definition in ExtrinsicsLookupBase
+   * @param save_filename full path to filename
+   */
+  void SaveExtrinsicsToJson(const std::string& save_filename);
+
+  /**
+   * @brief See definition in ExtrinsicsLookupBase
+   * @param save_filename full path to filename
+   */
+  void SaveFrameIdsToJson(const std::string& save_filename);
+
+  /**
+   * @brief get transform from any two frames
+   * @param T reference to result
+   * @param to_frame 'to frame' of transformation
+   * @param from_frame 'from frame' of transformation
+   * @param time extrinsics time if extrinsics are not static
+   * @return true if lookup was successful
+   */
+  bool GetTransform(Eigen::Matrix4d& T, const std::string& to_frame,
+                    const std::string& from_frame,
+                    const ros::Time& time = ros::Time(0));
 
   /**
    * @brief Gets the extrinsics between camera and IMU
@@ -163,37 +195,37 @@ class ExtrinsicsLookup {
    * @brief Gets the frame id of IMU
    * @return frame id
    */
-  std::string GetImuFrameId() const { return imu_frame_; }
+  std::string GetImuFrameId() const;
 
   /**
    * @brief Gets the frame id of camera
    * @return frame id
    */
-  std::string GetCameraFrameId() const { return camera_frame_; }
+  std::string GetCameraFrameId() const;
 
   /**
    * @brief Gets the frame id of lidar
    * @return frame id
    */
-  std::string GetLidarFrameId() const { return lidar_frame_; }
+  std::string GetLidarFrameId() const;
 
   /**
    * @brief Gets the frame id of the world frame
    * @return frame id
    */
-  std::string GetWorldFrameId() const { return world_frame_; }
+  std::string GetWorldFrameId() const;
 
   /**
    * @brief Gets the frame id of the baselink frame
    * @return frame id
    */
-  std::string GetBaselinkFrameId() const { return baselink_frame_; }
+  std::string GetBaselinkFrameId() const;
 
   /**
    * @brief Gets the status on whether or not extrinsics are static
    * @return true if extrinsics are static
    */
-  bool IsStatic() const { return static_extrinsics_; }
+  bool IsStatic() const;
 
   /**
    * @brief Verifies if sensor frame id is valid by checking against IMU,
@@ -206,43 +238,27 @@ class ExtrinsicsLookup {
   /**
    * @brief Constructor
    */
-  ExtrinsicsLookup();
+  ExtrinsicsLookupOnline();
 
   /**
-   * @brief Gets transform between specified frames
+   * @brief Looks up the transform between specified frames using the
+   * tf_listener
    * @param T reference to result
    * @param to_frame 'to frame' of transformation
    * @param from_frame 'from frame' of transformation
    * @param time extrinsics time if extrinsics are not static
    * @return true if lookup was successful
    */
-  bool GetTransform(Eigen::Matrix4d& T, const std::string& to_frame,
-                    const std::string& from_frame, const ros::Time& time);
+  bool LookupTransform(Eigen::Matrix4d& T, const std::string& to_frame,
+                       const std::string& from_frame,
+                       const ros::Time& time = ros::Time(0));
+
+  bs_parameters::models::CalibrationParams calibration_params_;
 
   tf::TransformListener tf_listener_;
 
-  fuse_variables::Position3DStamped imu_position_;     // zero position
-  fuse_variables::Position3DStamped camera_position_;  // t_BASELINK_CAMERA
-  fuse_variables::Position3DStamped lidar_position_;   // t_BASELINK_LIDAR
+  std::shared_ptr<ExtrinsicsLookupBase> extrinsics_;
 
-  fuse_variables::Orientation3DStamped imu_orientation_;  // zero rotation
-  fuse_variables::Orientation3DStamped
-      camera_orientation_;                                  // R_BASELINK_CAMERA
-  fuse_variables::Orientation3DStamped lidar_orientation_;  // R_BASELINK_LIDAR
-
-  Eigen::Matrix4d T_LIDAR_IMU_;
-  Eigen::Matrix4d T_LIDAR_CAMERA_;
-  Eigen::Matrix4d T_IMU_CAMERA_;
-
-  std::string imu_frame_{""};
-  std::string camera_frame_{""};
-  std::string lidar_frame_{""};
-  std::string world_frame_{""};
-  std::string baselink_frame_{""};
-
-  bool T_LIDAR_IMU_set_{false};
-  bool T_LIDAR_CAMERA_set_{false};
-  bool T_IMU_CAMERA_set_{false};
   bool static_extrinsics_{true};
 };
 

@@ -14,7 +14,7 @@ namespace frame_initializers {
  * The goal of this class is to initialize the pose of a frame given some
  * timestamp. This can simply be from a published topic, or can use an odometry
  * methodology with input sensor data. For more information on frames, see the
- * PoseLookup and ExtrinsicsLookup classes.
+ * PoseLookup and ExtrinsicsLookupOnline classes.
  *
  * All input data to the derived classes should be added in a custom
  * constructor. The constructor also needs to initialize pose_lookup_ and poses_
@@ -40,8 +40,8 @@ class FrameInitializerBase {
   std::string authority_;
   std::shared_ptr<bs_common::PoseLookup> pose_lookup_;
   std::shared_ptr<tf2::BufferCore> poses_{nullptr};
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
 }  // namespace frame_initializers

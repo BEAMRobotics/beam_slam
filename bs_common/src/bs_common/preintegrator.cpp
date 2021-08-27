@@ -33,29 +33,31 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
     Eigen::Matrix<double, 9, 9> A;
     A.setIdentity();
 
-    A.block<3, 3>(0, 0) = q_full.conjugate().matrix();
-    A.block<3, 3>(6, 0) = -dtd * delta.q.matrix() * beam::SkewTransform(a);
-    A.block<3, 3>(3, 0) =
+    A.block<3, 3>(ES_Q, ES_Q) = q_full.conjugate().matrix();
+    A.block<3, 3>(ES_V, ES_Q) =
+        -dtd * delta.q.matrix() * beam::SkewTransform(a);
+    A.block<3, 3>(ES_P, ES_Q) =
         -0.5 * dtd * dtd * delta.q.matrix() * beam::SkewTransform(a);
-    A.block<3, 3>(3, 6) = dtd * Eigen::Matrix3d::Identity();
+    A.block<3, 3>(ES_P, ES_V) = dtd * Eigen::Matrix3d::Identity();
 
     Eigen::Matrix<double, 9, 6> B;
     B.setZero();
-    B.block<3, 3>(0, 0) = dtd * beam::RightJacobianOfSO3(w * dtd);
-    B.block<3, 3>(6, 3) = dtd * delta.q.matrix();
-    B.block<3, 3>(3, 3) = 0.5 * dtd * dtd * delta.q.matrix();
+    B.block<3, 3>(ES_Q, ES_BG - ES_BG) =
+        dtd * beam::RightJacobianOfSO3(w * dtd);
+    B.block<3, 3>(ES_V, ES_BA - ES_BG) = dtd * delta.q.matrix();
+    B.block<3, 3>(ES_P, ES_BA - ES_BG) = 0.5 * dtd * dtd * delta.q.matrix();
 
     Eigen::Matrix<double, 6, 6> white_noise_cov;
     double inv_dtd = 1.0 / std::max(dtd, 1.0e-7);
     white_noise_cov.setZero();
-    white_noise_cov.block<3, 3>(0, 0) = cov_w * inv_dtd;
-    white_noise_cov.block<3, 3>(3, 3) = cov_a * inv_dtd;
+    white_noise_cov.block<3, 3>(ES_BG - ES_BG, ES_BG - ES_BG) = cov_w * inv_dtd;
+    white_noise_cov.block<3, 3>(ES_BA - ES_BG, ES_BA - ES_BG) = cov_a * inv_dtd;
 
-    delta.cov.block<9, 9>(0, 0) =
+    delta.cov.block<9, 9>(ES_Q, ES_Q) =
         A * delta.cov.block<9, 9>(0, 0) * A.transpose() +
         B * white_noise_cov * B.transpose();
-    delta.cov.block<3, 3>(9, 9) += cov_bg * dtd;
-    delta.cov.block<3, 3>(12, 12) += cov_ba * dtd;
+    delta.cov.block<3, 3>(ES_BG, ES_BG) += cov_bg * dtd;
+    delta.cov.block<3, 3>(ES_BA, ES_BA) += cov_ba * dtd;
   }
 
   if (compute_jacobian) {
@@ -94,7 +96,24 @@ bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg,
          (t >= data.back().t));
   Increment(t - data.back().t, data.back(), bg, ba, compute_jacobian,
             compute_covariance);
+  if (compute_covariance) {
+    ComputeSqrtInvCov();
+  }
   return true;
 }
 
-} // namespace bs_common
+void PreIntegrator::ComputeSqrtInvCov() {
+  // Ensure covariance non-zero (within pre-defined tolarance) to avoid
+  // ill-conditioned matrix during optimization
+  if (delta.cov.isZero(cov_tol)) {
+    delta.cov.setIdentity();
+    delta.cov *= cov_tol;
+  }
+
+  delta.sqrt_inv_cov =
+      Eigen::LLT<Eigen::Matrix<double, ES_SIZE, ES_SIZE>>(delta.cov.inverse())
+          .matrixL()
+          .transpose();
+}
+
+}  // namespace bs_common

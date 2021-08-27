@@ -4,11 +4,7 @@
 #include <queue>
 
 // messages
-#include <bs_models/CameraMeasurementMsg.h>
-#include <bs_models/InitializedPathMsg.h>
-#include <bs_models/LandmarkMeasurementMsg.h>
-#include <bs_models/SlamChunkMsg.h>
-#include <bs_models/TrajectoryMeasurementMsg.h>
+#include <bs_common/bs_msgs.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 
@@ -17,21 +13,23 @@
 #include <fuse_core/throttled_callback.h>
 
 // beam_slam
-#include <bs_common/extrinsics_lookup.h>
+#include <bs_common/current_submap.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
 #include <bs_models/frame_to_frame/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
+#include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/camera_params.h>
-#include <bs_parameters/models/global_params.h>
 
 // libbeam
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
-namespace bs_models {
-namespace camera_to_camera {
+using namespace bs_common;
+
+namespace bs_models { namespace camera_to_camera {
 
 class VisualInertialOdom : public fuse_core::AsyncSensorModel {
 public:
@@ -55,18 +53,11 @@ public:
   void processImage(const sensor_msgs::Image::ConstPtr& msg);
 
   /**
-   * @brief Callback for image processing, this callback will add visual
-   * constraints and triangulate new landmarks when required
-   * @param[in] msg - The image to process
+   * @brief Callback for imu processing, this will make sure the imu messages
+   * are added to the buffer at the correct time
+   * @param[in] msg - The imu msg to process
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
-
-  /**
-   * @brief Callback for path processing, this path is provided by LIO for
-   * initialization
-   * @param[in] msg - The path to process
-   */
-  void processInitPath(const InitializedPathMsg::ConstPtr& msg);
 
 protected:
   fuse_core::UUID device_id_; //!< The UUID of this device
@@ -109,43 +100,26 @@ private:
   /**
    * @brief Localizes a given frame using the tracker and the current visual map
    * @param img_time time of image to localize
-   * @param[out] triangulated_ids id's of landmarks that have already been
-   * triangulated
-   * @param[out] untriangulated_ids id's of landmarks that have not been
-   * triangulated
    * @param[out] T_WORLD_CAMERA estimated pose
    * @return failure or success
    */
   bool LocalizeFrame(const ros::Time& img_time,
-                     std::vector<uint64_t>& triangulated_ids,
-                     std::vector<uint64_t>& untriangulated_ids,
                      Eigen::Matrix4d& T_WORLD_CAMERA);
 
   /**
    * @brief Determines if a frame is a keyframe
    * @param img_time time of image to determine if its a keyframe
-   * @param triangulated_ids id's of landmarks that have already been
-   * triangulated
-   * @param untriangulated_ids id's of landmarks that have not been
-   * triangulated
    * @param T_WORLD_CAMERA pose of the frame in question
    * @return true or false decision
    */
   bool IsKeyframe(const ros::Time& img_time,
-                  const std::vector<uint64_t>& triangulated_ids,
-                  const std::vector<uint64_t>& untriangulated_ids,
                   const Eigen::Matrix4d& T_WORLD_CAMERA);
 
   /**
-   * @brief Extends the map at an image time and adds the visual constraints
-   * @param img_time time of keyframe to extend map at
-   * @param triangulated_ids id's of landmarks that have already been
-   * triangulated
-   * @param untriangulated_ids id's of landmarks that have not been
-   * triangulated
+   * @brief Extends the map at the current keyframe time and adds the visual
+   * constraints
    */
-  void ExtendMap(const std::vector<uint64_t>& triangulated_ids,
-                 const std::vector<uint64_t>& untriangulated_ids);
+  void ExtendMap();
 
   /**
    * @brief creates inertial cosntraint for the current keyframe and merges with
@@ -173,30 +147,31 @@ private:
   void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
 
   /**
-   * @brief Computes the mean parallax between images at two times
-   * @param t1 time of first image
-   * @param t2 time of second image
-   * @param t2_landmarks id's of landmarks that have been seen in tw
-   * @return mean parallax
+   * @brief Matches an image in the tracker to the current submap
+   * @param img_time time of image to match against submap
    */
-  double ComputeAvgParallax(const ros::Time& t1, const ros::Time& t2,
-                            const std::vector<uint64_t>& t2_landmarks);
+  std::map<uint64_t, Eigen::Vector3d>
+      MatchFrameToCurrentSubmap(const ros::Time& img_time);
 
 protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;
 
-  // global parameters
-  bs_parameters::models::GlobalParams global_params_;
+  // calibration parameters
+  bs_parameters::models::CalibrationParams calibration_params_;
 
-  // topic publishers, subscribers and buffers
+  // subscribers
   ros::Subscriber image_subscriber_;
   ros::Subscriber imu_subscriber_;
-  ros::Subscriber path_subscriber_;
+
+  // publishers
   ros::Publisher init_odom_publisher_;
   ros::Publisher new_keyframe_publisher_;
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher landmark_publisher_;
+  ros::Publisher reloc_publisher_;
+
+  // image and imu queues for proper synchronization
   std::queue<sensor_msgs::Image> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
 
@@ -211,6 +186,9 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
+  bs_common::CurrentSubmap& submap_ = bs_common::CurrentSubmap::GetInstance();
+  beam_cv::DescriptorType descriptor_type_;
+  uint8_t descriptor_type_int_;
 
   // initialization object
   std::shared_ptr<bs_models::camera_to_camera::VIOInitializer> initializer_;
@@ -224,9 +202,8 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookup& extrinsics_ =
-      bs_common::ExtrinsicsLookup::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
-} // namespace camera_to_camera
-} // namespace bs_models
+}} // namespace bs_models::camera_to_camera

@@ -16,10 +16,10 @@ LoopClosureRefinementLoam::LoopClosureRefinementLoam(
 
 fuse_core::Transaction::SharedPtr
 LoopClosureRefinementLoam::GenerateTransaction(
-    const Submap& matched_submap, const Submap& query_submap,
+    const std::shared_ptr<Submap>& matched_submap,
+    const std::shared_ptr<Submap>& query_submap,
     const Eigen::Matrix4d& T_MATCH_QUERY_EST) {
   LoadConfig();
-  Setup();
 
   Eigen::Matrix4d T_MATCH_QUERY_OPT;
   if (!GetRefinedT_MATCH_QUERY(matched_submap, query_submap, T_MATCH_QUERY_EST,
@@ -29,10 +29,10 @@ LoopClosureRefinementLoam::GenerateTransaction(
 
   std::string source = "LOOPCLOSURE";
   bs_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
-      query_submap.Stamp());
+      query_submap->Stamp());
   transaction.AddPoseConstraint(
-      matched_submap.T_WORLD_SUBMAP(), query_submap.T_WORLD_SUBMAP(),
-      matched_submap.Stamp(), query_submap.Stamp(), T_MATCH_QUERY_OPT,
+      matched_submap->T_WORLD_SUBMAP(), query_submap->T_WORLD_SUBMAP(),
+      matched_submap->Stamp(), query_submap->Stamp(), T_MATCH_QUERY_OPT,
       loop_closure_covariance_, source);
 
   return transaction.GetTransaction();
@@ -58,13 +58,14 @@ void LoopClosureRefinementLoam::LoadConfig() {
 }
 
 bool LoopClosureRefinementLoam::GetRefinedT_MATCH_QUERY(
-    const Submap& matched_submap, const Submap& query_submap,
+    const std::shared_ptr<Submap>& matched_submap,
+    const std::shared_ptr<Submap>& query_submap,
     const Eigen::Matrix4d& T_MATCH_QUERY_EST,
     Eigen::Matrix4d& T_MATCH_QUERY_OPT) {
   LoamPointCloudPtr cloud_match_world = std::make_shared<LoamPointCloud>(
-      matched_submap.GetLidarLoamPointsInWorldFrame());
+      matched_submap->GetLidarLoamPointsInWorldFrame());
   LoamPointCloudPtr cloud_query_world = std::make_shared<LoamPointCloud>(
-      query_submap.GetLidarLoamPointsInWorldFrame());
+      query_submap->GetLidarLoamPointsInWorldFrame());
   matcher_->SetRef(cloud_match_world);
   matcher_->SetTarget(cloud_query_world);
   if (!matcher_->Match()) {

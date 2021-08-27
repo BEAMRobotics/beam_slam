@@ -1,6 +1,6 @@
-#include <bs_models/frame_to_frame/imu_state.h>
+#include <bs_common/imu_state.h>
 
-namespace bs_models { namespace frame_to_frame {
+namespace bs_common {
 
 ImuState::ImuState(const ros::Time& time) : stamp_(time) {
   InstantiateVariables();
@@ -70,7 +70,12 @@ fuse_variables::Orientation3DStamped ImuState::Orientation() const {
 Eigen::Quaterniond ImuState::OrientationQuat() const {
   Eigen::Quaterniond q(orientation_.w(), orientation_.x(), orientation_.y(),
                        orientation_.z());
-  return q;
+  return q.normalized();
+}
+
+Eigen::Matrix3d ImuState::OrientationMat() const {
+  Eigen::Matrix3d R = OrientationQuat().toRotationMatrix();
+  return R;
 }
 
 fuse_variables::Position3DStamped ImuState::Position() const {
@@ -241,4 +246,4 @@ void ImuState::InstantiateVariables() {
       bs_variables::AccelerationBias3DStamped(stamp_, fuse_core::uuid::NIL);
 }
 
-}}  // namespace bs_models::frame_to_frame
+}  // namespace bs_common

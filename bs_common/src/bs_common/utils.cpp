@@ -218,4 +218,18 @@ void InterpolateTransformFromPath(
   }
 }
 
+std::string GetBeamSlamConfigPath() {
+  std::string current_path_from_beam_slam = "bs_common/src/bs_common/utils.cpp";
+  std::string config_root_location = __FILE__;
+  config_root_location.erase(
+      config_root_location.end() - current_path_from_beam_slam.length(),
+      config_root_location.end());
+  config_root_location += "beam_slam_launch/config/";
+  if (!boost::filesystem::exists(config_root_location)) {
+    BEAM_ERROR("Cannot locate beam slam config folder. Expected to be at: {}",
+               config_root_location);           
+  }
+  return config_root_location;
+}
+
 }  // namespace bs_common

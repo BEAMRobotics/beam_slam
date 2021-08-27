@@ -50,7 +50,8 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
    * is determined with a class derived from LoopClosureCandidateSearchBase
    */
   fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const Submap& matched_submap, const Submap& query_submap,
+      const std::shared_ptr<Submap>& matched_submap,
+      const std::shared_ptr<Submap>& query_submap,
       const Eigen::Matrix4d& T_MATCH_QUERY_EST) override {
     LoadConfig();
     Setup();
@@ -63,10 +64,10 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
 
     std::string source = "LOOPCLOSURE";
     bs_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
-        query_submap.Stamp());
+        query_submap->Stamp());
     transaction.AddPoseConstraint(
-        matched_submap.T_WORLD_SUBMAP(), query_submap.T_WORLD_SUBMAP(),
-        matched_submap.Stamp(), query_submap.Stamp(), T_MATCH_QUERY_OPT,
+        matched_submap->T_WORLD_SUBMAP(), query_submap->T_WORLD_SUBMAP(),
+        matched_submap->Stamp(), query_submap->Stamp(), T_MATCH_QUERY_OPT,
         loop_closure_covariance_, source);
 
     return transaction.GetTransaction();
@@ -120,8 +121,8 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
    * @param T_MATCH_QUERY_OPT reference to the resulting refined transform from
    * query submap to matched submap
    */
-  bool GetRefinedT_MATCH_QUERY(const Submap& matched_submap,
-                               const Submap& query_submap,
+  bool GetRefinedT_MATCH_QUERY(const std::shared_ptr<Submap>& matched_submap,
+                               const std::shared_ptr<Submap>& query_submap,
                                const Eigen::Matrix4d& T_MATCH_QUERY_EST,
                                Eigen::Matrix4d& T_MATCH_QUERY_OPT) {
     // setup downsampler
@@ -133,7 +134,7 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
     // extract and filter clouds from match submap
     PointCloudPtr match_cloud_world = std::make_shared<PointCloud>();
     std::vector<PointCloud> match_clouds_world_raw =
-        matched_submap.GetLidarPointsInWorldFrame(downsampling_max_map_size_);
+        matched_submap->GetLidarPointsInWorldFrame(downsampling_max_map_size_);
     for (const PointCloud& cloud : match_clouds_world_raw) {
       PointCloud downsampled;
       downsampler.Filter(cloud, downsampled);
@@ -143,7 +144,7 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
     // extract and filter clouds from query submap
     PointCloudPtr query_cloud_world = std::make_shared<PointCloud>();
     std::vector<PointCloud> query_clouds_world_raw =
-        query_submap.GetLidarPointsInWorldFrame(downsampling_max_map_size_);
+        query_submap->GetLidarPointsInWorldFrame(downsampling_max_map_size_);
     for (const PointCloud& cloud : query_clouds_world_raw) {
       PointCloud downsampled;
       downsampler.Filter(cloud, downsampled);

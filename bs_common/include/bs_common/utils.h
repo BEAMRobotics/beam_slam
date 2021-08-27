@@ -1,7 +1,5 @@
 #pragma once
 
-#include <beam_utils/math.h>
-
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -9,12 +7,18 @@
 #include <nav_msgs/Path.h>
 #include <tf/transform_datatypes.h>
 
-#include <bs_common/scan_pose.h>
 #include <beam_matching/loam/LoamPointCloud.h>
+#include <beam_utils/math.h>
+
+#include <bs_common/scan_pose.h>
+
+#ifndef GRAVITY_NOMINAL 
+#define GRAVITY_NOMINAL 9.80665
+#endif
+
+static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, -GRAVITY_NOMINAL};
 
 namespace bs_common {
-
-static std::string default_string{""};
 
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                               fuse_variables::Position3DStamped& p,
@@ -86,5 +90,11 @@ void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
 void InterpolateTransformFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Matrix4d& T_WORLD_SENSOR);
-
-}  // namespace bs_common
+    
+/**
+ * @brief Get full path the the config root directory in beam_slam_launch
+ * @return path
+ */
+std::string GetBeamSlamConfigPath();    
+    
+} // namespace bs_common

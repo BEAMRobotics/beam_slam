@@ -43,7 +43,8 @@ class LoopClosureRefinementLoam : public LoopClosureRefinementBase {
    * is determined with a class derived from LoopClosureCandidateSearchBase
    */
   fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const Submap& matched_submap, const Submap& query_submap,
+      const std::shared_ptr<Submap>& matched_submap,
+      const std::shared_ptr<Submap>& query_submap,
       const Eigen::Matrix4d& T_MATCH_QUERY_EST) override;
 
  private:
@@ -51,11 +52,6 @@ class LoopClosureRefinementLoam : public LoopClosureRefinementBase {
    * @brief method for loading a config json file.
    */
   void LoadConfig() override;
-
-  /**
-   * @brief initiate variables
-   */
-  void Setup();
 
   /**
    * @brief Calculate a refined pose between submaps using scan registration
@@ -67,8 +63,8 @@ class LoopClosureRefinementLoam : public LoopClosureRefinementBase {
    * @param T_MATCH_QUERY_OPT reference to the resulting refined transform from
    * query submap to matched submap
    */
-  bool GetRefinedT_MATCH_QUERY(const Submap& matched_submap,
-                               const Submap& query_submap,
+  bool GetRefinedT_MATCH_QUERY(const std::shared_ptr<Submap>& matched_submap,
+                               const std::shared_ptr<Submap>& query_submap,
                                const Eigen::Matrix4d& T_MATCH_QUERY_EST,
                                Eigen::Matrix4d& T_MATCH_QUERY_OPT);
 

@@ -1,20 +1,3 @@
-## global parameters: These will be used in multiple locations
-
-# optimization params
-optimization_frequency: 0.2 
-
-# frames
-imu_frame: "imu"
-lidar_frame: "velodyne"
-camera_frame: "camera"
-world_frame: "world"
-baselink_frame: "camera"
-
-# calibrations
-static_extrinsics: true,
-camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
-imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
-
 ## model plugins: declare all plugins to use and give a unique name
 
 sensor_models:
@@ -38,6 +21,7 @@ global_mapper:
   input_topic: '/slam_results'
   global_map_config: 'DEFAULT_PATH' # Empty will use defaults defined in class. DEFAULT_PATH will use the file in config/global_map/global_map.json
   output_path: '/home/nick/results/beam_slam/global_mapper/'
+  save_global_map_data: true
   save_submap_frames: true
   save_submaps: true
   save_trajectory_cloud: true
