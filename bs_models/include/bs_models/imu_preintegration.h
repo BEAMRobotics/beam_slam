@@ -8,7 +8,6 @@
 #include <sensor_msgs/Imu.h>
 
 namespace bs_models {
-namespace frame_to_frame {
 
 /**
  * @brief This class can be used to estimate orientation, position, and
@@ -155,5 +154,4 @@ class ImuPreintegration {
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};     // zero acceleration bias
 };
 
-}  // namespace frame_to_frame
 }  // namespace bs_models

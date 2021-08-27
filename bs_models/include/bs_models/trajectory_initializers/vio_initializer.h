@@ -11,7 +11,7 @@
 #include <bs_common/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/visual_map.h>
-#include <bs_models/frame_to_frame/imu_preintegration.h>
+#include <bs_models/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/imu_initializer.h>
 
 using namespace bs_common; 
@@ -65,7 +65,7 @@ public:
    * @brief Returns a pointer to the imu preintegration object used
    * @return point to imu preintegration
    */
-  std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration>
+  std::shared_ptr<bs_models::ImuPreintegration>
       GetPreintegrator();
 
   /**
@@ -154,8 +154,8 @@ protected:
   CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
 
   // imu preintegration object
-  std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;
-  bs_models::frame_to_frame::ImuPreintegration::Params imu_params_;
+  std::shared_ptr<bs_models::ImuPreintegration> imu_preint_;
+  bs_models::ImuPreintegration::Params imu_params_;
 
   // graph object for optimization
   std::shared_ptr<fuse_graphs::HashGraph> local_graph_;

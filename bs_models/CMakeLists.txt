@@ -102,7 +102,6 @@ add_library(
   src/frame_to_frame/scan_registration/scan_registration_base.cpp
   src/frame_to_frame/scan_registration/multi_scan_registration.cpp
   src/frame_to_frame/scan_registration/scan_to_map_registration.cpp
-  src/frame_to_frame/imu_preintegration.cpp
   src/frame_initializers/frame_initializer_base.cpp
   src/frame_initializers/odometry_frame_initializer.cpp
   src/frame_initializers/pose_file_frame_initializer.cpp
@@ -118,6 +117,7 @@ add_library(
   src/global_mapping/loop_closure/loop_closure_candidate_search_eucdist.cpp
   src/global_mapping/loop_closure/loop_closure_refinement_loam_registration.cpp
   src/lib/scan_pose.cpp
+  src/lib/imu_preintegration.cpp
 )
 
 ## Specify libraries to link a library or executable target against
@@ -195,6 +195,7 @@ if(CATKIN_ENABLE_TESTING)
   )
   target_include_directories(${PROJECT_NAME}_imu_preintegration_tests
     PUBLIC
+    tests/include
     ${basalt_INCLUDE_DIRS}
   )
   target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
@@ -210,7 +211,7 @@ if(CATKIN_ENABLE_TESTING)
   )
 
   # Reprojection tests
-    catkin_add_gtest(${PROJECT_NAME}_reprojection_test
+  catkin_add_gtest(${PROJECT_NAME}_reprojection_test
     tests/reprojection_test.cpp
   )
   target_link_libraries(${PROJECT_NAME}_reprojection_test

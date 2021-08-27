@@ -1,11 +1,10 @@
-#include <bs_models/frame_to_frame/imu_preintegration.h>
+#include <bs_models/imu_preintegration.h>
 
 #include <fuse_core/transaction.h>
 
 #include <beam_utils/math.h>
 
 namespace bs_models {
-namespace frame_to_frame {
 
 ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
   CheckParameters();
@@ -215,5 +214,4 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   return transaction.GetTransaction();
 }
 
-}  // namespace frame_to_frame
 }  // namespace bs_models

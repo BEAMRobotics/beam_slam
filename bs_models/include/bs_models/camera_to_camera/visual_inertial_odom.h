@@ -17,7 +17,7 @@
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/camera_to_camera/keyframe.h>
 #include <bs_models/camera_to_camera/visual_map.h>
-#include <bs_models/frame_to_frame/imu_preintegration.h>
+#include <bs_models/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/camera_params.h>
@@ -194,7 +194,7 @@ protected:
   std::shared_ptr<bs_models::camera_to_camera::VIOInitializer> initializer_;
 
   // imu preintegration object
-  std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;
+  std::shared_ptr<bs_models::ImuPreintegration> imu_preint_;
 
   // keyframe information
   std::deque<bs_models::camera_to_camera::Keyframe> keyframes_;

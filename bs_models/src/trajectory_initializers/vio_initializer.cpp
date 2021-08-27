@@ -61,7 +61,7 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     // Initialize imu preintegration
     PerformIMUInitialization(valid_frames);
     imu_preint_ =
-        std::make_shared<bs_models::frame_to_frame::ImuPreintegration>(
+        std::make_shared<bs_models::ImuPreintegration>(
             imu_params_, bg_, ba_);
 
     // align poses to estimated gravity
@@ -139,7 +139,7 @@ const fuse_graphs::HashGraph& VIOInitializer::GetGraph() {
   return *local_graph_;
 }
 
-std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration>
+std::shared_ptr<bs_models::ImuPreintegration>
 VIOInitializer::GetPreintegrator() {
   return imu_preint_;
 }

@@ -6,10 +6,10 @@
 #include <beam_utils/math.h>
 #include <bs_common/imu_state.h>
 
-namespace bs_common {
+namespace bs_models {
 
-void ExpectTransformsNear(const Eigen::Matrix4d& T1,
-                          const Eigen::Matrix4d& T2) {
+inline void ExpectTransformsNear(const Eigen::Matrix4d& T1,
+                                 const Eigen::Matrix4d& T2) {
   Eigen::Quaterniond q1;
   Eigen::Vector3d p1;
 
@@ -28,8 +28,9 @@ void ExpectTransformsNear(const Eigen::Matrix4d& T1,
   EXPECT_NEAR(p1.z(), p2.z(), 1e-4);
 }
 
-void ExpectImuStateEq(const ImuState& IS1, const ImuState& IS2,
-                      double tol = 1e-12) {
+inline void ExpectImuStateEq(const bs_common::ImuState& IS1,
+                             const bs_common::ImuState& IS2,
+                             double tol = 1e-12) {
   EXPECT_EQ(IS1.Stamp(), IS2.Stamp());
   EXPECT_NEAR(IS1.Orientation().w(), IS2.Orientation().w(), tol);
   EXPECT_NEAR(IS1.Orientation().x(), IS2.Orientation().x(), tol);
@@ -49,7 +50,8 @@ void ExpectImuStateEq(const ImuState& IS1, const ImuState& IS2,
   EXPECT_NEAR(IS1.AccelBias().z(), IS2.AccelBias().z(), tol);
 }
 
-void ExpectImuStateNear(const ImuState& IS1, const ImuState& IS2) {
+inline void ExpectImuStateNear(const bs_common::ImuState& IS1,
+                               const bs_common::ImuState& IS2) {
   EXPECT_EQ(IS1.Stamp(), IS2.Stamp());
   EXPECT_NEAR(IS1.Orientation().w(), IS2.Orientation().w(), 1e-6);
   EXPECT_NEAR(IS1.Orientation().x(), IS2.Orientation().x(), 1e-6);
@@ -69,4 +71,4 @@ void ExpectImuStateNear(const ImuState& IS1, const ImuState& IS2) {
   EXPECT_NEAR(IS1.AccelBias().z(), IS2.AccelBias().z(), 1e-9);
 }
 
-}  // namespace bs_common
+}  // namespace bs_models
