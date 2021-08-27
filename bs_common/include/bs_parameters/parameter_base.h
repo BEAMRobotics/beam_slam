@@ -3,8 +3,6 @@
 #include <ros/node_handle.h>
 #include <boost/lexical_cast.hpp>
 
-#include <bs_common/sensor_config.h>
-
 namespace bs_parameters {
 
 struct ParameterBase {
@@ -54,17 +52,6 @@ void getParamRequired(const ros::NodeHandle& nh, const std::string& key,
     ROS_FATAL_STREAM(error);
     throw std::runtime_error(error);
   }
-}
-
-template <typename T>
-inline std::vector<size_t> loadSensorConfig(const ros::NodeHandle& nh,
-                                            const std::string& name) {
-  std::vector<std::string> dimensions;
-  if (nh.getParam(name, dimensions)) {
-    return bs_common::getDimensionIndices<T>(dimensions);
-  }
-
-  return {};
 }
 
 } // namespace bs_parameters

@@ -1,6 +1,6 @@
 <library path="lib/libbs_constraints">
 
-  <class type="bs_constraints::frame_to_frame::RelativeImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
+  <class type="bs_constraints::relative_pose::RelativeImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
     <description>
       A constraint that represents a measurement on the difference between two 3D imu states
     </description>

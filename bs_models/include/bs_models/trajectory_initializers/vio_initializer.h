@@ -8,18 +8,19 @@
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/bs_msgs.h>
-#include <bs_common/current_submap.h>
+#include <bs_models/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/camera_to_camera/visual_map.h>
-#include <bs_models/frame_to_frame/imu_preintegration.h>
+#include <bs_models/vision/visual_map.h>
+#include <bs_models/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/imu_initializer.h>
 
-using namespace bs_common; 
+using namespace bs_common;
 
-namespace bs_models { namespace camera_to_camera {
+namespace bs_models {
+namespace trajectory_initializers {
 
 class VIOInitializer {
-public:
+ public:
   /**
    * @brief Default Constructor
    */
@@ -65,8 +66,7 @@ public:
    * @brief Returns a pointer to the imu preintegration object used
    * @return point to imu preintegration
    */
-  std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration>
-      GetPreintegrator();
+  std::shared_ptr<bs_models::ImuPreintegration> GetPreintegrator();
 
   /**
    * @brief Callback for path processing, this path is provided by LIO for
@@ -75,7 +75,7 @@ public:
    */
   void ProcessInitPath(const InitializedPathMsg::ConstPtr& msg);
 
-private:
+ private:
   /**
    * @brief Build a vector of frames with the current init path and the
    * frame_times_ vector, if a frame is outside of the given path it will be
@@ -83,17 +83,15 @@ private:
    * @param valid_frames[out] frames that are within the init path
    * @param invalid_frames[out] frames that are outside the init path
    */
-  void BuildFrameVectors(
-      std::vector<bs_models::camera_to_camera::Frame>& valid_frames,
-      std::vector<bs_models::camera_to_camera::Frame>& invalid_frames);
+  void BuildFrameVectors(std::vector<Frame>& valid_frames,
+                         std::vector<Frame>& invalid_frames);
 
   /**
    * @brief Estimates imu parameters given a vector of frames with some known
    * poses (can be up to scale from sfm, or in real world scale from lidar)
    * @param frames input frames  with poses to estimate imu parameters
    */
-  void PerformIMUInitialization(
-      const std::vector<bs_models::camera_to_camera::Frame>& frames);
+  void PerformIMUInitialization(const std::vector<Frame>& frames);
 
   /**
    * @brief Adds all poses and inertial constraints contained within the frames
@@ -101,9 +99,8 @@ private:
    * @param frames input frames
    * @param set_start when true will set the first frames pose as the prior
    */
-  void AddPosesAndInertialConstraints(
-      const std::vector<bs_models::camera_to_camera::Frame>& frames,
-      bool set_start);
+  void AddPosesAndInertialConstraints(const std::vector<Frame>& frames,
+                                      bool set_start);
 
   /**
    * @brief Adds visual constraints to input frames, will triangulate landmarks
@@ -111,8 +108,7 @@ private:
    * @param frames input frames
    * @return number of landmarks that have been added
    */
-  size_t AddVisualConstraints(
-      const std::vector<bs_models::camera_to_camera::Frame>& frames);
+  size_t AddVisualConstraints(const std::vector<Frame>& frames);
 
   /**
    * @brief Localizes a given frame using the current landmarks
@@ -120,15 +116,13 @@ private:
    * @param T_WORLD_BASELINK[out] estimated pose of the camera
    * @return true or false if it succeeded or not
    */
-  bool LocalizeFrame(const bs_models::camera_to_camera::Frame& frame,
-                     Eigen::Matrix4d& T_WORLD_BASELINK);
+  bool LocalizeFrame(const Frame& frame, Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief Outputs frame poses to standard output
    * @param frames vector of frames to output
    */
-  void OutputFramePoses(
-      const std::vector<bs_models::camera_to_camera::Frame>& frames);
+  void OutputFramePoses(const std::vector<Frame>& frames);
 
   /**
    * @brief Optimizes the current local graph
@@ -139,10 +133,9 @@ private:
    * @brief Saves the poses and the points from the given frames to point clouds
    * @param frames input frames
    */
-  void OutputResults(
-      const std::vector<bs_models::camera_to_camera::Frame>& frames);
+  void OutputResults(const std::vector<Frame>& frames);
 
-protected:
+ protected:
   // subscriber for initialized path
   ros::Subscriber path_subscriber_;
 
@@ -150,12 +143,12 @@ protected:
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
-  std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
+  std::shared_ptr<bs_models::vision::VisualMap> visual_map_;
   CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
 
   // imu preintegration object
-  std::shared_ptr<bs_models::frame_to_frame::ImuPreintegration> imu_preint_;
-  bs_models::frame_to_frame::ImuPreintegration::Params imu_params_;
+  std::shared_ptr<bs_models::ImuPreintegration> imu_preint_;
+  bs_models::ImuPreintegration::Params imu_params_;
 
   // graph object for optimization
   std::shared_ptr<fuse_graphs::HashGraph> local_graph_;
@@ -186,11 +179,11 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  ExtrinsicsLookupOnline& extrinsics_ =
-      ExtrinsicsLookupOnline::GetInstance();
+  ExtrinsicsLookupOnline& extrinsics_ = ExtrinsicsLookupOnline::GetInstance();
 
   // directory to optionally output the initialization results
   std::string output_directory_;
 };
 
-}} // namespace bs_models::camera_to_camera
+}  // namespace trajectory_initializers
+}  // namespace bs_models

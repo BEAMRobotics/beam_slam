@@ -5,13 +5,13 @@ lag_duration: 5
 ## model plugins: declare all plugins to use and give a unique name
 
 sensor_models:
-  - name: 'scan_matcher_3d'
-    type: 'bs_models::frame_to_frame::ScanMatcher3D'
+  - name: 'lidar_odometry'
+    type: 'bs_models::LidarOdometry'
     motion_models: ['unicycle_3d']
 
 motion_models:
   - name: 'unicycle_3d'
-    type: 'bs_models::motion::Unicycle3D'
+    type: 'bs_models::Unicycle3D'
 
 publishers:
   - name: 'odom_pub'
@@ -40,7 +40,7 @@ unicycle_3d:
                            1.0e-2, 1.0e-2, 1.0e-2]
   buffer_length: 100000
 
-scan_matcher_3d:
+lidar_odometry:
   type: 'MAPLOAM' # Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (TODO: LIBPOINTMATCHER, TEASER)
   matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_os1.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
   registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class

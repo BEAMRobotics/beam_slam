@@ -7,8 +7,8 @@
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/global_mapping/submap.h>
-#include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
-#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/loop_closure/loop_closure_candidate_search_base.h>
+#include <bs_models/loop_closure/loop_closure_refinement_base.h>
 
 namespace bs_models {
 
@@ -286,9 +286,9 @@ class GlobalMap {
 
   std::vector<std::shared_ptr<Submap>> submaps_;
 
-  std::unique_ptr<LoopClosureCandidateSearchBase>
+  std::unique_ptr<loop_closure::LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
-  std::unique_ptr<LoopClosureRefinementBase> loop_closure_refinement_;
+  std::unique_ptr<loop_closure::LoopClosureRefinementBase> loop_closure_refinement_;
 
   // params only tunable here
   int max_output_map_size_{1000000};

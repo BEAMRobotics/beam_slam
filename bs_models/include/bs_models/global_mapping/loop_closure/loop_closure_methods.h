@@ -1,3 +1,0 @@
-#include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_eucdist.h>
-#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_scan_registration.h>
-#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_loam_registration.h>
