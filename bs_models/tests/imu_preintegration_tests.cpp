@@ -419,9 +419,13 @@ TEST(ImuPreintegration, Simple2StateFG) {
   EXPECT_NEAR(bias_mean_delta[2], IS2.AccelBias().z(), 1.0e-5);
 }
 
-class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
+class ImuPreintegration_ZeroNoiseConstantBias : public ::testing::Test {
  public:
   void SetUp() override {
+    // set small, random bias values
+    bg = Eigen::Vector3d::Random() / 100;
+    ba = Eigen::Vector3d::Random() / 10;
+
     // set prior noise to a small value
     params.cov_prior_noise = 1e9;
 
@@ -431,24 +435,46 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
     params.cov_gyro_bias.setZero();
     params.cov_accel_bias.setZero();
 
-    // instantiate preintegration class with zero noise. By default,
-    // bias terms (i.e. bg, ba) are set to zero
-    imu_preintegration = std::make_unique<bs_models::ImuPreintegration>(params);
+    // instantiate preintegration class with zero noise and biases.
+    imu_preintegration = std::make_unique<bs_models::ImuPreintegration>(params, bg, ba);
 
     // populate ImuPreintegration with synthetic imu measurements
-    for (bs_common::IMUData msg : data.imu_data_gt)
+    for (bs_common::IMUData msg : data.imu_data_gt) {
+      // adjust raw IMU measurements with biases
+      msg.w += bg;
+      msg.a += ba;
+
+      // populate IMU message buffer
       imu_preintegration->AddToBuffer(msg);
+    }
 
-    // get copies of imu states
+    // get copies of IMU states and assign constant biases
     IS1 = data.IS1;
-    IS2 = data.IS2;
-    IS3 = data.IS3;
+    IS1.SetGyroBias(bg);
+    IS1.SetAccelBias(ba);
 
-    // get stamps of imu states
+    IS2 = data.IS2;
+    IS2.SetGyroBias(bg);
+    IS2.SetAccelBias(ba);
+
+    IS3 = data.IS3;
+    IS3.SetGyroBias(bg);
+    IS3.SetAccelBias(ba);
+
+    // get stamps of IMU states
     t_start = IS1.Stamp();
     t_middle = IS2.Stamp();
     t_end = IS3.Stamp();
+
+    // instantiate expected default IMU state
+    bs_common::ImuState IS_default_tmp(t_start);
+    IS_default_tmp.SetGyroBias(bg);
+    IS_default_tmp.SetAccelBias(ba);
+    IS_default = std::move(IS_default_tmp);
   }
+
+  Eigen::Vector3d bg;
+  Eigen::Vector3d ba;
 
   Data data;
   bs_models::ImuPreintegration::Params params;
@@ -457,6 +483,8 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
   bs_common::ImuState IS1;
   bs_common::ImuState IS2;
   bs_common::ImuState IS3;
+
+  bs_common::ImuState IS_default;
 
   ros::Time t_start;
   ros::Time t_middle;
@@ -505,7 +533,7 @@ class ImuPreintegration_GaussianNoiseZeroBias : public ::testing::Test {
   std::unique_ptr<bs_models::ImuPreintegration> imu_preintegration;
 };
 
-TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
+TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   /**
    * CheckParameters() functionality
    */
@@ -533,7 +561,6 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
 
   // check default
   imu_preintegration->SetStart(t_start);
-  bs_common::ImuState IS_default(t_start);
   bs_common::ImuState IS_start_default = imu_preintegration->GetImuState();
   bs_models::ExpectImuStateEq(IS_start_default, IS_default);
 
@@ -647,7 +674,7 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   bs_models::ExpectImuStateNear(IS3, IS_end);
 }
 
-TEST_F(ImuPreintegration_ZeroNoiseZeroBias, MultipleTransactions) {
+TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
   // set start
   fuse_variables::Orientation3DStamped::SharedPtr o_start =
       fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
