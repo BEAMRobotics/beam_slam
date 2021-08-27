@@ -1,4 +1,4 @@
-#include <bs_tools/global_map_refinement.h>
+#include <bs_models/global_mapping/global_map_refinement.h>
 
 #include <fuse_core/transaction.h>
 #include <fuse_graphs/hash_graph.h>
@@ -7,7 +7,10 @@
 #include <bs_models/scan_pose.h>
 #include <bs_models/loop_closure/loop_closure_methods.h>
 
-namespace bs_tools {
+namespace bs_models {
+namespace global_mapping {
+
+using namespace loop_closure;
 
 GlobalMapRefinement::Params::Params() {
   double scan_reg_cov_diag = 1e-3;
@@ -173,7 +176,7 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
 
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
-  global_map_ = std::make_shared<gm::GlobalMap>(global_map_data_dir);
+  global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
   submaps_ = global_map_->GetSubmaps();
 }
 
@@ -185,19 +188,19 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
 
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
-  global_map_ = std::make_shared<gm::GlobalMap>(global_map_data_dir);
+  global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
   submaps_ = global_map_->GetSubmaps();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(
-    std::shared_ptr<gm::GlobalMap>& global_map, const Params& params)
+    std::shared_ptr<GlobalMap>& global_map, const Params& params)
     : global_map_(global_map), params_(params) {
   submaps_ = global_map_->GetSubmaps();
   Setup();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(
-    std::shared_ptr<gm::GlobalMap>& global_map, const std::string& config_path)
+    std::shared_ptr<GlobalMap>& global_map, const std::string& config_path)
     : global_map_(global_map) {
   params_.LoadJson(config_path);
   submaps_ = global_map_->GetSubmaps();
@@ -208,7 +211,7 @@ void GlobalMapRefinement::Setup() {
   // initiate loop closure candidate search
   if (params_.loop_closure_candidate_search_type == "EUCDIST") {
     loop_closure_candidate_search_ =
-        std::make_unique<gm::LoopClosureCandidateSearchEucDist>(
+        std::make_unique<LoopClosureCandidateSearchEucDist>(
             params_.loop_closure_candidate_search_config);
   } else {
     BEAM_ERROR(
@@ -216,30 +219,30 @@ void GlobalMapRefinement::Setup() {
         "Input: {}",
         params_.loop_closure_candidate_search_type);
     loop_closure_candidate_search_ =
-        std::make_unique<gm::LoopClosureCandidateSearchEucDist>(
+        std::make_unique<LoopClosureCandidateSearchEucDist>(
             params_.loop_closure_candidate_search_config);
   }
 
   // initiate loop closure refinement
   if (params_.loop_closure_refinement_type == "ICP") {
-    loop_closure_refinement_ = std::make_unique<gm::LoopClosureRefinementIcp>(
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
         params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   } else if (params_.loop_closure_refinement_type == "GICP") {
-    loop_closure_refinement_ = std::make_unique<gm::LoopClosureRefinementGicp>(
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementGicp>(
         params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   } else if (params_.loop_closure_refinement_type == "NDT") {
-    loop_closure_refinement_ = std::make_unique<gm::LoopClosureRefinementNdt>(
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementNdt>(
         params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   } else if (params_.loop_closure_refinement_type == "LOAM") {
-    loop_closure_refinement_ = std::make_unique<gm::LoopClosureRefinementLoam>(
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementLoam>(
         params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   } else {
     BEAM_ERROR("Invalid loop closure refinement type. Using default: ICP");
-    loop_closure_refinement_ = std::make_unique<gm::LoopClosureRefinementIcp>(
+    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
         params_.loop_closure_covariance,
         params_.loop_closure_refinement_config);
   }
@@ -256,7 +259,7 @@ bool GlobalMapRefinement::RunSubmapRefinement() {
   return true;
 }
 
-bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<gm::Submap>& submap) {
+bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<Submap>& submap) {
   // Create optimization graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
       fuse_graphs::HashGraph::make_shared();
@@ -375,4 +378,6 @@ void GlobalMapRefinement::SaveGlobalMapData(const std::string& output_path) {
   global_map_->SaveData(save_dir);
 }
 
-}  // namespace bs_tools
+}  // namespace global_mapping
+
+}  // namespace bs_models

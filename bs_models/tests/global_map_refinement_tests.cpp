@@ -13,7 +13,7 @@
 #include <bs_models/scan_registration/multi_scan_registration.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_models/global_mapping/global_map.h>
-#include <bs_tools/global_map_refinement.h>
+#include <bs_models/global_mapping/global_map_refinement.h>
 
 using namespace bs_models;
 using namespace frame_to_frame;
@@ -48,10 +48,6 @@ class GlobalMapRefinementTest : public ::testing::Test {
     frame_ids_path_ = test_path_ + "data/frame_ids.json";
     refinement_config_path_ = test_path_ + "data/global_map_refinement.json";
 
-    // create loam params from config
-    std::string config_path = test_path_ + "data/loam_config.json";
-    loam_params_ = std::make_shared<LoamParams>(config_path);
-
     // downsample input cloud
     Eigen::Vector3f scan_voxel_size(0.05, 0.05, 0.05);
     beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
@@ -67,7 +63,7 @@ class GlobalMapRefinementTest : public ::testing::Test {
     loam_params_->output_ceres_summary = false;
     loam_params_->output_optimization_summary = false;
     loam_params_->optimizer_params =
-        beam_optimization::CeresParams(test_path_ + "data/ceres_config.json");
+        beam_optimization::CeresParams(test_path_ + "data/ceres_config_refinement.json");
 
     feature_extractor_ = std::make_shared<LoamFeatureExtractor>(loam_params_);
 

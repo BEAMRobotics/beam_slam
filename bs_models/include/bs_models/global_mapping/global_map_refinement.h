@@ -6,10 +6,10 @@
 #include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 
-namespace gm = bs_models::global_mapping;
 namespace sr = bs_models::scan_registration;
 
-namespace bs_tools {
+namespace bs_models {
+namespace global_mapping {
 
 /**
  * @brief This class is used to refine a global map's submaps.
@@ -129,7 +129,7 @@ class GlobalMapRefinement {
    * @param submaps  vector of pointers to submaps to refine
    * @param params see struct above
    */
-  GlobalMapRefinement(std::shared_ptr<gm::GlobalMap>& global_map,
+  GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
                       const Params& params = Params());
 
   /**
@@ -138,7 +138,7 @@ class GlobalMapRefinement {
    * @param submaps pointer to a vector of submaps to refine
    * @param config_path full path to json config file
    */
-  GlobalMapRefinement(std::shared_ptr<gm::GlobalMap>& global_map,
+  GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
                       const std::string& config_path = "");
 
   /**
@@ -180,7 +180,7 @@ class GlobalMapRefinement {
    * @param submap reference to submap to be refined
    * @return true if successful
    */
-  bool RefineSubmap(std::shared_ptr<gm::Submap>& submap);
+  bool RefineSubmap(std::shared_ptr<Submap>& submap);
 
   /**
    * @brief setup general things needed when class is instatiated, such as
@@ -189,13 +189,16 @@ class GlobalMapRefinement {
   void Setup();
 
   Params params_;
-  std::shared_ptr<gm::GlobalMap> global_map_;
-  std::vector<std::shared_ptr<gm::Submap>> submaps_;
+  std::shared_ptr<GlobalMap> global_map_;
+  std::vector<std::shared_ptr<Submap>> submaps_;
 
   // PGO:
-  std::unique_ptr<gm::LoopClosureCandidateSearchBase>
+  std::unique_ptr<loop_closure::LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
-  std::unique_ptr<gm::LoopClosureRefinementBase> loop_closure_refinement_;
+  std::unique_ptr<loop_closure::LoopClosureRefinementBase>
+      loop_closure_refinement_;
 };
 
-}  // namespace bs_tools
+}  // namespace global_mapping
+
+}  // namespace bs_models

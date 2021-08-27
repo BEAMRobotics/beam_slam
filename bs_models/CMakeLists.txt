@@ -111,6 +111,7 @@ add_library(
   src/global_mapper.cpp
   src/lib/global_mapping/global_map.cpp
   src/lib/global_mapping/submap.cpp
+  src/lib/global_mapping/global_map_refinement.cpp
   src/lib/loop_closure/loop_closure_candidate_search_eucdist.cpp
   src/lib/loop_closure/loop_closure_refinement_loam_registration.cpp
   src/lib/scan_pose.cpp
@@ -224,5 +225,18 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES
   )
+
+  # global map refinement tests
+  add_executable(${PROJECT_NAME}_global_map_refinement_tests 
+    tests/global_map_refinement_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_global_map_refinement_tests 
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils
+    beam::filtering
+    beam::matching
+  )
+  add_test(NAME ${PROJECT_NAME}_global_map_refinement_tests 
+          COMMAND ${PROJECT_NAME}_global_map_refinement_tests)
 
 endif()

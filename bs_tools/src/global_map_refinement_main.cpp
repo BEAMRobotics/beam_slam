@@ -1,7 +1,7 @@
 #include <gflags/gflags.h>
 
 #include <beam_utils/gflags.h>
-#include <bs_tools/global_map_refinement.h>
+#include <bs_models/global_mapping/global_map_refinement.h>
 
 DEFINE_string(globalmap_dir, "",
               "Full path to global map directory to load (Required).");
@@ -34,7 +34,7 @@ DEFINE_bool(run_posegraph_optimization, true,
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  bs_tools::GlobalMapRefinement refinement(FLAGS_globalmap_dir, FLAGS_refinement_config);
+  bs_models::GlobalMapRefinement refinement(FLAGS_globalmap_dir, FLAGS_refinement_config);
 
   if (FLAGS_run_submap_refinement) {
     if (!refinement.RunSubmapRefinement()) {
