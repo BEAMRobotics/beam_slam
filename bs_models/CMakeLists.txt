@@ -63,6 +63,7 @@ catkin_package(
     message_runtime
     nav_msgs
     pluginlib
+    rosbag
     roscpp
     sensor_msgs
     tf2
