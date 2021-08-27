@@ -38,7 +38,7 @@ VIOInitializer::VIOInitializer(
 
   // create visual map
   visual_map_ =
-      std::make_shared<camera_to_camera::VisualMap>(cam_model_, local_graph_);
+      std::make_shared<vision::VisualMap>(cam_model_, local_graph_);
 
   // create pose refiner
   pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);

@@ -97,9 +97,9 @@ include_directories(
 add_library(
   ${PROJECT_NAME}
   src/lidar_odometry.cpp
-  src/camera_to_camera/visual_inertial_odom.cpp
-  src/camera_to_camera/visual_map.cpp
-  src/camera_to_camera/keyframe.cpp
+  src/visual_inertial_odometry.cpp
+  src/lib/vision/visual_map.cpp
+  src/lib/vision/keyframe.cpp
   src/global_mapper.cpp
   src/lib/global_mapping/global_map.cpp
   src/lib/global_mapping/submap.cpp

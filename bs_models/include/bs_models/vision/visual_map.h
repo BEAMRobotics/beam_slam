@@ -1,11 +1,8 @@
 #pragma once
 
-// std
 #include <map>
 #include <unordered_map>
 
-// beam_slam
-#include <bs_common/extrinsics_lookup_online.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/graph.h>
 #include <fuse_core/macros.h>
@@ -17,14 +14,16 @@
 #include <fuse_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
-// libbeam
 #include <beam_calibration/CameraModel.h>
 #include <beam_utils/optional.h>
 
-namespace bs_models { namespace camera_to_camera {
+#include <bs_common/extrinsics_lookup_online.h>
+
+namespace bs_models {
+namespace vision {
 
 class VisualMap {
-public:
+ public:
   /**
    * @brief Custom cosntrcutor, use when working with transactions
    * @param cam_model camera model being used
@@ -102,9 +101,9 @@ public:
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void
-      AddFixedLandmark(const Eigen::Vector3d& position, uint64_t id,
-                       fuse_core::Transaction::SharedPtr transaction = nullptr);
+  void AddFixedLandmark(
+      const Eigen::Vector3d& position, uint64_t id,
+      fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Helper function to add a new landmark variable to a transaction or
@@ -113,9 +112,9 @@ public:
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void
-      AddFixedLandmark(fuse_variables::Point3DFixedLandmark::SharedPtr landmark,
-                       fuse_core::Transaction::SharedPtr transaction = nullptr);
+  void AddFixedLandmark(
+      fuse_variables::Point3DFixedLandmark::SharedPtr landmark,
+      fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
    * @brief Helper function to add a constraint between a landmark and a pose
@@ -139,22 +138,22 @@ public:
    * @brief Helper function to get a landmark by id
    * @param landmark_id to retrieve
    */
-  fuse_variables::Point3DFixedLandmark::SharedPtr
-      GetFixedLandmark(uint64_t landmark_id);
+  fuse_variables::Point3DFixedLandmark::SharedPtr GetFixedLandmark(
+      uint64_t landmark_id);
 
   /**
    * @brief Retrieves q_WORLD_BASELINK
    * @param stamp to retrieve orientation at
    */
-  fuse_variables::Orientation3DStamped::SharedPtr
-      GetOrientation(const ros::Time& stamp);
+  fuse_variables::Orientation3DStamped::SharedPtr GetOrientation(
+      const ros::Time& stamp);
 
   /**
    * @brief Retrieves t_WORLD_BASELINK
    * @param stamp to retrieve position at
    */
-  fuse_variables::Position3DStamped::SharedPtr
-      GetPosition(const ros::Time& stamp);
+  fuse_variables::Position3DStamped::SharedPtr GetPosition(
+      const ros::Time& stamp);
 
   /**
    * @brief Adds orientation in baselink frame
@@ -219,7 +218,7 @@ public:
    */
   void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
-protected:
+ protected:
   // temp maps for in between optimization cycles
   std::map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;
@@ -230,8 +229,8 @@ protected:
       fixed_landmark_positions_;
 
   // memory management variables
-  size_t tracked_features_{100}; // # of features tracked per frame
-  size_t window_size_{20};       // # of keyframe poses to retain in local maps
+  size_t tracked_features_{100};  // # of features tracked per frame
+  size_t window_size_{20};        // # of keyframe poses to retain in local maps
 
   // local graph for direct use
   fuse_core::Graph::SharedPtr local_graph_;
@@ -251,4 +250,5 @@ protected:
   std::string source_{};
 };
 
-}} // namespace bs_models::camera_to_camera
+}  // namespace vision
+}  // namespace bs_models

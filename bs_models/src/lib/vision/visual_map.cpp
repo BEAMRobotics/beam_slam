@@ -1,4 +1,4 @@
-#include <bs_models/camera_to_camera/visual_map.h>
+#include <bs_models/vision/visual_map.h>
 
 #include <beam_utils/math.h>
 
@@ -6,7 +6,7 @@
 #include <bs_constraints/camera_to_camera/visual_constraint_fixed.h>
 
 namespace bs_models {
-namespace camera_to_camera {
+namespace vision {
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                      const std::string& source, const size_t tracked_features,
@@ -460,5 +460,5 @@ void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   graph_ = std::move(graph_msg);
 }
 
-}  // namespace camera_to_camera
+}  // namespace vision
 }  // namespace bs_models

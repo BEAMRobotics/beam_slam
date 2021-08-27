@@ -10,7 +10,7 @@
 #include <bs_common/bs_msgs.h>
 #include <bs_common/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/camera_to_camera/visual_map.h>
+#include <bs_models/vision/visual_map.h>
 #include <bs_models/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/imu_initializer.h>
 
@@ -143,7 +143,7 @@ class VIOInitializer {
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
-  std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
+  std::shared_ptr<bs_models::vision::VisualMap> visual_map_;
   CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
 
   // imu preintegration object

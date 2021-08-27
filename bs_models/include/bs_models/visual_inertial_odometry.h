@@ -1,49 +1,44 @@
 #pragma once
 
-// std
 #include <queue>
 
-// messages
 #include <bs_common/bs_msgs.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
-
-// fuse
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/throttled_callback.h>
 
-// beam_slam
+#include <beam_calibration/CameraModel.h>
+#include <beam_cv/geometry/PoseRefinement.h>
+#include <beam_cv/trackers/Trackers.h>
+
 #include <bs_common/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/camera_to_camera/keyframe.h>
-#include <bs_models/camera_to_camera/visual_map.h>
+#include <bs_models/vision/keyframe.h>
+#include <bs_models/vision/visual_map.h>
 #include <bs_models/imu_preintegration.h>
 #include <bs_models/trajectory_initializers/vio_initializer.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/camera_params.h>
 
-// libbeam
-#include <beam_calibration/CameraModel.h>
-#include <beam_cv/geometry/PoseRefinement.h>
-#include <beam_cv/trackers/Trackers.h>
+namespace bs_models {
 
 using namespace bs_common;
+using namespace vision;
 
-namespace bs_models { namespace camera_to_camera {
-
-class VisualInertialOdom : public fuse_core::AsyncSensorModel {
-public:
-  SMART_PTR_DEFINITIONS(VisualInertialOdom);
+class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
+ public:
+  SMART_PTR_DEFINITIONS(VisualInertialOdometry);
 
   /**
    * @brief Default Constructor
    */
-  VisualInertialOdom();
+  VisualInertialOdometry();
 
   /**
    * @brief Default Destructor
    */
-  ~VisualInertialOdom() override = default;
+  ~VisualInertialOdometry() override = default;
 
   /**
    * @brief Callback for image processing, this callback will add visual
@@ -59,8 +54,8 @@ public:
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
-protected:
-  fuse_core::UUID device_id_; //!< The UUID of this device
+ protected:
+  fuse_core::UUID device_id_;  //!< The UUID of this device
 
   /**
    * @brief Perform any required initialization for the sensor model
@@ -89,7 +84,7 @@ protected:
    */
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
-private:
+ private:
   /**
    * @brief Copies all variables and constraints in the init graph and sends to
    * fuse optimizer
@@ -150,10 +145,10 @@ private:
    * @brief Matches an image in the tracker to the current submap
    * @param img_time time of image to match against submap
    */
-  std::map<uint64_t, Eigen::Vector3d>
-      MatchFrameToCurrentSubmap(const ros::Time& img_time);
+  std::map<uint64_t, Eigen::Vector3d> MatchFrameToCurrentSubmap(
+      const ros::Time& img_time);
 
-protected:
+ protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;
 
@@ -176,8 +171,10 @@ protected:
   std::queue<sensor_msgs::Imu> imu_buffer_;
 
   // callbacks for messages
-  using ThrottledImageCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::Image>;
-  using ThrottledIMUCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
+  using ThrottledImageCallback =
+      fuse_core::ThrottledMessageCallback<sensor_msgs::Image>;
+  using ThrottledIMUCallback =
+      fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
   ThrottledImageCallback throttled_image_callback_;
   ThrottledIMUCallback throttled_imu_callback_;
 
@@ -185,19 +182,19 @@ protected:
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
-  std::shared_ptr<bs_models::camera_to_camera::VisualMap> visual_map_;
+  std::shared_ptr<VisualMap> visual_map_;
   bs_common::CurrentSubmap& submap_ = bs_common::CurrentSubmap::GetInstance();
   beam_cv::DescriptorType descriptor_type_;
   uint8_t descriptor_type_int_;
 
   // initialization object
-  std::shared_ptr<bs_models::trajectory_initializers::VIOInitializer> initializer_;
+  std::shared_ptr<trajectory_initializers::VIOInitializer> initializer_;
 
   // imu preintegration object
-  std::shared_ptr<bs_models::ImuPreintegration> imu_preint_;
+  std::shared_ptr<ImuPreintegration> imu_preint_;
 
   // keyframe information
-  std::deque<bs_models::camera_to_camera::Keyframe> keyframes_;
+  std::deque<Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
 
   // robot extrinsics
@@ -206,4 +203,4 @@ protected:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
-}} // namespace bs_models::camera_to_camera
+}  // namespace bs_models

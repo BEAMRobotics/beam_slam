@@ -17,7 +17,7 @@ imu_intrinsics_path: "/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/calibr
 # sensor models
 sensor_models:
   - name: 'camera'
-    type: 'bs_models::camera_to_camera::VisualInertialOdom'
+    type: 'bs_models::VisualInertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
   - name: 'lo_initializer'

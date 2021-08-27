@@ -1,13 +1,14 @@
 #pragma once
 
-// libbeam
-#include <beam_utils/utils.h>
 #include <sensor_msgs/Image.h>
 
-namespace bs_models { namespace camera_to_camera {
+#include <beam_utils/utils.h>
+
+namespace bs_models {
+namespace vision {
 
 class Keyframe {
-public:
+ public:
   /**
    * @brief Custom cosntrcutor
    * @param cam_model camera model being used
@@ -42,11 +43,12 @@ public:
    */
   const std::map<uint64_t, Eigen::Matrix4d>& Trajectory();
 
-protected:
+ protected:
   ros::Time timestamp_;
   sensor_msgs::Image image_;
   uint64_t sequence_numer_;
   std::map<uint64_t, Eigen::Matrix4d> trajectory_;
 };
 
-}} // namespace bs_models::camera_to_camera
+}  // namespace vision
+}  // namespace bs_models
