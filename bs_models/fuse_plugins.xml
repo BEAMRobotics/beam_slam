@@ -21,11 +21,6 @@
       Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate
     </description>
   </class>
-    <class type="bs_models::frame_to_frame::GTInitializer" base_class_type="fuse_core::SensorModel">
-    <description>
-      Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate
-    </description>
-  </class>
   <class type="bs_models::camera_to_camera::VisualInertialOdom" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints
