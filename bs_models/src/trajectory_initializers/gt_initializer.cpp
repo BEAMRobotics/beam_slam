@@ -47,11 +47,11 @@ void GTInitializer::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
     current_pose_time_ = msg->header.stamp;
     trajectory_.push_back(T_WORLD_SENSOR);
     times_.push_back(msg->header.stamp);
-    if (CalculateTrajectoryLength() >
-        gt_initializer_params_.min_trajectory_length) {
+    if (beam::PassedMotionThreshold(
+            trajectory_[0], T_WORLD_SENSOR, 0.0,
+            gt_initializer_params_.min_trajectory_length, true, true, false)) {
       PublishResults();
       initialization_complete_ = true;
-      stop();
     } else if (trajectory_.size() > max_poses_) {
       trajectory_.erase(trajectory_.begin());
       times_.erase(times_.begin());
@@ -93,17 +93,6 @@ void GTInitializer::PublishResults() {
     msg.poses.push_back(pose);
   }
   results_publisher_.publish(msg);
-}
-
-double GTInitializer::CalculateTrajectoryLength() {
-  double length{0};
-  Eigen::Vector3d prev_position = trajectory_[0].block(0, 3, 3, 1);
-  for (int i = 1; i < trajectory_.size(); i++) {
-    Eigen::Vector3d current_position = trajectory_[i].block(0, 3, 3, 1);
-    Eigen::Vector3d current_motion = current_position - prev_position;
-    length += current_motion.norm();
-  }
-  return length;
 }
 
 }} // namespace bs_models::frame_to_frame
