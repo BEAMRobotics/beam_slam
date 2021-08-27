@@ -1,4 +1,4 @@
-#include <bs_models/frame_to_frame/scan_matcher_3d.h>
+#include <bs_models/lidar_odometry.h>
 
 #include <boost/filesystem.hpp>
 #include <fuse_core/transaction.h>
@@ -14,22 +14,21 @@
 #include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::ScanMatcher3D,
+PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry,
                        fuse_core::SensorModel)
 
 namespace bs_models {
-namespace frame_to_frame {
 
 using namespace beam_matching;
 using namespace scan_registration;
 
-ScanMatcher3D::ScanMatcher3D()
+LidarOdometry::LidarOdometry()
     : fuse_core::AsyncSensorModel(1),
       device_id_(fuse_core::uuid::NIL),
       throttled_callback_(
-          std::bind(&ScanMatcher3D::process, this, std::placeholders::_1)) {}
+          std::bind(&LidarOdometry::process, this, std::placeholders::_1)) {}
 
-void ScanMatcher3D::onInit() {
+void LidarOdometry::onInit() {
   params_.loadFromROS(private_node_handle_);
 
   // init frame initializer
@@ -145,7 +144,7 @@ void ScanMatcher3D::onInit() {
   }
 }
 
-void ScanMatcher3D::onStart() {
+void LidarOdometry::onStart() {
   subscriber_ = node_handle_.subscribe<sensor_msgs::PointCloud2>(
       ros::names::resolve(params_.input_topic), 1, &ThrottledCallback::callback,
       &throttled_callback_, ros::TransportHints().tcpNoDelay(false));
@@ -154,9 +153,9 @@ void ScanMatcher3D::onStart() {
       private_node_handle_.advertise<SlamChunkMsg>(params_.output_topic, 100);
 };
 
-void ScanMatcher3D::onStop() {
+void LidarOdometry::onStop() {
   // if output set, save scans before stopping
-  ROS_INFO("ScanMatcher3D stopped, processing remaining scans in window.");
+  ROS_INFO("LidarOdometry stopped, processing remaining scans in window.");
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
     OutputResults(*iter);
@@ -167,7 +166,7 @@ void ScanMatcher3D::onStop() {
 }
 
 bs_constraints::frame_to_frame::Pose3DStampedTransaction
-ScanMatcher3D::GenerateTransaction(
+LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
@@ -211,7 +210,7 @@ ScanMatcher3D::GenerateTransaction(
   return transaction;
 }
 
-void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
+void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   updates_++;
 
   auto i = active_clouds_.begin();
@@ -250,7 +249,7 @@ void ScanMatcher3D::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   }
 }
 
-void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
+void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   bs_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction =
       GenerateTransaction(msg);
   if (new_transaction.GetTransaction() != nullptr) {
@@ -263,7 +262,7 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   }
 }
 
-void ScanMatcher3D::OutputResults(const ScanPose& scan_pose) {
+void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
   if (!params_.output_topic.empty()) {
     // output to global mapper
     SlamChunkMsg slam_chunk_msg;
@@ -332,5 +331,4 @@ void ScanMatcher3D::OutputResults(const ScanPose& scan_pose) {
   }
 }
 
-}  // namespace frame_to_frame
 }  // namespace bs_models

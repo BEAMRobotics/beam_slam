@@ -11,7 +11,7 @@
       another node
     </description>
   </class>
-  <class type="bs_models::frame_to_frame::ScanMatcher3D" base_class_type="fuse_core::SensorModel">
+  <class type="bs_models::LidarOdometry" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints
     </description>

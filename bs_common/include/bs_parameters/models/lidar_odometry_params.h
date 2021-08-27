@@ -14,7 +14,7 @@ namespace models {
 /**
  * @brief Defines the set of parameters required by the ScanMatcher class
  */
-struct ScanMatcher3DParams : public ParameterBase {
+struct LidarOdometryParams : public ParameterBase {
  public:
   /**
    * @brief Method for loading parameter values from ROS.

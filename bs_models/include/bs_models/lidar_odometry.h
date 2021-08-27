@@ -13,18 +13,17 @@
 #include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_models/scan_pose.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_parameters/models/scan_matcher_3d_params.h>
+#include <bs_parameters/models/lidar_odometry_params.h>
 
 namespace bs_models {
-namespace frame_to_frame {
 
-class ScanMatcher3D : public fuse_core::AsyncSensorModel {
+class LidarOdometry : public fuse_core::AsyncSensorModel {
  public:
-  SMART_PTR_DEFINITIONS(ScanMatcher3D);
+  SMART_PTR_DEFINITIONS(LidarOdometry);
 
-  ScanMatcher3D();
+  LidarOdometry();
 
-  ~ScanMatcher3D() override = default;
+  ~LidarOdometry() override = default;
 
  private:
   void onStart() override;
@@ -69,12 +68,11 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
-  bs_parameters::models::ScanMatcher3DParams params_;
+  bs_parameters::models::LidarOdometryParams params_;
   bool output_graph_updates_{false};
   int updates_{0};
   std::string graph_updates_path_ =
       "/home/nick/results/beam_slam/graph_updates/";
 };
 
-}  // namespace frame_to_frame
 }  // namespace bs_models

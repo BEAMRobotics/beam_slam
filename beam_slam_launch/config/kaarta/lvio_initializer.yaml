@@ -22,8 +22,8 @@ sensor_models:
     ignition: true
   - name: 'lo_initializer'
     type: 'bs_models::frame_to_frame::LoInitializer'
-  # - name: 'scan_matcher_3d'
-  #   type: 'bs_models::frame_to_frame::ScanMatcher3D'
+  # - name: 'lidar_odometry'
+  #   type: 'bs_models::LidarOdometry'
   #   motion_models: ['unicycle_3d']
 
 # motion models
@@ -91,7 +91,7 @@ lo_initializer:
   scan_registration_map_size: 10
   scan_output_directory: '' # Outputs scans as PCD files IFF not empty
 
-scan_matcher_3d:
+lidar_odometry:
   type: 'MAPLOAM' # Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (TODO: LIBPOINTMATCHER, TEASER)
   matcher_params_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
   registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class

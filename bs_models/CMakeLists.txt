@@ -96,7 +96,7 @@ include_directories(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
-  src/frame_to_frame/scan_matcher_3d.cpp
+  src/lidar_odometry.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
   src/camera_to_camera/keyframe.cpp
