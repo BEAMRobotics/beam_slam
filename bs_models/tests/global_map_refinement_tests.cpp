@@ -16,9 +16,9 @@
 #include <bs_models/global_mapping/global_map_refinement.h>
 
 using namespace bs_models;
-using namespace frame_to_frame;
 using namespace global_mapping;
 using namespace bs_common;
+using namespace beam_matching;
 
 Eigen::Matrix4d PerturbPoseRandom(const Eigen::Matrix4d& T, double max_trans,
                                   double max_rot) {
@@ -62,8 +62,8 @@ class GlobalMapRefinementTest : public ::testing::Test {
     loam_params_->max_correspondence_iterations = 20;
     loam_params_->output_ceres_summary = false;
     loam_params_->output_optimization_summary = false;
-    loam_params_->optimizer_params =
-        beam_optimization::CeresParams(test_path_ + "data/ceres_config_refinement.json");
+    loam_params_->optimizer_params = beam_optimization::CeresParams(
+        test_path_ + "data/ceres_config_refinement.json");
 
     feature_extractor_ = std::make_shared<LoamFeatureExtractor>(loam_params_);
 
@@ -169,12 +169,12 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
   global_map->SetSubmaps(submaps);
 
   // load params
-  bs_tools::GlobalMapRefinement::Params params;
+  GlobalMapRefinement::Params params;
   params.LoadJson(refinement_config_path_);
   params.scan_registration_type = "MULTISCAN";
 
   // create global map refinement
-  bs_tools::GlobalMapRefinement refinement(global_map, params);
+  GlobalMapRefinement refinement(global_map, params);
   refinement.RunSubmapRefinement();
 
   // submaps.at(0)->SaveLidarMapInWorldFrame(
@@ -275,12 +275,12 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
   global_map->SetSubmaps(submaps);
 
   // load params
-  bs_tools::GlobalMapRefinement::Params params;
+  GlobalMapRefinement::Params params;
   params.LoadJson(refinement_config_path_);
   params.scan_registration_type = "SCANTOMAP";
 
   // create global map refinement
-  bs_tools::GlobalMapRefinement refinement(global_map, params);
+  GlobalMapRefinement refinement(global_map, params);
   refinement.RunSubmapRefinement();
 
   // submaps.at(0)->SaveLidarMapInWorldFrame(

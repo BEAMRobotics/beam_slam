@@ -83,6 +83,7 @@ include_directories(
   ${CERES_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${fuse_core_INCLUDE_DIRS}
   ${fuse_graphs_INCLUDE_DIRS}
   ${fuse_models_INCLUDE_DIRS}
   ${fuse_publishers_INCLUDE_DIRS}
@@ -128,6 +129,7 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
+    ${fuse_core_LIBRARIES}
     ${fuse_graphs_LIBRARIES}
     ${fuse_models_LIBRARIES}
     ${fuse_publishers_LIBRARIES}

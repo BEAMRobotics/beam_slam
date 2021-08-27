@@ -34,7 +34,8 @@ DEFINE_bool(run_posegraph_optimization, true,
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  bs_models::GlobalMapRefinement refinement(FLAGS_globalmap_dir, FLAGS_refinement_config);
+  bs_models::global_mapping::GlobalMapRefinement refinement(
+      FLAGS_globalmap_dir, FLAGS_refinement_config);
 
   if (FLAGS_run_submap_refinement) {
     if (!refinement.RunSubmapRefinement()) {
