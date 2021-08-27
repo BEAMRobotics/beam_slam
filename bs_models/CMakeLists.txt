@@ -111,6 +111,7 @@ add_library(
   src/lib/scan_registration/scan_registration_base.cpp
   src/lib/scan_registration/multi_scan_registration.cpp
   src/lib/scan_registration/scan_to_map_registration.cpp
+  src/lib/scan_registration/registration_map.cpp
   src/lib/frame_initializers/frame_initializer_base.cpp
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp

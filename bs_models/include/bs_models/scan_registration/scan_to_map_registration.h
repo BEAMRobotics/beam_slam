@@ -9,7 +9,7 @@
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_models/scan_pose.h>
-#include <bs_common/lidar_map.h>
+#include <bs_models/scan_registration/registration_map.h>
 
 namespace bs_models {
 namespace scan_registration {

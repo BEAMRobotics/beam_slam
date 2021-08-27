@@ -3,7 +3,8 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/loam/LoamPointCloud.h>
 
-namespace bs_common {
+namespace bs_models {
+namespace scan_registration {
 
 using namespace beam_matching;
 
@@ -17,13 +18,13 @@ using namespace beam_matching;
  * lidar map of its local environment. So to remove computation duplication we
  * can use the map we are already generating with the scan to map registration.
  */
-class LidarMap {
+class RegistrationMap {
  public:
   /**
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
    */
-  static LidarMap& GetInstance();
+  static RegistrationMap& GetInstance();
 
   /**
    * @brief set the parameters of this lidar map. Since this is implemented as a
@@ -161,18 +162,18 @@ class LidarMap {
   /**
    * @brief Delete copy constructor
    */
-  LidarMap(LidarMap const&) = delete;
+  RegistrationMap(RegistrationMap const&) = delete;
 
   /**
    * @brief Delete assignment constructor
    */
-  void operator=(LidarMap const&) = delete;
+  void operator=(RegistrationMap const&) = delete;
 
  private:
   /**
    * @brief default constructor. Uses default member variables
    */
-  LidarMap() = default;
+  RegistrationMap() = default;
 
   std::map<uint64_t, PointCloud> clouds_in_map_frame_;
   std::map<uint64_t, Eigen::Matrix4d> cloud_poses_;
@@ -182,4 +183,5 @@ class LidarMap {
   bool map_params_set_{false};
 };
 
-}  // namespace bs_common
+}  // namespace scan_registration
+}  // namespace bs_models

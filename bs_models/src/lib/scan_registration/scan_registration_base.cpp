@@ -53,9 +53,9 @@ void ScanRegistrationBase::SetFixedCovariance(double covariance) {
   use_fixed_covariance_ = true;
 }
 
-const bs_common::LidarMap& ScanRegistrationBase::GetMap() const { return map_; }
+const RegistrationMap& ScanRegistrationBase::GetMap() const { return map_; }
 
-bs_common::LidarMap& ScanRegistrationBase::GetMapMutable() { return map_; }
+RegistrationMap& ScanRegistrationBase::GetMapMutable() { return map_; }
 
 bool ScanRegistrationBase::PassedRegThreshold(const Eigen::Matrix4d& T_measured,
                                               std::string& summary) {

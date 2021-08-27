@@ -2,7 +2,7 @@
 
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <bs_models/scan_pose.h>
-#include <bs_common/lidar_map.h>
+#include <bs_models/scan_registration/registration_map.h>
 
 namespace bs_models {
 namespace scan_registration {
@@ -74,9 +74,9 @@ class ScanRegistrationBase {
   virtual bs_constraints::frame_to_frame::Pose3DStampedTransaction
   RegisterNewScan(const ScanPose& new_scan) = 0;
 
-  const bs_common::LidarMap& GetMap() const;
+  const RegistrationMap& GetMap() const;
 
-  bs_common::LidarMap& GetMapMutable();
+  RegistrationMap& GetMapMutable();
 
  protected:
   bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
@@ -87,7 +87,7 @@ class ScanRegistrationBase {
   ScanRegistrationParamsBase base_params_;
   Eigen::Matrix<double, 6, 6> covariance_;
   bool use_fixed_covariance_{false};
-  bs_common::LidarMap& map_ = bs_common::LidarMap::GetInstance();
+  RegistrationMap& map_ = RegistrationMap::GetInstance();
 
   /** This is the prior set on the first scan when fix_first_scan is enabled.
    * NOTE: this can only be set here, not in config. */

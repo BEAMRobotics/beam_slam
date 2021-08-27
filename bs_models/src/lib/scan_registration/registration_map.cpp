@@ -1,17 +1,18 @@
-#include <bs_common/lidar_map.h>
+#include <bs_models/scan_registration/registration_map.h>
 
 #include <boost/filesystem.hpp>
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
 
-namespace bs_common {
+namespace bs_models {
+namespace scan_registration {
 
-LidarMap& LidarMap::GetInstance() {
-  static LidarMap instance;
+RegistrationMap& RegistrationMap::GetInstance() {
+  static RegistrationMap instance;
   return instance;
 }
 
-bool LidarMap::SetParams(int map_size) {
+bool RegistrationMap::SetParams(int map_size) {
   if (map_params_set_ && map_size != map_size_) {
     BEAM_ERROR("Map parameters already set, these cannot be changed.");
     return false;
@@ -22,16 +23,21 @@ bool LidarMap::SetParams(int map_size) {
   return true;
 }
 
-bool LidarMap::Empty() const {
+bool RegistrationMap::Empty() const {
   return loam_clouds_in_map_frame_.empty() && clouds_in_map_frame_.empty();
 }
 
-int LidarMap::NumPointClouds() const { return clouds_in_map_frame_.size(); }
+int RegistrationMap::NumPointClouds() const {
+  return clouds_in_map_frame_.size();
+}
 
-int LidarMap::NumLoamClouds() const { return loam_clouds_in_map_frame_.size(); }
+int RegistrationMap::NumLoamClouds() const {
+  return loam_clouds_in_map_frame_.size();
+}
 
-void LidarMap::AddPointCloud(const PointCloud& cloud, const ros::Time& stamp,
-                             const Eigen::Matrix4d& T_MAP_SCAN) {
+void RegistrationMap::AddPointCloud(const PointCloud& cloud,
+                                    const ros::Time& stamp,
+                                    const Eigen::Matrix4d& T_MAP_SCAN) {
   // add cloud to map
   PointCloud cloud_in_map_frame;
   pcl::transformPointCloud(cloud, cloud_in_map_frame, T_MAP_SCAN);
@@ -48,9 +54,9 @@ void LidarMap::AddPointCloud(const PointCloud& cloud, const ros::Time& stamp,
   }
 }
 
-void LidarMap::AddPointCloud(const LoamPointCloud& cloud,
-                             const ros::Time& stamp,
-                             const Eigen::Matrix4d& T_MAP_SCAN) {
+void RegistrationMap::AddPointCloud(const LoamPointCloud& cloud,
+                                    const ros::Time& stamp,
+                                    const Eigen::Matrix4d& T_MAP_SCAN) {
   // add cloud to map
   LoamPointCloud cloud_in_map_frame = cloud;
   cloud_in_map_frame.TransformPointCloud(T_MAP_SCAN);
@@ -67,7 +73,7 @@ void LidarMap::AddPointCloud(const LoamPointCloud& cloud,
   }
 }
 
-PointCloud LidarMap::GetPointCloudMap() const {
+PointCloud RegistrationMap::GetPointCloudMap() const {
   PointCloud cloud;
   for (auto it = clouds_in_map_frame_.begin(); it != clouds_in_map_frame_.end();
        it++) {
@@ -76,7 +82,7 @@ PointCloud LidarMap::GetPointCloudMap() const {
   return cloud;
 }
 
-LoamPointCloud LidarMap::GetLoamCloudMap() const {
+LoamPointCloud RegistrationMap::GetLoamCloudMap() const {
   LoamPointCloud cloud;
   for (auto it = loam_clouds_in_map_frame_.begin();
        it != loam_clouds_in_map_frame_.end(); it++) {
@@ -85,10 +91,10 @@ LoamPointCloud LidarMap::GetLoamCloudMap() const {
   return cloud;
 }
 
-bool LidarMap::UpdateScan(const ros::Time& stamp,
-                          const Eigen::Matrix4d& T_MAP_SCAN,
-                          double rotation_threshold_deg,
-                          double translation_threshold_m) {
+bool RegistrationMap::UpdateScan(const ros::Time& stamp,
+                                 const Eigen::Matrix4d& T_MAP_SCAN,
+                                 double rotation_threshold_deg,
+                                 double translation_threshold_m) {
   bool scan_found{false};
   uint64_t stamp_nsecs = stamp.toNSec();
 
@@ -144,10 +150,10 @@ bool LidarMap::UpdateScan(const ros::Time& stamp,
   return scan_found;
 }
 
-void LidarMap::Save(const std::string& save_path, bool add_frames, uint8_t r,
-                    uint8_t g, uint8_t b) const {
+void RegistrationMap::Save(const std::string& save_path, bool add_frames,
+                           uint8_t r, uint8_t g, uint8_t b) const {
   if (!boost::filesystem::exists(save_path)) {
-    BEAM_ERROR("Invalid output path for LidarMap: {}", save_path);
+    BEAM_ERROR("Invalid output path for RegistrationMap: {}", save_path);
     return;
   }
 
@@ -167,8 +173,8 @@ void LidarMap::Save(const std::string& save_path, bool add_frames, uint8_t r,
   }
 }
 
-bool LidarMap::GetScanPose(const ros::Time& stamp,
-                           Eigen::Matrix4d& T_MAP_SCAN) const {
+bool RegistrationMap::GetScanPose(const ros::Time& stamp,
+                                  Eigen::Matrix4d& T_MAP_SCAN) const {
   // check loam poses
   auto loam_iter = loam_cloud_poses_.find(stamp.toNSec());
   if (loam_iter != loam_cloud_poses_.end()) {
@@ -186,8 +192,8 @@ bool LidarMap::GetScanPose(const ros::Time& stamp,
   return false;
 }
 
-bool LidarMap::GetScanInMapFrame(const ros::Time& stamp,
-                                 PointCloud& cloud) const {
+bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
+                                        PointCloud& cloud) const {
   auto iter = clouds_in_map_frame_.find(stamp.toNSec());
   if (iter != clouds_in_map_frame_.end()) {
     cloud = iter->second;
@@ -197,8 +203,8 @@ bool LidarMap::GetScanInMapFrame(const ros::Time& stamp,
   return false;
 }
 
-bool LidarMap::GetScanInMapFrame(const ros::Time& stamp,
-                                 LoamPointCloud& cloud) const {
+bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
+                                        LoamPointCloud& cloud) const {
   auto iter = loam_clouds_in_map_frame_.find(stamp.toNSec());
   if (iter != loam_clouds_in_map_frame_.end()) {
     cloud = iter->second;
@@ -208,11 +214,13 @@ bool LidarMap::GetScanInMapFrame(const ros::Time& stamp,
   return false;
 }
 
-void LidarMap::Clear() {
+void RegistrationMap::Clear() {
   clouds_in_map_frame_.clear();
   cloud_poses_.clear();
   loam_clouds_in_map_frame_.clear();
   loam_cloud_poses_.clear();
 }
 
-}  // namespace bs_common
+}  // namespace scan_registration
+
+}  // namespace bs_models

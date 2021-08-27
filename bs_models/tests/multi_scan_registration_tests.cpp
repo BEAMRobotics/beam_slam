@@ -795,7 +795,7 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
   Eigen::Matrix4d T_WORLD_S3_mea = bs_common::FusePoseToEigenTransform(p3, o3);
 
   // print lidar map
-  //   bs_common::LidarMap& map = bs_common::LidarMap::GetInstance();
+  //   RegistrationMap& map = RegistrationMap::GetInstance();
   //   map.Save("/home/nick/tmp/loam_scan_registration/lidar_map/");
 
   //   EXPECT_TRUE(map.NumPointClouds() == 3);

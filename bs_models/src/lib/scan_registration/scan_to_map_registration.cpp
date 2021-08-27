@@ -6,7 +6,7 @@
 #include <beam_matching/Matchers.h>
 
 #include <bs_common/utils.h>
-#include <bs_common/lidar_map.h>
+#include <bs_models/scan_registration/registration_map.h>
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 namespace bs_models {
