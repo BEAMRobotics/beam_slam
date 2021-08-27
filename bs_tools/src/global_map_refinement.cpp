@@ -5,7 +5,7 @@
 
 #include <bs_common/utils.h>
 #include <bs_models/scan_pose.h>
-#include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
+#include <bs_models/loop_closure/loop_closure_methods.h>
 
 namespace bs_tools {
 

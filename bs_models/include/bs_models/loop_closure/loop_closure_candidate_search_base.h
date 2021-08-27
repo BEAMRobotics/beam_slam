@@ -9,7 +9,9 @@
 
 namespace bs_models {
 
-namespace global_mapping {
+namespace loop_closure {
+
+using namespace global_mapping;
 
 /**
  * @brief Loop candidate search finds candidate loop closures between submaps
@@ -54,6 +56,6 @@ class LoopClosureCandidateSearchBase {
   std::string config_path_;
 };
 
-}  // namespace global_mapping
+}  // namespace loop_closure
 
 }  // namespace bs_models

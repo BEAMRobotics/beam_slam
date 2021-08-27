@@ -10,7 +10,9 @@
 
 namespace bs_models {
 
-namespace global_mapping {
+namespace loop_closure {
+
+using namespace global_mapping;    
 
 /**
  * @brief A loop closure refinement step that takes an estimated pose
@@ -52,6 +54,6 @@ class LoopClosureRefinementBase {
   std::string config_path_;
 };
 
-}  // namespace global_mapping
+}  // namespace loop_closure
 
 }  // namespace bs_models

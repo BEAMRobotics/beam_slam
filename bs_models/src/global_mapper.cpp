@@ -1,4 +1,4 @@
-#include <bs_models/global_mapping/global_mapper.h>
+#include <bs_models/global_mapper.h>
 
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
@@ -8,12 +8,9 @@
 #include <beam_utils/time.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::global_mapping::GlobalMapper,
-                       fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::GlobalMapper, fuse_core::SensorModel)
 
 namespace bs_models {
-
-namespace global_mapping {
 
 GlobalMapper::GlobalMapper()
     : fuse_core::AsyncSensorModel(1),
@@ -21,7 +18,7 @@ GlobalMapper::GlobalMapper()
       throttled_callback_(
           std::bind(&GlobalMapper::process, this, std::placeholders::_1)) {}
 
-void GlobalMapper::process(const SlamChunkMsg::ConstPtr& msg) {
+void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
   ros::Time stamp = msg->stamp;
   std::vector<float> T = msg->T_WORLD_BASELINK;
   Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
@@ -47,7 +44,7 @@ void GlobalMapper::onInit() {
 }
 
 void GlobalMapper::onStart() {
-  subscriber_ = node_handle_.subscribe<SlamChunkMsg>(
+  subscriber_ = node_handle_.subscribe<bs_common::SlamChunkMsg>(
       ros::names::resolve(params_.input_topic), 100,
       &ThrottledCallback::callback, &throttled_callback_,
       ros::TransportHints().tcpNoDelay(false));
@@ -63,10 +60,11 @@ void GlobalMapper::onStart() {
 
   // init global map
   if (!params_.global_map_config.empty()) {
-    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_,
-                                              params_.global_map_config);
+    global_map_ = std::make_unique<global_mapping::GlobalMap>(
+        camera_model, extrinsics_data_, params_.global_map_config);
   } else {
-    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_);
+    global_map_ = std::make_unique<global_mapping::GlobalMap>(camera_model,
+                                                              extrinsics_data_);
   }
 };
 
@@ -128,7 +126,5 @@ void GlobalMapper::UpdateExtrinsics() {
                                  extrinsics_online_.GetCameraFrameId());
   extrinsics_initialized_ = true;
 }
-
-}  // namespace global_mapping
 
 }  // namespace bs_models

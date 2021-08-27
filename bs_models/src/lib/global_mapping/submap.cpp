@@ -11,7 +11,6 @@
 #include <bs_common/utils.h>
 
 namespace bs_models {
-
 namespace global_mapping {
 
 Submap::Submap(

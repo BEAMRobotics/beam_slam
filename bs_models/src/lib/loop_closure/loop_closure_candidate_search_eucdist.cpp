@@ -1,4 +1,4 @@
-#include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_eucdist.h>
+#include <bs_models/loop_closure/loop_closure_candidate_search_eucdist.h>
 
 #include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
@@ -8,7 +8,7 @@
 
 namespace bs_models {
 
-namespace global_mapping {
+namespace loop_closure {
 
 LoopClosureCandidateSearchEucDist::LoopClosureCandidateSearchEucDist(
     double distance_threshold_m)
@@ -19,17 +19,12 @@ void LoopClosureCandidateSearchEucDist::LoadConfig() {
     return;
   }
 
-  if (!boost::filesystem::exists(config_path_)) {
-    BEAM_ERROR(
-        "Invalid path to loop closure candidate search config. Using default "
-        "parameters. Input: {}",
-        config_path_);
+  nlohmann::json J;
+  if(!beam::ReadJson(config_path_, J)){
+    BEAM_INFO("Using default params.");
     return;
   }
 
-  nlohmann::json J;
-  std::ifstream file(config_path_);
-  file >> J;
   distance_threshold_m_ = J["distance_threshold_m"];
 }
 
@@ -40,12 +35,14 @@ void LoopClosureCandidateSearchEucDist::FindLoopClosureCandidates(
   LoadConfig();
   matched_indices.clear();
   estimated_poses.clear();
-  const Eigen::Matrix4d& T_WORLD_QUERY = submaps.at(query_index)->T_WORLD_SUBMAP();
+  const Eigen::Matrix4d& T_WORLD_QUERY =
+      submaps.at(query_index)->T_WORLD_SUBMAP();
   for (int i = 0; i < submaps.size(); i++) {
     if (i == query_index) {
       continue;
     }
-    const Eigen::Matrix4d& T_WORLD_MATCHCANDIDATE = submaps.at(i)->T_WORLD_SUBMAP();
+    const Eigen::Matrix4d& T_WORLD_MATCHCANDIDATE =
+        submaps.at(i)->T_WORLD_SUBMAP();
     Eigen::Matrix4d T_MATCHCANDIDATE_QUERY =
         beam::InvertTransform(T_WORLD_MATCHCANDIDATE) * T_WORLD_QUERY;
     double distance = T_MATCHCANDIDATE_QUERY.block(0, 3, 3, 1).norm();
@@ -56,6 +53,6 @@ void LoopClosureCandidateSearchEucDist::FindLoopClosureCandidates(
   }
 }
 
-}  // namespace global_mapping
+}  // namespace loop_closure
 
 }  // namespace bs_models

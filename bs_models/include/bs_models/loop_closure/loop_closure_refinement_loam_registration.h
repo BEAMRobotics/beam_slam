@@ -8,14 +8,15 @@
 
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/Matchers.h>
-#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/loop_closure/loop_closure_refinement_base.h>
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
-
-using namespace beam_matching;
 
 namespace bs_models {
 
-namespace global_mapping {
+namespace loop_closure {
+
+using namespace beam_matching;
+using namespace global_mapping;
 
 /**
  * @brief Loop closure refinement with loam scan matching
@@ -74,6 +75,6 @@ class LoopClosureRefinementLoam : public LoopClosureRefinementBase {
   Eigen::Matrix<double, 6, 6> loop_closure_covariance_;
 };
 
-}  // namespace global_mapping
+}  // namespace loop_closure
 
 }  // namespace bs_models

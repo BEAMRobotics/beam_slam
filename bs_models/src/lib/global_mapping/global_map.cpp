@@ -12,13 +12,14 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_mapping/Poses.h>
 
-#include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
+#include <bs_models/loop_closure/loop_closure_methods.h>
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <bs_common/utils.h>
 
 namespace bs_models {
-
 namespace global_mapping {
+
+using namespace loop_closure;
 
 GlobalMap::Params::Params() {
   double local_map_cov_diag = 1e-3;

@@ -5,11 +5,13 @@
 #include <ros/time.h>
 
 #include <beam_utils/pointclouds.h>
-#include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
+#include <bs_models/loop_closure/loop_closure_candidate_search_base.h>
 
 namespace bs_models {
 
-namespace global_mapping {
+namespace loop_closure {
+
+using namespace global_mapping;
 
 /**
  * @brief This class implements a loop closure candidate search class. To
@@ -57,6 +59,6 @@ class LoopClosureCandidateSearchEucDist
   double distance_threshold_m_{5};
 };
 
-}  // namespace global_mapping
+}  // namespace loop_closure
 
 }  // namespace bs_models

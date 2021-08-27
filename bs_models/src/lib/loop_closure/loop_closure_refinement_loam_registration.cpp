@@ -1,10 +1,12 @@
-#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_loam_registration.h>
+#include <bs_models/loop_closure/loop_closure_refinement_loam_registration.h>
 
 #include <nlohmann/json.hpp>
 
+#include <beam_utils/filesystem.h>
+
 namespace bs_models {
 
-namespace global_mapping {
+namespace loop_closure {
 
 LoopClosureRefinementLoam::LoopClosureRefinementLoam(
     const Eigen::Matrix<double, 6, 6>& loop_closure_covariance,
@@ -43,17 +45,12 @@ void LoopClosureRefinementLoam::LoadConfig() {
     return;
   }
 
-  if (!boost::filesystem::exists(config_path_)) {
-    BEAM_ERROR(
-        "Invalid path to loop closure candidate search config. Using default "
-        "parameters. Input: {}",
-        config_path_);
+  nlohmann::json J;
+  if(!beam::ReadJson(config_path_, J)){
+    BEAM_INFO("Using default params.");
     return;
   }
 
-  nlohmann::json J;
-  std::ifstream file(config_path_);
-  file >> J;
   matcher_config_ = J["matcher_config_path"];
 }
 
@@ -75,6 +72,6 @@ bool LoopClosureRefinementLoam::GetRefinedT_MATCH_QUERY(
   T_MATCH_QUERY_OPT = matcher_->GetResult().inverse().matrix();
 }
 
-}  // namespace global_mapping
+}  // namespace loop_closure
 
 }  // namespace bs_models

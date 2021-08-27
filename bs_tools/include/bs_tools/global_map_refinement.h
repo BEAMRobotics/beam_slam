@@ -1,8 +1,8 @@
 #pragma once
 
 #include <bs_models/global_mapping/global_map.h>
-#include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
-#include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/loop_closure/loop_closure_candidate_search_base.h>
+#include <bs_models/loop_closure/loop_closure_refinement_base.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 

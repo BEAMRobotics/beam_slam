@@ -10,7 +10,6 @@
 #include <bs_parameters/models/calibration_params.h>
 
 namespace bs_models {
-namespace global_mapping {
 
 /**
  * @brief This is class is implemented as a sensor model which takes in
@@ -46,7 +45,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
    * @param msg slam chunk message which may contain lidar data, camera data,
    * and/or pose data
    */
-  void process(const SlamChunkMsg::ConstPtr& msg);
+  void process(const bs_common::SlamChunkMsg::ConstPtr& msg);
 
  private:
   /**
@@ -92,9 +91,10 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   bool extrinsics_initialized_{false};
 
-  std::unique_ptr<GlobalMap> global_map_;
+  std::unique_ptr<global_mapping::GlobalMap> global_map_;
 
-  using ThrottledCallback = fuse_core::ThrottledMessageCallback<SlamChunkMsg>;
+  using ThrottledCallback =
+      fuse_core::ThrottledMessageCallback<bs_common::SlamChunkMsg>;
   ThrottledCallback throttled_callback_;
 
   /** subscribe to slam chunk data */
@@ -104,5 +104,4 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   int max_output_map_size_{3000000};  // limits output size of lidar maps
 };
 
-}  // namespace global_mapping
 }  // namespace bs_models

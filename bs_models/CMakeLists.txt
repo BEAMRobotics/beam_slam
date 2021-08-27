@@ -108,11 +108,11 @@ add_library(
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
   src/camera_to_camera/keyframe.cpp
-  src/global_mapping/global_mapper.cpp
-  src/global_mapping/global_map.cpp
-  src/global_mapping/submap.cpp
-  src/global_mapping/loop_closure/loop_closure_candidate_search_eucdist.cpp
-  src/global_mapping/loop_closure/loop_closure_refinement_loam_registration.cpp
+  src/global_mapper.cpp
+  src/lib/global_mapping/global_map.cpp
+  src/lib/global_mapping/submap.cpp
+  src/lib/loop_closure/loop_closure_candidate_search_eucdist.cpp
+  src/lib/loop_closure/loop_closure_refinement_loam_registration.cpp
   src/lib/scan_pose.cpp
   src/lib/imu_preintegration.cpp
   src/lib/scan_registration/scan_registration_base.cpp
