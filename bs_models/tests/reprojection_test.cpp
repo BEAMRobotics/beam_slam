@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <beam_calibration/CameraModels.h>
-#include <bs_constraints/camera_to_camera/reprojection_functor.h>
+#include <bs_constraints/visual/reprojection_functor.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/math.h>
 

@@ -21,7 +21,7 @@ sensor_models:
     motion_models: ['unicycle_3d']
     ignition: true
   - name: 'lo_initializer'
-    type: 'bs_models::frame_to_frame::LoInitializer'
+    type: 'bs_models::LoInitializer'
   # - name: 'lidar_odometry'
   #   type: 'bs_models::LidarOdometry'
   #   motion_models: ['unicycle_3d']

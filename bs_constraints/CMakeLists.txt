@@ -55,8 +55,8 @@ add_library(${PROJECT_NAME}
   src/global/absolute_constraint.cpp
   src/global/absolute_imu_state_3d_stamped_constraint.cpp
   src/motion/unicycle_3d_state_kinematic_constraint.cpp
-  src/camera_to_camera/visual_constraint.cpp
-  src/camera_to_camera/visual_constraint_fixed.cpp
+  src/visual/visual_constraint.cpp
+  src/visual/visual_constraint_fixed.cpp
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}

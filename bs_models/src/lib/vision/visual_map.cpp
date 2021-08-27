@@ -2,8 +2,8 @@
 
 #include <beam_utils/math.h>
 
-#include <bs_constraints/camera_to_camera/visual_constraint.h>
-#include <bs_constraints/camera_to_camera/visual_constraint_fixed.h>
+#include <bs_constraints/visual/visual_constraint.h>
+#include <bs_constraints/visual/visual_constraint_fixed.h>
 
 namespace bs_models {
 namespace vision {

@@ -1,5 +1,5 @@
-#include <bs_constraints/camera_to_camera/reprojection_functor.h>
-#include <bs_constraints/camera_to_camera/visual_constraint.h>
+#include <bs_constraints/visual/reprojection_functor.h>
+#include <bs_constraints/visual/visual_constraint.h>
 
 #include <pluginlib/class_list_macros.h>
 
