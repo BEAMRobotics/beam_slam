@@ -165,7 +165,7 @@ void LidarOdometry::onStop() {
   subscriber_.shutdown();
 }
 
-bs_constraints::frame_to_frame::Pose3DStampedTransaction
+bs_constraints::relative_pose::Pose3DStampedTransaction
 LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
@@ -184,7 +184,7 @@ LidarOdometry::GenerateTransaction(
                                             msg->header.stamp,
                                             extrinsics_.GetBaselinkFrameId())) {
     ROS_DEBUG("Skipping scan");
-    return bs_constraints::frame_to_frame::Pose3DStampedTransaction(
+    return bs_constraints::relative_pose::Pose3DStampedTransaction(
         msg->header.stamp);
   }
 
@@ -194,7 +194,7 @@ LidarOdometry::GenerateTransaction(
         "Cannot get transform from lidar to baselink for stamp: %.8f. Skipping "
         "scan.",
         msg->header.stamp.toSec());
-    return bs_constraints::frame_to_frame::Pose3DStampedTransaction(
+    return bs_constraints::relative_pose::Pose3DStampedTransaction(
         msg->header.stamp);
   }
 
@@ -250,7 +250,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 }
 
 void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
-  bs_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction =
+  bs_constraints::relative_pose::Pose3DStampedTransaction new_transaction =
       GenerateTransaction(msg);
   if (new_transaction.GetTransaction() != nullptr) {
     ROS_DEBUG("Sending transaction.");

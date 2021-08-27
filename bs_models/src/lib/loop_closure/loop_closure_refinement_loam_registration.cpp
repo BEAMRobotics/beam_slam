@@ -30,7 +30,7 @@ LoopClosureRefinementLoam::GenerateTransaction(
   }
 
   std::string source = "LOOPCLOSURE";
-  bs_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
+  bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
       query_submap->Stamp());
   transaction.AddPoseConstraint(
       matched_submap->T_WORLD_SUBMAP(), query_submap->T_WORLD_SUBMAP(),

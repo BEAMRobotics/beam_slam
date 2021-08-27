@@ -9,7 +9,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/Matchers.h>
 #include <bs_models/loop_closure/loop_closure_refinement_base.h>
-#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 
 namespace bs_models {
 

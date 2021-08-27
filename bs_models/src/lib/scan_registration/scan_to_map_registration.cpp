@@ -7,7 +7,7 @@
 
 #include <bs_common/utils.h>
 #include <bs_models/scan_registration/registration_map.h>
-#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 
 namespace bs_models {
 namespace scan_registration {
@@ -19,9 +19,9 @@ ScanToMapRegistrationBase::ScanToMapRegistrationBase(
     const ScanRegistrationParamsBase& base_params)
     : ScanRegistrationBase(base_params) {}
 
-bs_constraints::frame_to_frame::Pose3DStampedTransaction
+bs_constraints::relative_pose::Pose3DStampedTransaction
 ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
-  bs_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
+  bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
       new_scan.Stamp());
 
   // add pose variables for new scan
@@ -213,5 +213,5 @@ void ScanToMapLoamRegistration::AddScanToMap(
   }
 }
 
-}  // namespace frame_to_frame
+}  // namespace relative_pose
 }  // namespace bs_models

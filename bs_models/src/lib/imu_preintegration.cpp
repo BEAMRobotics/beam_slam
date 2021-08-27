@@ -150,7 +150,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     const ros::Time& t_now,
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
-  bs_constraints::frame_to_frame::ImuState3DStampedTransaction transaction(
+  bs_constraints::relative_pose::ImuState3DStampedTransaction transaction(
       t_now);
 
   // check requested time

@@ -18,7 +18,7 @@
 #include <bs_common/preintegrator.h>
 
 namespace bs_constraints {
-namespace frame_to_frame {
+namespace relative_pose {
 
 /**
  * @brief A constraint that represents a measurement on the difference between
@@ -98,8 +98,8 @@ class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
   }
 };
 
-}  // namespace frame_to_frame
+}  // namespace relative_pose
 }  // namespace bs_constraints
 
 BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::frame_to_frame::RelativeImuState3DStampedConstraint);
+    bs_constraints::relative_pose::RelativeImuState3DStampedConstraint);

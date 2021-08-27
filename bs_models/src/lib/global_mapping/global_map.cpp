@@ -13,7 +13,7 @@
 #include <beam_mapping/Poses.h>
 
 #include <bs_models/loop_closure/loop_closure_methods.h>
-#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_common/utils.h>
 
 namespace bs_models {
@@ -336,7 +336,7 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   const std::shared_ptr<Submap>& current_submap =
       submaps_.at(submaps_.size() - 1);
-  bs_constraints::frame_to_frame::Pose3DStampedTransaction new_transaction(
+  bs_constraints::relative_pose::Pose3DStampedTransaction new_transaction(
       current_submap->Stamp());
   new_transaction.AddPoseVariables(current_submap->Position(),
                                    current_submap->Orientation(),

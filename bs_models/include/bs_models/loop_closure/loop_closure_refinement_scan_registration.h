@@ -10,7 +10,7 @@
 #include <beam_filtering/VoxelDownsample.h>
 
 #include <bs_models/loop_closure/loop_closure_refinement_base.h>
-#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/global_mapping/submap.h>
 
 namespace bs_models {
@@ -64,7 +64,7 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
     }
 
     std::string source = "LOOPCLOSURE";
-    bs_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
+    bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
         query_submap->Stamp());
     transaction.AddPoseConstraint(
         matched_submap->T_WORLD_SUBMAP(), query_submap->T_WORLD_SUBMAP(),

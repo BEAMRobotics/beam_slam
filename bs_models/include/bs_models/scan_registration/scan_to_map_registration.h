@@ -6,7 +6,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/loam/LoamPointCloud.h>
 
-#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_models/scan_pose.h>
 #include <bs_models/scan_registration/registration_map.h>
@@ -47,7 +47,7 @@ class ScanToMapRegistrationBase : public ScanRegistrationBase {
    * previous, unless the map is empty then the transaction will only contain a
    * prior constraint on this pose
    */
-  bs_constraints::frame_to_frame::Pose3DStampedTransaction RegisterNewScan(
+  bs_constraints::relative_pose::Pose3DStampedTransaction RegisterNewScan(
       const ScanPose& new_scan) override;
 
  protected:

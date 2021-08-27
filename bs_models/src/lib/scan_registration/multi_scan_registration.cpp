@@ -6,7 +6,7 @@
 #include <beam_matching/Matchers.h>
 
 #include <bs_common/utils.h>
-#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 
 namespace bs_models {
 namespace scan_registration {
@@ -92,9 +92,9 @@ MultiScanRegistrationBase::MultiScanRegistrationBase(
   boost::filesystem::create_directory(tmp_output_path_);
 }
 
-bs_constraints::frame_to_frame::Pose3DStampedTransaction
+bs_constraints::relative_pose::Pose3DStampedTransaction
 MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
-  bs_constraints::frame_to_frame::Pose3DStampedTransaction transaction(
+  bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
       new_scan.Stamp());
 
   // add pose variables for new scan
@@ -240,7 +240,7 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   // if no constraints were added for this scan, send empty transaction (don't
   // add scan to graph)
   if (num_constraints == 0) {
-    return bs_constraints::frame_to_frame::Pose3DStampedTransaction(
+    return bs_constraints::relative_pose::Pose3DStampedTransaction(
         new_scan.Stamp());
   }
 

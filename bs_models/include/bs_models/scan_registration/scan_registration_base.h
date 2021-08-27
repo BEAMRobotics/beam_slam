@@ -1,6 +1,6 @@
 #pragma once
 
-#include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
+#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/scan_pose.h>
 #include <bs_models/scan_registration/registration_map.h>
 
@@ -9,7 +9,7 @@ namespace scan_registration {
 
 template <typename ConstraintType, typename PriorType>
 using TransactionBase =
-    bs_constraints::frame_to_frame::FrameToFrameTransactionBase<ConstraintType,
+    bs_constraints::relative_pose::RelativePoseTransactionBase<ConstraintType,
                                                                 PriorType>;
 
 static std::string _tmp_string{""};
@@ -71,7 +71,7 @@ class ScanRegistrationBase {
    * uneccesary data conversions) and then the relative poses are transformed to
    * relative baselink poses given the extrinsics
    */
-  virtual bs_constraints::frame_to_frame::Pose3DStampedTransaction
+  virtual bs_constraints::relative_pose::Pose3DStampedTransaction
   RegisterNewScan(const ScanPose& new_scan) = 0;
 
   const RegistrationMap& GetMap() const;

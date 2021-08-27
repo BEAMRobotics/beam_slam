@@ -10,7 +10,7 @@
 #include <bs_common/utils.h>
 
 namespace bs_constraints {
-namespace frame_to_frame {
+namespace relative_pose {
 
 /**
  * @brief Implements a cost function that models a difference between 3D
@@ -145,5 +145,5 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
   return true;
 }
 
-}  // namespace frame_to_frame
+}  // namespace relative_pose
 }  // namespace bs_constraints

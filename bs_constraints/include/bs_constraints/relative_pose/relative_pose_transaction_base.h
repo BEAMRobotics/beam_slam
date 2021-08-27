@@ -12,11 +12,11 @@
 
 #include <bs_common/imu_state.h>
 #include <bs_common/utils.h>
-#include <bs_constraints/frame_to_frame/relative_imu_state_3d_stamped_constraint.h>
+#include <bs_constraints/relative_pose/relative_imu_state_3d_stamped_constraint.h>
 #include <bs_constraints/global/absolute_imu_state_3d_stamped_constraint.h>
 
 namespace bs_constraints {
-namespace frame_to_frame {
+namespace relative_pose {
 
 /**
  *
@@ -44,11 +44,11 @@ namespace frame_to_frame {
  *
  */
 template <typename ConstraintType, typename PriorType>
-class FrameToFrameTransactionBase {
+class RelativePoseTransactionBase {
  public:
-  SMART_PTR_DEFINITIONS(FrameToFrameTransactionBase<ConstraintType, PriorType>);
+  SMART_PTR_DEFINITIONS(RelativePoseTransactionBase<ConstraintType, PriorType>);
 
-  FrameToFrameTransactionBase(const ros::Time& transaction_stamp,
+  RelativePoseTransactionBase(const ros::Time& transaction_stamp,
                               bool override_constraints = true,
                               bool override_variables = true)
       : override_constraints_(override_constraints),
@@ -216,7 +216,7 @@ class FrameToFrameTransactionBase {
       const std::string& source = "NULL") {
     // build and add constraint
     auto constraint =
-        bs_constraints::frame_to_frame::RelativeImuState3DStampedConstraint::
+        bs_constraints::relative_pose::RelativeImuState3DStampedConstraint::
             make_shared(source, imu_state_i, imu_state_j, pre_integrator);
     transaction_->addConstraint(constraint, override_constraints_);
   }
@@ -254,5 +254,5 @@ class FrameToFrameTransactionBase {
   bool override_variables_;
 };
 
-}  // namespace frame_to_frame
+}  // namespace relative_pose
 }  // namespace bs_constraints

@@ -8,7 +8,7 @@
 
 #include <beam_utils/pointclouds.h>
 
-#include <bs_constraints/frame_to_frame/frame_to_frame_transaction_base.h>
+#include <bs_constraints/relative_pose/relative_pose_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_models/scan_pose.h>
@@ -36,7 +36,7 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
 
   void process(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
-  bs_constraints::frame_to_frame::Pose3DStampedTransaction
+  bs_constraints::relative_pose::Pose3DStampedTransaction
   GenerateTransaction(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
   void OutputResults(const ScanPose& scan_pose);

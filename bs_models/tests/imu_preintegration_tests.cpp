@@ -6,7 +6,7 @@
 #include <fuse_graphs/hash_graph.h>
 
 #include <test_utils.h>
-#include <bs_constraints/frame_to_frame/relative_constraint.h>
+#include <bs_constraints/relative_pose/relative_constraints.h>
 #include <bs_constraints/global/absolute_constraint.h>
 #include <bs_models/imu_preintegration.h>
 
@@ -158,7 +158,7 @@ int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
   int counter{0};
 
   // instantiate dummy constraints
-  bs_constraints::frame_to_frame::RelativeImuState3DStampedConstraint
+  bs_constraints::relative_pose::RelativeImuState3DStampedConstraint
       dummy_relative_constraint;
   bs_constraints::global::AbsoluteImuState3DStampedConstraint
       dummy_absolute_constraint;
@@ -169,9 +169,9 @@ int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
        iter++) {
     if (iter->type() == dummy_relative_constraint.type()) {
       auto constraint =
-          dynamic_cast<const bs_constraints::frame_to_frame::
+          dynamic_cast<const bs_constraints::relative_pose::
                            RelativeImuState3DStampedConstraint&>(*iter);
-      auto constraint_ptr = bs_constraints::frame_to_frame::
+      auto constraint_ptr = bs_constraints::relative_pose::
           RelativeImuState3DStampedConstraint::make_shared(constraint);
       graph.addConstraint(constraint_ptr);
       counter++;
@@ -339,19 +339,19 @@ TEST(ImuPreintegration, Simple2StateFG) {
   fuse_core::Vector3d vel_mean_delta;
   vel_mean_delta << 1.0, 0.0, 0.0;
   fuse_core::Matrix3d vel_cov_delta = fuse_core::Matrix3d::Identity();
-  auto relative_vel = bs_constraints::frame_to_frame::
-      RelativeVelocityLinear3DStampedConstraint::make_shared(
-          "test", *v1, *v2, vel_mean_delta, vel_cov_delta);
+  auto relative_vel =
+      bs_constraints::relative_pose::RelativeVelocityLinear3DStampedConstraint::
+          make_shared("test", *v1, *v2, vel_mean_delta, vel_cov_delta);
 
   // Create relative bias constraints for 0.001 in the x direction
   fuse_core::Vector3d bias_mean_delta;
   bias_mean_delta << 0.001, 0.0, 0.0;
   fuse_core::Matrix3d bias_cov_delta = fuse_core::Matrix3d::Identity();
   auto relative_bg =
-      bs_constraints::frame_to_frame::RelativeGyroBias3DStampedConstraint::
+      bs_constraints::relative_pose::RelativeGyroBias3DStampedConstraint::
           make_shared("test", *bg1, *bg2, bias_mean_delta, bias_cov_delta);
   auto relative_ba =
-      bs_constraints::frame_to_frame::RelativeAccelBias3DStampedConstraint::
+      bs_constraints::relative_pose::RelativeAccelBias3DStampedConstraint::
           make_shared("test", *ba1, *ba2, bias_mean_delta, bias_cov_delta);
 
   // get means
@@ -433,8 +433,7 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
 
     // instantiate preintegration class with zero noise. By default,
     // bias terms (i.e. bg, ba) are set to zero
-    imu_preintegration =
-        std::make_unique<bs_models::ImuPreintegration>(params);
+    imu_preintegration = std::make_unique<bs_models::ImuPreintegration>(params);
 
     // populate ImuPreintegration with synthetic imu measurements
     for (bs_common::IMUData msg : data.imu_data_gt)
@@ -453,8 +452,7 @@ class ImuPreintegration_ZeroNoiseZeroBias : public ::testing::Test {
 
   Data data;
   bs_models::ImuPreintegration::Params params;
-  std::unique_ptr<bs_models::ImuPreintegration>
-      imu_preintegration;
+  std::unique_ptr<bs_models::ImuPreintegration> imu_preintegration;
 
   bs_common::ImuState IS1;
   bs_common::ImuState IS2;
@@ -474,10 +472,8 @@ TEST_F(ImuPreintegration_ZeroNoiseZeroBias, BaseFunctionality) {
   EXPECT_ANY_THROW({
     bs_models::ImuPreintegration::Params params;
     params.cov_prior_noise = 0;
-    std::unique_ptr<bs_models::ImuPreintegration>
-        dummy_imu_preintegration =
-            std::make_unique<bs_models::ImuPreintegration>(
-                params);
+    std::unique_ptr<bs_models::ImuPreintegration> dummy_imu_preintegration =
+        std::make_unique<bs_models::ImuPreintegration>(params);
   });
 
   /**
