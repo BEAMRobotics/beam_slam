@@ -12,7 +12,7 @@
 #include <beam_matching/loam/LoamFeatureExtractor.h>
 
 #include <bs_parameters/models/lo_initializer_params.h>
-#include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
+#include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/scan_pose.h>
 
@@ -120,8 +120,7 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
    * @param keyframes list of scan poses that makeup the trajectory of keyframes
    * @return trajectory length
    */
-  double CalculateTrajectoryLength(
-      const std::list<ScanPose>& keyframes);
+  double CalculateTrajectoryLength(const std::list<ScanPose>& keyframes);
 
   // subscribers
   ros::Subscriber lidar_subscriber_;
@@ -135,8 +134,10 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // scan registration objects
-  std::unique_ptr<ScanToMapLoamRegistration> scan_registration_;
-  std::unique_ptr<beam_matching::Matcher<LoamPointCloudPtr>> matcher_;
+  std::unique_ptr<scan_registration::ScanToMapLoamRegistration>
+      scan_registration_;
+  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
+      matcher_;
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
 
   // store all current keyframes to be processed. Data in scan poses have

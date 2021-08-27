@@ -31,8 +31,9 @@ void LoInitializer::onInit() {
       params_.lidar_topic, 100, &LoInitializer::processLidar, this);
 
   // init publisher
-  results_publisher_ = private_node_handle_.advertise<InitializedPathMsg>(
-      params_.output_topic, 1000);
+  results_publisher_ =
+      private_node_handle_.advertise<bs_common::InitializedPathMsg>(
+          params_.output_topic, 1000);
 
   // initial scan registration
   std::shared_ptr<LoamParams> matcher_params =
@@ -47,16 +48,17 @@ void LoInitializer::onInit() {
   matcher_params->optimizer_params = ceres_params;
 
   matcher_ = std::make_unique<LoamMatcher>(*matcher_params);
-  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
-      matcher = std::make_unique<LoamMatcher>(*matcher_params);
-  ScanToMapLoamRegistration::Params params;
+  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
+      std::make_unique<LoamMatcher>(*matcher_params);
+  scan_registration::ScanToMapLoamRegistration::Params params;
   params.outlier_threshold_trans_m = params_.outlier_threshold_trans_m;
   params.outlier_threshold_rot_deg = params_.outlier_threshold_rot_deg;
   params.map_size = params_.scan_registration_map_size;
   params.store_full_cloud = false;
-  scan_registration_ = std::make_unique<ScanToMapLoamRegistration>(
-      std::move(matcher), params.GetBaseParams(), params.map_size,
-      params.store_full_cloud);
+  scan_registration_ =
+      std::make_unique<scan_registration::ScanToMapLoamRegistration>(
+          std::move(matcher), params.GetBaseParams(), params.map_size,
+          params.store_full_cloud);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
 
   // set covariance if not set to zero in config
@@ -136,9 +138,9 @@ void LoInitializer::ProcessCurrentKeyframe() {
             keyframe_scan_counter_, keyframe_cloud_.size());
 
   // create scan pose
-  ScanPose current_scan_pose(
-      keyframe_cloud_, keyframe_start_time_, T_WORLD_KEYFRAME_,
-      Eigen::Matrix4d::Identity(), feature_extractor_);
+  ScanPose current_scan_pose(keyframe_cloud_, keyframe_start_time_,
+                             T_WORLD_KEYFRAME_, Eigen::Matrix4d::Identity(),
+                             feature_extractor_);
 
   scan_registration_->RegisterNewScan(current_scan_pose);
   Eigen::Matrix4d T_WORLD_SCAN;
@@ -269,7 +271,7 @@ void LoInitializer::OutputResults() {
 }
 
 void LoInitializer::PublishResults() {
-  InitializedPathMsg msg;
+  bs_common::InitializedPathMsg msg;
 
   // get pose variables and add them to the msg
   int counter = 0;

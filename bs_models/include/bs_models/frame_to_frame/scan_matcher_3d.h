@@ -10,7 +10,7 @@
 
 #include <bs_constraints/frame_to_frame/frame_to_frame_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_models/frame_to_frame/scan_registration/scan_registration_base.h>
+#include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_models/scan_pose.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_parameters/models/scan_matcher_3d_params.h>
@@ -59,7 +59,7 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_{
       nullptr};
 
-  std::unique_ptr<ScanRegistrationBase> scan_registration_;
+  std::unique_ptr<scan_registration::ScanRegistrationBase> scan_registration_;
 
   fuse_core::UUID device_id_;  //!< The UUID of this device
 

@@ -5,7 +5,7 @@
 #include <bs_common/lidar_map.h>
 
 namespace bs_models {
-namespace frame_to_frame {
+namespace scan_registration {
 
 template <typename ConstraintType, typename PriorType>
 using TransactionBase =
@@ -81,7 +81,8 @@ class ScanRegistrationBase {
  protected:
   bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
-  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured, std::string& summary = _tmp_string);
+  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured,
+                          std::string& summary = _tmp_string);
 
   ScanRegistrationParamsBase base_params_;
   Eigen::Matrix<double, 6, 6> covariance_;
@@ -96,5 +97,5 @@ class ScanRegistrationBase {
   std::string base_source_{"SCANREGISTRATIONBASE"};
 };
 
-}  // namespace frame_to_frame
+}  // namespace scan_registration
 }  // namespace bs_models

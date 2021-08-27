@@ -7,12 +7,12 @@
 #include <beam_matching/loam/LoamPointCloud.h>
 
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
-#include <bs_models/frame_to_frame/scan_registration/scan_registration_base.h>
+#include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_models/scan_pose.h>
 #include <bs_common/lidar_map.h>
 
 namespace bs_models {
-namespace frame_to_frame {
+namespace scan_registration {
 
 using namespace beam_matching;
 using namespace bs_common;
@@ -116,7 +116,7 @@ class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
 
   ScanToMapLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
                             const ScanRegistrationParamsBase& base_params,
-                            int map_size = 10, bool store_full_cloud = true);                          
+                            int map_size = 10, bool store_full_cloud = true);
 
  private:
   bool IsMapEmpty() override;
@@ -131,5 +131,5 @@ class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
   Params params_;
 };
 
-}  // namespace frame_to_frame
+}  // namespace scan_registration
 }  // namespace bs_models

@@ -1,4 +1,4 @@
-#include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
+#include <bs_models/scan_registration/multi_scan_registration.h>
 
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/transaction.h>
@@ -9,7 +9,7 @@
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 
 namespace bs_models {
-namespace frame_to_frame {
+namespace scan_registration {
 
 using namespace beam_matching;
 using namespace bs_common;
@@ -517,5 +517,5 @@ bool MultiScanLoamRegistration::MatchScans(
   return true;
 }
 
-}  // namespace frame_to_frame
+}  // namespace scan_registration
 }  // namespace bs_models

@@ -1,10 +1,10 @@
-#include <bs_models/frame_to_frame/scan_registration/scan_registration_base.h>
+#include <bs_models/scan_registration/scan_registration_base.h>
 
 #include <nlohmann/json.hpp>
-#include <boost/filesystem.hpp>
+#include <beam_utils/filesystem.h>
 
 namespace bs_models {
-namespace frame_to_frame {
+namespace scan_registration {
 
 using namespace beam_matching;
 using namespace bs_common;
@@ -21,12 +21,12 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
     return;
   }
 
-  BEAM_INFO("Loading base scan registration from config file: {}", config);
-
   nlohmann::json J;
-  std::ifstream file(config);
-  file >> J;
-
+  if(!beam::ReadJson(config, J)){
+    BEAM_INFO("Using default config.");
+    return;
+  }
+  
   outlier_threshold_trans_m = J["outlier_threshold_trans_m"];
   outlier_threshold_rot_deg = J["outlier_threshold_rot_deg"];
   min_motion_trans_m = J["min_motion_trans_m"];
@@ -105,5 +105,5 @@ bool ScanRegistrationBase::PassedMotionThresholds(
   return false;
 }
 
-}  // namespace frame_to_frame
+}  // namespace scan_registration
 }  // namespace bs_models

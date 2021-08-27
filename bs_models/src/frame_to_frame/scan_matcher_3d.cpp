@@ -8,8 +8,8 @@
 #include <beam_matching/Matchers.h>
 #include <beam_utils/filesystem.h>
 
-#include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
-#include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
+#include <bs_models/scan_registration/multi_scan_registration.h>
+#include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_common/bs_msgs.h>
 
@@ -21,6 +21,7 @@ namespace bs_models {
 namespace frame_to_frame {
 
 using namespace beam_matching;
+using namespace scan_registration;
 
 ScanMatcher3D::ScanMatcher3D()
     : fuse_core::AsyncSensorModel(1),
@@ -199,8 +200,8 @@ ScanMatcher3D::GenerateTransaction(
   }
 
   ScanPose current_scan_pose(*cloud_current, msg->header.stamp,
-                                        T_WORLD_BASELINKCURRENT,
-                                        T_BASELINK_LIDAR, feature_extractor_);
+                             T_WORLD_BASELINKCURRENT, T_BASELINK_LIDAR,
+                             feature_extractor_);
 
   active_clouds_.push_back(current_scan_pose);
 

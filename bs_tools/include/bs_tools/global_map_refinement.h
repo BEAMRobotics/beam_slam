@@ -3,11 +3,11 @@
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_candidate_search_base.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_refinement_base.h>
-#include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
-#include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
+#include <bs_models/scan_registration/scan_to_map_registration.h>
+#include <bs_models/scan_registration/multi_scan_registration.h>
 
 namespace gm = bs_models::global_mapping;
-namespace f2f = bs_models::frame_to_frame;
+namespace sr = bs_models::scan_registration;
 
 namespace bs_tools {
 
@@ -84,10 +84,10 @@ class GlobalMapRefinement {
     Eigen::Matrix<double, 6, 6> loop_closure_covariance;
 
     /** multi scan registration params */
-    f2f::MultiScanLoamRegistration::Params multi_scan_reg_params;
+    sr::MultiScanLoamRegistration::Params multi_scan_reg_params;
 
     /** scan to map registration params */
-    f2f::ScanToMapLoamRegistration::Params scan_to_map_reg_params;
+    sr::ScanToMapLoamRegistration::Params scan_to_map_reg_params;
 
     /** loam scan matcher params */
     beam_matching::LoamParams loam_matcher_params;

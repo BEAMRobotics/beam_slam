@@ -10,8 +10,8 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/simple_path_generator.h>
 
-#include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
-#include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
+#include <bs_models/scan_registration/multi_scan_registration.h>
+#include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_tools/global_map_refinement.h>
 

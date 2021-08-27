@@ -265,17 +265,17 @@ bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<gm::Submap>& submap) {
   std::unique_ptr<beam_matching::LoamMatcher> matcher =
       std::make_unique<beam_matching::LoamMatcher>(params_.loam_matcher_params);
 
-  std::unique_ptr<f2f::ScanRegistrationBase> scan_registration;
+  std::unique_ptr<sr::ScanRegistrationBase> scan_registration;
 
   if (params_.scan_registration_type == "MULTISCAN") {
-    scan_registration = std::make_unique<f2f::MultiScanLoamRegistration>(
+    scan_registration = std::make_unique<sr::MultiScanLoamRegistration>(
         std::move(matcher), params_.multi_scan_reg_params.GetBaseParams(),
         params_.multi_scan_reg_params.num_neighbors,
         params_.multi_scan_reg_params.lag_duration,
         params_.multi_scan_reg_params.disable_lidar_map);
     scan_registration->SetFixedCovariance(params_.scan_reg_covariance);
   } else if (params_.scan_registration_type == "SCANTOMAP") {
-    scan_registration = std::make_unique<f2f::ScanToMapLoamRegistration>(
+    scan_registration = std::make_unique<sr::ScanToMapLoamRegistration>(
         std::move(matcher), params_.scan_to_map_reg_params.GetBaseParams(),
         params_.scan_to_map_reg_params.map_size,
         params_.scan_to_map_reg_params.store_full_cloud);
