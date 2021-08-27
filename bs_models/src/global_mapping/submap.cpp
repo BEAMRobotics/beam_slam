@@ -158,9 +158,9 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     iter->second.AddPointCloud(cloud, type, false);
   } else {
     // Stamp does not exist: add new scanpose to map
-    bs_common::ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, T_BASELINK_LIDAR);
+    ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, T_BASELINK_LIDAR);
     new_scan_pose.AddPointCloud(cloud, type, false);
-    lidar_keyframe_poses_.insert(std::pair<uint64_t, bs_common::ScanPose>(
+    lidar_keyframe_poses_.insert(std::pair<uint64_t, ScanPose>(
         stamp.toNSec(), new_scan_pose));
   }
 }
@@ -547,7 +547,7 @@ bool Submap::LoadData(const std::string& input_dir,
     if (!boost::filesystem::exists(lidar_keyframe_dir)) {
       break;
     }
-    bs_common::ScanPose scan_pose(ros::Time(0), Eigen::Matrix4d::Identity());
+    ScanPose scan_pose(ros::Time(0), Eigen::Matrix4d::Identity());
     try {
       scan_pose.LoadData(lidar_keyframe_dir);
     } catch (...) {

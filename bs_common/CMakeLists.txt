@@ -73,7 +73,6 @@ add_library(${PROJECT_NAME}
   src/bs_common/extrinsics_lookup_online.cpp
   src/bs_common/imu_state.cpp
   src/bs_common/pose_lookup.cpp
-  src/bs_common/scan_pose.cpp
   src/bs_common/lidar_map.cpp
   src/bs_common/current_submap.cpp
   src/bs_common/preintegrator.cpp
@@ -101,27 +100,16 @@ target_link_libraries(
 #############
 if(CATKIN_ENABLE_TESTING)
   # Imu State tests
-  catkin_add_gtest(imu_state_tests_tests 
+  catkin_add_gtest(${PROJECT_NAME}_imu_state_tests_tests 
     tests/imu_state_tests.cpp
   )
-  target_link_libraries(imu_state_tests_tests 
+  target_link_libraries(${PROJECT_NAME}_imu_state_tests_tests 
     ${PROJECT_NAME}
   )
-  set_target_properties(imu_state_tests_tests 
+  set_target_properties(${PROJECT_NAME}_imu_state_tests_tests 
     PROPERTIES
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES
   )  
-
-  add_executable(${PROJECT_NAME}_scan_pose_tests 
-    tests/scan_pose_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_scan_pose_tests 
-    ${PROJECT_NAME}
-    gtest_main
-    beam::utils
-    beam::filtering
-    beam::matching)
-  add_test(NAME ${PROJECT_NAME}_scan_pose_tests 
-          COMMAND ${PROJECT_NAME}_scan_pose_tests)
 
 endif()

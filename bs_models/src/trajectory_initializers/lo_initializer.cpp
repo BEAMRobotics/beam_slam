@@ -136,7 +136,7 @@ void LoInitializer::ProcessCurrentKeyframe() {
             keyframe_scan_counter_, keyframe_cloud_.size());
 
   // create scan pose
-  bs_common::ScanPose current_scan_pose(
+  ScanPose current_scan_pose(
       keyframe_cloud_, keyframe_start_time_, T_WORLD_KEYFRAME_,
       Eigen::Matrix4d::Identity(), feature_extractor_);
 
@@ -162,7 +162,7 @@ void LoInitializer::ProcessCurrentKeyframe() {
   ROS_DEBUG("Time window is full, checking trajectory length.");
 
   // check that trajectory is long enough
-  double trajectory_length = bs_common::CalculateTrajectoryLength(keyframes_);
+  double trajectory_length = CalculateTrajectoryLength(keyframes_);
   ROS_DEBUG("Trajectory length of %.3f m was calculated, with %d keyframes.",
             trajectory_length, keyframes_.size());
 
@@ -304,6 +304,25 @@ void LoInitializer::PublishResults() {
   }
 
   results_publisher_.publish(msg);
+}
+
+double LoInitializer::CalculateTrajectoryLength(
+    const std::list<ScanPose>& keyframes) {
+  double length{0};
+  auto iter = keyframes.begin();
+  Eigen::Vector3d prev_position = iter->T_REFFRAME_BASELINK().block(0, 3, 3, 1);
+  iter++;
+
+  while (iter != keyframes.end()) {
+    Eigen::Vector3d current_position =
+        iter->T_REFFRAME_BASELINK().block(0, 3, 3, 1);
+    Eigen::Vector3d current_motion = current_position - prev_position;
+    length += current_motion.norm();
+    prev_position = current_position;
+    iter++;
+  }
+
+  return length;
 }
 
 }  // namespace frame_to_frame

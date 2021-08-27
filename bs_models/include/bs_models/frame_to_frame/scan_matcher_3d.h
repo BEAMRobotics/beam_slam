@@ -11,7 +11,7 @@
 #include <bs_constraints/frame_to_frame/frame_to_frame_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_registration_base.h>
-#include <bs_common/scan_pose.h>
+#include <bs_models/scan_pose.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_parameters/models/scan_matcher_3d_params.h>
 
@@ -40,7 +40,7 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   bs_constraints::frame_to_frame::Pose3DStampedTransaction
   GenerateTransaction(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
-  void OutputResults(const bs_common::ScanPose& scan_pose);
+  void OutputResults(const ScanPose& scan_pose);
 
   /** subscribe to lidar data */
   ros::Subscriber subscriber_;
@@ -53,7 +53,7 @@ class ScanMatcher3D : public fuse_core::AsyncSensorModel {
   ThrottledCallback throttled_callback_;
 
   /** Needed for outputing the slam results or saving final clouds or graph updates */
-  std::list<bs_common::ScanPose> active_clouds_;
+  std::list<ScanPose> active_clouds_;
 
   /** Only needed if using LoamMatcher */
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_{

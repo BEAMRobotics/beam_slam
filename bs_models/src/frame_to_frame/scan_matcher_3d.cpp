@@ -198,7 +198,7 @@ ScanMatcher3D::GenerateTransaction(
         msg->header.stamp);
   }
 
-  bs_common::ScanPose current_scan_pose(*cloud_current, msg->header.stamp,
+  ScanPose current_scan_pose(*cloud_current, msg->header.stamp,
                                         T_WORLD_BASELINKCURRENT,
                                         T_BASELINK_LIDAR, feature_extractor_);
 
@@ -262,7 +262,7 @@ void ScanMatcher3D::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   }
 }
 
-void ScanMatcher3D::OutputResults(const bs_common::ScanPose& scan_pose) {
+void ScanMatcher3D::OutputResults(const ScanPose& scan_pose) {
   if (!params_.output_topic.empty()) {
     // output to global mapper
     SlamChunkMsg slam_chunk_msg;

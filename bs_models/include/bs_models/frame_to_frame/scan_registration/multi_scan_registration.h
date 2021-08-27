@@ -9,7 +9,7 @@
 
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_registration_base.h>
-#include <bs_common/scan_pose.h>
+#include <bs_models/scan_pose.h>
 
 static bool tmp_{true};
 

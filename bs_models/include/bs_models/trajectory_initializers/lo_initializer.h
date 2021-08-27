@@ -14,7 +14,7 @@
 #include <bs_parameters/models/lo_initializer_params.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_to_map_registration.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_common/scan_pose.h>
+#include <bs_models/scan_pose.h>
 
 namespace bs_models {
 namespace frame_to_frame {
@@ -114,6 +114,15 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
    */
   void PublishResults();
 
+  /**
+   * @brief iterates through all keypoints in the list and add up the change in
+   * position between each keyframe.
+   * @param keyframes list of scan poses that makeup the trajectory of keyframes
+   * @return trajectory length
+   */
+  double CalculateTrajectoryLength(
+      const std::list<ScanPose>& keyframes);
+
   // subscribers
   ros::Subscriber lidar_subscriber_;
   ros::Publisher results_publisher_;
@@ -133,7 +142,7 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   // store all current keyframes to be processed. Data in scan poses have
   // already been converted to the baselink frame, and T_BASELINK_LIDAR is set
   // to identity
-  std::list<bs_common::ScanPose> keyframes_;
+  std::list<ScanPose> keyframes_;
 
   // keep track of the current keyframe
   int keyframe_scan_counter_{0};

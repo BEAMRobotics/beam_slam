@@ -1,7 +1,7 @@
 #pragma once
 
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
-#include <bs_common/scan_pose.h>
+#include <bs_models/scan_pose.h>
 #include <bs_common/lidar_map.h>
 
 namespace bs_models {
@@ -72,7 +72,7 @@ class ScanRegistrationBase {
    * relative baselink poses given the extrinsics
    */
   virtual bs_constraints::frame_to_frame::Pose3DStampedTransaction
-  RegisterNewScan(const bs_common::ScanPose& new_scan) = 0;
+  RegisterNewScan(const ScanPose& new_scan) = 0;
 
   const bs_common::LidarMap& GetMap() const;
 

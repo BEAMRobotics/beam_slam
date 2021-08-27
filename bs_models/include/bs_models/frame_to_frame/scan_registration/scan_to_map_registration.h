@@ -8,7 +8,7 @@
 
 #include <bs_constraints/frame_to_frame/pose_3d_stamped_transaction.h>
 #include <bs_models/frame_to_frame/scan_registration/scan_registration_base.h>
-#include <bs_common/scan_pose.h>
+#include <bs_models/scan_pose.h>
 #include <bs_common/lidar_map.h>
 
 namespace bs_models {
@@ -81,7 +81,7 @@ class ScanToMapRegistrationBase : public ScanRegistrationBase {
    * NOTE: This scan pose only contains poses, no scan.
    *
    */
-  std::unique_ptr<bs_common::ScanPose> scan_pose_prev_;
+  std::unique_ptr<ScanPose> scan_pose_prev_;
 };
 
 /**

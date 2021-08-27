@@ -4,6 +4,7 @@
 #include <random>
 
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
+#include <fuse_constraints/relative_pose_3d_stamped_constraint.h>
 #include <fuse_core/constraint.h>
 #include <fuse_core/uuid.h>
 #include <fuse_core/variable.h>
@@ -16,9 +17,9 @@
 #include <beam_utils/pointclouds.h>
 
 #include <bs_common/utils.h>
-#include <bs_common/scan_pose.h>
+#include <bs_models/scan_pose.h>
 
-using namespace bs_common;
+using namespace bs_models;
 
 class Data {
  public:

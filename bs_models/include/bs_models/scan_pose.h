@@ -7,7 +7,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/loam/LoamFeatureExtractor.h>
 
-namespace bs_common {
+namespace bs_models {
 
 /**
  * @brief class to store scan information along with its pose. The pose is
@@ -252,7 +252,7 @@ class ScanPose {
    *    loam_edges_weak.pcd
    *    loam_surfaces_strong.pcd
    *    loam_surfaces_weak.pcd
-   *    
+   *
    *
    * @param output_dir full path to empty directory. This path must exist, but
    * must be empty.
@@ -287,4 +287,4 @@ class ScanPose {
   std::string cloud_type_{"PCLPOINTCLOUD"};
 };
 
-}  // namespace bs_common
+}  // namespace bs_models

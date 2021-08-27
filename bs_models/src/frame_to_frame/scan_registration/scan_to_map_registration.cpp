@@ -44,7 +44,7 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
                                prior_covariance, "FIRSTSCANPRIOR");
     }
 
-    scan_pose_prev_ = std::make_unique<bs_common::ScanPose>(
+    scan_pose_prev_ = std::make_unique<ScanPose>(
         new_scan.Stamp(), new_scan.T_REFFRAME_BASELINK(),
         new_scan.T_BASELINK_LIDAR());
 
@@ -81,7 +81,7 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   AddScanToMap(new_scan, T_MAP_SCAN);
 
   // copy over just pose information
-  scan_pose_prev_ = std::make_unique<bs_common::ScanPose>(
+  scan_pose_prev_ = std::make_unique<ScanPose>(
       new_scan.Stamp(), T_MAP_SCAN * new_scan.T_LIDAR_BASELINK(),
       new_scan.T_BASELINK_LIDAR());
 

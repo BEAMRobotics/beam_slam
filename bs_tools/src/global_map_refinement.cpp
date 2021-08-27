@@ -4,6 +4,7 @@
 #include <fuse_graphs/hash_graph.h>
 
 #include <bs_common/utils.h>
+#include <bs_models/scan_pose.h>
 #include <bs_models/global_mapping/loop_closure/loop_closure_methods.h>
 
 namespace bs_tools {
@@ -294,7 +295,7 @@ bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<gm::Submap>& submap) {
   BEAM_INFO("Registering scans");
   for (auto scan_iter = submap->LidarKeyframesBegin();
        scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
-    const gm::ScanPose& scan_pose = scan_iter->second;
+    const bs_models::ScanPose& scan_pose = scan_iter->second;
     auto transaction =
         scan_registration->RegisterNewScan(scan_pose).GetTransaction();
     if (transaction != nullptr) {

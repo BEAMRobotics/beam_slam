@@ -1,4 +1,4 @@
-#include <bs_common/scan_pose.h>
+#include <bs_models/scan_pose.h>
 
 #include <boost/filesystem.hpp>
 #include <pcl/common/transforms.h>
@@ -10,7 +10,7 @@
 
 #include <bs_common/utils.h>
 
-namespace bs_common {
+namespace bs_models {
 
 ScanPose::ScanPose(const PointCloud& cloud, const ros::Time& stamp,
                    const Eigen::Matrix4d& T_REFFRAME_BASELINK,
@@ -411,4 +411,4 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
   loam_cloud_transformed.Save(file_name_prefix, true);
 }
 
-}  // namespace bs_common
+}  // namespace bs_models
