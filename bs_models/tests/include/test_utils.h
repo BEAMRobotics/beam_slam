@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <gtest/gtest.h>
 #include <Eigen/Geometry>
 
@@ -51,24 +52,31 @@ inline void ExpectImuStateEq(const bs_common::ImuState& IS1,
 }
 
 inline void ExpectImuStateNear(const bs_common::ImuState& IS1,
-                               const bs_common::ImuState& IS2) {
+                               const bs_common::ImuState& IS2,
+                               const std::array<double, 5>& tol) {
   EXPECT_EQ(IS1.Stamp(), IS2.Stamp());
-  EXPECT_NEAR(IS1.Orientation().w(), IS2.Orientation().w(), 1e-6);
-  EXPECT_NEAR(IS1.Orientation().x(), IS2.Orientation().x(), 1e-6);
-  EXPECT_NEAR(IS1.Orientation().y(), IS2.Orientation().y(), 1e-6);
-  EXPECT_NEAR(IS1.Orientation().z(), IS2.Orientation().z(), 1e-6);
-  EXPECT_NEAR(IS1.Position().x(), IS2.Position().x(), 1e-3);
-  EXPECT_NEAR(IS1.Position().y(), IS2.Position().y(), 1e-3);
-  EXPECT_NEAR(IS1.Position().z(), IS2.Position().z(), 1e-4);
-  EXPECT_NEAR(IS1.Velocity().x(), IS2.Velocity().x(), 1e-3);
-  EXPECT_NEAR(IS1.Velocity().y(), IS2.Velocity().y(), 1e-3);
-  EXPECT_NEAR(IS1.Velocity().z(), IS2.Velocity().z(), 1e-4);
-  EXPECT_NEAR(IS1.GyroBias().x(), IS2.GyroBias().x(), 1e-9);
-  EXPECT_NEAR(IS1.GyroBias().y(), IS2.GyroBias().y(), 1e-9);
-  EXPECT_NEAR(IS1.GyroBias().z(), IS2.GyroBias().z(), 1e-9);
-  EXPECT_NEAR(IS1.AccelBias().x(), IS2.AccelBias().x(), 1e-9);
-  EXPECT_NEAR(IS1.AccelBias().y(), IS2.AccelBias().y(), 1e-9);
-  EXPECT_NEAR(IS1.AccelBias().z(), IS2.AccelBias().z(), 1e-9);
+  EXPECT_NEAR(IS1.Orientation().w(), IS2.Orientation().w(), tol[0]);
+  EXPECT_NEAR(IS1.Orientation().x(), IS2.Orientation().x(), tol[0]);
+  EXPECT_NEAR(IS1.Orientation().y(), IS2.Orientation().y(), tol[0]);
+  EXPECT_NEAR(IS1.Orientation().z(), IS2.Orientation().z(), tol[0]);
+  EXPECT_NEAR(IS1.Position().x(), IS2.Position().x(), tol[1]);
+  EXPECT_NEAR(IS1.Position().y(), IS2.Position().y(), tol[1]);
+  EXPECT_NEAR(IS1.Position().z(), IS2.Position().z(), tol[1]);
+  EXPECT_NEAR(IS1.Velocity().x(), IS2.Velocity().x(), tol[2]);
+  EXPECT_NEAR(IS1.Velocity().y(), IS2.Velocity().y(), tol[2]);
+  EXPECT_NEAR(IS1.Velocity().z(), IS2.Velocity().z(), tol[2]);
+  EXPECT_NEAR(IS1.GyroBias().x(), IS2.GyroBias().x(), tol[3]);
+  EXPECT_NEAR(IS1.GyroBias().y(), IS2.GyroBias().y(), tol[3]);
+  EXPECT_NEAR(IS1.GyroBias().z(), IS2.GyroBias().z(), tol[3]);
+  EXPECT_NEAR(IS1.AccelBias().x(), IS2.AccelBias().x(), tol[4]);
+  EXPECT_NEAR(IS1.AccelBias().y(), IS2.AccelBias().y(), tol[4]);
+  EXPECT_NEAR(IS1.AccelBias().z(), IS2.AccelBias().z(), tol[4]);
+}
+
+inline void ExpectImuStateNear(const bs_common::ImuState& IS1,
+                               const bs_common::ImuState& IS2) {
+  std::array<double, 5> tol{1e-6, 1e-3, 1e-3, 1e-9, 1e-9};
+  ExpectImuStateNear(IS1, IS2, tol);
 }
 
 }  // namespace bs_models
