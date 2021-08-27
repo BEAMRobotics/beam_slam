@@ -60,7 +60,7 @@ camera:
 
 gt_initializer:
   imu_topic: "/imu0"
-  pose_file_path: "/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/euroc/V1_01_poses.ply"
+  pose_file_path: "/home/jake/V1_01_poses.ply"
   trajectory_time_window: 5.0
   output_topic: "/lo_initialiser_result"
   min_trajectory_length: 0.5 # trajectory length to accept (in metres)
