@@ -99,6 +99,7 @@ include_directories(
 add_library(
   ${PROJECT_NAME}
   src/lo_initializer.cpp
+  src/gt_initializer.cpp
   src/unicycle_3d.cpp
   src/unicycle_3d_ignition.cpp
   src/lidar_odometry.cpp

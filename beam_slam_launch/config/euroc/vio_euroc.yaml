@@ -9,12 +9,12 @@ sensor_models:
   #   motion_models: ['unicycle_3d']
   #   ignition: true
   - name: 'gt_initializer'
-    type: 'bs_models::frame_to_frame::GTInitializer'
+    type: 'bs_models::GTInitializer'
 
 # motion models
 motion_models:
   - name: 'unicycle_3d'
-    type: 'bs_models::motion::Unicycle3D'
+    type: 'bs_models::Unicycle3D'
 
 # solver options
 solver_options:
