@@ -1,14 +1,14 @@
-#include <bs_models/frame_to_frame/imu_3d.h>
-#include <bs_common/utils.h>
+#include <bs_models/imu_3d.h>
 
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
+#include <bs_common/utils.h>
+
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::Imu3D, fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::Imu3D, fuse_core::SensorModel)
 
 namespace bs_models {
-namespace frame_to_frame {
 
 Imu3D::Imu3D()
     : fuse_core::AsyncSensorModel(1),
@@ -139,5 +139,4 @@ bool Imu3D::GetEstimatedPose(
   return true;
 }
 
-}  // namespace frame_to_frame
 }  // namespace bs_models

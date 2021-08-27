@@ -4,10 +4,10 @@
 #include <fuse_core/throttled_callback.h>
 #include <fuse_core/uuid.h>
 
-#include <bs_constraints/frame_to_frame/frame_to_frame_transaction_base.h>
-#include <bs_common/extrinsics_lookup_base.h>
+#include <bs_common/extrinsics_lookup_online.h>
+#include <bs_constraints/relative_pose/relative_pose_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_models/frame_to_frame/imu_preintegration.h>
+#include <bs_models/imu_preintegration.h>
 #include <bs_parameters/models/imu_3d_params.h>
 
 namespace bs_models {
