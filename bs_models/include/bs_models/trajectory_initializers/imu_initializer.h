@@ -1,8 +1,11 @@
 #pragma once
-#include <bs_common/preintegrator.h>
+
 #include <beam_utils/utils.h>
 
-namespace bs_models { namespace camera_to_camera {
+#include <bs_common/preintegrator.h>
+
+namespace bs_models {
+namespace trajectory_initializers {
 
 /**
  * @brief this struct represents a single frame, which contains a pose,
@@ -22,13 +25,12 @@ struct Frame {
  * their preintegrator objects
  */
 class IMUInitializer {
-public:
+ public:
   /**
    * @brief Custom Constructor
    * @param frames list of frames to use for estimation
    */
-  IMUInitializer(
-      const std::vector<bs_models::camera_to_camera::Frame>& frames);
+  IMUInitializer(const std::vector<Frame>& frames);
 
   /**
    * @brief Solves for the gyroscope bias
@@ -72,7 +74,7 @@ public:
    */
   const double& GetScale();
 
-private:
+ private:
   /**
    * @brief Integrates each frame using current bias estimates
    */
@@ -89,11 +91,12 @@ private:
     return (Eigen::Matrix<double, 3, 2>() << b1, b2).finished();
   }
 
-  std::vector<bs_models::camera_to_camera::Frame> frames_;
+  std::vector<Frame> frames_;
   Eigen::Vector3d bg_;
   Eigen::Vector3d ba_;
   Eigen::Vector3d gravity_;
   double scale_;
 };
 
-}} // namespace bs_models::camera_to_camera
+}  // namespace trajectory_initializers
+}  // namespace bs_models

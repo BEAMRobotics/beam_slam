@@ -1,4 +1,4 @@
-#include <bs_models/trajectory_initializers/lo_initializer.h>
+#include <bs_models/lo_initializer.h>
 
 #include <pluginlib/class_list_macros.h>
 #include <pcl/common/transforms.h>
@@ -12,11 +12,9 @@
 #include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::LoInitializer,
-                       fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::LoInitializer, fuse_core::SensorModel)
 
 namespace bs_models {
-namespace frame_to_frame {
 
 using namespace beam_matching;
 
@@ -327,5 +325,4 @@ double LoInitializer::CalculateTrajectoryLength(
   return length;
 }
 
-}  // namespace frame_to_frame
 }  // namespace bs_models

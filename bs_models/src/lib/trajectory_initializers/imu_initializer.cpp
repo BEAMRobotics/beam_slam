@@ -3,10 +3,9 @@
 #include <bs_common/utils.h>
 
 namespace bs_models {
-namespace camera_to_camera {
+namespace trajectory_initializers {
 
-IMUInitializer::IMUInitializer(
-    const std::vector<bs_models::camera_to_camera::Frame>& frames)
+IMUInitializer::IMUInitializer(const std::vector<Frame>& frames)
     : frames_(frames) {
   bg_.setZero();
   ba_.setZero();
@@ -28,8 +27,8 @@ void IMUInitializer::SolveGyroBias() {
   for (size_t j = 1; j < frames_.size(); ++j) {
     const size_t i = j - 1;
 
-    bs_models::camera_to_camera::Frame frame_i = frames_[i];
-    bs_models::camera_to_camera::Frame frame_j = frames_[j];
+    Frame frame_i = frames_[i];
+    Frame frame_j = frames_[j];
 
     const Eigen::Quaterniond& dq = frames_[j].preint.delta.q;
     const Eigen::Matrix3d& dq_dbg = frames_[j].preint.jacobian.dq_dbg;
@@ -174,5 +173,5 @@ const Eigen::Vector3d& IMUInitializer::GetGravity() { return gravity_; }
 
 const double& IMUInitializer::GetScale() { return scale_; }
 
-}  // namespace camera_to_camera
+}  // namespace trajectory_initializers
 }  // namespace bs_models

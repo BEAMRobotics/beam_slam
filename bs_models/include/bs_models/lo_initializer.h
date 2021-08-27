@@ -17,7 +17,6 @@
 #include <bs_models/scan_pose.h>
 
 namespace bs_models {
-namespace frame_to_frame {
 
 /**
  * @brief This initializer creates an initial trajectory using imu and lidar
@@ -155,5 +154,5 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   // bool for tracking if initialization has completed
   bool initialization_complete_{false};
 };
-}  // namespace frame_to_frame
+
 }  // namespace bs_models

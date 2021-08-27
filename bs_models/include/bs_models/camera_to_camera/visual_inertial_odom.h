@@ -191,7 +191,7 @@ protected:
   uint8_t descriptor_type_int_;
 
   // initialization object
-  std::shared_ptr<bs_models::camera_to_camera::VIOInitializer> initializer_;
+  std::shared_ptr<bs_models::trajectory_initializers::VIOInitializer> initializer_;
 
   // imu preintegration object
   std::shared_ptr<bs_models::ImuPreintegration> imu_preint_;

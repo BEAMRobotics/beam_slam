@@ -9,7 +9,7 @@
 #include <bs_common/utils.h>
 
 namespace bs_models {
-namespace camera_to_camera {
+namespace trajectory_initializers {
 
 VIOInitializer::VIOInitializer(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
@@ -37,7 +37,8 @@ VIOInitializer::VIOInitializer(
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
 
   // create visual map
-  visual_map_ = std::make_shared<VisualMap>(cam_model_, local_graph_);
+  visual_map_ =
+      std::make_shared<camera_to_camera::VisualMap>(cam_model_, local_graph_);
 
   // create pose refiner
   pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
@@ -54,15 +55,14 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
     ROS_INFO("Attempting VIO Initialization.");
 
     // Build frame vectors
-    std::vector<bs_models::camera_to_camera::Frame> valid_frames;
-    std::vector<bs_models::camera_to_camera::Frame> invalid_frames;
+    std::vector<Frame> valid_frames;
+    std::vector<Frame> invalid_frames;
     BuildFrameVectors(valid_frames, invalid_frames);
 
     // Initialize imu preintegration
     PerformIMUInitialization(valid_frames);
     imu_preint_ =
-        std::make_shared<bs_models::ImuPreintegration>(
-            imu_params_, bg_, ba_);
+        std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 
     // align poses to estimated gravity
     Eigen::Quaterniond q =
@@ -116,8 +116,7 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
   return is_initialized_;
 }
 
-void VIOInitializer::OutputFramePoses(
-    const std::vector<bs_models::camera_to_camera::Frame>& frames) {
+void VIOInitializer::OutputFramePoses(const std::vector<Frame>& frames) {
   for (auto& f : frames) {
     std::cout << f.t << std::endl;
     std::cout << visual_map_->GetCameraPose(f.t) << std::endl;
@@ -144,9 +143,8 @@ VIOInitializer::GetPreintegrator() {
   return imu_preint_;
 }
 
-void VIOInitializer::BuildFrameVectors(
-    std::vector<bs_models::camera_to_camera::Frame>& valid_frames,
-    std::vector<bs_models::camera_to_camera::Frame>& invalid_frames) {
+void VIOInitializer::BuildFrameVectors(std::vector<Frame>& valid_frames,
+                                       std::vector<Frame>& invalid_frames) {
   ros::Time start = init_path_->poses[0].header.stamp;
   ros::Time end = init_path_->poses[init_path_->poses.size() - 1].header.stamp;
   valid_frames.clear();
@@ -180,8 +178,7 @@ void VIOInitializer::BuildFrameVectors(
           T_WORLD_BASELINK, q_WORLD_BASELINK, p_WORLD_BASELINK);
 
       // create frame and add to valid frame vector
-      bs_models::camera_to_camera::Frame new_frame{
-          stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
+      Frame new_frame{stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
       valid_frames.push_back(new_frame);
     } else {
       // get arbitrary pose values
@@ -189,16 +186,15 @@ void VIOInitializer::BuildFrameVectors(
       Eigen::Quaterniond q_WORLD_BASELINK(0, 0, 0, 0);
 
       // create frame and add to invalid frame vector
-      bs_models::camera_to_camera::Frame new_frame{
-          stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
+      Frame new_frame{stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
       invalid_frames.push_back(new_frame);
     }
   }
 }
 
 void VIOInitializer::PerformIMUInitialization(
-    const std::vector<bs_models::camera_to_camera::Frame>& frames) {
-  bs_models::camera_to_camera::IMUInitializer imu_init(frames);
+    const std::vector<Frame>& frames) {
+  bs_models::trajectory_initializers::IMUInitializer imu_init(frames);
 
   // estimate gyroscope bias
   if (init_path_->gyroscope_bias.x == 0 && init_path_->gyroscope_bias.y == 0 &&
@@ -236,12 +232,11 @@ void VIOInitializer::PerformIMUInitialization(
 }
 
 void VIOInitializer::AddPosesAndInertialConstraints(
-    const std::vector<bs_models::camera_to_camera::Frame>& frames,
-    bool set_start) {
+    const std::vector<Frame>& frames, bool set_start) {
   // add initial poses and imu data to preintegrator
   for (int i = 0; i < frames.size(); i++) {
     // Add frame's pose to graph
-    bs_models::camera_to_camera::Frame frame = frames[i];
+    Frame frame = frames[i];
     visual_map_->AddPosition(frame.p, frame.t);
     visual_map_->AddOrientation(frame.q, frame.t);
     Eigen::Matrix4d T;
@@ -271,8 +266,7 @@ void VIOInitializer::AddPosesAndInertialConstraints(
   }
 }
 
-size_t VIOInitializer::AddVisualConstraints(
-    const std::vector<bs_models::camera_to_camera::Frame>& frames) {
+size_t VIOInitializer::AddVisualConstraints(const std::vector<Frame>& frames) {
   ros::Time start = frames[0].t, end = frames[frames.size() - 1].t;
   size_t num_landmarks = 0;
 
@@ -327,9 +321,8 @@ size_t VIOInitializer::AddVisualConstraints(
   return num_landmarks;
 }
 
-bool VIOInitializer::LocalizeFrame(
-    const bs_models::camera_to_camera::Frame& frame,
-    Eigen::Matrix4d& T_WORLD_BASELINK) {
+bool VIOInitializer::LocalizeFrame(const Frame& frame,
+                                   Eigen::Matrix4d& T_WORLD_BASELINK) {
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
@@ -379,8 +372,7 @@ void VIOInitializer::OptimizeGraph() {
   local_graph_->optimize(options);
 }
 
-void VIOInitializer::OutputResults(
-    const std::vector<bs_models::camera_to_camera::Frame>& frames) {
+void VIOInitializer::OutputResults(const std::vector<Frame>& frames) {
   if (!boost::filesystem::exists(output_directory_) ||
       output_directory_.empty()) {
     ROS_WARN(
@@ -411,5 +403,5 @@ void VIOInitializer::OutputResults(
   }
 }
 
-}  // namespace camera_to_camera
+}  // namespace trajectory_initializers
 }  // namespace bs_models

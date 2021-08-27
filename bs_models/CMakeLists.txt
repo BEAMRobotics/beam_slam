@@ -99,9 +99,6 @@ add_library(
   src/motion/unicycle_3d.cpp
   src/motion/unicycle_3d_ignition.cpp
   src/frame_to_frame/scan_matcher_3d.cpp
-  src/trajectory_initializers/imu_initializer.cpp
-  src/trajectory_initializers/vio_initializer.cpp
-  src/trajectory_initializers/lo_initializer.cpp
   src/camera_to_camera/visual_inertial_odom.cpp
   src/camera_to_camera/visual_map.cpp
   src/camera_to_camera/keyframe.cpp
@@ -119,6 +116,9 @@ add_library(
   src/lib/frame_initializers/frame_initializer_base.cpp
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
+  src/lib/trajectory_initializers/imu_initializer.cpp
+  src/lib/trajectory_initializers/vio_initializer.cpp
+  src/lo_initializer.cpp
 )
 
 ## Specify libraries to link a library or executable target against
