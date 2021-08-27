@@ -1,8 +1,7 @@
 #pragma once
 
-
-#include <sensor_msgs/Imu.h>
 #include <fuse_core/async_sensor_model.h>
+#include <sensor_msgs/Imu.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
@@ -10,12 +9,10 @@
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/gt_initializer_params.h>
 
-namespace bs_models {
-namespace frame_to_frame {
-
+namespace bs_models { namespace frame_to_frame {
 
 class GTInitializer : public fuse_core::AsyncSensorModel {
- public:
+public:
   SMART_PTR_DEFINITIONS(GTInitializer);
 
   GTInitializer();
@@ -29,7 +26,7 @@ class GTInitializer : public fuse_core::AsyncSensorModel {
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
- protected:
+protected:
   /**
    * @brief todo
    */
@@ -50,6 +47,11 @@ class GTInitializer : public fuse_core::AsyncSensorModel {
    */
   void PublishResults();
 
+  /**
+   * @brief Calculate length of the current trajectory
+   */
+  double CalculateTrajectoryLength();
+
   // parameters
   bs_parameters::models::GTInitializerParams gt_initializer_params_;
   bs_parameters::models::CalibrationParams calibration_params_;
@@ -62,7 +64,6 @@ class GTInitializer : public fuse_core::AsyncSensorModel {
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
-
   // bool for tracking if initialization has completed
   bool initialization_complete_{false};
 
@@ -73,5 +74,4 @@ class GTInitializer : public fuse_core::AsyncSensorModel {
   ros::Time current_pose_time_ = ros::Time(0);
   uint32_t max_poses_;
 };
-}  // namespace frame_to_frame
-}  // namespace bs_models
+}} // namespace bs_models::frame_to_frame
