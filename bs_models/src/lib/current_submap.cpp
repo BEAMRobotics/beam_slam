@@ -1,8 +1,8 @@
-#include <bs_common/current_submap.h>
+#include <bs_models/current_submap.h>
 
 #include <beam_cv/descriptors/Descriptor.h>
 
-namespace bs_common {
+namespace bs_models {
 
 CurrentSubmap::CurrentSubmap() {
   ros::NodeHandle n;
@@ -43,8 +43,8 @@ void CurrentSubmap::CurrentSubmapCallback(
   }
 }
 
-std::vector<Eigen::Vector3d>
-    CurrentSubmap::GetVisualMapPoints(const Eigen::Matrix4d& T_WORLD_CAMERA) {
+std::vector<Eigen::Vector3d> CurrentSubmap::GetVisualMapPoints(
+    const Eigen::Matrix4d& T_WORLD_CAMERA) {
   std::vector<Eigen::Vector3d> transformed_points;
   // transform each point and push to list
   for (auto& p : visual_map_points_) {
@@ -68,4 +68,4 @@ void CurrentSubmap::RemoveVisualMapPoint(size_t index) {
   descriptors_.erase(descriptors_.begin() + index);
 }
 
-} // namespace bs_common
+}  // namespace bs_models

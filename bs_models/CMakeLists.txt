@@ -96,18 +96,19 @@ include_directories(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
+  src/lo_initializer.cpp
+  src/unicycle_3d.cpp
+  src/unicycle_3d_ignition.cpp
   src/lidar_odometry.cpp
   src/visual_inertial_odometry.cpp
+  src/global_mapper.cpp
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp
-  src/global_mapper.cpp
   src/lib/global_mapping/global_map.cpp
   src/lib/global_mapping/submap.cpp
   src/lib/global_mapping/global_map_refinement.cpp
   src/lib/loop_closure/loop_closure_candidate_search_eucdist.cpp
   src/lib/loop_closure/loop_closure_refinement_loam_registration.cpp
-  src/lib/scan_pose.cpp
-  src/lib/imu_preintegration.cpp
   src/lib/scan_registration/scan_registration_base.cpp
   src/lib/scan_registration/multi_scan_registration.cpp
   src/lib/scan_registration/scan_to_map_registration.cpp
@@ -117,9 +118,9 @@ add_library(
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
   src/lib/trajectory_initializers/imu_initializer.cpp
   src/lib/trajectory_initializers/vio_initializer.cpp
-  src/lo_initializer.cpp
-  src/unicycle_3d.cpp
-  src/unicycle_3d_ignition.cpp
+  src/lib/scan_pose.cpp
+  src/lib/current_submap.cpp
+  src/lib/imu_preintegration.cpp
 )
 
 ## Specify libraries to link a library or executable target against

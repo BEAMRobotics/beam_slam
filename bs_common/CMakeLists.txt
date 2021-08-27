@@ -73,7 +73,6 @@ add_library(${PROJECT_NAME}
   src/bs_common/extrinsics_lookup_online.cpp
   src/bs_common/imu_state.cpp
   src/bs_common/pose_lookup.cpp
-  src/bs_common/current_submap.cpp
   src/bs_common/preintegrator.cpp
   src/bs_common/utils.cpp
   src/bs_common/bs_msgs.cpp

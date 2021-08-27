@@ -8,7 +8,7 @@
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/bs_msgs.h>
-#include <bs_common/current_submap.h>
+#include <bs_models/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/vision/visual_map.h>
 #include <bs_models/imu_preintegration.h>

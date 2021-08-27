@@ -12,7 +12,7 @@
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
-#include <bs_common/current_submap.h>
+#include <bs_models/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/vision/keyframe.h>
 #include <bs_models/vision/visual_map.h>
@@ -183,7 +183,7 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<VisualMap> visual_map_;
-  bs_common::CurrentSubmap& submap_ = bs_common::CurrentSubmap::GetInstance();
+  CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
   beam_cv::DescriptorType descriptor_type_;
   uint8_t descriptor_type_int_;
 

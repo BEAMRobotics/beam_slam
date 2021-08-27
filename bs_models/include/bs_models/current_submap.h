@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <ros/ros.h>
 
-namespace bs_common {
+namespace bs_models {
 
 /**
  * @brief This class is used to access the current submap provided by the global
@@ -13,7 +13,7 @@ namespace bs_common {
  *
  */
 class CurrentSubmap {
-public:
+ public:
   /**
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
@@ -41,8 +41,8 @@ public:
    * @param T_WORLD_CAMERA current frame pose to transform points into
    * @return list of 3d points
    */
-  std::vector<Eigen::Vector3d>
-      GetVisualMapPoints(const Eigen::Matrix4d& T_WORLD_CAMERA);
+  std::vector<Eigen::Vector3d> GetVisualMapPoints(
+      const Eigen::Matrix4d& T_WORLD_CAMERA);
 
   /**
    * @brief Gets a list of descriptors
@@ -62,7 +62,7 @@ public:
    */
   void RemoveVisualMapPoint(size_t index);
 
-private:
+ private:
   /**
    * @brief Constructor
    */
@@ -75,4 +75,4 @@ private:
   ros::Subscriber submap_subscriber_;
 };
 
-} // namespace bs_common
+}  // namespace bs_models
