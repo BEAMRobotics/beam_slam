@@ -20,7 +20,7 @@ imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibr
 
 sensor_models:
   - name: 'lo_initializer'
-    type: 'bs_models::frame_to_frame::LoInitializer'
+    type: 'bs_models::LoInitializer'
 
 ## plugin params: specify all params for the plugins, using their unique name
 

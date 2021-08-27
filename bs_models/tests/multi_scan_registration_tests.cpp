@@ -16,12 +16,11 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/simple_path_generator.h>
 
-#include <bs_common/sensor_proc.h>
 #include <bs_common/utils.h>
-#include <bs_models/frame_to_frame/scan_registration/multi_scan_registration.h>
+#include <bs_models/scan_registration/multi_scan_registration.h>
 
 using namespace bs_models;
-using namespace frame_to_frame;
+using namespace scan_registration;
 using namespace bs_common;
 
 Eigen::Matrix4d PerturbPoseRandom(const Eigen::Matrix4d& T, double max_trans,
@@ -796,7 +795,7 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
   Eigen::Matrix4d T_WORLD_S3_mea = bs_common::FusePoseToEigenTransform(p3, o3);
 
   // print lidar map
-  //   bs_common::LidarMap& map = bs_common::LidarMap::GetInstance();
+  //   RegistrationMap& map = RegistrationMap::GetInstance();
   //   map.Save("/home/nick/tmp/loam_scan_registration/lidar_map/");
 
   //   EXPECT_TRUE(map.NumPointClouds() == 3);

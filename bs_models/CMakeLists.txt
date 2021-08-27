@@ -38,7 +38,6 @@ find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(OpenCV 4.5.2 REQUIRED COMPONENTS)
-find_package(basalt REQUIRED)
 
 find_package(fuse_core REQUIRED)
 find_package(fuse_publishers REQUIRED)
@@ -85,7 +84,7 @@ include_directories(
   ${CERES_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  ${basalt_INCLUDE_DIRS}
+  ${fuse_core_INCLUDE_DIRS}
   ${fuse_graphs_INCLUDE_DIRS}
   ${fuse_models_INCLUDE_DIRS}
   ${fuse_publishers_INCLUDE_DIRS}
@@ -99,28 +98,31 @@ include_directories(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
-  src/motion/unicycle_3d.cpp
-  src/motion/unicycle_3d_ignition.cpp
-  src/frame_to_frame/scan_matcher_3d.cpp
-  src/frame_to_frame/scan_registration/scan_registration_base.cpp
-  src/frame_to_frame/scan_registration/multi_scan_registration.cpp
-  src/frame_to_frame/scan_registration/scan_to_map_registration.cpp
-  src/frame_to_frame/imu_3d.cpp
-  src/frame_to_frame/imu_preintegration.cpp
-  src/frame_initializers/frame_initializer_base.cpp
-  src/frame_initializers/odometry_frame_initializer.cpp
-  src/frame_initializers/pose_file_frame_initializer.cpp
-  src/trajectory_initializers/imu_initializer.cpp
-  src/trajectory_initializers/vio_initializer.cpp
-  src/trajectory_initializers/lo_initializer.cpp
-  src/camera_to_camera/visual_inertial_odom.cpp
-  src/camera_to_camera/visual_map.cpp
-  src/camera_to_camera/keyframe.cpp
-  src/global_mapping/global_mapper.cpp
-  src/global_mapping/global_map.cpp
-  src/global_mapping/submap.cpp
-  src/global_mapping/loop_closure/loop_closure_candidate_search_eucdist.cpp
-  src/global_mapping/loop_closure/loop_closure_refinement_loam_registration.cpp
+  src/lo_initializer.cpp
+  src/unicycle_3d.cpp
+  src/unicycle_3d_ignition.cpp
+  src/lidar_odometry.cpp
+  src/visual_inertial_odometry.cpp
+  src/global_mapper.cpp
+  src/lib/vision/visual_map.cpp
+  src/lib/vision/keyframe.cpp
+  src/lib/global_mapping/global_map.cpp
+  src/lib/global_mapping/submap.cpp
+  src/lib/global_mapping/global_map_refinement.cpp
+  src/lib/loop_closure/loop_closure_candidate_search_eucdist.cpp
+  src/lib/loop_closure/loop_closure_refinement_loam_registration.cpp
+  src/lib/scan_registration/scan_registration_base.cpp
+  src/lib/scan_registration/multi_scan_registration.cpp
+  src/lib/scan_registration/scan_to_map_registration.cpp
+  src/lib/scan_registration/registration_map.cpp
+  src/lib/frame_initializers/frame_initializer_base.cpp
+  src/lib/frame_initializers/odometry_frame_initializer.cpp
+  src/lib/frame_initializers/pose_file_frame_initializer.cpp
+  src/lib/trajectory_initializers/imu_initializer.cpp
+  src/lib/trajectory_initializers/vio_initializer.cpp
+  src/lib/scan_pose.cpp
+  src/lib/current_submap.cpp
+  src/lib/imu_preintegration.cpp
 )
 
 ## Specify libraries to link a library or executable target against
@@ -128,7 +130,7 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
-    ${basalt_LIBRARIES}
+    ${fuse_core_LIBRARIES}
     ${fuse_graphs_LIBRARIES}
     ${fuse_models_LIBRARIES}
     ${fuse_publishers_LIBRARIES}
@@ -150,64 +152,96 @@ target_link_libraries(
 #############
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
-  find_package(basalt REQUIRED)
+
   # Lint tests
   roslint_add_test()
+
+  # scan pose tests
+  add_executable(${PROJECT_NAME}_scan_pose_tests 
+    tests/scan_pose_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_scan_pose_tests 
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils
+    beam::filtering
+    beam::matching)
+  add_test(NAME ${PROJECT_NAME}_scan_pose_tests 
+        COMMAND ${PROJECT_NAME}_scan_pose_tests)
   
   # Scan to scan registration tests
-  catkin_add_gtest(multi_scan_registration_tests 
+  catkin_add_gtest(${PROJECT_NAME}_multi_scan_registration_tests 
     tests/multi_scan_registration_tests.cpp
   )
-  target_link_libraries(multi_scan_registration_tests 
+  target_link_libraries(${PROJECT_NAME}_multi_scan_registration_tests 
     ${PROJECT_NAME}
   )
-  set_target_properties(multi_scan_registration_tests 
+  set_target_properties(${PROJECT_NAME}_multi_scan_registration_tests 
     PROPERTIES
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES
   )  
 
   # Scan to map registration tests
-  catkin_add_gtest(scan_to_map_registration_tests 
+  catkin_add_gtest(${PROJECT_NAME}_scan_to_map_registration_tests 
     tests/scan_to_map_registration_tests.cpp
   )
-  target_link_libraries(scan_to_map_registration_tests 
+  target_link_libraries(${PROJECT_NAME}_scan_to_map_registration_tests 
     ${PROJECT_NAME}
   )
-  set_target_properties(scan_to_map_registration_tests 
+  set_target_properties(${PROJECT_NAME}_scan_to_map_registration_tests 
     PROPERTIES
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES
   )
 
   # IMU preintegration tests
-  catkin_add_gtest(imu_preintegration_tests
+  find_package(basalt REQUIRED)
+  catkin_add_gtest(${PROJECT_NAME}_imu_preintegration_tests
     tests/imu_preintegration_tests.cpp
   )
-  target_link_libraries(imu_preintegration_tests
+  target_include_directories(${PROJECT_NAME}_imu_preintegration_tests
+    PUBLIC
+    tests/include
+    ${basalt_INCLUDE_DIRS}
+  )
+  target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
     ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
+    ${basalt_LIBRARIES}
   )
-  set_target_properties(imu_preintegration_tests
+  set_target_properties(${PROJECT_NAME}_imu_preintegration_tests
     PROPERTIES
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES
   )
 
   # Reprojection tests
-    catkin_add_gtest(reprojection_test
+  catkin_add_gtest(${PROJECT_NAME}_reprojection_test
     tests/reprojection_test.cpp
   )
-  target_link_libraries(reprojection_test
+  target_link_libraries(${PROJECT_NAME}_reprojection_test
     ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
   )
-  set_target_properties(reprojection_test
+  set_target_properties(${PROJECT_NAME}_reprojection_test
     PROPERTIES
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES
   )
+
+  # global map refinement tests
+  add_executable(${PROJECT_NAME}_global_map_refinement_tests 
+    tests/global_map_refinement_tests.cpp)
+  target_link_libraries(${PROJECT_NAME}_global_map_refinement_tests 
+    ${PROJECT_NAME}
+    gtest_main
+    beam::utils
+    beam::filtering
+    beam::matching
+  )
+  add_test(NAME ${PROJECT_NAME}_global_map_refinement_tests 
+          COMMAND ${PROJECT_NAME}_global_map_refinement_tests)
 
 endif()

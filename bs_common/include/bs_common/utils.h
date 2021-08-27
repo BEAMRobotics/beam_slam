@@ -10,8 +10,6 @@
 #include <beam_matching/loam/LoamPointCloud.h>
 #include <beam_utils/math.h>
 
-#include <bs_common/scan_pose.h>
-
 #ifndef GRAVITY_NOMINAL 
 #define GRAVITY_NOMINAL 9.80665
 #endif
@@ -46,15 +44,6 @@ void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
 void InterpolateTransformFromPath(const nav_msgs::Path& path,
                                   const ros::Time& time,
                                   Eigen::Matrix4d& T_WORLD_SENSOR);
-
-/**
- * @brief iterates through all keypoints in the list and add up the change in
- * position between each keyframe.
- * @param keyframes list of scan poses that makeup the trajectory of keyframes
- * @return trajectory length
- */
-double CalculateTrajectoryLength(
-    const std::list<bs_common::ScanPose>& keyframes);
 
 void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS,
                                          Eigen::Matrix4d& T);
