@@ -1,4 +1,4 @@
-#include <bs_models/trajectory_initializers/gt_initializer.h>
+#include <bs_models/gt_initializer.h>
 
 #include <pluginlib/class_list_macros.h>
 
@@ -7,10 +7,10 @@
 #include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::frame_to_frame::GTInitializer,
+PLUGINLIB_EXPORT_CLASS(bs_models::GTInitializer,
                        fuse_core::SensorModel)
 
-namespace bs_models { namespace frame_to_frame {
+namespace bs_models { 
 
 GTInitializer::GTInitializer() : fuse_core::AsyncSensorModel(1) {}
 
@@ -34,7 +34,6 @@ void GTInitializer::onInit() {
           gt_initializer_params_.pose_file_path);
   // compute the max # of poses to keep given they are added at ~10hz
   max_poses_ = gt_initializer_params_.trajectory_time_window.toSec() / 0.1;
-  std::cout << max_poses_ << std::endl;
 }
 
 void GTInitializer::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -97,4 +96,4 @@ void GTInitializer::PublishResults() {
   results_publisher_.publish(msg);
 }
 
-}} // namespace bs_models::frame_to_frame
+} // namespace bs_models::frame_to_frame

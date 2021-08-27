@@ -9,7 +9,7 @@
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/gt_initializer_params.h>
 
-namespace bs_models { namespace frame_to_frame {
+namespace bs_models { 
 
 class GTInitializer : public fuse_core::AsyncSensorModel {
 public:
@@ -69,4 +69,4 @@ protected:
   ros::Time current_pose_time_ = ros::Time(0);
   uint32_t max_poses_;
 };
-}} // namespace bs_models::frame_to_frame
+} // namespace bs_models::frame_to_frame
