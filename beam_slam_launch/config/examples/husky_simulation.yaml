@@ -17,7 +17,7 @@ static_extrinsics: true
 
 sensor_models:
   - name: 'imu_3d'
-    type: 'bs_models::frame_to_frame::Imu3D'
+    type: 'bs_models::Imu3D'
 
 ## plugin params: specify all params for the plugins, using their unique name
 
