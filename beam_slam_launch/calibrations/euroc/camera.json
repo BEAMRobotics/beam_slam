@@ -1,0 +1,18 @@
+{
+  "date": "2021_02_12",
+  "method": "matlab",
+  "camera_type": "RADTAN",
+  "image_width": 752,
+  "image_height": 480,
+  "frame_id": "K_link",
+  "intrinsics": [
+    458.654,
+    457.296,
+    367.215,
+    248.375,
+    -0.28340811,
+    0.07395907,
+    0.00019359,
+    1.76187114e-05
+  ]
+}
