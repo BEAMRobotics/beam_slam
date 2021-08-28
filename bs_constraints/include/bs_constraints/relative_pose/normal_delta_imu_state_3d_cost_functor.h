@@ -30,6 +30,10 @@ class NormalDeltaImuState3DCostFunctor {
       const bs_common::ImuState& imu_state_i,
       const bs_common::PreIntegrator& pre_integrator);
 
+  /**
+   * @brief Compute the cost values/residuals using the provided
+   * variable/parameter values
+   */
   template <typename T>
   bool operator()(const T* const orientation1, const T* const position1,
                   const T* const velocity1, const T* const gyrobias1,
