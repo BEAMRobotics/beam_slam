@@ -1,7 +1,10 @@
 #include <bs_models/imu_3d.h>
 
+#include <nlohmann/json.hpp>
+
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
+#include <beam_utils/filesystem.h>
 
 #include <bs_common/utils.h>
 
@@ -18,6 +21,7 @@ Imu3D::Imu3D()
 
 void Imu3D::onInit() {
   params_.loadFromROS(private_node_handle_);
+  calibration_params_.loadFromROS();
 
   // init frame initializer
   if (params_.frame_initializer_type == "ODOMETRY") {
@@ -37,14 +41,18 @@ void Imu3D::onInit() {
   }
 
   // init imu preintegration
+  nlohmann::json J;
+  beam::ReadJson(calibration_params_.imu_intrinsics_path, J);
+
   ImuPreintegration::Params imu_preintegration_params{
     cov_prior_noise : params_.cov_prior_noise,
-    cov_gyro_noise : params_.cov_gyro_noise,
-    cov_accel_noise : params_.cov_accel_noise,
-    cov_gyro_bias : params_.cov_gyro_bias,
-    cov_accel_bias : params_.cov_accel_bias,
+    cov_gyro_noise : Eigen::Matrix3d::Identity() * J["cov_gyro_noise"],
+    cov_accel_noise : Eigen::Matrix3d::Identity() * J["cov_accel_noise"],
+    cov_gyro_bias : Eigen::Matrix3d::Identity() * J["cov_gyro_bias"],
+    cov_accel_bias : Eigen::Matrix3d::Identity() * J["cov_accel_bias"],
     source : name()
   };
+
   imu_preintegration_ =
       std::make_unique<ImuPreintegration>(imu_preintegration_params);
 
@@ -58,7 +66,7 @@ void Imu3D::onInit() {
 void Imu3D::onStart() {
   subscriber_ = node_handle_.subscribe<sensor_msgs::Imu>(
       ros::names::resolve(params_.input_topic), params_.queue_size,
-      &ImuThrottledCallback::callback, &throttled_callback_,
+      &ThrottledCallback::callback, &throttled_callback_,
       ros::TransportHints().tcpNoDelay(false));
 };
 

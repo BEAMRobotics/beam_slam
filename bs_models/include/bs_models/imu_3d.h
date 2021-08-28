@@ -9,6 +9,7 @@
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/imu_preintegration.h>
 #include <bs_parameters/models/imu_3d_params.h>
+#include <bs_parameters/models/calibration_params.h>
 
 namespace bs_models {
 
@@ -76,12 +77,13 @@ class Imu3D : public fuse_core::AsyncSensorModel {
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   std::unique_ptr<ImuPreintegration> imu_preintegration_;
   bs_parameters::models::Imu3DParams params_;
+  bs_parameters::models::CalibrationParams calibration_params_;
 
   // Subscriber/Callback
   ros::Subscriber subscriber_;
-  using ImuThrottledCallback =
+  using ThrottledCallback =
       fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
-  ImuThrottledCallback throttled_callback_;
+  ThrottledCallback throttled_callback_;
 
   // Extrinsics
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
