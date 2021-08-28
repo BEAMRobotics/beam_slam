@@ -87,6 +87,11 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
 
       // set start of preintegration from estimated pose
       imu_preintegration_->SetStart(t_now, R_WORLD_IMU, t_WORLD_IMU);
+
+      // DEBUG
+      bs_common::ImuState IS_tmp = imu_preintegration_->GetImuState();
+      IS_tmp.Print();
+
       set_start_ = false;
       t_prev_ = t_now;
     }
@@ -109,6 +114,11 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
       fuse_core::Transaction::SharedPtr new_transaction =
           imu_preintegration_->RegisterNewImuPreintegratedFactor(
               t_now, R_WORLD_IMU, t_WORLD_IMU);
+
+      // DEBUG
+      bs_common::ImuState IS_tmp = imu_preintegration_->GetImuState();
+      IS_tmp.Print();
+
       if (new_transaction != nullptr) {
         ROS_INFO("Sending transaction.");
         try {
