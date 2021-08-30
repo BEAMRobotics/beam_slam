@@ -70,7 +70,7 @@ void VisualInertialOdometry::onInit() {
   /***********************************************************
    *               Create initializer object                 *
    ***********************************************************/
-  initializer_ = std::make_shared<trajectory_initializers::VIOInitializer>(
+  initialization_ = std::make_shared<vision::VIOInitialization>(
       cam_model_, tracker_, camera_params_.init_path_topic,
       calibration_params_.imu_intrinsics_path, false,
       camera_params_.init_max_optimization_time_in_seconds,
@@ -138,19 +138,19 @@ void VisualInertialOdometry::processImage(
         img_time);
 
     // process in initialization mode
-    if (!initializer_->Initialized()) {
+    if (!initialization_->Initialized()) {
       if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.5) {
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
-        if (initializer_->AddImage(img_time)) {
+        if (initialization_->AddImage(img_time)) {
           ROS_INFO("Initialization Success: %f", img_time.toSec());
 
           // get the preintegration object
-          imu_preint_ = initializer_->GetPreintegrator();
+          imu_preint_ = initialization_->GetPreintegrator();
 
           // copy init graph and send to fuse optimizer
-          SendInitializationGraph(initializer_->GetGraph());
+          SendInitializationGraph(initialization_->GetGraph());
         } else {
           ROS_INFO("Initialization Failure: %f", img_time.toSec());
         }
@@ -222,8 +222,8 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
    *          Add IMU messages to preintegrator or initializer              *
    **************************************************************************/
   while (imu_buffer_.front().header.stamp <= img_time && !imu_buffer_.empty()) {
-    if (!initializer_->Initialized()) {
-      initializer_->AddIMU(imu_buffer_.front());
+    if (!initialization_->Initialized()) {
+      initialization_->AddIMU(imu_buffer_.front());
     } else {
       imu_preint_->AddToBuffer(imu_buffer_.front());
     }

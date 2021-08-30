@@ -4,10 +4,10 @@ lag_duration: 10
 
 # sensor models
 sensor_models:
-  # - name: 'camera'
-  #   type: 'bs_models::camera_to_camera::VisualInertialOdom'
-  #   motion_models: ['unicycle_3d']
-  #   ignition: true
+  - name: 'camera'
+    type: 'bs_models::VisualInertialOdometry'
+    motion_models: ['unicycle_3d']
+    ignition: true
   - name: 'gt_initializer'
     type: 'bs_models::GTInitializer'
 

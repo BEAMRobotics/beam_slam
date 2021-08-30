@@ -17,7 +17,7 @@
 #include <bs_models/vision/keyframe.h>
 #include <bs_models/vision/visual_map.h>
 #include <bs_models/imu_preintegration.h>
-#include <bs_models/trajectory_initializers/vio_initializer.h>
+#include <bs_models/vision/vio_initialization.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/camera_params.h>
 
@@ -188,7 +188,7 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
   uint8_t descriptor_type_int_;
 
   // initialization object
-  std::shared_ptr<trajectory_initializers::VIOInitializer> initializer_;
+  std::shared_ptr<vision::VIOInitialization> initialization_;
 
   // imu preintegration object
   std::shared_ptr<ImuPreintegration> imu_preint_;

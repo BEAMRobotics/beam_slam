@@ -1,4 +1,4 @@
-#include <bs_models/trajectory_initializers/vio_initializer.h>
+#include <bs_models/vision/vio_initialization.h>
 
 #include <nlohmann/json.hpp>
 
@@ -8,10 +8,9 @@
 
 #include <bs_common/utils.h>
 
-namespace bs_models {
-namespace trajectory_initializers {
+namespace bs_models { namespace vision {
 
-VIOInitializer::VIOInitializer(
+VIOInitialization::VIOInitialization(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
     std::shared_ptr<beam_cv::Tracker> tracker, const std::string& path_topic,
     const std::string& imu_intrinsics_path, bool use_scale_estimate,
@@ -37,8 +36,7 @@ VIOInitializer::VIOInitializer(
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
 
   // create visual map
-  visual_map_ =
-      std::make_shared<vision::VisualMap>(cam_model_, local_graph_);
+  visual_map_ = std::make_shared<vision::VisualMap>(cam_model_, local_graph_);
 
   // create pose refiner
   pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
@@ -46,68 +44,59 @@ VIOInitializer::VIOInitializer(
   // make subscriber for init path
   ros::NodeHandle n;
   path_subscriber_ =
-      n.subscribe(path_topic, 10, &VIOInitializer::ProcessInitPath, this);
+      n.subscribe(path_topic, 10, &VIOInitialization::ProcessInitPath, this);
 }
 
-bool VIOInitializer::AddImage(ros::Time cur_time) {
+bool VIOInitialization::AddImage(ros::Time cur_time) {
   frame_times_.push_back(cur_time.toNSec());
   if (init_path_) {
     ROS_INFO("Attempting VIO Initialization.");
 
     // Build frame vectors
-    std::vector<Frame> valid_frames;
-    std::vector<Frame> invalid_frames;
-    BuildFrameVectors(valid_frames, invalid_frames);
+    BuildFrameVectors();
 
     // Initialize imu preintegration
-    PerformIMUInitialization(valid_frames);
+    PerformIMUInitialization(valid_frames_);
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 
-    // align poses to estimated gravity
-    Eigen::Quaterniond q =
-        Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
-    for (auto& f : valid_frames) {
-      f.q = q * f.q;
-      f.p = q * f.p;
-      // Apply scale estimate if desired
-      if (use_scale_estimate_) f.p = scale_ * f.p;
+    // Apply scale estimate if desired
+    if (use_scale_estimate_) {
+      for (auto& f : valid_frames_) { f.p = scale_ * f.p; }
     }
 
     // Add poses from path and imu constraints to graph
-    AddPosesAndInertialConstraints(valid_frames, true);
+    AddPosesAndInertialConstraints(valid_frames_, true);
 
     // Add landmarks and visual constraints to graph
-    size_t init_lms = AddVisualConstraints(valid_frames);
+    size_t init_lms = AddVisualConstraints(valid_frames_);
 
     // output pre optimization poses
     ROS_INFO("Frame poses before optimization:");
-    OutputFramePoses(valid_frames);
+    OutputFramePoses(valid_frames_);
 
     // optimize valid frames
     OptimizeGraph();
     ROS_INFO("Frame poses after optimization:");
 
     // output post optimization poses
-    OutputFramePoses(valid_frames);
-    OutputResults(valid_frames);
+    OutputFramePoses(valid_frames_);
+    OutputResults(valid_frames_);
 
     // localize the frames that are outside of the given path
-    for (auto& f : invalid_frames) {
+    for (auto& f : invalid_frames_) {
       Eigen::Matrix4d T_WORLD_BASELINK;
       // if failure to localize next frame then init is a failure
-      if (!LocalizeFrame(f, T_WORLD_BASELINK)) {
-        return false;
-      }
+      if (!LocalizeFrame(f, T_WORLD_BASELINK)) { return false; }
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
                                                       f.p);
     }
 
     // add localized poses and imu constraints
-    AddPosesAndInertialConstraints(invalid_frames, false);
+    AddPosesAndInertialConstraints(invalid_frames_, false);
 
     // add landmarks and visual constraints for the invalid frames
-    init_lms += AddVisualConstraints(invalid_frames);
+    init_lms += AddVisualConstraints(invalid_frames_);
 
     // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
@@ -116,39 +105,40 @@ bool VIOInitializer::AddImage(ros::Time cur_time) {
   return is_initialized_;
 }
 
-void VIOInitializer::OutputFramePoses(const std::vector<Frame>& frames) {
+void VIOInitialization::OutputFramePoses(const std::vector<Frame>& frames) {
   for (auto& f : frames) {
     std::cout << f.t << std::endl;
     std::cout << visual_map_->GetCameraPose(f.t) << std::endl;
   }
 }
 
-void VIOInitializer::AddIMU(const sensor_msgs::Imu& msg) {
+void VIOInitialization::AddIMU(const sensor_msgs::Imu& msg) {
   imu_buffer_.push(msg);
 }
 
-void VIOInitializer::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
+void VIOInitialization::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
   init_path_ = std::make_shared<InitializedPathMsg>();
   *init_path_ = *msg;
 }
 
-bool VIOInitializer::Initialized() { return is_initialized_; }
+bool VIOInitialization::Initialized() {
+  return is_initialized_;
+}
 
-const fuse_graphs::HashGraph& VIOInitializer::GetGraph() {
+const fuse_graphs::HashGraph& VIOInitialization::GetGraph() {
   return *local_graph_;
 }
 
 std::shared_ptr<bs_models::ImuPreintegration>
-VIOInitializer::GetPreintegrator() {
+    VIOInitialization::GetPreintegrator() {
   return imu_preint_;
 }
 
-void VIOInitializer::BuildFrameVectors(std::vector<Frame>& valid_frames,
-                                       std::vector<Frame>& invalid_frames) {
+void VIOInitialization::BuildFrameVectors() {
   ros::Time start = init_path_->poses[0].header.stamp;
   ros::Time end = init_path_->poses[init_path_->poses.size() - 1].header.stamp;
-  valid_frames.clear();
-  invalid_frames.clear();
+  valid_frames_.clear();
+  invalid_frames_.clear();
 
   // get start and end time of input path
   for (auto& kf : frame_times_) {
@@ -179,7 +169,7 @@ void VIOInitializer::BuildFrameVectors(std::vector<Frame>& valid_frames,
 
       // create frame and add to valid frame vector
       Frame new_frame{stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
-      valid_frames.push_back(new_frame);
+      valid_frames_.push_back(new_frame);
     } else {
       // get arbitrary pose values
       Eigen::Vector3d p_WORLD_BASELINK(0, 0, 0);
@@ -187,20 +177,16 @@ void VIOInitializer::BuildFrameVectors(std::vector<Frame>& valid_frames,
 
       // create frame and add to invalid frame vector
       Frame new_frame{stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
-      invalid_frames.push_back(new_frame);
+      invalid_frames_.push_back(new_frame);
     }
   }
 }
 
-void VIOInitializer::PerformIMUInitialization(
-    const std::vector<Frame>& frames) {
-  bs_models::trajectory_initializers::IMUInitializer imu_init(frames);
-
+void VIOInitialization::PerformIMUInitialization(std::vector<Frame>& frames) {
   // estimate gyroscope bias
   if (init_path_->gyroscope_bias.x == 0 && init_path_->gyroscope_bias.y == 0 &&
       init_path_->gyroscope_bias.z == 0) {
-    imu_init.SolveGyroBias();
-    bg_ = imu_init.GetGyroBias();
+    SolveGyroBias(frames);
   } else {
     bg_ << init_path_->gyroscope_bias.x, init_path_->gyroscope_bias.y,
         init_path_->gyroscope_bias.z;
@@ -209,10 +195,8 @@ void VIOInitializer::PerformIMUInitialization(
   // estimate gravity and scale
   if (init_path_->gravity.x == 0 && init_path_->gravity.y == 0 &&
       init_path_->gravity.z == 0) {
-    imu_init.SolveGravityAndScale();
-    imu_init.RefineGravityAndScale();
-    gravity_ = imu_init.GetGravity();
-    scale_ = imu_init.GetScale();
+    SolveGravityAndScale(frames);
+    RefineGravityAndScale(frames);
   } else {
     gravity_ << init_path_->gravity.x, init_path_->gravity.y,
         init_path_->gravity.z;
@@ -223,15 +207,14 @@ void VIOInitializer::PerformIMUInitialization(
   if (init_path_->accelerometer_bias.x == 0 &&
       init_path_->accelerometer_bias.y == 0 &&
       init_path_->accelerometer_bias.z == 0) {
-    imu_init.SolveAccelBias();
-    ba_ = imu_init.GetAccelBias();
+    SolveAccelBias(frames);
   } else {
     ba_ << init_path_->accelerometer_bias.x, init_path_->accelerometer_bias.y,
         init_path_->accelerometer_bias.z;
   }
 }
 
-void VIOInitializer::AddPosesAndInertialConstraints(
+void VIOInitialization::AddPosesAndInertialConstraints(
     const std::vector<Frame>& frames, bool set_start) {
   // add initial poses and imu data to preintegrator
   for (int i = 0; i < frames.size(); i++) {
@@ -266,7 +249,7 @@ void VIOInitializer::AddPosesAndInertialConstraints(
   }
 }
 
-size_t VIOInitializer::AddVisualConstraints(const std::vector<Frame>& frames) {
+size_t VIOInitialization::AddVisualConstraints(const std::vector<Frame>& frames) {
   ros::Time start = frames[0].t, end = frames[frames.size() - 1].t;
   size_t num_landmarks = 0;
 
@@ -281,8 +264,7 @@ size_t VIOInitializer::AddVisualConstraints(const std::vector<Frame>& frames) {
       for (auto& f : frames) {
         try {
           visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id));
-        } catch (const std::out_of_range& oor) {
-        }
+        } catch (const std::out_of_range& oor) {}
       }
     } else {
       // otherwise then triangulate then add the constraints
@@ -321,7 +303,7 @@ size_t VIOInitializer::AddVisualConstraints(const std::vector<Frame>& frames) {
   return num_landmarks;
 }
 
-bool VIOInitializer::LocalizeFrame(const Frame& frame,
+bool VIOInitialization::LocalizeFrame(const Frame& frame,
                                    Eigen::Matrix4d& T_WORLD_BASELINK) {
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
@@ -339,9 +321,7 @@ bool VIOInitializer::LocalizeFrame(const Frame& frame,
     }
   }
 
-  if (points.size() < 15) {
-    return false;
-  }
+  if (points.size() < 15) { return false; }
 
   // estimate with ransac pnp
   Eigen::Matrix4d T_CAMERA_WORLD_est =
@@ -359,7 +339,7 @@ bool VIOInitializer::LocalizeFrame(const Frame& frame,
   return true;
 }
 
-void VIOInitializer::OptimizeGraph() {
+void VIOInitialization::OptimizeGraph() {
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = true;
   options.num_threads = 6;
@@ -372,12 +352,11 @@ void VIOInitializer::OptimizeGraph() {
   local_graph_->optimize(options);
 }
 
-void VIOInitializer::OutputResults(const std::vector<Frame>& frames) {
+void VIOInitialization::OutputResults(const std::vector<Frame>& frames) {
   if (!boost::filesystem::exists(output_directory_) ||
       output_directory_.empty()) {
-    ROS_WARN(
-        "Output directory does not exist or is empty, not outputting VIO "
-        "Initializer results.");
+    ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
+             "Initializer results.");
   } else {
     // add frame poses to cloud and save
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
@@ -403,5 +382,156 @@ void VIOInitializer::OutputResults(const std::vector<Frame>& frames) {
   }
 }
 
-}  // namespace trajectory_initializers
-}  // namespace bs_models
+void VIOInitialization::SolveGyroBias(std::vector<Frame>& frames) {
+  Integrate(frames);
+  Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
+  Eigen::Vector3d b = Eigen::Vector3d::Zero();
+
+  for (size_t j = 1; j < frames.size(); ++j) {
+    const size_t i = j - 1;
+
+    Frame frame_i = frames[i];
+    Frame frame_j = frames[j];
+
+    const Eigen::Quaterniond& dq = frames[j].preint.delta.q;
+    const Eigen::Matrix3d& dq_dbg = frames[j].preint.jacobian.dq_dbg;
+    A += dq_dbg.transpose() * dq_dbg;
+
+    Eigen::Quaterniond tmp = (frames[i].q * dq).conjugate() * frames[j].q;
+    Eigen::Matrix3d tmp_R = tmp.normalized().toRotationMatrix();
+
+    b += dq_dbg.transpose() * beam::RToLieAlgebra(tmp_R);
+  }
+
+  Eigen::JacobiSVD<Eigen::Matrix3d> svd(A, Eigen::ComputeFullU |
+                                               Eigen::ComputeFullV);
+  bg_ = svd.solve(b);
+}
+
+void VIOInitialization::SolveAccelBias(std::vector<Frame>& frames) {
+  if (gravity_.isZero(1e-9)) {
+    ROS_WARN(
+        "Can't estimate acceleration bias without first estimating gravity.");
+    return;
+  }
+  Integrate(frames);
+  Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
+  Eigen::Vector4d b = Eigen::Vector4d::Zero();
+
+  for (size_t j = 1; j + 1 < frames.size(); ++j) {
+    const size_t i = j - 1;
+    const size_t k = j + 1;
+
+    const bs_common::Delta& delta_ij = frames[j].preint.delta;
+    const bs_common::Delta& delta_jk = frames[k].preint.delta;
+    const bs_common::Jacobian& jacobian_ij = frames[j].preint.jacobian;
+    const bs_common::Jacobian& jacobian_jk = frames[k].preint.jacobian;
+
+    Eigen::Matrix<double, 3, 4> C;
+    C.block<3, 1>(0, 0) = delta_ij.t.toSec() * (frames[k].p - frames[j].p) -
+                          delta_jk.t.toSec() * (frames[j].p - frames[i].p);
+    C.block<3, 3>(0, 1) =
+        -(frames[j].q * jacobian_jk.dp_dba * delta_ij.t.toSec() +
+          frames[i].q * jacobian_ij.dv_dba * delta_ij.t.toSec() *
+              delta_jk.t.toSec() -
+          frames[i].q * jacobian_ij.dp_dba * delta_jk.t.toSec());
+    Eigen::Vector3d d =
+        0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
+            (delta_ij.t.toSec() + delta_jk.t.toSec()) * gravity_ +
+        delta_ij.t.toSec() * (frames[j].q * delta_jk.p) +
+        delta_ij.t.toSec() * delta_jk.t.toSec() * (frames[i].q * delta_ij.v) -
+        delta_jk.t.toSec() * (frames[i].q * delta_ij.p);
+    A += C.transpose() * C;
+    b += C.transpose() * d;
+  }
+
+  Eigen::JacobiSVD<Eigen::Matrix4d> svd(A, Eigen::ComputeFullU |
+                                               Eigen::ComputeFullV);
+  Eigen::Vector4d x = svd.solve(b);
+  ba_ = x.segment<3>(1);
+}
+
+void VIOInitialization::SolveGravityAndScale(std::vector<Frame>& frames) {
+  Integrate(frames);
+  Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
+  Eigen::Vector4d b = Eigen::Vector4d::Zero();
+
+  for (size_t j = 1; j + 1 < frames.size(); ++j) {
+    const size_t i = j - 1;
+    const size_t k = j + 1;
+
+    const bs_common::Delta& delta_ij = frames[j].preint.delta;
+    const bs_common::Delta& delta_jk = frames[k].preint.delta;
+    const bs_common::Jacobian& jacobian_ij = frames[j].preint.jacobian;
+    const bs_common::Jacobian& jacobian_jk = frames[k].preint.jacobian;
+
+    Eigen::Matrix<double, 3, 4> C;
+    C.block<3, 3>(0, 0) = -0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
+                          (delta_ij.t.toSec() + delta_jk.t.toSec()) *
+                          Eigen::Matrix3d::Identity();
+    C.block<3, 1>(0, 3) = delta_ij.t.toSec() * (frames[k].p - frames[j].p) -
+                          delta_jk.t.toSec() * (frames[j].p - frames[i].p);
+    Eigen::Vector3d d =
+        delta_ij.t.toSec() * (frames[j].q * delta_jk.p) +
+        delta_ij.t.toSec() * delta_jk.t.toSec() * (frames[i].q * delta_ij.v) -
+        delta_jk.t.toSec() * (frames[i].q * delta_ij.p);
+    A += C.transpose() * C;
+    b += C.transpose() * d;
+  }
+
+  Eigen::JacobiSVD<Eigen::Matrix4d> svd(A, Eigen::ComputeFullU |
+                                               Eigen::ComputeFullV);
+  Eigen::Vector4d x = svd.solve(b);
+  gravity_ = x.segment<3>(0).normalized() * GRAVITY_NOMINAL;
+  scale_ = x(3);
+}
+
+void VIOInitialization::RefineGravityAndScale(std::vector<Frame>& frames) {
+  static const double damp = 0.1;
+  Integrate(frames);
+  int N = (int)frames.size();
+  Eigen::MatrixXd A;
+  Eigen::VectorXd b;
+  Eigen::VectorXd x;
+  A.resize((N - 1) * 6, 2 + 1 + 3 * N);
+  b.resize((N - 1) * 6);
+  x.resize(2 + 1 + 3 * N);
+
+  for (size_t iter = 0; iter < 5; ++iter) {
+    A.setZero();
+    b.setZero();
+    Eigen::Matrix<double, 3, 2> Tg = s2_tangential_basis(gravity_);
+
+    for (size_t j = 1; j < frames.size(); ++j) {
+      const size_t i = j - 1;
+
+      const bs_common::Delta& delta = frames[j].preint.delta;
+
+      A.block<3, 2>(i * 6, 0) = -0.5 * delta.t.toSec() * delta.t.toSec() * Tg;
+      A.block<3, 1>(i * 6, 2) = frames[j].p - frames[i].p;
+      A.block<3, 3>(i * 6, 3 + i * 3) =
+          -delta.t.toSec() * Eigen::Matrix3d::Identity();
+      b.segment<3>(i * 6) = 0.5 * delta.t.toSec() * delta.t.toSec() * gravity_ +
+                            frames[i].q * delta.p;
+
+      A.block<3, 2>(i * 6 + 3, 0) = -delta.t.toSec() * Tg;
+      A.block<3, 3>(i * 6 + 3, 3 + i * 3) = -Eigen::Matrix3d::Identity();
+      A.block<3, 3>(i * 6 + 3, 3 + j * 3) = Eigen::Matrix3d::Identity();
+      b.segment<3>(i * 6 + 3) =
+          delta.t.toSec() * gravity_ + frames[i].q * delta.v;
+    }
+
+    x = A.fullPivHouseholderQr().solve(b);
+    Eigen::Vector2d dg = x.segment<2>(0);
+    gravity_ = (gravity_ + damp * Tg * dg).normalized() * GRAVITY_NOMINAL;
+  }
+  scale_ = x(2);
+}
+
+void VIOInitialization::Integrate(std::vector<Frame>& frames) {
+  for (size_t i = 0; i < frames.size(); i++) {
+    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+  }
+}
+
+}} // namespace bs_models::trajectory_initializers

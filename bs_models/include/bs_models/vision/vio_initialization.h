@@ -8,28 +8,33 @@
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/bs_msgs.h>
-#include <bs_models/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/vision/visual_map.h>
+#include <bs_models/current_submap.h>
 #include <bs_models/imu_preintegration.h>
-#include <bs_models/trajectory_initializers/imu_initializer.h>
+#include <bs_models/vision/visual_map.h>
 
 using namespace bs_common;
 
-namespace bs_models {
-namespace trajectory_initializers {
+namespace bs_models { namespace vision {
 
-class VIOInitializer {
- public:
+struct Frame {
+  ros::Time t;
+  Eigen::Vector3d p;
+  Eigen::Quaterniond q;
+  bs_common::PreIntegrator preint;
+};
+
+class VIOInitialization {
+public:
   /**
    * @brief Default Constructor
    */
-  VIOInitializer() = default;
+  VIOInitialization() = default;
 
   /**
    * @brief Custom Constructor
    */
-  VIOInitializer(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+  VIOInitialization(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                  std::shared_ptr<beam_cv::Tracker> tracker,
                  const std::string& path_topic,
                  const std::string& imu_intrinsics_path,
@@ -75,23 +80,20 @@ class VIOInitializer {
    */
   void ProcessInitPath(const InitializedPathMsg::ConstPtr& msg);
 
- private:
+private:
   /**
    * @brief Build a vector of frames with the current init path and the
    * frame_times_ vector, if a frame is outside of the given path it will be
    * referred to as an invalid frame and its pose will be set to 0
-   * @param valid_frames[out] frames that are within the init path
-   * @param invalid_frames[out] frames that are outside the init path
    */
-  void BuildFrameVectors(std::vector<Frame>& valid_frames,
-                         std::vector<Frame>& invalid_frames);
+  void BuildFrameVectors();
 
   /**
    * @brief Estimates imu parameters given a vector of frames with some known
    * poses (can be up to scale from sfm, or in real world scale from lidar)
-   * @param frames input frames  with poses to estimate imu parameters
+   * @param frames input frames with poses to estimate imu parameters
    */
-  void PerformIMUInitialization(const std::vector<Frame>& frames);
+  void PerformIMUInitialization(std::vector<Frame>& frames);
 
   /**
    * @brief Adds all poses and inertial constraints contained within the frames
@@ -135,7 +137,45 @@ class VIOInitializer {
    */
   void OutputResults(const std::vector<Frame>& frames);
 
- protected:
+  /**
+   * @brief Solves for the gyroscope bias
+   */
+  void SolveGyroBias(std::vector<Frame>& frames);
+
+  /**
+   * @brief Solves for acceleromater bias (gravity must be estimated before
+   * calling this)
+   */
+  void SolveAccelBias(std::vector<Frame>& frames);
+
+  /**
+   * @brief Solves for Gravity and Scale factor (scale factor only used if
+   * frames are in arbitrary scale)
+   */
+  void SolveGravityAndScale(std::vector<Frame>& frames);
+
+  /**
+   * @brief Refines the previously estimated gravity and scale factor
+   */
+  void RefineGravityAndScale(std::vector<Frame>& frames);
+
+  /**
+   * @brief Integrates each frame using current bias estimates
+   */
+  void Integrate(std::vector<Frame>& frames);
+
+  Eigen::Matrix<double, 3, 2> s2_tangential_basis(const Eigen::Vector3d& x) {
+    int d = 0;
+    for (int i = 1; i < 3; ++i) {
+      if (std::abs(x[i]) > std::abs(x[d])) d = i;
+    }
+    Eigen::Vector3d b1 =
+        x.cross(Eigen::Vector3d::Unit((d + 1) % 3)).normalized();
+    Eigen::Vector3d b2 = x.cross(b1).normalized();
+    return (Eigen::Matrix<double, 3, 2>() << b1, b2).finished();
+  }
+
+protected:
   // subscriber for initialized path
   ros::Subscriber path_subscriber_;
 
@@ -158,6 +198,10 @@ class VIOInitializer {
   std::queue<sensor_msgs::Imu> imu_buffer_;
   std::vector<uint64_t> frame_times_;
 
+  // keyframe information
+  std::vector<Frame> valid_frames_;
+  std::vector<Frame> invalid_frames_;
+  
   // boolean flags
   bool is_initialized_{false};
   bool use_scale_estimate_{false};
@@ -185,5 +229,4 @@ class VIOInitializer {
   std::string output_directory_;
 };
 
-}  // namespace trajectory_initializers
-}  // namespace bs_models
+}} // namespace bs_models::trajectory_initializers
