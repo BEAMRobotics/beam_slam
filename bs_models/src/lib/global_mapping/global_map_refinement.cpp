@@ -302,6 +302,8 @@ bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<Submap>& submap) {
     auto transaction =
         scan_registration->RegisterNewScan(scan_pose).GetTransaction();
     if (transaction != nullptr) {
+      // std::cout << "\nADDING TRANSACTION: \n";
+      // transaction->print();
       graph->update(*transaction);
     }
   }
@@ -340,20 +342,12 @@ void GlobalMapRefinement::SaveResults(const std::string& output_path,
     return;
   }
 
-  std::string save_dir;
-  if (output_path.back() != '/') {
-    save_dir = output_path + "/refinement_results/";
-  } else {
-    save_dir = output_path + "refinement_results/";
-  }
-  boost::filesystem::create_directory(save_dir);
-
   // save
-  global_map_->SaveTrajectoryFile(save_dir, save_initial);
-  global_map_->SaveTrajectoryClouds(save_dir, save_initial);
-  global_map_->SaveSubmapFrames(save_dir, save_initial);
-  global_map_->SaveLidarSubmaps(save_dir, save_initial);
-  global_map_->SaveKeypointSubmaps(save_dir, save_initial);
+  global_map_->SaveTrajectoryFile(output_path, save_initial);
+  global_map_->SaveTrajectoryClouds(output_path, save_initial);
+  global_map_->SaveSubmapFrames(output_path, save_initial);
+  global_map_->SaveLidarSubmaps(output_path, save_initial);
+  global_map_->SaveKeypointSubmaps(output_path, save_initial);
 }
 
 void GlobalMapRefinement::SaveGlobalMapData(const std::string& output_path) {

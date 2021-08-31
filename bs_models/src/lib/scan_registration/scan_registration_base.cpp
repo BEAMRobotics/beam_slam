@@ -22,11 +22,11 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
   }
 
   nlohmann::json J;
-  if(!beam::ReadJson(config, J)){
+  if (!beam::ReadJson(config, J)) {
     BEAM_INFO("Using default config.");
     return;
   }
-  
+
   outlier_threshold_trans_m = J["outlier_threshold_trans_m"];
   outlier_threshold_rot_deg = J["outlier_threshold_rot_deg"];
   min_motion_trans_m = J["min_motion_trans_m"];
@@ -88,21 +88,34 @@ bool ScanRegistrationBase::PassedMotionThresholds(
     const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
   // check max translation
   double d_12 = T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm();
-  if (d_12 > base_params_.max_motion_trans_m) {
+  if (base_params_.max_motion_trans_m > 0 &&
+      d_12 > base_params_.max_motion_trans_m) {
     return false;
   }
 
   // check min translation
-  if (d_12 >= base_params_.min_motion_trans_m) {
-    return true;
+  bool passed_trans{true};
+  if (base_params_.min_motion_trans_m > 0 &&
+      d_12 < base_params_.min_motion_trans_m) {
+    passed_trans = false;
   }
 
-  // check rotation
+  // check min rotation
+  bool passed_rot{true};
   Eigen::Matrix3d R = T_CLOUD1_CLOUD2.block(0, 0, 3, 3);
-  if (Eigen::AngleAxis<double>(R).angle() >= base_params_.min_motion_rot_deg) {
-    return true;
+  double angle_rad = Eigen::AngleAxis<double>(R).angle();
+  if (base_params_.min_motion_rot_deg > 0 &&
+      beam::Rad2Deg(angle_rad) < base_params_.min_motion_rot_deg) {
+    passed_rot = false;
   }
-  return false;
+
+  if(base_params_.min_motion_rot_deg == 0){
+    return passed_trans;
+  } else if (base_params_.min_motion_trans_m == 0){
+    return passed_rot;
+  }
+
+  return (passed_trans || passed_rot);
 }
 
 }  // namespace scan_registration

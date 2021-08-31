@@ -309,6 +309,26 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
   }
 }
 
+/*
+TEST_F(GlobalMapRefinementTest, MultiScanRealData) {
+  std::string globalmap_dir =
+      "/home/nick/results/beam_slam/global_map_refinement/test/GlobalMapData/";
+  std::string output_dir =
+      "/home/nick/results/beam_slam/global_map_refinement/test/ResultsRefinedUnitTets/";
+      
+  // load params
+  GlobalMapRefinement::Params params;
+  params.LoadJson(refinement_config_path_);
+  params.scan_registration_type = "MULTISCAN";
+
+  // create global map refinement
+  GlobalMapRefinement refinement(globalmap_dir, params);
+  refinement.RunSubmapRefinement();
+  refinement.SaveResults(output_dir);
+
+}
+*/
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

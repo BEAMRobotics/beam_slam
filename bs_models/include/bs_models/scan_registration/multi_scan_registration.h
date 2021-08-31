@@ -71,7 +71,36 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
   void RemoveMissingScans(fuse_core::Graph::ConstSharedPtr graph_msg,
                           bool require_one_update = true);
 
+  inline MultiScanRegistrationBase::Params GetParams() const {return params_;
+  }                        
+
  protected:
+  /**
+   * @brief Add scan to lidar map, if not disabled, and add prior to the
+   * transaction
+   * @param scan new scan pose to add to map and get prior for
+   * @param transaction reference to a transaction for adding a prior
+   */
+  void AddFirstScan(
+      const ScanPose& scan,
+      bs_constraints::relative_pose::Pose3DStampedTransaction& transaction);
+
+  /**
+   * @brief Add scan to list of reference scans, while keeping times sorted. It
+   * also clears the oldest scans if the list is larger than the max allowable
+   * @param scan new scan pose to add
+   */
+  void InsertCloudInReferences(const ScanPose& scan);
+
+  /**
+   * @brief Registers a scan pose to all scan poses stored in the reference
+   * scans list, and adds the constraints to the transaction. Note this does not
+   * add variables to the transaction, this is managed outside the function.
+   */
+  int RegisterScanToReferences(
+      const ScanPose& new_scan,
+      bs_constraints::relative_pose::Pose3DStampedTransaction& transaction);
+
   /**
    * @brief pure virtual function that must be overridden in each derived multi
    * scan registraion classes
@@ -81,7 +110,20 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
                           Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                           Eigen::Matrix<double, 6, 6>& covariance) = 0;
 
-  void RemoveOldScans(const ros::Time& new_scan_time);
+  /**
+   * @brief this function does 3 things:
+   *
+   *  1 - removes scans from the reference clouds list and unregistered clouds
+   * list that are older than the lag duration and therefore cannot add
+   * constraints to the graph anymore.
+   *
+   *  2 - removes scans from the reference clouds list if the list is larger
+   * than the max number of neighbours param
+   *
+   *  3 - removes scans from the unregistered clouds list if the list is greater
+   * than the max_unregistered_clouds_ param.
+   */
+  void CleanUpScanLists(const ros::Time& new_scan_time);
 
   inline std::list<ScanPose>::iterator Begin() {
     return reference_clouds_.begin();
@@ -99,7 +141,20 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
                      const Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                      bool output_loam_cloud = false);
 
+  // keep a list of reference clouds. These are scan poses which have already
+  // been registered and are in the graph.
   std::list<ScanPose> reference_clouds_;
+
+  // keep a list of unregistered clouds. These are scan poses which failed the
+  // scan matching, often because they did not pass the motion threshold. We
+  // want to keep some of these to see if they can eventually be registered to
+  // another scan and included in the graph.
+  std::list<ScanPose> unregistered_clouds_;
+
+  // set a max amount of clouds to keep as unregistered. This can only be
+  // editted here.
+  uint32_t max_unregistered_clouds_{50};
+
   Params params_;
 
   const std::string source_{"MULTISCANREGISTRATION"};
@@ -115,6 +170,8 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 class MultiScanLoamRegistration : public MultiScanRegistrationBase {
  public:
   using Params = MultiScanRegistrationBase::Params;
+
+  MultiScanLoamRegistration() = delete;
 
   MultiScanLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
                             const ScanRegistrationParamsBase& base_params,
@@ -132,6 +189,8 @@ class MultiScanLoamRegistration : public MultiScanRegistrationBase {
 class MultiScanRegistration : public MultiScanRegistrationBase {
  public:
   using Params = MultiScanRegistrationBase::Params;
+
+  MultiScanRegistration() = delete;
 
   MultiScanRegistration(std::unique_ptr<Matcher<PointCloudPtr>> matcher,
                         const ScanRegistrationParamsBase& base_params,

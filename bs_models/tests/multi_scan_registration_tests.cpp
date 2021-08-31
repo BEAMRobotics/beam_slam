@@ -60,8 +60,7 @@ class MultiScanRegistrationTest : public ::testing::Test {
     double max_pert_rot{10};
     double max_pert_trans{0.05};
 
-    T_WORLD_S1_ = PerturbPoseRandom(Eigen::Matrix4d::Identity(), max_pose_trans,
-                                    max_pose_rot);
+    T_WORLD_S1_ = Eigen::Matrix4d::Identity();
     T_WORLD_S2_ = PerturbPoseRandom(T_WORLD_S1_, max_pose_trans, max_pose_rot);
     T_WORLD_S3_ = PerturbPoseRandom(T_WORLD_S2_, max_pose_trans, max_pose_rot);
     T_WORLD_S2_pert_ =
@@ -97,7 +96,7 @@ class MultiScanRegistrationTest : public ::testing::Test {
     scan_reg_params_.disable_lidar_map = true;
 
     // create prior that will be used in optimization
-    ScanPose SP_TMP(S1_, ros::Time(0), T_WORLD_S1_);
+    ScanPose SP_TMP(S1_, ros::Time(1), T_WORLD_S1_);
 
     fuse_core::Vector7d mean;
     mean << SP_TMP.Position().x(), SP_TMP.Position().y(), SP_TMP.Position().z(),
@@ -134,7 +133,7 @@ class MultiScanRegistrationTest : public ::testing::Test {
   beam_matching::IcpMatcherParams icp_params_;
   std::shared_ptr<LoamParams> loam_params_;
   fuse_constraints::AbsolutePose3DStampedConstraint prior_;
-  MultiScanLoamRegistration::Params scan_reg_params_;
+  MultiScanRegistration::Params scan_reg_params_;
   Eigen::Matrix<double, 6, 6> covariance_;
 };
 
@@ -196,15 +195,15 @@ bool VectorsEqual(double* v1, double* v2, int vsize) {
 
 TEST_F(MultiScanRegistrationTest, 2ScansManualConstraintAdding) {
   // create scan poses
-  ScanPose SP1(S1_, ros::Time(0), T_WORLD_S1_);
-  ScanPose SP2(S2_, ros::Time(1), T_WORLD_S2_);
-  ScanPose SP2_pert(S2_, ros::Time(1), T_WORLD_S2_pert_);
+  ScanPose SP1(S1_, ros::Time(1), T_WORLD_S1_);
+  ScanPose SP2(S2_, ros::Time(2), T_WORLD_S2_);
+  ScanPose SP2_pert(S2_, ros::Time(2), T_WORLD_S2_pert_);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(icp_params_);
 
-  auto scan_reg_params = scan_reg_params_;
+  MultiScanRegistration::Params scan_reg_params = scan_reg_params_;
   scan_reg_params.fix_first_scan = false;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
@@ -231,6 +230,7 @@ TEST_F(MultiScanRegistrationTest, 2ScansManualConstraintAdding) {
 
   // add variables and validate uuids for each transaction
   std::vector<fuse_core::UUID> uuids;
+
   uuids = AddVariables(transaction1, graph);
   EXPECT_EQ(uuids.size(), 2);
 
@@ -241,6 +241,7 @@ TEST_F(MultiScanRegistrationTest, 2ScansManualConstraintAdding) {
   }
 
   uuids = AddVariables(transaction2, graph);
+
   EXPECT_EQ(uuids.size(), 2);
 
   for (auto uuid : uuids) {
@@ -287,17 +288,17 @@ TEST_F(MultiScanRegistrationTest, 2ScansManualConstraintAdding) {
 
 TEST_F(MultiScanRegistrationTest, 3ScansManualConstraintAdding) {
   // create scan poses
-  ScanPose SP1(S1_, ros::Time(0), T_WORLD_S1_);
-  ScanPose SP2(S2_, ros::Time(1), T_WORLD_S2_);
-  ScanPose SP3(S3_, ros::Time(2), T_WORLD_S3_);
-  ScanPose SP2_pert(S2_, ros::Time(1), T_WORLD_S2_pert_);
-  ScanPose SP3_pert(S3_, ros::Time(2), T_WORLD_S3_pert_);
+  ScanPose SP1(S1_, ros::Time(1), T_WORLD_S1_);
+  ScanPose SP2(S2_, ros::Time(2), T_WORLD_S2_);
+  ScanPose SP3(S3_, ros::Time(3), T_WORLD_S3_);
+  ScanPose SP2_pert(S2_, ros::Time(2), T_WORLD_S2_pert_);
+  ScanPose SP3_pert(S3_, ros::Time(3), T_WORLD_S3_pert_);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(icp_params_);
 
-  auto scan_reg_params = scan_reg_params_;
+  MultiScanLoamRegistration::Params scan_reg_params = scan_reg_params_;
   scan_reg_params.fix_first_scan = false;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
@@ -384,19 +385,96 @@ TEST_F(MultiScanRegistrationTest, 3ScansManualConstraintAdding) {
   EXPECT_TRUE(VectorsEqual(SP3.Orientation().data(), o3.data(), 4));
 }
 
+TEST_F(MultiScanRegistrationTest, Params) {
+  // init matchers
+  std::unique_ptr<beam_matching::IcpMatcher> icp_matcher =
+      std::make_unique<beam_matching::IcpMatcher>(icp_params_);
+
+  std::shared_ptr<LoamParams> loam_params = std::make_shared<LoamParams>();
+  std::unique_ptr<Matcher<LoamPointCloudPtr>> loam_matcher =
+      std::make_unique<LoamMatcher>(*loam_params);
+  std::shared_ptr<LoamFeatureExtractor> feature_extractor =
+      std::make_shared<LoamFeatureExtractor>(loam_params);
+
+  double outlier_threshold_trans_m = 0.3123;
+  double outlier_threshold_rot_deg = 20.123;
+  double min_motion_trans_m = 0.123;
+  double min_motion_rot_deg = 0.456;
+  double max_motion_trans_m = 10.123;
+  bool fix_first_scan = true;
+  int num_neighbors = 100;
+  double lag_duration = 0.123;
+  bool disable_lidar_map = true;
+
+  MultiScanRegistrationBase::Params scan_reg_params;
+  scan_reg_params.outlier_threshold_trans_m = outlier_threshold_trans_m;
+  scan_reg_params.outlier_threshold_rot_deg = outlier_threshold_rot_deg;
+  scan_reg_params.min_motion_trans_m = min_motion_trans_m;
+  scan_reg_params.min_motion_rot_deg = min_motion_rot_deg;
+  scan_reg_params.max_motion_trans_m = max_motion_trans_m;
+  scan_reg_params.fix_first_scan = fix_first_scan;
+  scan_reg_params.num_neighbors = num_neighbors;
+  scan_reg_params.lag_duration = lag_duration;
+  scan_reg_params.disable_lidar_map = disable_lidar_map;
+
+  std::unique_ptr<MultiScanRegistration> multi_scan_icp_registration =
+      std::make_unique<MultiScanRegistration>(
+          std::move(icp_matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
+
+  MultiScanRegistration::Params returned_icp_multi_params =
+      multi_scan_icp_registration->GetParams();
+  EXPECT_EQ(returned_icp_multi_params.outlier_threshold_trans_m,
+            outlier_threshold_trans_m);
+  EXPECT_EQ(returned_icp_multi_params.outlier_threshold_rot_deg,
+            outlier_threshold_rot_deg);
+  EXPECT_EQ(returned_icp_multi_params.min_motion_trans_m, min_motion_trans_m);
+  EXPECT_EQ(returned_icp_multi_params.min_motion_rot_deg, min_motion_rot_deg);
+  EXPECT_EQ(returned_icp_multi_params.max_motion_trans_m, max_motion_trans_m);
+  EXPECT_EQ(returned_icp_multi_params.fix_first_scan, fix_first_scan);
+  EXPECT_EQ(returned_icp_multi_params.num_neighbors, num_neighbors);
+  EXPECT_EQ(returned_icp_multi_params.lag_duration, lag_duration);
+  EXPECT_EQ(returned_icp_multi_params.disable_lidar_map, disable_lidar_map);
+
+  std::unique_ptr<MultiScanLoamRegistration> multi_scan_loam_registration =
+      std::make_unique<MultiScanLoamRegistration>(
+          std::move(loam_matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
+          scan_reg_params.disable_lidar_map);
+
+  MultiScanRegistration::Params returned_loam_multi_params =
+      multi_scan_loam_registration->GetParams();
+  EXPECT_EQ(returned_loam_multi_params.outlier_threshold_trans_m,
+            outlier_threshold_trans_m);
+  EXPECT_EQ(returned_loam_multi_params.outlier_threshold_rot_deg,
+            outlier_threshold_rot_deg);
+  EXPECT_EQ(returned_loam_multi_params.min_motion_trans_m, min_motion_trans_m);
+  EXPECT_EQ(returned_loam_multi_params.min_motion_rot_deg, min_motion_rot_deg);
+  EXPECT_EQ(returned_loam_multi_params.max_motion_trans_m, max_motion_trans_m);
+  EXPECT_EQ(returned_loam_multi_params.fix_first_scan, fix_first_scan);
+  EXPECT_EQ(returned_loam_multi_params.num_neighbors, num_neighbors);
+  EXPECT_EQ(returned_loam_multi_params.lag_duration, lag_duration);
+  EXPECT_EQ(returned_loam_multi_params.disable_lidar_map, disable_lidar_map);
+}
+
 TEST_F(MultiScanRegistrationTest, TransactionsAndUpdates) {
   // create scan poses
-  ScanPose SP1(S1_, ros::Time(0), T_WORLD_S1_);
-  ScanPose SP2(S2_, ros::Time(1), T_WORLD_S2_);
-  ScanPose SP3(S3_, ros::Time(2), T_WORLD_S3_);
-  ScanPose SP2_pert(S2_, ros::Time(1), T_WORLD_S2_pert_);
-  ScanPose SP3_pert(S3_, ros::Time(2), T_WORLD_S3_pert_);
+  ScanPose SP1(S1_, ros::Time(1), T_WORLD_S1_);
+  ScanPose SP2(S2_, ros::Time(2), T_WORLD_S2_);
+  ScanPose SP3(S3_, ros::Time(3), T_WORLD_S3_);
+  ScanPose SP2_pert(S2_, ros::Time(2), T_WORLD_S2_pert_);
+  ScanPose SP3_pert(S3_, ros::Time(3), T_WORLD_S3_pert_);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
       std::make_unique<beam_matching::IcpMatcher>(icp_params_);
 
-  auto scan_reg_params = scan_reg_params_;
+  MultiScanRegistration::Params scan_reg_params = scan_reg_params_;
+  std::cout << "scan_reg_params.fix_first_scan: "
+            << scan_reg_params.fix_first_scan << "\n";
+  std::cout << "scan_reg_params.GetBaseParams().fix_first_scan: "
+            << scan_reg_params.GetBaseParams().fix_first_scan << "\n";
   scan_reg_params.disable_lidar_map = false;
 
   std::unique_ptr<MultiScanRegistration> multi_scan_registration =
@@ -420,6 +498,7 @@ TEST_F(MultiScanRegistrationTest, TransactionsAndUpdates) {
 
   auto transaction2 =
       multi_scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
+
   graph.update(*transaction2);
   graph.optimize();
   EXPECT_TRUE(graph.variableExists(SP1.Position().uuid()));
@@ -494,11 +573,11 @@ TEST_F(MultiScanRegistrationTest, TransactionsAndUpdates) {
 
 TEST_F(MultiScanRegistrationTest, NumNeighbours) {
   // create scan poses
-  ScanPose SP1(S1_, ros::Time(0), T_WORLD_S1_);
-  ScanPose SP2(S2_, ros::Time(1), T_WORLD_S2_);
-  ScanPose SP3(S3_, ros::Time(2), T_WORLD_S3_);
-  ScanPose SP2_pert(S2_, ros::Time(1), T_WORLD_S2_pert_);
-  ScanPose SP3_pert(S3_, ros::Time(2), T_WORLD_S3_pert_);
+  ScanPose SP1(S1_, ros::Time(1), T_WORLD_S1_);
+  ScanPose SP2(S2_, ros::Time(2), T_WORLD_S2_);
+  ScanPose SP3(S3_, ros::Time(3), T_WORLD_S3_);
+  ScanPose SP2_pert(S2_, ros::Time(2), T_WORLD_S2_pert_);
+  ScanPose SP3_pert(S3_, ros::Time(3), T_WORLD_S3_pert_);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher1 =
@@ -543,15 +622,25 @@ TEST_F(MultiScanRegistrationTest, NumNeighbours) {
 
   // Create the graph and add transactions
   fuse_graphs::HashGraph graph1;
+  EXPECT_TRUE(transaction11 != nullptr);
   graph1.update(*transaction11);
+
+  EXPECT_TRUE(transaction12 != nullptr);
   graph1.update(*transaction12);
+  
+  EXPECT_TRUE(transaction13 != nullptr);
   graph1.update(*transaction13);
-
+  
   fuse_graphs::HashGraph graph2;
+  EXPECT_TRUE(transaction21 != nullptr);
   graph2.update(*transaction21);
+  
+  EXPECT_TRUE(transaction22 != nullptr);
   graph2.update(*transaction22);
+  
+  EXPECT_TRUE(transaction23 != nullptr);
   graph2.update(*transaction23);
-
+  
   // check correct number of constraints are added
   auto constraints_added1 = graph1.getConstraints();
   int counter1 = 0;
@@ -620,9 +709,9 @@ TEST_F(MultiScanRegistrationTest, NumNeighbours) {
 
 TEST_F(MultiScanRegistrationTest, RegistrationCases) {
   // create scan poses
-  ScanPose SP1(S1_, ros::Time(0), T_WORLD_S1_);
-  ScanPose SP2(S2_, ros::Time(1), T_WORLD_S2_);
-  ScanPose SP3(S3_, ros::Time(2), T_WORLD_S3_);
+  ScanPose SP1(S1_, ros::Time(1), T_WORLD_S1_);
+  ScanPose SP2(S2_, ros::Time(2), T_WORLD_S2_);
+  ScanPose SP3(S3_, ros::Time(3), T_WORLD_S3_);
 
   // init scan registration
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
@@ -658,8 +747,8 @@ TEST_F(MultiScanRegistrationTest, RegistrationCases) {
   perturb << -45, 30, 90, 10, -10, 8;
   Eigen::Matrix4d T_WORLD_S4_pert =
       beam::PerturbTransformDegM(T_WORLD_S3_, perturb);
-  ScanPose SP4_BADINIT(S3_, ros::Time(3), T_WORLD_S4_pert);
-  ScanPose SP4_EMPTY(PointCloud(), ros::Time(3), T_WORLD_S4_pert);
+  ScanPose SP4_BADINIT(S3_, ros::Time(4), T_WORLD_S4_pert);
+  ScanPose SP4_EMPTY(PointCloud(), ros::Time(4), T_WORLD_S4_pert);
   auto transactionNULL1 =
       multi_scan_registration->RegisterNewScan(SP4_BADINIT).GetTransaction();
   auto transactionNULL2 =
@@ -676,11 +765,11 @@ TEST_F(MultiScanRegistrationTest, 2Scans) {
       std::make_shared<LoamFeatureExtractor>(loam_params_);
 
   // create scan poses
-  ScanPose SP1(S1_, ros::Time(0), T_WORLD_S1_, T_BASELINK_LIDAR_,
+  ScanPose SP1(S1_, ros::Time(1), T_WORLD_S1_, T_BASELINK_LIDAR_,
                feature_extractor);
-  ScanPose SP2(S2_, ros::Time(1), T_WORLD_S2_, T_BASELINK_LIDAR_,
+  ScanPose SP2(S2_, ros::Time(2), T_WORLD_S2_, T_BASELINK_LIDAR_,
                feature_extractor);
-  ScanPose SP2_pert(S2_, ros::Time(1), T_WORLD_S2_pert_, T_BASELINK_LIDAR_,
+  ScanPose SP2_pert(S2_, ros::Time(2), T_WORLD_S2_pert_, T_BASELINK_LIDAR_,
                     feature_extractor);
 
   auto scan_reg_params = scan_reg_params_;
@@ -732,15 +821,15 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
       std::make_shared<LoamFeatureExtractor>(loam_params_);
 
   // create scan poses
-  ScanPose SP1(S1_, ros::Time(0), T_WORLD_S1_, T_BASELINK_LIDAR_,
+  ScanPose SP1(S1_, ros::Time(1), T_WORLD_S1_, T_BASELINK_LIDAR_,
                feature_extractor);
-  ScanPose SP2(S2_, ros::Time(1), T_WORLD_S2_, T_BASELINK_LIDAR_,
+  ScanPose SP2(S2_, ros::Time(2), T_WORLD_S2_, T_BASELINK_LIDAR_,
                feature_extractor);
-  ScanPose SP3(S3_, ros::Time(2), T_WORLD_S3_, T_BASELINK_LIDAR_,
+  ScanPose SP3(S3_, ros::Time(3), T_WORLD_S3_, T_BASELINK_LIDAR_,
                feature_extractor);
-  ScanPose SP2_pert(S2_, ros::Time(1), T_WORLD_S2_pert_, T_BASELINK_LIDAR_,
+  ScanPose SP2_pert(S2_, ros::Time(2), T_WORLD_S2_pert_, T_BASELINK_LIDAR_,
                     feature_extractor);
-  ScanPose SP3_pert(S3_, ros::Time(2), T_WORLD_S3_pert_, T_BASELINK_LIDAR_,
+  ScanPose SP3_pert(S3_, ros::Time(3), T_WORLD_S3_pert_, T_BASELINK_LIDAR_,
                     feature_extractor);
 
   // init scan registration
@@ -833,15 +922,15 @@ TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
   pcl::transformPointCloud(S1, S3, T_LIDAR3_LIDAR1);
 
   // create scan poses
-  ScanPose SP1(S1, ros::Time(0), T_WORLD_S1_, T_BASELINK_LIDAR,
+  ScanPose SP1(S1, ros::Time(1), T_WORLD_S1_, T_BASELINK_LIDAR,
                feature_extractor);
-  ScanPose SP2(S2, ros::Time(1), T_WORLD_S2_, T_BASELINK_LIDAR,
+  ScanPose SP2(S2, ros::Time(2), T_WORLD_S2_, T_BASELINK_LIDAR,
                feature_extractor);
-  ScanPose SP3(S3, ros::Time(2), T_WORLD_S3_, T_BASELINK_LIDAR,
+  ScanPose SP3(S3, ros::Time(3), T_WORLD_S3_, T_BASELINK_LIDAR,
                feature_extractor);
-  ScanPose SP2_pert(S2, ros::Time(1), T_WORLD_S2_pert_, T_BASELINK_LIDAR,
+  ScanPose SP2_pert(S2, ros::Time(2), T_WORLD_S2_pert_, T_BASELINK_LIDAR,
                     feature_extractor);
-  ScanPose SP3_pert(S3, ros::Time(2), T_WORLD_S3_pert_, T_BASELINK_LIDAR,
+  ScanPose SP3_pert(S3, ros::Time(3), T_WORLD_S3_pert_, T_BASELINK_LIDAR,
                     feature_extractor);
 
   // init scan registration
@@ -994,7 +1083,7 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
 
   // add run scan registration and add transactions
   for (auto& scan_pose : scan_poses) {
-    scan_pose.Print();
+    // scan_pose.Print();
     auto transaction =
         multi_scan_registration->RegisterNewScan(scan_pose).GetTransaction();
     if (transaction != nullptr) {
