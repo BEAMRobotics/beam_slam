@@ -23,8 +23,8 @@ solver_options:
   minimizer_progress_to_stdout: true
   num_threads: 6
   num_linear_solver_threads: 6
-  max_num_iterations: 15
-  max_solver_time_in_seconds: 0.7
+  max_num_iterations: 8
+  max_solver_time_in_seconds: 0.1
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015

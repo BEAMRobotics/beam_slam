@@ -236,8 +236,6 @@ void VisualInertialOdometry::onGraphUpdate(
   visual_map_->UpdateGraph(graph);
 }
 
-void VisualInertialOdometry::onStop() {}
-
 void VisualInertialOdometry::SendInitializationGraph(
     const fuse_graphs::HashGraph& init_graph) {
   std::vector<uint64_t> new_landmarks;
