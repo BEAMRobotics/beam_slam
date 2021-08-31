@@ -21,12 +21,12 @@
     1e-5
   ],
   "multi_scan_registration": {
-    "outlier_threshold_trans_m": 0.1,
+    "outlier_threshold_trans_m": 0.3,
     "outlier_threshold_rot_deg": 20,
     "min_motion_trans_m": 0,
     "min_motion_rot_deg": 0,
     "max_motion_trans_m": 5,
-    "num_neighbors": 1
+    "num_neighbors": 10
   },
   "scan_to_map_registration": {
     "outlier_threshold_trans_m": 0.1,
@@ -42,7 +42,8 @@
     "iterate_correspondences": true,
     "convergence_criteria_translation_m": 0.001,
     "convergence_criteria_rotation_deg": 0.1,
-    "max_correspondence_iterations": 5,
+    "max_correspondence_iterations": 10,
+    "output_optimization_summary": false,
     "output_ceres_summary": false
   }
 }
