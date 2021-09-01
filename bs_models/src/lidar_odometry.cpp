@@ -14,8 +14,7 @@
 #include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry,
-                       fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry, fuse_core::SensorModel)
 
 namespace bs_models {
 
@@ -290,7 +289,7 @@ void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
         points_msg.lidar_measurement.points.push_back(p.y);
         points_msg.lidar_measurement.points.push_back(p.z);
       }
-      ROS_DEBUG("Publishing lidar points");
+      ROS_DEBUG("Publishing all lidar points");
       results_publisher_.publish(points_msg);
     }
 
@@ -300,28 +299,46 @@ void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
       // get strong edge features
       SlamChunkMsg edges_msg = slam_chunk_msg;
       edges_msg.lidar_measurement.point_type = 1;
-      const PointCloud& edges = loam_cloud.edges.strong.cloud;
-      for (int i = 0; i < edges.size(); i++) {
-        pcl::PointXYZ p = edges.points.at(i);
+      for (const auto& p : loam_cloud.edges.strong.cloud.points) {
         edges_msg.lidar_measurement.points.push_back(p.x);
         edges_msg.lidar_measurement.points.push_back(p.y);
         edges_msg.lidar_measurement.points.push_back(p.z);
       }
-      ROS_DEBUG("Publishing loam edge points");
+      ROS_DEBUG("Publishing strong edge points");
       results_publisher_.publish(edges_msg);
 
       // get strong surface features
       SlamChunkMsg surfaces_msg = slam_chunk_msg;
       surfaces_msg.lidar_measurement.point_type = 2;
-      const PointCloud& surfaces = loam_cloud.surfaces.strong.cloud;
-      for (int i = 0; i < surfaces.size(); i++) {
-        pcl::PointXYZ p = surfaces.points.at(i);
+      for (const auto& p : loam_cloud.surfaces.strong.cloud.points) {
         surfaces_msg.lidar_measurement.points.push_back(p.x);
         surfaces_msg.lidar_measurement.points.push_back(p.y);
         surfaces_msg.lidar_measurement.points.push_back(p.z);
       }
-      ROS_DEBUG("Publishing loam surface points");
+      ROS_DEBUG("Publishing strong surface points");
       results_publisher_.publish(surfaces_msg);
+
+      // get weak edge features
+      SlamChunkMsg edges_msg_weak = slam_chunk_msg;
+      edges_msg_weak.lidar_measurement.point_type = 3;
+      for (const auto& p : loam_cloud.edges.weak.cloud.points) {
+        edges_msg_weak.lidar_measurement.points.push_back(p.x);
+        edges_msg_weak.lidar_measurement.points.push_back(p.y);
+        edges_msg_weak.lidar_measurement.points.push_back(p.z);
+      }
+      ROS_DEBUG("Publishing weak edge points");
+      results_publisher_.publish(edges_msg_weak);
+
+      // get weak surface features
+      SlamChunkMsg surfaces_msg_weak = slam_chunk_msg;
+      surfaces_msg_weak.lidar_measurement.point_type = 4;
+      for (const auto& p : loam_cloud.surfaces.weak.cloud.points) {
+        surfaces_msg_weak.lidar_measurement.points.push_back(p.x);
+        surfaces_msg_weak.lidar_measurement.points.push_back(p.y);
+        surfaces_msg_weak.lidar_measurement.points.push_back(p.z);
+      }
+      ROS_DEBUG("Publishing weak surface points");
+      results_publisher_.publish(surfaces_msg_weak);
     }
   }
 
