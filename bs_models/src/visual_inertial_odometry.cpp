@@ -295,10 +295,12 @@ bool VisualInertialOdometry::LocalizeFrame(const ros::Time& img_time,
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
     if (lm) {
-      Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
-      pixels.push_back(pixeli);
       Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-      points.push_back(point);
+      if (point.norm() < 1000) {
+        Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
+        pixels.push_back(pixeli);
+        points.push_back(point);
+      }
     }
   }
 
@@ -347,10 +349,18 @@ void VisualInertialOdometry::ExtendMap() {
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInImage(cur_kf_time);
   for (auto& id : landmarks) {
+    fuse_variables::Point3DLandmark::SharedPtr lm =
+        visual_map_->GetLandmark(id);
+    fuse_variables::Point3DFixedLandmark::SharedPtr flm =
+        visual_map_->GetFixedLandmark(id);
     // add constraints to triangulated ids
-    if (visual_map_->GetLandmark(id) || visual_map_->GetFixedLandmark(id)) {
-      visual_map_->AddConstraint(cur_kf_time, id,
-                                 tracker_->Get(cur_kf_time, id), transaction);
+    if (lm || flm) {
+      Eigen::Vector3d point;
+      if (lm) { point << lm->x(), lm->y(), lm->z(); }
+      if (flm) { point << flm->x(), flm->y(), flm->z(); }
+      if (point.norm() < 1000)
+        visual_map_->AddConstraint(cur_kf_time, id,
+                                   tracker_->Get(cur_kf_time, id), transaction);
     } else {
       // triangulate new point and add constraints
       Eigen::Vector2d pixel_prv_kf, pixel_cur_kf;
