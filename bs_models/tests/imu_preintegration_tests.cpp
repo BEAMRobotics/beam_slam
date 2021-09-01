@@ -791,6 +791,7 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
 
     // update and optimize
     graph.update(*transaction);
+    graph.optimize();
 
     // get ground truth IMU state
     bs_common::ImuState IS_ground_truth(t_now);
@@ -803,13 +804,11 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
     IS_ground_truth_vec.emplace_back(IS_ground_truth);
   }
 
-  graph.optimize();
-
   // update IMU states with optimized graph
   auto g = fuse_graphs::HashGraph::make_shared(graph);
   for (size_t i = 0; i < IS_predicted_vec.size(); i++) {
     // get copy of predicted and update
-    bs_common::ImuState IS_predicted = IS_predicted_vec[i];
+    bs_common::ImuState& IS_predicted = IS_predicted_vec[i];
     IS_predicted.Update(g);
 
     // check is approx. close to ground truth
