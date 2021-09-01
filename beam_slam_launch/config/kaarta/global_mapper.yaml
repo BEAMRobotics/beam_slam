@@ -2,7 +2,7 @@
 
 sensor_models:
   - name: 'global_mapper'
-    type: 'bs_models::global_mapping::GlobalMapper'
+    type: 'bs_models::GlobalMapper'
 
 ## plugin params: specify all params for the plugins, using their unique name
 
