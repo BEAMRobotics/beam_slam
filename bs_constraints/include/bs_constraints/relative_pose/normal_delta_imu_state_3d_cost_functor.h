@@ -9,15 +9,14 @@
 #include <bs_common/preintegrator.h>
 #include <bs_common/utils.h>
 
-namespace bs_constraints {
-namespace relative_pose {
+namespace bs_constraints { namespace relative_pose {
 
 /**
  * @brief Implements a cost function that models a difference between 3D
  * IMU states according to DOI: 10.15607/RSS.2015.XI.006
  */
 class NormalDeltaImuState3DCostFunctor {
- public:
+public:
   FUSE_MAKE_ALIGNED_OPERATOR_NEW();
 
   /**
@@ -38,8 +37,8 @@ class NormalDeltaImuState3DCostFunctor {
                   const T* const gyrobias2, const T* const accelbias2,
                   T* residual) const;
 
- private:
-  Eigen::Matrix<double, 15, 15> A_;  //!< The residual weighting matrix
+private:
+  Eigen::Matrix<double, 15, 15> A_; //!< The residual weighting matrix
   bs_common::ImuState imu_state_i_;
   bs_common::PreIntegrator pre_integrator_;
 };
@@ -61,7 +60,10 @@ NormalDeltaImuState3DCostFunctor::NormalDeltaImuState3DCostFunctor(
     const bs_common::PreIntegrator& pre_integrator)
     : A_(pre_integrator_.delta.sqrt_inv_cov),
       imu_state_i_(imu_state_i),
-      pre_integrator_(pre_integrator) {}
+      pre_integrator_(pre_integrator) {
+  pre_integrator_.delta.cov.setIdentity();
+  A_ = pre_integrator_.delta.cov.inverse().llt().matrixU();
+}
 
 template <typename T>
 bool NormalDeltaImuState3DCostFunctor::operator()(
@@ -145,5 +147,4 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
   return true;
 }
 
-}  // namespace relative_pose
-}  // namespace bs_constraints
+}} // namespace bs_constraints::relative_pose

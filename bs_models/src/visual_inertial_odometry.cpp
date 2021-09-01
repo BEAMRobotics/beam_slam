@@ -55,9 +55,7 @@ void VisualInertialOdometry::onInit() {
   descriptor_type_ =
       beam_cv::DescriptorTypeStringMap[camera_params_.descriptor];
   for (auto& it : beam_cv::DescriptorTypeIntMap) {
-    if (it.second == descriptor_type_) {
-      descriptor_type_int_ = it.first;
-    }
+    if (it.second == descriptor_type_) { descriptor_type_int_ = it.first; }
   }
   std::shared_ptr<beam_cv::Descriptor> descriptor =
       beam_cv::Descriptor::Create(descriptor_type_);
@@ -167,6 +165,7 @@ void VisualInertialOdometry::processImage(
         T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
       } else {
         imu_preint_->GetPose(T_WORLD_BASELINK, img_time);
+        T_WORLD_CAMERA = T_WORLD_BASELINK * T_cam_baselink_.inverse();
       }
 
       // publish pose to odom topic
@@ -304,7 +303,7 @@ bool VisualInertialOdometry::LocalizeFrame(const ros::Time& img_time,
   }
 
   // perform ransac pnp for initial estimate
-  if (points.size() >= 15) {
+  if (points.size() >= 30) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
         beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
                                                         points);
@@ -325,12 +324,8 @@ bool VisualInertialOdometry::IsKeyframe(const ros::Time& img_time,
       visual_map_->GetCameraPose(keyframes_.back().Stamp()).value();
   bool is_keyframe = false;
   if ((img_time - keyframes_.back().Stamp()).toSec() >=
-          camera_params_.keyframe_min_time_in_seconds &&
-      beam::PassedMotionThreshold(T_WORLD_curkf, T_WORLD_CAMERA, 0.0, 0.05,
-                                  true, true, false)) {
+      camera_params_.keyframe_min_time_in_seconds) {
     ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
-    is_keyframe = true;
-  } else if (added_since_kf_ == (camera_params_.window_size - 1)) {
     is_keyframe = true;
   } else {
     is_keyframe = false;
@@ -386,8 +381,7 @@ void VisualInertialOdometry::ExtendMap() {
           visual_map_->AddConstraint(cur_kf_time, id, pixel_cur_kf,
                                      transaction);
         }
-      } catch (const std::out_of_range& oor) {
-      }
+      } catch (const std::out_of_range& oor) {}
     }
   }
 
@@ -454,16 +448,12 @@ void VisualInertialOdometry::NotifyNewKeyframe(
 
 void VisualInertialOdometry::PublishSlamChunk() {
   // this just makes sure the visual map has the most recent variables
-  for (auto& kf : keyframes_) {
-    visual_map_->GetCameraPose(kf.Stamp());
-  }
+  for (auto& kf : keyframes_) { visual_map_->GetCameraPose(kf.Stamp()); }
 
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size - 1) {
     // remove keyframe placeholder if first keyframe
-    if (keyframes_.front().Stamp() == ros::Time(0)) {
-      keyframes_.pop_front();
-    }
+    if (keyframes_.front().Stamp() == ros::Time(0)) { keyframes_.pop_front(); }
 
     // build slam chunk
     bs_common::SlamChunkMsg slam_chunk;
@@ -498,9 +488,7 @@ void VisualInertialOdometry::PublishSlamChunk() {
       ros::Time stamp;
       stamp.fromNSec(it.first);
       trajectory.stamps.push_back(stamp.toSec());
-      for (auto& x : pose) {
-        trajectory.poses.push_back(x);
-      }
+      for (auto& x : pose) { trajectory.poses.push_back(x); }
     }
     slam_chunk.trajectory_measurement = trajectory;
 
@@ -542,14 +530,13 @@ void VisualInertialOdometry::PublishSlamChunk() {
 void VisualInertialOdometry::PublishLandmarkIDs(
     const std::vector<uint64_t>& ids) {
   std_msgs::UInt64MultiArray landmark_msg;
-  for (auto& id : ids) {
-    landmark_msg.data.push_back(id);
-  }
+  for (auto& id : ids) { landmark_msg.data.push_back(id); }
   landmark_publisher_.publish(landmark_msg);
 }
 
 std::map<uint64_t, Eigen::Vector3d>
-VisualInertialOdometry::MatchFrameToCurrentSubmap(const ros::Time& img_time) {
+    VisualInertialOdometry::MatchFrameToCurrentSubmap(
+        const ros::Time& img_time) {
   // vector of points to return
   std::map<uint64_t, Eigen::Vector3d> matched_points;
 
@@ -560,9 +547,7 @@ VisualInertialOdometry::MatchFrameToCurrentSubmap(const ros::Time& img_time) {
   std::vector<cv::Mat> descriptors = submap_.GetDescriptors();
 
   // if submap empty then true empty vector
-  if (points_camera.size() == 0) {
-    return matched_points;
-  }
+  if (points_camera.size() == 0) { return matched_points; }
 
   std::vector<cv::KeyPoint> projected_keypoints, current_keypoints;
   cv::Mat projected_descriptors, current_descriptors;
@@ -629,4 +614,4 @@ VisualInertialOdometry::MatchFrameToCurrentSubmap(const ros::Time& img_time) {
   return matched_points;
 }
 
-}  // namespace bs_models
+} // namespace bs_models
