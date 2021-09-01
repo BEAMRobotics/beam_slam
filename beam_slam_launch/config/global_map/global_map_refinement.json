@@ -3,7 +3,7 @@
   "loop_closure_refinement_type": "ICP",
   "loop_closure_candidate_search_config": "",
   "loop_closure_refinement_config": "",
-  "scan_registration_type": "MULTISCAN",
+  "scan_registration_type": "SCANTOMAP",
   "scan_reg_covariance_diag": [
     1e-3,
     1e-3,
@@ -29,11 +29,11 @@
     "num_neighbors": 10
   },
   "scan_to_map_registration": {
-    "outlier_threshold_trans_m": 0.1,
+    "outlier_threshold_trans_m": 0.15,
     "outlier_threshold_rot_deg": 15,
-    "min_motion_trans_m": 0.25,
+    "min_motion_trans_m": 0,
     "min_motion_rot_deg": 0,
-    "max_motion_trans_m": 5,
+    "max_motion_trans_m": 10,
     "map_size": 10
   },
   "loam_matcher_params": {

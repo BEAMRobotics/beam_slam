@@ -114,11 +114,11 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     int num_measurements = RegisterScanToReferences(*unreg_iter, transaction);
 
     if (num_measurements > 0) {
-      BEAM_DEBUG(
-          "Adding {} measurements to unregistered scan with stamp {}.{}.",
-          num_measurements, new_scan.Stamp().sec, new_scan.Stamp().nsec);
-      // ROS_DEBUG("Adding %d measurements to unregistered scan with stamp %d.%d.",
-      //           num_measurements, new_scan.Stamp().sec, new_scan.Stamp().nsec);
+      // BEAM_DEBUG(
+      //     "Adding {} measurements to unregistered scan with stamp {}.{}.",
+      //     num_measurements, new_scan.Stamp().sec, new_scan.Stamp().nsec);
+      ROS_DEBUG("Adding %d measurements to unregistered scan with stamp %d.%d.",
+                num_measurements, new_scan.Stamp().sec, new_scan.Stamp().nsec);
       InsertCloudInReferences(*unreg_iter);
 
       // add pose variables for this scan
@@ -137,22 +137,22 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
 
   if (num_new_measurements == 0) {
     // if no constraints were added for this scan, add scan to unregistered list
-    // ROS_DEBUG(
-    //     "No constraints added to new scan with stamp %d.%d, adding scan to "
-    //     "unregistered list.",
-    //     new_scan.Stamp().sec, new_scan.Stamp().nsec);
-    BEAM_DEBUG(
-        "No constraints added to new scan with stamp {}.{}, adding scan to "
+    ROS_DEBUG(
+        "No constraints added to new scan with stamp %d.%d, adding scan to "
         "unregistered list.",
         new_scan.Stamp().sec, new_scan.Stamp().nsec);
+    // BEAM_DEBUG(
+    //     "No constraints added to new scan with stamp {}.{}, adding scan to "
+    //     "unregistered list.",
+    //     new_scan.Stamp().sec, new_scan.Stamp().nsec);
     unregistered_clouds_.push_back(new_scan);
   } else {
-    // ROS_DEBUG("Adding %d measurements to scan with stamp %d.%d",
-    //            num_new_measurements, new_scan.Stamp().sec,
-    //            new_scan.Stamp().nsec);
-    BEAM_DEBUG("Adding {} measurements to scan with stamp {}.{}",
+    ROS_DEBUG("Adding %d measurements to scan with stamp %d.%d",
                num_new_measurements, new_scan.Stamp().sec,
                new_scan.Stamp().nsec);
+    // BEAM_DEBUG("Adding {} measurements to scan with stamp {}.{}",
+    //            num_new_measurements, new_scan.Stamp().sec,
+    //            new_scan.Stamp().nsec);
     // add cloud to reference cloud list
     reference_clouds_.push_front(new_scan);
 
@@ -167,8 +167,8 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
 void MultiScanRegistrationBase::AddFirstScan(
     const ScanPose& scan,
     bs_constraints::relative_pose::Pose3DStampedTransaction& transaction) {
-  // ROS_DEBUG("Adding first scan to reference scans.");
-  BEAM_DEBUG("Adding first scan to reference scans.");
+  ROS_DEBUG("Adding first scan to reference scans.");
+  // BEAM_DEBUG("Adding first scan to reference scans.");
   reference_clouds_.push_front(scan);
 
   // add pose variables for new scan
@@ -223,8 +223,8 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
        ref_iter != reference_clouds_.end(); ref_iter++) {
     counter++;
 
-    BEAM_DEBUG("Matching against neighbor no. {}", counter);
-    // ROS_DEBUG("Matching against neighbor no. %d", counter);
+    // BEAM_DEBUG("Matching against neighbor no. {}", counter);
+    ROS_DEBUG("Matching against neighbor no. %d", counter);
 
     // run matcher to get refined cloud pose
     Eigen::Matrix4d T_LIDARREF_LIDARTGT;

@@ -291,7 +291,7 @@ class GlobalMap {
   std::unique_ptr<loop_closure::LoopClosureRefinementBase> loop_closure_refinement_;
 
   // params only tunable here
-  int max_output_map_size_{1000000};
+  int max_output_map_size_ = 10e6;
   double pose_prior_noise_{1e-9};
 };
 
