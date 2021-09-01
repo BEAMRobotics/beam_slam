@@ -202,7 +202,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
     imu_state_j.SetOrientation(R_WORLD_IMU->data());
     imu_state_j.SetPosition(t_WORLD_IMU->data());
     Eigen::Vector3d new_velocity =
-        (imu_state_i_.VelocityVec() - imu_state_j.VelocityVec()) /
+        (imu_state_j.PositionVec() - imu_state_i_.PositionVec()) /
         (t_now.toSec() - imu_state_i_.Stamp().toSec());
     imu_state_j.SetVelocity(new_velocity);
   }
