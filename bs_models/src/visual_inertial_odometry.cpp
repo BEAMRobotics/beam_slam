@@ -166,7 +166,7 @@ void VisualInertialOdometry::processImage(
       if (visual_localization_passed) {
         T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
       } else {
-        // imu_preint_->GetPose(T_WORLD_BASELINK, img_time);
+        imu_preint_->GetPose(T_WORLD_BASELINK, img_time);
       }
 
       // publish pose to odom topic
@@ -394,7 +394,7 @@ void VisualInertialOdometry::ExtendMap() {
   ROS_INFO("Added %zu new landmarks.", new_landmarks.size());
 
   // add inertial constraint
-  // AddInertialConstraint(cur_kf_time, transaction);
+  AddInertialConstraint(transaction);
 
   // send transaction to graph
   sendTransaction(transaction);

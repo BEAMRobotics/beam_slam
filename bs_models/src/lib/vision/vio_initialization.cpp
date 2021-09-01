@@ -60,9 +60,14 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 
-    // Apply scale estimate if desired
-    if (use_scale_estimate_) {
-      for (auto& f : valid_frames_) { f.p = scale_ * f.p; }
+    // Align poses to world gravity
+    Eigen::Quaterniond q =
+        Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
+    for (auto& f : valid_frames_) {
+      f.q = q * f.q;
+      f.p = q * f.p;
+      // Apply scale estimate if desired
+      if (use_scale_estimate_) f.p = scale_ * f.p;
     }
 
     // Add poses from path and imu constraints to graph
@@ -116,7 +121,8 @@ void VIOInitialization::AddIMU(const sensor_msgs::Imu& msg) {
   imu_buffer_.push(msg);
 }
 
-void VIOInitialization::ProcessInitPath(const InitializedPathMsg::ConstPtr& msg) {
+void VIOInitialization::ProcessInitPath(
+    const InitializedPathMsg::ConstPtr& msg) {
   init_path_ = std::make_shared<InitializedPathMsg>();
   *init_path_ = *msg;
 }
@@ -244,12 +250,13 @@ void VIOInitialization::AddPosesAndInertialConstraints(
           imu_preint_->RegisterNewImuPreintegratedFactor(
               frame.t, img_orientation, img_position);
       // update graph with the transaction
-      // local_graph_->update(*transaction);
+      local_graph_->update(*transaction);
     }
   }
 }
 
-size_t VIOInitialization::AddVisualConstraints(const std::vector<Frame>& frames) {
+size_t
+    VIOInitialization::AddVisualConstraints(const std::vector<Frame>& frames) {
   ros::Time start = frames[0].t, end = frames[frames.size() - 1].t;
   size_t num_landmarks = 0;
 
@@ -304,7 +311,7 @@ size_t VIOInitialization::AddVisualConstraints(const std::vector<Frame>& frames)
 }
 
 bool VIOInitialization::LocalizeFrame(const Frame& frame,
-                                   Eigen::Matrix4d& T_WORLD_BASELINK) {
+                                      Eigen::Matrix4d& T_WORLD_BASELINK) {
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
@@ -534,4 +541,4 @@ void VIOInitialization::Integrate(std::vector<Frame>& frames) {
   }
 }
 
-}} // namespace bs_models::trajectory_initializers
+}} // namespace bs_models::vision

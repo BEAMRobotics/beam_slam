@@ -20,11 +20,11 @@ motion_models:
 solver_options:
   minimizer_type: "TRUST_REGION"
   linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
-  minimizer_progress_to_stdout: true
+  minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
-  max_num_iterations: 8
-  max_solver_time_in_seconds: 0.1
+  max_num_iterations: 15
+  max_solver_time_in_seconds: 0.05
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
@@ -48,13 +48,13 @@ camera:
   new_keyframes_topic: "/new_keyframes"
   slam_chunk_topic: "/slam_chunks"
   landmark_topic: "/landmarks"
-  descriptor: "ORB"
+  descriptor: "BEBLID"
   window_size: 150 # number of images to store landmark information for before clearing for new images
   num_features_to_track: 100 # number of features to track from image to image
   keyframe_window_size: 20 # number of keyframes to store before wiping for new images
   keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe
   keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe
-  keyframe_min_time_in_seconds: 0.5 # minimum amount of time between keyframes
+  keyframe_min_time_in_seconds: 0.2 # minimum amount of time between keyframes
   init_max_optimization_time_in_seconds: 1.0 # max amopunt of time to optimize the initializer map
   init_map_output_directory: "" # Outputs vio map into directory if not empty
 
