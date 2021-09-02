@@ -130,15 +130,16 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
     Eigen::Vector3f scan_voxel_size(downsampling_voxel_size_,
                                     downsampling_voxel_size_,
                                     downsampling_voxel_size_);
-    beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
+    beam_filtering::VoxelDownsample<> downsampler(scan_voxel_size);
 
     // extract and filter clouds from match submap
     PointCloudPtr match_cloud_world = std::make_shared<PointCloud>();
     std::vector<PointCloud> match_clouds_world_raw =
         matched_submap->GetLidarPointsInWorldFrame(downsampling_max_map_size_);
     for (const PointCloud& cloud : match_clouds_world_raw) {
-      PointCloud downsampled;
-      downsampler.Filter(cloud, downsampled);
+      downsampler.SetInputCloud(std::make_shared<PointCloud>(cloud));
+      downsampler.Filter();
+      PointCloud downsampled = downsampler.GetFilteredCloud();
       (*match_cloud_world) += downsampled;
     }
 
@@ -147,8 +148,9 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
     std::vector<PointCloud> query_clouds_world_raw =
         query_submap->GetLidarPointsInWorldFrame(downsampling_max_map_size_);
     for (const PointCloud& cloud : query_clouds_world_raw) {
-      PointCloud downsampled;
-      downsampler.Filter(cloud, downsampled);
+      downsampler.SetInputCloud(std::make_shared<PointCloud>(cloud));
+      downsampler.Filter();
+      PointCloud downsampled = downsampler.GetFilteredCloud();
       (*query_cloud_world) += downsampled;
     }
 

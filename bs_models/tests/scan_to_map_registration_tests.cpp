@@ -49,8 +49,10 @@ class Data {
 
     // downsample input cloud
     Eigen::Vector3f scan_voxel_size(0.05, 0.05, 0.05);
-    beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
-    downsampler.Filter(test_cloud_tmp, test_cloud);
+    beam_filtering::VoxelDownsample<> downsampler(scan_voxel_size);
+    downsampler.SetInputCloud(test_cloud_tmp);
+    downsampler.Filter();
+    PointCloud test_cloud = downsampler.GetFilteredCloud();
 
     // create poses
     // srand(time(NULL));

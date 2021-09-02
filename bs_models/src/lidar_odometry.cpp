@@ -4,7 +4,6 @@
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
-#include <beam_filtering/VoxelDownsample.h>
 #include <beam_matching/Matchers.h>
 #include <beam_utils/filesystem.h>
 
@@ -14,8 +13,7 @@
 #include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry,
-                       fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry, fuse_core::SensorModel)
 
 namespace bs_models {
 
@@ -114,6 +112,27 @@ void LidarOdometry::onInit() {
     feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
   }
 
+  // get filter params
+  nlohmann::json J;
+  std::string filepath = params_.input_filters_config_path;
+  if (filepath.empty()) {
+    // do nothing, keep filter params empty
+  } else if (filepath == "DEFAULT_PATH") {
+    filepath = bs_common::GetBeamSlamConfigPath() +
+               "registration_config/input_filters.json";
+    if (!beam::ReadJson(filepath, J)) {
+      ROS_ERROR("Cannot read input filters json, not using any filters.");
+    } else {
+      input_filter_params_ = beam_filtering::LoadFilterParamsVector(J);
+    }
+  } else {
+    if (!beam::ReadJson(filepath, J)) {
+      ROS_ERROR("Cannot read input filters json, not using any filters.");
+    } else {
+      input_filter_params_ = beam_filtering::LoadFilterParamsVector(J);
+    }
+  }
+
   // set covariance if not set to zero in config
   if (std::accumulate(params_.matcher_noise_diagonal.begin(),
                       params_.matcher_noise_diagonal.end(), 0.0) > 0) {
@@ -170,14 +189,7 @@ LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
-
-  if (params_.downsample_size > 0) {
-    Eigen::Vector3f scan_voxel_size(params_.downsample_size,
-                                    params_.downsample_size,
-                                    params_.downsample_size);
-    beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
-    downsampler.Filter(*cloud_current, *cloud_current);
-  }
+  *cloud_current = beam_filtering::FilterPointCloud(*cloud_current, input_filter_params_);
 
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,
@@ -290,7 +302,7 @@ void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
         points_msg.lidar_measurement.points.push_back(p.y);
         points_msg.lidar_measurement.points.push_back(p.z);
       }
-      ROS_DEBUG("Publishing lidar points");
+      ROS_DEBUG("Publishing all lidar points");
       results_publisher_.publish(points_msg);
     }
 
@@ -300,28 +312,46 @@ void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
       // get strong edge features
       SlamChunkMsg edges_msg = slam_chunk_msg;
       edges_msg.lidar_measurement.point_type = 1;
-      const PointCloud& edges = loam_cloud.edges.strong.cloud;
-      for (int i = 0; i < edges.size(); i++) {
-        pcl::PointXYZ p = edges.points.at(i);
+      for (const auto& p : loam_cloud.edges.strong.cloud.points) {
         edges_msg.lidar_measurement.points.push_back(p.x);
         edges_msg.lidar_measurement.points.push_back(p.y);
         edges_msg.lidar_measurement.points.push_back(p.z);
       }
-      ROS_DEBUG("Publishing loam edge points");
+      ROS_DEBUG("Publishing strong edge points");
       results_publisher_.publish(edges_msg);
 
       // get strong surface features
       SlamChunkMsg surfaces_msg = slam_chunk_msg;
       surfaces_msg.lidar_measurement.point_type = 2;
-      const PointCloud& surfaces = loam_cloud.surfaces.strong.cloud;
-      for (int i = 0; i < surfaces.size(); i++) {
-        pcl::PointXYZ p = surfaces.points.at(i);
+      for (const auto& p : loam_cloud.surfaces.strong.cloud.points) {
         surfaces_msg.lidar_measurement.points.push_back(p.x);
         surfaces_msg.lidar_measurement.points.push_back(p.y);
         surfaces_msg.lidar_measurement.points.push_back(p.z);
       }
-      ROS_DEBUG("Publishing loam surface points");
+      ROS_DEBUG("Publishing strong surface points");
       results_publisher_.publish(surfaces_msg);
+
+      // get weak edge features
+      SlamChunkMsg edges_msg_weak = slam_chunk_msg;
+      edges_msg_weak.lidar_measurement.point_type = 3;
+      for (const auto& p : loam_cloud.edges.weak.cloud.points) {
+        edges_msg_weak.lidar_measurement.points.push_back(p.x);
+        edges_msg_weak.lidar_measurement.points.push_back(p.y);
+        edges_msg_weak.lidar_measurement.points.push_back(p.z);
+      }
+      ROS_DEBUG("Publishing weak edge points");
+      results_publisher_.publish(edges_msg_weak);
+
+      // get weak surface features
+      SlamChunkMsg surfaces_msg_weak = slam_chunk_msg;
+      surfaces_msg_weak.lidar_measurement.point_type = 4;
+      for (const auto& p : loam_cloud.surfaces.weak.cloud.points) {
+        surfaces_msg_weak.lidar_measurement.points.push_back(p.x);
+        surfaces_msg_weak.lidar_measurement.points.push_back(p.y);
+        surfaces_msg_weak.lidar_measurement.points.push_back(p.z);
+      }
+      ROS_DEBUG("Publishing weak surface points");
+      results_publisher_.publish(surfaces_msg_weak);
     }
   }
 

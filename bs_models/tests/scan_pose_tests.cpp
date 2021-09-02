@@ -30,13 +30,14 @@ class Data {
     test_path.erase(test_path.end() - current_file.size(), test_path.end());
     std::string scan_path = test_path + "data/test_scan_vlp16.pcd";
     PointCloud test_cloud_tmp;
-    PointCloud test_cloud;
     pcl::io::loadPCDFile(scan_path, test_cloud_tmp);
 
     // downsample input cloud
     Eigen::Vector3f scan_voxel_size(0.05, 0.05, 0.05);
-    beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
-    downsampler.Filter(test_cloud_tmp, test_cloud);
+    beam_filtering::VoxelDownsample<> downsampler(scan_voxel_size);
+    downsampler.SetInputCloud(std::make_shared<PointCloud>(test_cloud_tmp));
+    downsampler.Filter();
+    PointCloud test_cloud = downsampler.GetFilteredCloud();
 
     // create poses
     // srand(time(NULL));
@@ -171,8 +172,10 @@ TEST(ScanPose, IO) {
   Eigen::Matrix4d T_WORLD_S1_lidar = SP1.T_REFFRAME_LIDAR();
   EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S1, T_WORLD_S1_, 0.1, 0.001));
   EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S2, T_WORLD_S2_, 0.1, 0.001));
-  EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S1, T_WORLD_S1_lidar, 0.1, 0.001));
-  EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S2, T_WORLD_S2_lidar, 0.1, 0.001));
+  EXPECT_TRUE(
+      beam::ArePosesEqual(data_.T_WORLD_S1, T_WORLD_S1_lidar, 0.1, 0.001));
+  EXPECT_TRUE(
+      beam::ArePosesEqual(data_.T_WORLD_S2, T_WORLD_S2_lidar, 0.1, 0.001));
   EXPECT_EQ(SP1.Cloud().size(), data_.S1.size());
   EXPECT_EQ(SP2.Cloud().size(), data_.S2.size());
   EXPECT_EQ(SP1.Stamp(), ros::Time(0));

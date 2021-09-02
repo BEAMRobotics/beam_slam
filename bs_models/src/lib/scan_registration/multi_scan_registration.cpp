@@ -34,12 +34,8 @@ void MultiScanRegistrationBase::Params::LoadFromJson(
         config);
     return;
   } else if (config == "DEFAULT_PATH") {
-    std::string default_path = __FILE__;
-    size_t start_iter = default_path.find("bs_models");
-    size_t end_iter = default_path.size() - start_iter;
-    default_path.erase(start_iter, end_iter);
-    default_path +=
-        "beam_slam_launch/config/registration_config/multi_scan.json";
+    std::string default_path = bs_common::GetBeamSlamConfigPath() +
+                               "registration_config/multi_scan.json";
     if (!boost::filesystem::exists(default_path)) {
       BEAM_WARN(
           "Could not find default multi scan registration config at: {}. Using "
@@ -76,7 +72,8 @@ ScanRegistrationParamsBase MultiScanRegistrationBase::Params::GetBaseParams() {
 MultiScanRegistrationBase::MultiScanRegistrationBase(
     const ScanRegistrationParamsBase& base_params, int num_neighbors,
     double lag_duration, bool disable_lidar_map)
-    : ScanRegistrationBase(base_params) {
+    : ScanRegistrationBase(base_params),
+      params_(base_params, num_neighbors, lag_duration, disable_lidar_map) {
   params_.num_neighbors = num_neighbors;
   params_.lag_duration = lag_duration;
   params_.disable_lidar_map = disable_lidar_map;
@@ -94,40 +91,112 @@ MultiScanRegistrationBase::MultiScanRegistrationBase(
 
 bs_constraints::relative_pose::Pose3DStampedTransaction
 MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
+  // create empty transaction
   bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
       new_scan.Stamp());
 
-  // add pose variables for new scan
-  transaction.AddPoseVariables(new_scan.Position(), new_scan.Orientation(),
-                               new_scan.Stamp());
-
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
-    reference_clouds_.push_front(new_scan);
-    if (!params_.disable_lidar_map) {
-      map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(),
-                         new_scan.T_REFFRAME_LIDAR());
-    }
-    if (params_.fix_first_scan) {
-      // build covariance
-      fuse_core::Matrix6d prior_covariance;
-      prior_covariance.setIdentity();
-      prior_covariance = prior_covariance * pose_prior_noise_;
-
-      // add prior
-      transaction.AddPosePrior(new_scan.Position(), new_scan.Orientation(),
-                               prior_covariance, "FIRSTSCANPRIOR");
-    }
+    AddFirstScan(new_scan, transaction);
     return transaction;
   }
 
+  CleanUpScanLists(new_scan.Stamp());
+
+  // first, let's go through the unregistered scans and try to register them to
+  // a scan in the reference scans
+  auto unreg_iter = unregistered_clouds_.begin();
+  while (unreg_iter != unregistered_clouds_.end()) {
+    int num_measurements = RegisterScanToReferences(*unreg_iter, transaction);
+
+    if (num_measurements > 0) {
+      // BEAM_DEBUG(
+      //     "Adding {} measurements to unregistered scan with stamp {}.{}.",
+      //     num_measurements, new_scan.Stamp().sec, new_scan.Stamp().nsec);
+      ROS_DEBUG("Adding %d measurements to unregistered scan with stamp %d.%d.",
+                num_measurements, new_scan.Stamp().sec, new_scan.Stamp().nsec);
+      InsertCloudInReferences(*unreg_iter);
+
+      // add pose variables for this scan
+      transaction.AddPoseVariables(unreg_iter->Position(),
+                                   unreg_iter->Orientation(),
+                                   unreg_iter->Stamp());
+
+      unregistered_clouds_.erase(unreg_iter++);
+    } else {
+      ++unreg_iter;
+    }
+  }
+
+  // now, let's register the new scan to the reference scans
+  int num_new_measurements = RegisterScanToReferences(new_scan, transaction);
+
+  if (num_new_measurements == 0) {
+    // if no constraints were added for this scan, add scan to unregistered list
+    ROS_DEBUG(
+        "No constraints added to new scan with stamp %d.%d, adding scan to "
+        "unregistered list.",
+        new_scan.Stamp().sec, new_scan.Stamp().nsec);
+    // BEAM_DEBUG(
+    //     "No constraints added to new scan with stamp {}.{}, adding scan to "
+    //     "unregistered list.",
+    //     new_scan.Stamp().sec, new_scan.Stamp().nsec);
+    unregistered_clouds_.push_back(new_scan);
+  } else {
+    ROS_DEBUG("Adding %d measurements to scan with stamp %d.%d",
+              num_new_measurements, new_scan.Stamp().sec,
+              new_scan.Stamp().nsec);
+    // BEAM_DEBUG("Adding {} measurements to scan with stamp {}.{}",
+    //            num_new_measurements, new_scan.Stamp().sec,
+    //            new_scan.Stamp().nsec);
+    // add cloud to reference cloud list
+    reference_clouds_.push_front(new_scan);
+
+    // add pose variables for new scan
+    transaction.AddPoseVariables(new_scan.Position(), new_scan.Orientation(),
+                                 new_scan.Stamp());
+  }
+
+  return transaction;
+}
+
+void MultiScanRegistrationBase::AddFirstScan(
+    const ScanPose& scan,
+    bs_constraints::relative_pose::Pose3DStampedTransaction& transaction) {
+  ROS_DEBUG("Adding first scan to reference scans.");
+  // BEAM_DEBUG("Adding first scan to reference scans.");
+  reference_clouds_.push_front(scan);
+
+  // add pose variables for new scan
+  transaction.AddPoseVariables(scan.Position(), scan.Orientation(),
+                               scan.Stamp());
+
+  if (params_.fix_first_scan) {
+    // build covariance
+    fuse_core::Matrix6d prior_covariance;
+    prior_covariance.setIdentity();
+    prior_covariance = prior_covariance * pose_prior_noise_;
+
+    // add prior
+    transaction.AddPosePrior(scan.Position(), scan.Orientation(),
+                             prior_covariance, "FIRSTSCANPRIOR");
+  }
+
+  if (!params_.disable_lidar_map) {
+    map_.AddPointCloud(scan.Cloud(), scan.Stamp(), scan.T_REFFRAME_LIDAR());
+  }
+
+  return;
+}
+
+int MultiScanRegistrationBase::RegisterScanToReferences(
+    const ScanPose& new_scan,
+    bs_constraints::relative_pose::Pose3DStampedTransaction& transaction) {
   if (output_scan_registration_results_) {
     current_scan_path_ =
         tmp_output_path_ + std::to_string(new_scan.Stamp().toSec()) + "/";
     boost::filesystem::create_directory(current_scan_path_);
   }
-
-  RemoveOldScans(new_scan.Stamp());
 
   // for building a lidar map with multi scan registration, we will average the
   // pose estimates from each scan registration. This stores the cumulative sum
@@ -150,6 +219,7 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
        ref_iter != reference_clouds_.end(); ref_iter++) {
     counter++;
 
+    // BEAM_DEBUG("Matching against neighbor no. {}", counter);
     ROS_DEBUG("Matching against neighbor no. %d", counter);
 
     // run matcher to get refined cloud pose
@@ -237,20 +307,29 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(), T_WORLD_LIDAR_AVG);
   }
 
-  // if no constraints were added for this scan, send empty transaction (don't
-  // add scan to graph)
-  if (num_constraints == 0) {
-    return bs_constraints::relative_pose::Pose3DStampedTransaction(
-        new_scan.Stamp());
+  return num_constraints;
+}
+
+void MultiScanRegistrationBase::InsertCloudInReferences(const ScanPose& scan) {
+  // iterate through list and insert when the new scan has a timestamp less than
+  // the current scan in reference scans
+  for (auto iter = reference_clouds_.begin(); iter != reference_clouds_.end();
+       iter++) {
+    if (scan.Stamp() > iter->Stamp()) {
+      continue;
+    }
+
+    // insert and then check size of references
+    reference_clouds_.insert(iter, scan);
+    while (reference_clouds_.size() >= params_.num_neighbors) {
+      reference_clouds_.pop_back();
+    }
+
+    return;
   }
 
-  // add cloud to reference cloud list and remove last
-  if (reference_clouds_.size() == params_.num_neighbors) {
-    reference_clouds_.pop_back();
-  }
-  reference_clouds_.push_front(new_scan);
-
-  return transaction;
+  // if all scans were prior to new scan, or list was empty, then push to back
+  reference_clouds_.push_back(scan);
 }
 
 void MultiScanRegistrationBase::UpdateScanPoses(
@@ -261,11 +340,21 @@ void MultiScanRegistrationBase::UpdateScanPoses(
   }
 }
 
-void MultiScanRegistrationBase::RemoveOldScans(const ros::Time& new_scan_time) {
+void MultiScanRegistrationBase::CleanUpScanLists(
+    const ros::Time& new_scan_time) {
+  while (reference_clouds_.size() > params_.num_neighbors) {
+    reference_clouds_.pop_back();
+  }
+
+  while (unregistered_clouds_.size() > max_unregistered_clouds_) {
+    unregistered_clouds_.pop_back();
+  }
+
   if (params_.lag_duration == 0) {
     return;
   }
 
+  // clear old reference clouds
   auto i = reference_clouds_.begin();
   while (i != reference_clouds_.end()) {
     // remove scan if new_scan_time - ref_scan_time > lag_duration
@@ -273,6 +362,17 @@ void MultiScanRegistrationBase::RemoveOldScans(const ros::Time& new_scan_time) {
       reference_clouds_.erase(i++);
     } else {
       ++i;
+    }
+  }
+
+  // clear old unregistred clouds
+  auto j = unregistered_clouds_.begin();
+  while (j != unregistered_clouds_.end()) {
+    // remove scan if new_scan_time - unregistered scan time > lag_duration
+    if (new_scan_time - j->Stamp() > ros::Duration(params_.lag_duration)) {
+      unregistered_clouds_.erase(j++);
+    } else {
+      ++j;
     }
   }
 }

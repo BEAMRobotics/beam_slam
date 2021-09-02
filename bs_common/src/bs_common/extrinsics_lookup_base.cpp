@@ -11,7 +11,6 @@
 
 #include <bs_common/utils.h>
 
-
 namespace bs_common {
 
 ExtrinsicsLookupBase::ExtrinsicsLookupBase(const FrameIds& frame_ids)
@@ -74,11 +73,14 @@ void ExtrinsicsLookupBase::LoadExtrinsics(const std::string& filepath) {
 
   // load data
 
-  // we will use a tf tree to help deal with calibrations. There's a possibility that the input transforms do not correspond to the exact same transforms as is needed in the extrinsics_lookup_base
+  // we will use a tf tree to help deal with calibrations. There's a possibility
+  // that the input transforms do not correspond to the exact same transforms as
+  // is needed in the extrinsics_lookup_base
   beam_calibration::TfTree tf_tree;
 
   // iterate through calibrations and add to the tftree
   for (auto calib : J["calibrations"]) {
+    BEAM_INFO("Adding transfrom from {} to {}", calib["from_frame"], calib["to_frame"]);
     Eigen::Matrix4d::Identity();
     std::vector<double> v = calib["transform"];
     Eigen::Affine3d T;
@@ -87,13 +89,15 @@ void ExtrinsicsLookupBase::LoadExtrinsics(const std::string& filepath) {
   }
 
   // not retrieve the proper transforms we need
-  T_LIDAR_IMU_ = tf_tree.GetTransformEigen(frame_ids_.lidar, frame_ids_.imu).matrix();
+  T_LIDAR_IMU_ =
+      tf_tree.GetTransformEigen(frame_ids_.lidar, frame_ids_.imu).matrix();
   T_LIDAR_IMU_set_ = true;
-  T_LIDAR_CAMERA_ = tf_tree.GetTransformEigen(frame_ids_.lidar, frame_ids_.camera).matrix();
+  T_LIDAR_CAMERA_ =
+      tf_tree.GetTransformEigen(frame_ids_.lidar, frame_ids_.camera).matrix();
   T_LIDAR_CAMERA_set_ = true;
-  T_IMU_CAMERA_ = tf_tree.GetTransformEigen(frame_ids_.imu, frame_ids_.camera).matrix();
+  T_IMU_CAMERA_ =
+      tf_tree.GetTransformEigen(frame_ids_.imu, frame_ids_.camera).matrix();
   T_IMU_CAMERA_set_ = true;
-
 }
 
 void ExtrinsicsLookupBase::SaveExtrinsicsToJson(
@@ -138,12 +142,6 @@ void ExtrinsicsLookupBase::SaveExtrinsicsToJson(
   J_lidar_camera["from_frame"] = frame_ids_.camera;
   J_lidar_camera["transform"] = beam::EigenTransformToVector(T_LIDAR_CAMERA_);
   J_calibrations.push_back(J_lidar_camera);
-
-  nlohmann::json J_imu_camera;
-  J_imu_camera["to_frame"] = frame_ids_.imu;
-  J_imu_camera["from_frame"] = frame_ids_.camera;
-  J_imu_camera["transform"] = beam::EigenTransformToVector(T_IMU_CAMERA_);
-  J_calibrations.push_back(J_imu_camera);
 
   J_out["calibrations"] = J_calibrations;
 
