@@ -34,12 +34,8 @@ void MultiScanRegistrationBase::Params::LoadFromJson(
         config);
     return;
   } else if (config == "DEFAULT_PATH") {
-    std::string default_path = __FILE__;
-    size_t start_iter = default_path.find("bs_models");
-    size_t end_iter = default_path.size() - start_iter;
-    default_path.erase(start_iter, end_iter);
-    default_path +=
-        "beam_slam_launch/config/registration_config/multi_scan.json";
+    std::string default_path = bs_common::GetBeamSlamConfigPath() +
+                               "registration_config/multi_scan.json";
     if (!boost::filesystem::exists(default_path)) {
       BEAM_WARN(
           "Could not find default multi scan registration config at: {}. Using "
@@ -148,8 +144,8 @@ MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     unregistered_clouds_.push_back(new_scan);
   } else {
     ROS_DEBUG("Adding %d measurements to scan with stamp %d.%d",
-               num_new_measurements, new_scan.Stamp().sec,
-               new_scan.Stamp().nsec);
+              num_new_measurements, new_scan.Stamp().sec,
+              new_scan.Stamp().nsec);
     // BEAM_DEBUG("Adding {} measurements to scan with stamp {}.{}",
     //            num_new_measurements, new_scan.Stamp().sec,
     //            new_scan.Stamp().nsec);

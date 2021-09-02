@@ -50,9 +50,10 @@ class GlobalMapRefinementTest : public ::testing::Test {
 
     // downsample input cloud
     Eigen::Vector3f scan_voxel_size(0.05, 0.05, 0.05);
-    beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
-    PointCloud cloud_in_lidar_frame;
-    downsampler.Filter(cloud_tmp, cloud_in_lidar_frame);
+    beam_filtering::VoxelDownsample<> downsampler(scan_voxel_size);
+    downsampler.SetInputCloud(std::make_shared<PointCloud>(cloud_tmp));
+    downsampler.Filter();
+    PointCloud cloud_in_lidar_frame = downsampler.GetFilteredCloud();
 
     // create scan matcher params
     loam_params_ = std::make_shared<LoamParams>();
@@ -315,7 +316,7 @@ TEST_F(GlobalMapRefinementTest, MultiScanRealData) {
       "/home/nick/results/beam_slam/global_map_refinement/test/GlobalMapData/";
   std::string output_dir =
       "/home/nick/results/beam_slam/global_map_refinement/test/ResultsRefinedUnitTets/";
-      
+
   // load params
   GlobalMapRefinement::Params params;
   params.LoadJson(refinement_config_path_);

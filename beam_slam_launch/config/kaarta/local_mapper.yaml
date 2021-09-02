@@ -43,8 +43,7 @@ lidar_odometry:
   type: 'MAPLOAM' # Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (TODO: LIBPOINTMATCHER, TEASER)
   matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
   registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class
-  differential: false # Default: false
-  downsample_size: 0 # voxel size (m) for downsample filter. Default: 0.03. Set to 0 for no downsampling
+  input_filters_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the config in beam_slam_launch_config/config/registration_config/input_filters.json. Setting to empty uses no filters.
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
   input_topic: '/velodyne_points'
   output_loam_points: true 

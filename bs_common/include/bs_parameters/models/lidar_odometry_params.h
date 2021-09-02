@@ -31,15 +31,16 @@ struct LidarOdometryParams : public ParameterBase {
     getParam<bool>(nh, "output_loam_points", output_loam_points,
                    output_loam_points);
     getParam<bool>(nh, "output_lidar_points", output_lidar_points,
-                   output_lidar_points);                   
+                   output_lidar_points);
 
     getParamRequired<std::string>(nh, "type", type);
-    getParam<float>(nh, "downsample_size", downsample_size, 0.03);
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           "");
     getParam<std::string>(nh, "matcher_params_path", matcher_params_path, "");
     getParam<std::string>(nh, "registration_config_path",
                           registration_config_path, "");
+    getParam<std::string>(nh, "input_filters_config_path",
+                          input_filters_config_path, "");
     getParam<double>(nh, "matcher_noise", matcher_noise, 1e-9);
 
     nh.param("matcher_noise_diagonal", matcher_noise_diagonal,
@@ -63,10 +64,10 @@ struct LidarOdometryParams : public ParameterBase {
   std::vector<double> matcher_noise_diagonal{0, 0, 0, 0, 0, 0};
   double matcher_noise;
   std::string type;
-  float downsample_size;
   double lag_duration;
   std::string matcher_params_path;
   std::string registration_config_path;
+  std::string input_filters_config_path;
   std::string scan_output_directory;
 
   // Optional For Odometry frame initializer

@@ -7,6 +7,7 @@
 #include <fuse_core/uuid.h>
 
 #include <beam_utils/pointclouds.h>
+#include <beam_filtering/Utils.h>
 
 #include <bs_constraints/relative_pose/relative_pose_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
@@ -69,6 +70,7 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   bs_parameters::models::LidarOdometryParams params_;
+  std::vector<beam_filtering::FilterParamsType> input_filter_params_;
   bool output_graph_updates_{false};
   int updates_{0};
   std::string graph_updates_path_ =

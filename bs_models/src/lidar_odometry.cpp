@@ -4,7 +4,6 @@
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
-#include <beam_filtering/VoxelDownsample.h>
 #include <beam_matching/Matchers.h>
 #include <beam_utils/filesystem.h>
 
@@ -113,6 +112,27 @@ void LidarOdometry::onInit() {
     feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
   }
 
+  // get filter params
+  nlohmann::json J;
+  std::string filepath = params_.input_filters_config_path;
+  if (filepath.empty()) {
+    // do nothing, keep filter params empty
+  } else if (filepath == "DEFAULT_PATH") {
+    filepath = bs_common::GetBeamSlamConfigPath() +
+               "registration_config/input_filters.json";
+    if (!beam::ReadJson(filepath, J)) {
+      ROS_ERROR("Cannot read input filters json, not using any filters.");
+    } else {
+      input_filter_params_ = beam_filtering::LoadFilterParamsVector(J);
+    }
+  } else {
+    if (!beam::ReadJson(filepath, J)) {
+      ROS_ERROR("Cannot read input filters json, not using any filters.");
+    } else {
+      input_filter_params_ = beam_filtering::LoadFilterParamsVector(J);
+    }
+  }
+
   // set covariance if not set to zero in config
   if (std::accumulate(params_.matcher_noise_diagonal.begin(),
                       params_.matcher_noise_diagonal.end(), 0.0) > 0) {
@@ -169,14 +189,7 @@ LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
-
-  if (params_.downsample_size > 0) {
-    Eigen::Vector3f scan_voxel_size(params_.downsample_size,
-                                    params_.downsample_size,
-                                    params_.downsample_size);
-    beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
-    downsampler.Filter(*cloud_current, *cloud_current);
-  }
+  *cloud_current = beam_filtering::FilterPointCloud(*cloud_current, input_filter_params_);
 
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,

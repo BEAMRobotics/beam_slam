@@ -51,8 +51,10 @@ class MultiScanRegistrationTest : public ::testing::Test {
 
     // downsample input cloud
     Eigen::Vector3f scan_voxel_size(0.05, 0.05, 0.05);
-    beam_filtering::VoxelDownsample downsampler(scan_voxel_size);
-    downsampler.Filter(test_cloud_tmp, test_cloud);
+    beam_filtering::VoxelDownsample<> downsampler(scan_voxel_size);
+    downsampler.SetInputCloud(test_cloud_tmp);
+    downsampler.Filter();
+    PointCloud test_cloud = downsampler.GetFilteredCloud();
 
     // create poses
     double max_pose_rot{20};
@@ -627,20 +629,20 @@ TEST_F(MultiScanRegistrationTest, NumNeighbours) {
 
   EXPECT_TRUE(transaction12 != nullptr);
   graph1.update(*transaction12);
-  
+
   EXPECT_TRUE(transaction13 != nullptr);
   graph1.update(*transaction13);
-  
+
   fuse_graphs::HashGraph graph2;
   EXPECT_TRUE(transaction21 != nullptr);
   graph2.update(*transaction21);
-  
+
   EXPECT_TRUE(transaction22 != nullptr);
   graph2.update(*transaction22);
-  
+
   EXPECT_TRUE(transaction23 != nullptr);
   graph2.update(*transaction23);
-  
+
   // check correct number of constraints are added
   auto constraints_added1 = graph1.getConstraints();
   int counter1 = 0;
