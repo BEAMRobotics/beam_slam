@@ -3,21 +3,21 @@
 #include <queue>
 
 #include <bs_common/bs_msgs.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/Imu.h>
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/throttled_callback.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/Imu.h>
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
-#include <bs_models/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/vision/keyframe.h>
-#include <bs_models/vision/visual_map.h>
+#include <bs_models/current_submap.h>
 #include <bs_models/imu_preintegration.h>
+#include <bs_models/vision/keyframe.h>
 #include <bs_models/vision/vio_initialization.h>
+#include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/camera_params.h>
 
@@ -27,7 +27,7 @@ using namespace bs_common;
 using namespace vision;
 
 class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
- public:
+public:
   SMART_PTR_DEFINITIONS(VisualInertialOdometry);
 
   /**
@@ -54,8 +54,8 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
- protected:
-  fuse_core::UUID device_id_;  //!< The UUID of this device
+protected:
+  fuse_core::UUID device_id_; //!< The UUID of this device
 
   /**
    * @brief Perform any required initialization for the sensor model
@@ -84,7 +84,7 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
    */
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
- private:
+private:
   /**
    * @brief Copies all variables and constraints in the init graph and sends to
    * fuse optimizer
@@ -95,20 +95,16 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
   /**
    * @brief Localizes a given frame using the tracker and the current visual map
    * @param img_time time of image to localize
-   * @param[out] T_WORLD_CAMERA estimated pose
-   * @return failure or success
+   * @return T_WORLD_BASELINK
    */
-  bool LocalizeFrame(const ros::Time& img_time,
-                     Eigen::Matrix4d& T_WORLD_CAMERA);
+  Eigen::Matrix4d LocalizeFrame(const ros::Time& img_time);
 
   /**
    * @brief Determines if a frame is a keyframe
    * @param img_time time of image to determine if its a keyframe
-   * @param T_WORLD_CAMERA pose of the frame in question
    * @return true or false decision
    */
-  bool IsKeyframe(const ros::Time& img_time,
-                  const Eigen::Matrix4d& T_WORLD_CAMERA);
+  bool IsKeyframe(const ros::Time& img_time);
 
   /**
    * @brief Extends the map at the current keyframe time and adds the visual
@@ -145,10 +141,10 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
    * @brief Matches an image in the tracker to the current submap
    * @param img_time time of image to match against submap
    */
-  std::map<uint64_t, Eigen::Vector3d> MatchFrameToCurrentSubmap(
-      const ros::Time& img_time);
+  std::map<uint64_t, Eigen::Vector3d>
+      MatchFrameToCurrentSubmap(const ros::Time& img_time);
 
- protected:
+protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;
 
@@ -203,4 +199,4 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
-}  // namespace bs_models
+} // namespace bs_models
