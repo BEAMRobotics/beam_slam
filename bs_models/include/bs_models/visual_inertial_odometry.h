@@ -104,7 +104,7 @@ private:
    * @param img_time time of image to determine if its a keyframe
    * @return true or false decision
    */
-  bool IsKeyframe(const ros::Time& img_time);
+  bool IsKeyframe(const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief Extends the map at the current keyframe time and adds the visual

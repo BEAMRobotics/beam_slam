@@ -169,7 +169,7 @@ void VisualInertialOdometry::processImage(
       init_odom_publisher_.publish(pose);
 
       // process keyframe
-      if (IsKeyframe(img_time)) {
+      if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
         // update keyframe info
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);
@@ -302,13 +302,15 @@ Eigen::Matrix4d
   if (points.size() >= 15) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
         beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
-                                                        points);
+                                                        points, 500);
     // refine pose using motion only BA
     Eigen::Matrix4d T_WORLD_CAMERA =
         pose_refiner_
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
             .inverse();
-    return T_WORLD_CAMERA * T_cam_baselink_;
+
+    Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
+    return T_WORLD_BASELINK;
   } else {
     Eigen::Matrix4d T_WORLD_BASELINK_inertial;
     imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
@@ -316,16 +318,38 @@ Eigen::Matrix4d
   }
 }
 
-bool VisualInertialOdometry::IsKeyframe(const ros::Time& img_time) {
-  bool is_keyframe = false;
-  if ((img_time - keyframes_.back().Stamp()).toSec() >=
-      camera_params_.keyframe_min_time_in_seconds) {
-    ROS_INFO("New keyframe chosen at: %f", img_time.toSec());
-    is_keyframe = true;
-  } else {
-    is_keyframe = false;
+bool VisualInertialOdometry::IsKeyframe(
+    const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_BASELINK) {
+  ros::Time prev_kf_time = keyframes_.back().Stamp();
+  Eigen::Matrix4d T_prevkf = visual_map_->GetBaselinkPose(prev_kf_time).value();
+  double parallax = tracker_->ComputeParallax(img_time, prev_kf_time, true);
+
+  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
+  std::vector<uint64_t> triangulated_landmarks;
+  for (auto& id : landmarks) {
+    if (visual_map_->GetLandmark(id)) { triangulated_landmarks.push_back(id); }
   }
-  return is_keyframe;
+  ROS_DEBUG("Parallax: %f, Triangulated/Total Tracks: %zu/%zu", parallax,
+           triangulated_landmarks.size(), landmarks.size());
+
+  if (landmarks.size() < 30) {
+    if (img_time.toSec() - prev_kf_time.toSec() >= 3.0) { return true; }
+    return false;
+
+  } else {
+    if (parallax > 30.0 &&
+        beam::PassedMotionThreshold(T_WORLD_BASELINK, T_prevkf, 0.0, 0.05, true,
+                                    true)) {
+      return true;
+    } else if (parallax > 70.0) {
+      return true;
+    } else if (triangulated_landmarks.size() < 30) {
+      return true;
+    } else if (img_time.toSec() - prev_kf_time.toSec() >= 3.0) {
+      return true;
+    }
+    return false;
+  }
 }
 
 void VisualInertialOdometry::ExtendMap() {

@@ -113,7 +113,7 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
 void VIOInitialization::OutputFramePoses(const std::vector<Frame>& frames) {
   for (auto& f : frames) {
     std::cout << f.t << std::endl;
-    std::cout << visual_map_->GetCameraPose(f.t) << std::endl;
+    std::cout << visual_map_->GetBaselinkPose(f.t) << std::endl;
   }
 }
 
@@ -369,7 +369,7 @@ void VIOInitialization::OutputResults(const std::vector<Frame>& frames) {
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
     for (auto& f : frames) {
       frame_cloud = beam::AddFrameToCloud(
-          frame_cloud, visual_map_->GetCameraPose(f.t).value(), 0.001);
+          frame_cloud, visual_map_->GetBaselinkPose(f.t).value(), 0.001);
     }
 
     // add all landmark points to cloud and save

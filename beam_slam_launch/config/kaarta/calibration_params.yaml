@@ -9,5 +9,5 @@
 
 # calibrations
 /calibration_params/static_extrinsics: true,
-/calibration_params/camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
-/calibration_params/imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
+/calibration_params/camera_intrinsics_path: "/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
+/calibration_params/imu_intrinsics_path: "/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
