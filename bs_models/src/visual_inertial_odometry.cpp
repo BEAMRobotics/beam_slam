@@ -344,13 +344,9 @@ void VisualInertialOdometry::ExtendMap() {
   for (auto& id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
-    fuse_variables::Point3DFixedLandmark::SharedPtr flm =
-        visual_map_->GetFixedLandmark(id);
     // add constraints to triangulated ids
-    if (lm || flm) {
-      Eigen::Vector3d point;
-      if (lm) { point << lm->x(), lm->y(), lm->z(); }
-      if (flm) { point << flm->x(), flm->y(), flm->z(); }
+    if (lm) {
+      Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
       if (point.norm() < 1000)
         visual_map_->AddConstraint(cur_kf_time, id,
                                    tracker_->Get(cur_kf_time, id), transaction);
