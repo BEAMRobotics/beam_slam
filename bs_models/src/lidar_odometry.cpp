@@ -136,8 +136,7 @@ void LidarOdometry::onInit() {
   // set covariance if not set to zero in config
   if (std::accumulate(params_.matcher_noise_diagonal.begin(),
                       params_.matcher_noise_diagonal.end(), 0.0) > 0) {
-    Eigen::Matrix<double, 6, 6> covariance;
-    covariance.setIdentity();
+    Eigen::Matrix<double, 6, 6> covariance{Eigen::Matrix<double, 6, 6>::Identity()};
     for (int i = 0; i < 6; i++) {
       covariance(i, i) = params_.matcher_noise_diagonal[i];
     }
@@ -189,7 +188,8 @@ LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
   PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
-  *cloud_current = beam_filtering::FilterPointCloud(*cloud_current, input_filter_params_);
+  *cloud_current =
+      beam_filtering::FilterPointCloud(*cloud_current, input_filter_params_);
 
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,
@@ -218,6 +218,12 @@ LidarOdometry::GenerateTransaction(
 
   // build transaction of registration measurements
   auto transaction = scan_registration_->RegisterNewScan(current_scan_pose);
+
+  if (params_.frame_initializer_prior_noise > 0) {
+    transaction.AddPosePrior(
+        current_scan_pose.Position(), current_scan_pose.Orientation(),
+        params_.frame_initializer_prior_noise, "FRAMEINITIALIZERPRIOR");
+  }
 
   return transaction;
 }

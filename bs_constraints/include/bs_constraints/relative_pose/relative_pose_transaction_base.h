@@ -142,6 +142,18 @@ class RelativePoseTransactionBase {
     transaction_->addConstraint(prior, override_constraints_);
   }
 
+  void AddPosePrior(const fuse_variables::Position3DStamped& position,
+                    const fuse_variables::Orientation3DStamped& orientation,
+                    double prior_covariance_noise,
+                    const std::string& prior_source = "NULL") {
+    fuse_core::Matrix6d prior_covariance_matrix{
+        fuse_core::Matrix6d::Identity()};
+    for (int i = 0; i < 6; i++) {
+        prior_covariance_matrix(i, i) = prior_covariance_noise;
+    }
+    AddPosePrior(position, orientation, prior_covariance_matrix, prior_source);
+  }
+
   void AddPoseVariables(
       const Eigen::Matrix4d& T_WORLD_FRAME, const ros::Time& stamp,
       const fuse_core::Matrix6d& prior_covariance,

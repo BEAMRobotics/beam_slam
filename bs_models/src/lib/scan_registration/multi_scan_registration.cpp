@@ -172,14 +172,9 @@ void MultiScanRegistrationBase::AddFirstScan(
                                scan.Stamp());
 
   if (params_.fix_first_scan) {
-    // build covariance
-    fuse_core::Matrix6d prior_covariance;
-    prior_covariance.setIdentity();
-    prior_covariance = prior_covariance * pose_prior_noise_;
-
     // add prior
     transaction.AddPosePrior(scan.Position(), scan.Orientation(),
-                             prior_covariance, "FIRSTSCANPRIOR");
+                             pose_prior_noise_, "FIRSTSCANPRIOR");
   }
 
   if (!params_.disable_lidar_map) {

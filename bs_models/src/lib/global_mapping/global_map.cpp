@@ -344,14 +344,9 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
 
   // if first submap, add prior then return
   if (submaps_.size() == 1) {
-    // build covariance
-    fuse_core::Matrix6d prior_covariance;
-    prior_covariance.setIdentity();
-    prior_covariance = prior_covariance * pose_prior_noise_;
-
     new_transaction.AddPosePrior(current_submap->Position(),
                                  current_submap->Orientation(),
-                                 prior_covariance, "FIRSTSUBMAPPRIOR");
+                                 pose_prior_noise_, "FIRSTSUBMAPPRIOR");
     return new_transaction.GetTransaction();
   }
 
