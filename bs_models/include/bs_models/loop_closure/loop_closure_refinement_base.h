@@ -12,8 +12,6 @@ namespace bs_models {
 
 namespace loop_closure {
 
-using namespace global_mapping;    
-
 /**
  * @brief A loop closure refinement step that takes an estimated pose
  * from the candidate search and refines the relative pose between the two
@@ -41,16 +39,11 @@ class LoopClosureRefinementBase {
    * @param query_submap
    */
   virtual fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const std::shared_ptr<Submap>& matched_submap,
-      const std::shared_ptr<Submap>& query_submap,
+      const std::shared_ptr<global_mapping::Submap>& matched_submap,
+      const std::shared_ptr<global_mapping::Submap>& query_submap,
       const Eigen::Matrix4d& T_MATCH_QUERY_EST) = 0;
 
  protected:
-  /**
-   * @brief pure virtual method for loading a config json file.
-   */
-  virtual void LoadConfig() = 0;
-
   std::string config_path_;
 };
 
