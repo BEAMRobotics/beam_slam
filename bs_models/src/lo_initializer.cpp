@@ -2,7 +2,6 @@
 
 #include <pluginlib/class_list_macros.h>
 #include <pcl/common/transforms.h>
-#include <pcl/io/pcd_io.h>
 #include <boost/filesystem.hpp>
 
 #include <beam_optimization/CeresParams.h>
@@ -262,9 +261,17 @@ void LoInitializer::OutputResults() {
     beam::MergeFrameToCloud(cloud_world_init_col, frame, T_WORLD_SCAN_INIT);
 
     std::string filename = std::to_string(iter->Stamp().toSec()) + ".pcd";
-    pcl::io::savePCDFileASCII(save_path_final + filename,
-                              cloud_world_final_col);
-    pcl::io::savePCDFileASCII(save_path_init + filename, cloud_world_init_col);
+    std::string error_message;
+    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+            save_path_final + filename, cloud_world_final_col,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
+    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+            save_path_init + filename, cloud_world_init_col,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
   }
 }
 

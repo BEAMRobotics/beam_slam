@@ -4,12 +4,13 @@
 #include <ctime>
 
 #include <boost/filesystem.hpp>
-#include <pcl/io/pcd_io.h>
+#include <pcl/conversions.h>
 
 #include <beam_utils/log.h>
 #include <beam_utils/time.h>
 #include <beam_utils/filesystem.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/pcl_conversions.h>
 #include <beam_mapping/Poses.h>
 
 #include <bs_models/loop_closure/loop_closure_methods.h>
@@ -91,6 +92,14 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
     vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
     loop_closure_covariance = vec_eig.asDiagonal();
   }
+
+  // load filters
+  nlohmann::json J_publishing = J["publishing"];
+  nlohmann::json J_submap_filters = J_publishing["submap_lidar_filters"];
+  nlohmann::json J_globalmap_filters = J_publishing["globalmap_lidar_filters"];
+
+  ros_submap_filter_params = beam_filtering::LoadFilterParamsVector(J_submap_filters);
+  ros_globalmap_filter_params = beam_filtering::LoadFilterParamsVector(J_globalmap_filters);
 }
 
 void GlobalMap::Params::SaveJson(const std::string& filename) {
@@ -155,6 +164,32 @@ void GlobalMap::SetSubmaps(std::vector<std::shared_ptr<Submap>>& submaps) {
   submaps_ = submaps;
 }
 
+void GlobalMap::SetStoreNewSubmaps(bool store_new_submaps) {
+  store_newly_completed_submaps_ = store_new_submaps;
+}
+
+void GlobalMap::SetStoreUpdatedGlobalMap(bool store_updated_global_map) {
+  store_updated_global_map_ = store_updated_global_map;
+}
+
+std::vector<std::shared_ptr<RosMap>> GlobalMap::GetRosMaps() {
+  std::vector<std::shared_ptr<RosMap>> maps_vector;
+  while (!ros_submaps_.empty()) {
+    maps_vector.push_back(ros_submaps_.front());
+    ros_submaps_.pop();
+  }
+  if (ros_global_lidar_map_ != nullptr) {
+    maps_vector.push_back(ros_global_lidar_map_);
+    ros_global_lidar_map_ = nullptr;
+  }
+  if (ros_global_keypoints_map_ != nullptr) {
+    maps_vector.push_back(ros_global_keypoints_map_);
+    ros_global_keypoints_map_ = nullptr;
+  }
+
+  return maps_vector;
+}
+
 void GlobalMap::Setup() {
   // initiate loop closure candidate search
   if (params_.loop_closure_candidate_search_type == "EUCDIST") {
@@ -214,12 +249,16 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
         FindLoopClosures();
-    
+
     if (loop_closure_transaction != nullptr) {
       new_transaction->merge(*loop_closure_transaction);
     }
+
+    if (store_newly_completed_submaps_ && submaps_.size() > 1) {
+      AddRosSubmap(submaps_.size() - 2);
+    }
   }
-  
+
   // add camera measurement if not empty
   if (!cam_measurement.landmarks.empty()) {
     ROS_DEBUG("Adding camera measurement to global map.");
@@ -231,7 +270,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
   // add lidar measurement if not empty
   if (!lid_measurement.points.empty()) {
-    ROS_DEBUG("Adding lidar measurement to global map.");
+    // ROS_DEBUG("Adding lidar measurement to global map.");
     std::vector<float> points = lid_measurement.points;
 
     // check dimensions of points first
@@ -256,7 +295,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
           cloud, T_WORLD_BASELINK, stamp, lid_measurement.point_type);
     }
   }
-  
+
   // add trajectory measurement if not empty
   if (!traj_measurement.stamps.empty()) {
     ROS_DEBUG("Adding trajectory measurement to global map.");
@@ -291,7 +330,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
       submaps_.at(submap_id)->AddTrajectoryMeasurement(poses, stamps, stamp);
     }
   }
-  
+
   return new_transaction;
 }
 
@@ -334,6 +373,8 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
+  ROS_DEBUG("Initiating new submap pose");
+
   const std::shared_ptr<Submap>& current_submap =
       submaps_.at(submaps_.size() - 1);
   bs_constraints::relative_pose::Pose3DStampedTransaction new_transaction(
@@ -364,45 +405,74 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
       previous_submap->Stamp(), current_submap->Stamp(), T_PREVIOUS_CURRENT,
       params_.local_mapper_covariance, source);
 
+  ROS_DEBUG("Returning submap pose prior");
   return new_transaction.GetTransaction();
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
   // if first submap, don't look for loop closures
-  if(submaps_.size() == 1){
+  if (submaps_.size() == 1) {
     return nullptr;
   }
+
+  ROS_DEBUG("Searching for loop closure candidates");
 
   int current_index = submaps_.size() - 2;
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
-  
+
   loop_closure_candidate_search_->FindLoopClosureCandidates(
       submaps_, current_index, matched_indices, Ts_MATCH_QUERY);
-  
+
+  ROS_DEBUG("Found %d loop closure candidates.", matched_indices.size());
+
   if (matched_indices.size() == 0) {
     return nullptr;
   }
-  
+
+  ROS_DEBUG(
+      "Matched index[0]: %d, Query Index: %d, No. or submaps: %d. Running loop "
+      "closure refinement",
+      matched_indices.at(0), current_index, submaps_.size());
+
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
   for (int i = 0; i < matched_indices.size(); i++) {
+    // if the matched index is adjacent to the current index, ignore it. This
+    // would happen from improper candidate search implementations
+    if (matched_indices[i] == current_index + 1 ||
+        matched_indices[i] == current_index - 1) {
+      continue;
+    }
     fuse_core::Transaction::SharedPtr new_transaction =
         loop_closure_refinement_->GenerateTransaction(
             submaps_.at(matched_indices[i]), submaps_.at(current_index),
             Ts_MATCH_QUERY[i]);
-    transaction->merge(*new_transaction);
+    if (new_transaction != nullptr) {
+      transaction->merge(*new_transaction);
+    }
   }
-  
+
+  ROS_DEBUG("Returning %d loop closure transactions",
+            bs_common::GetNumberOfConstraints(transaction));
+
   // TODO: Implement this
   // SendSubmap(best_index);
   return transaction;
 }
 
-void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg) {
+void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg, const ros::Time& update_time) {
+  last_update_time_ = update_time;
+  
   for (uint16_t i = 0; i < submaps_.size(); i++) {
     submaps_.at(i)->UpdatePose(graph_msg);
   }
+
+  if (store_updated_global_map_) {
+    AddRosGlobalMap();
+  }
+
+  global_map_updates_++;
 }
 
 void GlobalMap::SaveData(const std::string& output_path) {
@@ -640,13 +710,13 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
     }
   }
 
-  if (!cloud.empty()) {
-    std::string output_file =
-        output_path + "global_map_trajectory_optimized.pcd";
-    BEAM_INFO("Saving trajectory cloud to: {}", output_file);
-    pcl::io::savePCDFileASCII(output_file, cloud);
-  } else {
-    BEAM_WARN("Trajectory cloud empty, not saving poses cloud.");
+  std::string output_file = output_path + "global_map_trajectory_optimized.pcd";
+  BEAM_INFO("Saving trajectory cloud to: {}", output_file);
+  std::string error_message;
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          output_file, cloud, beam::PointCloudFileType::PCDBINARY,
+          error_message)) {
+    BEAM_ERROR("Unable to save trajectory cloud. Reason: {}", error_message);
   }
 
   if (!save_initial) {
@@ -672,13 +742,10 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
     }
   }
 
-  if (!cloud_initial.empty()) {
-    std::string output_file_initial =
-        output_path + "global_map_trajectory_initial.pcd";
-    BEAM_INFO("Saving trajectory cloud to: {}", output_file_initial);
-    pcl::io::savePCDFileASCII(output_file_initial, cloud_initial);
-  } else {
-    BEAM_WARN("Trajectory cloud empty, not saving poses cloud.");
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          output_path + "global_map_trajectory_initial.pcd", cloud_initial,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save trajectory cloud. Reason: {}", error_message);
   }
 }
 
@@ -703,7 +770,12 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
   std::string output_file =
       output_path + "global_map_submap_poses_optimized.pcd";
   BEAM_INFO("Saving submap frames to: {}", output_file);
-  pcl::io::savePCDFileASCII(output_file, cloud);
+  std::string error_message{};
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          output_file, cloud, beam::PointCloudFileType::PCDBINARY,
+          error_message)) {
+    BEAM_ERROR("Unable to save trajectory cloud. Reason: {}", error_message);
+  }
 
   if (!save_initial) {
     return;
@@ -722,7 +794,134 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
   std::string output_file_initial =
       output_path + "global_map_submap_poses_initial.pcd";
   BEAM_INFO("Saving submap frames to: {}", output_file_initial);
-  pcl::io::savePCDFileASCII(output_file_initial, cloud_initial);
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          output_file_initial, cloud_initial,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save submap frames cloud. Reason: {}", error_message);
+  }
+}
+
+void GlobalMap::AddRosSubmap(int submap_id) {
+  const auto& submap_ptr = submaps_.at(submap_id);
+
+  // get all lidar points in pcl pointcloud
+  PointCloud new_submap_pcl_cloud;
+  std::vector<PointCloud> new_submap_points =
+      submap_ptr->GetLidarPointsInWorldFrame(10e6, true);
+  for (const PointCloud& cloud : new_submap_points) {
+    new_submap_pcl_cloud += cloud;
+  }
+
+  sensor_msgs::PointCloud2 pointcloud2_msg;
+  pcl::PCLPointCloud2 pcl_pc2;
+
+  if (new_submap_pcl_cloud.size() > 0) {
+    // filter cloud
+    new_submap_pcl_cloud = beam_filtering::FilterPointCloud(
+        new_submap_pcl_cloud, params_.ros_submap_filter_params);
+
+    // convert to PointCloud2
+    pcl::toPCLPointCloud2<pcl::PointXYZ>(new_submap_pcl_cloud, pcl_pc2);
+    beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
+
+    // add other information
+    pointcloud2_msg.header.stamp = submap_ptr->Stamp();
+    pointcloud2_msg.header.seq = submap_id + 1;
+    pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+
+    // set cloud
+    RosMap new_ros_map_lidar(RosMapType::LIDARSUBMAP, pointcloud2_msg);
+    ros_submaps_.push(std::make_shared<RosMap>(new_ros_map_lidar));
+  }
+
+  // get all camera keypoints in pcl pointcloud
+  new_submap_pcl_cloud = submap_ptr->GetKeypointsInWorldFrame(true);
+
+  if (new_submap_pcl_cloud.size() > 0) {
+    // convert to PointCloud2
+    pcl::toPCLPointCloud2<pcl::PointXYZ>(new_submap_pcl_cloud, pcl_pc2);
+    beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
+
+    // add other information
+    pointcloud2_msg.header.stamp = submap_ptr->Stamp();
+    pointcloud2_msg.header.seq = submap_id + 1;
+    pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+
+    // set cloud
+    RosMap new_ros_map_keypoints(RosMapType::VISUALSUBMAP, pointcloud2_msg);
+    ros_submaps_.push(std::make_shared<RosMap>(new_ros_map_keypoints));
+  }
+
+  // clear submaps if there are too many in the queue;
+  while (ros_submaps_.size() > max_num_ros_submaps_) {
+    ros_submaps_.pop();
+  }
+}
+
+void GlobalMap::AddRosGlobalMap() {
+  PointCloud global_lidar_map;
+  PointCloud global_keypoints_map;
+
+  for (const auto& submap_ptr : submaps_) {
+    // get all lidar points in pcl pointcloud
+    PointCloud new_submap_pcl_cloud;
+    std::vector<PointCloud> new_submap_points =
+        submap_ptr->GetLidarPointsInWorldFrame(10e6, false);
+    for (const PointCloud& cloud : new_submap_points) {
+      new_submap_pcl_cloud += cloud;
+    }
+
+    // filter submap
+    new_submap_pcl_cloud = beam_filtering::FilterPointCloud(
+        new_submap_pcl_cloud, params_.ros_submap_filter_params);
+
+    // add to global
+    global_lidar_map += new_submap_pcl_cloud;
+
+    // get all keypoints in pcl pointcloud
+    new_submap_pcl_cloud = submap_ptr->GetKeypointsInWorldFrame(false);
+
+    // add to global
+    global_keypoints_map += new_submap_pcl_cloud;
+  }
+
+  if (global_lidar_map.size() > 0) {
+    // filter global map
+    global_lidar_map = beam_filtering::FilterPointCloud(
+        global_lidar_map, params_.ros_globalmap_filter_params);
+
+    // convert lidar map to PointCloud2
+    sensor_msgs::PointCloud2 pointcloud2_msg;
+    pcl::PCLPointCloud2 pcl_pc2;
+    pcl::toPCLPointCloud2<pcl::PointXYZ>(global_lidar_map, pcl_pc2);
+    beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
+
+    // add other information
+    pointcloud2_msg.header.stamp = last_update_time_;
+    pointcloud2_msg.header.seq = global_map_updates_;
+    pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+
+    // set cloud
+    RosMap new_ros_map_lidar(RosMapType::LIDARGLOBALMAP, pointcloud2_msg);
+    ros_global_lidar_map_ = std::make_shared<RosMap>(new_ros_map_lidar);
+  }
+
+  if (global_keypoints_map.size() > 0) {
+    // convert lidar map to PointCloud2
+    sensor_msgs::PointCloud2 pointcloud2_msg;
+    pcl::PCLPointCloud2 pcl_pc2;
+    pcl::toPCLPointCloud2<pcl::PointXYZ>(global_keypoints_map, pcl_pc2);
+    beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
+
+    // add other information
+    pointcloud2_msg.header.stamp = last_update_time_;
+    pointcloud2_msg.header.seq = global_map_updates_;
+    pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+
+    // set cloud
+    RosMap new_ros_map_keypoints(RosMapType::VISUALGLOBALMAP, pointcloud2_msg);
+    ros_global_keypoints_map_ = std::make_shared<RosMap>(new_ros_map_keypoints);
+  }
 }
 
 }  // namespace global_mapping

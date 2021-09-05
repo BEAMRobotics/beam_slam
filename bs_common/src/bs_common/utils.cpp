@@ -196,9 +196,37 @@ std::string GetBeamSlamConfigPath() {
   config_root_location += "beam_slam_launch/config/";
   if (!boost::filesystem::exists(config_root_location)) {
     BEAM_ERROR("Cannot locate beam slam config folder. Expected to be at: {}",
-               config_root_location);           
+               config_root_location);
   }
   return config_root_location;
+}
+
+int GetNumberOfConstraints(
+    const fuse_core::Transaction::SharedPtr& transaction) {
+  if (transaction == nullptr) {
+    return 0;
+  }
+
+  int counter = 0;
+  auto added_constraints = transaction->addedConstraints();
+  for (auto iter = added_constraints.begin(); iter != added_constraints.end();
+       iter++) {
+    counter++;
+  }
+  return counter;
+}
+
+int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction) {
+  if (transaction == nullptr) {
+    return 0;
+  }
+
+  int counter = 0;
+  auto added_variables = transaction->addedVariables();
+  for (auto iter = added_variables.begin(); iter != added_variables.end();
+       iter++) {
+    counter++;
+  }
 }
 
 }  // namespace bs_common

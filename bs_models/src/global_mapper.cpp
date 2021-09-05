@@ -34,20 +34,66 @@ void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
 
   // send transaction if not empty
   if (new_transaction != nullptr) {
-    sendTransaction(new_transaction);
+    // uncomment if using sensor model's graph:
+    // ROS_DEBUG("Sending transaction:");
+    // sendTransaction(new_transaction);
+    // ROS_DEBUG("Done sending transaction.");
+
+    // uncomment if using self contained graph:
+    ROS_DEBUG("Sending transaction:");
+    graph_->update(*new_transaction);
+    ROS_DEBUG("Optimizing graph");
+    graph_->optimize();
+    ROS_DEBUG("Updating global map");
+    global_map_->UpdateSubmapPoses(graph_, ros::Time::now());
+    ROS_DEBUG("Global map updated.");
+  }
+
+  if (params_.publish_new_submaps || params_.publish_updated_global_map) {
+    std::vector<std::shared_ptr<global_mapping::RosMap>> maps_to_publish =
+        global_map_->GetRosMaps();
+    for (const std::shared_ptr<global_mapping::RosMap>& ros_map :
+         maps_to_publish) {
+      if (ros_map->first == global_mapping::RosMapType::LIDARSUBMAP) {
+        submap_lidar_publisher_.publish(ros_map->second);
+      } else if (ros_map->first ==
+                 global_mapping::RosMapType::VISUALSUBMAP) {
+        submap_keypoints_publisher_.publish(ros_map->second);
+      } else if (ros_map->first == global_mapping::RosMapType::LIDARGLOBALMAP) {
+        global_map_lidar_publisher_.publish(ros_map->second);
+      } else if (ros_map->first ==
+                 global_mapping::RosMapType::VISUALGLOBALMAP) {
+        global_map_keypoints_publisher_.publish(ros_map->second);
+      }
+    }
   }
 }
 
 void GlobalMapper::onInit() {
   params_.loadFromROS(private_node_handle_);
   calibration_params_.loadFromROS();
+  graph_ = fuse_graphs::HashGraph::make_shared();
 }
 
 void GlobalMapper::onStart() {
+  // init subscribers and publishers
   subscriber_ = node_handle_.subscribe<bs_common::SlamChunkMsg>(
       ros::names::resolve(params_.input_topic), 100,
       &ThrottledCallback::callback, &throttled_callback_,
       ros::TransportHints().tcpNoDelay(false));
+  if (params_.publish_new_submaps) {
+    submap_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
+        params_.new_submaps_topic + "/lidar", 10);
+    submap_keypoints_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
+        params_.new_submaps_topic + "/visual", 10);    
+  }
+
+  if (params_.publish_updated_global_map) {
+    global_map_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
+        params_.global_map_topic + "/lidar", 10);
+    global_map_keypoints_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
+        params_.global_map_topic + "/visual", 10);    
+  }
 
   // get intrinsics
   std::shared_ptr<beam_calibration::CameraModel> camera_model =
@@ -66,6 +112,9 @@ void GlobalMapper::onStart() {
     global_map_ = std::make_unique<global_mapping::GlobalMap>(camera_model,
                                                               extrinsics_data_);
   }
+  global_map_->SetStoreNewSubmaps(params_.publish_new_submaps);
+  global_map_->SetStoreUpdatedGlobalMap(params_.publish_updated_global_map);
+
 };
 
 void GlobalMapper::onStop() {
@@ -105,7 +154,9 @@ void GlobalMapper::onStop() {
 }
 
 void GlobalMapper::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  global_map_->UpdateSubmapPoses(graph_msg);
+  BEAM_ERROR("UPDATED GRAPH!");
+  // uncomment if using sensor model's graph:
+  // global_map_->UpdateSubmapPoses(graph_msg, ros::Time::now());
 }
 
 void GlobalMapper::UpdateExtrinsics() {
@@ -113,6 +164,7 @@ void GlobalMapper::UpdateExtrinsics() {
     return;
   }
 
+  ROS_DEBUG("Updating extrinsics.");
   // update all three transforms
   Eigen::Matrix4d T;
   extrinsics_online_.GetT_LIDAR_IMU(T);
@@ -125,6 +177,7 @@ void GlobalMapper::UpdateExtrinsics() {
   extrinsics_data_->SetTransform(T, extrinsics_online_.GetImuFrameId(),
                                  extrinsics_online_.GetCameraFrameId());
   extrinsics_initialized_ = true;
+  ROS_DEBUG("Done updating extrinsics.");
 }
 
 }  // namespace bs_models

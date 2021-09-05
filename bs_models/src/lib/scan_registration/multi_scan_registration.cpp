@@ -475,11 +475,22 @@ void MultiScanRegistrationBase::OutputResults(
   // save clouds
   BEAM_INFO("Saving scan registration results to {}", filename);
 
-  pcl::io::savePCDFileASCII(filename + "_ref.pcd", cloud_ref_world_col);
-  pcl::io::savePCDFileASCII(filename + "_tgt_init.pcd",
-                            cloud_tgt_in_world_init_col);
-  pcl::io::savePCDFileASCII(filename + "_tgt_alig.pcd",
-                            cloud_tgt_in_world_aligned_col);
+  std::string error_message{};
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+          filename + "_ref.pcd", cloud_ref_world_col,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+          filename + "_tgt_init.pcd", cloud_tgt_in_world_init_col,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+          filename + "_tgt_alig.pcd", cloud_tgt_in_world_aligned_col,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
 
   if (output_loam_cloud) {
     loam_cloud_ref_world.Save(filename + "_ref/", true);

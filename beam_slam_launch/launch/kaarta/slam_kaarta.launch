@@ -8,13 +8,15 @@
   <include file="$(find beam_slam_launch)/launch/kaarta/calibration_publisher_kaarta.launch" />
 
   <!-- Launch local mapper -->
-  <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="fixed_lag_smoother" output="screen">
+  <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="local_mapper" output="screen">
       <rosparam command="load" file="$(find beam_slam_launch)/config/kaarta/local_mapper.yaml"/>
   </node>
 
   <!-- Launch global mapper -->
-  <node pkg="fuse_optimizers" type="batch_optimizer_node" name="global_optimizer" output="screen">
+  <node pkg="fuse_optimizers" type="batch_optimizer_node" name="global_mapper" output="screen">
       <rosparam command="load" file="$(find beam_slam_launch)/config/kaarta/global_mapper.yaml"/>
   </node>
+
+
 
 </launch>

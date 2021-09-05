@@ -17,6 +17,8 @@ struct GlobalMapperParams : public ParameterBase {
     getParamRequired<std::string>(nh, "input_topic", input_topic);
     getParam<std::string>(nh, "global_map_config", global_map_config, "");
     getParam<std::string>(nh, "output_path", output_path, "");
+    getParam<std::string>(nh, "new_submaps_topic", new_submaps_topic, "submaps");
+    getParam<std::string>(nh, "global_map_topic", global_map_topic, "global_map");
     getParam<bool>(nh, "save_global_map_data", save_global_map_data, false);
     getParam<bool>(nh, "save_submaps", save_submaps, false);
     getParam<bool>(nh, "save_submap_frames", save_submap_frames, true);
@@ -24,17 +26,23 @@ struct GlobalMapperParams : public ParameterBase {
     getParam<bool>(nh, "save_local_mapper_trajectory",
                    save_local_mapper_trajectory, true);
     getParam<bool>(nh, "save_local_mapper_maps", save_local_mapper_maps, false);
+    getParam<bool>(nh, "publish_new_submaps", publish_new_submaps, false);
+    getParam<bool>(nh, "publish_updated_global_map", publish_updated_global_map, false);
   }
 
   std::string input_topic;
   std::string global_map_config;
   std::string output_path;
+  std::string new_submaps_topic;
+  std::string global_map_topic;
   bool save_global_map_data;
   bool save_submaps;
   bool save_submap_frames;
   bool save_trajectory_cloud;
-  bool save_local_mapper_trajectory{true};
-  bool save_local_mapper_maps{false};
+  bool save_local_mapper_trajectory;
+  bool save_local_mapper_maps;
+  bool publish_new_submaps;
+  bool publish_updated_global_map;
 };
 
 }  // namespace models

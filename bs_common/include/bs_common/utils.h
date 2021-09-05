@@ -2,6 +2,7 @@
 
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
+#include <fuse_core/transaction.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
@@ -10,7 +11,7 @@
 #include <beam_matching/loam/LoamPointCloud.h>
 #include <beam_utils/math.h>
 
-#ifndef GRAVITY_NOMINAL 
+#ifndef GRAVITY_NOMINAL
 #define GRAVITY_NOMINAL 9.80665
 #endif
 
@@ -74,11 +75,26 @@ void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
 void InterpolateTransformFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Matrix4d& T_WORLD_SENSOR);
-    
+
 /**
  * @brief Get full path the the config root directory in beam_slam_launch
  * @return path
  */
-std::string GetBeamSlamConfigPath();    
-    
-} // namespace bs_common
+std::string GetBeamSlamConfigPath();
+
+/**
+ * @brief Get number of constraints being added by a transaction
+ * @param transaction
+ * @return number of constraints
+ */
+int GetNumberOfConstraints(
+    const fuse_core::Transaction::SharedPtr& transaction);
+
+/**
+ * @brief Get number of variables being added by a transaction
+ * @param transaction
+ * @return number of variables
+ */
+int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction);
+
+}  // namespace bs_common
