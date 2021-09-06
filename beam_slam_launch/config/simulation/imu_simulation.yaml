@@ -36,6 +36,11 @@ unicycle_3d:
 
 imu_3d:
   input_topic: '/imu/raw'
+  init_velocity_x: 0.0977793
+  init_velocity_y: -0.455029
+  init_velocity_z: -0.0738601
+  init_gyro_bias: 0.0
+  init_accel_bias: 0.0
   frame_initializer_type: 'POSEFILE' # Default: ODOMETRY
   frame_initializer_info: '/home/alex/catkin_ws/src/beam_slam/beam_slam_launch/simulation_bags/imu_simulation_ground_truth.ply' # Default: ""
   sensor_frame_id_override: 'imu_link' # Default: ""

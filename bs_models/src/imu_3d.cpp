@@ -40,6 +40,19 @@ void Imu3D::onInit() {
     throw std::runtime_error(error);
   }
 
+  // init velocities and biases
+  fuse_variables::VelocityLinear3DStamped init_vel;
+  init_vel.x() = params_.init_velocity_x;
+  init_vel.y() = params_.init_velocity_y;
+  init_vel.z() = params_.init_velocity_z;
+
+  init_velocity_ =
+      fuse_variables::VelocityLinear3DStamped::make_shared(init_vel);
+  double bg = params_.init_gyro_bias;
+  double ba = params_.init_accel_bias;
+  init_gyro_bias_ << bg, bg, bg;
+  init_accel_bias_ << ba, ba, ba;
+
   // init imu preintegration
   nlohmann::json J;
   beam::ReadJson(calibration_params_.imu_intrinsics_path, J);
@@ -53,8 +66,8 @@ void Imu3D::onInit() {
     source : name()
   };
 
-  imu_preintegration_ =
-      std::make_unique<ImuPreintegration>(imu_preintegration_params);
+  imu_preintegration_ = std::make_unique<ImuPreintegration>(
+      imu_preintegration_params, init_gyro_bias_, init_accel_bias_);
 
   // init elapsed time for key-frame selection
   t_elapsed_ = ros::Duration(0.0);
@@ -94,11 +107,8 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
       GetEstimatedPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
 
       // set start of preintegration from estimated pose
-      imu_preintegration_->SetStart(t_now, R_WORLD_IMU, t_WORLD_IMU);
-
-      // DEBUG
-      bs_common::ImuState IS_tmp = imu_preintegration_->GetImuState();
-      IS_tmp.Print();
+      imu_preintegration_->SetStart(t_now, R_WORLD_IMU, t_WORLD_IMU,
+                                    init_velocity_);
 
       set_start_ = false;
       t_prev_ = t_now;
@@ -122,10 +132,6 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
       fuse_core::Transaction::SharedPtr new_transaction =
           imu_preintegration_->RegisterNewImuPreintegratedFactor(
               t_now, R_WORLD_IMU, t_WORLD_IMU);
-
-      // DEBUG
-      bs_common::ImuState IS_tmp = imu_preintegration_->GetImuState();
-      IS_tmp.Print();
 
       if (new_transaction != nullptr) {
         ROS_INFO("Sending transaction.");

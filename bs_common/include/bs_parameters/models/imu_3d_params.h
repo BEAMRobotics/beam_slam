@@ -22,6 +22,11 @@ struct Imu3DParams : public ParameterBase {
   void loadFromROS(const ros::NodeHandle& nh) final {
     // Required
     fuse_core::getParamRequired(nh, "input_topic", input_topic);
+    fuse_core::getParamRequired(nh, "init_velocity_x", init_velocity_x);
+    fuse_core::getParamRequired(nh, "init_velocity_y", init_velocity_y);
+    fuse_core::getParamRequired(nh, "init_velocity_z", init_velocity_z);
+    fuse_core::getParamRequired(nh, "init_gyro_bias", init_gyro_bias);
+    fuse_core::getParamRequired(nh, "init_accel_bias", init_accel_bias);
 
     // Optional
     nh.getParam("queue_size", queue_size);
@@ -31,17 +36,14 @@ struct Imu3DParams : public ParameterBase {
     nh.getParam("frame_initializer_type", frame_initializer_type);
     nh.getParam("frame_initializer_info", frame_initializer_info);
     nh.getParam("sensor_frame_id_override", sensor_frame_id_override);
-    cov_gyro_noise = fuse_core::getCovarianceDiagonalParam<3>(
-        nh, "gyro_noise_covariance", 1e-4);
-    cov_accel_noise = fuse_core::getCovarianceDiagonalParam<3>(
-        nh, "accel_noise_covariance", 1e-3);
-    cov_gyro_bias = fuse_core::getCovarianceDiagonalParam<3>(
-        nh, "gyro_bias_covariance", 1e-6);
-    cov_accel_bias = fuse_core::getCovarianceDiagonalParam<3>(
-        nh, "accel_bias_covariance", 1e-4);
   }
 
   std::string input_topic;
+  double init_velocity_x;
+  double init_velocity_y;
+  double init_velocity_z;
+  double init_gyro_bias;
+  double init_accel_bias;
 
   int queue_size{300};
   double key_frame_rate{1.0};
@@ -50,10 +52,6 @@ struct Imu3DParams : public ParameterBase {
   std::string frame_initializer_type{"ODOMETRY"};
   std::string frame_initializer_info{""};
   std::string sensor_frame_id_override{""};
-  fuse_core::Matrix3d cov_gyro_noise;
-  fuse_core::Matrix3d cov_accel_noise;
-  fuse_core::Matrix3d cov_gyro_bias;
-  fuse_core::Matrix3d cov_accel_bias;
 };
 
 }  // namespace models

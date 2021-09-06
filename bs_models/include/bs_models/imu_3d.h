@@ -73,6 +73,11 @@ class Imu3D : public fuse_core::AsyncSensorModel {
   ros::Time t_prev_;
   std::queue<ros::Time> t_buffer_;
 
+  // initialization
+  fuse_variables::VelocityLinear3DStamped::SharedPtr init_velocity_;
+  Eigen::Vector3d init_gyro_bias_;
+  Eigen::Vector3d init_accel_bias_;
+
   // Frame-to-frame
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   std::unique_ptr<ImuPreintegration> imu_preintegration_;
