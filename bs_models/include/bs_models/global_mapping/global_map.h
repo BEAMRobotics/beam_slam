@@ -1,8 +1,12 @@
 #pragma once
 
+#include <queue>
+
 #include <fuse_core/transaction.h>
+#include <sensor_msgs/PointCloud2.h>
 
 #include <beam_utils/pointclouds.h>
+#include <beam_filtering/Utils.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
@@ -13,6 +17,18 @@
 namespace bs_models {
 
 namespace global_mapping {
+
+/**
+ * @brief Enum class for the different types of ROS maps to be published
+ */
+enum class RosMapType {
+  LIDARSUBMAP = 0,
+  LIDARGLOBALMAP,
+  VISUALSUBMAP,
+  VISUALGLOBALMAP
+};
+
+using RosMap = std::pair<RosMapType, sensor_msgs::PointCloud2>;
 
 /**
  * @brief This class takes care of all global mapping functionality. It received
@@ -62,6 +78,15 @@ class GlobalMap {
 
     /** covariance matrix from binary factors between loop closures*/
     Eigen::Matrix<double, 6, 6> loop_closure_covariance;
+
+    /* Output filters to apply to lidar submaps before adding them to the Ros
+     * maps list */
+    std::vector<beam_filtering::FilterParamsType> ros_submap_filter_params;
+
+    /* Output filters to apply to global lidar maps before adding them to the
+     * Ros maps list. Note: submap filters are also applied before while
+     * creating the global map */
+    std::vector<beam_filtering::FilterParamsType> ros_globalmap_filter_params;
 
     /** Loads config settings from a json file. If config_path empty, it will
      * use default params defined herin. If config_path set to DEFAULT_PATH, it
@@ -133,6 +158,32 @@ class GlobalMap {
   void SetSubmaps(std::vector<std::shared_ptr<Submap>>& submaps);
 
   /**
+   * @brief Sets store_newly_completed_submaps_ param. See description below for
+   * what his does.
+   * @param store_new_submaps
+   */
+  void SetStoreNewSubmaps(bool store_new_submaps);
+
+  /**
+   * @brief Sets store_updated_global_map param. See description below for what
+   * his does.
+   * @param store_updated_global_map
+   */
+  void SetStoreUpdatedGlobalMap(bool store_updated_global_map);
+
+  /**
+   * @brief If param store_newly_completed_submaps_ is set to true, the global
+   * map will store newly completed submaps as a PointCloud2 ROS messages. It
+   * will do this for lidar points and camera keypoints. If the param
+   * store_updated_global_map_ is set to true, it will do the same for all map
+   * points whenever the graph is updated. All these pointclouds will be added
+   * to a vector of pointers to ROS maps which will be retrieved and cleared
+   * from this function.
+   * @return vector of pointers to ROS maps
+   */
+  std::vector<std::shared_ptr<RosMap>> GetRosMaps();
+
+  /**
    * @brief add a slam chunk measurement to the appropriate submap and returns a
    * transaction if a new submap is generated. This transaction will contain a
    * constraint between the new submap and the previous, and then initiate a
@@ -167,8 +218,10 @@ class GlobalMap {
   /**
    * @brief Update submap poses with a new graph message
    * @param graph_msg updated graph which should have all submap poses stored
+   * @param update_time ros time of this update
    */
-  void UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg);
+  void UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg,
+                         const ros::Time& update_time = ros::Time(0));
 
   /**
    * @brief Save full global map to a format that can be reloaded later for new
@@ -279,7 +332,37 @@ class GlobalMap {
    */
   fuse_core::Transaction::SharedPtr FindLoopClosures();
 
+  /**
+   * @brief adds submap points (lidar points and camera keypoints) to the vector
+   * of ros messages to be published
+   * @param submap_id index to submap to add
+   */
+  void AddRosSubmap(int submap_id);
+
+  /**
+   * @brief adds global map points (lidar points and camera keypoints) to the
+   * vector of ros messages to be published
+   */
+  void AddRosGlobalMap();
+
   Params params_;
+
+  /** If set to true, this will store recently completed submaps as a
+   * PointCloud2 message so that it can be extracted using
+   * GetRosMaps() function and published over ROS. NOTE: this cannot
+   * be set by or saved to a config file. It must be set by calling
+   * SetSaveNewlyCompletedSubmaps(). The reason for this is that we want to set
+   * this from the sensor model, and make sure it isn't overriden by a config
+   * file.*/
+  bool store_newly_completed_submaps_{false};
+
+  /** If set to true, this will store the recently updated global map to a
+   * PointCloud2 message so that it can be extracted using
+   * GetRosMaps() function and published over ROS. NOTE: this cannot
+   * be set by or saved to a config file. It must be set by calling
+   * SetSaveUpdatedGlobalMap(). The reason for this is that we want to set this
+   * from the sensor model, and make sure it isn't overriden by a config file.*/
+  bool store_updated_global_map_{false};
 
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
@@ -288,11 +371,30 @@ class GlobalMap {
 
   std::unique_ptr<loop_closure::LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;
-  std::unique_ptr<loop_closure::LoopClosureRefinementBase> loop_closure_refinement_;
+  std::unique_ptr<loop_closure::LoopClosureRefinementBase>
+      loop_closure_refinement_;
 
-  // params only tunable here
-  int max_output_map_size_{1000000};
+  std::queue<std::shared_ptr<RosMap>> ros_submaps_;
+  std::shared_ptr<RosMap> ros_global_lidar_map_;
+  std::shared_ptr<RosMap> ros_global_keypoints_map_;
+
+  // -------------------------
+  // params only tunable here:
+  // -------------------------
+  /** when saving lidar submap points, it will break the cloud into clouds of
+   * max size defined by this param. This avoids files that are very large. */
+  int max_output_map_size_ = 10e6;
+
+  /** prior noise to add to first submap pose */
   double pose_prior_noise_{1e-9};
+
+  /** maximum number of ros maps to store at a time. Note that we will only keep
+   * one global map at a time, but many submaps can be kept */
+  int max_num_ros_submaps_{10};
+
+  /** keep track of graph updates from ROS */
+  int global_map_updates_{0};
+  ros::Time last_update_time_;
 };
 
 }  // namespace global_mapping

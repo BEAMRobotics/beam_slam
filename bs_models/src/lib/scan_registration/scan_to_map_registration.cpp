@@ -34,19 +34,14 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     T_MAP_SCAN = new_scan.T_REFFRAME_LIDAR();
     AddScanToMap(new_scan, T_MAP_SCAN);
     if (base_params_.fix_first_scan) {
-      // build covariance
-      fuse_core::Matrix6d prior_covariance;
-      prior_covariance.setIdentity();
-      prior_covariance = prior_covariance * pose_prior_noise_;
-
       // add prior
       transaction.AddPosePrior(new_scan.Position(), new_scan.Orientation(),
-                               prior_covariance, "FIRSTSCANPRIOR");
+                               pose_prior_noise_, "FIRSTSCANPRIOR");
     }
 
-    scan_pose_prev_ = std::make_unique<ScanPose>(
-        new_scan.Stamp(), new_scan.T_REFFRAME_BASELINK(),
-        new_scan.T_BASELINK_LIDAR());
+    scan_pose_prev_ = std::make_unique<ScanPose>(new_scan.Stamp(),
+                                                 new_scan.T_REFFRAME_BASELINK(),
+                                                 new_scan.T_BASELINK_LIDAR());
 
     return transaction;
   }
@@ -101,12 +96,8 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
   if (config.empty()) {
     return;
   } else if (config == "DEFAULT_PATH") {
-    std::string default_path = __FILE__;
-    size_t start_iter = default_path.find("bs_models");
-    size_t end_iter = default_path.size() - start_iter;
-    default_path.erase(start_iter, end_iter);
-    default_path +=
-        "beam_slam_launch/config/registration_config/scan_to_map_loam.json";
+    std::string default_path = bs_common::GetBeamSlamConfigPath() +
+                               "registration_config/scan_to_map_loam.json";
     if (!boost::filesystem::exists(default_path)) {
       BEAM_WARN(
           "Could not find default multi scan registration config at: {}. Using "
@@ -213,5 +204,5 @@ void ScanToMapLoamRegistration::AddScanToMap(
   }
 }
 
-}  // namespace relative_pose
+}  // namespace scan_registration
 }  // namespace bs_models

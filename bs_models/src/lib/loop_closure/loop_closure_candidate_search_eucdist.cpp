@@ -37,7 +37,7 @@ void LoopClosureCandidateSearchEucDist::FindLoopClosureCandidates(
   estimated_poses.clear();
   const Eigen::Matrix4d& T_WORLD_QUERY =
       submaps.at(query_index)->T_WORLD_SUBMAP();
-  for (int i = 0; i < submaps.size(); i++) {
+  for (int i = 0; i < query_index - 1; i++) {
     if (i == query_index) {
       continue;
     }

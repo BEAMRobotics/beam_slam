@@ -3,6 +3,7 @@
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/uuid.h>
 #include <fuse_core/throttled_callback.h>
+#include <fuse_graphs/hash_graph.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_models/global_mapping/global_map.h>
@@ -13,7 +14,9 @@ namespace bs_models {
 
 /**
  * @brief This is class is implemented as a sensor model which takes in
- * SlamChunk messages, creates and populates a GlobalMap
+ * SlamChunk messages, creates and populates a GlobalMap. This class also stores
+ * its own graph and does not use the graph created by the node that initializes
+ * this plugin
  */
 class GlobalMapper : public fuse_core::AsyncSensorModel {
  public:
@@ -100,8 +103,17 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   /** subscribe to slam chunk data */
   ros::Subscriber subscriber_;
 
+  /** publish results */  
+  ros::Publisher submap_lidar_publisher_;
+  ros::Publisher submap_keypoints_publisher_;
+  ros::Publisher global_map_lidar_publisher_;
+  ros::Publisher global_map_keypoints_publisher_;
+
   // params that can only be set here:
   int max_output_map_size_{3000000};  // limits output size of lidar maps
+
+//   store a pointer to a graph for running the PGO
+  std::shared_ptr<fuse_graphs::HashGraph> graph_;
 };
 
 }  // namespace bs_models

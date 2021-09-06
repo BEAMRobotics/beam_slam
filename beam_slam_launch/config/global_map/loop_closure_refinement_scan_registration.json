@@ -1,5 +1,9 @@
 {
   "matcher_config": "",
-  "downsampling_voxel_size": 0.03,
-  "downsampling_max_map_size": 500000
+  "filters": [
+    {
+      "filter_type": "VOXEL",
+      "cell_size": [0.03, 0.03, 0.03]
+    }
+  ]
 }

@@ -5,5 +5,19 @@
   "loop_closure_candidate_search_config": "",
   "loop_closure_refinement_config": "",
   "local_mapper_covariance_diag": [1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3],
-  "loop_closure_covariance_diag": [1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5]
+  "loop_closure_covariance_diag": [1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5],
+  "publishing": {
+    "submap_lidar_filters": [
+      {
+        "filter_type": "VOXEL",
+        "cell_size": [0.03, 0.03, 0.03]
+      }
+    ],
+    "globalmap_lidar_filters": [
+      {
+        "filter_type": "VOXEL",
+        "cell_size": [0.05, 0.05, 0.05]
+      }
+    ]
+  }
 }

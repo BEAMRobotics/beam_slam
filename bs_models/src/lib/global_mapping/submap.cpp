@@ -159,8 +159,8 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
     // Stamp does not exist: add new scanpose to map
     ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, T_BASELINK_LIDAR);
     new_scan_pose.AddPointCloud(cloud, type, false);
-    lidar_keyframe_poses_.insert(std::pair<uint64_t, ScanPose>(
-        stamp.toNSec(), new_scan_pose));
+    lidar_keyframe_poses_.insert(
+        std::pair<uint64_t, ScanPose>(stamp.toNSec(), new_scan_pose));
   }
 }
 
@@ -214,7 +214,12 @@ void Submap::SaveKeypointsMapInWorldFrame(const std::string& filename,
     BEAM_WARN("No keypoints in submap, not saving.");
     return;
   }
-  pcl::io::savePCDFileASCII(filename, map);
+
+  std::string error_message{};
+  if (!beam::SavePointCloud<pcl::PointXYZ>(
+          filename, map, beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
 }
 
 void Submap::SaveLidarMapInWorldFrame(const std::string& filename,
@@ -242,10 +247,11 @@ void Submap::SaveLidarMapInWorldFrame(const std::string& filename,
     current_filename.replace(current_filename.find(".pcd"), 4, replace);
     BEAM_INFO("Saving lidar submap of size {} to: {}", cloud.size(),
               current_filename);
-    try {
-      pcl::io::savePCDFileASCII(current_filename, cloud);
-    } catch (pcl::PCLException& e) {
-      BEAM_ERROR("unable to save cloud: {}", e.detailedMessage());
+    std::string error_message{};
+    if (!beam::SavePointCloud<pcl::PointXYZ>(
+            current_filename, cloud, beam::PointCloudFileType::PCDBINARY,
+            error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
     }
 
     BEAM_INFO("Done saving submap.");
@@ -290,27 +296,29 @@ std::vector<PointCloud> Submap::GetLidarPointsInWorldFrame(
   PointCloud map_current;
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
-    const PointCloud& cloud_scanframe = it->second.Cloud();
-    Eigen::Matrix4d T_WORLD_SCAN;
+    const PointCloud& cloud_in_lidar_frame = it->second.Cloud();
+    Eigen::Matrix4d T_WORLD_LIDAR;
     if (use_initials) {
-      const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR_INIT();
-      T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
+      const Eigen::Matrix4d& T_SUBMAP_LIDAR =
+          it->second.T_REFFRAME_LIDAR_INIT();
+      T_WORLD_LIDAR = T_WORLD_SUBMAP_initial_ * T_SUBMAP_LIDAR;
     } else {
-      Eigen::Matrix4d T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
-      T_WORLD_SCAN = T_WORLD_SUBMAP_ * T_SUBMAP_SCAN;
+      Eigen::Matrix4d T_SUBMAP_LIDAR = it->second.T_REFFRAME_LIDAR();
+      T_WORLD_LIDAR = T_WORLD_SUBMAP_ * T_SUBMAP_LIDAR;
     }
 
-    PointCloud cloud_worldframe;
-    pcl::transformPointCloud(cloud_scanframe, cloud_worldframe, T_WORLD_SCAN);
+    PointCloud cloud_in_world_frame;
+    pcl::transformPointCloud(cloud_in_lidar_frame, cloud_in_world_frame,
+                             T_WORLD_LIDAR);
 
     if (map_current.empty()) {
-      map_current = cloud_worldframe;
-    } else if (map_current.size() + cloud_worldframe.size() >
+      map_current = cloud_in_world_frame;
+    } else if (map_current.size() + cloud_in_world_frame.size() >
                max_output_map_size) {
       map.push_back(map_current);
-      map_current = cloud_worldframe;
+      map_current = cloud_in_world_frame;
     } else {
-      map_current += cloud_worldframe;
+      map_current += cloud_in_world_frame;
     }
   }
   map.push_back(map_current);
@@ -322,18 +330,18 @@ beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
   beam_matching::LoamPointCloud map;
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
-    const beam_matching::LoamPointCloud& cloud_scanframe =
+    const beam_matching::LoamPointCloud& cloud_in_lidar_frame =
         it->second.LoamCloud();
-    const Eigen::Matrix4d& T_SUBMAP_SCAN = it->second.T_REFFRAME_LIDAR();
-    Eigen::Matrix4d T_WORLD_SCAN;
+    const Eigen::Matrix4d& T_SUBMAP_LIDAR = it->second.T_REFFRAME_LIDAR();
+    Eigen::Matrix4d T_WORLD_LIDAR;
     if (use_initials) {
-      T_WORLD_SCAN = T_WORLD_SUBMAP_initial_ * T_SUBMAP_SCAN;
+      T_WORLD_LIDAR = T_WORLD_SUBMAP_initial_ * T_SUBMAP_LIDAR;
     } else {
-      T_WORLD_SCAN = T_WORLD_SUBMAP_ * T_SUBMAP_SCAN;
+      T_WORLD_LIDAR = T_WORLD_SUBMAP_ * T_SUBMAP_LIDAR;
     }
-    beam_matching::LoamPointCloud cloud_worldframe = cloud_scanframe;
-    cloud_worldframe.TransformPointCloud(T_WORLD_SCAN);
-    map.Merge(cloud_worldframe);
+    beam_matching::LoamPointCloud cloud_in_world_frame = cloud_in_lidar_frame;
+    cloud_in_world_frame.TransformPointCloud(T_WORLD_LIDAR);
+    map.Merge(cloud_in_world_frame);
   }
 }
 

@@ -7,7 +7,7 @@
   <include file="$(find beam_slam_launch)/launch/ntu/calibration_publisher_ntu.launch" />
 
   <!-- Launch local mapper -->
-  <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="fixed_lag_smoother" output="screen">
+  <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="local_mapper" output="screen">
       <rosparam command="load" file="$(find beam_slam_launch)/config/ntu/local_mapper.yaml"/>
   </node>
 

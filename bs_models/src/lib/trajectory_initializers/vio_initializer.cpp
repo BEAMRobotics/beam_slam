@@ -37,8 +37,7 @@ VIOInitializer::VIOInitializer(
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
 
   // create visual map
-  visual_map_ =
-      std::make_shared<vision::VisualMap>(cam_model_, local_graph_);
+  visual_map_ = std::make_shared<vision::VisualMap>(cam_model_, local_graph_);
 
   // create pose refiner
   pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
@@ -398,8 +397,18 @@ void VIOInitializer::OutputResults(const std::vector<Frame>& frames) {
         points_cloud.push_back(p);
       }
     }
-    pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);
-    pcl::io::savePCDFileBinary(output_directory_ + "/points.pcd", points_cloud);
+
+    std::string error_message{};
+    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+            output_directory_ + "/frames.pcd", frame_cloud,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
+    if (!beam::SavePointCloud<pcl::PointXYZ>(
+            output_directory_ + "/points.pcd", points_cloud,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
   }
 }
 
