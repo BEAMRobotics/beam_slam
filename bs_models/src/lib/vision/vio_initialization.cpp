@@ -237,24 +237,17 @@ void VIOInitialization::AddPosesAndInertialConstraints(
 
     // Add respective imu constraints
     if (set_start && i == 0) {
-      // estimate velocity using the init path at frame.t
-      ros::Time stamp_plus_delta(frame.t.toSec() + 0.1);
-      Eigen::Matrix4d T_WORLD_BASELINK_plus;
-      InterpolateTransformFromPath(init_path_->poses, stamp_plus_delta,
-                                   T_WORLD_BASELINK_plus);
-      Eigen::Vector3d position_plus =
-          T_WORLD_BASELINK_plus.block<3, 1>(0, 3).transpose();
-      Eigen::Vector3d img_position_vec(img_position->x(), img_position->y(),
-                                       img_position->z());
-
+      // estimate velocity at frame.t
+      Eigen::Vector3d velocity_vec;
+      EstimateVelocityFromPath(init_path_->poses, frame.t, velocity_vec);
+      // make fuse variable
       fuse_variables::VelocityLinear3DStamped::SharedPtr velocity =
           std::make_shared<fuse_variables::VelocityLinear3DStamped>(frame.t);
-      Eigen::Vector3d velocity_vec = (position_plus - img_position_vec) /
-                                     (stamp_plus_delta.toSec() - frame.t.toSec());
       velocity->x() = velocity_vec[0];
       velocity->y() = velocity_vec[1];
       velocity->z() = velocity_vec[2];
-      std::cout << "\nInitial velocity: \n" << velocity_vec << std::endl;
+      ROS_INFO("Initial velocity:");
+      std::cout << velocity_vec << std::endl;
       imu_preint_->SetStart(frame.t, img_orientation, img_position, velocity);
     } else {
       // get imu transaction
