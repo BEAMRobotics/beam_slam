@@ -5,6 +5,7 @@
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/filesystem.h>
+#include <fuse_variables/velocity_linear_3d_stamped.h>
 
 #include <bs_common/utils.h>
 
@@ -108,13 +109,6 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
     is_initialized_ = true;
   }
   return is_initialized_;
-}
-
-void VIOInitialization::OutputFramePoses(const std::vector<Frame>& frames) {
-  for (auto& f : frames) {
-    std::cout << f.t << std::endl;
-    std::cout << visual_map_->GetBaselinkPose(f.t) << std::endl;
-  }
 }
 
 void VIOInitialization::AddIMU(const sensor_msgs::Imu& msg) {
@@ -243,7 +237,25 @@ void VIOInitialization::AddPosesAndInertialConstraints(
 
     // Add respective imu constraints
     if (set_start && i == 0) {
-      imu_preint_->SetStart(frame.t, img_orientation, img_position);
+      // estimate velocity using the init path at frame.t
+      ros::Time stamp_plus_delta(frame.t.toSec() + 0.1);
+      Eigen::Matrix4d T_WORLD_BASELINK_plus;
+      InterpolateTransformFromPath(init_path_->poses, stamp_plus_delta,
+                                   T_WORLD_BASELINK_plus);
+      Eigen::Vector3d position_plus =
+          T_WORLD_BASELINK_plus.block<3, 1>(0, 3).transpose();
+      Eigen::Vector3d img_position_vec(img_position->x(), img_position->y(),
+                                       img_position->z());
+
+      fuse_variables::VelocityLinear3DStamped::SharedPtr velocity =
+          std::make_shared<fuse_variables::VelocityLinear3DStamped>(frame.t);
+      Eigen::Vector3d velocity_vec = (position_plus - img_position_vec) /
+                                     (stamp_plus_delta.toSec() - frame.t.toSec());
+      velocity->x() = velocity_vec[0];
+      velocity->y() = velocity_vec[1];
+      velocity->z() = velocity_vec[2];
+      std::cout << "\nInitial velocity: \n" << velocity_vec << std::endl;
+      imu_preint_->SetStart(frame.t, img_orientation, img_position, velocity);
     } else {
       // get imu transaction
       fuse_core::Transaction::SharedPtr transaction =
@@ -359,38 +371,10 @@ void VIOInitialization::OptimizeGraph() {
   local_graph_->optimize(options);
 }
 
-void VIOInitialization::OutputResults(const std::vector<Frame>& frames) {
-  if (!boost::filesystem::exists(output_directory_) ||
-      output_directory_.empty()) {
-    ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
-             "Initializer results.");
-  } else {
-    // add frame poses to cloud and save
-    pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
-    for (auto& f : frames) {
-      frame_cloud = beam::AddFrameToCloud(
-          frame_cloud, visual_map_->GetBaselinkPose(f.t).value(), 0.001);
-    }
-
-    // add all landmark points to cloud and save
-    std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
-        frames[0].t, frames[frames.size() - 1].t);
-    pcl::PointCloud<pcl::PointXYZ> points_cloud;
-    for (auto& id : landmarks) {
-      fuse_variables::Point3DLandmark::SharedPtr lm =
-          visual_map_->GetLandmark(id);
-      if (lm) {
-        pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
-        points_cloud.push_back(p);
-      }
-    }
-    pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);
-    pcl::io::savePCDFileBinary(output_directory_ + "/points.pcd", points_cloud);
-  }
-}
-
 void VIOInitialization::SolveGyroBias(std::vector<Frame>& frames) {
-  Integrate(frames);
+  for (size_t i = 0; i < frames.size(); i++) {
+    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+  }
   Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
   Eigen::Vector3d b = Eigen::Vector3d::Zero();
 
@@ -421,7 +405,9 @@ void VIOInitialization::SolveAccelBias(std::vector<Frame>& frames) {
         "Can't estimate acceleration bias without first estimating gravity.");
     return;
   }
-  Integrate(frames);
+  for (size_t i = 0; i < frames.size(); i++) {
+    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+  }
   Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b = Eigen::Vector4d::Zero();
 
@@ -459,7 +445,9 @@ void VIOInitialization::SolveAccelBias(std::vector<Frame>& frames) {
 }
 
 void VIOInitialization::SolveGravityAndScale(std::vector<Frame>& frames) {
-  Integrate(frames);
+  for (size_t i = 0; i < frames.size(); i++) {
+    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+  }
   Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b = Eigen::Vector4d::Zero();
 
@@ -495,7 +483,9 @@ void VIOInitialization::SolveGravityAndScale(std::vector<Frame>& frames) {
 
 void VIOInitialization::RefineGravityAndScale(std::vector<Frame>& frames) {
   static const double damp = 0.1;
-  Integrate(frames);
+  for (size_t i = 0; i < frames.size(); i++) {
+    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+  }
   int N = (int)frames.size();
   Eigen::MatrixXd A;
   Eigen::VectorXd b;
@@ -535,10 +525,40 @@ void VIOInitialization::RefineGravityAndScale(std::vector<Frame>& frames) {
   scale_ = x(2);
 }
 
-void VIOInitialization::Integrate(std::vector<Frame>& frames) {
-  for (size_t i = 0; i < frames.size(); i++) {
-    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+void VIOInitialization::OutputFramePoses(const std::vector<Frame>& frames) {
+  for (auto& f : frames) {
+    std::cout << f.t << std::endl;
+    std::cout << visual_map_->GetBaselinkPose(f.t) << std::endl;
   }
 }
 
+void VIOInitialization::OutputResults(const std::vector<Frame>& frames) {
+  if (!boost::filesystem::exists(output_directory_) ||
+      output_directory_.empty()) {
+    ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
+             "Initializer results.");
+  } else {
+    // add frame poses to cloud and save
+    pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
+    for (auto& f : frames) {
+      frame_cloud = beam::AddFrameToCloud(
+          frame_cloud, visual_map_->GetBaselinkPose(f.t).value(), 0.001);
+    }
+
+    // add all landmark points to cloud and save
+    std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
+        frames[0].t, frames[frames.size() - 1].t);
+    pcl::PointCloud<pcl::PointXYZ> points_cloud;
+    for (auto& id : landmarks) {
+      fuse_variables::Point3DLandmark::SharedPtr lm =
+          visual_map_->GetLandmark(id);
+      if (lm) {
+        pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
+        points_cloud.push_back(p);
+      }
+    }
+    pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);
+    pcl::io::savePCDFileBinary(output_directory_ + "/points.pcd", points_cloud);
+  }
+}
 }} // namespace bs_models::vision

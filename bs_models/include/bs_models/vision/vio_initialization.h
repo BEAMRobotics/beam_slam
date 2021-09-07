@@ -159,11 +159,6 @@ private:
    */
   void RefineGravityAndScale(std::vector<Frame>& frames);
 
-  /**
-   * @brief Integrates each frame using current bias estimates
-   */
-  void Integrate(std::vector<Frame>& frames);
-
   Eigen::Matrix<double, 3, 2> s2_tangential_basis(const Eigen::Vector3d& x) {
     int d = 0;
     for (int i = 1; i < 3; ++i) {
