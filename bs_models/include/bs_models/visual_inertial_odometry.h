@@ -137,13 +137,6 @@ private:
    */
   void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
 
-  /**
-   * @brief Matches an image in the tracker to the current submap
-   * @param img_time time of image to match against submap
-   */
-  std::map<uint64_t, Eigen::Vector3d>
-      MatchFrameToCurrentSubmap(const ros::Time& img_time);
-
 protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;

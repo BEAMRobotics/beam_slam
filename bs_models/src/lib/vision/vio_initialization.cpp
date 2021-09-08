@@ -83,11 +83,6 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
 
     // optimize valid frames
     OptimizeGraph();
-    ROS_INFO("Frame poses after optimization:");
-
-    // output post optimization poses
-    OutputFramePoses(valid_frames_);
-    OutputResults(valid_frames_);
 
     // localize the frames that are outside of the given path
     for (auto& f : invalid_frames_) {
@@ -103,6 +98,12 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
 
     // add landmarks and visual constraints for the invalid frames
     init_lms += AddVisualConstraints(invalid_frames_);
+
+    // output post optimization poses
+    ROS_INFO("Frame poses after optimization:");
+    OutputFramePoses(valid_frames_);
+    OutputFramePoses(invalid_frames_);
+    OutputResults(valid_frames_);
 
     // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
