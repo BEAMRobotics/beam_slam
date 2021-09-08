@@ -64,22 +64,22 @@ public:
    * @brief Helper function to add a pose at time t to a transaction or graph
    * The pose being added will be a camera pose, transform it to baselink
    * @param T_WORLD_CAMERA pose of camera to add to graph or transaction
-   * @param time timestamp of pose
+   * @param stamp timestamp of pose
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void AddCameraPose(const Eigen::Matrix4d& T_WORLD_CAMERA, const ros::Time& time,
+  void AddCameraPose(const Eigen::Matrix4d& T_WORLD_CAMERA, const ros::Time& stamp,
                fuse_core::Transaction::SharedPtr transaction = nullptr);
   /**
    * @brief Helper function to add a pose at time t to a transaction or graph
    * The pose being added will be a camera pose, transform it to baselink
    * @param T_WORLD_CAMERA pose of camera to add to graph or transaction
-   * @param time timestamp of pose
+   * @param stamp timestamp of pose
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
   void AddBaselinkPose(const Eigen::Matrix4d& T_WORLD_BASELINK,
-                       const ros::Time& time,
+                       const ros::Time& stamp,
                        fuse_core::Transaction::SharedPtr transaction = nullptr);
 
   /**
@@ -128,13 +128,13 @@ public:
 
   /**
    * @brief Helper function to add a constraint between a landmark and a pose
-   * @param img_time associated image timestamp to add constraint to
+   * @param stamp associated image timestamp to add constraint to
    * @param landmark_id landmark to add constraint to
    * @param pixel measured pixel of landmark in image at img_time
    * @param transaction (optional) if provided will add to transaction,
    * otherwise will add to loca graph
    */
-  void AddConstraint(const ros::Time& img_time, uint64_t lm_id,
+  void AddConstraint(const ros::Time& stamp, uint64_t lm_id,
                      const Eigen::Vector2d& pixel,
                      fuse_core::Transaction::SharedPtr transaction = nullptr);
 

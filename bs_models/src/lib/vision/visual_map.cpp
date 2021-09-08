@@ -230,7 +230,7 @@ fuse_variables::Position3DStamped::SharedPtr
 }
 
 void VisualMap::AddCameraPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
-                        const ros::Time& time,
+                        const ros::Time& stamp,
                         fuse_core::Transaction::SharedPtr transaction) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
@@ -244,24 +244,24 @@ void VisualMap::AddCameraPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
   beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, q, p);
 
   // add position variable
-  AddPosition(p, time, transaction);
+  AddPosition(p, stamp, transaction);
 
   // add orientation variable
-  AddOrientation(q, time, transaction);
+  AddOrientation(q, stamp, transaction);
 }
 
 void VisualMap::AddBaselinkPose(const Eigen::Matrix4d& T_WORLD_BASELINK,
-                                const ros::Time& time,
+                                const ros::Time& stamp,
                                 fuse_core::Transaction::SharedPtr transaction) {
   Eigen::Quaterniond q;
   Eigen::Vector3d p;
   beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, q, p);
 
   // add position variable
-  AddPosition(p, time, transaction);
+  AddPosition(p, stamp, transaction);
 
   // add orientation variable
-  AddOrientation(q, time, transaction);
+  AddOrientation(q, stamp, transaction);
 }
 
 void VisualMap::AddOrientation(const Eigen::Quaterniond& q_WORLD_BASELINK,
@@ -394,7 +394,7 @@ void VisualMap::AddFixedLandmark(
   }
 }
 
-void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
+void VisualMap::AddConstraint(const ros::Time& stamp, uint64_t lm_id,
                               const Eigen::Vector2d& pixel,
                               fuse_core::Transaction::SharedPtr transaction) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
@@ -408,9 +408,9 @@ void VisualMap::AddConstraint(const ros::Time& img_time, uint64_t lm_id,
       GetFixedLandmark(lm_id);
 
   // get robot pose
-  fuse_variables::Position3DStamped::SharedPtr position = GetPosition(img_time);
+  fuse_variables::Position3DStamped::SharedPtr position = GetPosition(stamp);
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
-      GetOrientation(img_time);
+      GetOrientation(stamp);
   if (position && orientation) {
     if (lm) {
       // add normal visual constraint

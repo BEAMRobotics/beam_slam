@@ -232,16 +232,19 @@ void VisualInertialOdometry::onGraphUpdate(
   //   try {
   //     fuse_variables::Orientation3DStamped::SharedPtr orientation =
   //         fuse_variables::Orientation3DStamped::make_shared();
-  //     *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+  //     *orientation = dynamic_cast<const
+  //     fuse_variables::Orientation3DStamped&>(
   //         graph->getVariable(visual_map_->GetOrientationUUID(kf.Stamp())));
-  //   } catch (const std::out_of_range& oor) { obsolete_keyframes.push_back(kf); }
+  //   } catch (const std::out_of_range& oor) {
+  //   obsolete_keyframes.push_back(kf); }
   // }
 
   // auto transaction = fuse_core::Transaction::make_shared();
   // for (auto& kf : obsolete_keyframes) {
   //   // Relocalize obsolete frames using the new graph
   //   std::cout << "\nOld pose: \n"
-  //             << visual_map_->GetBaselinkPose(kf.Stamp()).value() << std::endl;
+  //             << visual_map_->GetBaselinkPose(kf.Stamp()).value() <<
+  //             std::endl;
   //   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   //   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   //   std::vector<uint64_t> landmarks =
@@ -265,8 +268,7 @@ void VisualInertialOdometry::onGraphUpdate(
   //     } catch (const std::out_of_range& oor) {}
   //   }
   //   Eigen::Matrix4d T_CAMERA_WORLD_est =
-  //       beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
-  //                                                       points, 500);
+  //       visual_map_->GetCameraPose(kf.Stamp()).value();
   //   Eigen::Matrix4d T_WORLD_CAMERA =
   //       pose_refiner_
   //           ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
@@ -283,7 +285,8 @@ void VisualInertialOdometry::onGraphUpdate(
   //     std::vector<ros::Time> observation_stamps;
   //     beam_cv::FeatureTrack track = tracker_->GetTrack(id);
   //     for (auto& m : track) {
-  //       beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
+  //       beam::opt<Eigen::Matrix4d> T =
+  //       visual_map_->GetCameraPose(m.time_point);
   //       // check if the pose is in the graph (keyframe)
   //       if (T.has_value()) {
   //         pixels.push_back(m.value.cast<int>());
@@ -293,7 +296,8 @@ void VisualInertialOdometry::onGraphUpdate(
   //     }
   //     if (T_cam_world_v.size() >= 2) {
   //       beam::opt<Eigen::Vector3d> point =
-  //           beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+  //           beam_cv::Triangulation::TriangulatePoint(cam_model_,
+  //           T_cam_world_v,
   //                                                    pixels);
   //       if (point.has_value()) {
   //         visual_map_->AddLandmark(point.value(), id, transaction);
@@ -418,6 +422,10 @@ void VisualInertialOdometry::ExtendMap() {
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(cur_kf_time);
 
+  // send keyframe pose to graph
+  visual_map_->AddCameraPose(T_WORLD_CAMERA, keyframes_.back().Stamp(),
+                             transaction);
+
   // add visual constraints
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInImage(cur_kf_time);
@@ -498,13 +506,6 @@ void VisualInertialOdometry::AddInertialConstraint(
 
 void VisualInertialOdometry::NotifyNewKeyframe(
     const Eigen::Matrix4d& T_WORLD_CAMERA) {
-  // send keyframe pose to graph
-  auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(keyframes_.back().Stamp());
-  visual_map_->AddCameraPose(T_WORLD_CAMERA, keyframes_.back().Stamp(),
-                             transaction);
-  sendTransaction(transaction);
-
   // build header message and publish for lidar slam
   std_msgs::Header keyframe_header;
   keyframe_header.stamp = keyframes_.back().Stamp();
@@ -515,7 +516,7 @@ void VisualInertialOdometry::NotifyNewKeyframe(
   // make and publish reloc request
   bs_common::RelocRequestMsg reloc_msg;
   reloc_msg.image = keyframes_.back().Image();
-  Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
+  Eigen::Matrix4d T_WORLD_BASELINK = visual_map_->GetBaselinkPosekeyframes_.back().Stamp()).value();
   std::vector<float> pose;
   for (uint8_t i = 0; i < 3; i++) {
     for (uint8_t j = 0; j < 4; j++) {
