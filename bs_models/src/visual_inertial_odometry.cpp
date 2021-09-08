@@ -516,7 +516,8 @@ void VisualInertialOdometry::NotifyNewKeyframe(
   // make and publish reloc request
   bs_common::RelocRequestMsg reloc_msg;
   reloc_msg.image = keyframes_.back().Image();
-  Eigen::Matrix4d T_WORLD_BASELINK = visual_map_->GetBaselinkPosekeyframes_.back().Stamp()).value();
+  Eigen::Matrix4d T_WORLD_BASELINK =
+      visual_map_->GetBaselinkPose(keyframes_.back().Stamp()).value();
   std::vector<float> pose;
   for (uint8_t i = 0; i < 3; i++) {
     for (uint8_t j = 0; j < 4; j++) {
