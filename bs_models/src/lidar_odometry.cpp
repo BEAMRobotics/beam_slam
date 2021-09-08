@@ -115,29 +115,40 @@ void LidarOdometry::onInit() {
   // get filter params
   nlohmann::json J;
   std::string filepath = params_.input_filters_config_path;
-  if (filepath.empty()) {
-    // do nothing, keep filter params empty
-  } else if (filepath == "DEFAULT_PATH") {
-    filepath = bs_common::GetBeamSlamConfigPath() +
-               "registration_config/input_filters.json";
-    if (!beam::ReadJson(filepath, J)) {
-      ROS_ERROR("Cannot read input filters json, not using any filters.");
-    } else {
-      input_filter_params_ = beam_filtering::LoadFilterParamsVector(J);
+  if (!filepath.empty()) {
+    if (filepath == "DEFAULT_PATH") {
+      filepath = bs_common::GetBeamSlamConfigPath() +
+                 "registration_config/input_filters.json";
     }
-  } else {
+
+    ROS_INFO("Reading input filter params from %s", filepath.c_str());
     if (!beam::ReadJson(filepath, J)) {
       ROS_ERROR("Cannot read input filters json, not using any filters.");
     } else {
-      input_filter_params_ = beam_filtering::LoadFilterParamsVector(J);
+      nlohmann::json J_filters;
+      bool json_valid{true};
+      try {
+        J_filters = J["filters"];
+      } catch (...) {
+        ROS_ERROR(
+            "Missing 'filters' param in input filters config file. Not using "
+            "filters.");
+        std::cout << "Json Dump: " << J.dump() << "\n";
+        json_valid = false;
+      }
+      if (json_valid) {
+        input_filter_params_ =
+            beam_filtering::LoadFilterParamsVector(J_filters);
+        ROS_INFO("Loaded %d input filters", input_filter_params_.size());    
+      }
     }
   }
 
   // set covariance if not set to zero in config
   if (std::accumulate(params_.matcher_noise_diagonal.begin(),
                       params_.matcher_noise_diagonal.end(), 0.0) > 0) {
-    Eigen::Matrix<double, 6, 6> covariance;
-    covariance.setIdentity();
+    Eigen::Matrix<double, 6, 6> covariance{
+        Eigen::Matrix<double, 6, 6>::Identity()};
     for (int i = 0; i < 6; i++) {
       covariance(i, i) = params_.matcher_noise_diagonal[i];
     }
@@ -188,8 +199,9 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
 LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
-  PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
-  *cloud_current = beam_filtering::FilterPointCloud(*cloud_current, input_filter_params_);
+  PointCloudPtr cloud_current_unfiltered = beam::ROSToPCL(*msg);
+  PointCloud cloud_current = beam_filtering::FilterPointCloud(
+      *cloud_current_unfiltered, input_filter_params_);
 
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,
@@ -210,14 +222,46 @@ LidarOdometry::GenerateTransaction(
         msg->header.stamp);
   }
 
-  ScanPose current_scan_pose(*cloud_current, msg->header.stamp,
+  ScanPose current_scan_pose(cloud_current, msg->header.stamp,
                              T_WORLD_BASELINKCURRENT, T_BASELINK_LIDAR,
                              feature_extractor_);
 
   active_clouds_.push_back(current_scan_pose);
 
   // build transaction of registration measurements
+  // bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
+  //     current_scan_pose.Stamp());
   auto transaction = scan_registration_->RegisterNewScan(current_scan_pose);
+
+  if (params_.frame_initializer_prior_noise > 0) {
+    // check if variables are being added:
+    bool position_found{false};
+    bool orientation_found{false};
+    if (transaction.GetTransaction() != nullptr) {
+      auto added_variables = transaction.GetTransaction()->addedVariables();
+      for (auto iter = added_variables.begin(); iter != added_variables.end();
+           iter++) {
+        if (iter->uuid() == current_scan_pose.Position().uuid()) {
+          position_found = true;
+        }
+        if (iter->uuid() == current_scan_pose.Orientation().uuid()) {
+          orientation_found = true;
+        }
+      }
+    }
+
+    // if not, add them
+    if (!position_found || !orientation_found) {
+      transaction.AddPoseVariables(current_scan_pose.Position(),
+                                   current_scan_pose.Orientation(),
+                                   current_scan_pose.Stamp());
+    }
+
+    // add prior
+    transaction.AddPosePrior(
+        current_scan_pose.Position(), current_scan_pose.Orientation(),
+        params_.frame_initializer_prior_noise, "FRAMEINITIALIZERPRIOR");
+  }
 
   return transaction;
 }

@@ -29,6 +29,10 @@ public:
       const bs_common::ImuState& imu_state_i,
       const bs_common::PreIntegrator& pre_integrator);
 
+  /**
+   * @brief Compute the cost values/residuals using the provided
+   * variable/parameter values
+   */
   template <typename T>
   bool operator()(const T* const orientation1, const T* const position1,
                   const T* const velocity1, const T* const gyrobias1,
@@ -61,9 +65,10 @@ NormalDeltaImuState3DCostFunctor::NormalDeltaImuState3DCostFunctor(
     : A_(pre_integrator_.delta.sqrt_inv_cov),
       imu_state_i_(imu_state_i),
       pre_integrator_(pre_integrator) {
-  pre_integrator_.delta.cov.setIdentity();
-  A_ = pre_integrator_.delta.cov.inverse().llt().matrixU();
-}
+        // TODO (AT/NC) need to fix covariance
+        pre_integrator_.delta.cov.setIdentity();
+        A_= pre_integrator_.delta.cov.inverse().llt().matrixU();
+      }
 
 template <typename T>
 bool NormalDeltaImuState3DCostFunctor::operator()(

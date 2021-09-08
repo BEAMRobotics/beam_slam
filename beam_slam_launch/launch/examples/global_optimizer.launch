@@ -1,4 +1,5 @@
 <launch>
+  <!-- Launch global mapper -->
   <node pkg="fuse_optimizers" type="batch_optimizer_node" name="global_optimizer" output="screen">
       <rosparam command="load" file="$(find beam_slam_launch)/config/global_mapper/global_mapper.yaml"/>
   </node>

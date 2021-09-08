@@ -550,8 +550,18 @@ void VIOInitialization::OutputResults(const std::vector<Frame>& frames) {
         points_cloud.push_back(p);
       }
     }
-    pcl::io::savePCDFileBinary(output_directory_ + "/frames.pcd", frame_cloud);
-    pcl::io::savePCDFileBinary(output_directory_ + "/points.pcd", points_cloud);
+
+    std::string error_message{};
+    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+            output_directory_ + "/frames.pcd", frame_cloud,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
+    if (!beam::SavePointCloud<pcl::PointXYZ>(
+            output_directory_ + "/points.pcd", points_cloud,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
   }
 }
 }} // namespace bs_models::vision

@@ -40,18 +40,19 @@ unicycle_3d:
   buffer_length: 100000
 
 lidar_odometry:
-  type: 'MAPLOAM' # Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (TODO: LIBPOINTMATCHER, TEASER)
-  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
-  registration_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/registration_config/. Setting to empty will use the default params defined in the class
-  input_filters_config_path: 'DEFAULT_PATH' # DEFAULT_PATH uses the config in beam_slam_launch_config/config/registration_config/input_filters.json. Setting to empty uses no filters.
-  matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
+  type: 'MAPLOAM' 
+  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  registration_config_path: 'DEFAULT_PATH' 
+  input_filters_config_path: 'DEFAULT_PATH' 
+  matcher_noise: 0.001 
   input_topic: '/velodyne_points'
   output_loam_points: true 
   output_lidar_points: true
-  output_topic: '/slam_results' # if left blank, it will not publish results (for global mapper)
-  frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
-  frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply' # for ODOMETRY: topic, for POSEFILE: path
-  # scan_output_directory: '/home/nick/results/beam_slam/scan_matcher/' # Outputs scans as PCD files IFF not empty
+  output_topic: '/slam_results' 
+  frame_initializer_type: 'POSEFILE' 
+  frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply'
+  frame_initializer_prior_noise: 0.00001 
+  # scan_output_directory: '/home/nick/results/beam_slam/scan_matcher/'
   scan_output_directory: ''
 
 # path_pub:

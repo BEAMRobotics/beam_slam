@@ -34,14 +34,9 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
     T_MAP_SCAN = new_scan.T_REFFRAME_LIDAR();
     AddScanToMap(new_scan, T_MAP_SCAN);
     if (base_params_.fix_first_scan) {
-      // build covariance
-      fuse_core::Matrix6d prior_covariance;
-      prior_covariance.setIdentity();
-      prior_covariance = prior_covariance * pose_prior_noise_;
-
       // add prior
       transaction.AddPosePrior(new_scan.Position(), new_scan.Orientation(),
-                               prior_covariance, "FIRSTSCANPRIOR");
+                               pose_prior_noise_, "FIRSTSCANPRIOR");
     }
 
     scan_pose_prev_ = std::make_unique<ScanPose>(new_scan.Stamp(),

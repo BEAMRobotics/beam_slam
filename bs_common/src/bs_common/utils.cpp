@@ -19,6 +19,18 @@ void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
   o.w() = q.w();
 }
 
+void EigenTransformToFusePose(
+    const Eigen::Matrix4d& T_WORLD_SENSOR,
+    fuse_variables::Position3DStamped::SharedPtr& p,
+    fuse_variables::Orientation3DStamped::SharedPtr& o) {
+  fuse_variables::Position3DStamped p_tmp;
+  fuse_variables::Orientation3DStamped o_tmp;
+  EigenTransformToFusePose(T_WORLD_SENSOR, p_tmp, o_tmp);
+
+  p = fuse_variables::Position3DStamped::make_shared(p_tmp);
+  o = fuse_variables::Orientation3DStamped::make_shared(o_tmp);
+}
+
 void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                               const fuse_variables::Orientation3DStamped& o,
                               Eigen::Matrix4d& T_WORLD_SENSOR) {
@@ -219,4 +231,32 @@ std::string GetBeamSlamConfigPath() {
   return config_root_location;
 }
 
-} // namespace bs_common
+int GetNumberOfConstraints(
+    const fuse_core::Transaction::SharedPtr& transaction) {
+  if (transaction == nullptr) {
+    return 0;
+  }
+
+  int counter = 0;
+  auto added_constraints = transaction->addedConstraints();
+  for (auto iter = added_constraints.begin(); iter != added_constraints.end();
+       iter++) {
+    counter++;
+  }
+  return counter;
+}
+
+int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction) {
+  if (transaction == nullptr) {
+    return 0;
+  }
+
+  int counter = 0;
+  auto added_variables = transaction->addedVariables();
+  for (auto iter = added_variables.begin(); iter != added_variables.end();
+       iter++) {
+    counter++;
+  }
+}
+
+}  // namespace bs_common

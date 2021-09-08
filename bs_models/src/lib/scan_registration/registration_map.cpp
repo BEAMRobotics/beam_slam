@@ -169,7 +169,13 @@ void RegistrationMap::Save(const std::string& save_path, bool add_frames,
       const Eigen::Matrix4d& T_MAP_SCAN = it->second;
       beam::MergeFrameToCloud(map_col, frame, T_MAP_SCAN);
     }
-    pcl::io::savePCDFileASCII(save_path + "pointcloud.pcd", map_col);
+
+    std::string error_message{};
+    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+            save_path + "pointcloud.pcd", map_col,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
   }
 }
 

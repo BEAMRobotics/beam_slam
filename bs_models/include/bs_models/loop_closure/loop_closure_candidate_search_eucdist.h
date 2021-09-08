@@ -37,7 +37,10 @@ class LoopClosureCandidateSearchEucDist
   /**
    * @brief Overrides the virtual function that takes in a vector of submaps, a
    * query index and finds candidate loop closures with an estimated relative
-   * pose
+   * pose. It does this by iterating from the first submap, to two submaps
+   * before the query submap (we don't want adjacent submaps) and checks the
+   * euclidean distance between the submaps. If the distance is less than
+   * distance_threshold_m_ param, then it is a candidate loop closure.
    * @param submaps vector of pointers to submaps
    * @param query_index index of submap to check for loops
    * @param matched_indices reference to vector of indices which represent the

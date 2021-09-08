@@ -219,24 +219,34 @@ void ScanPose::SaveData(const std::string& output_dir) const {
   scanpose_file << std::setw(4) << J_scanpose << std::endl;
 
   // save pointclouds
-  if (pointcloud_.size() > 0) {
-    pcl::io::savePCDFileBinary(output_dir + "pointcloud.pcd", pointcloud_);
+  std::string error_message;
+  if (!beam::SavePointCloud<pcl::PointXYZ>(
+          output_dir + "pointcloud.pcd", pointcloud_,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
-  if (loampointcloud_.edges.strong.cloud.size() > 0) {
-    pcl::io::savePCDFileBinary(output_dir + "loam_edges_strong.pcd",
-                               loampointcloud_.edges.strong.cloud);
+  if (!beam::SavePointCloud<pcl::PointXYZ>(
+          output_dir + "loam_edges_strong.pcd",
+          loampointcloud_.edges.strong.cloud,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
-  if (loampointcloud_.edges.weak.cloud.size() > 0) {
-    pcl::io::savePCDFileBinary(output_dir + "loam_edges_weak.pcd",
-                               loampointcloud_.edges.weak.cloud);
+  if (!beam::SavePointCloud<pcl::PointXYZ>(
+          output_dir + "loam_edges_weak.pcd", loampointcloud_.edges.weak.cloud,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
-  if (loampointcloud_.surfaces.strong.cloud.size() > 0) {
-    pcl::io::savePCDFileBinary(output_dir + "loam_surfaces_strong.pcd",
-                               loampointcloud_.surfaces.strong.cloud);
+  if (!beam::SavePointCloud<pcl::PointXYZ>(
+          output_dir + "loam_surfaces_strong.pcd",
+          loampointcloud_.surfaces.strong.cloud,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
-  if (loampointcloud_.surfaces.weak.cloud.size() > 0) {
-    pcl::io::savePCDFileBinary(output_dir + "loam_surfaces_weak.pcd",
-                               loampointcloud_.surfaces.weak.cloud);
+  if (!beam::SavePointCloud<pcl::PointXYZ>(
+          output_dir + "loam_surfaces_weak.pcd",
+          loampointcloud_.surfaces.weak.cloud,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 }
 
@@ -348,7 +358,12 @@ void ScanPose::SaveCloud(const std::string& save_path, bool to_reference_frame,
 
   std::string file_name_prefix = save_path + std::to_string(stamp_.toSec());
   if (!to_reference_frame) {
-    pcl::io::savePCDFileASCII(file_name_prefix + ".pcd", pointcloud_);
+    std::string error_message;
+    if (!beam::SavePointCloud<pcl::PointXYZ>(
+            file_name_prefix + ".pcd", pointcloud_,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
     return;
   }
 
@@ -374,12 +389,18 @@ void ScanPose::SaveCloud(const std::string& save_path, bool to_reference_frame,
         beam::AddFrameToCloud(cloud_final_col, T_REFFRAME_LIDAR_final);
   }
 
-  if (cloud_initial_col.size() == 0 || cloud_final_col.size() == 0) {
-    BEAM_ERROR("Could not save ScanPose cloud, cloud is empty.");
-  } else {
-    pcl::io::savePCDFileASCII(file_name_prefix + "_initial.pcd",
-                              cloud_initial_col);
-    pcl::io::savePCDFileASCII(file_name_prefix + "_final.pcd", cloud_final_col);
+  std::string error_message{};
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+          file_name_prefix + "_initial.pcd", cloud_initial_col,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+          file_name_prefix + "_final.pcd", cloud_final_col,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+  if (error_message.empty()) {
     ROS_INFO("Saved cloud with stamp: %.5f", stamp_.toSec());
   }
 }

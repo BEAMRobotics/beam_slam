@@ -172,14 +172,9 @@ void MultiScanRegistrationBase::AddFirstScan(
                                scan.Stamp());
 
   if (params_.fix_first_scan) {
-    // build covariance
-    fuse_core::Matrix6d prior_covariance;
-    prior_covariance.setIdentity();
-    prior_covariance = prior_covariance * pose_prior_noise_;
-
     // add prior
     transaction.AddPosePrior(scan.Position(), scan.Orientation(),
-                             prior_covariance, "FIRSTSCANPRIOR");
+                             pose_prior_noise_, "FIRSTSCANPRIOR");
   }
 
   if (!params_.disable_lidar_map) {
@@ -480,11 +475,22 @@ void MultiScanRegistrationBase::OutputResults(
   // save clouds
   BEAM_INFO("Saving scan registration results to {}", filename);
 
-  pcl::io::savePCDFileASCII(filename + "_ref.pcd", cloud_ref_world_col);
-  pcl::io::savePCDFileASCII(filename + "_tgt_init.pcd",
-                            cloud_tgt_in_world_init_col);
-  pcl::io::savePCDFileASCII(filename + "_tgt_alig.pcd",
-                            cloud_tgt_in_world_aligned_col);
+  std::string error_message{};
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+          filename + "_ref.pcd", cloud_ref_world_col,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+          filename + "_tgt_init.pcd", cloud_tgt_in_world_init_col,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+          filename + "_tgt_alig.pcd", cloud_tgt_in_world_aligned_col,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
 
   if (output_loam_cloud) {
     loam_cloud_ref_world.Save(filename + "_ref/", true);

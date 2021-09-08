@@ -7,18 +7,14 @@
 
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/Matchers.h>
-#include <beam_filtering/VoxelDownsample.h>
+#include <beam_filtering/Utils.h>
 
 #include <bs_models/loop_closure/loop_closure_refinement_base.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
-#include <bs_models/global_mapping/submap.h>
 
 namespace bs_models {
 
 namespace loop_closure {
-
-using namespace beam_matching;
-using namespace global_mapping;
 
 /**
  * @brief Templated class for loop closure refinement with lidar scan matching
@@ -26,19 +22,18 @@ using namespace global_mapping;
 template <typename MatcherType, typename ParamsType>
 class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
  public:
-  // Inherit base class constructors
-  using LoopClosureRefinementBase::LoopClosureRefinementBase;
-
   /**
-   * @brief another constructor that takes in parameters
-   * @param matcher_config full path to matcher config json
+   * @brief constructor requiring only a path to a config file
+   * @param config full path to config json
+   * @param loop_closure_covariance
    */
   LoopClosureRefinementScanRegistration(
       const Eigen::Matrix<double, 6, 6>& loop_closure_covariance,
-      const std::string& matcher_config = "")
-      : loop_closure_covariance_(loop_closure_covariance),
-        matcher_config_(matcher_config) {
-    covariance_set_ = true;
+      const std::string& config = "")
+      : LoopClosureRefinementBase(config),
+        loop_closure_covariance_(loop_closure_covariance) {
+    LoadConfig();
+    Setup();
   }
 
   /**
@@ -51,25 +46,23 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
    * is determined with a class derived from LoopClosureCandidateSearchBase
    */
   fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const std::shared_ptr<Submap>& matched_submap,
-      const std::shared_ptr<Submap>& query_submap,
+      const std::shared_ptr<global_mapping::Submap>& matched_submap,
+      const std::shared_ptr<global_mapping::Submap>& query_submap,
       const Eigen::Matrix4d& T_MATCH_QUERY_EST) override {
-    LoadConfig();
-    Setup();
-
+    // get refined transform
     Eigen::Matrix4d T_MATCH_QUERY_OPT;
     if (!GetRefinedT_MATCH_QUERY(matched_submap, query_submap,
                                  T_MATCH_QUERY_EST, T_MATCH_QUERY_OPT)) {
       return nullptr;
     }
 
-    std::string source = "LOOPCLOSURE";
+    // create transaction
     bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
         query_submap->Stamp());
     transaction.AddPoseConstraint(
         matched_submap->T_WORLD_SUBMAP(), query_submap->T_WORLD_SUBMAP(),
         matched_submap->Stamp(), query_submap->Stamp(), T_MATCH_QUERY_OPT,
-        loop_closure_covariance_, source);
+        loop_closure_covariance_, source_);
 
     return transaction.GetTransaction();
   }
@@ -78,38 +71,46 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
   /**
    * @brief Method for loading a config json file.
    */
-  void LoadConfig() override {
+  void LoadConfig() {
     if (config_path_.empty()) {
       return;
     }
 
-    if (!boost::filesystem::exists(config_path_)) {
-      BEAM_ERROR(
-          "Invalid path to loop closure candidate search config. Using default "
-          "parameters. Input: {}",
-          config_path_);
+    nlohmann::json J;
+    if (!beam::ReadJson(config_path_, J)) {
+      BEAM_INFO(
+          "Using default loop closure refinement scan registration params.");
       return;
     }
 
-    nlohmann::json J;
-    std::ifstream file(config_path_);
-    file >> J;
-    matcher_config_ = J["matcher_config_path"];
-    downsampling_voxel_size_ = J["downsampling_voxel_size"];
-    downsampling_max_map_size_ = J["downsampling_max_map_size"];
+    try {
+      matcher_config_ = J["matcher_config_path"];
+    } catch (...) {
+      BEAM_ERROR(
+          "Missing ont or more parameter, using default loop closure "
+          "refinement params");
+    }
+
+    nlohmann::json J_filters;
+    try {
+      J_filters = J["filters"];
+    } catch (...) {
+      ROS_ERROR(
+          "Missing 'filters' param in loop closure config file. Not using "
+          "filters.");
+      return;
+    }
+    filter_params_ = beam_filtering::LoadFilterParamsVector(J_filters);
+    BEAM_INFO("Loaded %d input filters", filter_params_.size());
   }
 
   /**
-   * @brief initiate variables
+   * @param takes all params loaded from LoadConfig, and initializes all member
+   * classes/variables
    */
   void Setup() {
+    // load matcher
     matcher_ = std::make_unique<MatcherType>(ParamsType(matcher_config_));
-    if (!covariance_set_) {
-      Eigen::VectorXd vec(6);
-      vec << 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5;
-      loop_closure_covariance_ = vec.asDiagonal();
-      covariance_set_ = true;
-    }
   }
 
   /**
@@ -122,37 +123,31 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
    * @param T_MATCH_QUERY_OPT reference to the resulting refined transform from
    * query submap to matched submap
    */
-  bool GetRefinedT_MATCH_QUERY(const std::shared_ptr<Submap>& matched_submap,
-                               const std::shared_ptr<Submap>& query_submap,
-                               const Eigen::Matrix4d& T_MATCH_QUERY_EST,
-                               Eigen::Matrix4d& T_MATCH_QUERY_OPT) {
-    // setup downsampler
-    Eigen::Vector3f scan_voxel_size(downsampling_voxel_size_,
-                                    downsampling_voxel_size_,
-                                    downsampling_voxel_size_);
-    beam_filtering::VoxelDownsample<> downsampler(scan_voxel_size);
-
+  bool GetRefinedT_MATCH_QUERY(
+      const std::shared_ptr<global_mapping::Submap>& matched_submap,
+      const std::shared_ptr<global_mapping::Submap>& query_submap,
+      const Eigen::Matrix4d& T_MATCH_QUERY_EST,
+      Eigen::Matrix4d& T_MATCH_QUERY_OPT) {
     // extract and filter clouds from match submap
     PointCloudPtr match_cloud_world = std::make_shared<PointCloud>();
     std::vector<PointCloud> match_clouds_world_raw =
-        matched_submap->GetLidarPointsInWorldFrame(downsampling_max_map_size_);
+        matched_submap->GetLidarPointsInWorldFrame(10e6);
     for (const PointCloud& cloud : match_clouds_world_raw) {
-      downsampler.SetInputCloud(std::make_shared<PointCloud>(cloud));
-      downsampler.Filter();
-      PointCloud downsampled = downsampler.GetFilteredCloud();
-      (*match_cloud_world) += downsampled;
+      (*match_cloud_world) += cloud;
     }
+    *match_cloud_world =
+        beam_filtering::FilterPointCloud(*match_cloud_world, filter_params_);
 
     // extract and filter clouds from query submap
     PointCloudPtr query_cloud_world = std::make_shared<PointCloud>();
     std::vector<PointCloud> query_clouds_world_raw =
-        query_submap->GetLidarPointsInWorldFrame(downsampling_max_map_size_);
-    for (const PointCloud& cloud : query_clouds_world_raw) {
-      downsampler.SetInputCloud(std::make_shared<PointCloud>(cloud));
-      downsampler.Filter();
-      PointCloud downsampled = downsampler.GetFilteredCloud();
-      (*query_cloud_world) += downsampled;
+        query_submap->GetLidarPointsInWorldFrame(10e6);
+    for (const PointCloud& cloud : match_clouds_world_raw) {
+      (*query_cloud_world) += cloud;
     }
+
+    *query_cloud_world =
+        beam_filtering::FilterPointCloud(*query_cloud_world, filter_params_);
 
     // match clouds
     matcher_->SetRef(match_cloud_world);
@@ -162,32 +157,26 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
       return false;
     }
     T_MATCH_QUERY_OPT = matcher_->GetResult().inverse().matrix();
+
+    return true;
   }
 
-  std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
-
-  /** Path to matcher config. If empty, it will use default params. */
-  std::string matcher_config_{""};
-
-  /** leaf size for downsampling filter on max map size. If set to zero, it will
-   * not downsample. */
-  float downsampling_voxel_size_{0.03};
-
-  /** Each submap will be combined into a few pointsclouds, then downsampled,
-   * then combined into one pointcloud. This sets the max size of these clouds.
-   */
-  int downsampling_max_map_size_{500000};
-
-  bool covariance_set_{false};
+  std::string matcher_config_;
+  std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
   Eigen::Matrix<double, 6, 6> loop_closure_covariance_;
+  std::vector<beam_filtering::FilterParamsType> filter_params_;
+  std::string source_{"SCANREGLOOPCLOSURE"};
 };
 
 using LoopClosureRefinementIcp =
-    LoopClosureRefinementScanRegistration<IcpMatcher, IcpMatcher::Params>;
+    LoopClosureRefinementScanRegistration<beam_matching::IcpMatcher,
+                                          beam_matching::IcpMatcher::Params>;
 using LoopClosureRefinementGicp =
-    LoopClosureRefinementScanRegistration<GicpMatcher, GicpMatcher::Params>;
+    LoopClosureRefinementScanRegistration<beam_matching::GicpMatcher,
+                                          beam_matching::GicpMatcher::Params>;
 using LoopClosureRefinementNdt =
-    LoopClosureRefinementScanRegistration<NdtMatcher, NdtMatcher::Params>;
+    LoopClosureRefinementScanRegistration<beam_matching::NdtMatcher,
+                                          beam_matching::NdtMatcher::Params>;
 
 }  // namespace loop_closure
 
