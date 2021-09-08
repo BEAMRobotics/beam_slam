@@ -224,7 +224,7 @@ class RelativePoseTransactionBase {
   void AddRelativeImuStateConstraint(
       const bs_common::ImuState& imu_state_i,
       const bs_common::ImuState& imu_state_j,
-      const std::shared_ptr<bs_common::PreIntegrator> pre_integrator,
+      const bs_common::PreIntegrator& pre_integrator,
       const std::string& source = "NULL") {
     // build and add constraint
     auto constraint =

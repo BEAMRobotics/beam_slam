@@ -1,0 +1,15 @@
+<launch>
+  
+  <!-- Load calibration params for this dataset,  including intrinsics and extrinsics. 
+       Note: These are global params that need to be loaded for all launch files. -->
+  <rosparam command="load" file="$(find beam_slam_launch)/config/euroc/calibration_params.yaml"/>
+
+  <!-- Include calibration publisher for this dataset -->
+  <include file="$(find beam_slam_launch)/launch/euroc/calibration_publisher_euroc.launch" />
+
+  <!-- Launch initializer -->
+  <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="fixed_lag_smoother" output="screen">
+    <rosparam command="load" file="$(find beam_slam_launch)/config/euroc/io_euroc.yaml"/>
+  </node>
+
+</launch>

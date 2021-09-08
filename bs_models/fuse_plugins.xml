@@ -11,6 +11,11 @@
       another node
     </description>
   </class>
+  <class type="bs_models::Imu3D" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that produces relative constraints between IMU states
+    </description>
+  </class>
   <class type="bs_models::LidarOdometry" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints
@@ -35,5 +40,5 @@
     <description>
       A plugin for managing the global map, implemented as a sensor model but subscribes to SLAM messages as opposed to sensor messages.
     </description>
-  </class>  
+  </class>
 </library>

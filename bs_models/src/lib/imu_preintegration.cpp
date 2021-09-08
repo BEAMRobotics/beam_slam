@@ -165,9 +165,9 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
       prior_covariance(i,i) = params_.cov_prior_noise;
     }
 
+    // Add relative constraints and variables for first key frame
     transaction.AddPriorImuStateConstraint(imu_state_i_, prior_covariance,
                                            "FIRST_IMU_STATE_PRIOR");
-
     transaction.AddImuStateVariables(imu_state_i_);
 
     first_window_ = false;
@@ -188,14 +188,9 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   bs_common::ImuState imu_state_j =
       PredictState(pre_integrator_ij, imu_state_i_, t_now);
 
-  // make preintegrator a shared pointer for constraint
-  auto pre_integrator =
-      std::make_shared<bs_common::PreIntegrator>(pre_integrator_ij);
-
-  // generate relative constraints between key frames
+  // Add relative constraints and variables between key frames
   transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j,
-                                            pre_integrator);
-
+                                            pre_integrator_ij);
   transaction.AddImuStateVariables(imu_state_j);
 
   // update orientation and position of predicted imu state with arguments
