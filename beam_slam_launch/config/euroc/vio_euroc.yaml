@@ -1,6 +1,6 @@
 # optimization params
-optimization_period: 0.5
-lag_duration: 20
+optimization_period: 1
+lag_duration: 5
 
 # sensor models
 sensor_models:
@@ -27,8 +27,8 @@ solver_options:
   minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
-  max_num_iterations: 15
-  max_solver_time_in_seconds: 0.05
+  max_num_iterations: 50
+  max_solver_time_in_seconds: 0.5
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015

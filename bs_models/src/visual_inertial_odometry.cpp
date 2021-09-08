@@ -296,14 +296,11 @@ Eigen::Matrix4d
     }
   }
 
-  // get pose estimate using imu preintegration
-  Eigen::Matrix4d T_WORLD_BASELINK_inertial;
-  imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
-
   // refine pose using motion only BA if there are enough points
   if (points.size() >= 15) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
-        T_cam_baselink_ * T_WORLD_BASELINK_inertial.inverse();
+        beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
+                                                        points, 500);
     Eigen::Matrix4d T_WORLD_CAMERA =
         pose_refiner_
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
@@ -311,6 +308,9 @@ Eigen::Matrix4d
     Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
     return T_WORLD_BASELINK;
   } else {
+    // get pose estimate using imu preintegration
+    Eigen::Matrix4d T_WORLD_BASELINK_inertial;
+    imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
     return T_WORLD_BASELINK_inertial;
   }
 }
@@ -329,23 +329,17 @@ bool VisualInertialOdometry::IsKeyframe(
   ROS_DEBUG("Parallax: %f, Triangulated/Total Tracks: %zu/%zu", parallax,
             triangulated_landmarks.size(), landmarks.size());
 
-  if (landmarks.size() < 30) {
-    if (img_time.toSec() - prev_kf_time.toSec() >= 3.0) { return true; }
-    return false;
-
-  } else {
-    if (beam::PassedMotionThreshold(T_WORLD_BASELINK, T_prevkf, 0.0, 0.05, true,
-                                    true)) {
-      return true;
-    } else if (parallax > 70.0) {
-      return true;
-    } else if (triangulated_landmarks.size() < 30) {
-      return true;
-    } else if (img_time.toSec() - prev_kf_time.toSec() >= 3.0) {
-      return true;
-    }
-    return false;
+  if (beam::PassedMotionThreshold(T_WORLD_BASELINK, T_prevkf, 0.0, 0.05, true,
+                                  true)) {
+    return true;
+  } else if (parallax > 50.0) {
+    return true;
+  } else if (triangulated_landmarks.size() < 30) {
+    return true;
+  } else if (img_time.toSec() - prev_kf_time.toSec() >= 3.0) {
+    return true;
   }
+  return false;
 }
 
 void VisualInertialOdometry::ExtendMap() {
