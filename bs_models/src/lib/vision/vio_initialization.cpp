@@ -99,6 +99,9 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
     // add landmarks and visual constraints for the invalid frames
     init_lms += AddVisualConstraints(invalid_frames_);
 
+    // optimize with invalid frames
+    OptimizeGraph();
+
     // output post optimization poses
     ROS_INFO("Frame poses after optimization:");
     OutputFramePoses(valid_frames_);

@@ -86,23 +86,6 @@ void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
   T_WORLD_SENSOR.block(0, 0, 3, 3) = R;
 }
 
-void InterpolateTransformFromPath(const nav_msgs::Path& path,
-                                  const ros::Time& time,
-                                  Eigen::Matrix4d& T_WORLD_SENSOR) {
-  for (int i = 0; i < path.poses.size(); i++) {
-    if (time < path.poses[i + 1].header.stamp &&
-        time >= path.poses[i].header.stamp) {
-      Eigen::Matrix4d pose1, pose2;
-      PoseMsgToTransformationMatrix(path.poses[i], pose1);
-      PoseMsgToTransformationMatrix(path.poses[i + 1], pose2);
-      T_WORLD_SENSOR = beam::InterpolateTransform(
-          pose1, beam::RosTimeToChrono(path.poses[i].header.stamp), pose2,
-          beam::RosTimeToChrono(path.poses[i + 1].header.stamp),
-          beam::RosTimeToChrono(time));
-    }
-  }
-}
-
 void EstimateVelocityFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Vector3d& velocity) {

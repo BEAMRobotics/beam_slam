@@ -42,9 +42,6 @@ void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
 void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
                                        Eigen::Matrix4d& T_WORLD_SENSOR);
 
-void InterpolateTransformFromPath(const nav_msgs::Path& path,
-                                  const ros::Time& time,
-                                  Eigen::Matrix4d& T_WORLD_SENSOR);
 
 void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS,
                                          Eigen::Matrix4d& T);
