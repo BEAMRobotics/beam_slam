@@ -22,6 +22,14 @@ void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
   ros::Time stamp = msg->stamp;
   std::vector<float> T = msg->T_WORLD_BASELINK;
   Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
+  std::string matrix_check_summary;
+  if (!beam::IsTransformationMatrix(T_WORLD_BASELINK, matrix_check_summary)) {
+    ROS_WARN(
+        "transformation matrix invalid, not adding SlamChunkMsg to global map. "
+        "Reason: %s, Input:",
+        matrix_check_summary.c_str());
+    std::cout << "T_WORLD_BASELINK\n" << T_WORLD_BASELINK << "\n";
+  }
 
   // update extrinsics if necessary
   UpdateExtrinsics();
@@ -56,8 +64,7 @@ void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
          maps_to_publish) {
       if (ros_map->first == global_mapping::RosMapType::LIDARSUBMAP) {
         submap_lidar_publisher_.publish(ros_map->second);
-      } else if (ros_map->first ==
-                 global_mapping::RosMapType::VISUALSUBMAP) {
+      } else if (ros_map->first == global_mapping::RosMapType::VISUALSUBMAP) {
         submap_keypoints_publisher_.publish(ros_map->second);
       } else if (ros_map->first == global_mapping::RosMapType::LIDARGLOBALMAP) {
         global_map_lidar_publisher_.publish(ros_map->second);
@@ -84,15 +91,18 @@ void GlobalMapper::onStart() {
   if (params_.publish_new_submaps) {
     submap_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
         params_.new_submaps_topic + "/lidar", 10);
-    submap_keypoints_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        params_.new_submaps_topic + "/visual", 10);    
+    submap_keypoints_publisher_ =
+        node_handle_.advertise<sensor_msgs::PointCloud2>(
+            params_.new_submaps_topic + "/visual", 10);
   }
 
   if (params_.publish_updated_global_map) {
-    global_map_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        params_.global_map_topic + "/lidar", 10);
-    global_map_keypoints_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        params_.global_map_topic + "/visual", 10);    
+    global_map_lidar_publisher_ =
+        node_handle_.advertise<sensor_msgs::PointCloud2>(
+            params_.global_map_topic + "/lidar", 10);
+    global_map_keypoints_publisher_ =
+        node_handle_.advertise<sensor_msgs::PointCloud2>(
+            params_.global_map_topic + "/visual", 10);
   }
 
   // get intrinsics
@@ -114,7 +124,6 @@ void GlobalMapper::onStart() {
   }
   global_map_->SetStoreNewSubmaps(params_.publish_new_submaps);
   global_map_->SetStoreUpdatedGlobalMap(params_.publish_updated_global_map);
-
 };
 
 void GlobalMapper::onStop() {

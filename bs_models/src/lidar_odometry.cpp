@@ -139,7 +139,7 @@ void LidarOdometry::onInit() {
       if (json_valid) {
         input_filter_params_ =
             beam_filtering::LoadFilterParamsVector(J_filters);
-        ROS_INFO("Loaded %d input filters", input_filter_params_.size());    
+        ROS_INFO("Loaded %d input filters", input_filter_params_.size());
       }
     }
   }
@@ -229,8 +229,12 @@ LidarOdometry::GenerateTransaction(
   active_clouds_.push_back(current_scan_pose);
 
   // build transaction of registration measurements
+
+  /** Uncomment this and comment the following line if you want to only include
+   * pose priors */
   // bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
   //     current_scan_pose.Stamp());
+  
   auto transaction = scan_registration_->RegisterNewScan(current_scan_pose);
 
   if (params_.frame_initializer_prior_noise > 0) {
@@ -331,8 +335,8 @@ void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
         pose.push_back(static_cast<float>(T(i, j)));
       }
     }
-    slam_chunk_msg.T_WORLD_BASELINK = pose;
 
+    slam_chunk_msg.T_WORLD_BASELINK = pose;
     slam_chunk_msg.lidar_measurement.frame_id = extrinsics_.GetLidarFrameId();
 
     // publish regular points

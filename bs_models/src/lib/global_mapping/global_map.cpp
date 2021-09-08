@@ -98,8 +98,10 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   nlohmann::json J_submap_filters = J_publishing["submap_lidar_filters"];
   nlohmann::json J_globalmap_filters = J_publishing["globalmap_lidar_filters"];
 
-  ros_submap_filter_params = beam_filtering::LoadFilterParamsVector(J_submap_filters);
-  ros_globalmap_filter_params = beam_filtering::LoadFilterParamsVector(J_globalmap_filters);
+  ros_submap_filter_params =
+      beam_filtering::LoadFilterParamsVector(J_submap_filters);
+  ros_globalmap_filter_params =
+      beam_filtering::LoadFilterParamsVector(J_globalmap_filters);
 }
 
 void GlobalMap::Params::SaveJson(const std::string& filename) {
@@ -322,6 +324,15 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         }
         Eigen::Matrix4d T_KEYFRAME_FRAME =
             beam::VectorToEigenTransform(current_pose);
+        std::string matrix_check_summary;
+        if (!beam::IsTransformationMatrix(T_KEYFRAME_FRAME,
+                                          matrix_check_summary)) {
+          ROS_ERROR(
+              "transformation matrix invalid, not adding trajectory "
+              "measurement to global map. Reason: %s. Input:",
+              matrix_check_summary.c_str());
+          std::cout << "T_KEYFRAME_FRAME\n" << T_KEYFRAME_FRAME << "\n";
+        }
         poses.push_back(T_KEYFRAME_FRAME);
         ros::Time new_stamp;
         new_stamp.fromNSec(traj_measurement.stamps[i]);
@@ -461,9 +472,10 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
   return transaction;
 }
 
-void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg, const ros::Time& update_time) {
+void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg,
+                                  const ros::Time& update_time) {
   last_update_time_ = update_time;
-  
+
   for (uint16_t i = 0; i < submaps_.size(); i++) {
     submaps_.at(i)->UpdatePose(graph_msg);
   }
