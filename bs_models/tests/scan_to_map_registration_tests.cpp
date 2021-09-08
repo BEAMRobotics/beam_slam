@@ -30,9 +30,9 @@ class Data {
     std::string test_path = __FILE__;
     test_path.erase(test_path.end() - current_file.size(), test_path.end());
     std::string scan_path = test_path + "data/test_scan_vlp16.pcd";
-    PointCloud test_cloud_tmp;
+    PointCloudPtr test_cloud_tmp = std::make_shared<PointCloud>();
     PointCloud test_cloud;
-    pcl::io::loadPCDFile(scan_path, test_cloud_tmp);
+    pcl::io::loadPCDFile(scan_path, *test_cloud_tmp);
 
     // create loam params from config
     std::string config_path = test_path + "data/loam_config.json";
@@ -52,7 +52,7 @@ class Data {
     beam_filtering::VoxelDownsample<> downsampler(scan_voxel_size);
     downsampler.SetInputCloud(test_cloud_tmp);
     downsampler.Filter();
-    PointCloud test_cloud = downsampler.GetFilteredCloud();
+    test_cloud = downsampler.GetFilteredCloud();
 
     // create poses
     // srand(time(NULL));
