@@ -443,10 +443,10 @@ void VisualInertialOdometry::NotifyNewKeyframe(
   bs_common::RelocRequestMsg reloc_msg;
   reloc_msg.image = keyframes_.back().Image();
   Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-  std::vector<float> pose;
+  std::vector<double> pose;
   for (uint8_t i = 0; i < 3; i++) {
     for (uint8_t j = 0; j < 4; j++) {
-      pose.push_back(static_cast<float>(T_WORLD_BASELINK(i, j)));
+      pose.push_back(T_WORLD_BASELINK(i, j));
     }
   }
   reloc_msg.T_WORLD_BASELINK = pose;
@@ -479,10 +479,10 @@ void VisualInertialOdometry::PublishSlamChunk() {
         visual_map_->GetCameraPose(kf_to_publish).value() * T_cam_baselink_;
 
     // flatten 4x4 pose
-    std::vector<float> pose;
+    std::vector<double> pose;
     for (uint8_t i = 0; i < 3; i++) {
       for (uint8_t j = 0; j < 4; j++) {
-        pose.push_back(static_cast<float>(T_WORLD_BASELINK(i, j)));
+        pose.push_back(T_WORLD_BASELINK(i, j));
       }
     }
     slam_chunk.T_WORLD_BASELINK = pose;
@@ -491,10 +491,10 @@ void VisualInertialOdometry::PublishSlamChunk() {
     TrajectoryMeasurementMsg trajectory;
     for (auto& it : keyframes_.front().Trajectory()) {
       // flatten 4x4 pose
-      std::vector<float> pose;
+      std::vector<double> pose;
       for (uint8_t i = 0; i < 3; i++) {
         for (uint8_t j = 0; j < 4; j++) {
-          pose.push_back(static_cast<float>(it.second(i, j)));
+          pose.push_back(it.second(i, j));
         }
       }
       ros::Time stamp;

@@ -5,6 +5,7 @@
 #include <boost/filesystem.hpp>
 
 #include <beam_utils/math.h>
+#include <beam_utils/log.h>
 #include <beam_utils/time.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -20,15 +21,17 @@ GlobalMapper::GlobalMapper()
 
 void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
   ros::Time stamp = msg->stamp;
-  std::vector<float> T = msg->T_WORLD_BASELINK;
+  std::vector<double> T = msg->T_WORLD_BASELINK;
   Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
+
   std::string matrix_check_summary;
   if (!beam::IsTransformationMatrix(T_WORLD_BASELINK, matrix_check_summary)) {
-    ROS_WARN(
+    BEAM_WARN(
         "transformation matrix invalid, not adding SlamChunkMsg to global map. "
         "Reason: %s, Input:",
         matrix_check_summary.c_str());
     std::cout << "T_WORLD_BASELINK\n" << T_WORLD_BASELINK << "\n";
+    return;
   }
 
   // update extrinsics if necessary

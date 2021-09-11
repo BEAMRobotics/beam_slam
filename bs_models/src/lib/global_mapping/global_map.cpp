@@ -301,7 +301,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   // add trajectory measurement if not empty
   if (!traj_measurement.stamps.empty()) {
     ROS_DEBUG("Adding trajectory measurement to global map.");
-    std::vector<float> poses_vec = traj_measurement.poses;
+    std::vector<double> poses_vec = traj_measurement.poses;
     uint16_t num_poses = static_cast<uint16_t>(poses_vec.size() / 12);
 
     // check dimensions of inputs first
@@ -318,7 +318,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
       std::vector<Eigen::Matrix4d, pose_allocator> poses;
       std::vector<ros::Time> stamps;
       for (int i = 0; i < num_poses; i++) {
-        std::vector<float> current_pose;
+        std::vector<double> current_pose;
         for (int j = 0; j < 12; j++) {
           current_pose.push_back(traj_measurement.poses[12 * i + j]);
         }

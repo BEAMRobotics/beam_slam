@@ -3,7 +3,7 @@
 # to get a higher frequency trajectory estimate. Each transform has [R | t] and 
 # is read from left to right to down. Size is (num_poses x 3 x 4). Note that 
 # keyframes must all expressed in the baselink frame
-float32[] poses
+float64[] poses
 
 # timestamps associated with each pose in nsecs
 float64[] stamps
