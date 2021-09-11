@@ -108,6 +108,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   ros::Publisher submap_keypoints_publisher_;
   ros::Publisher global_map_lidar_publisher_;
   ros::Publisher global_map_keypoints_publisher_;
+  ros::Publisher new_scans_publisher_;
 
   // params that can only be set here:
   int max_output_map_size_{3000000};  // limits output size of lidar maps

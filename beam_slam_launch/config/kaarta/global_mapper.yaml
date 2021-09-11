@@ -43,7 +43,9 @@ global_mapper:
   save_trajectory_cloud: true
   save_local_mapper_trajectory: true
   save_local_mapper_maps: true
-  publish_new_submaps: true
+  publish_new_submaps: false
   new_submaps_topic: "submaps"
   publish_updated_global_map: false
   global_map_topic: "global_map"
+  publish_new_scans: true
+  new_scans_topic: "new_scans"

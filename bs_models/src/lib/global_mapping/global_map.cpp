@@ -170,12 +170,20 @@ void GlobalMap::SetStoreNewSubmaps(bool store_new_submaps) {
   store_newly_completed_submaps_ = store_new_submaps;
 }
 
+void GlobalMap::SetStoreNewScans(bool store_new_scans) {
+  store_new_scans_ = store_new_scans;
+}
+
 void GlobalMap::SetStoreUpdatedGlobalMap(bool store_updated_global_map) {
   store_updated_global_map_ = store_updated_global_map;
 }
 
 std::vector<std::shared_ptr<RosMap>> GlobalMap::GetRosMaps() {
   std::vector<std::shared_ptr<RosMap>> maps_vector;
+  while (!ros_new_scans_.empty()) {
+    maps_vector.push_back(ros_new_scans_.front());
+    ros_new_scans_.pop();
+  }
   while (!ros_submaps_.empty()) {
     maps_vector.push_back(ros_submaps_.front());
     ros_submaps_.pop();
@@ -291,6 +299,10 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         p.z = points[point_counter + 2];
         cloud.push_back(p);
         point_counter += 3;
+      }
+
+      if (store_new_scans_ && lid_measurement.point_type == 0) {
+        AddNewRosScan(cloud, T_WORLD_BASELINK, stamp);
       }
 
       submaps_.at(submap_id)->AddLidarMeasurement(
@@ -933,6 +945,43 @@ void GlobalMap::AddRosGlobalMap() {
     // set cloud
     RosMap new_ros_map_keypoints(RosMapType::VISUALGLOBALMAP, pointcloud2_msg);
     ros_global_keypoints_map_ = std::make_shared<RosMap>(new_ros_map_keypoints);
+  }
+}
+
+void GlobalMap::AddNewRosScan(const PointCloud& cloud,
+                              const Eigen::Matrix4d& T_WORLD_BASELINK,
+                              const ros::Time& stamp) {
+  Eigen::Matrix4d T_BASELINK_LIDAR;
+  if (!extrinsics_->GetT_BASELINK_LIDAR(T_BASELINK_LIDAR)) {
+    BEAM_ERROR("Cannot get extrinsics, not publishing new lidar scans");
+    store_new_scans_ = false;
+    return;
+  }
+
+  PointCloud cloud_in_world_frame;
+  Eigen::Matrix4d T_WORLD_LIDAR = T_WORLD_BASELINK * T_BASELINK_LIDAR;
+  pcl::transformPointCloud(cloud, cloud_in_world_frame, T_WORLD_LIDAR);
+
+  sensor_msgs::PointCloud2 pointcloud2_msg;
+  pcl::PCLPointCloud2 pcl_pc2;
+
+  // convert to PointCloud2
+  pcl::toPCLPointCloud2<pcl::PointXYZ>(cloud_in_world_frame, pcl_pc2);
+  beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
+
+  // add other information
+  pointcloud2_msg.header.stamp = stamp;
+  pointcloud2_msg.header.seq = new_scans_counter_;
+  pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+  new_scans_counter_++;
+
+  // set cloud
+  RosMap new_ros_map(RosMapType::LIDARNEW, pointcloud2_msg);
+  ros_new_scans_.push(std::make_shared<RosMap>(new_ros_map));
+
+  // clear maps if there are too many in the queue;
+  while (ros_new_scans_.size() > max_num_new_scans_) {
+    ros_new_scans_.pop();
   }
 }
 

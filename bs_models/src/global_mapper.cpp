@@ -60,12 +60,15 @@ void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
     ROS_DEBUG("Global map updated.");
   }
 
-  if (params_.publish_new_submaps || params_.publish_updated_global_map) {
+  if (params_.publish_new_submaps || params_.publish_updated_global_map ||
+      params_.publish_new_scans) {
     std::vector<std::shared_ptr<global_mapping::RosMap>> maps_to_publish =
         global_map_->GetRosMaps();
     for (const std::shared_ptr<global_mapping::RosMap>& ros_map :
          maps_to_publish) {
-      if (ros_map->first == global_mapping::RosMapType::LIDARSUBMAP) {
+      if (ros_map->first == global_mapping::RosMapType::LIDARNEW) {
+        new_scans_publisher_.publish(ros_map->second);
+      } else if (ros_map->first == global_mapping::RosMapType::LIDARSUBMAP) {
         submap_lidar_publisher_.publish(ros_map->second);
       } else if (ros_map->first == global_mapping::RosMapType::VISUALSUBMAP) {
         submap_keypoints_publisher_.publish(ros_map->second);
@@ -99,6 +102,11 @@ void GlobalMapper::onStart() {
             params_.new_submaps_topic + "/visual", 10);
   }
 
+  if (params_.publish_new_scans) {
+    new_scans_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
+        params_.new_scans_topic, 50);
+  }
+
   if (params_.publish_updated_global_map) {
     global_map_lidar_publisher_ =
         node_handle_.advertise<sensor_msgs::PointCloud2>(
@@ -127,6 +135,7 @@ void GlobalMapper::onStart() {
   }
   global_map_->SetStoreNewSubmaps(params_.publish_new_submaps);
   global_map_->SetStoreUpdatedGlobalMap(params_.publish_updated_global_map);
+  global_map_->SetStoreNewScans(params_.publish_new_scans);
 };
 
 void GlobalMapper::onStop() {
