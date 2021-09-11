@@ -44,7 +44,7 @@ lidar_odometry:
   matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
   registration_config_path: 'DEFAULT_PATH' 
   input_filters_config_path: 'DEFAULT_PATH' 
-  matcher_noise: 0.001 
+  matcher_noise: 0.1 
   input_topic: '/velodyne_points'
   output_loam_points: true 
   output_lidar_points: true

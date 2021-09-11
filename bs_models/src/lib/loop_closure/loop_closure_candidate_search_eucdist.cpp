@@ -6,26 +6,48 @@
 #include <beam_utils/log.h>
 #include <beam_utils/math.h>
 
+#include <bs_common/utils.h>
+
 namespace bs_models {
 
 namespace loop_closure {
+
+LoopClosureCandidateSearchEucDist::LoopClosureCandidateSearchEucDist(
+    const std::string& config_path) {
+      this->config_path_ = config_path;
+      LoadConfig();
+    }
 
 LoopClosureCandidateSearchEucDist::LoopClosureCandidateSearchEucDist(
     double distance_threshold_m)
     : distance_threshold_m_(distance_threshold_m) {}
 
 void LoopClosureCandidateSearchEucDist::LoadConfig() {
-  if (config_path_.empty()) {
+  std::string read_path = config_path_;
+
+  if (read_path.empty()) {
     return;
   }
 
+  if (read_path == "DEFAULT_PATH") {
+    read_path = bs_common::GetBeamSlamConfigPath() +
+                "global_map/loop_closure_candidate_search_eucdist.json";
+  }
+
   nlohmann::json J;
-  if(!beam::ReadJson(config_path_, J)){
+  BEAM_INFO("Loading loop closure config: {}", read_path);
+  if (!beam::ReadJson(read_path, J)) {
     BEAM_INFO("Using default params.");
     return;
   }
 
-  distance_threshold_m_ = J["distance_threshold_m"];
+  try {
+    distance_threshold_m_ = J["distance_threshold_m"];
+  } catch (...) {
+    BEAM_ERROR(
+        "Missing one or more parameter, using default loop closure "
+        "candidate search params");
+  }
 }
 
 void LoopClosureCandidateSearchEucDist::FindLoopClosureCandidates(
