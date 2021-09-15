@@ -63,10 +63,11 @@ void LoopClosureCandidateSearchEucDist::FindLoopClosureCandidates(
       continue;
     }
     const Eigen::Matrix4d& T_WORLD_MATCHCANDIDATE =
-        submaps.at(i)->T_WORLD_SUBMAP();
+        submaps.at(i)->T_WORLD_SUBMAP();   
     Eigen::Matrix4d T_MATCHCANDIDATE_QUERY =
         beam::InvertTransform(T_WORLD_MATCHCANDIDATE) * T_WORLD_QUERY;
     double distance = T_MATCHCANDIDATE_QUERY.block(0, 3, 3, 1).norm();
+    
     if (distance < distance_threshold_m_) {
       matched_indices.push_back(i);
       estimated_poses.push_back(T_MATCHCANDIDATE_QUERY);

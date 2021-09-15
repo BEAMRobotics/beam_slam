@@ -45,6 +45,11 @@ class LoopClosureRefinementBase {
 
  protected:
   std::string config_path_;
+
+  /* Debugging tools that can only be set here */
+  bool output_results_{false};
+  std::string debug_output_path_{"/home/nick/results/beam_slam/loop_closure/"};
+  std::string output_path_stamped_; // to be created in implementation
 };
 
 }  // namespace loop_closure

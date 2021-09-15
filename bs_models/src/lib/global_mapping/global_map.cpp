@@ -258,7 +258,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
     new_transaction = InitiateNewSubmapPose();
 
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
-        FindLoopClosures();
+        FindLoopClosures(submaps_.size() - 2);
 
     if (loop_closure_transaction != nullptr) {
       new_transaction->merge(*loop_closure_transaction);
@@ -357,6 +357,14 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   return new_transaction;
 }
 
+fuse_core::Transaction::SharedPtr GlobalMap::TriggerLoopClosure() {
+  if(submaps_.size() < 2){
+    return nullptr;
+  }
+  
+  return FindLoopClosures(submaps_.size() - 1);
+}
+
 int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // check if current pose is within "submap_size" from previous submap, or
   // current submap. We prioritize the previous submap for the case where data
@@ -432,7 +440,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   return new_transaction.GetTransaction();
 }
 
-fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
+fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures(int query_index) {
   // if first submap, don't look for loop closures
   if (submaps_.size() == 1) {
     return nullptr;
@@ -440,12 +448,11 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
 
   ROS_DEBUG("Searching for loop closure candidates");
 
-  int current_index = submaps_.size() - 2;
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
 
   loop_closure_candidate_search_->FindLoopClosureCandidates(
-      submaps_, current_index, matched_indices, Ts_MATCH_QUERY);
+      submaps_, query_index, matched_indices, Ts_MATCH_QUERY);
 
   ROS_DEBUG("Found %d loop closure candidates.", matched_indices.size());
 
@@ -456,20 +463,20 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
   ROS_DEBUG(
       "Matched index[0]: %d, Query Index: %d, No. or submaps: %d. Running loop "
       "closure refinement",
-      matched_indices.at(0), current_index, submaps_.size());
+      matched_indices.at(0), query_index, submaps_.size());
 
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
   for (int i = 0; i < matched_indices.size(); i++) {
-    // if the matched index is adjacent to the current index, ignore it. This
+    // if the matched index is adjacent to the query index, ignore it. This
     // would happen from improper candidate search implementations
-    if (matched_indices[i] == current_index + 1 ||
-        matched_indices[i] == current_index - 1) {
+    if (matched_indices[i] == query_index + 1 ||
+        matched_indices[i] == query_index - 1) {
       continue;
     }
     fuse_core::Transaction::SharedPtr new_transaction =
         loop_closure_refinement_->GenerateTransaction(
-            submaps_.at(matched_indices[i]), submaps_.at(current_index),
+            submaps_.at(matched_indices[i]), submaps_.at(query_index),
             Ts_MATCH_QUERY[i]);
     if (new_transaction != nullptr) {
       transaction->merge(*new_transaction);

@@ -8,6 +8,8 @@
 #include <beam_utils/log.h>
 #include <beam_utils/time.h>
 
+#include <bs_common/utils.h>
+
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::GlobalMapper, fuse_core::SensorModel)
 
@@ -139,6 +141,21 @@ void GlobalMapper::onStart() {
 };
 
 void GlobalMapper::onStop() {
+  // use beam logging here because ROS logging stops when a node shutdown gets
+  // called
+  BEAM_INFO("Running final loop closure");
+  auto transaction_ptr = global_map_->TriggerLoopClosure();
+
+  if (transaction_ptr != nullptr) {
+    BEAM_INFO("Found {} loop closures. Updating map.",
+              bs_common::GetNumberOfConstraints(transaction_ptr));
+    graph_->update(*transaction_ptr);
+    graph_->optimize();
+    global_map_->UpdateSubmapPoses(graph_, ros::Time::now());
+  } else {
+    BEAM_INFO("No loop closures found for final submap.");
+  }
+
   if (!boost::filesystem::exists(params_.output_path)) {
     BEAM_ERROR("Output path does not exist, not saing results.");
     return;

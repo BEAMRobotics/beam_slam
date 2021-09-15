@@ -215,21 +215,20 @@ class GlobalMap {
       const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp);
 
   /**
-   * @brief takes the latest submap (back of vector) and adds a pose constraint
-   * between it and it's previous submap. If it's the first submap, it will add
-   * a perfect prior on this submap.
-   * @return transaction which adds the new submap variables and a binary
-   * constraints between the previous submap and the new one
-   */
-  fuse_core::Transaction::SharedPtr InitiateNewSubmapPose();
-
-  /**
    * @brief Update submap poses with a new graph message
    * @param graph_msg updated graph which should have all submap poses stored
    * @param update_time ros time of this update
    */
   void UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg,
                          const ros::Time& update_time = ros::Time(0));
+
+  /**
+   * @brief Calling this will trigger a loop closure search for the last submap.
+   * This is convenient for completing a mapping session where the final submap
+   * won't be complete so we wouldn't have run loop closure on it.
+   * @return transaction with new variables and constraints if applicable
+   */
+  fuse_core::Transaction::SharedPtr TriggerLoopClosure();
 
   /**
    * @brief Save full global map to a format that can be reloaded later for new
@@ -331,14 +330,27 @@ class GlobalMap {
   int GetSubmapId(const Eigen::Matrix4d& T_WORLD_FRAME);
 
   /**
-   * @brief Get loop closure measurements by comparing the second last submap to
-   * all previous submaps. The reason we compare the second last submap is
-   * because we don't want to find loop closures until the submap is complete,
-   * this ensures a best estimate of the loop closure constraint.
+   * @brief takes the latest submap (back of vector) and adds a pose constraint
+   * between it and it's previous submap. If it's the first submap, it will add
+   * a perfect prior on this submap.
+   * @return transaction which adds the new submap variables and a binary
+   * constraints between the previous submap and the new one
+   */
+  fuse_core::Transaction::SharedPtr InitiateNewSubmapPose();
+
+  /**
+   * @brief Get loop closure measurements by comparing the a submap to
+   * all previous submaps. By default, every new submap will trigger a loop
+   * closure for the second last submap. The reason we compare the second last
+   * submap is because we don't want to find loop closures until the submap is
+   * complete, this ensures a best estimate of the loop closure constraint. When
+   * a global map is complete, you should trigger loop closure against the last
+   * submap which probably still isn't complete
+   * @param query_index index of submap to look for loop closures against
    * @return fuse transaction with the frame to frame constraints between two
    * loop closure poses
    */
-  fuse_core::Transaction::SharedPtr FindLoopClosures();
+  fuse_core::Transaction::SharedPtr FindLoopClosures(int query_index);
 
   /**
    * @brief adds submap points (lidar points and camera keypoints) to the queue
@@ -403,6 +415,7 @@ class GlobalMap {
   std::unique_ptr<loop_closure::LoopClosureRefinementBase>
       loop_closure_refinement_;
 
+  // ros maps
   std::queue<std::shared_ptr<RosMap>> ros_submaps_;
   std::queue<std::shared_ptr<RosMap>> ros_new_scans_;
   std::shared_ptr<RosMap> ros_global_lidar_map_;
