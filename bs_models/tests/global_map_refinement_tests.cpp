@@ -167,7 +167,7 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
   // create global map
   std::shared_ptr<GlobalMap> global_map =
       std::make_shared<GlobalMap>(nullptr, extrinsics_);
-  global_map->SetSubmaps(submaps);
+  global_map->SetOnlineSubmaps(submaps);
 
   // load params
   GlobalMapRefinement::Params params;
@@ -273,7 +273,7 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
   // create global map
   std::shared_ptr<GlobalMap> global_map =
       std::make_shared<GlobalMap>(nullptr, extrinsics_);
-  global_map->SetSubmaps(submaps);
+  global_map->SetOnlineSubmaps(submaps);
 
   // load params
   GlobalMapRefinement::Params params;

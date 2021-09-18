@@ -34,9 +34,11 @@ solver_options:
   function_tolerance: 0.00000015
 
 global_mapper:
-  input_topic: '/slam_results'
+  slam_chunk_topic: '/slam_results'
+  reloc_request_topic: '/reloc_request'
   global_map_config: 'DEFAULT_PATH' # Empty will use defaults defined in class. DEFAULT_PATH will use the file in config/global_map/global_map.json
   output_path: '/home/nick/results/beam_slam/global_mapper/'
+  offline_map_path:  '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/offline_map/GlobalMapData/'
   save_global_map_data: true
   save_submap_frames: true
   save_submaps: true
@@ -47,5 +49,5 @@ global_mapper:
   new_submaps_topic: "submaps"
   publish_updated_global_map: false
   global_map_topic: "global_map"
-  publish_new_scans: true
+  publish_new_scans: false
   new_scans_topic: "new_scans"

@@ -146,17 +146,31 @@ class GlobalMap {
   ~GlobalMap() = default;
 
   /**
-   * @brief get access to the submaps
-   * @return vector of pointers to submaps stored in this global map
+   * @brief get access to the online submaps (see variable below for definition)
+   * @return vector of pointers to the online submaps stored in this global map
    */
-  std::vector<std::shared_ptr<Submap>> GetSubmaps();
+  std::vector<std::shared_ptr<Submap>> GetOnlineSubmaps();
 
   /**
-   * @brief set the submaps
+   * @brief get access to the offline submaps (see variable below for
+   * definition)
+   * @return vector of pointers to the offline submaps stored in this global map
+   */
+  std::vector<std::shared_ptr<Submap>> GetOfflineSubmaps();
+
+  /**
+   * @brief set online the submaps vector
    * @param submaps vector of pointers to submaps to be stored in this global
    * map
    */
-  void SetSubmaps(std::vector<std::shared_ptr<Submap>>& submaps);
+  void SetOnlineSubmaps(std::vector<std::shared_ptr<Submap>>& submaps);
+
+  /**
+   * @brief set offline the submaps vector
+   * @param submaps vector of pointers to submaps to be stored in this global
+   * map
+   */
+  void SetOfflineSubmaps(std::vector<std::shared_ptr<Submap>>& submaps);
 
   /**
    * @brief Sets store_newly_completed_submaps_ param. See description below for
@@ -408,7 +422,20 @@ class GlobalMap {
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 
-  std::vector<std::shared_ptr<Submap>> submaps_;
+  /** online submaps are the submaps that are being build when AddMeasurement is
+   * called, or when a previous global map is loaded in the constructor. It also
+   * has the set and get functions: SetOnlineSubmaps(), GetOnlineSubmaps()
+   */
+  std::vector<std::shared_ptr<Submap>> online_submaps_;
+
+  /** Offline submaps can only be preloaded using SetOfflineSubmaps(). This
+   * vector of offline submaps represents some pre-loaded global map which will
+   * be used during RelocRequest to see if the robot is currently within an
+   * offline submap which will then get sent back to the local mapper. If it is
+   * determined that the robot is not within any offline submap, then it will
+   * search within the online submaps.
+   */
+  std::vector<std::shared_ptr<Submap>> offline_submaps_;
 
   std::unique_ptr<loop_closure::LoopClosureCandidateSearchBase>
       loop_closure_candidate_search_;

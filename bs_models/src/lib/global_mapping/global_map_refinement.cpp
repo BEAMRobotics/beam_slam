@@ -177,7 +177,7 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
   global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-  submaps_ = global_map_->GetSubmaps();
+  submaps_ = global_map_->GetOnlineSubmaps();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
@@ -189,13 +189,13 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
   global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-  submaps_ = global_map_->GetSubmaps();
+  submaps_ = global_map_->GetOnlineSubmaps();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(
     std::shared_ptr<GlobalMap>& global_map, const Params& params)
     : global_map_(global_map), params_(params) {
-  submaps_ = global_map_->GetSubmaps();
+  submaps_ = global_map_->GetOnlineSubmaps();
   Setup();
 }
 
@@ -203,7 +203,7 @@ GlobalMapRefinement::GlobalMapRefinement(
     std::shared_ptr<GlobalMap>& global_map, const std::string& config_path)
     : global_map_(global_map) {
   params_.LoadJson(config_path);
-  submaps_ = global_map_->GetSubmaps();
+  submaps_ = global_map_->GetOnlineSubmaps();
   Setup();
 }
 

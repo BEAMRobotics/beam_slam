@@ -28,7 +28,7 @@ struct LidarOdometryParams : public ParameterBase {
     /** Output topic for scan pose results after they've have been marginalized
      * out of the window. If left blank, it will not publish results (for global
      * mapper) */
-    getParamRequired<std::string>(nh, "output_topic", output_topic);
+    getParamRequired<std::string>(nh, "slam_chunk_topic", slam_chunk_topic);
 
     /** If set to true, it will output the loam points of the marginalized scan
      * poses */
@@ -99,7 +99,7 @@ struct LidarOdometryParams : public ParameterBase {
   }
 
   std::string input_topic;
-  std::string output_topic;
+  std::string slam_chunk_topic;
   bool output_loam_points{true};
   bool output_lidar_points{true};
   std::string frame_initializer_type{"ODOMETRY"};

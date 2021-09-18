@@ -180,7 +180,7 @@ void LidarOdometry::onStart() {
       &throttled_callback_, ros::TransportHints().tcpNoDelay(false));
 
   results_publisher_ =
-      private_node_handle_.advertise<SlamChunkMsg>(params_.output_topic, 100);
+      private_node_handle_.advertise<SlamChunkMsg>(params_.slam_chunk_topic, 100);
 };
 
 void LidarOdometry::onStop() {
@@ -354,7 +354,7 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 }
 
 void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
-  if (!params_.output_topic.empty()) {
+  if (!params_.slam_chunk_topic.empty()) {
     // output to global mapper
     SlamChunkMsg slam_chunk_msg;
     slam_chunk_msg.stamp = scan_pose.Stamp();

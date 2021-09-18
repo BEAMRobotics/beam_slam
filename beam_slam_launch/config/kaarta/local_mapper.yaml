@@ -48,7 +48,8 @@ lidar_odometry:
   input_topic: '/velodyne_points'
   output_loam_points: true 
   output_lidar_points: true
-  output_topic: '/slam_results' 
+  slam_chunk_topic: '/slam_results' 
+  reloc_request_topic: '/reloc_request' 
   frame_initializer_type: 'POSEFILE' 
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply'
   frame_initializer_prior_noise: 0.00001 
