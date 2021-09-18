@@ -111,8 +111,8 @@ add_library(
   src/lib/global_mapping/global_map.cpp
   src/lib/global_mapping/submap.cpp
   src/lib/global_mapping/global_map_refinement.cpp
-  src/lib/loop_closure/loop_closure_candidate_search_eucdist.cpp
-  src/lib/loop_closure/loop_closure_refinement_loam_registration.cpp
+  src/lib/reloc/reloc_candidate_search_eucdist.cpp
+  src/lib/reloc/reloc_refinement_loam_registration.cpp
   src/lib/scan_registration/scan_registration_base.cpp
   src/lib/scan_registration/multi_scan_registration.cpp
   src/lib/scan_registration/scan_to_map_registration.cpp

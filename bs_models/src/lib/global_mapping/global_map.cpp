@@ -13,14 +13,14 @@
 #include <beam_utils/pcl_conversions.h>
 #include <beam_mapping/Poses.h>
 
-#include <bs_models/loop_closure/loop_closure_methods.h>
+#include <bs_models/reloc/reloc_methods.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_common/utils.h>
 
 namespace bs_models {
 namespace global_mapping {
 
-using namespace loop_closure;
+using namespace reloc;
 
 GlobalMap::Params::Params() {
   double local_map_cov_diag = 1e-3;
@@ -34,7 +34,7 @@ GlobalMap::Params::Params() {
                              0, 0, 0, 0, local_map_cov_diag, 0,
                              0, 0, 0, 0, 0, local_map_cov_diag;
 
-  loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
+  reloc_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
                              0, loop_cov_diag, 0, 0, 0, 0,
                              0, 0, loop_cov_diag, 0, 0, 0,
                              0, 0, 0, loop_cov_diag, 0, 0,
@@ -65,11 +65,11 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   }
 
   submap_size = J["submap_size_m"];
-  loop_closure_candidate_search_type = J["loop_closure_candidate_search_type"];
-  loop_closure_refinement_type = J["loop_closure_refinement_type"];
-  loop_closure_candidate_search_config =
-      J["loop_closure_candidate_search_config"];
-  loop_closure_refinement_config = J["loop_closure_refinement_config"];
+  reloc_candidate_search_type = J["reloc_candidate_search_type"];
+  reloc_refinement_type = J["reloc_refinement_type"];
+  reloc_candidate_search_config =
+      J["reloc_candidate_search_config"];
+  reloc_refinement_config = J["reloc_refinement_config"];
 
   std::vector<double> vec = J["local_mapper_covariance_diag"];
   if (vec.size() != 6) {
@@ -82,15 +82,15 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
     local_mapper_covariance = vec_eig.asDiagonal();
   }
 
-  std::vector<double> vec2 = J["loop_closure_covariance_diag"];
+  std::vector<double> vec2 = J["reloc_covariance_diag"];
   if (vec2.size() != 6) {
     BEAM_ERROR(
-        "Invalid loop closure covariance diagonal (6 values required). Using "
+        "Invalid reloc covariance diagonal (6 values required). Using "
         "default.");
   } else {
     Eigen::VectorXd vec_eig = Eigen::VectorXd(6);
     vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
-    loop_closure_covariance = vec_eig.asDiagonal();
+    reloc_covariance = vec_eig.asDiagonal();
   }
 
   // load filters
@@ -107,20 +107,20 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
 void GlobalMap::Params::SaveJson(const std::string& filename) {
   nlohmann::json J = {
       {"submap_size_m", submap_size},
-      {"loop_closure_candidate_search_type",
-       loop_closure_candidate_search_type},
-      {"loop_closure_refinement_type", loop_closure_refinement_type},
-      {"loop_closure_candidate_search_config",
-       loop_closure_candidate_search_config},
-      {"loop_closure_refinement_config", loop_closure_refinement_config},
+      {"reloc_candidate_search_type",
+       reloc_candidate_search_type},
+      {"reloc_refinement_type", reloc_refinement_type},
+      {"reloc_candidate_search_config",
+       reloc_candidate_search_config},
+      {"reloc_refinement_config", reloc_refinement_config},
       {"local_mapper_covariance_diag",
        {local_mapper_covariance(0, 0), local_mapper_covariance(1, 1),
         local_mapper_covariance(2, 2), local_mapper_covariance(3, 3),
         local_mapper_covariance(4, 4), local_mapper_covariance(5, 5)}},
-      {"loop_closure_covariance_diag",
-       {loop_closure_covariance(0, 0), loop_closure_covariance(1, 1),
-        loop_closure_covariance(2, 2), loop_closure_covariance(3, 3),
-        loop_closure_covariance(4, 4), loop_closure_covariance(5, 5)}}};
+      {"reloc_covariance_diag",
+       {reloc_covariance(0, 0), reloc_covariance(1, 1),
+        reloc_covariance(2, 2), reloc_covariance(3, 3),
+        reloc_covariance(4, 4), reloc_covariance(5, 5)}}};
 
   std::ofstream file(filename);
   file << std::setw(4) << J << std::endl;
@@ -211,43 +211,43 @@ std::vector<std::shared_ptr<RosMap>> GlobalMap::GetRosMaps() {
 }
 
 void GlobalMap::Setup() {
-  // initiate loop closure candidate search
-  if (params_.loop_closure_candidate_search_type == "EUCDIST") {
-    loop_closure_candidate_search_ =
-        std::make_unique<LoopClosureCandidateSearchEucDist>(
-            params_.loop_closure_candidate_search_config);
+  // initiate reloc candidate search
+  if (params_.reloc_candidate_search_type == "EUCDIST") {
+    reloc_candidate_search_ =
+        std::make_unique<RelocCandidateSearchEucDist>(
+            params_.reloc_candidate_search_config);
   } else {
     BEAM_ERROR(
-        "Invalid loop closure candidate search type. Using default: EUCDIST. "
+        "Invalid reloc candidate search type. Using default: EUCDIST. "
         "Input: {}",
-        params_.loop_closure_candidate_search_type);
-    loop_closure_candidate_search_ =
-        std::make_unique<LoopClosureCandidateSearchEucDist>(
-            params_.loop_closure_candidate_search_config);
+        params_.reloc_candidate_search_type);
+    reloc_candidate_search_ =
+        std::make_unique<RelocCandidateSearchEucDist>(
+            params_.reloc_candidate_search_config);
   }
 
-  // initiate loop closure refinement
-  if (params_.loop_closure_refinement_type == "ICP") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
-  } else if (params_.loop_closure_refinement_type == "GICP") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementGicp>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
-  } else if (params_.loop_closure_refinement_type == "NDT") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementNdt>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
-  } else if (params_.loop_closure_refinement_type == "LOAM") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementLoam>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
+  // initiate reloc refinement
+  if (params_.reloc_refinement_type == "ICP") {
+    reloc_refinement_ = std::make_unique<RelocRefinementIcp>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
+  } else if (params_.reloc_refinement_type == "GICP") {
+    reloc_refinement_ = std::make_unique<RelocRefinementGicp>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
+  } else if (params_.reloc_refinement_type == "NDT") {
+    reloc_refinement_ = std::make_unique<RelocRefinementNdt>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
+  } else if (params_.reloc_refinement_type == "LOAM") {
+    reloc_refinement_ = std::make_unique<RelocRefinementLoam>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
   } else {
-    BEAM_ERROR("Invalid loop closure refinement type. Using default: ICP");
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
+    BEAM_ERROR("Invalid reloc refinement type. Using default: ICP");
+    reloc_refinement_ = std::make_unique<RelocRefinementIcp>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
   }
 }
 
@@ -267,11 +267,11 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
     online_submaps_.push_back(new_submap);
     new_transaction = InitiateNewSubmapPose();
 
-    fuse_core::Transaction::SharedPtr loop_closure_transaction =
-        FindLoopClosures(online_submaps_.size() - 2);
+    fuse_core::Transaction::SharedPtr reloc_transaction =
+        FindRelocs(online_submaps_.size() - 2);
 
-    if (loop_closure_transaction != nullptr) {
-      new_transaction->merge(*loop_closure_transaction);
+    if (reloc_transaction != nullptr) {
+      new_transaction->merge(*reloc_transaction);
     }
 
     if (store_newly_completed_submaps_ && online_submaps_.size() > 1) {
@@ -368,12 +368,12 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   return new_transaction;
 }
 
-fuse_core::Transaction::SharedPtr GlobalMap::TriggerLoopClosure() {
+fuse_core::Transaction::SharedPtr GlobalMap::TriggerReloc() {
   if (online_submaps_.size() < 2) {
     return nullptr;
   }
 
-  return FindLoopClosures(online_submaps_.size() - 1);
+  return FindRelocs(online_submaps_.size() - 1);
 }
 
 int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
@@ -455,21 +455,21 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   return new_transaction.GetTransaction();
 }
 
-fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures(int query_index) {
-  // if first submap, don't look for loop closures
+fuse_core::Transaction::SharedPtr GlobalMap::FindRelocs(int query_index) {
+  // if first submap, don't look for relocs
   if (online_submaps_.size() == 1) {
     return nullptr;
   }
 
-  ROS_DEBUG("Searching for loop closure candidates");
+  ROS_DEBUG("Searching for reloc candidates");
 
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
 
-  loop_closure_candidate_search_->FindLoopClosureCandidates(
+  reloc_candidate_search_->FindRelocCandidates(
       online_submaps_, query_index, matched_indices, Ts_MATCH_QUERY);
 
-  ROS_DEBUG("Found %d loop closure candidates.", matched_indices.size());
+  ROS_DEBUG("Found %d reloc candidates.", matched_indices.size());
 
   if (matched_indices.size() == 0) {
     return nullptr;
@@ -490,7 +490,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures(int query_index) {
       continue;
     }
     fuse_core::Transaction::SharedPtr new_transaction =
-        loop_closure_refinement_->GenerateTransaction(
+        reloc_refinement_->GenerateTransaction(
             online_submaps_.at(matched_indices[i]),
             online_submaps_.at(query_index), Ts_MATCH_QUERY[i]);
     if (new_transaction != nullptr) {
@@ -498,7 +498,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures(int query_index) {
     }
   }
 
-  ROS_DEBUG("Returning %d loop closure transactions",
+  ROS_DEBUG("Returning %d reloc transactions",
             bs_common::GetNumberOfConstraints(transaction));
 
   return transaction;

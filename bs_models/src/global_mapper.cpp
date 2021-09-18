@@ -185,17 +185,17 @@ void GlobalMapper::onStart() {
 void GlobalMapper::onStop() {
   // use beam logging here because ROS logging stops when a node shutdown gets
   // called
-  BEAM_INFO("Running final loop closure");
-  auto transaction_ptr = global_map_->TriggerLoopClosure();
+  BEAM_INFO("Running final reloc");
+  auto transaction_ptr = global_map_->TriggerReloc();
 
   if (transaction_ptr != nullptr) {
-    BEAM_INFO("Found {} loop closures. Updating map.",
+    BEAM_INFO("Found {} relocs. Updating map.",
               bs_common::GetNumberOfConstraints(transaction_ptr));
     graph_->update(*transaction_ptr);
     graph_->optimize();
     global_map_->UpdateSubmapPoses(graph_, ros::Time::now());
   } else {
-    BEAM_INFO("No loop closures found for final submap.");
+    BEAM_INFO("No relocs found for final submap.");
   }
 
   if (!boost::filesystem::exists(params_.output_path)) {

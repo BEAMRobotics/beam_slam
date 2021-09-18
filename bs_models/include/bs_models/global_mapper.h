@@ -41,7 +41,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
    * (1) a new transaction is generated which adds a constraint between the new
    * submap and the previous submap.
    *
-   * (2) a loop closure check is initiated with the previous submap and if a
+   * (2) a reloc check is initiated with the previous submap and if a
    * loop is found, a constraint is added by creating another transaction to
    * send to the graph.
    *
@@ -55,18 +55,18 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
    * this pose is within some submap, if so, we want to publish the updated
    * submap. There are process works as follows:
    *
-   * (1) run loop closure candidacy search on all offline maps if they exist.
+   * (1) run reloc candidacy search on all offline maps if they exist.
    *  - if none returned, then skip to 2
    *  - check that candidate submaps are not the current active submap
-   *  - run loop closure refinement on all candidate submaps
+   *  - run reloc refinement on all candidate submaps
    *  - store the best refined pose and submap index (if at least one refinement
    *    was successful)
    *
-   * (2) 1 was unsuccessful, run loop closure candidacy search on all online
+   * (2) 1 was unsuccessful, run reloc candidacy search on all online
    *     maps
    *  - if non returned, then we are done
    *  - check that candidate submaps are not the current active submap
-   *  - run loop closure refinement on all candidate submaps
+   *  - run reloc refinement on all candidate submaps
    *  - store the best refined pose and submap index (if at least one refinement
    *    was successful)
    *

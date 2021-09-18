@@ -1,8 +1,8 @@
 #pragma once
 
 #include <bs_models/global_mapping/global_map.h>
-#include <bs_models/loop_closure/loop_closure_candidate_search_base.h>
-#include <bs_models/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/reloc/reloc_candidate_search_base.h>
+#include <bs_models/reloc/reloc_refinement_base.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 
@@ -46,20 +46,20 @@ class GlobalMapRefinement {
     /** constructor to make sure special default variables are set */
     Params();
 
-    /** String describing the loop closure type to use.
+    /** String describing the reloc type to use.
      * Options:
      * - EUCDIST: Euclidean distance candidate search.
      */
-    std::string loop_closure_candidate_search_type{"EUCDIST"};
+    std::string reloc_candidate_search_type{"EUCDIST"};
 
-    /** String describing the loop closure refinement type to use.
+    /** String describing the reloc refinement type to use.
      * Options:
      * - ICP: ICP scan registration with lidar data
      * - GICP: GICP scan registration with lidar data
      * - NDT: NDT scan registration on lidar data
      * - LOAM: LOAM scan registration
      */
-    std::string loop_closure_refinement_type{"ICP"};
+    std::string reloc_refinement_type{"ICP"};
 
     /** String describing the type of scan registrattion to use
      * Options:
@@ -68,20 +68,20 @@ class GlobalMapRefinement {
      */
     std::string scan_registration_type{"SCANTOMAP"};
 
-    /** Full path to config file for loop closure candidate search. If blank, it
+    /** Full path to config file for reloc candidate search. If blank, it
      * will use default parameters.*/
-    std::string loop_closure_candidate_search_config{""};
+    std::string reloc_candidate_search_config{""};
 
-    /** Full path to config file for loop closure refinement. If blank, it will
+    /** Full path to config file for reloc refinement. If blank, it will
      * use default parameters.*/
-    std::string loop_closure_refinement_config{""};
+    std::string reloc_refinement_config{""};
 
     /** covariance matrix for binary factors between scan registration
      * measurements during submap refinement*/
     Eigen::Matrix<double, 6, 6> scan_reg_covariance;
 
-    /** covariance matrix from binary factors between loop closures*/
-    Eigen::Matrix<double, 6, 6> loop_closure_covariance;
+    /** covariance matrix from binary factors between relocs*/
+    Eigen::Matrix<double, 6, 6> reloc_covariance;
 
     /** multi scan registration params */
     sr::MultiScanLoamRegistration::Params multi_scan_reg_params;
@@ -184,7 +184,7 @@ class GlobalMapRefinement {
 
   /**
    * @brief setup general things needed when class is instatiated, such as
-   * initiating the loop closure pointer
+   * initiating the reloc pointer
    */
   void Setup();
 
@@ -193,10 +193,10 @@ class GlobalMapRefinement {
   std::vector<std::shared_ptr<Submap>> submaps_;
 
   // PGO:
-  std::unique_ptr<loop_closure::LoopClosureCandidateSearchBase>
-      loop_closure_candidate_search_;
-  std::unique_ptr<loop_closure::LoopClosureRefinementBase>
-      loop_closure_refinement_;
+  std::unique_ptr<reloc::RelocCandidateSearchBase>
+      reloc_candidate_search_;
+  std::unique_ptr<reloc::RelocRefinementBase>
+      reloc_refinement_;
 };
 
 }  // namespace global_mapping

@@ -1,11 +1,11 @@
 {
   "submap_size_m": 5,
-  "loop_closure_candidate_search_type": "EUCDIST",
-  "loop_closure_refinement_type": "ICP",
-  "loop_closure_candidate_search_config": "DEFAULT_PATH",
-  "loop_closure_refinement_config": "DEFAULT_PATH",
+  "reloc_candidate_search_type": "EUCDIST",
+  "reloc_refinement_type": "ICP",
+  "reloc_candidate_search_config": "DEFAULT_PATH",
+  "reloc_refinement_config": "DEFAULT_PATH",
   "local_mapper_covariance_diag": [1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3],
-  "loop_closure_covariance_diag": [1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5],
+  "reloc_covariance_diag": [1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5],
   "publishing": {
     "submap_lidar_filters": [
       {

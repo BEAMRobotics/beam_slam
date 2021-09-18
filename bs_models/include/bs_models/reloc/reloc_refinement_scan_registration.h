@@ -9,42 +9,41 @@
 #include <beam_matching/Matchers.h>
 #include <beam_filtering/Utils.h>
 
-#include <bs_models/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/reloc/reloc_refinement_base.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_common/utils.h>
 
 namespace bs_models {
 
-namespace loop_closure {
+namespace reloc {
 
 /**
- * @brief Templated class for loop closure refinement with lidar scan matching
+ * @brief Templated class for reloc refinement with lidar scan matching
  */
 template <typename MatcherType, typename ParamsType>
-class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
+class RelocRefinementScanRegistration : public RelocRefinementBase {
  public:
   /**
    * @brief constructor requiring only a path to a config file
    * @param config full path to config json
-   * @param loop_closure_covariance
+   * @param reloc_covariance
    */
-  LoopClosureRefinementScanRegistration(
-      const Eigen::Matrix<double, 6, 6>& loop_closure_covariance,
+  RelocRefinementScanRegistration(
+      const Eigen::Matrix<double, 6, 6>& reloc_covariance,
       const std::string& config = "")
-      : LoopClosureRefinementBase(config),
-        loop_closure_covariance_(loop_closure_covariance) {
+      : RelocRefinementBase(config), reloc_covariance_(reloc_covariance) {
     LoadConfig();
     Setup();
   }
 
   /**
-   * @brief Generate a fuse transaction between two candidate loop closure
+   * @brief Generate a fuse transaction between two candidate reloc
    * submaps
    * @param matched_submap submap that a new query submap matches to
    * @param query_submap new submap that we are adding constraints with previous
    * submaps
    * @param T_MATCH_QUERY_EST estimated transform between the two submaps. This
-   * is determined with a class derived from LoopClosureCandidateSearchBase
+   * is determined with a class derived from RelocCandidateSearchBase
    */
   fuse_core::Transaction::SharedPtr GenerateTransaction(
       const std::shared_ptr<global_mapping::Submap>& matched_submap,
@@ -63,7 +62,7 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
     transaction.AddPoseConstraint(
         matched_submap->T_WORLD_SUBMAP(), query_submap->T_WORLD_SUBMAP(),
         matched_submap->Stamp(), query_submap->Stamp(), T_MATCH_QUERY_OPT,
-        loop_closure_covariance_, source_);
+        reloc_covariance_, source_);
 
     return transaction.GetTransaction();
   }
@@ -80,14 +79,13 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
 
     if (read_path == "DEFAULT_PATH") {
       read_path = bs_common::GetBeamSlamConfigPath() +
-                  "global_map/loop_closure_refinement_scan_registration.json";
+                  "global_map/reloc_refinement_scan_registration.json";
     }
 
-    BEAM_INFO("Loading loop closure config: {}", read_path);
+    BEAM_INFO("Loading reloc config: {}", read_path);
     nlohmann::json J;
     if (!beam::ReadJson(read_path, J)) {
-      BEAM_INFO(
-          "Using default loop closure refinement scan registration params.");
+      BEAM_INFO("Using default reloc refinement scan registration params.");
       return;
     }
 
@@ -95,7 +93,7 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
       matcher_config_ = J["matcher_config"];
     } catch (...) {
       BEAM_ERROR(
-          "Missing one or more parameter, using default loop closure "
+          "Missing one or more parameter, using default reloc "
           "refinement params");
     }
 
@@ -104,7 +102,7 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
       J_filters = J["filters"];
     } catch (...) {
       ROS_ERROR(
-          "Missing 'filters' param in loop closure config file. Not using "
+          "Missing 'filters' param in reloc config file. Not using "
           "filters.");
       return;
     }
@@ -127,7 +125,7 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
    * @param query_submap new submap that we are adding constraints with previous
    * submaps
    * @param T_MATCH_QUERY_EST estimated transform between the two submaps. This
-   * is determined with a class derived from LoopClosureCandidateSearchBase
+   * is determined with a class derived from RelocCandidateSearchBase
    * @param T_MATCH_QUERY_OPT reference to the resulting refined transform from
    * query submap to matched submap
    */
@@ -162,7 +160,7 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
     matcher_->SetTarget(query_cloud_world);
 
     if (!matcher_->Match()) {
-      BEAM_WARN("Failed scan matching. Not adding loop closure constraint.");
+      BEAM_WARN("Failed scan matching. Not adding reloc constraint.");
       if (output_results_) {
         output_path_stamped_ =
             debug_output_path_ +
@@ -199,21 +197,21 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
 
   std::string matcher_config_;
   std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
-  Eigen::Matrix<double, 6, 6> loop_closure_covariance_;
+  Eigen::Matrix<double, 6, 6> reloc_covariance_;
   std::vector<beam_filtering::FilterParamsType> filter_params_;
-  std::string source_{"SCANREGLOOPCLOSURE"};
+  std::string source_{"SCANREGRELOC"};
 };
 
-using LoopClosureRefinementIcp =
-    LoopClosureRefinementScanRegistration<beam_matching::IcpMatcher,
-                                          beam_matching::IcpMatcher::Params>;
-using LoopClosureRefinementGicp =
-    LoopClosureRefinementScanRegistration<beam_matching::GicpMatcher,
-                                          beam_matching::GicpMatcher::Params>;
-using LoopClosureRefinementNdt =
-    LoopClosureRefinementScanRegistration<beam_matching::NdtMatcher,
-                                          beam_matching::NdtMatcher::Params>;
+using RelocRefinementIcp =
+    RelocRefinementScanRegistration<beam_matching::IcpMatcher,
+                                    beam_matching::IcpMatcher::Params>;
+using RelocRefinementGicp =
+    RelocRefinementScanRegistration<beam_matching::GicpMatcher,
+                                    beam_matching::GicpMatcher::Params>;
+using RelocRefinementNdt =
+    RelocRefinementScanRegistration<beam_matching::NdtMatcher,
+                                    beam_matching::NdtMatcher::Params>;
 
-}  // namespace loop_closure
+}  // namespace reloc
 
 }  // namespace bs_models

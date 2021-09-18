@@ -10,31 +10,31 @@
 
 namespace bs_models {
 
-namespace loop_closure {
+namespace reloc {
 
 /**
- * @brief A loop closure refinement step that takes an estimated pose
+ * @brief A reloc refinement step that takes an estimated pose
  * from the candidate search and refines the relative pose between the two
  * candidate locations
  */
-class LoopClosureRefinementBase {
+class RelocRefinementBase {
  public:
   /**
    * @brief constructor with an optional path to a json config
    * @param config path to json config file. If empty, it will use default
    * parameters
    */
-  LoopClosureRefinementBase(const std::string& config = "")
+  RelocRefinementBase(const std::string& config = "")
       : config_path_(config){};
 
   /**
    * @brief default destructor
    */
-  ~LoopClosureRefinementBase() = default;
+  ~RelocRefinementBase() = default;
 
   /**
    * @brief Pure virtual function that generate a fuse transaction between two
-   * candidate loop closure submaps
+   * candidate reloc submaps
    * @param matched_submap
    * @param query_submap
    */
@@ -48,10 +48,10 @@ class LoopClosureRefinementBase {
 
   /* Debugging tools that can only be set here */
   bool output_results_{false};
-  std::string debug_output_path_{"/home/nick/results/beam_slam/loop_closure/"};
+  std::string debug_output_path_{"/home/nick/results/beam_slam/reloc/"};
   std::string output_path_stamped_; // to be created in implementation
 };
 
-}  // namespace loop_closure
+}  // namespace reloc
 
 }  // namespace bs_models

@@ -8,25 +8,25 @@
 
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/LoamMatcher.h>
-#include <bs_models/loop_closure/loop_closure_refinement_base.h>
+#include <bs_models/reloc/reloc_refinement_base.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 
 namespace bs_models {
 
-namespace loop_closure {
+namespace reloc {
 
 /**
- * @brief Loop closure refinement with loam scan matching
+ * @brief reloc refinement with loam scan matching
  */
-class LoopClosureRefinementLoam : public LoopClosureRefinementBase {
+class RelocRefinementLoam : public RelocRefinementBase {
  public:
   /**
    * @brief Constructor that only takes in a config path and covariance matrix
    * @param config full path to config json
-   * @param loop_closure_covariance
+   * @param reloc_covariance
    */
-  LoopClosureRefinementLoam(
-      const Eigen::Matrix<double, 6, 6>& loop_closure_covariance,
+  RelocRefinementLoam(
+      const Eigen::Matrix<double, 6, 6>& reloc_covariance,
       const std::string& config = "");
 
   /**
@@ -36,7 +36,7 @@ class LoopClosureRefinementLoam : public LoopClosureRefinementBase {
    * @param query_submap new submap that we are adding constraints with previous
    * submaps
    * @param T_MATCH_QUERY_EST estimated transform between the two submaps. This
-   * is determined with a class derived from LoopClosureCandidateSearchBase
+   * is determined with a class derived from RelocCandidateSearchBase
    */
   fuse_core::Transaction::SharedPtr GenerateTransaction(
       const std::shared_ptr<global_mapping::Submap>& matched_submap,
@@ -61,7 +61,7 @@ class LoopClosureRefinementLoam : public LoopClosureRefinementBase {
    * @param query_submap new submap that we are adding constraints with previous
    * submaps
    * @param T_MATCH_QUERY_EST estimated transform between the two submaps. This
-   * is determined with a class derived from LoopClosureCandidateSearchBase
+   * is determined with a class derived from RelocCandidateSearchBase
    * @param T_MATCH_QUERY_OPT reference to the resulting refined transform from
    * query submap to matched submap
    */
@@ -74,10 +74,10 @@ class LoopClosureRefinementLoam : public LoopClosureRefinementBase {
   std::string matcher_config_;
   std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
       matcher_;
-  Eigen::Matrix<double, 6, 6> loop_closure_covariance_;
-  std::string source_{"LOAMSCANREGLOOPCLOSURE"};
+  Eigen::Matrix<double, 6, 6> reloc_covariance_;
+  std::string source_{"LOAMSCANREGRELOC"};
 };
 
-}  // namespace loop_closure
+}  // namespace reloc
 
 }  // namespace bs_models
