@@ -179,8 +179,8 @@ void LidarOdometry::onStart() {
       ros::names::resolve(params_.input_topic), 1, &ThrottledCallback::callback,
       &throttled_callback_, ros::TransportHints().tcpNoDelay(false));
 
-  results_publisher_ =
-      private_node_handle_.advertise<SlamChunkMsg>(params_.slam_chunk_topic, 100);
+  results_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
+      params_.slam_chunk_topic, 100);
 };
 
 void LidarOdometry::onStop() {

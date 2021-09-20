@@ -13,14 +13,12 @@ namespace reloc {
 RelocRefinementLoam::RelocRefinementLoam(
     const Eigen::Matrix<double, 6, 6>& reloc_covariance,
     const std::string& config)
-    : RelocRefinementBase(config),
-      reloc_covariance_(reloc_covariance) {
+    : RelocRefinementBase(config), reloc_covariance_(reloc_covariance) {
   LoadConfig();
   Setup();
 }
 
-fuse_core::Transaction::SharedPtr
-RelocRefinementLoam::GenerateTransaction(
+fuse_core::Transaction::SharedPtr RelocRefinementLoam::GenerateTransaction(
     const std::shared_ptr<global_mapping::Submap>& matched_submap,
     const std::shared_ptr<global_mapping::Submap>& query_submap,
     const Eigen::Matrix4d& T_MATCH_QUERY_EST) {
@@ -34,12 +32,22 @@ RelocRefinementLoam::GenerateTransaction(
   // create transaction
   bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
       query_submap->Stamp());
-  transaction.AddPoseConstraint(
-      matched_submap->T_WORLD_SUBMAP(), query_submap->T_WORLD_SUBMAP(),
-      matched_submap->Stamp(), query_submap->Stamp(), T_MATCH_QUERY_OPT,
-      reloc_covariance_, source_);
+  transaction.AddPoseConstraint(matched_submap->T_WORLD_SUBMAP(),
+                                query_submap->T_WORLD_SUBMAP(),
+                                matched_submap->Stamp(), query_submap->Stamp(),
+                                T_MATCH_QUERY_OPT, reloc_covariance_, source_);
 
   return transaction.GetTransaction();
+}
+
+bool RelocRefinementLoam::GetRefinedPose(
+    Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
+    const Eigen::Matrix4d& T_SUBMAP_QUERY_initial,
+    const std::shared_ptr<global_mapping::Submap>& submap,
+    const PointCloud& lidar_cloud_in_query_frame,
+    const cv::Mat& image) {
+  // TODO
+  BEAM_ERROR("Not yet implemented");
 }
 
 void RelocRefinementLoam::LoadConfig() {
@@ -64,8 +72,7 @@ void RelocRefinementLoam::LoadConfig() {
   try {
     matcher_config_ = J["matcher_config"];
   } catch (...) {
-    BEAM_ERROR(
-        "Missing one or more parameter, using default reloc params.");
+    BEAM_ERROR("Missing one or more parameter, using default reloc params.");
   }
 }
 

@@ -14,9 +14,9 @@ namespace reloc {
 
 RelocCandidateSearchEucDist::RelocCandidateSearchEucDist(
     const std::string& config_path) {
-      this->config_path_ = config_path;
-      LoadConfig();
-    }
+  this->config_path_ = config_path;
+  LoadConfig();
+}
 
 RelocCandidateSearchEucDist::RelocCandidateSearchEucDist(
     double distance_threshold_m)
@@ -51,28 +51,37 @@ void RelocCandidateSearchEucDist::LoadConfig() {
 }
 
 void RelocCandidateSearchEucDist::FindRelocCandidates(
-    const std::vector<std::shared_ptr<Submap>>& submaps, int query_index,
-    std::vector<int>& matched_indices,
-    std::vector<Eigen::Matrix4d, pose_allocator>& estimated_poses) {
-  matched_indices.clear();
-  estimated_poses.clear();
-  const Eigen::Matrix4d& T_WORLD_QUERY =
-      submaps.at(query_index)->T_WORLD_SUBMAP();
-  for (int i = 0; i < query_index - 1; i++) {
-    if (i == query_index) {
-      continue;
-    }
-    const Eigen::Matrix4d& T_WORLD_MATCHCANDIDATE =
-        submaps.at(i)->T_WORLD_SUBMAP();   
-    Eigen::Matrix4d T_MATCHCANDIDATE_QUERY =
-        beam::InvertTransform(T_WORLD_MATCHCANDIDATE) * T_WORLD_QUERY;
-    double distance = T_MATCHCANDIDATE_QUERY.block(0, 3, 3, 1).norm();
-    
-    if (distance < distance_threshold_m_) {
-      matched_indices.push_back(i);
-      estimated_poses.push_back(T_MATCHCANDIDATE_QUERY);
-    }
-  }
+    const std::vector<std::shared_ptr<Submap>>& submaps,
+    const Eigen::Matrix4d& T_WORLD_QUERY, std::vector<int>& matched_indices,
+    std::vector<Eigen::Matrix4d, pose_allocator>& estimated_poses,
+    bool use_initial_poses) {
+  // TODO: update this function with new interface
+  BEAM_ERROR("Not yet implemented");
+
+  // std::map<double, std::pair<int, Eigen::Matrix4d, pose_allocator>>
+  //     candidates_sorted;
+  // for (int i = 0; i < submaps.size(); i++) {
+  //   const Eigen::Matrix4d& T_WORLD_SUBMAPCANDIDATE =
+  //       submaps.at(i)->T_WORLD_SUBMAP();
+  //   Eigen::Matrix4d T_SUBMAPCANDIDATE_BASELINKQUERY =
+  //       beam::InvertTransform(T_WORLD_SUBMAPCANDIDATE) * T_WORLD_BASELINKQUERY;
+  //   double distance = T_SUBMAPCANDIDATE_BASELINKQUERY.block(0, 3, 3, 1).norm();
+
+  //   if (distance < distance_threshold_m_) {
+  //     candidates_sorted.emplace(distance,
+  //                               std::pair<int, Eigen::Matrix4d, pose_allocator>(
+  //                                   i, T_SUBMAPCANDIDATE_BASELINKQUERY));
+  //   }
+  // }
+
+  // // iterate through sorted map and convert to vectors
+  // matched_indices.clear();
+  // estimated_poses.clear();
+  // for (const auto iter = candidates_sorted.begin();
+  //      iter != candidates_sorted.end(); iter++) {
+  //   matched_indices.push_back(iter->second.first);
+  //   matched_indices.push_back(iter->second.second);
+  // }
 }
 
 }  // namespace reloc

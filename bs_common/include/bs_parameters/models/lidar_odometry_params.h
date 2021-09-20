@@ -30,6 +30,16 @@ struct LidarOdometryParams : public ParameterBase {
      * mapper) */
     getParamRequired<std::string>(nh, "slam_chunk_topic", slam_chunk_topic);
 
+    /** this is the topic that the lidar odometry publishes too when it wants to
+     * run a reloc request on the global mapper  */
+    getParamRequired<std::string>(nh, "reloc_request_topic",
+                                  reloc_request_topic);
+
+    /** the current submap is published by the global mapper when it receives a
+     * reloc request and successfully finds that you're in a new submap  */
+    getParamRequired<std::string>(nh, "current_submap_topic",
+                                  current_submap_topic);
+
     /** If set to true, it will output the loam points of the marginalized scan
      * poses */
     getParam<bool>(nh, "output_loam_points", output_loam_points,
@@ -90,6 +100,10 @@ struct LidarOdometryParams : public ParameterBase {
     getParam<double>(nh, "frame_initializer_prior_noise",
                      frame_initializer_prior_noise, 0);
 
+    /** how often should the lidar odometry send reloc requests to the global
+     * mapper. If set to zero, it will not send any. */
+    getParam<double>(nh, "reloc_frequency", reloc_frequency, 1);
+
     /** Optional For Odometry frame initializer */
     getParam<std::string>(nh, "sensor_frame_id_override",
                           sensor_frame_id_override, "");
@@ -100,6 +114,8 @@ struct LidarOdometryParams : public ParameterBase {
 
   std::string input_topic;
   std::string slam_chunk_topic;
+  std::string current_submap_topic;
+  std::string reloc_request_topic;
   bool output_loam_points{true};
   bool output_lidar_points{true};
   std::string frame_initializer_type{"ODOMETRY"};
@@ -110,6 +126,7 @@ struct LidarOdometryParams : public ParameterBase {
   double frame_initializer_prior_noise;
   std::string type;
   double lag_duration;
+  double reloc_frequency;
   std::string matcher_params_path;
   std::string registration_config_path;
   std::string input_filters_config_path;

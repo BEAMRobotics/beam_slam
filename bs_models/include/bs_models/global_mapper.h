@@ -53,26 +53,9 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   /**
    * @brief This function takes a reloc request message and tries to find if
    * this pose is within some submap, if so, we want to publish the updated
-   * submap. There are process works as follows:
-   *
-   * (1) run reloc candidacy search on all offline maps if they exist.
-   *  - if none returned, then skip to 2
-   *  - check that candidate submaps are not the current active submap
-   *  - run reloc refinement on all candidate submaps
-   *  - store the best refined pose and submap index (if at least one refinement
-   *    was successful)
-   *
-   * (2) 1 was unsuccessful, run reloc candidacy search on all online
-   *     maps
-   *  - if non returned, then we are done
-   *  - check that candidate submaps are not the current active submap
-   *  - run reloc refinement on all candidate submaps
-   *  - store the best refined pose and submap index (if at least one refinement
-   *    was successful)
-   *
-   * (3) If 1 or 2 successful, create a SubmapMsg with the resulting submap and
-   *     refined pose within that submap. If unsuccessful, return nothing
-   *
+   * submap. To do this, the global_mapper just needs to call the
+   * ProcessRelocRequest() from the global_map. See the global_map.h for more
+   * information on how this is done.
    * @param msg reloc request message
    */
   void ProcessRelocRequest(const bs_common::RelocRequestMsg::ConstPtr& msg);
@@ -136,6 +119,9 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
       fuse_core::ThrottledMessageCallback<bs_common::RelocRequestMsg>;
   ThrottledCallbackRelocRequest throttled_callback_reloc_;
   ros::Subscriber reloc_request_subscriber_;
+
+  /** publish submaps returned from reloc */
+  ros::Publisher current_submap_publisher_;
 
   /** publish results */
   ros::Publisher submap_lidar_publisher_;

@@ -1,9 +1,12 @@
 #pragma once
 
-#include <beam_utils/utils.h>
-#include <bs_common/bs_msgs.h>
 #include <opencv2/opencv.hpp>
 #include <ros/ros.h>
+
+#include <beam_utils/utils.h>
+#include <beam_matching/loam/LoamPointCloud.h>
+
+#include <bs_common/bs_msgs.h>
 
 namespace bs_models {
 
@@ -68,7 +71,8 @@ class CurrentSubmap {
    */
   CurrentSubmap();
 
-  pcl::PointCloud<pcl::PointXYZ> point_cloud_;
+  PointCloud point_cloud_;
+  beam_matching::LoamPointCloud loam_cloud_;
   std::vector<Eigen::Vector3d> visual_map_points_;
   std::vector<cv::Mat> descriptors_;
 

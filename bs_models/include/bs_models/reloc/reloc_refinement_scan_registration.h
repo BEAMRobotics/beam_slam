@@ -67,6 +67,27 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
     return transaction.GetTransaction();
   }
 
+  /**
+   * @brief Overrides function that gets a refined pose from a candidate
+   * submap and an initial transform
+   * @param T_SUBMAP_QUERY_refined reference to tranform from query pose
+   * (baselink) to the submap
+   * @param T_SUBMAP_QUERY_initial initial guess of transform from query pose
+   * (baselink) to submap
+   * @param submap submap that we think the query pose is inside
+   * @param lidar_cloud_in_query_frame
+   * @param submap_msg reference to submap msg to fill
+   * @return true if successful
+   */
+  bool GetRefinedPose(Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
+                      const Eigen::Matrix4d& T_SUBMAP_QUERY_initial,
+                      const std::shared_ptr<global_mapping::Submap>& submap,
+                      const PointCloud& lidar_cloud_in_query_frame,
+                      const cv::Mat& image = cv::Mat()) override {
+    // TODO
+    BEAM_ERROR("NOT YET IMPLEMENTED");
+  }
+
  private:
   /**
    * @brief Method for loading a config json file.
@@ -135,23 +156,14 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
       const Eigen::Matrix4d& T_MATCH_QUERY_EST,
       Eigen::Matrix4d& T_MATCH_QUERY_OPT) {
     // extract and filter clouds from match submap
-    PointCloudPtr match_cloud_world = std::make_shared<PointCloud>();
-    std::vector<PointCloud> match_clouds_world_raw =
-        matched_submap->GetLidarPointsInWorldFrame(10e6);
-    for (const PointCloud& cloud : match_clouds_world_raw) {
-      (*match_cloud_world) += cloud;
-    }
+    PointCloudPtr match_cloud_world = std::make_shared<PointCloud>(
+        matched_submap->GetLidarPointsInWorldFrameCombined());
     *match_cloud_world =
         beam_filtering::FilterPointCloud(*match_cloud_world, filter_params_);
 
     // extract and filter clouds from query submap
-    PointCloudPtr query_cloud_world = std::make_shared<PointCloud>();
-    std::vector<PointCloud> query_clouds_world_raw =
-        query_submap->GetLidarPointsInWorldFrame(10e6);
-    for (const PointCloud& cloud : match_clouds_world_raw) {
-      (*query_cloud_world) += cloud;
-    }
-
+    PointCloudPtr query_cloud_world = std::make_shared<PointCloud>(
+        query_submap->GetLidarPointsInWorldFrameCombined());
     *query_cloud_world =
         beam_filtering::FilterPointCloud(*query_cloud_world, filter_params_);
 

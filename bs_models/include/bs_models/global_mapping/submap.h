@@ -135,6 +135,13 @@ class Submap {
    */
   ros::Time Stamp() const;
 
+  /**
+   * @brief return the stored descriptor type. See
+   * beam_cv/descriptors/Descriptor.h
+   * @return descriptor_type
+   */
+  uint8_t DescriptorType() const;
+
   /*--------------------------------/
               ITERATORS
   /--------------------------------*/
@@ -330,6 +337,16 @@ class Submap {
       int max_output_map_size, bool use_initials = false) const;
 
   /**
+   * @brief output all lidar points to a single pointcloud map. Points will
+   * be converted to world frame before outputting.
+   * @param use_initials set to true to use the initial world frame
+   * from the local mapper, before global optimization
+   * @param return cloud
+   */
+  PointCloud GetLidarPointsInWorldFrameCombined(
+      bool use_initials = false) const;
+
+  /**
    * @brief output all lidar LOAM points to a single pointcloud map. Points will
    * be converted to world frame before outputting
    * @param use_initials set to true to use the initial world frame
@@ -445,6 +462,7 @@ class Submap {
   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;     // <id, position>
   beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement>
       landmarks_;
+  uint8_t descriptor_type_{255};  // see beam_cv/descriptors/Descriptor.h
 
   // subframe trajectory measurements, where poses are T_KEYFRAME_FRAME
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;

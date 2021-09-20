@@ -32,6 +32,15 @@ enum class RosMapType {
 using RosMap = std::pair<RosMapType, sensor_msgs::PointCloud2>;
 
 /**
+ * @brief Enum class for storing types of submaps
+ */
+enum class SubmapType {
+  NONE = 0,
+  OFFLINE,
+  ONLINE,
+};
+
+/**
  * @brief This class takes care of all global mapping functionality. It received
  * incoming slam data from the local mapper, saves it into submaps and then runs
  * reloc on the submaps to refine the final map.
@@ -229,6 +238,38 @@ class GlobalMap {
       const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp);
 
   /**
+   * @brief This function takes a reloc request message and tries to determine
+   * if the reloc request pose is inside an existing submap.
+   *
+   * There are process works as follows:
+   *
+   * (1) run reloc candidacy search on all offline maps if they exist.
+   *  - if none returned, then skip to 2
+   *  - check that candidate submaps are not the current active submap
+   *  - run reloc refinement on all candidate submaps
+   *  - store the best refined pose and submap index (if at least one refinement
+   *    was successful)
+   *
+   * (2) 1 was unsuccessful, run reloc candidacy search on all online
+   *     maps
+   *  - if non returned, then we are done
+   *  - check that candidate submaps are not the current active submap
+   *  - run reloc refinement on all candidate submaps
+   *  - store the best refined pose and submap index (if at least one refinement
+   *    was successful)
+   *
+   * (3) If 1 or 2 successful, create a SubmapMsg with the resulting submap and
+   *     refined pose within that submap. If unsuccessful, return nothing
+   *
+   * @param reloc_request_msg input reloc information
+   * @param submap_msg reference to submap message to fill should this be
+   * successful
+   * @return true if a new submap was found and reloc refinement was successful
+   */
+  bool ProcessRelocRequest(const bs_common::RelocRequestMsg& reloc_request_msg,
+                           bs_common::SubmapMsg& submap_msg);
+
+  /**
    * @brief Update submap poses with a new graph message
    * @param graph_msg updated graph which should have all submap poses stored
    * @param update_time ros time of this update
@@ -237,12 +278,12 @@ class GlobalMap {
                          const ros::Time& update_time = ros::Time(0));
 
   /**
-   * @brief Calling this will trigger a reloc search for the last submap.
-   * This is convenient for completing a mapping session where the final submap
-   * won't be complete so we wouldn't have run reloc on it.
+   * @brief Calling this will trigger a loop closure (reloc) search for the last
+   * submap. This is convenient for completing a mapping session where the final
+   * submap won't be complete so we wouldn't have run reloc on it.
    * @return transaction with new variables and constraints if applicable
    */
-  fuse_core::Transaction::SharedPtr TriggerReloc();
+  fuse_core::Transaction::SharedPtr TriggerLoopClosure();
 
   /**
    * @brief Save full global map to a format that can be reloaded later for new
@@ -353,18 +394,19 @@ class GlobalMap {
   fuse_core::Transaction::SharedPtr InitiateNewSubmapPose();
 
   /**
-   * @brief Get reloc measurements by comparing the a submap to
+   * @brief Get loop closure measurements by comparing the a submap to
    * all previous submaps. By default, every new submap will trigger a loop
    * closure for the second last submap. The reason we compare the second last
    * submap is because we don't want to find relocs until the submap is
    * complete, this ensures a best estimate of the reloc constraint. When
    * a global map is complete, you should trigger reloc against the last
-   * submap which probably still isn't complete
+   * submap which probably still isn't complete. Note that loop closure uses
+   * reloc under the hood to find the candidate submaps and refined poses
    * @param query_index index of submap to look for relocs against
    * @return fuse transaction with the frame to frame constraints between two
    * reloc poses
    */
-  fuse_core::Transaction::SharedPtr FindRelocs(int query_index);
+  fuse_core::Transaction::SharedPtr RunLoopClosure(int query_index);
 
   /**
    * @brief adds submap points (lidar points and camera keypoints) to the queue
@@ -389,6 +431,33 @@ class GlobalMap {
   void AddNewRosScan(const PointCloud& cloud,
                      const Eigen::Matrix4d& T_WORLD_BASELINK,
                      const ros::Time& stamp);
+
+  /**
+   * @brief Fill a submap message for publishing.
+   * @param submap_msg reference to submap to fill
+   * @param lidar_points lidar points to add (in any frame)
+   * @param loam_points loam pointcloud to add (in any frame)
+   * @param keypoints 3D keypoint locations (in any frame) to add
+   * @param descriptors vector of descriptors to add, these must be the same
+   * order as their corresponding keypoints
+   * @param descriptor_type
+   * @param T transform to apply to all points (lidar_points, loam_points,
+   * keypoints) to get them into the local mapper's world frame
+   */
+  void FillSubmapMsg(SubmapMsg& submap_msg, const PointCloud& lidar_points,
+                     const beam_matching::LoamPointCloud& loam_points,
+                     const PointCloud& keypoints,
+                     const std::vector<std::vector<float>>& descriptors,
+                     uint8_t descriptor_type, const Eigen::Matrix4d& T) const;
+
+  /**
+   * @brief convert a vector of floats to a pcl pointcloud xyz. This also checks
+   * that the number of points is divisible by 3 to make sure the correct format
+   * is used, otherwise it returns an empty cloud
+   * @param points points to add to cloud
+   * @return pointcloud
+   */
+  PointCloud RosCloudToPclCloud(const std::vector<float>& points);
 
   Params params_;
 
@@ -437,10 +506,15 @@ class GlobalMap {
    */
   std::vector<std::shared_ptr<Submap>> offline_submaps_;
 
-  std::unique_ptr<reloc::RelocCandidateSearchBase>
-      reloc_candidate_search_;
-  std::unique_ptr<reloc::RelocRefinementBase>
-      reloc_refinement_;
+  std::unique_ptr<reloc::RelocCandidateSearchBase> reloc_candidate_search_;
+  std::unique_ptr<reloc::RelocRefinementBase> reloc_refinement_;
+
+  /** These params are used for tracking what submap are we currently in and
+   * other required information */
+  Eigen::Matrix4d T_WORLDLM_WORLDOFF_{Eigen::Matrix4d::Identity()};
+  bool T_WORLDLM_WORLDOFF_found_{false};
+  int active_submap_id_{0};
+  SubmapType active_submap_type_{SubmapType::NONE};
 
   // ros maps
   std::queue<std::shared_ptr<RosMap>> ros_submaps_;

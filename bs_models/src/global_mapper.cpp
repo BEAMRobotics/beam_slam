@@ -89,26 +89,15 @@ void GlobalMapper::ProcessSlamChunk(
 
 void GlobalMapper::ProcessRelocRequest(
     const bs_common::RelocRequestMsg::ConstPtr& msg) {
-  ros::Time stamp = msg->stamp;
-  std::vector<double> T = msg->T_WORLD_BASELINK;
-  Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
-
-  std::string matrix_check_summary;
-  if (!beam::IsTransformationMatrix(T_WORLD_BASELINK, matrix_check_summary)) {
-    BEAM_WARN(
-        "transformation matrix invalid, not adding SlamChunkMsg to global map. "
-        "Reason: %s, Input:",
-        matrix_check_summary.c_str());
-    std::cout << "T_WORLD_BASELINK\n" << T_WORLD_BASELINK << "\n";
-    return;
-  }
-
   // update extrinsics if necessary
   UpdateExtrinsics();
 
-  // TODO
+  // get submap
+  bs_common::SubmapMsg submap_msg;
+  if(global_map_->ProcessRelocRequest(*msg, submap_msg)){
+    current_submap_publisher_.publish(submap_msg);
+  }
 }
-
 
 void GlobalMapper::onInit() {
   // load params
@@ -137,6 +126,9 @@ void GlobalMapper::onStart() {
           ros::names::resolve(params_.reloc_request_topic), 1,
           &ThrottledCallbackRelocRequest::callback, &throttled_callback_reloc_,
           ros::TransportHints().tcpNoDelay(false));
+
+  current_submap_publisher_ = node_handle_.advertise<bs_common::SubmapMsg>(
+        params_.current_submap_topic, 1);
 
   if (params_.publish_new_submaps) {
     submap_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
@@ -185,21 +177,21 @@ void GlobalMapper::onStart() {
 void GlobalMapper::onStop() {
   // use beam logging here because ROS logging stops when a node shutdown gets
   // called
-  BEAM_INFO("Running final reloc");
-  auto transaction_ptr = global_map_->TriggerReloc();
+  BEAM_INFO("Running final loop closure");
+  auto transaction_ptr = global_map_->TriggerLoopClosure();
 
   if (transaction_ptr != nullptr) {
-    BEAM_INFO("Found {} relocs. Updating map.",
+    BEAM_INFO("Found {} loop closures. Updating map.",
               bs_common::GetNumberOfConstraints(transaction_ptr));
     graph_->update(*transaction_ptr);
     graph_->optimize();
     global_map_->UpdateSubmapPoses(graph_, ros::Time::now());
   } else {
-    BEAM_INFO("No relocs found for final submap.");
+    BEAM_INFO("No loop closures found for final submap.");
   }
 
   if (!boost::filesystem::exists(params_.output_path)) {
-    BEAM_ERROR("Output path does not exist, not saing results.");
+    BEAM_ERROR("Output path does not exist, not saving results.");
     return;
   }
 

@@ -25,9 +25,8 @@ class RelocRefinementLoam : public RelocRefinementBase {
    * @param config full path to config json
    * @param reloc_covariance
    */
-  RelocRefinementLoam(
-      const Eigen::Matrix<double, 6, 6>& reloc_covariance,
-      const std::string& config = "");
+  RelocRefinementLoam(const Eigen::Matrix<double, 6, 6>& reloc_covariance,
+                      const std::string& config = "");
 
   /**
    * @brief Generate a fuse transaction between two candidate loop closure
@@ -42,6 +41,24 @@ class RelocRefinementLoam : public RelocRefinementBase {
       const std::shared_ptr<global_mapping::Submap>& matched_submap,
       const std::shared_ptr<global_mapping::Submap>& query_submap,
       const Eigen::Matrix4d& T_MATCH_QUERY_EST) override;
+
+  /**
+   * @brief Overrides function that gets a refined pose from a candidate
+   * submap and an initial transform
+   * @param T_SUBMAP_QUERY_refined reference to tranform from query pose
+   * (baselink) to the submap
+   * @param T_SUBMAP_QUERY_initial initial guess of transform from query pose
+   * (baselink) to submap
+   * @param submap submap that we think the query pose is inside
+   * @param lidar_cloud_in_query_frame
+   * @param submap_msg reference to submap msg to fill
+   * @return true if successful
+   */
+  bool GetRefinedPose(Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
+                      const Eigen::Matrix4d& T_SUBMAP_QUERY_initial,
+                      const std::shared_ptr<global_mapping::Submap>& submap,
+                      const PointCloud& lidar_cloud_in_query_frame,
+                      const cv::Mat& image = cv::Mat()) override;
 
  private:
   /**

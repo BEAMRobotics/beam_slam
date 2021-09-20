@@ -19,28 +19,55 @@ void CurrentSubmap::CurrentSubmapCallback(
     const bs_common::SubmapMsg::ConstPtr& msg) {
   descriptors_.clear();
   visual_map_points_.clear();
-  point_cloud_.points.clear();
+  point_cloud_.clear();
+
   // get descriptor type
   beam_cv::DescriptorType d_type =
       beam_cv::DescriptorTypeIntMap[msg->descriptor_type];
+
   // add all descriptors to list
   for (auto& d : msg->visual_map_descriptors) {
     cv::Mat desc = beam_cv::Descriptor::CreateDescriptor(d.data, d_type);
     descriptors_.push_back(desc);
   }
+
   // add all 3d locations of landmarks to list
   for (auto& p : msg->visual_map_points) {
     Eigen::Vector3d point{p.x, p.y, p.z};
     visual_map_points_.push_back(point);
   }
+
   // add all lidar points to point cloud
   if (msg->lidar_map.size() > 0) {
-    for (int i = 0; i < msg->lidar_map.size() - 2; i += 3) {
-      pcl::PointXYZ point(msg->lidar_map[i], msg->lidar_map[i + 1],
-                          msg->lidar_map[i + 2]);
-      point_cloud_.points.push_back(point);
+    for (geometry_msgs::Vector3 point_vec : msg->lidar_map) {
+      pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
+      point_cloud_.push_back(point);
     }
   }
+
+  // loam pointcloud
+  PointCloud edges_strong;
+  PointCloud edges_weak;
+  PointCloud surfaces_strong;
+  PointCloud surfaces_weak;
+  for (geometry_msgs::Vector3 point_vec : msg->lidar_edges_strong) {
+    pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
+    edges_strong.push_back(point);
+  }
+  for (geometry_msgs::Vector3 point_vec : msg->lidar_edges_weak) {
+    pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
+    edges_weak.push_back(point);
+  }
+  for (geometry_msgs::Vector3 point_vec : msg->lidar_surfaces_strong) {
+    pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
+    surfaces_strong.push_back(point);
+  }
+  for (geometry_msgs::Vector3 point_vec : msg->lidar_surfaces_weak) {
+    pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
+    surfaces_weak.push_back(point);
+  }
+  loam_cloud_ = beam_matching::LoamPointCloud(edges_strong, surfaces_strong,
+                                              edges_weak, surfaces_weak);
 }
 
 std::vector<Eigen::Vector3d> CurrentSubmap::GetVisualMapPoints(
