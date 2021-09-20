@@ -98,9 +98,8 @@ void VisualInertialOdometry::onStart() {
   /***********************************************************
    *                 Advertise publishers                    *
    ***********************************************************/
-  init_odom_publisher_ =
-      private_node_handle_.advertise<geometry_msgs::PoseStamped>(
-          camera_params_.frame_odometry_output_topic, 10);
+  init_odom_publisher_ = private_node_handle_.advertise<nav_msgs::Odometry>(
+      camera_params_.frame_odometry_output_topic, 10);
   new_keyframe_publisher_ = private_node_handle_.advertise<std_msgs::Header>(
       camera_params_.new_keyframes_topic, 10);
   slam_chunk_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
@@ -167,7 +166,12 @@ void VisualInertialOdometry::processImage(
       geometry_msgs::PoseStamped pose;
       bs_common::TransformationMatrixToPoseMsg(T_WORLD_BASELINK, img_time,
                                                pose);
-      init_odom_publisher_.publish(pose);
+      nav_msgs::Odometry odom;
+      odom.pose.pose = pose.pose;
+      odom.header.stamp = pose.header.stamp;
+      odom.header.frame_id = extrinsics_.GetBaselinkFrameId();
+      odom.child_frame_id = extrinsics_.GetWorldFrameId();
+      init_odom_publisher_.publish(odom);
 
       // process keyframe
       if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
@@ -227,86 +231,6 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr &msg) {
 
 void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
-  // // find all the obsolete keyframes
-  // std::vector<Keyframe> obsolete_keyframes;
-  // for (auto& kf : keyframes_) {
-  //   try {
-  //     fuse_variables::Orientation3DStamped::SharedPtr orientation =
-  //         fuse_variables::Orientation3DStamped::make_shared();
-  //     *orientation = dynamic_cast<const
-  //     fuse_variables::Orientation3DStamped&>(
-  //         graph->getVariable(visual_map_->GetOrientationUUID(kf.Stamp())));
-  //   } catch (const std::out_of_range& oor) {
-  //   obsolete_keyframes.push_back(kf); }
-  // }
-
-  // auto transaction = fuse_core::Transaction::make_shared();
-  // for (auto& kf : obsolete_keyframes) {
-  //   // Relocalize obsolete frames using the new graph
-  //   std::cout << "\nOld pose: \n"
-  //             << visual_map_->GetBaselinkPose(kf.Stamp()).value() <<
-  //             std::endl;
-  //   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
-  //   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
-  //   std::vector<uint64_t> landmarks =
-  //       tracker_->GetLandmarkIDsInImage(kf.Stamp());
-  //   for (auto& id : landmarks) {
-  //     try {
-  //       fuse_variables::Point3DLandmark::SharedPtr lm =
-  //           fuse_variables::Point3DLandmark::make_shared();
-  //       *lm = dynamic_cast<const fuse_variables::Point3DLandmark&>(
-  //           graph->getVariable(visual_map_->GetLandmarkUUID(id)));
-  //       bool not_from_kf = true;
-  //       for (auto& lmid : kf.Landmarks()) {
-  //         if (id == lmid) { not_from_kf = false; }
-  //       }
-  //       if (not_from_kf) {
-  //         Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-  //         Eigen::Vector2i pixeli = tracker_->Get(kf.Stamp(), id).cast<int>();
-  //         pixels.push_back(pixeli);
-  //         points.push_back(point);
-  //       }
-  //     } catch (const std::out_of_range& oor) {}
-  //   }
-  //   Eigen::Matrix4d T_CAMERA_WORLD_est =
-  //       visual_map_->GetCameraPose(kf.Stamp()).value();
-  //   Eigen::Matrix4d T_WORLD_CAMERA =
-  //       pose_refiner_
-  //           ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
-  //           .inverse();
-  //   Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-  //   std::cout << "\nNew pose: \n" << T_WORLD_BASELINK << std::endl;
-  //   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, kf.Stamp(), transaction);
-
-  //   // Retriangulate all landmarks that were introduced in this keyframe
-  //   for (auto& id : kf.Landmarks()) {
-  //     // otherwise then triangulate then add the constraints
-  //     std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
-  //     std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
-  //     std::vector<ros::Time> observation_stamps;
-  //     beam_cv::FeatureTrack track = tracker_->GetTrack(id);
-  //     for (auto& m : track) {
-  //       beam::opt<Eigen::Matrix4d> T =
-  //       visual_map_->GetCameraPose(m.time_point);
-  //       // check if the pose is in the graph (keyframe)
-  //       if (T.has_value()) {
-  //         pixels.push_back(m.value.cast<int>());
-  //         T_cam_world_v.push_back(T.value().inverse());
-  //         observation_stamps.push_back(m.time_point);
-  //       }
-  //     }
-  //     if (T_cam_world_v.size() >= 2) {
-  //       beam::opt<Eigen::Vector3d> point =
-  //           beam_cv::Triangulation::TriangulatePoint(cam_model_,
-  //           T_cam_world_v,
-  //                                                    pixels);
-  //       if (point.has_value()) {
-  //         visual_map_->AddLandmark(point.value(), id, transaction);
-  //       }
-  //     }
-  //   }
-  // }
-  // sendTransaction(transaction);
   visual_map_->UpdateGraph(graph);
 }
 
@@ -376,9 +300,6 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
       points.push_back(point);
     }
   }
-  // get rotation from imu estimate
-  // get position using a constant velocity estimate (use last two most recent
-  // keyframes)
 
   // refine pose using motion only BA if there are enough points
   if (points.size() >= 15) {
@@ -415,7 +336,8 @@ bool VisualInertialOdometry::IsKeyframe(
   ROS_DEBUG("Parallax: %f, Triangulated/Total Tracks: %zu/%zu", parallax,
             triangulated_landmarks.size(), landmarks.size());
 
-  if (img_time.toSec() - prev_kf_time.toSec() >= 0.2) {
+  if (img_time.toSec() - prev_kf_time.toSec() >=
+      camera_params_.keyframe_min_time_in_seconds) {
     return true;
   }
   return false;
@@ -516,7 +438,7 @@ void VisualInertialOdometry::NotifyNewKeyframe(
   visual_map_->AddCameraPose(T_WORLD_CAMERA, keyframes_.back().Stamp(),
                              transaction);
   sendTransaction(transaction);
-  
+
   // build header message and publish for lidar slam
   std_msgs::Header keyframe_header;
   keyframe_header.stamp = keyframes_.back().Stamp();
