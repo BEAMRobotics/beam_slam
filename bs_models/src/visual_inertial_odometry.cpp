@@ -22,8 +22,7 @@ namespace bs_models {
 using namespace vision;
 
 VisualInertialOdometry::VisualInertialOdometry()
-    : fuse_core::AsyncSensorModel(1),
-      device_id_(fuse_core::uuid::NIL),
+    : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL),
       throttled_image_callback_(std::bind(&VisualInertialOdometry::processImage,
                                           this, std::placeholders::_1)),
       throttled_imu_callback_(std::bind(&VisualInertialOdometry::processIMU,
@@ -54,8 +53,10 @@ void VisualInertialOdometry::onInit() {
    ***********************************************************/
   descriptor_type_ =
       beam_cv::DescriptorTypeStringMap[camera_params_.descriptor];
-  for (auto& it : beam_cv::DescriptorTypeIntMap) {
-    if (it.second == descriptor_type_) { descriptor_type_int_ = it.first; }
+  for (auto &it : beam_cv::DescriptorTypeIntMap) {
+    if (it.second == descriptor_type_) {
+      descriptor_type_int_ = it.first;
+    }
   }
   std::shared_ptr<beam_cv::Descriptor> descriptor =
       beam_cv::Descriptor::Create(descriptor_type_);
@@ -112,7 +113,7 @@ void VisualInertialOdometry::onStart() {
 }
 
 void VisualInertialOdometry::processImage(
-    const sensor_msgs::Image::ConstPtr& msg) {
+    const sensor_msgs::Image::ConstPtr &msg) {
   // get most recent extrinsics, if failure then process frame later
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get camera to baselink transform.");
@@ -204,7 +205,7 @@ void VisualInertialOdometry::processImage(
   }
 }
 
-void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
+void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr &msg) {
   // push imu message onto buffer
   imu_buffer_.push(*msg);
 
@@ -310,12 +311,12 @@ void VisualInertialOdometry::onGraphUpdate(
 }
 
 void VisualInertialOdometry::SendInitializationGraph(
-    const fuse_graphs::HashGraph& init_graph) {
+    const fuse_graphs::HashGraph &init_graph) {
   std::vector<uint64_t> new_landmarks;
   auto transaction = fuse_core::Transaction::make_shared();
 
   // add each variable in graph as they should be added
-  for (auto& var : init_graph.getVariables()) {
+  for (auto &var : init_graph.getVariables()) {
     fuse_variables::Point3DLandmark::SharedPtr landmark =
         fuse_variables::Point3DLandmark::make_shared();
     fuse_variables::Position3DStamped::SharedPtr position =
@@ -324,15 +325,15 @@ void VisualInertialOdometry::SendInitializationGraph(
         fuse_variables::Orientation3DStamped::make_shared();
 
     if (var.type() == landmark->type()) {
-      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(var);
+      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark &>(var);
       visual_map_->AddLandmark(landmark, transaction);
       new_landmarks.push_back(landmark->id());
     } else if (var.type() == orientation->type()) {
       *orientation =
-          dynamic_cast<const fuse_variables::Orientation3DStamped&>(var);
+          dynamic_cast<const fuse_variables::Orientation3DStamped &>(var);
       visual_map_->AddOrientation(orientation, transaction);
     } else if (var.type() == position->type()) {
-      *position = dynamic_cast<const fuse_variables::Position3DStamped&>(var);
+      *position = dynamic_cast<const fuse_variables::Position3DStamped &>(var);
       visual_map_->AddPosition(position, transaction);
     } else {
       transaction->addVariable(std::move(var.clone()));
@@ -340,7 +341,7 @@ void VisualInertialOdometry::SendInitializationGraph(
   }
 
   // add each constraint in the graph
-  for (auto& constraint : init_graph.getConstraints()) {
+  for (auto &constraint : init_graph.getConstraints()) {
     transaction->addConstraint(std::move(constraint.clone()));
   }
 
@@ -359,13 +360,13 @@ void VisualInertialOdometry::SendInitializationGraph(
 }
 
 Eigen::Matrix4d
-    VisualInertialOdometry::LocalizeFrame(const ros::Time& img_time) {
+VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
 
   // get 2d-3d correspondences
-  for (auto& id : landmarks) {
+  for (auto &id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
     if (lm) {
@@ -375,6 +376,9 @@ Eigen::Matrix4d
       points.push_back(point);
     }
   }
+  // get rotation from imu estimate
+  // get position using a constant velocity estimate (use last two most recent
+  // keyframes)
 
   // refine pose using motion only BA if there are enough points
   if (points.size() >= 15) {
@@ -396,20 +400,24 @@ Eigen::Matrix4d
 }
 
 bool VisualInertialOdometry::IsKeyframe(
-    const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_BASELINK) {
+    const ros::Time &img_time, const Eigen::Matrix4d &T_WORLD_BASELINK) {
   ros::Time prev_kf_time = keyframes_.back().Stamp();
   Eigen::Matrix4d T_prevkf = visual_map_->GetBaselinkPose(prev_kf_time).value();
   double parallax = tracker_->ComputeParallax(img_time, prev_kf_time, true);
 
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
   std::vector<uint64_t> triangulated_landmarks;
-  for (auto& id : landmarks) {
-    if (visual_map_->GetLandmark(id)) { triangulated_landmarks.push_back(id); }
+  for (auto &id : landmarks) {
+    if (visual_map_->GetLandmark(id)) {
+      triangulated_landmarks.push_back(id);
+    }
   }
   ROS_DEBUG("Parallax: %f, Triangulated/Total Tracks: %zu/%zu", parallax,
             triangulated_landmarks.size(), landmarks.size());
 
-  if (img_time.toSec() - prev_kf_time.toSec() >= 0.2) { return true; }
+  if (img_time.toSec() - prev_kf_time.toSec() >= 0.2) {
+    return true;
+  }
   return false;
 }
 
@@ -422,14 +430,10 @@ void VisualInertialOdometry::ExtendMap() {
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(cur_kf_time);
 
-  // send keyframe pose to graph
-  visual_map_->AddCameraPose(T_WORLD_CAMERA, keyframes_.back().Stamp(),
-                             transaction);
-
   // add visual constraints
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInImage(cur_kf_time);
-  for (auto& id : landmarks) {
+  for (auto &id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
     // add constraints to triangulated ids
@@ -443,7 +447,7 @@ void VisualInertialOdometry::ExtendMap() {
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
       if (track.size() > 5) {
-        for (auto& m : track) {
+        for (auto &m : track) {
           beam::opt<Eigen::Matrix4d> T =
               visual_map_->GetCameraPose(m.time_point);
 
@@ -505,7 +509,14 @@ void VisualInertialOdometry::AddInertialConstraint(
 }
 
 void VisualInertialOdometry::NotifyNewKeyframe(
-    const Eigen::Matrix4d& T_WORLD_CAMERA) {
+    const Eigen::Matrix4d &T_WORLD_CAMERA) {
+  // send camera pose to graph
+  auto transaction = fuse_core::Transaction::make_shared();
+  transaction->stamp(keyframes_.back().Stamp());
+  visual_map_->AddCameraPose(T_WORLD_CAMERA, keyframes_.back().Stamp(),
+                             transaction);
+  sendTransaction(transaction);
+  
   // build header message and publish for lidar slam
   std_msgs::Header keyframe_header;
   keyframe_header.stamp = keyframes_.back().Stamp();
@@ -531,12 +542,16 @@ void VisualInertialOdometry::NotifyNewKeyframe(
 
 void VisualInertialOdometry::PublishSlamChunk() {
   // this just makes sure the visual map has the most recent variables
-  for (auto& kf : keyframes_) { visual_map_->GetCameraPose(kf.Stamp()); }
+  for (auto &kf : keyframes_) {
+    visual_map_->GetCameraPose(kf.Stamp());
+  }
 
   // only once keyframes reaches the max window size, publish the keyframe
   if (keyframes_.size() == camera_params_.keyframe_window_size - 1) {
     // remove keyframe placeholder if first keyframe
-    if (keyframes_.front().Stamp() == ros::Time(0)) { keyframes_.pop_front(); }
+    if (keyframes_.front().Stamp() == ros::Time(0)) {
+      keyframes_.pop_front();
+    }
 
     // build slam chunk
     bs_common::SlamChunkMsg slam_chunk;
@@ -560,7 +575,7 @@ void VisualInertialOdometry::PublishSlamChunk() {
 
     // trajectory
     TrajectoryMeasurementMsg trajectory;
-    for (auto& it : keyframes_.front().Trajectory()) {
+    for (auto &it : keyframes_.front().Trajectory()) {
       // flatten 4x4 pose
       std::vector<float> pose;
       for (uint8_t i = 0; i < 3; i++) {
@@ -571,7 +586,9 @@ void VisualInertialOdometry::PublishSlamChunk() {
       ros::Time stamp;
       stamp.fromNSec(it.first);
       trajectory.stamps.push_back(stamp.toSec());
-      for (auto& x : pose) { trajectory.poses.push_back(x); }
+      for (auto &x : pose) {
+        trajectory.poses.push_back(x);
+      }
     }
     slam_chunk.trajectory_measurement = trajectory;
 
@@ -586,7 +603,7 @@ void VisualInertialOdometry::PublishSlamChunk() {
     std::vector<LandmarkMeasurementMsg> landmarks;
     std::vector<uint64_t> landmark_ids =
         tracker_->GetLandmarkIDsInImage(kf_to_publish);
-    for (auto& id : landmark_ids) {
+    for (auto &id : landmark_ids) {
       LandmarkMeasurementMsg lm;
       lm.landmark_id = id;
       cv::Mat descriptor = tracker_->GetDescriptor(kf_to_publish, id);
@@ -611,9 +628,11 @@ void VisualInertialOdometry::PublishSlamChunk() {
 }
 
 void VisualInertialOdometry::PublishLandmarkIDs(
-    const std::vector<uint64_t>& ids) {
+    const std::vector<uint64_t> &ids) {
   std_msgs::UInt64MultiArray landmark_msg;
-  for (auto& id : ids) { landmark_msg.data.push_back(id); }
+  for (auto &id : ids) {
+    landmark_msg.data.push_back(id);
+  }
   landmark_publisher_.publish(landmark_msg);
 }
 
