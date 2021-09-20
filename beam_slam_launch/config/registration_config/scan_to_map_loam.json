@@ -1,5 +1,5 @@
 {
-  "outlier_threshold_trans_m": 0.15,
+  "outlier_threshold_trans_m": 0.25,
   "outlier_threshold_rot_deg": 15,
   "min_motion_trans_m": 0,
   "min_motion_rot_deg": 0,

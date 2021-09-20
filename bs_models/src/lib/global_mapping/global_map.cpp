@@ -98,8 +98,10 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   nlohmann::json J_submap_filters = J_publishing["submap_lidar_filters"];
   nlohmann::json J_globalmap_filters = J_publishing["globalmap_lidar_filters"];
 
-  ros_submap_filter_params = beam_filtering::LoadFilterParamsVector(J_submap_filters);
-  ros_globalmap_filter_params = beam_filtering::LoadFilterParamsVector(J_globalmap_filters);
+  ros_submap_filter_params =
+      beam_filtering::LoadFilterParamsVector(J_submap_filters);
+  ros_globalmap_filter_params =
+      beam_filtering::LoadFilterParamsVector(J_globalmap_filters);
 }
 
 void GlobalMap::Params::SaveJson(const std::string& filename) {
@@ -168,12 +170,20 @@ void GlobalMap::SetStoreNewSubmaps(bool store_new_submaps) {
   store_newly_completed_submaps_ = store_new_submaps;
 }
 
+void GlobalMap::SetStoreNewScans(bool store_new_scans) {
+  store_new_scans_ = store_new_scans;
+}
+
 void GlobalMap::SetStoreUpdatedGlobalMap(bool store_updated_global_map) {
   store_updated_global_map_ = store_updated_global_map;
 }
 
 std::vector<std::shared_ptr<RosMap>> GlobalMap::GetRosMaps() {
   std::vector<std::shared_ptr<RosMap>> maps_vector;
+  while (!ros_new_scans_.empty()) {
+    maps_vector.push_back(ros_new_scans_.front());
+    ros_new_scans_.pop();
+  }
   while (!ros_submaps_.empty()) {
     maps_vector.push_back(ros_submaps_.front());
     ros_submaps_.pop();
@@ -248,7 +258,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
     new_transaction = InitiateNewSubmapPose();
 
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
-        FindLoopClosures();
+        FindLoopClosures(submaps_.size() - 2);
 
     if (loop_closure_transaction != nullptr) {
       new_transaction->merge(*loop_closure_transaction);
@@ -291,6 +301,10 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         point_counter += 3;
       }
 
+      if (store_new_scans_ && lid_measurement.point_type == 0) {
+        AddNewRosScan(cloud, T_WORLD_BASELINK, stamp);
+      }
+
       submaps_.at(submap_id)->AddLidarMeasurement(
           cloud, T_WORLD_BASELINK, stamp, lid_measurement.point_type);
     }
@@ -299,7 +313,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   // add trajectory measurement if not empty
   if (!traj_measurement.stamps.empty()) {
     ROS_DEBUG("Adding trajectory measurement to global map.");
-    std::vector<float> poses_vec = traj_measurement.poses;
+    std::vector<double> poses_vec = traj_measurement.poses;
     uint16_t num_poses = static_cast<uint16_t>(poses_vec.size() / 12);
 
     // check dimensions of inputs first
@@ -316,12 +330,21 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
       std::vector<Eigen::Matrix4d, pose_allocator> poses;
       std::vector<ros::Time> stamps;
       for (int i = 0; i < num_poses; i++) {
-        std::vector<float> current_pose;
+        std::vector<double> current_pose;
         for (int j = 0; j < 12; j++) {
           current_pose.push_back(traj_measurement.poses[12 * i + j]);
         }
         Eigen::Matrix4d T_KEYFRAME_FRAME =
             beam::VectorToEigenTransform(current_pose);
+        std::string matrix_check_summary;
+        if (!beam::IsTransformationMatrix(T_KEYFRAME_FRAME,
+                                          matrix_check_summary)) {
+          ROS_ERROR(
+              "transformation matrix invalid, not adding trajectory "
+              "measurement to global map. Reason: %s. Input:",
+              matrix_check_summary.c_str());
+          std::cout << "T_KEYFRAME_FRAME\n" << T_KEYFRAME_FRAME << "\n";
+        }
         poses.push_back(T_KEYFRAME_FRAME);
         ros::Time new_stamp;
         new_stamp.fromNSec(traj_measurement.stamps[i]);
@@ -332,6 +355,14 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   }
 
   return new_transaction;
+}
+
+fuse_core::Transaction::SharedPtr GlobalMap::TriggerLoopClosure() {
+  if(submaps_.size() < 2){
+    return nullptr;
+  }
+  
+  return FindLoopClosures(submaps_.size() - 1);
 }
 
 int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
@@ -409,7 +440,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   return new_transaction.GetTransaction();
 }
 
-fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
+fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures(int query_index) {
   // if first submap, don't look for loop closures
   if (submaps_.size() == 1) {
     return nullptr;
@@ -417,12 +448,11 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
 
   ROS_DEBUG("Searching for loop closure candidates");
 
-  int current_index = submaps_.size() - 2;
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
 
   loop_closure_candidate_search_->FindLoopClosureCandidates(
-      submaps_, current_index, matched_indices, Ts_MATCH_QUERY);
+      submaps_, query_index, matched_indices, Ts_MATCH_QUERY);
 
   ROS_DEBUG("Found %d loop closure candidates.", matched_indices.size());
 
@@ -433,20 +463,20 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
   ROS_DEBUG(
       "Matched index[0]: %d, Query Index: %d, No. or submaps: %d. Running loop "
       "closure refinement",
-      matched_indices.at(0), current_index, submaps_.size());
+      matched_indices.at(0), query_index, submaps_.size());
 
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
   for (int i = 0; i < matched_indices.size(); i++) {
-    // if the matched index is adjacent to the current index, ignore it. This
+    // if the matched index is adjacent to the query index, ignore it. This
     // would happen from improper candidate search implementations
-    if (matched_indices[i] == current_index + 1 ||
-        matched_indices[i] == current_index - 1) {
+    if (matched_indices[i] == query_index + 1 ||
+        matched_indices[i] == query_index - 1) {
       continue;
     }
     fuse_core::Transaction::SharedPtr new_transaction =
         loop_closure_refinement_->GenerateTransaction(
-            submaps_.at(matched_indices[i]), submaps_.at(current_index),
+            submaps_.at(matched_indices[i]), submaps_.at(query_index),
             Ts_MATCH_QUERY[i]);
     if (new_transaction != nullptr) {
       transaction->merge(*new_transaction);
@@ -461,9 +491,10 @@ fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures() {
   return transaction;
 }
 
-void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg, const ros::Time& update_time) {
+void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg,
+                                  const ros::Time& update_time) {
   last_update_time_ = update_time;
-  
+
   for (uint16_t i = 0; i < submaps_.size(); i++) {
     submaps_.at(i)->UpdatePose(graph_msg);
   }
@@ -921,6 +952,43 @@ void GlobalMap::AddRosGlobalMap() {
     // set cloud
     RosMap new_ros_map_keypoints(RosMapType::VISUALGLOBALMAP, pointcloud2_msg);
     ros_global_keypoints_map_ = std::make_shared<RosMap>(new_ros_map_keypoints);
+  }
+}
+
+void GlobalMap::AddNewRosScan(const PointCloud& cloud,
+                              const Eigen::Matrix4d& T_WORLD_BASELINK,
+                              const ros::Time& stamp) {
+  Eigen::Matrix4d T_BASELINK_LIDAR;
+  if (!extrinsics_->GetT_BASELINK_LIDAR(T_BASELINK_LIDAR)) {
+    BEAM_ERROR("Cannot get extrinsics, not publishing new lidar scans");
+    store_new_scans_ = false;
+    return;
+  }
+
+  PointCloud cloud_in_world_frame;
+  Eigen::Matrix4d T_WORLD_LIDAR = T_WORLD_BASELINK * T_BASELINK_LIDAR;
+  pcl::transformPointCloud(cloud, cloud_in_world_frame, T_WORLD_LIDAR);
+
+  sensor_msgs::PointCloud2 pointcloud2_msg;
+  pcl::PCLPointCloud2 pcl_pc2;
+
+  // convert to PointCloud2
+  pcl::toPCLPointCloud2<pcl::PointXYZ>(cloud_in_world_frame, pcl_pc2);
+  beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
+
+  // add other information
+  pointcloud2_msg.header.stamp = stamp;
+  pointcloud2_msg.header.seq = new_scans_counter_;
+  pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+  new_scans_counter_++;
+
+  // set cloud
+  RosMap new_ros_map(RosMapType::LIDARNEW, pointcloud2_msg);
+  ros_new_scans_.push(std::make_shared<RosMap>(new_ros_map));
+
+  // clear maps if there are too many in the queue;
+  while (ros_new_scans_.size() > max_num_new_scans_) {
+    ros_new_scans_.pop();
   }
 }
 

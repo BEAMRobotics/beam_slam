@@ -24,8 +24,11 @@ using namespace global_mapping;
 class LoopClosureCandidateSearchEucDist
     : public LoopClosureCandidateSearchBase {
  public:
-  // Inherit base class constructors
-  using LoopClosureCandidateSearchBase::LoopClosureCandidateSearchBase;
+  /**
+   * @brief constructor that takes in config path
+   * @param config_path full path to config json
+   */
+  LoopClosureCandidateSearchEucDist(const std::string& config_path);
 
   /**
    * @brief another constructor that takes in parameters

@@ -47,7 +47,8 @@ ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   }
 
   if (!RegisterScanToMap(new_scan, T_MAP_SCAN)) {
-    return transaction;
+    return bs_constraints::relative_pose::Pose3DStampedTransaction(
+        new_scan.Stamp());
   }
 
   /**

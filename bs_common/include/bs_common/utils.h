@@ -90,6 +90,7 @@ void EstimateVelocityFromPath(
 
 /**
  * @brief Get full path the the config root directory in beam_slam_launch
+ * (.../beam_slam_launch/config/)
  * @return path
  */
 std::string GetBeamSlamConfigPath();

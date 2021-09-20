@@ -139,7 +139,7 @@ void LidarOdometry::onInit() {
       if (json_valid) {
         input_filter_params_ =
             beam_filtering::LoadFilterParamsVector(J_filters);
-        ROS_INFO("Loaded %d input filters", input_filter_params_.size());    
+        ROS_INFO("Loaded %d input filters", input_filter_params_.size());
       }
     }
   }
@@ -226,12 +226,24 @@ LidarOdometry::GenerateTransaction(
                              T_WORLD_BASELINKCURRENT, T_BASELINK_LIDAR,
                              feature_extractor_);
 
-  active_clouds_.push_back(current_scan_pose);
-
   // build transaction of registration measurements
+
+  /** Uncomment this and comment the following line if you want to only include
+   * pose priors */
   // bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
   //     current_scan_pose.Stamp());
+
   auto transaction = scan_registration_->RegisterNewScan(current_scan_pose);
+
+  // if scan registration failed and returned a nullptr, then don't add scan to
+  // active list or add prior
+  if (transaction.GetTransaction() == nullptr) {
+    ROS_DEBUG("Skipping scan");
+    return bs_constraints::relative_pose::Pose3DStampedTransaction(
+        msg->header.stamp);
+  }
+
+  active_clouds_.push_back(current_scan_pose);
 
   if (params_.frame_initializer_prior_noise > 0) {
     // check if variables are being added:
@@ -269,10 +281,28 @@ LidarOdometry::GenerateTransaction(
 void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   updates_++;
 
+  // TODO: DELETE ME -----------------
+  // std::string save_path_orig =
+  //     "/home/nick/tmp/map_updating/" +
+  //     std::to_string(ros::Time::now().toSec()) + "orig/";
+  // std::string save_path_updated =
+  //       "/home/nick/tmp/map_updating/" +
+  //       std::to_string(ros::Time::now().toSec()) + "updated/";
+  // boost::filesystem::create_directory(save_path_orig);
+  // boost::filesystem::create_directory(save_path_updated);
+  // scan_registration_->GetMapMutable().Save(save_path_orig, true, 255, 0, 0);
+  // ---------------------------------
+
   auto i = active_clouds_.begin();
   while (i != active_clouds_.end()) {
     bool update_successful = i->UpdatePose(graph_msg);
     if (update_successful) {
+      // update map
+      if (update_scan_registration_map_on_graph_update_) {
+        scan_registration_->GetMapMutable().UpdateScan(i->Stamp(),
+                                                       i->T_REFFRAME_LIDAR());
+      }
+
       ++i;
       continue;
     }
@@ -289,6 +319,11 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     OutputResults(*i);
     active_clouds_.erase(i++);
   }
+
+  // DELETE ME --------------------
+  // scan_registration_->GetMapMutable().Save(save_path_updated, true, 0, 255,
+  // 0);
+  // ------------------------------
 
   if (!output_graph_updates_) {
     return;
@@ -324,15 +359,15 @@ void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
     SlamChunkMsg slam_chunk_msg;
     slam_chunk_msg.stamp = scan_pose.Stamp();
 
-    std::vector<float> pose;
+    std::vector<double> pose;
     const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
     for (uint8_t i = 0; i < 3; i++) {
       for (uint8_t j = 0; j < 4; j++) {
-        pose.push_back(static_cast<float>(T(i, j)));
+        pose.push_back(T(i, j));
       }
     }
-    slam_chunk_msg.T_WORLD_BASELINK = pose;
 
+    slam_chunk_msg.T_WORLD_BASELINK = pose;
     slam_chunk_msg.lidar_measurement.frame_id = extrinsics_.GetLidarFrameId();
 
     // publish regular points

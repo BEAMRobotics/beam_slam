@@ -41,9 +41,9 @@ class MultiScanRegistrationTest : public ::testing::Test {
     test_path_ = __FILE__;
     test_path_.erase(test_path_.end() - current_file.size(), test_path_.end());
     std::string scan_path = test_path_ + "data/test_scan_vlp16.pcd";
-    PointCloud test_cloud_tmp;
+    PointCloudPtr test_cloud_tmp = std::make_shared<PointCloud>();
     PointCloud test_cloud;
-    pcl::io::loadPCDFile(scan_path, test_cloud_tmp);
+    pcl::io::loadPCDFile(scan_path, *test_cloud_tmp);
 
     // create loam params from config
     std::string config_path = test_path_ + "data/loam_config.json";
@@ -54,7 +54,7 @@ class MultiScanRegistrationTest : public ::testing::Test {
     beam_filtering::VoxelDownsample<> downsampler(scan_voxel_size);
     downsampler.SetInputCloud(test_cloud_tmp);
     downsampler.Filter();
-    PointCloud test_cloud = downsampler.GetFilteredCloud();
+    test_cloud = downsampler.GetFilteredCloud();
 
     // create poses
     double max_pose_rot{20};

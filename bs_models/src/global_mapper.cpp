@@ -5,7 +5,10 @@
 #include <boost/filesystem.hpp>
 
 #include <beam_utils/math.h>
+#include <beam_utils/log.h>
 #include <beam_utils/time.h>
+
+#include <bs_common/utils.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::GlobalMapper, fuse_core::SensorModel)
@@ -20,8 +23,18 @@ GlobalMapper::GlobalMapper()
 
 void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
   ros::Time stamp = msg->stamp;
-  std::vector<float> T = msg->T_WORLD_BASELINK;
+  std::vector<double> T = msg->T_WORLD_BASELINK;
   Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
+
+  std::string matrix_check_summary;
+  if (!beam::IsTransformationMatrix(T_WORLD_BASELINK, matrix_check_summary)) {
+    BEAM_WARN(
+        "transformation matrix invalid, not adding SlamChunkMsg to global map. "
+        "Reason: %s, Input:",
+        matrix_check_summary.c_str());
+    std::cout << "T_WORLD_BASELINK\n" << T_WORLD_BASELINK << "\n";
+    return;
+  }
 
   // update extrinsics if necessary
   UpdateExtrinsics();
@@ -49,15 +62,17 @@ void GlobalMapper::process(const bs_common::SlamChunkMsg::ConstPtr& msg) {
     ROS_DEBUG("Global map updated.");
   }
 
-  if (params_.publish_new_submaps || params_.publish_updated_global_map) {
+  if (params_.publish_new_submaps || params_.publish_updated_global_map ||
+      params_.publish_new_scans) {
     std::vector<std::shared_ptr<global_mapping::RosMap>> maps_to_publish =
         global_map_->GetRosMaps();
     for (const std::shared_ptr<global_mapping::RosMap>& ros_map :
          maps_to_publish) {
-      if (ros_map->first == global_mapping::RosMapType::LIDARSUBMAP) {
+      if (ros_map->first == global_mapping::RosMapType::LIDARNEW) {
+        new_scans_publisher_.publish(ros_map->second);
+      } else if (ros_map->first == global_mapping::RosMapType::LIDARSUBMAP) {
         submap_lidar_publisher_.publish(ros_map->second);
-      } else if (ros_map->first ==
-                 global_mapping::RosMapType::VISUALSUBMAP) {
+      } else if (ros_map->first == global_mapping::RosMapType::VISUALSUBMAP) {
         submap_keypoints_publisher_.publish(ros_map->second);
       } else if (ros_map->first == global_mapping::RosMapType::LIDARGLOBALMAP) {
         global_map_lidar_publisher_.publish(ros_map->second);
@@ -84,15 +99,23 @@ void GlobalMapper::onStart() {
   if (params_.publish_new_submaps) {
     submap_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
         params_.new_submaps_topic + "/lidar", 10);
-    submap_keypoints_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        params_.new_submaps_topic + "/visual", 10);    
+    submap_keypoints_publisher_ =
+        node_handle_.advertise<sensor_msgs::PointCloud2>(
+            params_.new_submaps_topic + "/visual", 10);
+  }
+
+  if (params_.publish_new_scans) {
+    new_scans_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
+        params_.new_scans_topic, 50);
   }
 
   if (params_.publish_updated_global_map) {
-    global_map_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        params_.global_map_topic + "/lidar", 10);
-    global_map_keypoints_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        params_.global_map_topic + "/visual", 10);    
+    global_map_lidar_publisher_ =
+        node_handle_.advertise<sensor_msgs::PointCloud2>(
+            params_.global_map_topic + "/lidar", 10);
+    global_map_keypoints_publisher_ =
+        node_handle_.advertise<sensor_msgs::PointCloud2>(
+            params_.global_map_topic + "/visual", 10);
   }
 
   // get intrinsics
@@ -114,10 +137,25 @@ void GlobalMapper::onStart() {
   }
   global_map_->SetStoreNewSubmaps(params_.publish_new_submaps);
   global_map_->SetStoreUpdatedGlobalMap(params_.publish_updated_global_map);
-
+  global_map_->SetStoreNewScans(params_.publish_new_scans);
 };
 
 void GlobalMapper::onStop() {
+  // use beam logging here because ROS logging stops when a node shutdown gets
+  // called
+  BEAM_INFO("Running final loop closure");
+  auto transaction_ptr = global_map_->TriggerLoopClosure();
+
+  if (transaction_ptr != nullptr) {
+    BEAM_INFO("Found {} loop closures. Updating map.",
+              bs_common::GetNumberOfConstraints(transaction_ptr));
+    graph_->update(*transaction_ptr);
+    graph_->optimize();
+    global_map_->UpdateSubmapPoses(graph_, ros::Time::now());
+  } else {
+    BEAM_INFO("No loop closures found for final submap.");
+  }
+
   if (!boost::filesystem::exists(params_.output_path)) {
     BEAM_ERROR("Output path does not exist, not saing results.");
     return;

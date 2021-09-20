@@ -11,6 +11,7 @@
 
 #include <bs_models/loop_closure/loop_closure_refinement_base.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
+#include <bs_common/utils.h>
 
 namespace bs_models {
 
@@ -72,22 +73,29 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
    * @brief Method for loading a config json file.
    */
   void LoadConfig() {
-    if (config_path_.empty()) {
+    std::string read_path = config_path_;
+    if (read_path.empty()) {
       return;
     }
 
+    if (read_path == "DEFAULT_PATH") {
+      read_path = bs_common::GetBeamSlamConfigPath() +
+                  "global_map/loop_closure_refinement_scan_registration.json";
+    }
+
+    BEAM_INFO("Loading loop closure config: {}", read_path);
     nlohmann::json J;
-    if (!beam::ReadJson(config_path_, J)) {
+    if (!beam::ReadJson(read_path, J)) {
       BEAM_INFO(
           "Using default loop closure refinement scan registration params.");
       return;
     }
 
     try {
-      matcher_config_ = J["matcher_config_path"];
+      matcher_config_ = J["matcher_config"];
     } catch (...) {
       BEAM_ERROR(
-          "Missing ont or more parameter, using default loop closure "
+          "Missing one or more parameter, using default loop closure "
           "refinement params");
     }
 
@@ -101,7 +109,7 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
       return;
     }
     filter_params_ = beam_filtering::LoadFilterParamsVector(J_filters);
-    BEAM_INFO("Loaded %d input filters", filter_params_.size());
+    BEAM_INFO("Loaded {} input filters", filter_params_.size());
   }
 
   /**
@@ -152,11 +160,39 @@ class LoopClosureRefinementScanRegistration : public LoopClosureRefinementBase {
     // match clouds
     matcher_->SetRef(match_cloud_world);
     matcher_->SetTarget(query_cloud_world);
+
     if (!matcher_->Match()) {
       BEAM_WARN("Failed scan matching. Not adding loop closure constraint.");
+      if (output_results_) {
+        output_path_stamped_ =
+            debug_output_path_ +
+            beam::ConvertTimeToDate(std::chrono::system_clock::now()) +
+            "_failed/";
+        boost::filesystem::create_directory(output_path_stamped_);
+        matcher_->SaveResults(output_path_stamped_);
+      }
       return false;
     }
-    T_MATCH_QUERY_OPT = matcher_->GetResult().inverse().matrix();
+
+    Eigen::Matrix4d T_MATCHREFINED_MATCHEST =
+        matcher_->GetResult().inverse().matrix();
+
+    /**
+     * Get refined pose:
+     * T_MATCH_QUERY_OPT = T_MATCHREFINED_QUERY
+     *                   = T_MATCHREFINED_MATCHEST * T_MATCHEST_QUERY
+     *                   = T_MATCHREFINED_MATCHEST * T_MATCH_QUERY_EST
+     */
+    T_MATCH_QUERY_OPT = T_MATCHREFINED_MATCHEST * T_MATCH_QUERY_EST;
+
+    if (output_results_) {
+      output_path_stamped_ =
+          debug_output_path_ +
+          beam::ConvertTimeToDate(std::chrono::system_clock::now()) +
+          "_passed/";
+      boost::filesystem::create_directory(output_path_stamped_);
+      matcher_->SaveResults(output_path_stamped_);
+    }
 
     return true;
   }

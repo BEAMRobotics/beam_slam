@@ -70,11 +70,16 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   bs_parameters::models::LidarOdometryParams params_;
+
   std::vector<beam_filtering::FilterParamsType> input_filter_params_;
-  bool output_graph_updates_{false};
   int updates_{0};
+  
+  /** Params that can only be updated here: */
+  bool output_graph_updates_{false};
   std::string graph_updates_path_ =
       "/home/nick/results/beam_slam/graph_updates/";
+  bool update_scan_registration_map_on_graph_update_{true};
+
 };
 
 }  // namespace bs_models

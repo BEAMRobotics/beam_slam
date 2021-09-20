@@ -4,6 +4,8 @@
 
 #include <beam_utils/filesystem.h>
 
+#include <bs_common/utils.h>
+
 namespace bs_models {
 
 namespace loop_closure {
@@ -41,18 +43,26 @@ LoopClosureRefinementLoam::GenerateTransaction(
 }
 
 void LoopClosureRefinementLoam::LoadConfig() {
-  if (config_path_.empty()) {
+  std::string read_path = config_path_;
+
+  if (read_path.empty()) {
     return;
   }
 
+  if (read_path == "DEFAULT_PATH") {
+    read_path = bs_common::GetBeamSlamConfigPath() +
+                "global_map/loop_closure_refinement_loam_registration.json";
+  }
+
+  BEAM_INFO("Loading loop closure config: {}", read_path);
   nlohmann::json J;
-  if (!beam::ReadJson(config_path_, J)) {
+  if (!beam::ReadJson(read_path, J)) {
     BEAM_INFO("Using default params.");
     return;
   }
 
   try {
-    matcher_config_ = J["matcher_config_path"];
+    matcher_config_ = J["matcher_config"];
   } catch (...) {
     BEAM_ERROR(
         "Missing one or more parameter, using default loop closure params.");
@@ -81,10 +91,37 @@ bool LoopClosureRefinementLoam::GetRefinedT_MATCH_QUERY(
   matcher_->SetTarget(cloud_query_world);
   if (!matcher_->Match()) {
     BEAM_WARN("Failed scan matching. Not adding loop closure constraint.");
+    if (output_results_) {
+      output_path_stamped_ =
+          debug_output_path_ +
+          beam::ConvertTimeToDate(std::chrono::system_clock::now()) +
+          "_failed/";
+      boost::filesystem::create_directory(output_path_stamped_);
+      matcher_->SaveResults(output_path_stamped_);
+    }
     return false;
   }
 
-  T_MATCH_QUERY_OPT = matcher_->GetResult().inverse().matrix();
+  Eigen::Matrix4d T_MATCHREFINED_MATCHEST =
+      matcher_->GetResult().inverse().matrix();
+
+  /**
+   * Get refined pose:
+   * T_MATCH_QUERY_OPT = T_MATCHREFINED_QUERY
+   *                   = T_MATCHREFINED_MATCHEST * T_MATCHEST_QUERY
+   *                   = T_MATCHREFINED_MATCHEST * T_MATCH_QUERY_EST
+   */
+  T_MATCH_QUERY_OPT = T_MATCHREFINED_MATCHEST * T_MATCH_QUERY_EST;
+
+  if (output_results_) {
+    output_path_stamped_ =
+        debug_output_path_ +
+        beam::ConvertTimeToDate(std::chrono::system_clock::now()) + "_passed/";
+    boost::filesystem::create_directory(output_path_stamped_);
+    matcher_->SaveResults(output_path_stamped_);
+  }
+
+  return true;
 }
 
 }  // namespace loop_closure

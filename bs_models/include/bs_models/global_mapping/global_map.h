@@ -25,7 +25,8 @@ enum class RosMapType {
   LIDARSUBMAP = 0,
   LIDARGLOBALMAP,
   VISUALSUBMAP,
-  VISUALGLOBALMAP
+  VISUALGLOBALMAP,
+  LIDARNEW,
 };
 
 using RosMap = std::pair<RosMapType, sensor_msgs::PointCloud2>;
@@ -165,6 +166,13 @@ class GlobalMap {
   void SetStoreNewSubmaps(bool store_new_submaps);
 
   /**
+   * @brief Sets store_new_data_ param. See description below for
+   * what his does.
+   * @param store_new_scans
+   */
+  void SetStoreNewScans(bool store_new_scans);
+
+  /**
    * @brief Sets store_updated_global_map param. See description below for what
    * his does.
    * @param store_updated_global_map
@@ -207,21 +215,20 @@ class GlobalMap {
       const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp);
 
   /**
-   * @brief takes the latest submap (back of vector) and adds a pose constraint
-   * between it and it's previous submap. If it's the first submap, it will add
-   * a perfect prior on this submap.
-   * @return transaction which adds the new submap variables and a binary
-   * constraints between the previous submap and the new one
-   */
-  fuse_core::Transaction::SharedPtr InitiateNewSubmapPose();
-
-  /**
    * @brief Update submap poses with a new graph message
    * @param graph_msg updated graph which should have all submap poses stored
    * @param update_time ros time of this update
    */
   void UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg,
                          const ros::Time& update_time = ros::Time(0));
+
+  /**
+   * @brief Calling this will trigger a loop closure search for the last submap.
+   * This is convenient for completing a mapping session where the final submap
+   * won't be complete so we wouldn't have run loop closure on it.
+   * @return transaction with new variables and constraints if applicable
+   */
+  fuse_core::Transaction::SharedPtr TriggerLoopClosure();
 
   /**
    * @brief Save full global map to a format that can be reloaded later for new
@@ -323,17 +330,30 @@ class GlobalMap {
   int GetSubmapId(const Eigen::Matrix4d& T_WORLD_FRAME);
 
   /**
-   * @brief Get loop closure measurements by comparing the second last submap to
-   * all previous submaps. The reason we compare the second last submap is
-   * because we don't want to find loop closures until the submap is complete,
-   * this ensures a best estimate of the loop closure constraint.
+   * @brief takes the latest submap (back of vector) and adds a pose constraint
+   * between it and it's previous submap. If it's the first submap, it will add
+   * a perfect prior on this submap.
+   * @return transaction which adds the new submap variables and a binary
+   * constraints between the previous submap and the new one
+   */
+  fuse_core::Transaction::SharedPtr InitiateNewSubmapPose();
+
+  /**
+   * @brief Get loop closure measurements by comparing the a submap to
+   * all previous submaps. By default, every new submap will trigger a loop
+   * closure for the second last submap. The reason we compare the second last
+   * submap is because we don't want to find loop closures until the submap is
+   * complete, this ensures a best estimate of the loop closure constraint. When
+   * a global map is complete, you should trigger loop closure against the last
+   * submap which probably still isn't complete
+   * @param query_index index of submap to look for loop closures against
    * @return fuse transaction with the frame to frame constraints between two
    * loop closure poses
    */
-  fuse_core::Transaction::SharedPtr FindLoopClosures();
+  fuse_core::Transaction::SharedPtr FindLoopClosures(int query_index);
 
   /**
-   * @brief adds submap points (lidar points and camera keypoints) to the vector
+   * @brief adds submap points (lidar points and camera keypoints) to the queue
    * of ros messages to be published
    * @param submap_id index to submap to add
    */
@@ -344,6 +364,17 @@ class GlobalMap {
    * vector of ros messages to be published
    */
   void AddRosGlobalMap();
+
+  /**
+   * @brief adds new lidar scans  to the
+   * queue of ros messages to be published
+   * @param cloud cloud to add
+   * @param T_WORLD_BASELINK pose of scan
+   * @param stamp
+   */
+  void AddNewRosScan(const PointCloud& cloud,
+                     const Eigen::Matrix4d& T_WORLD_BASELINK,
+                     const ros::Time& stamp);
 
   Params params_;
 
@@ -364,6 +395,16 @@ class GlobalMap {
    * from the sensor model, and make sure it isn't overriden by a config file.*/
   bool store_updated_global_map_{false};
 
+  /** If set to true, this will store new lidar data to a
+   * PointCloud2 message so that it can be extracted using
+   * GetRosMaps() function and published over ROS. NOTE: We do not have the
+   * ability to publish new camera keypoints because the global map doesn't
+   * actually store 3D positions unless asked to triangulate. NOTE: this cannot
+   * be set by or saved to a config file. It must be set by calling
+   * SetSaveNewData(). The reason for this is that we want to set this
+   * from the sensor model, and make sure it isn't overriden by a config file.*/
+  bool store_new_scans_{false};
+
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 
@@ -374,7 +415,9 @@ class GlobalMap {
   std::unique_ptr<loop_closure::LoopClosureRefinementBase>
       loop_closure_refinement_;
 
+  // ros maps
   std::queue<std::shared_ptr<RosMap>> ros_submaps_;
+  std::queue<std::shared_ptr<RosMap>> ros_new_scans_;
   std::shared_ptr<RosMap> ros_global_lidar_map_;
   std::shared_ptr<RosMap> ros_global_keypoints_map_;
 
@@ -392,8 +435,12 @@ class GlobalMap {
    * one global map at a time, but many submaps can be kept */
   int max_num_ros_submaps_{10};
 
+  /** maximum number of new scans to store at a time.  */
+  int max_num_new_scans_{50};
+
   /** keep track of graph updates from ROS */
   int global_map_updates_{0};
+  int new_scans_counter_{0};
   ros::Time last_update_time_;
 };
 
