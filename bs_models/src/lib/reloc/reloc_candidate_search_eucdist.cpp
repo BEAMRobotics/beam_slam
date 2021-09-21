@@ -55,33 +55,33 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
     const Eigen::Matrix4d& T_WORLD_QUERY, std::vector<int>& matched_indices,
     std::vector<Eigen::Matrix4d, pose_allocator>& estimated_poses,
     bool use_initial_poses) {
-  // TODO: update this function with new interface
-  BEAM_ERROR("Not yet implemented");
+  // create a sorted map to store distances
+  std::map<double, std::pair<int, Eigen::Matrix4d>> candidates_sorted;
+  for (int i = 0; i < submaps.size(); i++) {
+    Eigen::Matrix4d T_WORLD_SUBMAPCANDIDATE;
+    if (use_initial_poses) {
+      T_WORLD_SUBMAPCANDIDATE = submaps.at(i)->T_WORLD_SUBMAP();
+    } else {
+      T_WORLD_SUBMAPCANDIDATE = submaps.at(i)->T_WORLD_SUBMAP_INIT();
+    }
+    Eigen::Matrix4d T_SUBMAPCANDIDATE_QUERY =
+        beam::InvertTransform(T_WORLD_SUBMAPCANDIDATE) * T_WORLD_QUERY;
+    double distance = T_SUBMAPCANDIDATE_QUERY.block(0, 3, 3, 1).norm();
 
-  // std::map<double, std::pair<int, Eigen::Matrix4d, pose_allocator>>
-  //     candidates_sorted;
-  // for (int i = 0; i < submaps.size(); i++) {
-  //   const Eigen::Matrix4d& T_WORLD_SUBMAPCANDIDATE =
-  //       submaps.at(i)->T_WORLD_SUBMAP();
-  //   Eigen::Matrix4d T_SUBMAPCANDIDATE_BASELINKQUERY =
-  //       beam::InvertTransform(T_WORLD_SUBMAPCANDIDATE) * T_WORLD_BASELINKQUERY;
-  //   double distance = T_SUBMAPCANDIDATE_BASELINKQUERY.block(0, 3, 3, 1).norm();
+    if (distance < distance_threshold_m_) {
+      candidates_sorted.emplace(distance, std::pair<int, Eigen::Matrix4d>(
+                                              i, T_SUBMAPCANDIDATE_QUERY));
+    }
+  }
 
-  //   if (distance < distance_threshold_m_) {
-  //     candidates_sorted.emplace(distance,
-  //                               std::pair<int, Eigen::Matrix4d, pose_allocator>(
-  //                                   i, T_SUBMAPCANDIDATE_BASELINKQUERY));
-  //   }
-  // }
-
-  // // iterate through sorted map and convert to vectors
-  // matched_indices.clear();
-  // estimated_poses.clear();
-  // for (const auto iter = candidates_sorted.begin();
-  //      iter != candidates_sorted.end(); iter++) {
-  //   matched_indices.push_back(iter->second.first);
-  //   matched_indices.push_back(iter->second.second);
-  // }
+  // iterate through sorted map and convert to vectors
+  matched_indices.clear();
+  estimated_poses.clear();
+  for (auto iter = candidates_sorted.begin(); iter != candidates_sorted.end();
+       iter++) {
+    matched_indices.push_back(iter->second.first);
+    estimated_poses.push_back(iter->second.second);
+  }
 }
 
 }  // namespace reloc

@@ -49,10 +49,27 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
       const std::shared_ptr<global_mapping::Submap>& matched_submap,
       const std::shared_ptr<global_mapping::Submap>& query_submap,
       const Eigen::Matrix4d& T_MATCH_QUERY_EST) override {
+    // extract and filter clouds from matched submap
+    PointCloud matched_submap_world = beam_filtering::FilterPointCloud(
+        matched_submap->GetLidarPointsInWorldFrameCombined(), filter_params_);
+    PointCloud matched_submap_in_submap_frame;
+    pcl::transformPointCloud(
+        matched_submap_world, matched_submap_in_submap_frame,
+        beam::InvertTransform(matched_submap->T_WORLD_SUBMAP()));
+
+    // extract and filter clouds from matched submap
+    PointCloud query_submap_world = beam_filtering::FilterPointCloud(
+        query_submap->GetLidarPointsInWorldFrameCombined(), filter_params_);
+    PointCloud query_submap_in_submap_frame;
+    pcl::transformPointCloud(
+        query_submap_world, query_submap_in_submap_frame,
+        beam::InvertTransform(query_submap->T_WORLD_SUBMAP()));
+
     // get refined transform
     Eigen::Matrix4d T_MATCH_QUERY_OPT;
-    if (!GetRefinedT_MATCH_QUERY(matched_submap, query_submap,
-                                 T_MATCH_QUERY_EST, T_MATCH_QUERY_OPT)) {
+    if (!GetRefinedT_SUBMAP_QUERY(matched_submap_in_submap_frame,
+                                  query_submap_in_submap_frame,
+                                  T_MATCH_QUERY_EST, T_MATCH_QUERY_OPT)) {
       return nullptr;
     }
 
@@ -84,8 +101,22 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
                       const std::shared_ptr<global_mapping::Submap>& submap,
                       const PointCloud& lidar_cloud_in_query_frame,
                       const cv::Mat& image = cv::Mat()) override {
-    // TODO
-    BEAM_ERROR("NOT YET IMPLEMENTED");
+    // extract and filter clouds from match submap
+    PointCloud submap_cloud_world = beam_filtering::FilterPointCloud(
+        submap->GetLidarPointsInWorldFrameCombined(), filter_params_);
+    PointCloud submap_in_submap_frame;
+    pcl::transformPointCloud(submap_cloud_world, submap_in_submap_frame,
+                             beam::InvertTransform(submap->T_WORLD_SUBMAP()));
+
+    // get refined transform
+    Eigen::Matrix4d T_SUBMAP_QUERY_OPT;
+    if (!GetRefinedT_SUBMAP_QUERY(
+            submap_in_submap_frame, lidar_cloud_in_query_frame,
+            T_SUBMAP_QUERY_initial, T_SUBMAP_QUERY_refined)) {
+      return false;
+    }
+
+    return true;
   }
 
  private:
@@ -142,34 +173,29 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
 
   /**
    * @brief Calculate a refined pose between submaps using scan registration
-   * @param matched_submap submap that a new query submap matches to
-   * @param query_submap new submap that we are adding constraints with previous
+   * @param submap_cloud submap cloud in submap frame
+   * @param query_cloud either a scan to register against a submap, or a query
+   * submap cloud to match against some other submap. This is in the query frame
    * submaps
-   * @param T_MATCH_QUERY_EST estimated transform between the two submaps. This
-   * is determined with a class derived from RelocCandidateSearchBase
-   * @param T_MATCH_QUERY_OPT reference to the resulting refined transform from
-   * query submap to matched submap
+   * @param T_SUBMAP_QUERY_EST estimated transform between the query cloud and
+   * the submap. This usually is determined with a class derived from
+   * RelocCandidateSearchBase
+   * @param T_SUBMAP_QUERY_OPT reference to the resulting refined transform from
+   * query scan to the submap in question
    */
-  bool GetRefinedT_MATCH_QUERY(
-      const std::shared_ptr<global_mapping::Submap>& matched_submap,
-      const std::shared_ptr<global_mapping::Submap>& query_submap,
-      const Eigen::Matrix4d& T_MATCH_QUERY_EST,
-      Eigen::Matrix4d& T_MATCH_QUERY_OPT) {
-    // extract and filter clouds from match submap
-    PointCloudPtr match_cloud_world = std::make_shared<PointCloud>(
-        matched_submap->GetLidarPointsInWorldFrameCombined());
-    *match_cloud_world =
-        beam_filtering::FilterPointCloud(*match_cloud_world, filter_params_);
-
-    // extract and filter clouds from query submap
-    PointCloudPtr query_cloud_world = std::make_shared<PointCloud>(
-        query_submap->GetLidarPointsInWorldFrameCombined());
-    *query_cloud_world =
-        beam_filtering::FilterPointCloud(*query_cloud_world, filter_params_);
+  bool GetRefinedT_SUBMAP_QUERY(const PointCloud& submap_cloud,
+                                const PointCloud& query_cloud,
+                                const Eigen::Matrix4d& T_SUBMAP_QUERY_EST,
+                                Eigen::Matrix4d& T_SUBMAP_QUERY_OPT) {
+    // convert query to estimated submap frame and make pointers
+    PointCloudPtr submap_ptr = std::make_shared<PointCloud>(submap_cloud);
+    PointCloudPtr query_in_submap_frame_est = std::make_shared<PointCloud>();
+    pcl::transformPointCloud(query_cloud, *query_in_submap_frame_est,
+                             T_SUBMAP_QUERY_EST);
 
     // match clouds
-    matcher_->SetRef(match_cloud_world);
-    matcher_->SetTarget(query_cloud_world);
+    matcher_->SetRef(submap_ptr);
+    matcher_->SetTarget(query_in_submap_frame_est);
 
     if (!matcher_->Match()) {
       BEAM_WARN("Failed scan matching. Not adding reloc constraint.");
@@ -184,16 +210,16 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
       return false;
     }
 
-    Eigen::Matrix4d T_MATCHREFINED_MATCHEST =
+    Eigen::Matrix4d T_SUBMAPREFINED_SUBMAPEST =
         matcher_->GetResult().inverse().matrix();
 
     /**
      * Get refined pose:
-     * T_MATCH_QUERY_OPT = T_MATCHREFINED_QUERY
-     *                   = T_MATCHREFINED_MATCHEST * T_MATCHEST_QUERY
-     *                   = T_MATCHREFINED_MATCHEST * T_MATCH_QUERY_EST
+     * T_SUBMAP_QUERY_OPT = T_SUBMAPREFINED_QUERY
+     *                   = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAPEST_QUERY
+     *                   = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAP_QUERY_EST
      */
-    T_MATCH_QUERY_OPT = T_MATCHREFINED_MATCHEST * T_MATCH_QUERY_EST;
+    T_SUBMAP_QUERY_OPT = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAP_QUERY_EST;
 
     if (output_results_) {
       output_path_stamped_ =
