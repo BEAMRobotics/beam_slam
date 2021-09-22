@@ -296,7 +296,7 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
       points.push_back(point);
     }
   }
-  
+
   // get pose estimate from imu
   Eigen::Matrix4d T_WORLD_BASELINK_inertial;
   imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
@@ -400,7 +400,7 @@ void VisualInertialOdometry::ExtendMap() {
           }
         }
 
-        if (T_cam_world_v.size() >= 3) {
+        if (T_cam_world_v.size() >= 2) {
           beam::opt<Eigen::Vector3d> point =
               beam_cv::Triangulation::TriangulatePoint(cam_model_,
                                                        T_cam_world_v, pixels);
