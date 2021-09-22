@@ -40,7 +40,7 @@ protected:
   /**
    * @brief todo
    */
-  void onStop() override;
+  void onStop() override {}
 
   /**
    * @brief publish results of initialization to a InitializedPathMsg

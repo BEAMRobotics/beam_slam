@@ -60,8 +60,6 @@ void GTInitializer::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   }
 }
 
-void GTInitializer::onStop() {}
-
 void GTInitializer::PublishResults() {
   bs_common::InitializedPathMsg msg;
 

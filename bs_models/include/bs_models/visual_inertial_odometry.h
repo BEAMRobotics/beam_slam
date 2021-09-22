@@ -3,21 +3,21 @@
 #include <queue>
 
 #include <bs_common/bs_msgs.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/Imu.h>
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/throttled_callback.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/Imu.h>
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
-#include <bs_models/current_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/vision/keyframe.h>
-#include <bs_models/vision/visual_map.h>
+#include <bs_models/active_submap.h>
 #include <bs_models/imu_preintegration.h>
-#include <bs_models/trajectory_initializers/vio_initializer.h>
+#include <bs_models/vision/keyframe.h>
+#include <bs_models/vision/vio_initialization.h>
+#include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/camera_params.h>
 
@@ -77,7 +77,7 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
   /**
    * @brief Unsubscribe to the input topic
    */
-  void onStop() override;
+  void onStop() override {}
 
   /**
    * @brief Callback for when a newly optimized graph is available
@@ -95,20 +95,17 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
   /**
    * @brief Localizes a given frame using the tracker and the current visual map
    * @param img_time time of image to localize
-   * @param[out] T_WORLD_CAMERA estimated pose
-   * @return failure or success
+   * @return T_WORLD_BASELINK
    */
-  bool LocalizeFrame(const ros::Time& img_time,
-                     Eigen::Matrix4d& T_WORLD_CAMERA);
+  Eigen::Matrix4d LocalizeFrame(const ros::Time& img_time);
 
   /**
    * @brief Determines if a frame is a keyframe
    * @param img_time time of image to determine if its a keyframe
-   * @param T_WORLD_CAMERA pose of the frame in question
    * @return true or false decision
    */
   bool IsKeyframe(const ros::Time& img_time,
-                  const Eigen::Matrix4d& T_WORLD_CAMERA);
+                  const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief Extends the map at the current keyframe time and adds the visual
@@ -140,13 +137,6 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
    * @brief Publishes landmark ids
    */
   void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
-
-  /**
-   * @brief Matches an image in the tracker to the current submap
-   * @param img_time time of image to match against submap
-   */
-  std::map<uint64_t, Eigen::Vector3d> MatchFrameToCurrentSubmap(
-      const ros::Time& img_time);
 
  protected:
   // loadable camera parameters
@@ -183,12 +173,12 @@ class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<VisualMap> visual_map_;
-  CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
+  ActiveSubmap& active_submap_ = ActiveSubmap::GetInstance();
   beam_cv::DescriptorType descriptor_type_;
   uint8_t descriptor_type_int_;
 
   // initialization object
-  std::shared_ptr<trajectory_initializers::VIOInitializer> initializer_;
+  std::shared_ptr<vision::VIOInitialization> initialization_;
 
   // imu preintegration object
   std::shared_ptr<ImuPreintegration> imu_preint_;

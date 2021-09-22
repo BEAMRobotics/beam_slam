@@ -108,6 +108,7 @@ add_library(
   src/global_mapper.cpp
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp
+  src/lib/vision/vio_initialization.cpp
   src/lib/global_mapping/global_map.cpp
   src/lib/global_mapping/submap.cpp
   src/lib/global_mapping/global_map_refinement.cpp
@@ -120,10 +121,8 @@ add_library(
   src/lib/frame_initializers/frame_initializer_base.cpp
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
-  src/lib/trajectory_initializers/imu_initializer.cpp
-  src/lib/trajectory_initializers/vio_initializer.cpp
   src/lib/scan_pose.cpp
-  src/lib/current_submap.cpp
+  src/lib/active_submap.cpp
   src/lib/imu_preintegration.cpp
 )
 
@@ -197,26 +196,28 @@ if(CATKIN_ENABLE_TESTING)
   )
 
   # IMU preintegration tests
-  find_package(basalt REQUIRED)
-  catkin_add_gtest(${PROJECT_NAME}_imu_preintegration_tests
-    tests/imu_preintegration_tests.cpp
-  )
-  target_include_directories(${PROJECT_NAME}_imu_preintegration_tests
-    PUBLIC
-    tests/include
-    ${basalt_INCLUDE_DIRS}
-  )
-  target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
-    ${PROJECT_NAME}
-    ${catkin_LIBRARIES}
-    ${CERES_LIBRARIES}
-    ${basalt_LIBRARIES}
-  )
-  set_target_properties(${PROJECT_NAME}_imu_preintegration_tests
-    PROPERTIES
-      CXX_STANDARD 14
-      CXX_STANDARD_REQUIRED YES
-  )
+  find_package(basalt)
+  if(basalt_FOUND)
+    catkin_add_gtest(${PROJECT_NAME}_imu_preintegration_tests
+      tests/imu_preintegration_tests.cpp
+    )
+    target_include_directories(${PROJECT_NAME}_imu_preintegration_tests
+      PUBLIC
+      tests/include
+      ${basalt_INCLUDE_DIRS}
+    )
+    target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
+      ${PROJECT_NAME}
+      ${catkin_LIBRARIES}
+      ${CERES_LIBRARIES}
+      ${basalt_LIBRARIES}
+    )
+    set_target_properties(${PROJECT_NAME}_imu_preintegration_tests
+      PROPERTIES
+        CXX_STANDARD 14
+        CXX_STANDARD_REQUIRED YES
+    )
+  endif()
 
   # Reprojection tests
   catkin_add_gtest(${PROJECT_NAME}_reprojection_test

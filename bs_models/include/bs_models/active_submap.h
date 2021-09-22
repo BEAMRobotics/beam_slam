@@ -11,33 +11,40 @@
 namespace bs_models {
 
 /**
- * @brief This class is used to access the current submap provided by the global
- * mapper
+ * @brief This is a singleton class used to store the current active submap.
+ * Below are the following tasks done by this class:
+ *
+ *  (1) Subscribe to /active_submap topic to load the currently active submap
+ *  published by the global mapper via SubmapMsgs
+ *
+ *  (2) To load the active submap data into a useful form
+ *
+ *  (3) To provide data access tools for
  *
  */
-class CurrentSubmap {
+class ActiveSubmap {
  public:
   /**
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
    */
-  static CurrentSubmap& GetInstance();
+  static ActiveSubmap& GetInstance();
 
   /**
    * @brief Delete copy constructor
    */
-  CurrentSubmap(const CurrentSubmap& other) = delete;
+  ActiveSubmap(const ActiveSubmap& other) = delete;
 
   /**
    * @brief Delete copy assignment operator
    */
-  CurrentSubmap& operator=(const CurrentSubmap& other) = delete;
+  ActiveSubmap& operator=(const ActiveSubmap& other) = delete;
 
   /**
    * @brief Updates the data with the new submap message
    * @param message odometry message
    */
-  void CurrentSubmapCallback(const bs_common::SubmapMsg::ConstPtr& msg);
+  void ActiveSubmapCallback(const bs_common::SubmapMsg::ConstPtr& msg);
 
   /**
    * @brief Gets a list of visual map points in the camera frame
@@ -69,7 +76,7 @@ class CurrentSubmap {
   /**
    * @brief Constructor
    */
-  CurrentSubmap();
+  ActiveSubmap();
 
   PointCloud point_cloud_;
   beam_matching::LoamPointCloud loam_cloud_;

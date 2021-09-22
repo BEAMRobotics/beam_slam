@@ -32,9 +32,9 @@ void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                               const fuse_variables::Orientation3DStamped& o,
                               Eigen::Matrix4d& T_WORLD_SENSOR);
 
-Eigen::Matrix4d FusePoseToEigenTransform(
-    const fuse_variables::Position3DStamped& p,
-    const fuse_variables::Orientation3DStamped& o);
+Eigen::Matrix4d
+    FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
+                             const fuse_variables::Orientation3DStamped& o);
 
 void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
                                    Eigen::Matrix4d& T_WORLD_SENSOR);
@@ -42,9 +42,6 @@ void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
 void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
                                        Eigen::Matrix4d& T_WORLD_SENSOR);
 
-void InterpolateTransformFromPath(const nav_msgs::Path& path,
-                                  const ros::Time& time,
-                                  Eigen::Matrix4d& T_WORLD_SENSOR);
 
 void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS,
                                          Eigen::Matrix4d& T);
@@ -80,6 +77,16 @@ void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
 void InterpolateTransformFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Matrix4d& T_WORLD_SENSOR);
+
+/**
+ * @brief Estimates a velocity at a time given a set of poses
+ * @param poses list of poses
+ * @param time time to interpolate pose for
+ * @param velocity to return
+ */
+void EstimateVelocityFromPath(
+    const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
+    Eigen::Vector3d& velocity);
 
 /**
  * @brief Get full path the the config root directory in beam_slam_launch
