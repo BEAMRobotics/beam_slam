@@ -180,10 +180,6 @@ void VisualInertialOdometry::processImage(
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
 
-        // log pose info
-        ROS_INFO("Estimated Keyframe Pose:");
-        std::cout << T_WORLD_BASELINK << std::endl;
-
         // notify that a new keyframe is detected
         NotifyNewKeyframe(T_WORLD_CAMERA);
 
@@ -300,12 +296,37 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
       points.push_back(point);
     }
   }
+  
+  // get pose estimate from imu
+  Eigen::Matrix4d T_WORLD_BASELINK_inertial;
+  imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
+
+  // get previous two keyframe positions
+  ros::Time prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
+  ros::Time cur_kf_time = keyframes_.back().Stamp();
+  Eigen::Matrix4d T_prevkf = visual_map_->GetBaselinkPose(prev_kf_time).value();
+  Eigen::Vector3d p_prevkf = T_prevkf.block<3, 1>(0, 3).transpose();
+  Eigen::Matrix4d T_curkf = visual_map_->GetBaselinkPose(cur_kf_time).value();
+  Eigen::Vector3d p_curkf = T_curkf.block<3, 1>(0, 3).transpose();
+
+  // compute velocity from last two keyframe positions
+  Eigen::Vector3d velocity =
+      (p_curkf - p_prevkf) / (cur_kf_time.toSec() - prev_kf_time.toSec());
+
+  // compute current position estimate assuming velocity is constant
+  Eigen::Vector3d new_position =
+      p_curkf + (img_time.toSec() - cur_kf_time.toSec()) * velocity;
+
+  // combine imu rotation estimate and constant velocity position estimate
+  Eigen::Matrix4d T_WORLD_BASELINK_estimate = Eigen::Matrix4d::Identity();
+  T_WORLD_BASELINK_estimate.block<3, 3>(0, 0) =
+      T_WORLD_BASELINK_inertial.block<3, 3>(0, 0);
+  T_WORLD_BASELINK_estimate.block<3, 1>(0, 3) = new_position.transpose();
 
   // refine pose using motion only BA if there are enough points
   if (points.size() >= 15) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
-        beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
-                                                        points, 500);
+        (T_WORLD_BASELINK_estimate * T_cam_baselink_.inverse()).inverse();
     Eigen::Matrix4d T_WORLD_CAMERA =
         pose_refiner_
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
@@ -314,9 +335,7 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
     return T_WORLD_BASELINK;
   } else {
     // get pose estimate using imu preintegration
-    Eigen::Matrix4d T_WORLD_BASELINK_inertial;
-    imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
-    return T_WORLD_BASELINK_inertial;
+    return T_WORLD_BASELINK_estimate;
   }
 }
 

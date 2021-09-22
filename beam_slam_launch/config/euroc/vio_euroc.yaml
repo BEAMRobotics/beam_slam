@@ -1,6 +1,6 @@
 # optimization params
 optimization_period: 0.5
-lag_duration: 7
+lag_duration: 5
 
 # sensor models
 sensor_models:
@@ -59,12 +59,12 @@ camera:
   keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe
   keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe
   keyframe_min_time_in_seconds: 0.2 # minimum amount of time between keyframes
-  init_max_optimization_time_in_seconds: 1.0 # max amopunt of time to optimize the initializer map
+  init_max_optimization_time_in_seconds: 1.0 # max amount of time to optimize the initializer map
   init_map_output_directory: "" # Outputs vio map into directory if not empty
 
 gt_initializer:
   imu_topic: "/imu0"
-  pose_file_path: "/home/jake/V1_01_poses.ply"
+  pose_file_path: "/home/jake/data/VIO/euroc/V1_01_poses.ply"
   trajectory_time_window: 5.0
   output_topic: "/lo_initialiser_result"
   min_trajectory_length: 0.5 # trajectory length to accept (in metres)
