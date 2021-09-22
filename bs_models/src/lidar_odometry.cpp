@@ -176,7 +176,7 @@ void LidarOdometry::onInit() {
 
 void LidarOdometry::onStart() {
   subscriber_ = node_handle_.subscribe<sensor_msgs::PointCloud2>(
-      ros::names::resolve(params_.input_topic), 1, &ThrottledCallback::callback,
+      ros::names::resolve(params_.input_topic), 10, &ThrottledCallback::callback,
       &throttled_callback_, ros::TransportHints().tcpNoDelay(false));
 
   results_publisher_ =

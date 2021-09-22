@@ -122,7 +122,7 @@ add_library(
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
   src/lib/scan_pose.cpp
-  src/lib/current_submap.cpp
+  src/lib/active_submap.cpp
   src/lib/imu_preintegration.cpp
 )
 

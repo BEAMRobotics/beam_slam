@@ -22,7 +22,8 @@ namespace bs_models {
 using namespace vision;
 
 VisualInertialOdometry::VisualInertialOdometry()
-    : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL),
+    : fuse_core::AsyncSensorModel(1),
+      device_id_(fuse_core::uuid::NIL),
       throttled_image_callback_(std::bind(&VisualInertialOdometry::processImage,
                                           this, std::placeholders::_1)),
       throttled_imu_callback_(std::bind(&VisualInertialOdometry::processIMU,
@@ -283,8 +284,8 @@ void VisualInertialOdometry::SendInitializationGraph(
   PublishLandmarkIDs(new_landmarks);
 }
 
-Eigen::Matrix4d
-VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
+Eigen::Matrix4d VisualInertialOdometry::LocalizeFrame(
+    const ros::Time &img_time) {
   std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
@@ -557,4 +558,4 @@ void VisualInertialOdometry::PublishLandmarkIDs(
   landmark_publisher_.publish(landmark_msg);
 }
 
-} // namespace bs_models
+}  // namespace bs_models

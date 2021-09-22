@@ -13,6 +13,7 @@
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_models/scan_pose.h>
+#include <bs_models/active_submap.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_parameters/models/lidar_odometry_params.h>
 
@@ -37,8 +38,8 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
 
   void process(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
-  bs_constraints::relative_pose::Pose3DStampedTransaction
-  GenerateTransaction(const sensor_msgs::PointCloud2::ConstPtr& msg);
+  bs_constraints::relative_pose::Pose3DStampedTransaction GenerateTransaction(
+      const sensor_msgs::PointCloud2::ConstPtr& msg);
 
   void OutputResults(const ScanPose& scan_pose);
 
@@ -49,11 +50,17 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   ros::Publisher results_publisher_;
 
   /** callback for lidar data */
-  using ThrottledCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::PointCloud2>;
+  using ThrottledCallback =
+      fuse_core::ThrottledMessageCallback<sensor_msgs::PointCloud2>;
   ThrottledCallback throttled_callback_;
 
-  /** Needed for outputing the slam results or saving final clouds or graph updates */
+  /** Needed for outputing the slam results or saving final clouds or graph
+   * updates */
   std::list<ScanPose> active_clouds_;
+
+  /** Get access to the active submap being published by the global mapper if
+   * running */
+  ActiveSubmap& active_submap_ = ActiveSubmap::GetInstance();
 
   /** Only needed if using LoamMatcher */
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_{
@@ -73,13 +80,12 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
 
   std::vector<beam_filtering::FilterParamsType> input_filter_params_;
   int updates_{0};
-  
+
   /** Params that can only be updated here: */
   bool output_graph_updates_{false};
   std::string graph_updates_path_ =
       "/home/nick/results/beam_slam/graph_updates/";
   bool update_scan_registration_map_on_graph_update_{true};
-
 };
 
 }  // namespace bs_models

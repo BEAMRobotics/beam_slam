@@ -9,7 +9,7 @@
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/current_submap.h>
+#include <bs_models/active_submap.h>
 #include <bs_models/imu_preintegration.h>
 #include <bs_models/vision/visual_map.h>
 
@@ -179,7 +179,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::vision::VisualMap> visual_map_;
-  CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
+  ActiveSubmap& submap_ = ActiveSubmap::GetInstance();
 
   // imu preintegration object
   std::shared_ptr<bs_models::ImuPreintegration> imu_preint_;

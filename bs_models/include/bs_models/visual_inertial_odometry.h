@@ -13,7 +13,7 @@
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/current_submap.h>
+#include <bs_models/active_submap.h>
 #include <bs_models/imu_preintegration.h>
 #include <bs_models/vision/keyframe.h>
 #include <bs_models/vision/vio_initialization.h>
@@ -27,7 +27,7 @@ using namespace bs_common;
 using namespace vision;
 
 class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
-public:
+ public:
   SMART_PTR_DEFINITIONS(VisualInertialOdometry);
 
   /**
@@ -54,8 +54,8 @@ public:
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
-protected:
-  fuse_core::UUID device_id_; //!< The UUID of this device
+ protected:
+  fuse_core::UUID device_id_;  //!< The UUID of this device
 
   /**
    * @brief Perform any required initialization for the sensor model
@@ -84,7 +84,7 @@ protected:
    */
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
-private:
+ private:
   /**
    * @brief Copies all variables and constraints in the init graph and sends to
    * fuse optimizer
@@ -104,7 +104,8 @@ private:
    * @param img_time time of image to determine if its a keyframe
    * @return true or false decision
    */
-  bool IsKeyframe(const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_BASELINK);
+  bool IsKeyframe(const ros::Time& img_time,
+                  const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief Extends the map at the current keyframe time and adds the visual
@@ -137,7 +138,7 @@ private:
    */
   void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
 
-protected:
+ protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;
 
@@ -172,7 +173,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<VisualMap> visual_map_;
-  CurrentSubmap& submap_ = CurrentSubmap::GetInstance();
+  ActiveSubmap& active_submap_ = ActiveSubmap::GetInstance();
   beam_cv::DescriptorType descriptor_type_;
   uint8_t descriptor_type_int_;
 
@@ -192,4 +193,4 @@ protected:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
-} // namespace bs_models
+}  // namespace bs_models

@@ -1,21 +1,21 @@
-#include <bs_models/current_submap.h>
+#include <bs_models/active_submap.h>
 
 #include <beam_cv/descriptors/Descriptor.h>
 
 namespace bs_models {
 
-CurrentSubmap::CurrentSubmap() {
+ActiveSubmap::ActiveSubmap() {
   ros::NodeHandle n;
-  submap_subscriber_ =
-      n.subscribe("/submap", 10, &CurrentSubmap::CurrentSubmapCallback, this);
+  submap_subscriber_ = n.subscribe("/active_submap", 1,
+                                   &ActiveSubmap::ActiveSubmapCallback, this);
 }
 
-CurrentSubmap& CurrentSubmap::GetInstance() {
-  static CurrentSubmap instance;
+ActiveSubmap& ActiveSubmap::GetInstance() {
+  static ActiveSubmap instance;
   return instance;
 }
 
-void CurrentSubmap::CurrentSubmapCallback(
+void ActiveSubmap::ActiveSubmapCallback(
     const bs_common::SubmapMsg::ConstPtr& msg) {
   descriptors_.clear();
   visual_map_points_.clear();
@@ -43,7 +43,7 @@ void CurrentSubmap::CurrentSubmapCallback(
   }
 }
 
-std::vector<Eigen::Vector3d> CurrentSubmap::GetVisualMapPoints(
+std::vector<Eigen::Vector3d> ActiveSubmap::GetVisualMapPoints(
     const Eigen::Matrix4d& T_WORLD_CAMERA) {
   std::vector<Eigen::Vector3d> transformed_points;
   // transform each point and push to list
@@ -55,15 +55,15 @@ std::vector<Eigen::Vector3d> CurrentSubmap::GetVisualMapPoints(
   return transformed_points;
 }
 
-const std::vector<cv::Mat>& CurrentSubmap::GetDescriptors() {
+const std::vector<cv::Mat>& ActiveSubmap::GetDescriptors() {
   return descriptors_;
 }
 
-const pcl::PointCloud<pcl::PointXYZ> CurrentSubmap::GetPointCloud() {
+const pcl::PointCloud<pcl::PointXYZ> ActiveSubmap::GetPointCloud() {
   return point_cloud_;
 }
 
-void CurrentSubmap::RemoveVisualMapPoint(size_t index) {
+void ActiveSubmap::RemoveVisualMapPoint(size_t index) {
   visual_map_points_.erase(visual_map_points_.begin() + index);
   descriptors_.erase(descriptors_.begin() + index);
 }
