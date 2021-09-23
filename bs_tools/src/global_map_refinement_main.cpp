@@ -31,7 +31,7 @@ DEFINE_bool(run_posegraph_optimization, true,
             "This should always be set to true, but there are "
             "possible reasons for skipping this step.");
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   bs_models::global_mapping::GlobalMapRefinement refinement(

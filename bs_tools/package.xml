@@ -12,5 +12,6 @@
   <build_depend>libbeam</build_depend>
   
   <depend>bs_models</depend>
+  <depend>catkin</depend>
 
 </package>
