@@ -8,6 +8,10 @@ ActiveSubmap::ActiveSubmap() {
   ros::NodeHandle n;
   submap_subscriber_ = n.subscribe("/active_submap", 1,
                                    &ActiveSubmap::ActiveSubmapCallback, this);
+
+  // instantitate pointers
+  lidar_map_points_ = std::make_shared<PointCloud>();
+  loam_cloud_ = std::make_shared<beam_matching::LoamPointCloud>();
 }
 
 ActiveSubmap& ActiveSubmap::GetInstance() {
@@ -19,7 +23,7 @@ void ActiveSubmap::ActiveSubmapCallback(
     const bs_common::SubmapMsg::ConstPtr& msg) {
   descriptors_.clear();
   visual_map_points_.clear();
-  point_cloud_.clear();
+  lidar_map_points_->clear();
 
   // get descriptor type
   beam_cv::DescriptorType d_type =
@@ -41,7 +45,7 @@ void ActiveSubmap::ActiveSubmapCallback(
   if (msg->lidar_map.size() > 0) {
     for (geometry_msgs::Vector3 point_vec : msg->lidar_map) {
       pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
-      point_cloud_.push_back(point);
+      lidar_map_points_->push_back(point);
     }
   }
 
@@ -66,8 +70,8 @@ void ActiveSubmap::ActiveSubmapCallback(
     pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
     surfaces_weak.push_back(point);
   }
-  loam_cloud_ = beam_matching::LoamPointCloud(edges_strong, surfaces_strong,
-                                              edges_weak, surfaces_weak);
+  loam_cloud_ = std::make_shared<beam_matching::LoamPointCloud>(
+      edges_strong, surfaces_strong, edges_weak, surfaces_weak);
 }
 
 std::vector<Eigen::Vector3d> ActiveSubmap::GetVisualMapPoints(
@@ -86,8 +90,16 @@ const std::vector<cv::Mat>& ActiveSubmap::GetDescriptors() {
   return descriptors_;
 }
 
-const pcl::PointCloud<pcl::PointXYZ> ActiveSubmap::GetPointCloud() {
-  return point_cloud_;
+PointCloud ActiveSubmap::GetLidarMap() { return *lidar_map_points_; }
+
+const PointCloudPtr ActiveSubmap::GetLidarMapPtr() { return lidar_map_points_; }
+
+beam_matching::LoamPointCloud ActiveSubmap::GetLoamMap() {
+  return *loam_cloud_;
+}
+
+const beam_matching::LoamPointCloudPtr ActiveSubmap::GetLoamMapPtr() {
+  return loam_cloud_;
 }
 
 void ActiveSubmap::RemoveVisualMapPoint(size_t index) {

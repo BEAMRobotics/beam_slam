@@ -94,8 +94,8 @@ void GlobalMapper::ProcessRelocRequest(
 
   // get submap
   bs_common::SubmapMsg submap_msg;
-  if(global_map_->ProcessRelocRequest(*msg, submap_msg)){
-    current_submap_publisher_.publish(submap_msg);
+  if (global_map_->ProcessRelocRequest(*msg, submap_msg)) {
+    active_submap_publisher_.publish(submap_msg);
   }
 }
 
@@ -127,8 +127,8 @@ void GlobalMapper::onStart() {
           &ThrottledCallbackRelocRequest::callback, &throttled_callback_reloc_,
           ros::TransportHints().tcpNoDelay(false));
 
-  current_submap_publisher_ = node_handle_.advertise<bs_common::SubmapMsg>(
-        params_.current_submap_topic, 1);
+  active_submap_publisher_ =
+      node_handle_.advertise<bs_common::SubmapMsg>("/active_submap", 10);
 
   if (params_.publish_new_submaps) {
     submap_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(

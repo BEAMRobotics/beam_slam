@@ -121,7 +121,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   ros::Subscriber reloc_request_subscriber_;
 
   /** publish submaps returned from reloc */
-  ros::Publisher current_submap_publisher_;
+  ros::Publisher active_submap_publisher_;
 
   /** publish results */
   ros::Publisher submap_lidar_publisher_;
