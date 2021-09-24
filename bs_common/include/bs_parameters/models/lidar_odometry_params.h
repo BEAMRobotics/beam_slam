@@ -45,10 +45,14 @@ struct LidarOdometryParams : public ParameterBase {
     getParam<bool>(nh, "output_loam_points", output_loam_points,
                    output_loam_points);
 
+    /** If set to true, it will call SetPublishUpdates on the ActiveSubmaps singleton */
+    getParam<bool>(nh, "output_loam_points", output_loam_points,
+                   output_loam_points);                   
+
     /** If set to true, it will output all points in the lidar scan of
      * marginalized scan poses */
-    getParam<bool>(nh, "output_lidar_points", output_lidar_points,
-                   output_lidar_points);
+    getParam<bool>(nh, "publish_active_submap", publish_active_submap,
+                   publish_active_submap);
 
     /**The first part is either MULTI (for multi scan registration) or MAP (for
      * scan to map registration), and the second part is the matcher type.
@@ -118,6 +122,7 @@ struct LidarOdometryParams : public ParameterBase {
   std::string reloc_request_topic;
   bool output_loam_points{true};
   bool output_lidar_points{true};
+  bool publish_active_submap{false};
   std::string frame_initializer_type{"ODOMETRY"};
   std::string frame_initializer_info{""};
 

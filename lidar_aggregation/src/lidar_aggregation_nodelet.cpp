@@ -50,8 +50,9 @@ void LidarAggregationNodelet::onInit() {
 
   if (params_.aggregator_type == "ENDTIME") {
     aggregator_ = std::make_unique<EndTimeLidarAggregator>(
-        poses_, extrinsics_, first_pose_time_, params_.baselink_frame, params_.lidar_frame,
-        world_frame_, ros::Duration(params_.max_aggregation_time_seconds),
+        poses_, extrinsics_, first_pose_time_, params_.baselink_frame,
+        params_.lidar_frame, world_frame_,
+        ros::Duration(params_.max_aggregation_time_seconds),
         !params_.dynamic_extrinsics, params_.clear_queue_on_update);
   } else if (params_.aggregator_type == "CENTERTIME") {
     throw std::invalid_argument{"CENTERLINE Aggregator not yet implemented."};
@@ -143,8 +144,9 @@ void LidarAggregationNodelet::LoadParams() {
              params_.baselink_frame.c_str());
   } else {
     params_.baselink_frame = "";
-    ROS_INFO("Could not load parameter baselink_frame, using frame from "
-             "odometry message.");
+    ROS_INFO(
+        "Could not load parameter baselink_frame, using frame from "
+        "odometry message.");
   }
 
   if (nh_.getParam("lidar_aggregation/aggregator/lidar_frame",
@@ -152,8 +154,9 @@ void LidarAggregationNodelet::LoadParams() {
     ROS_INFO("Loaded parameter lidar_frame: %s", params_.lidar_frame.c_str());
   } else {
     params_.lidar_frame = "";
-    ROS_INFO("Could not load parameter lidar_frame, using frame from "
-             "input pointcloud message.");
+    ROS_INFO(
+        "Could not load parameter lidar_frame, using frame from "
+        "input pointcloud message.");
   }
 
   std::string log_level;
@@ -186,9 +189,13 @@ void LidarAggregationNodelet::LoadParams() {
 bool LidarAggregationNodelet::SetExtrinsics() {
   // we will not add the extrinsics to the TfTree if they are dynamic, because
   // it'll need to be looked up each time we extract a pose
-  if (params_.dynamic_extrinsics) { return true; }
+  if (params_.dynamic_extrinsics) {
+    return true;
+  }
 
-  if (extrinsics_set_) { return true; }
+  if (extrinsics_set_) {
+    return true;
+  }
 
   // if baselink_frame or lidar_frame params not set, we will have to wait
   // till we get the first odometry and pointcloud messages to set the
@@ -210,8 +217,9 @@ void LidarAggregationNodelet::AggregationTimeCallback(
     const std_msgs::TimeConstPtr message) {
   ROS_DEBUG("Received aggregation time message.");
   if (!SetExtrinsics()) {
-    ROS_WARN("Extrinsics not yet set, not creating aggregate. Make sure your "
-             "extrinsics are being published to tf.");
+    ROS_WARN(
+        "Extrinsics not yet set, not creating aggregate. Make sure your "
+        "extrinsics are being published to tf.");
     return;
   }
 
@@ -221,9 +229,11 @@ void LidarAggregationNodelet::AggregationTimeCallback(
   std::vector<LidarAggregate> aggregates = aggregator_->Get();
 
   for (LidarAggregate aggregate : aggregates) {
-    if(aggregate.cloud->size() == 0){continue;}
+    if (aggregate.cloud->size() == 0) {
+      continue;
+    }
     sensor_msgs::PointCloud2 output_cloud = beam::PCLToROS(
-        aggregate.cloud, aggregate.time, params_.lidar_frame, counter_);
+        *(aggregate.cloud), aggregate.time, params_.lidar_frame, counter_);
     counter_++;
     aggregate_publisher_.publish(output_cloud);
     ROS_DEBUG("Published aggregate no. %d", counter_);
@@ -243,12 +253,14 @@ void LidarAggregationNodelet::OdometryCallback(
 
   if (world_frame_.empty()) {
     world_frame_ = message->header.frame_id;
-    if (world_frame_.substr(0, 1) == "/") { world_frame_.erase(0, 1); }
+    if (world_frame_.substr(0, 1) == "/") {
+      world_frame_.erase(0, 1);
+    }
     ROS_DEBUG("Set world frame.");
   }
 
   if (first_pose_time_ == ros::Time(0)) {
-      first_pose_time_ = message->header.stamp;
+    first_pose_time_ = message->header.stamp;
   }
 
   geometry_msgs::TransformStamped tf_stamped;
@@ -269,7 +281,7 @@ void LidarAggregationNodelet::PointCloudCallback(
   ROS_DEBUG("Received pointcloud message.");
   if (params_.lidar_frame.empty()) {
     params_.lidar_frame = message->header.frame_id;
-        if (params_.lidar_frame.substr(0, 1) == "/") {
+    if (params_.lidar_frame.substr(0, 1) == "/") {
       params_.lidar_frame.erase(0, 1);
     }
     ROS_DEBUG("Set lidar_frame frame.");
@@ -280,7 +292,7 @@ void LidarAggregationNodelet::PointCloudCallback(
     AddExtrinsic(message->header.stamp);
   }
   LidarChunk chunk;
-  chunk.cloud = beam::ROSToPCL(*message);
+  chunk.cloud = std::make_shared<PointCloud>(beam::ROSToPCL(*message));
   chunk.time = message->header.stamp;
   aggregator_->Add(chunk);
   ROS_DEBUG("Added lidar chunk.");
@@ -289,8 +301,10 @@ void LidarAggregationNodelet::PointCloudCallback(
 // TODO: use bs_common::PoseLookup class to cleanup this code
 bool LidarAggregationNodelet::AddExtrinsic(const ros::Time& time,
                                            int num_attempts) {
-  // if baselink and lidar frames are the same, no extrinsics needed                                             
-  if(params_.baselink_frame == params_.lidar_frame){return true;}   
+  // if baselink and lidar frames are the same, no extrinsics needed
+  if (params_.baselink_frame == params_.lidar_frame) {
+    return true;
+  }
 
   tf::StampedTransform T_BASELINK_LIDAR;
   int lookup_counter = 0;
@@ -329,7 +343,7 @@ bool LidarAggregationNodelet::AddExtrinsic(const ros::Time& time,
   return true;
 }
 
-} // namespace lidar_aggregation
+}  // namespace lidar_aggregation
 
 #include <pluginlib/class_list_macros.h>
 PLUGINLIB_EXPORT_CLASS(lidar_aggregation::LidarAggregationNodelet,

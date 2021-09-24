@@ -6,10 +6,27 @@ namespace bs_models {
 
 ActiveSubmap::ActiveSubmap() {
   ros::NodeHandle n;
+
+  // setup subsriber
   submap_subscriber_ = n.subscribe("/active_submap", 1,
                                    &ActiveSubmap::ActiveSubmapCallback, this);
 
+  // setup publishers
+  visual_map_publisher_ =
+      n.advertise<sensor_msgs::PointCloud2>("/active_submap/visual_map", 10);
+  lidar_map_publisher_ =
+      n.advertise<sensor_msgs::PointCloud2>("/active_submap/lidar_map", 10);
+  loam_edges_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/active_submap/loam_map/edges_strong", 10);
+  loam_edges_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/active_submap/loam_map/edges_weak", 10);
+  loam_surfaces_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/active_submap/loam_map/surfaces_strong", 10);
+  loam_surfaces_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/active_submap/loam_map/surfaces_weak", 10);
+
   // instantitate pointers
+  visual_map_points_ = std::make_shared<PointCloud>();
   lidar_map_points_ = std::make_shared<PointCloud>();
   loam_cloud_ = std::make_shared<beam_matching::LoamPointCloud>();
 }
@@ -21,8 +38,11 @@ ActiveSubmap& ActiveSubmap::GetInstance() {
 
 void ActiveSubmap::ActiveSubmapCallback(
     const bs_common::SubmapMsg::ConstPtr& msg) {
+  updates_counter_++;
+  update_time_ = ros::Time::now();
+
   descriptors_.clear();
-  visual_map_points_.clear();
+  visual_map_points_->clear();
   lidar_map_points_->clear();
 
   // get descriptor type
@@ -35,10 +55,10 @@ void ActiveSubmap::ActiveSubmapCallback(
     descriptors_.push_back(desc);
   }
 
-  // add all 3d locations of landmarks to list
+  // add all 3d locations of landmarks to cloud
   for (auto& p : msg->visual_map_points) {
-    Eigen::Vector3d point{p.x, p.y, p.z};
-    visual_map_points_.push_back(point);
+    pcl::PointXYZ point(p.x, p.y, p.z);
+    visual_map_points_->push_back(point);
   }
 
   // add all lidar points to point cloud
@@ -72,39 +92,94 @@ void ActiveSubmap::ActiveSubmapCallback(
   }
   loam_cloud_ = std::make_shared<beam_matching::LoamPointCloud>(
       edges_strong, surfaces_strong, edges_weak, surfaces_weak);
-}
 
-std::vector<Eigen::Vector3d> ActiveSubmap::GetVisualMapPoints(
-    const Eigen::Matrix4d& T_WORLD_CAMERA) {
-  std::vector<Eigen::Vector3d> transformed_points;
-  // transform each point and push to list
-  for (auto& p : visual_map_points_) {
-    Eigen::Vector4d ph{p[0], p[1], p[2], 1};
-    Eigen::Vector3d tp = (T_WORLD_CAMERA.inverse() * ph).hnormalized();
-    transformed_points.push_back(tp);
+  if (publish_updates_) {
+    Publish();
   }
-  return transformed_points;
 }
 
-const std::vector<cv::Mat>& ActiveSubmap::GetDescriptors() {
+void ActiveSubmap::SetPublishUpdates(bool publish_updates) {
+  publish_updates_ = publish_updates;
+}
+
+std::vector<Eigen::Vector3d> ActiveSubmap::GetVisualMapVectorInCameraFrame(
+    const Eigen::Matrix4d& T_WORLD_CAMERA) const {
+  PointCloud cloud_in_cam_frame =
+      GetVisualMapCloudInCameraFrame(T_WORLD_CAMERA);
+
+  std::vector<Eigen::Vector3d> vector_in_cam_frame;
+  for (auto it = visual_map_points_->begin(); it != visual_map_points_->end();
+       it++) {
+    vector_in_cam_frame.push_back(Eigen::Vector3d{it->x, it->y, it->z});
+  }
+  return vector_in_cam_frame;
+}
+
+PointCloud ActiveSubmap::GetVisualMapCloudInCameraFrame(
+    const Eigen::Matrix4d& T_WORLD_CAMERA) const {
+  if (T_WORLD_CAMERA.isIdentity()) {
+    return *visual_map_points_;
+  }
+
+  PointCloud cloud_in_cam_frame;
+  pcl::transformPointCloud(*visual_map_points_, cloud_in_cam_frame,
+                           beam::InvertTransform(T_WORLD_CAMERA));
+  return cloud_in_cam_frame;
+}
+
+const PointCloudPtr ActiveSubmap::GetVisualMapPoints() const {
+  return visual_map_points_;
+}
+
+const std::vector<cv::Mat>& ActiveSubmap::GetDescriptors() const {
   return descriptors_;
 }
 
-PointCloud ActiveSubmap::GetLidarMap() { return *lidar_map_points_; }
-
-const PointCloudPtr ActiveSubmap::GetLidarMapPtr() { return lidar_map_points_; }
-
-beam_matching::LoamPointCloud ActiveSubmap::GetLoamMap() {
-  return *loam_cloud_;
+const PointCloudPtr ActiveSubmap::GetLidarMap() const {
+  return lidar_map_points_;
 }
 
-const beam_matching::LoamPointCloudPtr ActiveSubmap::GetLoamMapPtr() {
+const beam_matching::LoamPointCloudPtr ActiveSubmap::GetLoamMapPtr() const {
   return loam_cloud_;
 }
 
 void ActiveSubmap::RemoveVisualMapPoint(size_t index) {
-  visual_map_points_.erase(visual_map_points_.begin() + index);
+  visual_map_points_->erase(visual_map_points_->begin() + index);
   descriptors_.erase(descriptors_.begin() + index);
+}
+
+void ActiveSubmap::Publish() const {
+  sensor_msgs::PointCloud2 pc_msg;
+
+  if (!visual_map_points_->empty()) {
+    pc_msg = beam::PCLToROS(*visual_map_points_);
+    visual_map_publisher_.publish(pc_msg);
+  }
+
+  if (!lidar_map_points_->empty()) {
+    pc_msg = beam::PCLToROS(*lidar_map_points_);
+    lidar_map_publisher_.publish(pc_msg);
+  }
+
+  if (!loam_cloud_->edges.strong.cloud.empty()) {
+    pc_msg = beam::PCLToROS(loam_cloud_->edges.strong.cloud);
+    loam_edges_strong_publisher_.publish(pc_msg);
+  }
+
+  if (!loam_cloud_->edges.weak.cloud.empty()) {
+    pc_msg = beam::PCLToROS(loam_cloud_->edges.weak.cloud);
+    loam_edges_weak_publisher_.publish(pc_msg);
+  }
+
+  if (!loam_cloud_->surfaces.strong.cloud.empty()) {
+    pc_msg = beam::PCLToROS(loam_cloud_->surfaces.strong.cloud);
+    loam_surfaces_strong_publisher_.publish(pc_msg);
+  }
+
+  if (!loam_cloud_->surfaces.weak.cloud.empty()) {
+    pc_msg = beam::PCLToROS(loam_cloud_->surfaces.weak.cloud);
+    loam_surfaces_weak_publisher_.publish(pc_msg);
+  }
 }
 
 }  // namespace bs_models

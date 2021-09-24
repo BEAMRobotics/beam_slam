@@ -48,6 +48,7 @@ lidar_odometry:
   input_topic: '/velodyne_points'
   output_loam_points: true 
   output_lidar_points: true
+  publish_active_submap: true
   slam_chunk_topic: '/local_mapper/slam_results' 
   reloc_request_topic: '/local_mapper/reloc_request' 
   current_submap_topic: '/global_mapper/current_submap'

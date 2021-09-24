@@ -450,15 +450,6 @@ class GlobalMap {
                      const std::vector<std::vector<float>>& descriptors,
                      uint8_t descriptor_type, const Eigen::Matrix4d& T) const;
 
-  /**
-   * @brief convert a vector of floats to a pcl pointcloud xyz. This also checks
-   * that the number of points is divisible by 3 to make sure the correct format
-   * is used, otherwise it returns an empty cloud
-   * @param points points to add to cloud
-   * @return pointcloud
-   */
-  PointCloud RosCloudToPclCloud(const std::vector<float>& points);
-
   Params params_;
 
   /** If set to true, this will store recently completed submaps as a

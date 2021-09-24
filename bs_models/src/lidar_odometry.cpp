@@ -28,6 +28,8 @@ LidarOdometry::LidarOdometry()
 
 void LidarOdometry::onInit() {
   params_.loadFromROS(private_node_handle_);
+  
+  active_submap_.SetPublishUpdates(params_.publish_active_submap);
 
   // init frame initializer
   if (params_.frame_initializer_type == "ODOMETRY") {
@@ -199,9 +201,9 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
 LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
-  PointCloudPtr cloud_current_unfiltered = beam::ROSToPCL(*msg);
+  PointCloud cloud_current_unfiltered = beam::ROSToPCL(*msg);
   PointCloud cloud_current = beam_filtering::FilterPointCloud(
-      *cloud_current_unfiltered, input_filter_params_);
+      cloud_current_unfiltered, input_filter_params_);
 
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,
