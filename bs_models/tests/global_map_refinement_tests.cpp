@@ -148,7 +148,7 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
   // NOTE: we set T_WORLD_SUBMAP to identity so that T_WORLD_BASELINK =
   // T_SUBMAP_BASELINK to make things simpler
   Eigen::Matrix4d T_WORLD_SUBMAP = Eigen::Matrix4d::Identity();
-  std::shared_ptr<Submap> submap = std::make_shared<Submap>(
+  SubmapPtr submap = std::make_shared<Submap>(
       scan_poses.at(0).Stamp(), T_WORLD_SUBMAP, nullptr, extrinsics_);
   for (const ScanPose& sp : scan_poses) {
     submap->AddLidarMeasurement(sp.Cloud(), sp.T_REFFRAME_BASELINK(),
@@ -162,7 +162,7 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
     submap->AddLidarMeasurement(sp.LoamCloud().surfaces.weak.cloud,
                                 sp.T_REFFRAME_BASELINK(), sp.Stamp(), 4);
   }
-  std::vector<std::shared_ptr<Submap>> submaps{submap};
+  std::vector<SubmapPtr> submaps{submap};
 
   // create global map
   std::shared_ptr<GlobalMap> global_map =
@@ -254,7 +254,7 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
   // NOTE: we set T_WORLD_SUBMAP to identity so that T_WORLD_BASELINK =
   // T_SUBMAP_BASELINK to make things simpler
   Eigen::Matrix4d T_WORLD_SUBMAP = Eigen::Matrix4d::Identity();
-  std::shared_ptr<Submap> submap = std::make_shared<Submap>(
+  SubmapPtr submap = std::make_shared<Submap>(
       scan_poses.at(0).Stamp(), T_WORLD_SUBMAP, nullptr, extrinsics_);
   for (const ScanPose& sp : scan_poses) {
     submap->AddLidarMeasurement(sp.Cloud(), sp.T_REFFRAME_BASELINK(),
@@ -268,7 +268,7 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
     submap->AddLidarMeasurement(sp.LoamCloud().surfaces.weak.cloud,
                                 sp.T_REFFRAME_BASELINK(), sp.Stamp(), 4);
   }
-  std::vector<std::shared_ptr<Submap>> submaps{submap};
+  std::vector<SubmapPtr> submaps{submap};
 
   // create global map
   std::shared_ptr<GlobalMap> global_map =

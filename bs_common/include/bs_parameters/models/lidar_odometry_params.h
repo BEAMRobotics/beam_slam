@@ -25,29 +25,15 @@ struct LidarOdometryParams : public ParameterBase {
     /** Input lidar topic */
     getParamRequired<std::string>(nh, "input_topic", input_topic);
 
-    /** Output topic for scan pose results after they've have been marginalized
-     * out of the window. If left blank, it will not publish results (for global
-     * mapper) */
-    getParamRequired<std::string>(nh, "slam_chunk_topic", slam_chunk_topic);
-
-    /** this is the topic that the lidar odometry publishes too when it wants to
-     * run a reloc request on the global mapper  */
-    getParamRequired<std::string>(nh, "reloc_request_topic",
-                                  reloc_request_topic);
-
-    /** the current submap is published by the global mapper when it receives a
-     * reloc request and successfully finds that you're in a new submap  */
-    getParamRequired<std::string>(nh, "current_submap_topic",
-                                  current_submap_topic);
-
     /** If set to true, it will output the loam points of the marginalized scan
      * poses */
     getParam<bool>(nh, "output_loam_points", output_loam_points,
                    output_loam_points);
 
-    /** If set to true, it will call SetPublishUpdates on the ActiveSubmaps singleton */
-    getParam<bool>(nh, "output_loam_points", output_loam_points,
-                   output_loam_points);                   
+    /** If set to true, it will output the lidar points of the marginalized scan
+     * poses */
+    getParam<bool>(nh, "output_lidar_points", output_lidar_points,
+                   output_lidar_points);
 
     /** If set to true, it will output all points in the lidar scan of
      * marginalized scan poses */
@@ -104,9 +90,16 @@ struct LidarOdometryParams : public ParameterBase {
     getParam<double>(nh, "frame_initializer_prior_noise",
                      frame_initializer_prior_noise, 0);
 
-    /** how often should the lidar odometry send reloc requests to the global
-     * mapper. If set to zero, it will not send any. */
-    getParam<double>(nh, "reloc_frequency", reloc_frequency, 1);
+    /** Minimum time between each reloc reequest. If set to zero, it will not
+     * send any. Relocs are sent each time a scan pose receives its first graph
+     * update, if the elapsed time since the last reloc request is greater than
+     * this min parameter. We want to make sure the reloc request has a good
+     * initial estimate of the scan pose before sending the reloc request
+     * because this pose is used to estimate the transform between the offline
+     * map and the online map. Therefore we don't want to send the reloc request
+     * right when sending the scan pose to the graph. That being said, the reloc
+     * request cannot be at a higher frequency than the optimizer. */
+    getParam<double>(nh, "reloc_request_period", reloc_request_period, 1);
 
     /** Optional For Odometry frame initializer */
     getParam<std::string>(nh, "sensor_frame_id_override",
@@ -117,9 +110,6 @@ struct LidarOdometryParams : public ParameterBase {
   }
 
   std::string input_topic;
-  std::string slam_chunk_topic;
-  std::string current_submap_topic;
-  std::string reloc_request_topic;
   bool output_loam_points{true};
   bool output_lidar_points{true};
   bool publish_active_submap{false};
@@ -131,7 +121,7 @@ struct LidarOdometryParams : public ParameterBase {
   double frame_initializer_prior_noise;
   std::string type;
   double lag_duration;
-  double reloc_frequency;
+  double reloc_request_period;
   std::string matcher_params_path;
   std::string registration_config_path;
   std::string input_filters_config_path;

@@ -51,7 +51,7 @@ void RelocCandidateSearchEucDist::LoadConfig() {
 }
 
 void RelocCandidateSearchEucDist::FindRelocCandidates(
-    const std::vector<std::shared_ptr<Submap>>& submaps,
+    const std::vector<SubmapPtr>& submaps,
     const Eigen::Matrix4d& T_WORLD_QUERY, std::vector<int>& matched_indices,
     std::vector<Eigen::Matrix4d, pose_allocator>& estimated_poses,
     bool use_initial_poses) {

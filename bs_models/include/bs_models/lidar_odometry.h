@@ -41,6 +41,8 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   bs_constraints::relative_pose::Pose3DStampedTransaction GenerateTransaction(
       const sensor_msgs::PointCloud2::ConstPtr& msg);
 
+  void SendRelocRequest(const ScanPose& scan_pose);
+
   void OutputResults(const ScanPose& scan_pose);
 
   /** subscribe to lidar data */
@@ -48,6 +50,7 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
 
   /** Publish results for global map */
   ros::Publisher results_publisher_;
+  ros::Publisher reloc_request_publisher_;
 
   /** callback for lidar data */
   using ThrottledCallback =
@@ -80,6 +83,9 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
 
   std::vector<beam_filtering::FilterParamsType> input_filter_params_;
   int updates_{0};
+
+  ros::Duration reloc_request_period_;
+  ros::Time last_reloc_request_time_{ros::Time(0)};
 
   /** Params that can only be updated here: */
   bool output_graph_updates_{false};

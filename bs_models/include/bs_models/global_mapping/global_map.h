@@ -158,28 +158,28 @@ class GlobalMap {
    * @brief get access to the online submaps (see variable below for definition)
    * @return vector of pointers to the online submaps stored in this global map
    */
-  std::vector<std::shared_ptr<Submap>> GetOnlineSubmaps();
+  std::vector<SubmapPtr> GetOnlineSubmaps();
 
   /**
    * @brief get access to the offline submaps (see variable below for
    * definition)
    * @return vector of pointers to the offline submaps stored in this global map
    */
-  std::vector<std::shared_ptr<Submap>> GetOfflineSubmaps();
+  std::vector<SubmapPtr> GetOfflineSubmaps();
 
   /**
    * @brief set online the submaps vector
    * @param submaps vector of pointers to submaps to be stored in this global
    * map
    */
-  void SetOnlineSubmaps(std::vector<std::shared_ptr<Submap>>& submaps);
+  void SetOnlineSubmaps(std::vector<SubmapPtr>& submaps);
 
   /**
    * @brief set offline the submaps vector
    * @param submaps vector of pointers to submaps to be stored in this global
    * map
    */
-  void SetOfflineSubmaps(std::vector<std::shared_ptr<Submap>>& submaps);
+  void SetOfflineSubmaps(std::vector<SubmapPtr>& submaps);
 
   /**
    * @brief Sets store_newly_completed_submaps_ param. See description below for
@@ -486,7 +486,7 @@ class GlobalMap {
    * called, or when a previous global map is loaded in the constructor. It also
    * has the set and get functions: SetOnlineSubmaps(), GetOnlineSubmaps()
    */
-  std::vector<std::shared_ptr<Submap>> online_submaps_;
+  std::vector<SubmapPtr> online_submaps_;
 
   /** Offline submaps can only be preloaded using SetOfflineSubmaps(). This
    * vector of offline submaps represents some pre-loaded global map which will
@@ -495,7 +495,7 @@ class GlobalMap {
    * determined that the robot is not within any offline submap, then it will
    * search within the online submaps.
    */
-  std::vector<std::shared_ptr<Submap>> offline_submaps_;
+  std::vector<SubmapPtr> offline_submaps_;
 
   std::unique_ptr<reloc::RelocCandidateSearchBase> reloc_candidate_search_;
   std::unique_ptr<reloc::RelocRefinementBase> reloc_refinement_;

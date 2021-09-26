@@ -28,8 +28,10 @@ LidarOdometry::LidarOdometry()
 
 void LidarOdometry::onInit() {
   params_.loadFromROS(private_node_handle_);
-  
+
+  // setup reloc related params
   active_submap_.SetPublishUpdates(params_.publish_active_submap);
+  reloc_request_period_ = ros::Duration(params_.reloc_request_period);
 
   // init frame initializer
   if (params_.frame_initializer_type == "ODOMETRY") {
@@ -178,11 +180,15 @@ void LidarOdometry::onInit() {
 
 void LidarOdometry::onStart() {
   subscriber_ = node_handle_.subscribe<sensor_msgs::PointCloud2>(
-      ros::names::resolve(params_.input_topic), 10, &ThrottledCallback::callback,
-      &throttled_callback_, ros::TransportHints().tcpNoDelay(false));
+      ros::names::resolve(params_.input_topic), 10,
+      &ThrottledCallback::callback, &throttled_callback_,
+      ros::TransportHints().tcpNoDelay(false));
 
   results_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
-      params_.slam_chunk_topic, 100);
+      "/local_mapper/slam_results", 100);
+
+  reloc_request_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
+      "/local_mapper/reloc_request", 100);
 };
 
 void LidarOdometry::onStop() {
@@ -305,6 +311,14 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
                                                        i->T_REFFRAME_LIDAR());
       }
 
+      // send reloc request if it is the first time the scan pose is updated,
+      // and if the time elapsed since the last reloc request is greater than
+      // the min.
+      if (i->Updates() == 1 ||
+          i->Stamp() - last_reloc_request_time_ >= reloc_request_period_) {
+        SendRelocRequest(*i);
+      }
+
       ++i;
       continue;
     }
@@ -355,86 +369,125 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   }
 }
 
+void LidarOdometry::SendRelocRequest(const ScanPose& scan_pose) {
+  // Get extrinsics
+  Eigen::Matrix4d T_BASELINK_LIDAR;
+  if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR)) {
+    ROS_ERROR(
+        "Cannot lookup transform from lidar to baselink, not sending reloc "
+        "request.");
+    return;
+  }
+
+  // get clouds in baselink frame
+  PointCloud cloud_in_baselink_frame;
+  pcl::transformPointCloud(scan_pose.Cloud(), cloud_in_baselink_frame,
+                           T_BASELINK_LIDAR);
+  beam_matching::LoamPointCloud loam_cloud_in_baselink_frame =
+      scan_pose.LoamCloud();
+  loam_cloud_in_baselink_frame.TransformPointCloud(T_BASELINK_LIDAR);
+
+  // convert pose to vector
+  const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
+  std::vector<double> pose{T(0, 0), T(0, 1), T(0, 2), T(0, 3),
+                           T(1, 0), T(1, 1), T(1, 2), T(1, 3),
+                           T(2, 0), T(2, 1), T(2, 2), T(2, 3)};
+
+  // create message and publish
+  RelocRequestMsg msg;
+  msg.stamp = scan_pose.Stamp();
+  msg.T_WORLD_BASELINK = pose;
+  msg.lidar_measurement.frame_id = extrinsics_.GetBaselinkFrameId();
+  msg.lidar_measurement.lidar_points =
+      beam::PCLToROSVector(cloud_in_baselink_frame);
+  msg.lidar_measurement.lidar_edges_strong =
+      beam::PCLToROSVector(loam_cloud_in_baselink_frame.edges.strong.cloud);
+  msg.lidar_measurement.lidar_edges_weak =
+      beam::PCLToROSVector(loam_cloud_in_baselink_frame.edges.weak.cloud);
+  msg.lidar_measurement.lidar_surfaces_strong =
+      beam::PCLToROSVector(loam_cloud_in_baselink_frame.surfaces.strong.cloud);
+  msg.lidar_measurement.lidar_surfaces_weak =
+      beam::PCLToROSVector(loam_cloud_in_baselink_frame.surfaces.strong.cloud);
+
+  reloc_request_publisher_.publish(msg);
+
+  last_reloc_request_time_ = scan_pose.Stamp();
+}
+
 void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
-  if (!params_.slam_chunk_topic.empty()) {
-    // output to global mapper
-    SlamChunkMsg slam_chunk_msg;
-    slam_chunk_msg.stamp = scan_pose.Stamp();
+  if (!params_.output_loam_points && params_.output_lidar_points) {
+    return;
+  }
 
-    std::vector<double> pose;
-    const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
-    for (uint8_t i = 0; i < 3; i++) {
-      for (uint8_t j = 0; j < 4; j++) {
-        pose.push_back(T(i, j));
-      }
-    }
+  // output to global mapper
+  SlamChunkMsg slam_chunk_msg;
+  slam_chunk_msg.stamp = scan_pose.Stamp();
 
-    slam_chunk_msg.T_WORLD_BASELINK = pose;
-    slam_chunk_msg.lidar_measurement.frame_id = extrinsics_.GetLidarFrameId();
-
-    // publish regular points
-    const PointCloud& cloud = scan_pose.Cloud();
-    if (params_.output_lidar_points && cloud.size() > 0) {
-      SlamChunkMsg points_msg = slam_chunk_msg;
-      points_msg.lidar_measurement.point_type = 0;
-      for (int i = 0; i < cloud.size(); i++) {
-        pcl::PointXYZ p = cloud.points.at(i);
-        points_msg.lidar_measurement.points.push_back(p.x);
-        points_msg.lidar_measurement.points.push_back(p.y);
-        points_msg.lidar_measurement.points.push_back(p.z);
-      }
-      ROS_DEBUG("Publishing all lidar points");
-      results_publisher_.publish(points_msg);
-    }
-
-    // publish loam pointcloud
-    const beam_matching::LoamPointCloud& loam_cloud = scan_pose.LoamCloud();
-    if (params_.output_loam_points && loam_cloud.Size() > 0) {
-      // get strong edge features
-      SlamChunkMsg edges_msg = slam_chunk_msg;
-      edges_msg.lidar_measurement.point_type = 1;
-      for (const auto& p : loam_cloud.edges.strong.cloud.points) {
-        edges_msg.lidar_measurement.points.push_back(p.x);
-        edges_msg.lidar_measurement.points.push_back(p.y);
-        edges_msg.lidar_measurement.points.push_back(p.z);
-      }
-      ROS_DEBUG("Publishing strong edge points");
-      results_publisher_.publish(edges_msg);
-
-      // get strong surface features
-      SlamChunkMsg surfaces_msg = slam_chunk_msg;
-      surfaces_msg.lidar_measurement.point_type = 2;
-      for (const auto& p : loam_cloud.surfaces.strong.cloud.points) {
-        surfaces_msg.lidar_measurement.points.push_back(p.x);
-        surfaces_msg.lidar_measurement.points.push_back(p.y);
-        surfaces_msg.lidar_measurement.points.push_back(p.z);
-      }
-      ROS_DEBUG("Publishing strong surface points");
-      results_publisher_.publish(surfaces_msg);
-
-      // get weak edge features
-      SlamChunkMsg edges_msg_weak = slam_chunk_msg;
-      edges_msg_weak.lidar_measurement.point_type = 3;
-      for (const auto& p : loam_cloud.edges.weak.cloud.points) {
-        edges_msg_weak.lidar_measurement.points.push_back(p.x);
-        edges_msg_weak.lidar_measurement.points.push_back(p.y);
-        edges_msg_weak.lidar_measurement.points.push_back(p.z);
-      }
-      ROS_DEBUG("Publishing weak edge points");
-      results_publisher_.publish(edges_msg_weak);
-
-      // get weak surface features
-      SlamChunkMsg surfaces_msg_weak = slam_chunk_msg;
-      surfaces_msg_weak.lidar_measurement.point_type = 4;
-      for (const auto& p : loam_cloud.surfaces.weak.cloud.points) {
-        surfaces_msg_weak.lidar_measurement.points.push_back(p.x);
-        surfaces_msg_weak.lidar_measurement.points.push_back(p.y);
-        surfaces_msg_weak.lidar_measurement.points.push_back(p.z);
-      }
-      ROS_DEBUG("Publishing weak surface points");
-      results_publisher_.publish(surfaces_msg_weak);
+  std::vector<double> pose;
+  const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
+  for (uint8_t i = 0; i < 3; i++) {
+    for (uint8_t j = 0; j < 4; j++) {
+      pose.push_back(T(i, j));
     }
   }
+
+  slam_chunk_msg.T_WORLD_BASELINK = pose;
+  slam_chunk_msg.lidar_measurement.frame_id = extrinsics_.GetLidarFrameId();
+
+  if (params_.output_lidar_points) {
+    // add regular points
+    const PointCloud& cloud = scan_pose.Cloud();
+    for (const auto& p : cloud) {
+      geometry_msgs::Vector3 point;
+      point.x = p.x;
+      point.y = p.y;
+      point.z = p.z;
+      slam_chunk_msg.lidar_measurement.lidar_points.push_back(point);
+    }
+  }
+
+  // if loam cloud not to be outputted, or empty, publish current msg
+  const beam_matching::LoamPointCloud& loam_cloud = scan_pose.LoamCloud();
+  if (params_.output_loam_points) {
+    // add strong edges
+    for (const auto& p : loam_cloud.edges.strong.cloud) {
+      geometry_msgs::Vector3 point;
+      point.x = p.x;
+      point.y = p.y;
+      point.z = p.z;
+      slam_chunk_msg.lidar_measurement.lidar_edges_strong.push_back(point);
+    }
+
+    // add weak edges
+    for (const auto& p : loam_cloud.edges.weak.cloud) {
+      geometry_msgs::Vector3 point;
+      point.x = p.x;
+      point.y = p.y;
+      point.z = p.z;
+      slam_chunk_msg.lidar_measurement.lidar_edges_weak.push_back(point);
+    }
+
+    // add strong surfaces
+    for (const auto& p : loam_cloud.surfaces.strong.cloud) {
+      geometry_msgs::Vector3 point;
+      point.x = p.x;
+      point.y = p.y;
+      point.z = p.z;
+      slam_chunk_msg.lidar_measurement.lidar_surfaces_strong.push_back(point);
+    }
+
+    // add weak surfaces
+    for (const auto& p : loam_cloud.surfaces.weak.cloud) {
+      geometry_msgs::Vector3 point;
+      point.x = p.x;
+      point.y = p.y;
+      point.z = p.z;
+      slam_chunk_msg.lidar_measurement.lidar_surfaces_weak.push_back(point);
+    }
+  }
+
+  ROS_DEBUG("Publishing slam chunk msg");
+  results_publisher_.publish(slam_chunk_msg);
 
   // save to disk
   if (!params_.scan_output_directory.empty()) {

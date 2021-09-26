@@ -180,7 +180,7 @@ class GlobalMapRefinement {
    * @param submap reference to submap to be refined
    * @return true if successful
    */
-  bool RefineSubmap(std::shared_ptr<Submap>& submap);
+  bool RefineSubmap(SubmapPtr& submap);
 
   /**
    * @brief setup general things needed when class is instatiated, such as
@@ -190,7 +190,7 @@ class GlobalMapRefinement {
 
   Params params_;
   std::shared_ptr<GlobalMap> global_map_;
-  std::vector<std::shared_ptr<Submap>> submaps_;
+  std::vector<SubmapPtr> submaps_;
 
   // PGO:
   std::unique_ptr<reloc::RelocCandidateSearchBase>

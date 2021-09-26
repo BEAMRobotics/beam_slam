@@ -106,7 +106,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
 
   std::unique_ptr<global_mapping::GlobalMap> global_map_;
 
-  std::vector<std::shared_ptr<global_mapping::Submap>> offline_submaps_;
+  std::vector<global_mapping::SubmapPtr> offline_submaps_;
 
   /** subscribe to slam chunk data */
   using ThrottledCallbackSlamChunk =

@@ -46,8 +46,7 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
    * is determined with a class derived from RelocCandidateSearchBase
    */
   fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const std::shared_ptr<global_mapping::Submap>& matched_submap,
-      const std::shared_ptr<global_mapping::Submap>& query_submap,
+      const SubmapPtr& matched_submap, const SubmapPtr& query_submap,
       const Eigen::Matrix4d& T_MATCH_QUERY_EST) override {
     // extract and filter clouds from matched submap
     PointCloud matched_submap_world = beam_filtering::FilterPointCloud(
@@ -85,22 +84,25 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
   }
 
   /**
-   * @brief Overrides function that gets a refined pose from a candidate
-   * submap and an initial transform
+   * @brief Implements the pure virtual function defined in the base class which
+   * gets a refined pose from a candidate submap, an initial transform and some
+   * lidar + camera data
    * @param T_SUBMAP_QUERY_refined reference to tranform from query pose
    * (baselink) to the submap
    * @param T_SUBMAP_QUERY_initial initial guess of transform from query pose
    * (baselink) to submap
    * @param submap submap that we think the query pose is inside
    * @param lidar_cloud_in_query_frame
-   * @param submap_msg reference to submap msg to fill
-   * @return true if successful
+   * @param loam_cloud_in_query_frame not used in this implementation
+   * @param image not used in this implementation
+   * @return true if successful, false otherwise
    */
-  bool GetRefinedPose(Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
-                      const Eigen::Matrix4d& T_SUBMAP_QUERY_initial,
-                      const std::shared_ptr<global_mapping::Submap>& submap,
-                      const PointCloud& lidar_cloud_in_query_frame,
-                      const cv::Mat& image = cv::Mat()) override {
+  bool GetRefinedPose(
+      Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
+      const Eigen::Matrix4d& T_SUBMAP_QUERY_initial, const SubmapPtr& submap,
+      const PointCloud& lidar_cloud_in_query_frame,
+      const LoamPointCloudPtr& loam_cloud_in_query_frame = nullptr,
+      const cv::Mat& image = cv::Mat()) override {
     // extract and filter clouds from match submap
     PointCloud submap_cloud_world = beam_filtering::FilterPointCloud(
         submap->GetLidarPointsInWorldFrameCombined(), filter_params_);
@@ -109,7 +111,6 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
                              beam::InvertTransform(submap->T_WORLD_SUBMAP()));
 
     // get refined transform
-    Eigen::Matrix4d T_SUBMAP_QUERY_OPT;
     if (!GetRefinedT_SUBMAP_QUERY(
             submap_in_submap_frame, lidar_cloud_in_query_frame,
             T_SUBMAP_QUERY_initial, T_SUBMAP_QUERY_refined)) {
@@ -234,21 +235,18 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
   }
 
   std::string matcher_config_;
-  std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
+  std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
   Eigen::Matrix<double, 6, 6> reloc_covariance_;
   std::vector<beam_filtering::FilterParamsType> filter_params_;
   std::string source_{"SCANREGRELOC"};
 };
 
 using RelocRefinementIcp =
-    RelocRefinementScanRegistration<beam_matching::IcpMatcher,
-                                    beam_matching::IcpMatcher::Params>;
+    RelocRefinementScanRegistration<IcpMatcher, IcpMatcher::Params>;
 using RelocRefinementGicp =
-    RelocRefinementScanRegistration<beam_matching::GicpMatcher,
-                                    beam_matching::GicpMatcher::Params>;
+    RelocRefinementScanRegistration<GicpMatcher, GicpMatcher::Params>;
 using RelocRefinementNdt =
-    RelocRefinementScanRegistration<beam_matching::NdtMatcher,
-                                    beam_matching::NdtMatcher::Params>;
+    RelocRefinementScanRegistration<NdtMatcher, NdtMatcher::Params>;
 
 }  // namespace reloc
 

@@ -259,7 +259,7 @@ bool GlobalMapRefinement::RunSubmapRefinement() {
   return true;
 }
 
-bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<Submap>& submap) {
+bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap) {
   // Create optimization graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
       fuse_graphs::HashGraph::make_shared();

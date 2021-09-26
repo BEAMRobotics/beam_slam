@@ -8,7 +8,7 @@ ActiveSubmap::ActiveSubmap() {
   ros::NodeHandle n;
 
   // setup subsriber
-  submap_subscriber_ = n.subscribe("/active_submap", 1,
+  submap_subscriber_ = n.subscribe("/global_mapper/active_submap", 1,
                                    &ActiveSubmap::ActiveSubmapCallback, this);
 
   // setup publishers
@@ -61,32 +61,42 @@ void ActiveSubmap::ActiveSubmapCallback(
     visual_map_points_->push_back(point);
   }
 
-  // add all lidar points to point cloud
-  if (msg->lidar_map.size() > 0) {
-    for (geometry_msgs::Vector3 point_vec : msg->lidar_map) {
-      pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
-      lidar_map_points_->push_back(point);
+  // if lidar map not empty, check frame id
+  if (!msg->lidar_map.lidar_points.empty() ||
+      !msg->lidar_map.lidar_edges_strong.empty() ||
+      !msg->lidar_map.lidar_surfaces_strong.empty()) {
+    if (msg->lidar_map.frame_id != extrinsics_online_.GetWorldFrameId()) {
+      BEAM_WARN(
+          "Lidar measurement frame id in submap msg not consistent with world "
+          "frame in extrinsics.");
     }
   }
 
-  // loam pointcloud
+  // add all lidar points to point cloud
+  for (geometry_msgs::Vector3 point_vec : msg->lidar_map.lidar_points) {
+    pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
+    lidar_map_points_->push_back(point);
+  }
+
+  // add loam pointcloud
   PointCloud edges_strong;
   PointCloud edges_weak;
   PointCloud surfaces_strong;
   PointCloud surfaces_weak;
-  for (geometry_msgs::Vector3 point_vec : msg->lidar_edges_strong) {
+  for (geometry_msgs::Vector3 point_vec : msg->lidar_map.lidar_edges_strong) {
     pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
     edges_strong.push_back(point);
   }
-  for (geometry_msgs::Vector3 point_vec : msg->lidar_edges_weak) {
+  for (geometry_msgs::Vector3 point_vec : msg->lidar_map.lidar_edges_weak) {
     pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
     edges_weak.push_back(point);
   }
-  for (geometry_msgs::Vector3 point_vec : msg->lidar_surfaces_strong) {
+  for (geometry_msgs::Vector3 point_vec :
+       msg->lidar_map.lidar_surfaces_strong) {
     pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
     surfaces_strong.push_back(point);
   }
-  for (geometry_msgs::Vector3 point_vec : msg->lidar_surfaces_weak) {
+  for (geometry_msgs::Vector3 point_vec : msg->lidar_map.lidar_surfaces_weak) {
     pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
     surfaces_weak.push_back(point);
   }

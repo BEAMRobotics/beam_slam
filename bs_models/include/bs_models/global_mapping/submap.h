@@ -470,6 +470,8 @@ class Submap {
   // NOTE: all frames are baselink frames
 };
 
+using SubmapPtr = std::shared_ptr<Submap>;
+
 }  // namespace global_mapping
 
 }  // namespace bs_models

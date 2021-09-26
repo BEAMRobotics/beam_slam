@@ -14,10 +14,17 @@ namespace bs_models {
 
 namespace reloc {
 
+using namespace beam_matching;
+using namespace global_mapping;
+
 /**
  * @brief A reloc refinement step that takes an estimated pose
  * from the candidate search and refines the relative pose between the two
- * candidate locations
+ * candidate locations. There are two required implementations for this class.
+ * The first it GenerateTransaction which generates a loop closure transaction
+ * (relative pose error) given two submaps. The second required implementation
+ * is GetRefinedPose which takes in a submap and some camera + lidar data of the
+ * query pose to refine relative to the submap.
  */
 class RelocRefinementBase {
  public:
@@ -41,28 +48,30 @@ class RelocRefinementBase {
    * @param query_submap
    */
   virtual fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const std::shared_ptr<global_mapping::Submap>& matched_submap,
-      const std::shared_ptr<global_mapping::Submap>& query_submap,
+      const SubmapPtr& matched_submap,
+      const SubmapPtr& query_submap,
       const Eigen::Matrix4d& T_MATCH_QUERY_EST) = 0;
 
   /**
    * @brief Pure virtual function that gets a refined pose from a candidate
-   * submap and an initial transform
+   * submap, an initial transform and some lidar + camera data
    * @param T_SUBMAP_QUERY_refined reference to tranform from query pose
    * (baselink) to the submap
    * @param T_SUBMAP_QUERY_initial initial guess of transform from query pose
    * (baselink) to submap
    * @param submap submap that we think the query pose is inside
    * @param lidar_cloud_in_query_frame
-   * @param submap_msg reference to submap msg to fill
-   * @return true if successful
+   * @param loam_cloud_in_query_frame
+   * @param image
+   * @return true if successful, false otherwise
    */
   virtual bool GetRefinedPose(
       Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
       const Eigen::Matrix4d& T_SUBMAP_QUERY_initial,
-      const std::shared_ptr<global_mapping::Submap>& submap,
+      const SubmapPtr& submap,
       const PointCloud& lidar_cloud_in_query_frame,
-      const cv::Mat& image = cv::Mat()) = 0;
+      const LoamPointCloudPtr& loam_cloud_in_query_frame,
+      const cv::Mat& image) = 0;
 
  protected:
   std::string config_path_;

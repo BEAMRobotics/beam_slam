@@ -44,7 +44,7 @@ void GlobalMapper::ProcessSlamChunk(
   // update extrinsics if necessary
   UpdateExtrinsics();
 
-  // create add to map and transaction
+  // Add to map and create transaction
   fuse_core::Transaction::SharedPtr new_transaction =
       global_map_->AddMeasurement(
           msg->camera_measurement, msg->lidar_measurement,
@@ -109,47 +109,49 @@ void GlobalMapper::onInit() {
 
   // load offline map if supplied
   if (!params_.offline_map_path.empty()) {
+    BEAM_INFO("Loading offline map from: {}", params_.offline_map_path);
     GlobalMap global_map_offline(params_.offline_map_path);
     offline_submaps_ = global_map_offline.GetOfflineSubmaps();
+    BEAM_INFO("Done loading offline map.");
   }
 }
 
 void GlobalMapper::onStart() {
   // init subscribers and publishers
   slam_chunk_subscriber_ = node_handle_.subscribe<bs_common::SlamChunkMsg>(
-      ros::names::resolve(params_.slam_chunk_topic), 100,
+      ros::names::resolve("/local_mapper/slam_results"), 100,
       &ThrottledCallbackSlamChunk::callback, &throttled_callback_slam_chunk_,
       ros::TransportHints().tcpNoDelay(false));
 
   reloc_request_subscriber_ =
       node_handle_.subscribe<bs_common::RelocRequestMsg>(
-          ros::names::resolve(params_.reloc_request_topic), 1,
+          ros::names::resolve("/local_mapper/reloc_request"), 1,
           &ThrottledCallbackRelocRequest::callback, &throttled_callback_reloc_,
           ros::TransportHints().tcpNoDelay(false));
 
-  active_submap_publisher_ =
-      node_handle_.advertise<bs_common::SubmapMsg>("/active_submap", 10);
+  active_submap_publisher_ = node_handle_.advertise<bs_common::SubmapMsg>(
+      "/global_mapper/active_submap", 10);
 
   if (params_.publish_new_submaps) {
     submap_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        params_.new_submaps_topic + "/lidar", 10);
+        "/global_mapper/submaps/lidar", 10);
     submap_keypoints_publisher_ =
         node_handle_.advertise<sensor_msgs::PointCloud2>(
-            params_.new_submaps_topic + "/visual", 10);
+            "/global_mapper/submaps/visual", 10);
   }
 
   if (params_.publish_new_scans) {
     new_scans_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        params_.new_scans_topic, 50);
+        "/global_mapper/scans", 50);
   }
 
   if (params_.publish_updated_global_map) {
     global_map_lidar_publisher_ =
         node_handle_.advertise<sensor_msgs::PointCloud2>(
-            params_.global_map_topic + "/lidar", 10);
+            "/global_mapper/global_map/lidar", 10);
     global_map_keypoints_publisher_ =
         node_handle_.advertise<sensor_msgs::PointCloud2>(
-            params_.global_map_topic + "/visual", 10);
+            "/global_mapper/global_map/visual", 10);
   }
 
   // get intrinsics

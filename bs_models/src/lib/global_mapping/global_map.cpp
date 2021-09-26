@@ -157,21 +157,17 @@ GlobalMap::GlobalMap(const std::string& data_root_directory) {
   }
 }
 
-std::vector<std::shared_ptr<Submap>> GlobalMap::GetOnlineSubmaps() {
-  return online_submaps_;
-}
+std::vector<SubmapPtr> GlobalMap::GetOnlineSubmaps() { return online_submaps_; }
 
-std::vector<std::shared_ptr<Submap>> GlobalMap::GetOfflineSubmaps() {
+std::vector<SubmapPtr> GlobalMap::GetOfflineSubmaps() {
   return offline_submaps_;
 }
 
-void GlobalMap::SetOnlineSubmaps(
-    std::vector<std::shared_ptr<Submap>>& submaps) {
+void GlobalMap::SetOnlineSubmaps(std::vector<SubmapPtr>& submaps) {
   online_submaps_ = submaps;
 }
 
-void GlobalMap::SetOfflineSubmaps(
-    std::vector<std::shared_ptr<Submap>>& submaps) {
+void GlobalMap::SetOfflineSubmaps(std::vector<SubmapPtr>& submaps) {
   offline_submaps_ = submaps;
 }
 
@@ -254,8 +250,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
   // if id is equal to submap size then we need to create a new submap
   if (submap_id == online_submaps_.size()) {
-    std::shared_ptr<Submap> new_submap = std::make_shared<Submap>(
-        stamp, T_WORLD_BASELINK, camera_model_, extrinsics_);
+    SubmapPtr new_submap = std::make_shared<Submap>(stamp, T_WORLD_BASELINK,
+                                                    camera_model_, extrinsics_);
     online_submaps_.push_back(new_submap);
     new_transaction = InitiateNewSubmapPose();
 
@@ -280,18 +276,50 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         cam_measurement.measurement_id);
   }
 
-  // add lidar measurement if not empty
-  if (!lid_measurement.points.empty()) {
-    // ROS_DEBUG("Adding lidar measurement to global map.");
-    PointCloud cloud = beam::VectorToPclCloud(lid_measurement.points);
-    if (!cloud.empty()) {
-      if (store_new_scans_ && lid_measurement.point_type == 0) {
-        AddNewRosScan(cloud, T_WORLD_BASELINK, stamp);
-      }
-
-      online_submaps_.at(submap_id)->AddLidarMeasurement(
-          cloud, T_WORLD_BASELINK, stamp, lid_measurement.point_type);
+  // if lidar measurement exists, check frame id
+  if (!lid_measurement.lidar_points.empty() ||
+      !lid_measurement.lidar_edges_strong.empty() ||
+      !lid_measurement.lidar_surfaces_strong.empty()) {
+    if (lid_measurement.frame_id != extrinsics_->GetLidarFrameId()) {
+      BEAM_WARN(
+          "Lidar measurement frame id not consistent with lidar frame in the "
+          "extrinsics class.");
     }
+  }
+
+  // add lidar measurement if not empty
+  // ROS_DEBUG("Adding lidar measurement to global map.");
+  PointCloud cloud;
+  if (!lid_measurement.lidar_points.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_points);
+
+    // add ros msg if applicable
+    if (store_new_scans_) {
+      AddNewRosScan(cloud, T_WORLD_BASELINK, stamp);
+    }
+
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 0);
+  }
+  if (!lid_measurement.lidar_edges_strong.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_edges_strong);
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 1);
+  }
+  if (!lid_measurement.lidar_surfaces_strong.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_surfaces_strong);
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 2);
+  }
+  if (!lid_measurement.lidar_edges_weak.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_edges_weak);
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 3);
+  }
+  if (!lid_measurement.lidar_surfaces_weak.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_surfaces_weak);
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 4);
   }
 
   // add trajectory measurement if not empty
@@ -395,7 +423,7 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   ROS_DEBUG("Initiating new submap pose");
 
-  const std::shared_ptr<Submap>& current_submap =
+  const SubmapPtr& current_submap =
       online_submaps_.at(online_submaps_.size() - 1);
   bs_constraints::relative_pose::Pose3DStampedTransaction new_transaction(
       current_submap->Stamp());
@@ -412,7 +440,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   }
 
   // If not first submap add constraint to previous
-  const std::shared_ptr<Submap>& previous_submap =
+  const SubmapPtr& previous_submap =
       online_submaps_.at(online_submaps_.size() - 2);
 
   Eigen::Matrix4d T_PREVIOUS_CURRENT =
@@ -507,7 +535,30 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
 
   // load pointcloud
   PointCloud lidar_cloud_in_query_frame =
-      beam::VectorToPclCloud(reloc_request_msg.scan);
+      beam::ROSVectorToPCL(reloc_request_msg.lidar_measurement.lidar_points);
+
+  // load loam cloud
+  beam_matching::LoamPointCloudPtr loam_cloud_in_query_frame =
+      std::make_shared<beam_matching::LoamPointCloud>(
+          beam::ROSVectorToPCL(
+              reloc_request_msg.lidar_measurement.lidar_edges_strong),
+          beam::ROSVectorToPCL(
+              reloc_request_msg.lidar_measurement.lidar_surfaces_strong),
+          beam::ROSVectorToPCL(
+              reloc_request_msg.lidar_measurement.lidar_edges_weak),
+          beam::ROSVectorToPCL(
+              reloc_request_msg.lidar_measurement.lidar_surfaces_weak));
+
+  // if either lidar clouds have points, check the frame id
+  if (!lidar_cloud_in_query_frame.empty() ||
+      loam_cloud_in_query_frame->Size() > 0) {
+    if (reloc_request_msg.lidar_measurement.frame_id !=
+        extrinsics_->GetBaselinkFrameId()) {
+      BEAM_WARN(
+          "Frame id of lidar data in reloc request not consistent with the "
+          "baselink frame id stored in the intrinsics class.");
+    }
+  }
 
   // load image
   cv::Mat image;
@@ -549,7 +600,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
       if (reloc_refinement_->GetRefinedPose(
               T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
-              lidar_cloud_in_query_frame, image)) {
+              lidar_cloud_in_query_frame, loam_cloud_in_query_frame, image)) {
         BEAM_DEBUG("Found refined reloc pose.");
         // calculate transform from offline map world frame to the local mapper
         // world frame if not already calculated
@@ -637,7 +688,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
       if (reloc_refinement_->GetRefinedPose(
               T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
-              lidar_cloud_in_query_frame, image)) {
+              lidar_cloud_in_query_frame, loam_cloud_in_query_frame, image)) {
         BEAM_DEBUG("Found refined reloc pose.");
 
         // get all required submap data
@@ -770,7 +821,7 @@ bool GlobalMap::Load(const std::string& root_directory) {
       break;
     }
 
-    std::shared_ptr<Submap> current_submap = std::make_shared<Submap>(
+    SubmapPtr current_submap = std::make_shared<Submap>(
         ros::Time(0), Eigen::Matrix4d::Identity(), camera_model_, extrinsics_);
     BEAM_INFO("Loading submap from: {}", submap_dir);
     current_submap->LoadData(submap_dir, false);
@@ -867,7 +918,7 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   poses.SetFixedFrame(extrinsics_->GetWorldFrameId());
   poses.SetMovingFrame(extrinsics_->GetBaselinkFrameId());
   for (uint16_t i = 0; i < online_submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = online_submaps_.at(i);
+    const SubmapPtr& submap = online_submaps_.at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap->T_WORLD_SUBMAP();
     auto poses_stamped = submap->GetTrajectory();
     for (auto& pose_stamped : poses_stamped) {
@@ -893,7 +944,7 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   poses_initial.SetFixedFrame(extrinsics_->GetWorldFrameId());
   poses_initial.SetMovingFrame(extrinsics_->GetBaselinkFrameId());
   for (uint16_t i = 0; i < online_submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = online_submaps_.at(i);
+    const SubmapPtr& submap = online_submaps_.at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap->T_WORLD_SUBMAP_INIT();
     std::vector<Submap::PoseStamped> poses_stamped = submap->GetTrajectory();
     for (auto& pose_stamped : poses_stamped) {
@@ -921,7 +972,7 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
   // get trajectory
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   for (uint16_t i = 0; i < online_submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = online_submaps_.at(i);
+    const SubmapPtr& submap = online_submaps_.at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap->T_WORLD_SUBMAP();
     std::vector<Submap::PoseStamped> poses_stamped = submap->GetTrajectory();
     for (const Submap::PoseStamped& pose_stamped : poses_stamped) {
@@ -953,7 +1004,7 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
   // get trajectory initial
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_initial;
   for (uint16_t i = 0; i < online_submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = online_submaps_.at(i);
+    const SubmapPtr& submap = online_submaps_.at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap->T_WORLD_SUBMAP_INIT();
     auto poses_stamped = submap->GetTrajectory();
     for (const Submap::PoseStamped& pose_stamped : poses_stamped) {
@@ -986,7 +1037,7 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
 
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   for (uint16_t i = 0; i < online_submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = online_submaps_.at(i);
+    const SubmapPtr& submap = online_submaps_.at(i);
     pcl::PointCloud<pcl::PointXYZRGBL> frame =
         beam::CreateFrameCol(submap->Stamp());
     pcl::PointCloud<pcl::PointXYZRGBL> frame_transformed;
@@ -1010,7 +1061,7 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
 
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_initial;
   for (uint16_t i = 0; i < online_submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = online_submaps_.at(i);
+    const SubmapPtr& submap = online_submaps_.at(i);
     pcl::PointCloud<pcl::PointXYZRGBL> frame =
         beam::CreateFrameCol(submap->Stamp());
     pcl::PointCloud<pcl::PointXYZRGBL> frame_transformed;
@@ -1142,8 +1193,8 @@ void GlobalMap::AddNewRosScan(const PointCloud& cloud,
 
   // convert to PointCloud2
   sensor_msgs::PointCloud2 pointcloud2_msg =
-        beam::PCLToROS(cloud_in_world_frame, stamp,
-                       extrinsics_->GetWorldFrameId(), new_scans_counter_);
+      beam::PCLToROS(cloud_in_world_frame, stamp,
+                     extrinsics_->GetWorldFrameId(), new_scans_counter_);
   new_scans_counter_++;
 
   // set cloud
@@ -1177,6 +1228,7 @@ void GlobalMap::FillSubmapMsg(
   std::vector<geometry_msgs::Vector3> points_vec;
 
   // add lidar points
+  submap_msg.lidar_map.frame_id = extrinsics_->GetWorldFrameId();
   for (const auto& p : lidar_points_in_wlm_frame) {
     geometry_msgs::Vector3 point;
     point.x = p.x;
@@ -1184,7 +1236,7 @@ void GlobalMap::FillSubmapMsg(
     point.z = p.z;
     points_vec.push_back(point);
   }
-  submap_msg.lidar_map = points_vec;
+  submap_msg.lidar_map.lidar_points = points_vec;
 
   // add loam points
   points_vec.clear();
@@ -1195,7 +1247,7 @@ void GlobalMap::FillSubmapMsg(
     point.z = p.z;
     points_vec.push_back(point);
   }
-  submap_msg.lidar_edges_strong = points_vec;
+  submap_msg.lidar_map.lidar_edges_strong = points_vec;
   points_vec.clear();
   for (const auto& p : loam_points_in_wlm_frame.edges.weak.cloud) {
     geometry_msgs::Vector3 point;
@@ -1204,7 +1256,7 @@ void GlobalMap::FillSubmapMsg(
     point.z = p.z;
     points_vec.push_back(point);
   }
-  submap_msg.lidar_edges_weak = points_vec;
+  submap_msg.lidar_map.lidar_edges_weak = points_vec;
   points_vec.clear();
   for (const auto& p : loam_points_in_wlm_frame.surfaces.strong.cloud) {
     geometry_msgs::Vector3 point;
@@ -1213,7 +1265,7 @@ void GlobalMap::FillSubmapMsg(
     point.z = p.z;
     points_vec.push_back(point);
   }
-  submap_msg.lidar_surfaces_strong = points_vec;
+  submap_msg.lidar_map.lidar_surfaces_strong = points_vec;
   points_vec.clear();
   for (const auto& p : loam_points_in_wlm_frame.surfaces.weak.cloud) {
     geometry_msgs::Vector3 point;
@@ -1222,7 +1274,7 @@ void GlobalMap::FillSubmapMsg(
     point.z = p.z;
     points_vec.push_back(point);
   }
-  submap_msg.lidar_surfaces_weak = points_vec;
+  submap_msg.lidar_map.lidar_surfaces_weak = points_vec;
 
   // add keypoints
   points_vec.clear();

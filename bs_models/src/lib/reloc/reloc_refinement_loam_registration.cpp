@@ -19,13 +19,25 @@ RelocRefinementLoam::RelocRefinementLoam(
 }
 
 fuse_core::Transaction::SharedPtr RelocRefinementLoam::GenerateTransaction(
-    const std::shared_ptr<global_mapping::Submap>& matched_submap,
-    const std::shared_ptr<global_mapping::Submap>& query_submap,
+    const SubmapPtr& matched_submap, const SubmapPtr& query_submap,
     const Eigen::Matrix4d& T_MATCH_QUERY_EST) {
+  // extract and filter clouds from matched submap
+  LoamPointCloud matched_submap_in_submap_frame =
+      matched_submap->GetLidarLoamPointsInWorldFrame();
+  matched_submap_in_submap_frame.TransformPointCloud(
+      beam::InvertTransform(matched_submap->T_WORLD_SUBMAP()));
+
+  // extract and filter clouds from matched submap
+  LoamPointCloud query_submap_in_submap_frame =
+      query_submap->GetLidarLoamPointsInWorldFrame();
+  query_submap_in_submap_frame.TransformPointCloud(
+      beam::InvertTransform(query_submap->T_WORLD_SUBMAP()));
+
   // get refined transform
   Eigen::Matrix4d T_MATCH_QUERY_OPT;
-  if (!GetRefinedT_MATCH_QUERY(matched_submap, query_submap, T_MATCH_QUERY_EST,
-                               T_MATCH_QUERY_OPT)) {
+  if (!GetRefinedT_SUBMAP_QUERY(matched_submap_in_submap_frame,
+                                query_submap_in_submap_frame, T_MATCH_QUERY_EST,
+                                T_MATCH_QUERY_OPT)) {
     return nullptr;
   }
 
@@ -42,12 +54,23 @@ fuse_core::Transaction::SharedPtr RelocRefinementLoam::GenerateTransaction(
 
 bool RelocRefinementLoam::GetRefinedPose(
     Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
-    const Eigen::Matrix4d& T_SUBMAP_QUERY_initial,
-    const std::shared_ptr<global_mapping::Submap>& submap,
+    const Eigen::Matrix4d& T_SUBMAP_QUERY_initial, const SubmapPtr& submap,
     const PointCloud& lidar_cloud_in_query_frame,
-    const cv::Mat& image) {
-  // TODO
-  BEAM_ERROR("Not yet implemented");
+    const LoamPointCloudPtr& loam_cloud_in_query_frame, const cv::Mat& image) {
+  // extract and filter clouds from match submap
+  LoamPointCloud submap_in_submap_frame =
+      submap->GetLidarLoamPointsInWorldFrame();
+  submap_in_submap_frame.TransformPointCloud(
+      beam::InvertTransform(submap->T_WORLD_SUBMAP()));
+
+  // get refined transform
+  if (!GetRefinedT_SUBMAP_QUERY(
+          submap_in_submap_frame, *loam_cloud_in_query_frame,
+          T_SUBMAP_QUERY_initial, T_SUBMAP_QUERY_refined)) {
+    return false;
+  }
+
+  return true;
 }
 
 void RelocRefinementLoam::LoadConfig() {
@@ -78,24 +101,24 @@ void RelocRefinementLoam::LoadConfig() {
 
 void RelocRefinementLoam::Setup() {
   // load matcher
-  beam_matching::LoamParams matcher_params(matcher_config_);
-  matcher_ = std::make_unique<beam_matching::LoamMatcher>(matcher_params);
+  LoamParams matcher_params(matcher_config_);
+  matcher_ = std::make_unique<LoamMatcher>(matcher_params);
 }
 
-bool RelocRefinementLoam::GetRefinedT_MATCH_QUERY(
-    const std::shared_ptr<global_mapping::Submap>& matched_submap,
-    const std::shared_ptr<global_mapping::Submap>& query_submap,
-    const Eigen::Matrix4d& T_MATCH_QUERY_EST,
-    Eigen::Matrix4d& T_MATCH_QUERY_OPT) {
-  beam_matching::LoamPointCloudPtr cloud_match_world =
-      std::make_shared<beam_matching::LoamPointCloud>(
-          matched_submap->GetLidarLoamPointsInWorldFrame());
-  beam_matching::LoamPointCloudPtr cloud_query_world =
-      std::make_shared<beam_matching::LoamPointCloud>(
-          query_submap->GetLidarLoamPointsInWorldFrame());
+bool RelocRefinementLoam::GetRefinedT_SUBMAP_QUERY(
+    const LoamPointCloud& submap_cloud, const LoamPointCloud& query_cloud,
+    const Eigen::Matrix4d& T_SUBMAP_QUERY_EST,
+    Eigen::Matrix4d& T_SUBMAP_QUERY_OPT) {
+  // convert query to estimated submap frame and make pointers
+  LoamPointCloudPtr submap_ptr = std::make_shared<LoamPointCloud>(submap_cloud);
+  LoamPointCloudPtr query_in_submap_frame_est =
+      std::make_shared<LoamPointCloud>(query_cloud);
+  query_in_submap_frame_est->TransformPointCloud(T_SUBMAP_QUERY_EST);
 
-  matcher_->SetRef(cloud_match_world);
-  matcher_->SetTarget(cloud_query_world);
+  // match clouds
+  matcher_->SetRef(submap_ptr);
+  matcher_->SetTarget(query_in_submap_frame_est);
+
   if (!matcher_->Match()) {
     BEAM_WARN("Failed scan matching. Not adding reloc constraint.");
     if (output_results_) {
@@ -109,16 +132,16 @@ bool RelocRefinementLoam::GetRefinedT_MATCH_QUERY(
     return false;
   }
 
-  Eigen::Matrix4d T_MATCHREFINED_MATCHEST =
+  Eigen::Matrix4d T_SUBMAPREFINED_SUBMAPEST =
       matcher_->GetResult().inverse().matrix();
 
   /**
    * Get refined pose:
-   * T_MATCH_QUERY_OPT = T_MATCHREFINED_QUERY
-   *                   = T_MATCHREFINED_MATCHEST * T_MATCHEST_QUERY
-   *                   = T_MATCHREFINED_MATCHEST * T_MATCH_QUERY_EST
+   * T_SUBMAP_QUERY_OPT = T_SUBMAPREFINED_QUERY
+   *                   = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAPEST_QUERY
+   *                   = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAP_QUERY_EST
    */
-  T_MATCH_QUERY_OPT = T_MATCHREFINED_MATCHEST * T_MATCH_QUERY_EST;
+  T_SUBMAP_QUERY_OPT = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAP_QUERY_EST;
 
   if (output_results_) {
     output_path_stamped_ =

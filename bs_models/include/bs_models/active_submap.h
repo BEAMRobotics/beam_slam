@@ -7,6 +7,7 @@
 #include <beam_matching/loam/LoamPointCloud.h>
 
 #include <bs_common/bs_msgs.h>
+#include <bs_common/extrinsics_lookup_online.h>
 
 namespace bs_models {
 
@@ -140,11 +141,14 @@ class ActiveSubmap {
    */
   void Publish() const;
 
+  // data
   PointCloudPtr lidar_map_points_;
   beam_matching::LoamPointCloudPtr loam_cloud_;
   PointCloudPtr visual_map_points_;
   std::vector<cv::Mat> descriptors_;
   ros::Subscriber submap_subscriber_;
+  bs_common::ExtrinsicsLookupOnline& extrinsics_online_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // publishing map updates:
   bool publish_updates_{false};
