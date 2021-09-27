@@ -111,7 +111,7 @@ void GlobalMapper::onInit() {
   if (!params_.offline_map_path.empty()) {
     BEAM_INFO("Loading offline map from: {}", params_.offline_map_path);
     GlobalMap global_map_offline(params_.offline_map_path);
-    offline_submaps_ = global_map_offline.GetOfflineSubmaps();
+    offline_submaps_ = global_map_offline.GetOnlineSubmaps();
     BEAM_INFO("Done loading offline map.");
   }
 }

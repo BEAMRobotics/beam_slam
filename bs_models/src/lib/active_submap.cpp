@@ -159,35 +159,45 @@ void ActiveSubmap::RemoveVisualMapPoint(size_t index) {
 }
 
 void ActiveSubmap::Publish() const {
-  sensor_msgs::PointCloud2 pc_msg;
+  std::string frame_id = extrinsics_online_.GetWorldFrameId();
 
   if (!visual_map_points_->empty()) {
-    pc_msg = beam::PCLToROS(*visual_map_points_);
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS(
+        *visual_map_points_, update_time_, frame_id, updates_counter_);
     visual_map_publisher_.publish(pc_msg);
   }
 
   if (!lidar_map_points_->empty()) {
-    pc_msg = beam::PCLToROS(*lidar_map_points_);
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS(
+        *lidar_map_points_, update_time_, frame_id, updates_counter_);
     lidar_map_publisher_.publish(pc_msg);
   }
 
   if (!loam_cloud_->edges.strong.cloud.empty()) {
-    pc_msg = beam::PCLToROS(loam_cloud_->edges.strong.cloud);
+    sensor_msgs::PointCloud2 pc_msg =
+        beam::PCLToROS(loam_cloud_->edges.strong.cloud, update_time_, frame_id,
+                       updates_counter_);
     loam_edges_strong_publisher_.publish(pc_msg);
   }
 
   if (!loam_cloud_->edges.weak.cloud.empty()) {
-    pc_msg = beam::PCLToROS(loam_cloud_->edges.weak.cloud);
+    sensor_msgs::PointCloud2 pc_msg =
+        beam::PCLToROS(loam_cloud_->edges.weak.cloud, update_time_, frame_id,
+                       updates_counter_);
     loam_edges_weak_publisher_.publish(pc_msg);
   }
 
   if (!loam_cloud_->surfaces.strong.cloud.empty()) {
-    pc_msg = beam::PCLToROS(loam_cloud_->surfaces.strong.cloud);
+    sensor_msgs::PointCloud2 pc_msg =
+        beam::PCLToROS(loam_cloud_->surfaces.strong.cloud, update_time_,
+                       frame_id, updates_counter_);
     loam_surfaces_strong_publisher_.publish(pc_msg);
   }
 
   if (!loam_cloud_->surfaces.weak.cloud.empty()) {
-    pc_msg = beam::PCLToROS(loam_cloud_->surfaces.weak.cloud);
+    sensor_msgs::PointCloud2 pc_msg =
+        beam::PCLToROS(loam_cloud_->surfaces.weak.cloud, update_time_, frame_id,
+                       updates_counter_);
     loam_surfaces_weak_publisher_.publish(pc_msg);
   }
 }

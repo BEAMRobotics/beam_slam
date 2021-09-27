@@ -378,6 +378,7 @@ beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
     cloud_in_world_frame.TransformPointCloud(T_WORLD_LIDAR);
     map.Merge(cloud_in_world_frame);
   }
+  return map;
 }
 
 std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {

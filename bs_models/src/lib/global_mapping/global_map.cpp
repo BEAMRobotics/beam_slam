@@ -551,7 +551,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
 
   // if either lidar clouds have points, check the frame id
   if (!lidar_cloud_in_query_frame.empty() ||
-      loam_cloud_in_query_frame->Size() > 0) {
+      !loam_cloud_in_query_frame->Empty()) {
     if (reloc_request_msg.lidar_measurement.frame_id !=
         extrinsics_->GetBaselinkFrameId()) {
       BEAM_WARN(
@@ -584,7 +584,6 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
     for (uint16_t i = 0; i < matched_indices.size(); i++) {
       int submap_index = matched_indices.at(i);
       const auto& T_SUBMAP_QUERY_initial = Ts_SUBMAPCANDIDATE_QUERY.at(i);
-      const auto& submap = offline_submaps_.at(submap_index);
 
       if (active_submap_id_ == submap_index &&
           active_submap_type_ == SubmapType::OFFLINE) {
@@ -595,17 +594,18 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
       }
 
       // get refined pose
-      BEAM_DEBUG("Looking for refined submap pose within submap index: ",
-                 submap_index);
+      ROS_DEBUG("Looking for refined submap pose within submap index: ",
+                submap_index);
+      const auto& submap = offline_submaps_.at(submap_index);
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
       if (reloc_refinement_->GetRefinedPose(
               T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
               lidar_cloud_in_query_frame, loam_cloud_in_query_frame, image)) {
-        BEAM_DEBUG("Found refined reloc pose.");
+        ROS_DEBUG("Found refined reloc pose.");
         // calculate transform from offline map world frame to the local mapper
         // world frame if not already calculated
         if (!T_WORLDLM_WORLDOFF_found_) {
-          BEAM_DEBUG(
+          ROS_DEBUG(
               "Setting transform from offline map world frame to local mapper "
               "world frame.");
           T_WORLDLM_WORLDOFF_ = T_WORLDLM_QUERY *
@@ -618,15 +618,16 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
         PointCloud lidar_cloud_in_woff_frame =
             submap->GetLidarPointsInWorldFrameCombined(false);
         beam_matching::LoamPointCloud loam_cloud_in_woff_frame =
-            submap->GetLidarLoamPointsInWorldFrame(false);
+            submap->GetLidarLoamPointsInWorldFrame(false); 
         PointCloud keypoints_in_woff_frame =
             submap->GetKeypointsInWorldFrame(false);
         std::vector<std::vector<float>> descriptors;
         beam_cv::DescriptorType descriptor_type;
         auto desc_type_iter =
             beam_cv::DescriptorTypeIntMap.find(submap->DescriptorType());
+        bool wrong_descriptor_type{false};
         if (desc_type_iter == beam_cv::DescriptorTypeIntMap.end()) {
-          BEAM_WARN("Invalid descriptor type read. Using ORB.");
+          wrong_descriptor_type = true;
           descriptor_type = beam_cv::DescriptorType::ORB;
         } else {
           descriptor_type = desc_type_iter->second;
@@ -637,6 +638,10 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
               beam_cv::Descriptor::ConvertDescriptor(landmarks_iter->descriptor,
                                                      descriptor_type);
           descriptors.push_back(descriptor);
+        }
+
+        if (wrong_descriptor_type && !descriptors.empty()) {
+          BEAM_WARN("Invalid descriptor type read. Using ORB.");
         }
 
         // add submap data to submap msg
@@ -662,7 +667,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
     ROS_DEBUG("Looking for reloc submap candidates in online maps.");
     reloc_candidate_search_->FindRelocCandidates(
         online_submaps_, T_WORLDLM_QUERY, matched_indices,
-        Ts_SUBMAPCANDIDATE_QUERY, true);
+        Ts_SUBMAPCANDIDATE_QUERY, 2, true);
     ROS_DEBUG("Found %d submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
 
     // go through candidates, and get first successful reloc refinement. Note:
@@ -672,7 +677,6 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
     for (uint16_t i = 0; i < matched_indices.size(); i++) {
       int submap_index = matched_indices.at(i);
       const auto& T_SUBMAP_QUERY_initial = Ts_SUBMAPCANDIDATE_QUERY.at(i);
-      const auto& submap = offline_submaps_.at(submap_index);
 
       if (active_submap_id_ == submap_index &&
           active_submap_type_ == SubmapType::ONLINE) {
@@ -681,6 +685,8 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
             "submap.");
         return false;
       }
+
+      const auto& submap = online_submaps_.at(submap_index);
 
       // get refined pose
       BEAM_DEBUG("Looking for refined submap pose within submap index: ",
@@ -701,8 +707,9 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
         beam_cv::DescriptorType descriptor_type;
         auto desc_type_iter =
             beam_cv::DescriptorTypeIntMap.find(submap->DescriptorType());
+        bool wrong_descriptor_type{false};
         if (desc_type_iter == beam_cv::DescriptorTypeIntMap.end()) {
-          BEAM_WARN("Invalid descriptor type read. Using ORB.");
+          wrong_descriptor_type = true;
           descriptor_type = beam_cv::DescriptorType::ORB;
         } else {
           descriptor_type = desc_type_iter->second;
@@ -714,6 +721,10 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
               beam_cv::Descriptor::ConvertDescriptor(landmarks_iter->descriptor,
                                                      descriptor_type);
           descriptors.push_back(descriptor);
+        }
+
+        if (wrong_descriptor_type && !descriptors.empty()) {
+          BEAM_WARN("Invalid descriptor type read. Using ORB.");
         }
 
         // add submap data to submap msg
@@ -1247,6 +1258,7 @@ void GlobalMap::FillSubmapMsg(
     point.z = p.z;
     points_vec.push_back(point);
   }
+
   submap_msg.lidar_map.lidar_edges_strong = points_vec;
   points_vec.clear();
   for (const auto& p : loam_points_in_wlm_frame.edges.weak.cloud) {
@@ -1256,6 +1268,7 @@ void GlobalMap::FillSubmapMsg(
     point.z = p.z;
     points_vec.push_back(point);
   }
+
   submap_msg.lidar_map.lidar_edges_weak = points_vec;
   points_vec.clear();
   for (const auto& p : loam_points_in_wlm_frame.surfaces.strong.cloud) {
@@ -1265,6 +1278,7 @@ void GlobalMap::FillSubmapMsg(
     point.z = p.z;
     points_vec.push_back(point);
   }
+
   submap_msg.lidar_map.lidar_surfaces_strong = points_vec;
   points_vec.clear();
   for (const auto& p : loam_points_in_wlm_frame.surfaces.weak.cloud) {
@@ -1286,7 +1300,7 @@ void GlobalMap::FillSubmapMsg(
     points_vec.push_back(point);
   }
   submap_msg.visual_map_points = points_vec;
-
+  
   // add descriptors
   std::vector<bs_common::DescriptorMsg> descriptor_msgs;
   for (const std::vector<float>& descriptor : descriptors) {
