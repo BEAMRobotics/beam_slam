@@ -64,11 +64,7 @@ NormalDeltaImuState3DCostFunctor::NormalDeltaImuState3DCostFunctor(
     const bs_common::PreIntegrator& pre_integrator)
     : A_(pre_integrator_.delta.sqrt_inv_cov),
       imu_state_i_(imu_state_i),
-      pre_integrator_(pre_integrator) {
-        // TODO (AT/NC) need to fix covariance
-        pre_integrator_.delta.cov.setIdentity();
-        A_= pre_integrator_.delta.cov.inverse().llt().matrixU();
-      }
+      pre_integrator_(pre_integrator) {}
 
 template <typename T>
 bool NormalDeltaImuState3DCostFunctor::operator()(
