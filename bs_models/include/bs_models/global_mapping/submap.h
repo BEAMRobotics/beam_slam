@@ -21,7 +21,6 @@ namespace bs_models {
 
 namespace global_mapping {
 
-using pose_allocator = Eigen::aligned_allocator<Eigen::Matrix4d>;
 using namespace bs_common;
 
 /**
@@ -255,7 +254,7 @@ class Submap {
    * attached to
    */
   void AddTrajectoryMeasurement(
-      const std::vector<Eigen::Matrix4d, pose_allocator>& poses,
+      const std::vector<Eigen::Matrix4d, beam::AlignMat4d>& poses,
       const std::vector<ros::Time>& stamps, const ros::Time& stamp);
 
   /**

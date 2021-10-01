@@ -184,11 +184,33 @@ void LidarOdometry::onStart() {
       &ThrottledCallback::callback, &throttled_callback_,
       ros::TransportHints().tcpNoDelay(false));
 
-  results_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
-      "/local_mapper/slam_results", 100);
+  if (params_.output_loam_points || params_.output_lidar_points) {
+    results_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
+        "/local_mapper/slam_results", 100);
+  }
 
-  reloc_request_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
-      "/local_mapper/reloc_request", 100);
+  if (params_.reloc_request_period != 0) {
+    reloc_request_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
+        "/local_mapper/reloc_request", 10);
+  }
+
+  if(params_.publish_local_map){
+    RegistrationMap& map = RegistrationMap::GetInstance();
+    map.SetParams(map.MapSize(), true);
+  }
+  
+
+  if (params_.publish_registration_results) {
+    registration_publisher_init_ =
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+            "/local_mapper/registration/initial", 10);
+    registration_publisher_aligned_lm_ =
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+            "/local_mapper/registration/aligned_lm", 10);
+    registration_publisher_aligned_gm_ =
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+            "/local_mapper/registration/aligned_gm", 10);
+  }
 };
 
 void LidarOdometry::onStop() {
@@ -196,7 +218,10 @@ void LidarOdometry::onStop() {
   ROS_INFO("LidarOdometry stopped, processing remaining scans in window.");
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
-    OutputResults(*iter);
+    PublishMarginalizedScanPose(*iter);
+    if (!params_.scan_output_directory.empty()) {
+      iter->SaveCloud(params_.scan_output_directory);
+    }
   }
 
   active_clouds_.clear();
@@ -235,12 +260,6 @@ LidarOdometry::GenerateTransaction(
                              feature_extractor_);
 
   // build transaction of registration measurements
-
-  /** Uncomment this and comment the following line if you want to only include
-   * pose priors */
-  // bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
-  //     current_scan_pose.Stamp());
-
   auto transaction = scan_registration_->RegisterNewScan(current_scan_pose);
 
   // if scan registration failed and returned a nullptr, then don't add scan to
@@ -249,6 +268,11 @@ LidarOdometry::GenerateTransaction(
     ROS_DEBUG("Skipping scan");
     return bs_constraints::relative_pose::Pose3DStampedTransaction(
         msg->header.stamp);
+  }
+
+  if (params_.publish_registration_results) {
+    PublishScanRegistrationResults(transaction.GetTransaction(), nullptr,
+                                   current_scan_pose);
   }
 
   active_clouds_.push_back(current_scan_pose);
@@ -332,7 +356,10 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
     // Othewise, it has probably been marginalized out, so output and remove
     // from active list
-    OutputResults(*i);
+    PublishMarginalizedScanPose(*i);
+    if (!params_.scan_output_directory.empty()) {
+      i->SaveCloud(params_.scan_output_directory);
+    }
     active_clouds_.erase(i++);
   }
 
@@ -414,7 +441,7 @@ void LidarOdometry::SendRelocRequest(const ScanPose& scan_pose) {
   last_reloc_request_time_ = scan_pose.Stamp();
 }
 
-void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
+void LidarOdometry::PublishMarginalizedScanPose(const ScanPose& scan_pose) {
   if (!params_.output_loam_points && params_.output_lidar_points) {
     return;
   }
@@ -488,11 +515,145 @@ void LidarOdometry::OutputResults(const ScanPose& scan_pose) {
 
   ROS_DEBUG("Publishing slam chunk msg");
   results_publisher_.publish(slam_chunk_msg);
+}
 
-  // save to disk
-  if (!params_.scan_output_directory.empty()) {
-    scan_pose.SaveCloud(params_.scan_output_directory);
+void LidarOdometry::PublishScanRegistrationResults(
+    const fuse_core::Transaction::SharedPtr& transaction_lm,
+    const fuse_core::Transaction::SharedPtr& transaction_gm,
+    const ScanPose& scan_pose) {
+  const PointCloud& scan_in_lidar_frame = scan_pose.Cloud();
+  Eigen::Matrix4d T_WORLD_BASELINKINIT = scan_pose.T_REFFRAME_BASELINK();
+  Eigen::Matrix4d T_BASELINK_LIDAR = scan_pose.T_BASELINK_LIDAR();
+
+  const auto& sc_orientation = scan_pose.Orientation();
+  const auto& sc_position = scan_pose.Position();
+  fuse_constraints::AbsolutePose3DStampedConstraint dummy_abs_const;
+
+  // get pose of baselink as measured by the GM from transaction_gm prior
+  Eigen::Matrix4d T_WORLD_BASELINKREFGM = Eigen::Matrix4d::Identity();
+  bool publish_gm_results{false};
+  if (transaction_gm != nullptr) {
+    auto added_constraints = transaction_gm->addedConstraints();
+    int pose_constraints_found = 0;
+    for (auto iter = added_constraints.begin(); iter != added_constraints.end();
+         iter++) {
+      if (iter->type() == dummy_abs_const.type()) {
+        pose_constraints_found++;
+        auto constraint = dynamic_cast<
+            const fuse_constraints::AbsolutePose3DStampedConstraint&>(*iter);
+        const fuse_core::Vector7d& mean = constraint.mean();
+
+        Eigen::Vector3d t_WORLD_BASELINKREFGM =
+            Eigen::Vector3d(mean[0], mean[1], mean[2]);
+        Eigen::Quaterniond q(mean[3], mean[4], mean[5], mean[6]);
+        Eigen::Matrix3d R_WORLD_BASELINKREFGM(q);
+
+        T_WORLD_BASELINKREFGM.block(0, 0, 3, 3) = R_WORLD_BASELINKREFGM;
+        T_WORLD_BASELINKREFGM.block(0, 3, 3, 1) = t_WORLD_BASELINKREFGM;
+      }
+    }
+
+    // check we have the right amount of constraints
+    if (pose_constraints_found == 1) {
+      publish_gm_results = true;
+    } else {
+      publish_gm_results = false;
+    }
   }
+
+  // get pose of baselink as measured by the LM from transaction_lm binary
+  // constraint
+  fuse_constraints::RelativePose3DStampedConstraint dummy_rel_pose_const;
+  Eigen::Matrix4d T_WORLD_LIDARREFLM = Eigen::Matrix4d::Identity();
+  bool publish_lm_results{false};
+  if (transaction_lm != nullptr) {
+    std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_WORLD_LIDARREFLM;
+    auto added_constraints = transaction_lm->addedConstraints();
+    for (auto iter = added_constraints.begin(); iter != added_constraints.end();
+         iter++) {
+      if (iter->type() == dummy_rel_pose_const.type()) {
+        Eigen::Matrix4d T_REFFRAME_BASELINKREFLM = Eigen::Matrix4d::Identity();
+        Eigen::Matrix4d T_WORLD_REFFRAME = Eigen::Matrix4d::Identity();
+
+        auto constraint = dynamic_cast<
+            const fuse_constraints::RelativePose3DStampedConstraint&>(*iter);
+        const fuse_core::Vector7d& mean = constraint.delta();
+        const std::vector<fuse_core::UUID>& variables = constraint.variables();
+
+        // build transform between two poses
+        Eigen::Vector3d t_REF_SCAN = Eigen::Vector3d(mean[0], mean[1], mean[2]);
+        Eigen::Quaterniond q(mean[3], mean[4], mean[5], mean[6]);
+        Eigen::Matrix3d R_REF_SCAN(q);
+        Eigen::Matrix4d T_REF_SCAN = Eigen::Matrix4d::Identity();
+        T_REF_SCAN.block(0, 0, 3, 3) = R_REF_SCAN;
+        T_REF_SCAN.block(0, 3, 3, 1) = t_REF_SCAN;
+
+        // get pose of reference
+        const RegistrationMap& map = scan_registration_->GetMap();
+        ros::Time ref_stamp;
+        if (!map.GetUUIDStamp(variables.at(0), ref_stamp)) {
+          BEAM_WARN(
+              "UUID not found in registration map, not publishing scan "
+              "registration result.");
+          continue;
+        }
+        Eigen::Matrix4d T_WORLD_REF;
+        map.GetScanPose(ref_stamp, T_WORLD_REF);
+        Ts_WORLD_LIDARREFLM.push_back(T_WORLD_REF * T_REF_SCAN);
+
+        ///////////////////////
+        // DELETE ME
+        for (auto v : variables) {
+          std::cout << "\n\nuuid: " << fuse_core::uuid::to_string(v) << "\n";
+          ros::Time t;
+          map.GetUUIDStamp(v, t);
+          std::cout << "nsec: " << t.sec << "." << t.nsec << "\n";
+        }
+        ///////////////////////
+      }
+    }
+    if (Ts_WORLD_LIDARREFLM.size() > 0) {
+      T_WORLD_LIDARREFLM = beam::AverageTransforms(Ts_WORLD_LIDARREFLM);
+      publish_lm_results = true;
+    } else {
+      publish_lm_results = false;
+    }
+  }
+
+  // convert to lidar poses
+  Eigen::Matrix4d T_WORLD_LIDARINIT = T_WORLD_BASELINKINIT * T_BASELINK_LIDAR;
+  Eigen::Matrix4d T_WORLD_LIDARREFGM = T_WORLD_BASELINKREFGM * T_BASELINK_LIDAR;
+
+  PointCloud scan_in_world_init_frame;
+  pcl::transformPointCloud(scan_in_lidar_frame, scan_in_world_init_frame,
+                           T_WORLD_LIDARINIT);
+  sensor_msgs::PointCloud2 msg_init = beam::PCLToROS(
+      scan_in_world_init_frame, scan_pose.Stamp(),
+      extrinsics_.GetWorldFrameId(), published_registration_results_);
+  registration_publisher_init_.publish(msg_init);
+
+  if (publish_lm_results) {
+    PointCloud scan_in_world_lm_frame;
+
+    pcl::transformPointCloud(scan_in_lidar_frame, scan_in_world_lm_frame,
+                             T_WORLD_LIDARREFLM);
+    sensor_msgs::PointCloud2 msg_align_lm = beam::PCLToROS(
+        scan_in_world_lm_frame, scan_pose.Stamp(),
+        extrinsics_.GetWorldFrameId(), published_registration_results_);
+
+    registration_publisher_aligned_lm_.publish(msg_align_lm);
+  }
+  if (publish_gm_results) {
+    PointCloud scan_in_world_gm_frame;
+    pcl::transformPointCloud(scan_in_lidar_frame, scan_in_world_gm_frame,
+                             T_WORLD_LIDARREFGM);
+    sensor_msgs::PointCloud2 msg_align_gm = beam::PCLToROS(
+        scan_in_world_gm_frame, scan_pose.Stamp(),
+        extrinsics_.GetWorldFrameId(), published_registration_results_);
+    registration_publisher_aligned_gm_.publish(msg_align_gm);
+  }
+
+  published_registration_results_++;
 }
 
 }  // namespace bs_models

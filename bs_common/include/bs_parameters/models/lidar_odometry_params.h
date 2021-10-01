@@ -35,10 +35,21 @@ struct LidarOdometryParams : public ParameterBase {
     getParam<bool>(nh, "output_lidar_points", output_lidar_points,
                    output_lidar_points);
 
-    /** If set to true, it will output all points in the lidar scan of
-     * marginalized scan poses */
+    /** If set to true, it will output all points in the active submap */
     getParam<bool>(nh, "publish_active_submap", publish_active_submap,
                    publish_active_submap);
+
+    /** If set to true, it will output all points in the registration map. This
+     * is the local map for the lidar */
+    getParam<bool>(nh, "publish_local_map", publish_local_map,
+                   publish_local_map);
+
+    /** If set to true, it will publish all scan registration results including
+     * the initial scan, the aligned to local RegistrationMap and the aligned to
+     * ActiveSubmap
+     */
+    getParam<bool>(nh, "publish_registration_results",
+                   publish_registration_results, publish_registration_results);
 
     /**The first part is either MULTI (for multi scan registration) or MAP (for
      * scan to map registration), and the second part is the matcher type.
@@ -104,15 +115,14 @@ struct LidarOdometryParams : public ParameterBase {
     /** Optional For Odometry frame initializer */
     getParam<std::string>(nh, "sensor_frame_id_override",
                           sensor_frame_id_override, "");
-
-    /** get lag_duration from global namespace */
-    ros::param::get("~lag_duration", lag_duration);
   }
 
   std::string input_topic;
   bool output_loam_points{true};
   bool output_lidar_points{true};
   bool publish_active_submap{false};
+  bool publish_local_map{false};
+  bool publish_registration_results{false};
   std::string frame_initializer_type{"ODOMETRY"};
   std::string frame_initializer_info{""};
 
@@ -120,7 +130,6 @@ struct LidarOdometryParams : public ParameterBase {
   double matcher_noise;
   double frame_initializer_prior_noise;
   std::string type;
-  double lag_duration;
   double reloc_request_period;
   std::string matcher_params_path;
   std::string registration_config_path;

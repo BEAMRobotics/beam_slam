@@ -43,14 +43,23 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
 
   void SendRelocRequest(const ScanPose& scan_pose);
 
-  void OutputResults(const ScanPose& scan_pose);
+  void PublishMarginalizedScanPose(const ScanPose& scan_pose);
+
+  void PublishScanRegistrationResults(
+      const fuse_core::Transaction::SharedPtr& transaction_lm,
+      const fuse_core::Transaction::SharedPtr& transaction_gm,
+      const ScanPose& scan_pose);
 
   /** subscribe to lidar data */
   ros::Subscriber subscriber_;
 
-  /** Publish results for global map */
-  ros::Publisher results_publisher_;
-  ros::Publisher reloc_request_publisher_;
+  /** Publishers */
+  ros::Publisher results_publisher_; // for global mapper
+  ros::Publisher reloc_request_publisher_; // for global mapper
+  ros::Publisher registration_publisher_init_;
+  ros::Publisher registration_publisher_aligned_lm_;
+  ros::Publisher registration_publisher_aligned_gm_;
+  int published_registration_results_{0};
 
   /** callback for lidar data */
   using ThrottledCallback =

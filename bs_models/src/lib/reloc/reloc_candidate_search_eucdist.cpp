@@ -53,7 +53,7 @@ void RelocCandidateSearchEucDist::LoadConfig() {
 void RelocCandidateSearchEucDist::FindRelocCandidates(
     const std::vector<SubmapPtr>& submaps, const Eigen::Matrix4d& T_WORLD_QUERY,
     std::vector<int>& matched_indices,
-    std::vector<Eigen::Matrix4d, pose_allocator>& estimated_poses,
+    std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
     size_t ignore_last_n_submaps, bool use_initial_poses) {
   // create a sorted map to store distances
   std::map<double, std::pair<int, Eigen::Matrix4d>> candidates_sorted;

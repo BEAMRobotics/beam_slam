@@ -51,6 +51,8 @@ lidar_odometry:
   output_loam_points: true 
   output_lidar_points: true
   publish_active_submap: true
+  publish_local_map: true
+  publish_registration_results: true
   frame_initializer_type: 'POSEFILE' 
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply'
   frame_initializer_prior_noise: 0.00001 

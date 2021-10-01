@@ -339,7 +339,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
           "Number of poses is not equal to number of time stamps. Not adding "
           "trajectory measurement.");
     } else {
-      std::vector<Eigen::Matrix4d, pose_allocator> poses;
+      std::vector<Eigen::Matrix4d, beam::AlignMat4d> poses;
       std::vector<ros::Time> stamps;
       for (int i = 0; i < num_poses; i++) {
         std::vector<double> current_pose;
@@ -469,7 +469,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
       online_submaps_.at(query_index)->T_WORLD_SUBMAP();
 
   std::vector<int> matched_indices;
-  std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
   reloc_candidate_search_->FindRelocCandidates(online_submaps_, T_WORLD_QUERY,
                                                matched_indices, Ts_MATCH_QUERY);
 
@@ -512,8 +512,14 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
     }
   }
 
-  ROS_DEBUG("Returning %d loop closure transactions",
-            bs_common::GetNumberOfConstraints(transaction));
+  int num_constraints = bs_common::GetNumberOfConstraints(transaction);
+  ROS_DEBUG("Returning %d loop closure transactions", num_constraints);
+
+  // if we are returning loop closure constraints, we will set the active submap
+  // to none to make sure next reloc takes the most updates active submap
+  if (num_constraints > 0) {
+    active_submap_type_ = SubmapType::NONE;
+  }
 
   return transaction;
 }
@@ -567,7 +573,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
   }
 
   std::vector<int> matched_indices;
-  std::vector<Eigen::Matrix4d, pose_allocator> Ts_SUBMAPCANDIDATE_QUERY;
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_SUBMAPCANDIDATE_QUERY;
 
   // first, search through offline maps
   if (!offline_submaps_.empty()) {
@@ -618,7 +624,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
         PointCloud lidar_cloud_in_woff_frame =
             submap->GetLidarPointsInWorldFrameCombined(false);
         beam_matching::LoamPointCloud loam_cloud_in_woff_frame =
-            submap->GetLidarLoamPointsInWorldFrame(false); 
+            submap->GetLidarLoamPointsInWorldFrame(false);
         PointCloud keypoints_in_woff_frame =
             submap->GetKeypointsInWorldFrame(false);
         std::vector<std::vector<float>> descriptors;
@@ -1300,7 +1306,7 @@ void GlobalMap::FillSubmapMsg(
     points_vec.push_back(point);
   }
   submap_msg.visual_map_points = points_vec;
-  
+
   // add descriptors
   std::vector<bs_common::DescriptorMsg> descriptor_msgs;
   for (const std::vector<float>& descriptor : descriptors) {

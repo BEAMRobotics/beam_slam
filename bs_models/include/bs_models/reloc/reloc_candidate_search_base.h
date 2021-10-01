@@ -54,7 +54,7 @@ class RelocCandidateSearchBase {
   virtual void FindRelocCandidates(
       const std::vector<SubmapPtr>& submaps,
       const Eigen::Matrix4d& T_WORLD_QUERY, std::vector<int>& matched_indices,
-      std::vector<Eigen::Matrix4d, pose_allocator>& estimated_poses,
+      std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
       size_t ignore_last_n_submaps = 0, bool use_initial_poses = false) = 0;
 
  protected:

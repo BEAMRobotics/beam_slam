@@ -3,16 +3,42 @@
 #include <boost/filesystem.hpp>
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
+#include <fuse_variables/orientation_3d_stamped.h>
+#include <fuse_variables/position_3d_stamped.h>
+
+#include <bs_common/extrinsics_lookup_online.h>
 
 namespace bs_models {
 namespace scan_registration {
+
+RegistrationMap::RegistrationMap() {
+  bs_common::ExtrinsicsLookupOnline& extrinsics_online =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
+  frame_id_ = extrinsics_online.GetWorldFrameId();
+
+  ros::NodeHandle n;
+
+  // setup publishers
+  lidar_map_publisher_ =
+      n.advertise<sensor_msgs::PointCloud2>("/local_map/lidar_map", 10);
+  loam_edges_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/local_map/loam_map/edges_strong", 10);
+  loam_edges_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/local_map/loam_map/edges_weak", 10);
+  loam_surfaces_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/local_map/loam_map/surfaces_strong", 10);
+  loam_surfaces_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/local_map/loam_map/surfaces_weak", 10);
+}
 
 RegistrationMap& RegistrationMap::GetInstance() {
   static RegistrationMap instance;
   return instance;
 }
 
-bool RegistrationMap::SetParams(int map_size) {
+bool RegistrationMap::SetParams(int map_size, bool publish_updates) {
+  publish_updates_ = publish_updates;
+
   if (map_params_set_ && map_size != map_size_) {
     BEAM_ERROR("Map parameters already set, these cannot be changed.");
     return false;
@@ -22,6 +48,8 @@ bool RegistrationMap::SetParams(int map_size) {
   map_params_set_ = true;
   return true;
 }
+
+int RegistrationMap::MapSize() const { return map_size_; }
 
 bool RegistrationMap::Empty() const {
   return loam_clouds_in_map_frame_.empty() && clouds_in_map_frame_.empty();
@@ -46,12 +74,25 @@ void RegistrationMap::AddPointCloud(const PointCloud& cloud,
   // add pose
   cloud_poses_.emplace(stamp.toNSec(), T_MAP_SCAN);
 
+  // generate and add uuids
+  fuse_variables::Position3DStamped dummy_pos;
+  fuse_variables::Orientation3DStamped dummy_or;
+  auto sensor_id = fuse_core::uuid::NIL;
+  uuid_map_.emplace(
+      fuse_core::uuid::generate(dummy_pos.type(), stamp, sensor_id),
+      stamp.toNSec());
+  uuid_map_.emplace(
+      fuse_core::uuid::generate(dummy_or.type(), stamp, sensor_id),
+      stamp.toNSec());
+
   // remove cloud & pose if map is greater than max size
   if (clouds_in_map_frame_.size() > map_size_) {
     uint64_t first_scan_stamp = clouds_in_map_frame_.begin()->first;
     clouds_in_map_frame_.erase(first_scan_stamp);
     cloud_poses_.erase(first_scan_stamp);
   }
+
+  Publish();
 }
 
 void RegistrationMap::AddPointCloud(const LoamPointCloud& cloud,
@@ -65,12 +106,25 @@ void RegistrationMap::AddPointCloud(const LoamPointCloud& cloud,
   // add pose
   loam_cloud_poses_.emplace(stamp.toNSec(), T_MAP_SCAN);
 
+  // generate and add uuids
+  fuse_variables::Position3DStamped dummy_pos;
+  fuse_variables::Orientation3DStamped dummy_or;
+  auto sensor_id = fuse_core::uuid::NIL;
+  uuid_map_.emplace(
+      fuse_core::uuid::generate(dummy_pos.type(), stamp, sensor_id),
+      stamp.toNSec());
+  uuid_map_.emplace(
+      fuse_core::uuid::generate(dummy_or.type(), stamp, sensor_id),
+      stamp.toNSec());
+
   // remove cloud & pose if map is greater than max size
   if (loam_clouds_in_map_frame_.size() > map_size_) {
     uint64_t first_scan_stamp = loam_clouds_in_map_frame_.begin()->first;
     loam_clouds_in_map_frame_.erase(first_scan_stamp);
     loam_cloud_poses_.erase(first_scan_stamp);
   }
+
+  Publish();
 }
 
 PointCloud RegistrationMap::GetPointCloudMap() const {
@@ -147,6 +201,7 @@ bool RegistrationMap::UpdateScan(const ros::Time& stamp,
     cloud_iter->second.TransformPointCloud(T_MAPNEW_MAPOLD);
   }
 
+  Publish();
   return scan_found;
 }
 
@@ -220,11 +275,66 @@ bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
   return false;
 }
 
+bool RegistrationMap::GetUUIDStamp(const fuse_core::UUID& uuid,
+                                   ros::Time& stamp) const {
+  auto iter = uuid_map_.find(uuid);
+  if (iter == uuid_map_.end()) {
+    return false;
+  }
+  return iter->second;
+}
+
 void RegistrationMap::Clear() {
   clouds_in_map_frame_.clear();
   cloud_poses_.clear();
   loam_clouds_in_map_frame_.clear();
   loam_cloud_poses_.clear();
+  uuid_map_.clear();
+}
+
+void RegistrationMap::Publish() {
+  if (!publish_updates_) {
+    return;
+  }
+
+  ros::Time update_time = ros::Time::now();
+
+  // get maps
+  PointCloud lidar_map = GetPointCloudMap();
+  LoamPointCloud loam_map = GetLoamCloudMap();
+
+  if (!lidar_map.empty()) {
+    sensor_msgs::PointCloud2 pc_msg =
+        beam::PCLToROS(lidar_map, update_time, frame_id_, updates_counter_);
+    lidar_map_publisher_.publish(pc_msg);
+  }
+
+  if (!loam_map.edges.strong.cloud.empty()) {
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS(
+        loam_map.edges.strong.cloud, update_time, frame_id_, updates_counter_);
+    loam_edges_strong_publisher_.publish(pc_msg);
+  }
+
+  if (!loam_map.edges.weak.cloud.empty()) {
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS(
+        loam_map.edges.weak.cloud, update_time, frame_id_, updates_counter_);
+    loam_edges_weak_publisher_.publish(pc_msg);
+  }
+
+  if (!loam_map.surfaces.strong.cloud.empty()) {
+    sensor_msgs::PointCloud2 pc_msg =
+        beam::PCLToROS(loam_map.surfaces.strong.cloud, update_time, frame_id_,
+                       updates_counter_);
+    loam_surfaces_strong_publisher_.publish(pc_msg);
+  }
+
+  if (!loam_map.surfaces.weak.cloud.empty()) {
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS(
+        loam_map.surfaces.weak.cloud, update_time, frame_id_, updates_counter_);
+    loam_surfaces_weak_publisher_.publish(pc_msg);
+  }
+
+  updates_counter_++;
 }
 
 }  // namespace scan_registration
