@@ -28,6 +28,7 @@ struct GlobalMapperParams : public ParameterBase {
     getParam<bool>(nh, "publish_updated_global_map", publish_updated_global_map,
                    false);
     getParam<bool>(nh, "publish_new_scans", publish_new_scans, false);
+    getParam<bool>(nh, "disable_loop_closure", disable_loop_closure, false);
   }
 
   std::string global_map_config;
@@ -42,6 +43,7 @@ struct GlobalMapperParams : public ParameterBase {
   bool publish_new_submaps;
   bool publish_updated_global_map;
   bool publish_new_scans;
+  bool disable_loop_closure;
 };
 
 }  // namespace models

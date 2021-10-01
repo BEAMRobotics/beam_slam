@@ -695,13 +695,13 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
       const auto& submap = online_submaps_.at(submap_index);
 
       // get refined pose
-      BEAM_DEBUG("Looking for refined submap pose within submap index: ",
-                 submap_index);
+      ROS_DEBUG("Looking for refined submap pose within submap index: ",
+                submap_index);
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
       if (reloc_refinement_->GetRefinedPose(
               T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
               lidar_cloud_in_query_frame, loam_cloud_in_query_frame, image)) {
-        BEAM_DEBUG("Found refined reloc pose.");
+        ROS_DEBUG("Found refined reloc pose.");
 
         // get all required submap data
         PointCloud lidar_cloud_in_wlm_frame =

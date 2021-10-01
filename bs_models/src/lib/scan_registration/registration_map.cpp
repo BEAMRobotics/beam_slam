@@ -281,7 +281,8 @@ bool RegistrationMap::GetUUIDStamp(const fuse_core::UUID& uuid,
   if (iter == uuid_map_.end()) {
     return false;
   }
-  return iter->second;
+  stamp.fromNSec(iter->second);
+  return true;
 }
 
 void RegistrationMap::Clear() {

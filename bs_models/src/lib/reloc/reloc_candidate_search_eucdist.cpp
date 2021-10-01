@@ -55,6 +55,10 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
     std::vector<int>& matched_indices,
     std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
     size_t ignore_last_n_submaps, bool use_initial_poses) {
+  if (submaps.size() <= ignore_last_n_submaps) {
+    return;
+  }
+  
   // create a sorted map to store distances
   std::map<double, std::pair<int, Eigen::Matrix4d>> candidates_sorted;
   for (int i = 0; i < submaps.size() - ignore_last_n_submaps; i++) {

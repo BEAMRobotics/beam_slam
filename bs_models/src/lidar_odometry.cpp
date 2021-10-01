@@ -600,16 +600,6 @@ void LidarOdometry::PublishScanRegistrationResults(
         Eigen::Matrix4d T_WORLD_REF;
         map.GetScanPose(ref_stamp, T_WORLD_REF);
         Ts_WORLD_LIDARREFLM.push_back(T_WORLD_REF * T_REF_SCAN);
-
-        ///////////////////////
-        // DELETE ME
-        for (auto v : variables) {
-          std::cout << "\n\nuuid: " << fuse_core::uuid::to_string(v) << "\n";
-          ros::Time t;
-          map.GetUUIDStamp(v, t);
-          std::cout << "nsec: " << t.sec << "." << t.nsec << "\n";
-        }
-        ///////////////////////
       }
     }
     if (Ts_WORLD_LIDARREFLM.size() > 0) {

@@ -51,7 +51,7 @@ void GlobalMapper::ProcessSlamChunk(
           msg->trajectory_measurement, T_WORLD_BASELINK, stamp);
 
   // send transaction if not empty
-  if (new_transaction != nullptr) {
+  if (new_transaction != nullptr && !params_.disable_loop_closure) {
     // uncomment if using sensor model's graph:
     // ROS_DEBUG("Sending transaction:");
     // sendTransaction(new_transaction);
@@ -180,7 +180,11 @@ void GlobalMapper::onStop() {
   // use beam logging here because ROS logging stops when a node shutdown gets
   // called
   BEAM_INFO("Running final loop closure");
-  auto transaction_ptr = global_map_->TriggerLoopClosure();
+  fuse_core::Transaction::SharedPtr transaction_ptr = nullptr;
+
+  if(!params_.disable_loop_closure){
+    transaction_ptr = global_map_->TriggerLoopClosure();
+  }
 
   if (transaction_ptr != nullptr) {
     BEAM_INFO("Found {} loop closures. Updating map.",
