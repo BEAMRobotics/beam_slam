@@ -8,6 +8,7 @@
 
 #include <beam_utils/pointclouds.h>
 #include <beam_filtering/Utils.h>
+#include <beam_matching/Matchers.h>
 
 #include <bs_constraints/relative_pose/relative_pose_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
@@ -18,6 +19,8 @@
 #include <bs_parameters/models/lidar_odometry_params.h>
 
 namespace bs_models {
+
+using namespace beam_matching;
 
 class LidarOdometry : public fuse_core::AsyncSensorModel {
  public:
@@ -38,8 +41,13 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
 
   void process(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
-  bs_constraints::relative_pose::Pose3DStampedTransaction GenerateTransaction(
+  fuse_core::Transaction::SharedPtr GenerateTransaction(
       const sensor_msgs::PointCloud2::ConstPtr& msg);
+
+  void SetupRegistration();
+
+  fuse_core::Transaction::SharedPtr RegisterScanToGlobalMap(
+      const ScanPose& scan_pose);
 
   void SendRelocRequest(const ScanPose& scan_pose);
 
@@ -54,8 +62,8 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   ros::Subscriber subscriber_;
 
   /** Publishers */
-  ros::Publisher results_publisher_; // for global mapper
-  ros::Publisher reloc_request_publisher_; // for global mapper
+  ros::Publisher results_publisher_;        // for global mapper
+  ros::Publisher reloc_request_publisher_;  // for global mapper
   ros::Publisher registration_publisher_init_;
   ros::Publisher registration_publisher_aligned_lm_;
   ros::Publisher registration_publisher_aligned_gm_;
@@ -78,7 +86,12 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_{
       nullptr};
 
-  std::unique_ptr<scan_registration::ScanRegistrationBase> scan_registration_;
+  // register scans to local map
+  std::unique_ptr<scan_registration::ScanRegistrationBase>
+      local_scan_registration_;
+
+  std::unique_ptr<Matcher<PointCloudPtr>> global_matching_{nullptr};
+  std::unique_ptr<Matcher<LoamPointCloudPtr>> global_loam_matching_{nullptr};
 
   fuse_core::UUID device_id_;  //!< The UUID of this device
 
@@ -91,8 +104,8 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   bs_parameters::models::LidarOdometryParams params_;
 
   std::vector<beam_filtering::FilterParamsType> input_filter_params_;
-  int updates_{0};
 
+  int updates_{0};
   ros::Duration reloc_request_period_;
   ros::Time last_reloc_request_time_{ros::Time(0)};
 
@@ -100,7 +113,7 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   bool output_graph_updates_{false};
   std::string graph_updates_path_ =
       "/home/nick/results/beam_slam/graph_updates/";
-  bool update_scan_registration_map_on_graph_update_{true};
+  bool update_local_map_on_graph_update_{true};
 };
 
 }  // namespace bs_models

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <numeric>
+
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 #include <ros/param.h>
@@ -55,38 +57,40 @@ struct LidarOdometryParams : public ParameterBase {
      * scan to map registration), and the second part is the matcher type.
      * Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (
      * TODO:  LIBPOINTMATCHER, TEASER */
-    getParamRequired<std::string>(nh, "type", type);
+    getParamRequired<std::string>(nh, "local_registration_type",
+                                  local_registration_type);
+
+    /** Matcher type for global registration. Options: ICP, NDT, GICP, LOAM */
+    getParamRequired<std::string>(nh, "global_registration_type",
+                                  global_registration_type);
 
     /** Outputs scans as PCD files IFF not empty */
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           "");
 
-    /** DEFAULT_PATH uses the appropriate config in
-     * beam_slam_launch/config/matcher_config/. Setting to empty will use the
-     * default params defined in the class */
-    getParam<std::string>(nh, "matcher_params_path", matcher_params_path, "");
+    /** Matcher params for local registration. DEFAULT_PATH uses the
+     * appropriate config in beam_slam_launch/config/matcher_config/. Setting to
+     * empty will use the default params defined in the class */
+    getParam<std::string>(nh, "local_matcher_params_path",
+                          local_matcher_params_path, "");
 
-    /** DEFAULT_PATH uses the appropriate config in
-     * beam_slam_launch/config/registration_config/. Setting to empty will use
-     * the default params defined in the class */
-    getParam<std::string>(nh, "registration_config_path",
-                          registration_config_path, "");
+    /** Matcher params for global registration. DEFAULT_PATH uses the
+     * appropriate config in beam_slam_launch/config/matcher_config/. Setting to
+     * empty will use the default params defined in the class */
+    getParam<std::string>(nh, "global_matcher_params_path",
+                          global_matcher_params_path, "");
+
+    /** Scan registration config path for local registration. DEFAULT_PATH uses
+     * the appropriate config in beam_slam_launch/config/registration_config/.
+     * Setting to empty will use the default params defined in the class */
+    getParam<std::string>(nh, "local_registration_config_path",
+                          local_registration_config_path, "");
 
     /** DEFAULT_PATH uses the config in
      * beam_slam_launch_config/config/registration_config/input_filters.json.
      * Setting to empty uses no filters. */
     getParam<std::string>(nh, "input_filters_config_path",
                           input_filters_config_path, "");
-
-    /** Sets all diagonals on the covariance matrix to this value. Can also
-     * specify matcher_noise_diagonal instead which takes priority. Default:
-     * 1e-9. */
-    getParam<double>(nh, "matcher_noise", matcher_noise, 1e-9);
-
-    /** Use this to specify matcher covariance by diagonal instead of by value.
-     * This will override mathcer_noise param. */
-    nh.param("matcher_noise_diagonal", matcher_noise_diagonal,
-             matcher_noise_diagonal);
 
     /** Options: ODOMETRY, POSEFILE */
     getParam<std::string>(nh, "frame_initializer_type", frame_initializer_type,
@@ -115,26 +119,109 @@ struct LidarOdometryParams : public ParameterBase {
     /** Optional For Odometry frame initializer */
     getParam<std::string>(nh, "sensor_frame_id_override",
                           sensor_frame_id_override, "");
+
+    /** Use this to specify local mapper covariance by diagonal. If all diagonal
+     * elements are set to zero, global map registration will not be performed
+     */
+    std::vector<double> lm_noise_diagonal;
+    nh.param("local_registration_noise_diagonal", lm_noise_diagonal,
+             lm_noise_diagonal);
+    if (lm_noise_diagonal.size() != 6) {
+      ROS_ERROR(
+          "Invalid local_mapper_noise_diagonal params, required 6 params, "
+          "given: %d. Using default (0.1 for all)",
+          lm_noise_diagonal.size());
+      lm_noise_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
+    }
+    if (std::accumulate(lm_noise_diagonal.begin(), lm_noise_diagonal.end(),
+                        0) == 0) {
+      ROS_INFO(
+          "Local mapper noise diagonal set to zero, not performing "
+          "registration to local map.");
+      register_to_lm = false;
+    }
+    for (int i = 0; i < 6; i++) {
+      local_registration_covariance(i, i) = lm_noise_diagonal[i];
+    }
+
+    /** Use this to specify global mapper covariance by diagonal. If all
+     * diagonal elements are set to zero, global map registration will not be
+     * performed */
+    std::vector<double> gm_noise_diagonal;
+    nh.param("global_registration_noise_diagonal", gm_noise_diagonal,
+             gm_noise_diagonal);
+    if (gm_noise_diagonal.size() != 6) {
+      ROS_ERROR(
+          "Invalid gm_noise_diagonal params, required 6 params, "
+          "given: %d. Using default (0.1 for all)",
+          gm_noise_diagonal.size());
+      gm_noise_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
+    }
+    if (std::accumulate(gm_noise_diagonal.begin(), gm_noise_diagonal.end(),
+                        0) == 0) {
+      ROS_INFO(
+          "Global mapper noise diagonal set to zero, not performing "
+          "registration to global map.");
+      register_to_gm = false;
+    }
+    for (int i = 0; i < 6; i++) {
+      global_registration_covariance(i, i) = gm_noise_diagonal[i];
+    }
+
+    /** Use this to specify prior covariance by diagonal. If all diagonal
+     * elements are set to zero, priors will not be added */
+    std::vector<double> prior_diagonal;
+    nh.param("prior_noise_diagonal", prior_diagonal, prior_diagonal);
+    if (prior_diagonal.size() != 6) {
+      ROS_ERROR(
+          "Invalid gm_noise_diagonal params, required 6 params, "
+          "given: %d. Using default (0.1 for all)",
+          prior_diagonal.size());
+      prior_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
+    }
+    if (std::accumulate(prior_diagonal.begin(), prior_diagonal.end(), 0) == 0) {
+      ROS_INFO("Prior diagonal set to zero, not adding priors");
+      use_pose_priors = false;
+    }
+    for (int i = 0; i < 6; i++) {
+      prior_covariance(i, i) = prior_diagonal[i];
+    }
   }
 
+  // Local Scan Registration Params
+  std::string local_registration_type;
+  std::string local_registration_config_path;
+  std::string local_matcher_params_path;
+  Eigen::Matrix<double, 6, 6> local_registration_covariance{
+      Eigen::Matrix<double, 6, 6>::Identity()};
+  bool register_to_lm{true};
+
+  // Global Scan Registration Params
+  std::string global_registration_type;
+  std::string global_matcher_params_path;
+  Eigen::Matrix<double, 6, 6> global_registration_covariance{
+      Eigen::Matrix<double, 6, 6>::Identity()};
+  bool register_to_gm{true};
+
+  // General params
   std::string input_topic;
+  std::string frame_initializer_type{"ODOMETRY"};
+  std::string frame_initializer_info{""};
+  std::string input_filters_config_path;
+  std::string scan_output_directory;
+
+  double frame_initializer_prior_noise;
+  double reloc_request_period;
+
   bool output_loam_points{true};
   bool output_lidar_points{true};
   bool publish_active_submap{false};
   bool publish_local_map{false};
   bool publish_registration_results{false};
-  std::string frame_initializer_type{"ODOMETRY"};
-  std::string frame_initializer_info{""};
+  bool use_pose_priors{true};
 
-  std::vector<double> matcher_noise_diagonal{0, 0, 0, 0, 0, 0};
-  double matcher_noise;
-  double frame_initializer_prior_noise;
-  std::string type;
-  double reloc_request_period;
-  std::string matcher_params_path;
-  std::string registration_config_path;
-  std::string input_filters_config_path;
-  std::string scan_output_directory;
+  Eigen::Matrix<double, 6, 6> prior_covariance{
+      Eigen::Matrix<double, 6, 6>::Identity()};
 
   // Optional For Odometry frame initializer
   std::string sensor_frame_id_override;

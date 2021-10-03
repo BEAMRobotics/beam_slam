@@ -4,7 +4,6 @@
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
-#include <beam_matching/Matchers.h>
 #include <beam_utils/filesystem.h>
 
 #include <bs_models/scan_registration/multi_scan_registration.h>
@@ -17,7 +16,6 @@ PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry, fuse_core::SensorModel)
 
 namespace bs_models {
 
-using namespace beam_matching;
 using namespace scan_registration;
 
 LidarOdometry::LidarOdometry()
@@ -51,70 +49,7 @@ void LidarOdometry::onInit() {
   }
 
   // init scan registration
-  if (params_.type == "MAPLOAM") {
-    std::shared_ptr<LoamParams> matcher_params =
-        std::make_shared<LoamParams>(params_.matcher_params_path);
-    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
-        std::make_unique<LoamMatcher>(*matcher_params);
-    ScanToMapLoamRegistration::Params params;
-    params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ = std::make_unique<ScanToMapLoamRegistration>(
-        std::move(matcher), params.GetBaseParams(), params.map_size,
-        params.store_full_cloud);
-    feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
-  } else if (params_.type == "MULTIICP") {
-    std::unique_ptr<Matcher<PointCloudPtr>> matcher =
-        std::make_unique<IcpMatcher>(
-            IcpMatcher::Params(params_.matcher_params_path));
-    MultiScanRegistrationBase::Params params;
-    params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ = std::make_unique<MultiScanRegistration>(
-        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
-        params.lag_duration, params.disable_lidar_map);
-  } else if (params_.type == "MULTINDT") {
-    std::unique_ptr<Matcher<PointCloudPtr>> matcher =
-        std::make_unique<NdtMatcher>(
-            NdtMatcher::Params(params_.matcher_params_path));
-    MultiScanRegistrationBase::Params params;
-    params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ = std::make_unique<MultiScanRegistration>(
-        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
-        params.lag_duration, params.disable_lidar_map);
-  } else if (params_.type == "MULTIGICP") {
-    std::unique_ptr<Matcher<PointCloudPtr>> matcher =
-        std::make_unique<GicpMatcher>(
-            GicpMatcher::Params(params_.matcher_params_path));
-    MultiScanRegistrationBase::Params params;
-    params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ = std::make_unique<MultiScanRegistration>(
-        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
-        params.lag_duration, params.disable_lidar_map);
-  } else if (params_.type == "MULTILOAM") {
-    std::shared_ptr<LoamParams> matcher_params =
-        std::make_shared<LoamParams>(params_.matcher_params_path);
-    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
-        std::make_unique<LoamMatcher>(*matcher_params);
-    MultiScanRegistrationBase::Params params;
-    params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ = std::make_unique<MultiScanLoamRegistration>(
-        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
-        params.lag_duration, params.disable_lidar_map);
-    feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
-  } else {
-    BEAM_ERROR(
-        "Invalid scan matcher 3d type. Input: {}, Using default: MAPLOAM",
-        params_.type);
-    std::shared_ptr<LoamParams> matcher_params =
-        std::make_shared<LoamParams>(params_.matcher_params_path);
-    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
-        std::make_unique<LoamMatcher>(*matcher_params);
-    ScanToMapLoamRegistration::Params params;
-    params.LoadFromJson(params_.registration_config_path);
-    scan_registration_ = std::make_unique<ScanToMapLoamRegistration>(
-        std::move(matcher), params.GetBaseParams(), params.map_size,
-        params.store_full_cloud);
-    feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
-  }
+  SetupRegistration();
 
   // get filter params
   nlohmann::json J;
@@ -146,19 +81,6 @@ void LidarOdometry::onInit() {
         ROS_INFO("Loaded %d input filters", input_filter_params_.size());
       }
     }
-  }
-
-  // set covariance if not set to zero in config
-  if (std::accumulate(params_.matcher_noise_diagonal.begin(),
-                      params_.matcher_noise_diagonal.end(), 0.0) > 0) {
-    Eigen::Matrix<double, 6, 6> covariance{
-        Eigen::Matrix<double, 6, 6>::Identity()};
-    for (int i = 0; i < 6; i++) {
-      covariance(i, i) = params_.matcher_noise_diagonal[i];
-    }
-    scan_registration_->SetFixedCovariance(covariance);
-  } else {
-    scan_registration_->SetFixedCovariance(params_.matcher_noise);
   }
 
   // if outputting scans, clear folder
@@ -194,11 +116,10 @@ void LidarOdometry::onStart() {
         "/local_mapper/reloc_request", 10);
   }
 
-  if(params_.publish_local_map){
+  if (params_.publish_local_map) {
     RegistrationMap& map = RegistrationMap::GetInstance();
     map.SetParams(map.MapSize(), true);
   }
-  
 
   if (params_.publish_registration_results) {
     registration_publisher_init_ =
@@ -228,8 +149,7 @@ void LidarOdometry::onStop() {
   subscriber_.shutdown();
 }
 
-bs_constraints::relative_pose::Pose3DStampedTransaction
-LidarOdometry::GenerateTransaction(
+fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
   PointCloud cloud_current_unfiltered = beam::ROSToPCL(*msg);
@@ -241,8 +161,7 @@ LidarOdometry::GenerateTransaction(
                                             msg->header.stamp,
                                             extrinsics_.GetBaselinkFrameId())) {
     ROS_DEBUG("Skipping scan");
-    return bs_constraints::relative_pose::Pose3DStampedTransaction(
-        msg->header.stamp);
+    return nullptr;
   }
 
   Eigen::Matrix4d T_BASELINK_LIDAR;
@@ -251,88 +170,261 @@ LidarOdometry::GenerateTransaction(
         "Cannot get transform from lidar to baselink for stamp: %.8f. Skipping "
         "scan.",
         msg->header.stamp.toSec());
-    return bs_constraints::relative_pose::Pose3DStampedTransaction(
-        msg->header.stamp);
+    return nullptr;
   }
 
   ScanPose current_scan_pose(cloud_current, msg->header.stamp,
                              T_WORLD_BASELINKCURRENT, T_BASELINK_LIDAR,
                              feature_extractor_);
 
-  // build transaction of registration measurements
-  auto transaction = scan_registration_->RegisterNewScan(current_scan_pose);
-
-  // if scan registration failed and returned a nullptr, then don't add scan to
-  // active list or add prior
-  if (transaction.GetTransaction() == nullptr) {
-    ROS_DEBUG("Skipping scan");
-    return bs_constraints::relative_pose::Pose3DStampedTransaction(
-        msg->header.stamp);
+  fuse_core::Transaction::SharedPtr gm_transaction;
+  if (params_.register_to_gm) {
+    gm_transaction = RegisterScanToGlobalMap(current_scan_pose);
   }
 
-  if (params_.publish_registration_results) {
-    PublishScanRegistrationResults(transaction.GetTransaction(), nullptr,
-                                   current_scan_pose);
+  fuse_core::Transaction::SharedPtr lm_transaction;
+  if (params_.register_to_lm) {
+    lm_transaction =
+        local_scan_registration_->RegisterNewScan(current_scan_pose)
+            .GetTransaction();
   }
 
-  active_clouds_.push_back(current_scan_pose);
-
-  if (params_.frame_initializer_prior_noise > 0) {
-    // check if variables are being added:
-    bool position_found{false};
-    bool orientation_found{false};
-    if (transaction.GetTransaction() != nullptr) {
-      auto added_variables = transaction.GetTransaction()->addedVariables();
-      for (auto iter = added_variables.begin(); iter != added_variables.end();
-           iter++) {
-        if (iter->uuid() == current_scan_pose.Position().uuid()) {
-          position_found = true;
-        }
-        if (iter->uuid() == current_scan_pose.Orientation().uuid()) {
-          orientation_found = true;
-        }
-      }
-    }
-
-    // if not, add them
-    if (!position_found || !orientation_found) {
-      transaction.AddPoseVariables(current_scan_pose.Position(),
-                                   current_scan_pose.Orientation(),
-                                   current_scan_pose.Stamp());
-    }
+  // add priors from initializer
+  fuse_core::Transaction::SharedPtr prior_transaction;
+  if (params_.use_pose_priors) {
+    auto p = fuse_variables::Position3DStamped::make_shared(
+        current_scan_pose.Position());
+    auto o = fuse_variables::Orientation3DStamped::make_shared(
+        current_scan_pose.Orientation());
+    prior_transaction = fuse_core::Transaction::make_shared();
+    prior_transaction->stamp(current_scan_pose.Stamp());
+    prior_transaction->addVariable(p);
+    prior_transaction->addVariable(o);
 
     // add prior
-    transaction.AddPosePrior(
-        current_scan_pose.Position(), current_scan_pose.Orientation(),
-        params_.frame_initializer_prior_noise, "FRAMEINITIALIZERPRIOR");
+    fuse_core::Vector7d mean;
+    mean << p->x(), p->y(), p->z(), o->w(), o->x(), o->y(), o->z();
+
+    auto prior =
+        std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+            "FRAMEINITIALIZERPRIOR", *p, *o, mean, params_.prior_covariance);
+    prior_transaction->addConstraint(prior);
   }
 
+  if (lm_transaction == nullptr && gm_transaction == nullptr &&
+      prior_transaction == nullptr) {
+    ROS_ERROR("No transaction generated, skipping scan.");
+    return nullptr;
+  }
+
+  PublishScanRegistrationResults(lm_transaction, gm_transaction,
+                                 current_scan_pose);
+  active_clouds_.push_back(current_scan_pose);
+
+  // combine to one transaction and return
+  fuse_core::Transaction::SharedPtr transaction =
+      fuse_core::Transaction::make_shared();
+  if (lm_transaction != nullptr) {
+    transaction->merge(*lm_transaction);
+  }
+  if (gm_transaction != nullptr) {
+    transaction->merge(*gm_transaction);
+  }
+  if (prior_transaction != nullptr) {
+    transaction->merge(*prior_transaction);
+  }
+
+  return transaction;
+}
+
+void LidarOdometry::SetupRegistration() {
+  // setup local registration
+  if (params_.local_registration_type == "MAPLOAM") {
+    std::shared_ptr<LoamParams> matcher_params =
+        std::make_shared<LoamParams>(params_.local_matcher_params_path);
+    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
+        std::make_unique<LoamMatcher>(*matcher_params);
+    ScanToMapLoamRegistration::Params params;
+    params.LoadFromJson(params_.local_registration_config_path);
+    local_scan_registration_ = std::make_unique<ScanToMapLoamRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.map_size,
+        params.store_full_cloud);
+    feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
+  } else if (params_.local_registration_type == "MULTIICP") {
+    std::unique_ptr<Matcher<PointCloudPtr>> matcher =
+        std::make_unique<IcpMatcher>(
+            IcpMatcher::Params(params_.local_matcher_params_path));
+    MultiScanRegistrationBase::Params params;
+    params.LoadFromJson(params_.local_registration_config_path);
+    local_scan_registration_ = std::make_unique<MultiScanRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
+        params.lag_duration, params.disable_lidar_map);
+  } else if (params_.local_registration_type == "MULTINDT") {
+    std::unique_ptr<Matcher<PointCloudPtr>> matcher =
+        std::make_unique<NdtMatcher>(
+            NdtMatcher::Params(params_.local_matcher_params_path));
+    MultiScanRegistrationBase::Params params;
+    params.LoadFromJson(params_.local_registration_config_path);
+    local_scan_registration_ = std::make_unique<MultiScanRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
+        params.lag_duration, params.disable_lidar_map);
+  } else if (params_.local_registration_type == "MULTIGICP") {
+    std::unique_ptr<Matcher<PointCloudPtr>> matcher =
+        std::make_unique<GicpMatcher>(
+            GicpMatcher::Params(params_.local_matcher_params_path));
+    MultiScanRegistrationBase::Params params;
+    params.LoadFromJson(params_.local_registration_config_path);
+    local_scan_registration_ = std::make_unique<MultiScanRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
+        params.lag_duration, params.disable_lidar_map);
+  } else if (params_.local_registration_type == "MULTILOAM") {
+    std::shared_ptr<LoamParams> matcher_params =
+        std::make_shared<LoamParams>(params_.local_matcher_params_path);
+    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
+        std::make_unique<LoamMatcher>(*matcher_params);
+    MultiScanRegistrationBase::Params params;
+    params.LoadFromJson(params_.local_registration_config_path);
+    local_scan_registration_ = std::make_unique<MultiScanLoamRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.num_neighbors,
+        params.lag_duration, params.disable_lidar_map);
+    feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
+  } else {
+    BEAM_ERROR(
+        "Invalid local_registration_type. Input: {}. Options: MAPLOAM, "
+        "MULTILOAM, MULTIICP, MULTIGICP, MULTINDT. Using default: MAPLOAM",
+        params_.local_registration_type);
+    std::shared_ptr<LoamParams> matcher_params =
+        std::make_shared<LoamParams>(params_.local_matcher_params_path);
+    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
+        std::make_unique<LoamMatcher>(*matcher_params);
+    ScanToMapLoamRegistration::Params params;
+    params.LoadFromJson(params_.local_registration_config_path);
+    local_scan_registration_ = std::make_unique<ScanToMapLoamRegistration>(
+        std::move(matcher), params.GetBaseParams(), params.map_size,
+        params.store_full_cloud);
+    feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
+  }
+  local_scan_registration_->SetFixedCovariance(
+      params_.local_registration_covariance);
+
+  // Setup global registration matcher
+  if (params_.global_registration_type == "LOAM") {
+    global_loam_matching_ = std::make_unique<LoamMatcher>(
+        LoamParams(params_.global_matcher_params_path));
+  } else if (params_.global_registration_type == "ICP") {
+    global_matching_ = std::make_unique<IcpMatcher>(
+        IcpMatcher::Params(params_.global_matcher_params_path));
+  } else if (params_.global_registration_type == "GICP") {
+    global_matching_ = std::make_unique<GicpMatcher>(
+        GicpMatcher::Params(params_.global_matcher_params_path));
+  } else if (params_.global_registration_type == "NDT") {
+    global_matching_ = std::make_unique<NdtMatcher>(
+        NdtMatcher::Params(params_.global_matcher_params_path));
+  } else {
+    BEAM_ERROR(
+        "Invalid global_registration_type. Input: {}. Options: LOAM, ICP, "
+        "GICP, NDT. Using default: "
+        "LOAM",
+        params_.global_registration_type);
+    global_loam_matching_ = std::make_unique<LoamMatcher>(
+        LoamParams(params_.global_matcher_params_path));
+  }
+}
+
+fuse_core::Transaction::SharedPtr LidarOdometry::RegisterScanToGlobalMap(
+    const ScanPose& scan_pose) {
+  Eigen::Matrix4d T_MAPEST_SCAN = scan_pose.T_REFFRAME_LIDAR();
+  Eigen::Matrix4d T_MAPEST_MAP;
+
+  if (global_loam_matching_ != nullptr) {
+    LoamPointCloudPtr scan_in_map_frame =
+        std::make_shared<LoamPointCloud>(scan_pose.LoamCloud());
+    scan_in_map_frame->TransformPointCloud(T_MAPEST_SCAN);
+
+    LoamPointCloudPtr current_map = active_submap_.GetLoamMapPtr();
+
+    global_loam_matching_->SetRef(current_map);
+    global_loam_matching_->SetTarget(scan_in_map_frame);
+
+    if (!global_loam_matching_->Match()) {
+      return nullptr;
+    }
+
+    T_MAPEST_MAP = global_loam_matching_->GetResult().matrix();
+  } else {
+    PointCloudPtr scan_in_map_frame = std::make_shared<PointCloud>();
+    pcl::transformPointCloud(scan_pose.Cloud(), *scan_in_map_frame,
+                             T_MAPEST_SCAN);
+
+    PointCloudPtr current_map = active_submap_.GetLidarMap();
+
+    global_matching_->SetRef(current_map);
+    global_matching_->SetTarget(scan_in_map_frame);
+
+    if (!global_matching_->Match()) {
+      return nullptr;
+    }
+
+    T_MAPEST_MAP = global_matching_->GetResult().matrix();
+  }
+
+  // check against threshold. Use threshold params from local matcher
+  std::string summary;
+  if (!local_scan_registration_->PassedRegThreshold(T_MAPEST_MAP, summary)) {
+    BEAM_WARN(
+        "Failed global scan matcher transform threshold check for stamp {}.{}. "
+        "Skipping measurement. Reason: {}",
+        scan_pose.Stamp().sec, scan_pose.Stamp().nsec, summary);
+    return nullptr;
+  }
+
+  // get extrinsics
+  Eigen::Matrix4d T_LIDAR_BASELINK;
+  if (!extrinsics_.GetT_LIDAR_BASELINK(T_LIDAR_BASELINK)) {
+    ROS_WARN(
+        "Cannot get transform from baselink to lidar. Not adding global map "
+        "constraint.");
+    return nullptr;
+  }
+
+  // get absolute pose
+  Eigen::Matrix4d T_MAP_BASELINK =
+      beam::InvertTransform(T_MAPEST_MAP) * T_MAPEST_SCAN * T_LIDAR_BASELINK;
+  Eigen::Matrix3d R = T_MAP_BASELINK.block(0, 0, 3, 3);
+  Eigen::Quaterniond q(R);
+  fuse_core::Vector7d mean;
+  mean << T_MAP_BASELINK(0, 3), T_MAP_BASELINK(1, 3), T_MAP_BASELINK(2, 3),
+      q.w(), q.x(), q.y(), q.z();
+
+  // create transaction and add variables and prior
+  auto p = fuse_variables::Position3DStamped::make_shared(scan_pose.Position());
+  auto o = fuse_variables::Orientation3DStamped::make_shared(
+      scan_pose.Orientation());
+
+  fuse_core::Transaction::SharedPtr transaction =
+      fuse_core::Transaction::make_shared();
+  transaction->stamp(scan_pose.Stamp());
+  transaction->addVariable(p);
+  transaction->addVariable(o);
+  auto prior =
+      std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+          "GLOBALMAPREGISTRATION", *p, *o, mean,
+          params_.global_registration_covariance);
+  transaction->addConstraint(prior);
   return transaction;
 }
 
 void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   updates_++;
 
-  // TODO: DELETE ME -----------------
-  // std::string save_path_orig =
-  //     "/home/nick/tmp/map_updating/" +
-  //     std::to_string(ros::Time::now().toSec()) + "orig/";
-  // std::string save_path_updated =
-  //       "/home/nick/tmp/map_updating/" +
-  //       std::to_string(ros::Time::now().toSec()) + "updated/";
-  // boost::filesystem::create_directory(save_path_orig);
-  // boost::filesystem::create_directory(save_path_updated);
-  // scan_registration_->GetMapMutable().Save(save_path_orig, true, 255, 0, 0);
-  // ---------------------------------
-
   auto i = active_clouds_.begin();
   while (i != active_clouds_.end()) {
     bool update_successful = i->UpdatePose(graph_msg);
     if (update_successful) {
       // update map
-      if (update_scan_registration_map_on_graph_update_) {
-        scan_registration_->GetMapMutable().UpdateScan(i->Stamp(),
-                                                       i->T_REFFRAME_LIDAR());
+      if (update_local_map_on_graph_update_) {
+        local_scan_registration_->GetMapMutable().UpdateScan(
+            i->Stamp(), i->T_REFFRAME_LIDAR());
       }
 
       // send reloc request if it is the first time the scan pose is updated,
@@ -363,11 +455,6 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     active_clouds_.erase(i++);
   }
 
-  // DELETE ME --------------------
-  // scan_registration_->GetMapMutable().Save(save_path_updated, true, 0, 255,
-  // 0);
-  // ------------------------------
-
   if (!output_graph_updates_) {
     return;
   }
@@ -384,12 +471,11 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 }
 
 void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
-  bs_constraints::relative_pose::Pose3DStampedTransaction new_transaction =
-      GenerateTransaction(msg);
-  if (new_transaction.GetTransaction() != nullptr) {
+  fuse_core::Transaction::SharedPtr new_transaction = GenerateTransaction(msg);
+  if (new_transaction != nullptr) {
     ROS_DEBUG("Sending transaction.");
     try {
-      sendTransaction(new_transaction.GetTransaction());
+      sendTransaction(new_transaction);
     } catch (const std::exception& e) {
       ROS_WARN("Cannot send transaction. Error: %s", e.what());
     }
@@ -521,6 +607,13 @@ void LidarOdometry::PublishScanRegistrationResults(
     const fuse_core::Transaction::SharedPtr& transaction_lm,
     const fuse_core::Transaction::SharedPtr& transaction_gm,
     const ScanPose& scan_pose) {
+  if (!params_.publish_registration_results) {
+    return;
+  }
+  if (transaction_lm == nullptr && transaction_gm == nullptr) {
+    return;
+  }
+
   const PointCloud& scan_in_lidar_frame = scan_pose.Cloud();
   Eigen::Matrix4d T_WORLD_BASELINKINIT = scan_pose.T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_BASELINK_LIDAR = scan_pose.T_BASELINK_LIDAR();
@@ -589,7 +682,7 @@ void LidarOdometry::PublishScanRegistrationResults(
         T_REF_SCAN.block(0, 3, 3, 1) = t_REF_SCAN;
 
         // get pose of reference
-        const RegistrationMap& map = scan_registration_->GetMap();
+        const RegistrationMap& map = local_scan_registration_->GetMap();
         ros::Time ref_stamp;
         if (!map.GetUUIDStamp(variables.at(0), ref_stamp)) {
           BEAM_WARN(
