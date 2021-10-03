@@ -5,12 +5,12 @@
 
 #include <bs_common/utils.h>
 #include <bs_models/scan_pose.h>
-#include <bs_models/loop_closure/loop_closure_methods.h>
+#include <bs_models/reloc/reloc_methods.h>
 
 namespace bs_models {
 namespace global_mapping {
 
-using namespace loop_closure;
+using namespace reloc;
 
 GlobalMapRefinement::Params::Params() {
   double scan_reg_cov_diag = 1e-3;
@@ -24,7 +24,7 @@ GlobalMapRefinement::Params::Params() {
                              0, 0, 0, 0, scan_reg_cov_diag, 0,
                              0, 0, 0, 0, 0, scan_reg_cov_diag;
 
-  loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
+  reloc_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
                              0, loop_cov_diag, 0, 0, 0, 0,
                              0, 0, loop_cov_diag, 0, 0, 0,
                              0, 0, 0, loop_cov_diag, 0, 0,
@@ -95,11 +95,11 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   nlohmann::json J;
   std::ifstream file(read_file);
   file >> J;
-  loop_closure_candidate_search_type = J["loop_closure_candidate_search_type"];
-  loop_closure_refinement_type = J["loop_closure_refinement_type"];
-  loop_closure_candidate_search_config =
-      J["loop_closure_candidate_search_config"];
-  loop_closure_refinement_config = J["loop_closure_refinement_config"];
+  reloc_candidate_search_type = J["reloc_candidate_search_type"];
+  reloc_refinement_type = J["reloc_refinement_type"];
+  reloc_candidate_search_config =
+      J["reloc_candidate_search_config"];
+  reloc_refinement_config = J["reloc_refinement_config"];
   scan_registration_type = J["scan_registration_type"];
 
   std::vector<double> vec = J["scan_reg_covariance_diag"];
@@ -113,15 +113,15 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
     scan_reg_covariance = vec_eig.asDiagonal();
   }
 
-  std::vector<double> vec2 = J["loop_closure_covariance_diag"];
+  std::vector<double> vec2 = J["reloc_covariance_diag"];
   if (vec2.size() != 6) {
     BEAM_ERROR(
-        "Invalid loop closure covariance diagonal (6 values required). Using "
+        "Invalid reloc covariance diagonal (6 values required). Using "
         "default.");
   } else {
     Eigen::VectorXd vec_eig = Eigen::VectorXd(6);
     vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
-    loop_closure_covariance = vec_eig.asDiagonal();
+    reloc_covariance = vec_eig.asDiagonal();
   }
 
   nlohmann::json J_multiscanreg = J["multi_scan_registration"];
@@ -177,7 +177,7 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
   global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-  submaps_ = global_map_->GetSubmaps();
+  submaps_ = global_map_->GetOnlineSubmaps();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
@@ -189,13 +189,13 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
   global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-  submaps_ = global_map_->GetSubmaps();
+  submaps_ = global_map_->GetOnlineSubmaps();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(
     std::shared_ptr<GlobalMap>& global_map, const Params& params)
     : global_map_(global_map), params_(params) {
-  submaps_ = global_map_->GetSubmaps();
+  submaps_ = global_map_->GetOnlineSubmaps();
   Setup();
 }
 
@@ -203,48 +203,48 @@ GlobalMapRefinement::GlobalMapRefinement(
     std::shared_ptr<GlobalMap>& global_map, const std::string& config_path)
     : global_map_(global_map) {
   params_.LoadJson(config_path);
-  submaps_ = global_map_->GetSubmaps();
+  submaps_ = global_map_->GetOnlineSubmaps();
   Setup();
 }
 
 void GlobalMapRefinement::Setup() {
-  // initiate loop closure candidate search
-  if (params_.loop_closure_candidate_search_type == "EUCDIST") {
-    loop_closure_candidate_search_ =
-        std::make_unique<LoopClosureCandidateSearchEucDist>(
-            params_.loop_closure_candidate_search_config);
+  // initiate reloc candidate search
+  if (params_.reloc_candidate_search_type == "EUCDIST") {
+    reloc_candidate_search_ =
+        std::make_unique<RelocCandidateSearchEucDist>(
+            params_.reloc_candidate_search_config);
   } else {
     BEAM_ERROR(
-        "Invalid loop closure candidate search type. Using default: EUCDIST. "
+        "Invalid reloc candidate search type. Using default: EUCDIST. "
         "Input: {}",
-        params_.loop_closure_candidate_search_type);
-    loop_closure_candidate_search_ =
-        std::make_unique<LoopClosureCandidateSearchEucDist>(
-            params_.loop_closure_candidate_search_config);
+        params_.reloc_candidate_search_type);
+    reloc_candidate_search_ =
+        std::make_unique<RelocCandidateSearchEucDist>(
+            params_.reloc_candidate_search_config);
   }
 
-  // initiate loop closure refinement
-  if (params_.loop_closure_refinement_type == "ICP") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
-  } else if (params_.loop_closure_refinement_type == "GICP") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementGicp>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
-  } else if (params_.loop_closure_refinement_type == "NDT") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementNdt>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
-  } else if (params_.loop_closure_refinement_type == "LOAM") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementLoam>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
+  // initiate reloc refinement
+  if (params_.reloc_refinement_type == "ICP") {
+    reloc_refinement_ = std::make_unique<RelocRefinementIcp>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
+  } else if (params_.reloc_refinement_type == "GICP") {
+    reloc_refinement_ = std::make_unique<RelocRefinementGicp>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
+  } else if (params_.reloc_refinement_type == "NDT") {
+    reloc_refinement_ = std::make_unique<RelocRefinementNdt>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
+  } else if (params_.reloc_refinement_type == "LOAM") {
+    reloc_refinement_ = std::make_unique<RelocRefinementLoam>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
   } else {
-    BEAM_ERROR("Invalid loop closure refinement type. Using default: ICP");
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
+    BEAM_ERROR("Invalid reloc refinement type. Using default: ICP");
+    reloc_refinement_ = std::make_unique<RelocRefinementIcp>(
+        params_.reloc_covariance,
+        params_.reloc_refinement_config);
   }
 }
 
@@ -259,7 +259,7 @@ bool GlobalMapRefinement::RunSubmapRefinement() {
   return true;
 }
 
-bool GlobalMapRefinement::RefineSubmap(std::shared_ptr<Submap>& submap) {
+bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap) {
   // Create optimization graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
       fuse_graphs::HashGraph::make_shared();

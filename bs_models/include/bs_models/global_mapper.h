@@ -41,14 +41,24 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
    * (1) a new transaction is generated which adds a constraint between the new
    * submap and the previous submap.
    *
-   * (2) a loop closure check is initiated with the previous submap and if a
+   * (2) a reloc check is initiated with the previous submap and if a
    * loop is found, a constraint is added by creating another transaction to
    * send to the graph.
    *
    * @param msg slam chunk message which may contain lidar data, camera data,
    * and/or pose data
    */
-  void process(const bs_common::SlamChunkMsg::ConstPtr& msg);
+  void ProcessSlamChunk(const bs_common::SlamChunkMsg::ConstPtr& msg);
+
+  /**
+   * @brief This function takes a reloc request message and tries to find if
+   * this pose is within some submap, if so, we want to publish the updated
+   * submap. To do this, the global_mapper just needs to call the
+   * ProcessRelocRequest() from the global_map. See the global_map.h for more
+   * information on how this is done.
+   * @param msg reloc request message
+   */
+  void ProcessRelocRequest(const bs_common::RelocRequestMsg::ConstPtr& msg);
 
  private:
   /**
@@ -96,14 +106,24 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
 
   std::unique_ptr<global_mapping::GlobalMap> global_map_;
 
-  using ThrottledCallback =
-      fuse_core::ThrottledMessageCallback<bs_common::SlamChunkMsg>;
-  ThrottledCallback throttled_callback_;
+  std::vector<global_mapping::SubmapPtr> offline_submaps_;
 
   /** subscribe to slam chunk data */
-  ros::Subscriber subscriber_;
+  using ThrottledCallbackSlamChunk =
+      fuse_core::ThrottledMessageCallback<bs_common::SlamChunkMsg>;
+  ThrottledCallbackSlamChunk throttled_callback_slam_chunk_;
+  ros::Subscriber slam_chunk_subscriber_;
 
-  /** publish results */  
+  /** subscribe to reloc request */
+  using ThrottledCallbackRelocRequest =
+      fuse_core::ThrottledMessageCallback<bs_common::RelocRequestMsg>;
+  ThrottledCallbackRelocRequest throttled_callback_reloc_;
+  ros::Subscriber reloc_request_subscriber_;
+
+  /** publish submaps returned from reloc */
+  ros::Publisher active_submap_publisher_;
+
+  /** publish results */
   ros::Publisher submap_lidar_publisher_;
   ros::Publisher submap_keypoints_publisher_;
   ros::Publisher global_map_lidar_publisher_;
@@ -113,7 +133,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   // params that can only be set here:
   int max_output_map_size_{3000000};  // limits output size of lidar maps
 
-//   store a pointer to a graph for running the PGO
+  //   store a pointer to a graph for running the PGO
   std::shared_ptr<fuse_graphs::HashGraph> graph_;
 };
 

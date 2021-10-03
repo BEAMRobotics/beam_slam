@@ -242,8 +242,8 @@ void VisualInertialOdometry::onGraphUpdate(
 
   auto transaction = fuse_core::Transaction::make_shared();
   for (auto &kf : obsolete_keyframes) {
-    std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
-    std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
+    std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+    std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
     std::vector<uint64_t> landmarks =
         tracker_->GetLandmarkIDsInImage(kf.Stamp());
 
@@ -283,8 +283,8 @@ void VisualInertialOdometry::onGraphUpdate(
     // Retriangulate all landmarks that were introduced in this keyframe
     for (auto &id : kf.Landmarks()) {
       // otherwise then triangulate then add the constraints
-      std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
-      std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
+      std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
+      std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
       for (auto &m : track) {
@@ -363,8 +363,8 @@ void VisualInertialOdometry::SendInitializationGraph(
 
 Eigen::Matrix4d
 VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
-  std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
-  std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
+  std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+  std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
 
   // get 2d-3d correspondences
@@ -465,8 +465,8 @@ void VisualInertialOdometry::ExtendMap() {
                                  tracker_->Get(cur_kf_time, id), transaction);
     } else {
       // otherwise then triangulate then add the constraints
-      std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
-      std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
+      std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
+      std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
       if (track.size() > 5) {

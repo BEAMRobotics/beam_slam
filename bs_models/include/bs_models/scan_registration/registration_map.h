@@ -2,6 +2,7 @@
 
 #include <beam_utils/pointclouds.h>
 #include <beam_matching/loam/LoamPointCloud.h>
+#include <fuse_core/uuid.h>
 
 namespace bs_models {
 namespace scan_registration {
@@ -32,8 +33,16 @@ class RegistrationMap {
    * another change it. So this checks if the params were already set, if so
    * then it'll disregard this call and output a warning.
    * @param map_size number of scans to store in this map
+   * @param publish_updates if set to true, this class with publish the full
+   * lidar map in the world frame whenever the map is updated
    */
-  bool SetParams(int map_size);
+  bool SetParams(int map_size, bool publish_updates = false);
+
+  /**
+   * @brief return map size
+   * @return map_size
+   */
+  int MapSize() const;
 
   /**
    * @brief checks if no pointclouds have been added to this map
@@ -155,6 +164,16 @@ class RegistrationMap {
   bool GetScanInMapFrame(const ros::Time& stamp, LoamPointCloud& cloud) const;
 
   /**
+   * @brief get the timestamp associated with a fuse uuid of position or
+   * orientation. We store uuids every time we add a new scan so that we can
+   * lookup scans or poses based on timestamp or uuid.
+   * @param uuid uuid of position fuse variable or orientation fuse variable
+   * @param stamp reference to stamp
+   * @return true if scan with this pose uuid exists
+   */
+  bool GetUUIDStamp(const fuse_core::UUID& uuid, ros::Time& stamp) const;
+
+  /**
    * @brief clears all scans and their associated poses
    */
   void Clear();
@@ -171,16 +190,37 @@ class RegistrationMap {
 
  private:
   /**
-   * @brief default constructor. Uses default member variables
+   * @brief constructor. Uses default member variables
    */
-  RegistrationMap() = default;
+  RegistrationMap();
+
+  /**
+   * @brief publish the current map. This gets called each time the map saves,
+   * if publish_updates_ is set to true
+   */
+  void Publish();
+
+  // publisher
+  ros::Publisher lidar_map_publisher_;
+  ros::Publisher loam_edges_strong_publisher_;
+  ros::Publisher loam_edges_weak_publisher_;
+  ros::Publisher loam_surfaces_strong_publisher_;
+  ros::Publisher loam_surfaces_weak_publisher_;
+
+  int map_size_{10};
+  bool map_params_set_{false};
+  int updates_counter_{0};
+  bool publish_updates_{false};
+  std::string frame_id_;
 
   std::map<uint64_t, PointCloud> clouds_in_map_frame_;
   std::map<uint64_t, Eigen::Matrix4d> cloud_poses_;
   std::map<uint64_t, LoamPointCloud> loam_clouds_in_map_frame_;
   std::map<uint64_t, Eigen::Matrix4d> loam_cloud_poses_;
-  int map_size_{10};
-  bool map_params_set_{false};
+
+  // store maps from uuid of pose variables to timestamp to uuid of pose
+  // variables. This get generated automatically when adding a new scan pose
+  std::unordered_map<fuse_core::UUID, uint64_t> uuid_map_;
 };
 
 }  // namespace scan_registration

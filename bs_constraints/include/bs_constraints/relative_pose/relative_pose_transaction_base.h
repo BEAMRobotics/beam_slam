@@ -20,26 +20,14 @@ namespace relative_pose {
 
 /**
  *
- * This class is inherited by each of the different frame to frame (FTF)
- * transaction classes. The purpose of this class is two fold:
- *
- *  (1) to create some helper functions to reduce code and more clearly define
- * the variables (e.g., pose frame conventions)
- *
- *  (2) to enforce that FTF constraints are used in FTF sensor models. Standard
- * constraints from fuse_constraints can be defined below by simply defining an
- * alias with their specific template params (see
- * relative_pose_3d_stamped_transaction.h) with the option to define more
- * functions specific to their template types.
- *
- * NOTE: FTF constraint is one that constrains anything related to the state of
- * a frame. I.e., pose, velocity, acceleration (no keypoints or lidar points)
+ * This is a base class for relative pose constraints between two states (e.g.
+ * pose1 to pose2, or ImuState1 to ImuState2). The main purpose of this base
+ * class is to create utility functions for adding states in different formats
+ * (e.g., fuse variables vs Eigen variables)
  *
  * NOTE: all frames described in these transactions must be the baselink frames
  *
- * @tparam ConstraintType template type for the FTF constraint being used. Note:
- * we have not implemented a FTF constraint base class to enforce this, we trust
- * that the derived FTF transaction classes will only use FTF constraints
+ * @tparam ConstraintType template type for the constraint being used.
  * @tparam PriorType template type for optional prior
  *
  */
@@ -149,7 +137,7 @@ class RelativePoseTransactionBase {
     fuse_core::Matrix6d prior_covariance_matrix{
         fuse_core::Matrix6d::Identity()};
     for (int i = 0; i < 6; i++) {
-        prior_covariance_matrix(i, i) = prior_covariance_noise;
+      prior_covariance_matrix(i, i) = prior_covariance_noise;
     }
     AddPosePrior(position, orientation, prior_covariance_matrix, prior_source);
   }

@@ -12,15 +12,17 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/pcl_conversions.h>
 #include <beam_mapping/Poses.h>
+#include <beam_cv/OpenCVConversions.h>
+#include <beam_cv/descriptors/Descriptor.h>
 
-#include <bs_models/loop_closure/loop_closure_methods.h>
+#include <bs_models/reloc/reloc_methods.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_common/utils.h>
 
 namespace bs_models {
 namespace global_mapping {
 
-using namespace loop_closure;
+using namespace reloc;
 
 GlobalMap::Params::Params() {
   double local_map_cov_diag = 1e-3;
@@ -34,7 +36,7 @@ GlobalMap::Params::Params() {
                              0, 0, 0, 0, local_map_cov_diag, 0,
                              0, 0, 0, 0, 0, local_map_cov_diag;
 
-  loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
+  reloc_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
                              0, loop_cov_diag, 0, 0, 0, 0,
                              0, 0, loop_cov_diag, 0, 0, 0,
                              0, 0, 0, loop_cov_diag, 0, 0,
@@ -65,11 +67,10 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   }
 
   submap_size = J["submap_size_m"];
-  loop_closure_candidate_search_type = J["loop_closure_candidate_search_type"];
-  loop_closure_refinement_type = J["loop_closure_refinement_type"];
-  loop_closure_candidate_search_config =
-      J["loop_closure_candidate_search_config"];
-  loop_closure_refinement_config = J["loop_closure_refinement_config"];
+  reloc_candidate_search_type = J["reloc_candidate_search_type"];
+  reloc_refinement_type = J["reloc_refinement_type"];
+  reloc_candidate_search_config = J["reloc_candidate_search_config"];
+  reloc_refinement_config = J["reloc_refinement_config"];
 
   std::vector<double> vec = J["local_mapper_covariance_diag"];
   if (vec.size() != 6) {
@@ -82,15 +83,15 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
     local_mapper_covariance = vec_eig.asDiagonal();
   }
 
-  std::vector<double> vec2 = J["loop_closure_covariance_diag"];
+  std::vector<double> vec2 = J["reloc_covariance_diag"];
   if (vec2.size() != 6) {
     BEAM_ERROR(
-        "Invalid loop closure covariance diagonal (6 values required). Using "
+        "Invalid reloc covariance diagonal (6 values required). Using "
         "default.");
   } else {
     Eigen::VectorXd vec_eig = Eigen::VectorXd(6);
     vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
-    loop_closure_covariance = vec_eig.asDiagonal();
+    reloc_covariance = vec_eig.asDiagonal();
   }
 
   // load filters
@@ -107,20 +108,18 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
 void GlobalMap::Params::SaveJson(const std::string& filename) {
   nlohmann::json J = {
       {"submap_size_m", submap_size},
-      {"loop_closure_candidate_search_type",
-       loop_closure_candidate_search_type},
-      {"loop_closure_refinement_type", loop_closure_refinement_type},
-      {"loop_closure_candidate_search_config",
-       loop_closure_candidate_search_config},
-      {"loop_closure_refinement_config", loop_closure_refinement_config},
+      {"reloc_candidate_search_type", reloc_candidate_search_type},
+      {"reloc_refinement_type", reloc_refinement_type},
+      {"reloc_candidate_search_config", reloc_candidate_search_config},
+      {"reloc_refinement_config", reloc_refinement_config},
       {"local_mapper_covariance_diag",
        {local_mapper_covariance(0, 0), local_mapper_covariance(1, 1),
         local_mapper_covariance(2, 2), local_mapper_covariance(3, 3),
         local_mapper_covariance(4, 4), local_mapper_covariance(5, 5)}},
-      {"loop_closure_covariance_diag",
-       {loop_closure_covariance(0, 0), loop_closure_covariance(1, 1),
-        loop_closure_covariance(2, 2), loop_closure_covariance(3, 3),
-        loop_closure_covariance(4, 4), loop_closure_covariance(5, 5)}}};
+      {"reloc_covariance_diag",
+       {reloc_covariance(0, 0), reloc_covariance(1, 1), reloc_covariance(2, 2),
+        reloc_covariance(3, 3), reloc_covariance(4, 4),
+        reloc_covariance(5, 5)}}};
 
   std::ofstream file(filename);
   file << std::setw(4) << J << std::endl;
@@ -158,12 +157,18 @@ GlobalMap::GlobalMap(const std::string& data_root_directory) {
   }
 }
 
-std::vector<std::shared_ptr<Submap>> GlobalMap::GetSubmaps() {
-  return submaps_;
+std::vector<SubmapPtr> GlobalMap::GetOnlineSubmaps() { return online_submaps_; }
+
+std::vector<SubmapPtr> GlobalMap::GetOfflineSubmaps() {
+  return offline_submaps_;
 }
 
-void GlobalMap::SetSubmaps(std::vector<std::shared_ptr<Submap>>& submaps) {
-  submaps_ = submaps;
+void GlobalMap::SetOnlineSubmaps(std::vector<SubmapPtr>& submaps) {
+  online_submaps_ = submaps;
+}
+
+void GlobalMap::SetOfflineSubmaps(std::vector<SubmapPtr>& submaps) {
+  offline_submaps_ = submaps;
 }
 
 void GlobalMap::SetStoreNewSubmaps(bool store_new_submaps) {
@@ -201,43 +206,36 @@ std::vector<std::shared_ptr<RosMap>> GlobalMap::GetRosMaps() {
 }
 
 void GlobalMap::Setup() {
-  // initiate loop closure candidate search
-  if (params_.loop_closure_candidate_search_type == "EUCDIST") {
-    loop_closure_candidate_search_ =
-        std::make_unique<LoopClosureCandidateSearchEucDist>(
-            params_.loop_closure_candidate_search_config);
+  // initiate reloc candidate search
+  if (params_.reloc_candidate_search_type == "EUCDIST") {
+    reloc_candidate_search_ = std::make_unique<RelocCandidateSearchEucDist>(
+        params_.reloc_candidate_search_config);
   } else {
     BEAM_ERROR(
-        "Invalid loop closure candidate search type. Using default: EUCDIST. "
+        "Invalid reloc candidate search type. Using default: EUCDIST. "
         "Input: {}",
-        params_.loop_closure_candidate_search_type);
-    loop_closure_candidate_search_ =
-        std::make_unique<LoopClosureCandidateSearchEucDist>(
-            params_.loop_closure_candidate_search_config);
+        params_.reloc_candidate_search_type);
+    reloc_candidate_search_ = std::make_unique<RelocCandidateSearchEucDist>(
+        params_.reloc_candidate_search_config);
   }
 
-  // initiate loop closure refinement
-  if (params_.loop_closure_refinement_type == "ICP") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
-  } else if (params_.loop_closure_refinement_type == "GICP") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementGicp>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
-  } else if (params_.loop_closure_refinement_type == "NDT") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementNdt>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
-  } else if (params_.loop_closure_refinement_type == "LOAM") {
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementLoam>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
+  // initiate reloc refinement
+  if (params_.reloc_refinement_type == "ICP") {
+    reloc_refinement_ = std::make_unique<RelocRefinementIcp>(
+        params_.reloc_covariance, params_.reloc_refinement_config);
+  } else if (params_.reloc_refinement_type == "GICP") {
+    reloc_refinement_ = std::make_unique<RelocRefinementGicp>(
+        params_.reloc_covariance, params_.reloc_refinement_config);
+  } else if (params_.reloc_refinement_type == "NDT") {
+    reloc_refinement_ = std::make_unique<RelocRefinementNdt>(
+        params_.reloc_covariance, params_.reloc_refinement_config);
+  } else if (params_.reloc_refinement_type == "LOAM") {
+    reloc_refinement_ = std::make_unique<RelocRefinementLoam>(
+        params_.reloc_covariance, params_.reloc_refinement_config);
   } else {
-    BEAM_ERROR("Invalid loop closure refinement type. Using default: ICP");
-    loop_closure_refinement_ = std::make_unique<LoopClosureRefinementIcp>(
-        params_.loop_closure_covariance,
-        params_.loop_closure_refinement_config);
+    BEAM_ERROR("Invalid reloc refinement type. Using default: ICP");
+    reloc_refinement_ = std::make_unique<RelocRefinementIcp>(
+        params_.reloc_covariance, params_.reloc_refinement_config);
   }
 }
 
@@ -251,63 +249,77 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   int submap_id = GetSubmapId(T_WORLD_BASELINK);
 
   // if id is equal to submap size then we need to create a new submap
-  if (submap_id == submaps_.size()) {
-    std::shared_ptr<Submap> new_submap = std::make_shared<Submap>(
-        stamp, T_WORLD_BASELINK, camera_model_, extrinsics_);
-    submaps_.push_back(new_submap);
+  if (submap_id == online_submaps_.size()) {
+    SubmapPtr new_submap = std::make_shared<Submap>(stamp, T_WORLD_BASELINK,
+                                                    camera_model_, extrinsics_);
+    online_submaps_.push_back(new_submap);
     new_transaction = InitiateNewSubmapPose();
 
-    fuse_core::Transaction::SharedPtr loop_closure_transaction =
-        FindLoopClosures(submaps_.size() - 2);
+    fuse_core::Transaction::SharedPtr reloc_transaction =
+        RunLoopClosure(online_submaps_.size() - 2);
 
-    if (loop_closure_transaction != nullptr) {
-      new_transaction->merge(*loop_closure_transaction);
+    if (reloc_transaction != nullptr) {
+      new_transaction->merge(*reloc_transaction);
     }
 
-    if (store_newly_completed_submaps_ && submaps_.size() > 1) {
-      AddRosSubmap(submaps_.size() - 2);
+    if (store_newly_completed_submaps_ && online_submaps_.size() > 1) {
+      AddRosSubmap(online_submaps_.size() - 2);
     }
   }
 
   // add camera measurement if not empty
   if (!cam_measurement.landmarks.empty()) {
     ROS_DEBUG("Adding camera measurement to global map.");
-    submaps_.at(submap_id)->AddCameraMeasurement(
+    online_submaps_.at(submap_id)->AddCameraMeasurement(
         cam_measurement.landmarks, cam_measurement.descriptor_type,
         T_WORLD_BASELINK, stamp, cam_measurement.sensor_id,
         cam_measurement.measurement_id);
   }
 
-  // add lidar measurement if not empty
-  if (!lid_measurement.points.empty()) {
-    // ROS_DEBUG("Adding lidar measurement to global map.");
-    std::vector<float> points = lid_measurement.points;
-
-    // check dimensions of points first
-    if (points.size() % 3 != 0) {
-      BEAM_ERROR(
-          "Invalid size of lidar points. Total number of values is not "
-          "divisible by 3. Skipping lidar measurement.");
-    } else {
-      int num_points = static_cast<int>(points.size() / 3);
-      PointCloud cloud;
-      uint32_t point_counter = 0;
-      while (point_counter < points.size()) {
-        pcl::PointXYZ p;
-        p.x = points[point_counter];
-        p.y = points[point_counter + 1];
-        p.z = points[point_counter + 2];
-        cloud.push_back(p);
-        point_counter += 3;
-      }
-
-      if (store_new_scans_ && lid_measurement.point_type == 0) {
-        AddNewRosScan(cloud, T_WORLD_BASELINK, stamp);
-      }
-
-      submaps_.at(submap_id)->AddLidarMeasurement(
-          cloud, T_WORLD_BASELINK, stamp, lid_measurement.point_type);
+  // if lidar measurement exists, check frame id
+  if (!lid_measurement.lidar_points.empty() ||
+      !lid_measurement.lidar_edges_strong.empty() ||
+      !lid_measurement.lidar_surfaces_strong.empty()) {
+    if (lid_measurement.frame_id != extrinsics_->GetLidarFrameId()) {
+      BEAM_WARN(
+          "Lidar measurement frame id not consistent with lidar frame in the "
+          "extrinsics class.");
     }
+  }
+
+  // add lidar measurement if not empty
+  // ROS_DEBUG("Adding lidar measurement to global map.");
+  PointCloud cloud;
+  if (!lid_measurement.lidar_points.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_points);
+
+    // add ros msg if applicable
+    if (store_new_scans_) {
+      AddNewRosScan(cloud, T_WORLD_BASELINK, stamp);
+    }
+
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 0);
+  }
+  if (!lid_measurement.lidar_edges_strong.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_edges_strong);
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 1);
+  }
+  if (!lid_measurement.lidar_surfaces_strong.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_surfaces_strong);
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 2);
+  }
+  if (!lid_measurement.lidar_edges_weak.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_edges_weak);
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 3);
+  }
+  if (!lid_measurement.lidar_surfaces_weak.empty()) {
+    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_surfaces_weak);
+    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
+                                                       stamp, 4);
   }
 
   // add trajectory measurement if not empty
@@ -327,7 +339,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
           "Number of poses is not equal to number of time stamps. Not adding "
           "trajectory measurement.");
     } else {
-      std::vector<Eigen::Matrix4d, pose_allocator> poses;
+      std::vector<Eigen::Matrix4d, beam::AlignMat4d> poses;
       std::vector<ros::Time> stamps;
       for (int i = 0; i < num_poses; i++) {
         std::vector<double> current_pose;
@@ -350,7 +362,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         new_stamp.fromNSec(traj_measurement.stamps[i]);
         stamps.push_back(new_stamp);
       }
-      submaps_.at(submap_id)->AddTrajectoryMeasurement(poses, stamps, stamp);
+      online_submaps_.at(submap_id)->AddTrajectoryMeasurement(poses, stamps,
+                                                              stamp);
     }
   }
 
@@ -358,11 +371,11 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::TriggerLoopClosure() {
-  if(submaps_.size() < 2){
+  if (online_submaps_.size() < 2) {
     return nullptr;
   }
-  
-  return FindLoopClosures(submaps_.size() - 1);
+
+  return RunLoopClosure(online_submaps_.size() - 1);
 }
 
 int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
@@ -371,18 +384,20 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // isn't coming in in order (e.g., lidar data may come in slower)
 
   // first check if submaps is empty
-  if (submaps_.empty()) {
+  if (online_submaps_.empty()) {
     return 0;
   }
 
   Eigen::Vector3d t_WORLD_FRAME = T_WORLD_BASELINK.block(0, 3, 3, 1);
 
   Eigen::Vector3d t_WORLD_SUBMAPCUR =
-      submaps_.at(submaps_.size() - 1)->T_WORLD_SUBMAP_INIT().block(0, 3, 3, 1);
+      online_submaps_.at(online_submaps_.size() - 1)
+          ->T_WORLD_SUBMAP_INIT()
+          .block(0, 3, 3, 1);
 
   // if only one submap exists, we only check the pose is within this first
   // submap
-  if (submaps_.size() == 1) {
+  if (online_submaps_.size() == 1) {
     if ((t_WORLD_FRAME - t_WORLD_SUBMAPCUR).norm() < params_.submap_size) {
       return 0;
     } else {
@@ -392,22 +407,24 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 
   // otherwise, also check the prev submap and prioritize that one
   Eigen::Vector3d t_WORLD_SUBMAPPREV =
-      submaps_.at(submaps_.size() - 2)->T_WORLD_SUBMAP_INIT().block(0, 3, 3, 1);
+      online_submaps_.at(online_submaps_.size() - 2)
+          ->T_WORLD_SUBMAP_INIT()
+          .block(0, 3, 3, 1);
 
   if ((t_WORLD_FRAME - t_WORLD_SUBMAPPREV).norm() < params_.submap_size) {
-    return submaps_.size() - 2;
+    return online_submaps_.size() - 2;
   } else if ((t_WORLD_FRAME - t_WORLD_SUBMAPCUR).norm() < params_.submap_size) {
-    return submaps_.size() - 1;
+    return online_submaps_.size() - 1;
   } else {
-    return submaps_.size();
+    return online_submaps_.size();
   }
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   ROS_DEBUG("Initiating new submap pose");
 
-  const std::shared_ptr<Submap>& current_submap =
-      submaps_.at(submaps_.size() - 1);
+  const SubmapPtr& current_submap =
+      online_submaps_.at(online_submaps_.size() - 1);
   bs_constraints::relative_pose::Pose3DStampedTransaction new_transaction(
       current_submap->Stamp());
   new_transaction.AddPoseVariables(current_submap->Position(),
@@ -415,7 +432,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
                                    current_submap->Stamp());
 
   // if first submap, add prior then return
-  if (submaps_.size() == 1) {
+  if (online_submaps_.size() == 1) {
     new_transaction.AddPosePrior(current_submap->Position(),
                                  current_submap->Orientation(),
                                  pose_prior_noise_, "FIRSTSUBMAPPRIOR");
@@ -423,8 +440,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   }
 
   // If not first submap add constraint to previous
-  const std::shared_ptr<Submap>& previous_submap =
-      submaps_.at(submaps_.size() - 2);
+  const SubmapPtr& previous_submap =
+      online_submaps_.at(online_submaps_.size() - 2);
 
   Eigen::Matrix4d T_PREVIOUS_CURRENT =
       beam::InvertTransform(previous_submap->T_WORLD_SUBMAP()) *
@@ -440,63 +457,309 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   return new_transaction.GetTransaction();
 }
 
-fuse_core::Transaction::SharedPtr GlobalMap::FindLoopClosures(int query_index) {
-  // if first submap, don't look for loop closures
-  if (submaps_.size() == 1) {
+fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
+  // if first submap, don't look for relocs
+  if (online_submaps_.size() == 1) {
     return nullptr;
   }
 
   ROS_DEBUG("Searching for loop closure candidates");
 
+  const Eigen::Matrix4d& T_WORLD_QUERY =
+      online_submaps_.at(query_index)->T_WORLD_SUBMAP();
+
   std::vector<int> matched_indices;
-  std::vector<Eigen::Matrix4d, pose_allocator> Ts_MATCH_QUERY;
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
+  reloc_candidate_search_->FindRelocCandidates(online_submaps_, T_WORLD_QUERY,
+                                               matched_indices, Ts_MATCH_QUERY);
 
-  loop_closure_candidate_search_->FindLoopClosureCandidates(
-      submaps_, query_index, matched_indices, Ts_MATCH_QUERY);
+  // remove candidate if it is equal to the query submap, or one before
+  std::vector<int> matched_indices_filtered;
+  for (int i : matched_indices) {
+    if (i == query_index || i == query_index - 1) {
+      continue;
+    }
+    matched_indices_filtered.push_back(i);
+  }
 
-  ROS_DEBUG("Found %d loop closure candidates.", matched_indices.size());
+  ROS_DEBUG("Found %d loop closure candidates.",
+            matched_indices_filtered.size());
 
-  if (matched_indices.size() == 0) {
+  if (matched_indices_filtered.size() == 0) {
     return nullptr;
   }
 
   ROS_DEBUG(
       "Matched index[0]: %d, Query Index: %d, No. or submaps: %d. Running loop "
       "closure refinement",
-      matched_indices.at(0), query_index, submaps_.size());
+      matched_indices_filtered.at(0), query_index, online_submaps_.size());
 
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
-  for (int i = 0; i < matched_indices.size(); i++) {
+  for (int i = 0; i < matched_indices_filtered.size(); i++) {
     // if the matched index is adjacent to the query index, ignore it. This
     // would happen from improper candidate search implementations
-    if (matched_indices[i] == query_index + 1 ||
-        matched_indices[i] == query_index - 1) {
+    if (matched_indices_filtered[i] == query_index + 1 ||
+        matched_indices_filtered[i] == query_index - 1) {
       continue;
     }
     fuse_core::Transaction::SharedPtr new_transaction =
-        loop_closure_refinement_->GenerateTransaction(
-            submaps_.at(matched_indices[i]), submaps_.at(query_index),
-            Ts_MATCH_QUERY[i]);
+        reloc_refinement_->GenerateTransaction(
+            online_submaps_.at(matched_indices_filtered[i]),
+            online_submaps_.at(query_index), Ts_MATCH_QUERY[i]);
     if (new_transaction != nullptr) {
       transaction->merge(*new_transaction);
     }
   }
 
-  ROS_DEBUG("Returning %d loop closure transactions",
-            bs_common::GetNumberOfConstraints(transaction));
+  int num_constraints = bs_common::GetNumberOfConstraints(transaction);
+  ROS_DEBUG("Returning %d loop closure transactions", num_constraints);
 
-  // TODO: Implement this
-  // SendSubmap(best_index);
+  // if we are returning loop closure constraints, we will set the active submap
+  // to none to make sure next reloc takes the most updates active submap
+  if (num_constraints > 0) {
+    active_submap_type_ = SubmapType::NONE;
+  }
+
   return transaction;
+}
+
+bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
+                                    SubmapMsg& submap_msg) {
+  // load pose
+  ros::Time stamp = reloc_request_msg.stamp;
+  std::vector<double> T = reloc_request_msg.T_WORLD_BASELINK;
+  Eigen::Matrix4d T_WORLDLM_QUERY = beam::VectorToEigenTransform(T);
+  std::string matrix_check_summary;
+  if (!beam::IsTransformationMatrix(T_WORLDLM_QUERY, matrix_check_summary)) {
+    BEAM_WARN(
+        "transformation matrix invalid, not running reloc. Reason: %s, Input:",
+        matrix_check_summary.c_str());
+    std::cout << "T_WORLDLM_QUERY:\n" << T_WORLDLM_QUERY << "\n";
+    return false;
+  }
+
+  // load pointcloud
+  PointCloud lidar_cloud_in_query_frame =
+      beam::ROSVectorToPCL(reloc_request_msg.lidar_measurement.lidar_points);
+
+  // load loam cloud
+  beam_matching::LoamPointCloudPtr loam_cloud_in_query_frame =
+      std::make_shared<beam_matching::LoamPointCloud>(
+          beam::ROSVectorToPCL(
+              reloc_request_msg.lidar_measurement.lidar_edges_strong),
+          beam::ROSVectorToPCL(
+              reloc_request_msg.lidar_measurement.lidar_surfaces_strong),
+          beam::ROSVectorToPCL(
+              reloc_request_msg.lidar_measurement.lidar_edges_weak),
+          beam::ROSVectorToPCL(
+              reloc_request_msg.lidar_measurement.lidar_surfaces_weak));
+
+  // if either lidar clouds have points, check the frame id
+  if (!lidar_cloud_in_query_frame.empty() ||
+      !loam_cloud_in_query_frame->Empty()) {
+    if (reloc_request_msg.lidar_measurement.frame_id !=
+        extrinsics_->GetBaselinkFrameId()) {
+      BEAM_WARN(
+          "Frame id of lidar data in reloc request not consistent with the "
+          "baselink frame id stored in the intrinsics class.");
+    }
+  }
+
+  // load image
+  cv::Mat image;
+  if (!reloc_request_msg.image.data.empty()) {
+    image = beam_cv::OpenCVConversions::RosImgToMat(reloc_request_msg.image);
+  }
+
+  std::vector<int> matched_indices;
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_SUBMAPCANDIDATE_QUERY;
+
+  // first, search through offline maps
+  if (!offline_submaps_.empty()) {
+    // search for candidate relocs
+    Eigen::Matrix4d T_WORLDOFF_QUERY =
+        beam::InvertTransform(T_WORLDLM_WORLDOFF_) * T_WORLDLM_QUERY;
+    ROS_DEBUG("Looking for reloc submap candidates in offline maps.");
+    reloc_candidate_search_->FindRelocCandidates(
+        offline_submaps_, T_WORLDOFF_QUERY, matched_indices,
+        Ts_SUBMAPCANDIDATE_QUERY);
+    ROS_DEBUG("Found %d submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
+
+    // go through candidates, and get first successful reloc refinement
+    for (uint16_t i = 0; i < matched_indices.size(); i++) {
+      int submap_index = matched_indices.at(i);
+      const auto& T_SUBMAP_QUERY_initial = Ts_SUBMAPCANDIDATE_QUERY.at(i);
+
+      if (active_submap_id_ == submap_index &&
+          active_submap_type_ == SubmapType::OFFLINE) {
+        ROS_DEBUG(
+            "Active submap is the same as returned submap, not updating "
+            "submap.");
+        return false;
+      }
+
+      // get refined pose
+      ROS_DEBUG("Looking for refined submap pose within submap index: ",
+                submap_index);
+      const auto& submap = offline_submaps_.at(submap_index);
+      Eigen::Matrix4d T_SUBMAP_QUERY_refined;
+      if (reloc_refinement_->GetRefinedPose(
+              T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
+              lidar_cloud_in_query_frame, loam_cloud_in_query_frame, image)) {
+        ROS_DEBUG("Found refined reloc pose.");
+        // calculate transform from offline map world frame to the local mapper
+        // world frame if not already calculated
+        if (!T_WORLDLM_WORLDOFF_found_) {
+          ROS_DEBUG(
+              "Setting transform from offline map world frame to local mapper "
+              "world frame.");
+          T_WORLDLM_WORLDOFF_ = T_WORLDLM_QUERY *
+                                beam::InvertTransform(T_SUBMAP_QUERY_refined) *
+                                beam::InvertTransform(submap->T_WORLD_SUBMAP());
+          T_WORLDLM_WORLDOFF_found_ = true;
+        }
+
+        // get all required submap data
+        PointCloud lidar_cloud_in_woff_frame =
+            submap->GetLidarPointsInWorldFrameCombined(false);
+        beam_matching::LoamPointCloud loam_cloud_in_woff_frame =
+            submap->GetLidarLoamPointsInWorldFrame(false);
+        PointCloud keypoints_in_woff_frame =
+            submap->GetKeypointsInWorldFrame(false);
+        std::vector<std::vector<float>> descriptors;
+        beam_cv::DescriptorType descriptor_type;
+        auto desc_type_iter =
+            beam_cv::DescriptorTypeIntMap.find(submap->DescriptorType());
+        bool wrong_descriptor_type{false};
+        if (desc_type_iter == beam_cv::DescriptorTypeIntMap.end()) {
+          wrong_descriptor_type = true;
+          descriptor_type = beam_cv::DescriptorType::ORB;
+        } else {
+          descriptor_type = desc_type_iter->second;
+        }
+        for (auto landmarks_iter = submap->LandmarksBegin();
+             landmarks_iter != submap->LandmarksEnd(); landmarks_iter++) {
+          std::vector<float> descriptor =
+              beam_cv::Descriptor::ConvertDescriptor(landmarks_iter->descriptor,
+                                                     descriptor_type);
+          descriptors.push_back(descriptor);
+        }
+
+        if (wrong_descriptor_type && !descriptors.empty()) {
+          BEAM_WARN("Invalid descriptor type read. Using ORB.");
+        }
+
+        // add submap data to submap msg
+        FillSubmapMsg(submap_msg, lidar_cloud_in_woff_frame,
+                      loam_cloud_in_woff_frame, keypoints_in_woff_frame,
+                      descriptors, submap->DescriptorType(),
+                      T_WORLDLM_WORLDOFF_);
+
+        // set current submap
+        active_submap_id_ = submap_index;
+        active_submap_type_ = SubmapType::OFFLINE;
+
+        return true;
+      } else {
+        ROS_DEBUG("Reloc refinement failed.");
+      }
+    }
+  }
+
+  // next, search through online maps
+  if (!online_submaps_.empty()) {
+    // search for candidate relocs
+    ROS_DEBUG("Looking for reloc submap candidates in online maps.");
+    reloc_candidate_search_->FindRelocCandidates(
+        online_submaps_, T_WORLDLM_QUERY, matched_indices,
+        Ts_SUBMAPCANDIDATE_QUERY, 2, true);
+    ROS_DEBUG("Found %d submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
+
+    // go through candidates, and get first successful reloc refinement. Note:
+    // based on our definition of RelocCandidateSearchBase::FindRelocCandidates,
+    // this should return results in order of most to least likely. So as soon
+    // as we find one, we stop.
+    for (uint16_t i = 0; i < matched_indices.size(); i++) {
+      int submap_index = matched_indices.at(i);
+      const auto& T_SUBMAP_QUERY_initial = Ts_SUBMAPCANDIDATE_QUERY.at(i);
+
+      if (active_submap_id_ == submap_index &&
+          active_submap_type_ == SubmapType::ONLINE) {
+        ROS_DEBUG(
+            "Active submap is the same as returned submap, not updating "
+            "submap.");
+        return false;
+      }
+
+      const auto& submap = online_submaps_.at(submap_index);
+
+      // get refined pose
+      ROS_DEBUG("Looking for refined submap pose within submap index: ",
+                submap_index);
+      Eigen::Matrix4d T_SUBMAP_QUERY_refined;
+      if (reloc_refinement_->GetRefinedPose(
+              T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
+              lidar_cloud_in_query_frame, loam_cloud_in_query_frame, image)) {
+        ROS_DEBUG("Found refined reloc pose.");
+
+        // get all required submap data
+        PointCloud lidar_cloud_in_wlm_frame =
+            submap->GetLidarPointsInWorldFrameCombined(true);
+        beam_matching::LoamPointCloud loam_cloud_in_wlm_frame =
+            submap->GetLidarLoamPointsInWorldFrame(true);
+        PointCloud keypoints_in_wlm_frame =
+            submap->GetKeypointsInWorldFrame(true);
+        beam_cv::DescriptorType descriptor_type;
+        auto desc_type_iter =
+            beam_cv::DescriptorTypeIntMap.find(submap->DescriptorType());
+        bool wrong_descriptor_type{false};
+        if (desc_type_iter == beam_cv::DescriptorTypeIntMap.end()) {
+          wrong_descriptor_type = true;
+          descriptor_type = beam_cv::DescriptorType::ORB;
+        } else {
+          descriptor_type = desc_type_iter->second;
+        }
+        std::vector<std::vector<float>> descriptors;
+        for (auto landmarks_iter = submap->LandmarksBegin();
+             landmarks_iter != submap->LandmarksEnd(); landmarks_iter++) {
+          std::vector<float> descriptor =
+              beam_cv::Descriptor::ConvertDescriptor(landmarks_iter->descriptor,
+                                                     descriptor_type);
+          descriptors.push_back(descriptor);
+        }
+
+        if (wrong_descriptor_type && !descriptors.empty()) {
+          BEAM_WARN("Invalid descriptor type read. Using ORB.");
+        }
+
+        // add submap data to submap msg
+        FillSubmapMsg(submap_msg, lidar_cloud_in_wlm_frame,
+                      loam_cloud_in_wlm_frame, keypoints_in_wlm_frame,
+                      descriptors, submap->DescriptorType(),
+                      Eigen::Matrix4d::Identity());
+
+        // set current submap
+        active_submap_id_ = submap_index;
+        active_submap_type_ = SubmapType::OFFLINE;
+
+        return true;
+      } else {
+        ROS_DEBUG("Reloc refinement failed.");
+      }
+    }
+  }
+
+  // if we get to here, we were not successful
+  return false;
 }
 
 void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg,
                                   const ros::Time& update_time) {
   last_update_time_ = update_time;
 
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
-    submaps_.at(i)->UpdatePose(graph_msg);
+  for (uint16_t i = 0; i < online_submaps_.size(); i++) {
+    online_submaps_.at(i)->UpdatePose(graph_msg);
   }
 
   if (store_updated_global_map_) {
@@ -519,10 +782,10 @@ void GlobalMap::SaveData(const std::string& output_path) {
   camera_model_->WriteJSON(output_path + "camera_model.json");
   extrinsics_->SaveExtrinsicsToJson(output_path + "extrinsics.json");
   extrinsics_->SaveFrameIdsToJson(output_path + "frame_ids.json");
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
+  for (uint16_t i = 0; i < online_submaps_.size(); i++) {
     std::string submap_dir = output_path + "submap" + std::to_string(i) + "/";
     boost::filesystem::create_directory(submap_dir);
-    submaps_.at(i)->SaveData(submap_dir);
+    online_submaps_.at(i)->SaveData(submap_dir);
   }
   BEAM_INFO("Done saving global map.");
 }
@@ -575,11 +838,11 @@ bool GlobalMap::Load(const std::string& root_directory) {
       break;
     }
 
-    std::shared_ptr<Submap> current_submap = std::make_shared<Submap>(
+    SubmapPtr current_submap = std::make_shared<Submap>(
         ros::Time(0), Eigen::Matrix4d::Identity(), camera_model_, extrinsics_);
     BEAM_INFO("Loading submap from: {}", submap_dir);
     current_submap->LoadData(submap_dir, false);
-    submaps_.push_back(current_submap);
+    online_submaps_.push_back(current_submap);
     submap_num++;
   }
 
@@ -603,10 +866,11 @@ void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
   // save optimized submap
   std::string submaps_path = output_path + "lidar_submaps_optimized/";
   boost::filesystem::create_directory(submaps_path);
-  for (int i = 0; i < submaps_.size(); i++) {
+  for (int i = 0; i < online_submaps_.size(); i++) {
     std::string submap_name =
         submaps_path + "lidar_submap" + std::to_string(i) + ".pcd";
-    submaps_.at(i)->SaveLidarMapInWorldFrame(submap_name, max_output_map_size_);
+    online_submaps_.at(i)->SaveLidarMapInWorldFrame(submap_name,
+                                                    max_output_map_size_);
   }
 
   if (!save_initial) {
@@ -616,11 +880,11 @@ void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
   // save initial submap
   std::string submaps_path_initial = output_path + "lidar_submaps_initial/";
   boost::filesystem::create_directory(submaps_path_initial);
-  for (int i = 0; i < submaps_.size(); i++) {
+  for (int i = 0; i < online_submaps_.size(); i++) {
     std::string submap_name =
         submaps_path_initial + "lidar_submap" + std::to_string(i) + ".pcd";
-    submaps_.at(i)->SaveLidarMapInWorldFrame(submap_name, max_output_map_size_,
-                                             true);
+    online_submaps_.at(i)->SaveLidarMapInWorldFrame(submap_name,
+                                                    max_output_map_size_, true);
   }
 }
 
@@ -635,10 +899,10 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
   // save optimized submaps
   std::string submaps_path = output_path + "keypoint_submaps_optimized/";
   boost::filesystem::create_directory(submaps_path);
-  for (int i = 0; i < submaps_.size(); i++) {
+  for (int i = 0; i < online_submaps_.size(); i++) {
     std::string submap_name =
         submaps_path + "keypoint_submap" + std::to_string(i) + ".pcd";
-    submaps_.at(i)->SaveKeypointsMapInWorldFrame(submap_name);
+    online_submaps_.at(i)->SaveKeypointsMapInWorldFrame(submap_name);
   }
 
   if (!save_initial) {
@@ -648,10 +912,10 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
   // save initial submaps
   std::string submaps_path_initial = output_path + "keypoint_submaps_initial/";
   boost::filesystem::create_directory(submaps_path_initial);
-  for (int i = 0; i < submaps_.size(); i++) {
+  for (int i = 0; i < online_submaps_.size(); i++) {
     std::string submap_name =
         submaps_path_initial + "keypoint_submap" + std::to_string(i) + ".pcd";
-    submaps_.at(i)->SaveKeypointsMapInWorldFrame(submap_name, true);
+    online_submaps_.at(i)->SaveKeypointsMapInWorldFrame(submap_name, true);
   }
 }
 
@@ -670,8 +934,8 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   poses.SetPoseFileDate(date);
   poses.SetFixedFrame(extrinsics_->GetWorldFrameId());
   poses.SetMovingFrame(extrinsics_->GetBaselinkFrameId());
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = submaps_.at(i);
+  for (uint16_t i = 0; i < online_submaps_.size(); i++) {
+    const SubmapPtr& submap = online_submaps_.at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap->T_WORLD_SUBMAP();
     auto poses_stamped = submap->GetTrajectory();
     for (auto& pose_stamped : poses_stamped) {
@@ -696,8 +960,8 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
   poses_initial.SetPoseFileDate(date);
   poses_initial.SetFixedFrame(extrinsics_->GetWorldFrameId());
   poses_initial.SetMovingFrame(extrinsics_->GetBaselinkFrameId());
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = submaps_.at(i);
+  for (uint16_t i = 0; i < online_submaps_.size(); i++) {
+    const SubmapPtr& submap = online_submaps_.at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap->T_WORLD_SUBMAP_INIT();
     std::vector<Submap::PoseStamped> poses_stamped = submap->GetTrajectory();
     for (auto& pose_stamped : poses_stamped) {
@@ -724,8 +988,8 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
 
   // get trajectory
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = submaps_.at(i);
+  for (uint16_t i = 0; i < online_submaps_.size(); i++) {
+    const SubmapPtr& submap = online_submaps_.at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap->T_WORLD_SUBMAP();
     std::vector<Submap::PoseStamped> poses_stamped = submap->GetTrajectory();
     for (const Submap::PoseStamped& pose_stamped : poses_stamped) {
@@ -756,8 +1020,8 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
 
   // get trajectory initial
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_initial;
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = submaps_.at(i);
+  for (uint16_t i = 0; i < online_submaps_.size(); i++) {
+    const SubmapPtr& submap = online_submaps_.at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap->T_WORLD_SUBMAP_INIT();
     auto poses_stamped = submap->GetTrajectory();
     for (const Submap::PoseStamped& pose_stamped : poses_stamped) {
@@ -789,8 +1053,8 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
   }
 
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = submaps_.at(i);
+  for (uint16_t i = 0; i < online_submaps_.size(); i++) {
+    const SubmapPtr& submap = online_submaps_.at(i);
     pcl::PointCloud<pcl::PointXYZRGBL> frame =
         beam::CreateFrameCol(submap->Stamp());
     pcl::PointCloud<pcl::PointXYZRGBL> frame_transformed;
@@ -813,8 +1077,8 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
   }
 
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_initial;
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
-    const std::shared_ptr<Submap>& submap = submaps_.at(i);
+  for (uint16_t i = 0; i < online_submaps_.size(); i++) {
+    const SubmapPtr& submap = online_submaps_.at(i);
     pcl::PointCloud<pcl::PointXYZRGBL> frame =
         beam::CreateFrameCol(submap->Stamp());
     pcl::PointCloud<pcl::PointXYZRGBL> frame_transformed;
@@ -833,18 +1097,13 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
 }
 
 void GlobalMap::AddRosSubmap(int submap_id) {
-  const auto& submap_ptr = submaps_.at(submap_id);
+  const auto& submap_ptr = online_submaps_.at(submap_id);
 
   // get all lidar points in pcl pointcloud
-  PointCloud new_submap_pcl_cloud;
-  std::vector<PointCloud> new_submap_points =
-      submap_ptr->GetLidarPointsInWorldFrame(10e6, true);
-  for (const PointCloud& cloud : new_submap_points) {
-    new_submap_pcl_cloud += cloud;
-  }
+  PointCloud new_submap_pcl_cloud =
+      submap_ptr->GetLidarPointsInWorldFrameCombined(true);
 
   sensor_msgs::PointCloud2 pointcloud2_msg;
-  pcl::PCLPointCloud2 pcl_pc2;
 
   if (new_submap_pcl_cloud.size() > 0) {
     // filter cloud
@@ -852,13 +1111,9 @@ void GlobalMap::AddRosSubmap(int submap_id) {
         new_submap_pcl_cloud, params_.ros_submap_filter_params);
 
     // convert to PointCloud2
-    pcl::toPCLPointCloud2<pcl::PointXYZ>(new_submap_pcl_cloud, pcl_pc2);
-    beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
-
-    // add other information
-    pointcloud2_msg.header.stamp = submap_ptr->Stamp();
-    pointcloud2_msg.header.seq = submap_id + 1;
-    pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+    pointcloud2_msg =
+        beam::PCLToROS(new_submap_pcl_cloud, submap_ptr->Stamp(),
+                       extrinsics_->GetWorldFrameId(), submap_id + 1);
 
     // set cloud
     RosMap new_ros_map_lidar(RosMapType::LIDARSUBMAP, pointcloud2_msg);
@@ -870,13 +1125,9 @@ void GlobalMap::AddRosSubmap(int submap_id) {
 
   if (new_submap_pcl_cloud.size() > 0) {
     // convert to PointCloud2
-    pcl::toPCLPointCloud2<pcl::PointXYZ>(new_submap_pcl_cloud, pcl_pc2);
-    beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
-
-    // add other information
-    pointcloud2_msg.header.stamp = submap_ptr->Stamp();
-    pointcloud2_msg.header.seq = submap_id + 1;
-    pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+    pointcloud2_msg =
+        beam::PCLToROS(new_submap_pcl_cloud, submap_ptr->Stamp(),
+                       extrinsics_->GetWorldFrameId(), submap_id + 1);
 
     // set cloud
     RosMap new_ros_map_keypoints(RosMapType::VISUALSUBMAP, pointcloud2_msg);
@@ -893,7 +1144,7 @@ void GlobalMap::AddRosGlobalMap() {
   PointCloud global_lidar_map;
   PointCloud global_keypoints_map;
 
-  for (const auto& submap_ptr : submaps_) {
+  for (const auto& submap_ptr : online_submaps_) {
     // get all lidar points in pcl pointcloud
     PointCloud new_submap_pcl_cloud;
     std::vector<PointCloud> new_submap_points =
@@ -922,15 +1173,9 @@ void GlobalMap::AddRosGlobalMap() {
         global_lidar_map, params_.ros_globalmap_filter_params);
 
     // convert lidar map to PointCloud2
-    sensor_msgs::PointCloud2 pointcloud2_msg;
-    pcl::PCLPointCloud2 pcl_pc2;
-    pcl::toPCLPointCloud2<pcl::PointXYZ>(global_lidar_map, pcl_pc2);
-    beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
-
-    // add other information
-    pointcloud2_msg.header.stamp = last_update_time_;
-    pointcloud2_msg.header.seq = global_map_updates_;
-    pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+    sensor_msgs::PointCloud2 pointcloud2_msg =
+        beam::PCLToROS(global_lidar_map, last_update_time_,
+                       extrinsics_->GetWorldFrameId(), global_map_updates_);
 
     // set cloud
     RosMap new_ros_map_lidar(RosMapType::LIDARGLOBALMAP, pointcloud2_msg);
@@ -939,15 +1184,9 @@ void GlobalMap::AddRosGlobalMap() {
 
   if (global_keypoints_map.size() > 0) {
     // convert lidar map to PointCloud2
-    sensor_msgs::PointCloud2 pointcloud2_msg;
-    pcl::PCLPointCloud2 pcl_pc2;
-    pcl::toPCLPointCloud2<pcl::PointXYZ>(global_keypoints_map, pcl_pc2);
-    beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
-
-    // add other information
-    pointcloud2_msg.header.stamp = last_update_time_;
-    pointcloud2_msg.header.seq = global_map_updates_;
-    pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+    sensor_msgs::PointCloud2 pointcloud2_msg =
+        beam::PCLToROS(global_keypoints_map, last_update_time_,
+                       extrinsics_->GetWorldFrameId(), global_map_updates_);
 
     // set cloud
     RosMap new_ros_map_keypoints(RosMapType::VISUALGLOBALMAP, pointcloud2_msg);
@@ -969,17 +1208,10 @@ void GlobalMap::AddNewRosScan(const PointCloud& cloud,
   Eigen::Matrix4d T_WORLD_LIDAR = T_WORLD_BASELINK * T_BASELINK_LIDAR;
   pcl::transformPointCloud(cloud, cloud_in_world_frame, T_WORLD_LIDAR);
 
-  sensor_msgs::PointCloud2 pointcloud2_msg;
-  pcl::PCLPointCloud2 pcl_pc2;
-
   // convert to PointCloud2
-  pcl::toPCLPointCloud2<pcl::PointXYZ>(cloud_in_world_frame, pcl_pc2);
-  beam::pcl_conversions::fromPCL(pcl_pc2, pointcloud2_msg);
-
-  // add other information
-  pointcloud2_msg.header.stamp = stamp;
-  pointcloud2_msg.header.seq = new_scans_counter_;
-  pointcloud2_msg.header.frame_id = extrinsics_->GetWorldFrameId();
+  sensor_msgs::PointCloud2 pointcloud2_msg =
+      beam::PCLToROS(cloud_in_world_frame, stamp,
+                     extrinsics_->GetWorldFrameId(), new_scans_counter_);
   new_scans_counter_++;
 
   // set cloud
@@ -990,6 +1222,103 @@ void GlobalMap::AddNewRosScan(const PointCloud& cloud,
   while (ros_new_scans_.size() > max_num_new_scans_) {
     ros_new_scans_.pop();
   }
+}
+
+void GlobalMap::FillSubmapMsg(
+    SubmapMsg& submap_msg, const PointCloud& lidar_points,
+    const beam_matching::LoamPointCloud& loam_points,
+    const PointCloud& keypoints,
+    const std::vector<std::vector<float>>& descriptors, uint8_t descriptor_type,
+    const Eigen::Matrix4d& T) const {
+  PointCloud lidar_points_in_wlm_frame = lidar_points;
+  beam_matching::LoamPointCloud loam_points_in_wlm_frame = loam_points;
+  PointCloud keypoints_in_wlm_frame = keypoints;
+
+  // transform points if T is not identity
+  if (!T.isIdentity()) {
+    pcl::transformPointCloud(lidar_points_in_wlm_frame,
+                             lidar_points_in_wlm_frame, T);
+    loam_points_in_wlm_frame.TransformPointCloud(T);
+    pcl::transformPointCloud(keypoints_in_wlm_frame, keypoints_in_wlm_frame, T);
+  }
+
+  std::vector<geometry_msgs::Vector3> points_vec;
+
+  // add lidar points
+  submap_msg.lidar_map.frame_id = extrinsics_->GetWorldFrameId();
+  for (const auto& p : lidar_points_in_wlm_frame) {
+    geometry_msgs::Vector3 point;
+    point.x = p.x;
+    point.y = p.y;
+    point.z = p.z;
+    points_vec.push_back(point);
+  }
+  submap_msg.lidar_map.lidar_points = points_vec;
+
+  // add loam points
+  points_vec.clear();
+  for (const auto& p : loam_points_in_wlm_frame.edges.strong.cloud) {
+    geometry_msgs::Vector3 point;
+    point.x = p.x;
+    point.y = p.y;
+    point.z = p.z;
+    points_vec.push_back(point);
+  }
+
+  submap_msg.lidar_map.lidar_edges_strong = points_vec;
+  points_vec.clear();
+  for (const auto& p : loam_points_in_wlm_frame.edges.weak.cloud) {
+    geometry_msgs::Vector3 point;
+    point.x = p.x;
+    point.y = p.y;
+    point.z = p.z;
+    points_vec.push_back(point);
+  }
+
+  submap_msg.lidar_map.lidar_edges_weak = points_vec;
+  points_vec.clear();
+  for (const auto& p : loam_points_in_wlm_frame.surfaces.strong.cloud) {
+    geometry_msgs::Vector3 point;
+    point.x = p.x;
+    point.y = p.y;
+    point.z = p.z;
+    points_vec.push_back(point);
+  }
+
+  submap_msg.lidar_map.lidar_surfaces_strong = points_vec;
+  points_vec.clear();
+  for (const auto& p : loam_points_in_wlm_frame.surfaces.weak.cloud) {
+    geometry_msgs::Vector3 point;
+    point.x = p.x;
+    point.y = p.y;
+    point.z = p.z;
+    points_vec.push_back(point);
+  }
+  submap_msg.lidar_map.lidar_surfaces_weak = points_vec;
+
+  // add keypoints
+  points_vec.clear();
+  for (const auto& p : keypoints_in_wlm_frame) {
+    geometry_msgs::Vector3 point;
+    point.x = p.x;
+    point.y = p.y;
+    point.z = p.z;
+    points_vec.push_back(point);
+  }
+  submap_msg.visual_map_points = points_vec;
+
+  // add descriptors
+  std::vector<bs_common::DescriptorMsg> descriptor_msgs;
+  for (const std::vector<float>& descriptor : descriptors) {
+    bs_common::DescriptorMsg descriptor_msg;
+    descriptor_msg.descriptor_type = descriptor_type;
+    for (float v : descriptor) {
+      descriptor_msg.data.push_back(v);
+    }
+    descriptor_msgs.push_back(descriptor_msg);
+  }
+  submap_msg.visual_map_descriptors = descriptor_msgs;
+  submap_msg.descriptor_type = descriptor_type;
 }
 
 }  // namespace global_mapping

@@ -12,11 +12,13 @@ motion_models:
   - name: 'unicycle_3d'
     type: 'bs_models::Unicycle3D'
 
-# publishers:
-#   - name: 'odom_pub'
-#     type: 'bs_publishers::Odometry3DPublisher'
-#   - name: 'path_pub'
-#     type: 'bs_publishers::Path3DPublisher'
+publishers:
+  - name: 'odom_pub'
+    type: 'bs_publishers::Odometry3DPublisher'
+  - name: 'path_pub'
+    type: 'bs_publishers::Path3DPublisher'
+  - name: 'graph_pub'
+    type: 'fuse_publishers::SerializedPublisher'
 
 ## plugin params: specify all params for the plugins, using their unique name
 
@@ -40,36 +42,46 @@ unicycle_3d:
   buffer_length: 100000
 
 lidar_odometry:
-  type: 'MAPLOAM' 
-  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
-  registration_config_path: 'DEFAULT_PATH' 
+  # Local scan registration
+  local_registration_type: 'MAPLOAM' 
+  local_registration_config_path: 'DEFAULT_PATH' 
+  local_matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+
+  # global scan registration
+  global_registration_type: 'LOAM' 
+  global_matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+
+  # general params
   input_filters_config_path: 'DEFAULT_PATH' 
-  matcher_noise: 0.1 
   input_topic: '/velodyne_points'
   output_loam_points: true 
   output_lidar_points: true
-  output_topic: '/slam_results' 
+  publish_active_submap: true
+  publish_local_map: true
+  publish_registration_results: true
   frame_initializer_type: 'POSEFILE' 
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply'
-  frame_initializer_prior_noise: 0.00001 
-  # scan_output_directory: '/home/nick/results/beam_slam/scan_matcher/'
+  frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
+  reloc_request_period: 1
   scan_output_directory: ''
 
-# path_pub:
-#   frame_id: 'world' # Stored in pose header. Default: odom
-#   path_topic: 'path' # Default: path
-#   pose_array_topic: 'pose_array' # Default: pose_array
+path_pub:
+  frame_id: 'world' # Stored in pose header. Default: odom
+  path_topic: 'path' # Default: path
+  pose_array_topic: 'pose_array' # Default: pose_array
 
-# odom_pub:
-#   publish_tf: false # Default: true
-#   predict_to_current_time: false # Default: false
-#   tf_publish_frequency: 10 # Default: 10
-#   tf_cache_time: 10 # Default: 10
-#   tf_timeout: 0.1 # Default: 0.1
-#   queue_size: 1 # Publisher queue size. Default: 1
-#   map_frame_id: 'map' # I DONT THINK THIS IS USED. Default: map
-#   odom_frame_id: 'world' # I DONT THINK THIS IS USED. Default: odom
-#   base_link_frame_id: 'imu' # I DONT THINK THIS IS USED. Default: base_link
-#   base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
-#   world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
-#   topic: 'fixed_lag_smoother/optimized_odometry' # Output odometry topic
+odom_pub:
+  publish_tf: false # Default: true
+  predict_to_current_time: false # Default: false
+  tf_publish_frequency: 10 # Default: 10
+  tf_cache_time: 10 # Default: 10
+  tf_timeout: 0.1 # Default: 0.1
+  queue_size: 1 # Publisher queue size. Default: 1
+  map_frame_id: 'map' # Default: map
+  odom_frame_id: 'world' # Default: odom
+  base_link_frame_id: 'imu' # Default: base_link
+  base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
+  world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
+  topic: 'optimized_odometry' # Output odometry topic

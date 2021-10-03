@@ -21,7 +21,6 @@ namespace bs_models {
 
 namespace global_mapping {
 
-using pose_allocator = Eigen::aligned_allocator<Eigen::Matrix4d>;
 using namespace bs_common;
 
 /**
@@ -134,6 +133,13 @@ class Submap {
    * @return stamp
    */
   ros::Time Stamp() const;
+
+  /**
+   * @brief return the stored descriptor type. See
+   * beam_cv/descriptors/Descriptor.h
+   * @return descriptor_type
+   */
+  uint8_t DescriptorType() const;
 
   /*--------------------------------/
               ITERATORS
@@ -248,7 +254,7 @@ class Submap {
    * attached to
    */
   void AddTrajectoryMeasurement(
-      const std::vector<Eigen::Matrix4d, pose_allocator>& poses,
+      const std::vector<Eigen::Matrix4d, beam::AlignMat4d>& poses,
       const std::vector<ros::Time>& stamps, const ros::Time& stamp);
 
   /**
@@ -328,6 +334,16 @@ class Submap {
    */
   std::vector<PointCloud> GetLidarPointsInWorldFrame(
       int max_output_map_size, bool use_initials = false) const;
+
+  /**
+   * @brief output all lidar points to a single pointcloud map. Points will
+   * be converted to world frame before outputting.
+   * @param use_initials set to true to use the initial world frame
+   * from the local mapper, before global optimization
+   * @param return cloud
+   */
+  PointCloud GetLidarPointsInWorldFrameCombined(
+      bool use_initials = false) const;
 
   /**
    * @brief output all lidar LOAM points to a single pointcloud map. Points will
@@ -445,12 +461,15 @@ class Submap {
   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;     // <id, position>
   beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement>
       landmarks_;
+  uint8_t descriptor_type_{255};  // see beam_cv/descriptors/Descriptor.h
 
   // subframe trajectory measurements, where poses are T_KEYFRAME_FRAME
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;
 
   // NOTE: all frames are baselink frames
 };
+
+using SubmapPtr = std::shared_ptr<Submap>;
 
 }  // namespace global_mapping
 
