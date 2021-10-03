@@ -49,13 +49,12 @@ lidar_odometry:
   local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
 
   # global scan registration
-  global_registration_type: 'MAPLOAM' 
+  global_registration_type: 'LOAM' 
   global_matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
   global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
 
   # general params
   input_filters_config_path: 'DEFAULT_PATH' 
-  frame_initializer_prior_noise: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
   input_topic: '/velodyne_points'
   output_loam_points: true 
   output_lidar_points: true
@@ -64,7 +63,8 @@ lidar_odometry:
   publish_registration_results: true
   frame_initializer_type: 'POSEFILE' 
   frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply'
-  reloc_frequency: 1
+  frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
+  reloc_request_period: 1
   scan_output_directory: ''
 
 path_pub:

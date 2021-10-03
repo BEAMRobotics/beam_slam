@@ -6,8 +6,6 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <ros/param.h>
 
-#include <beam_utils/angles.h>
-
 #include <bs_parameters/parameter_base.h>
 
 namespace bs_parameters {
@@ -100,11 +98,6 @@ struct LidarOdometryParams : public ParameterBase {
     getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
                           frame_initializer_info);
 
-    /** if not set to zero, a prior will be added to the frame initializer poses
-     * with this noise set to the diagonal of the covariance */
-    getParam<double>(nh, "frame_initializer_prior_noise",
-                     frame_initializer_prior_noise, 0);
-
     /** Minimum time between each reloc reequest. If set to zero, it will not
      * send any. Relocs are sent each time a scan pose receives its first graph
      * update, if the elapsed time since the last reloc request is greater than
@@ -134,7 +127,7 @@ struct LidarOdometryParams : public ParameterBase {
       lm_noise_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }
     if (std::accumulate(lm_noise_diagonal.begin(), lm_noise_diagonal.end(),
-                        0) == 0) {
+                        0.0) == 0.0) {
       ROS_INFO(
           "Local mapper noise diagonal set to zero, not performing "
           "registration to local map.");
@@ -152,13 +145,13 @@ struct LidarOdometryParams : public ParameterBase {
              gm_noise_diagonal);
     if (gm_noise_diagonal.size() != 6) {
       ROS_ERROR(
-          "Invalid gm_noise_diagonal params, required 6 params, "
+          "Invalid global_registration_noise_diagonal params, required 6 params, "
           "given: %d. Using default (0.1 for all)",
           gm_noise_diagonal.size());
       gm_noise_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }
     if (std::accumulate(gm_noise_diagonal.begin(), gm_noise_diagonal.end(),
-                        0) == 0) {
+                        0.0) == 0) {
       ROS_INFO(
           "Global mapper noise diagonal set to zero, not performing "
           "registration to global map.");
@@ -171,7 +164,7 @@ struct LidarOdometryParams : public ParameterBase {
     /** Use this to specify prior covariance by diagonal. If all diagonal
      * elements are set to zero, priors will not be added */
     std::vector<double> prior_diagonal;
-    nh.param("prior_noise_diagonal", prior_diagonal, prior_diagonal);
+    nh.param("frame_initializer_prior_noise_diagonal", prior_diagonal, prior_diagonal);
     if (prior_diagonal.size() != 6) {
       ROS_ERROR(
           "Invalid gm_noise_diagonal params, required 6 params, "
@@ -179,7 +172,7 @@ struct LidarOdometryParams : public ParameterBase {
           prior_diagonal.size());
       prior_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }
-    if (std::accumulate(prior_diagonal.begin(), prior_diagonal.end(), 0) == 0) {
+    if (std::accumulate(prior_diagonal.begin(), prior_diagonal.end(), 0.0) == 0.0) {
       ROS_INFO("Prior diagonal set to zero, not adding priors");
       use_pose_priors = false;
     }
@@ -210,7 +203,6 @@ struct LidarOdometryParams : public ParameterBase {
   std::string input_filters_config_path;
   std::string scan_output_directory;
 
-  double frame_initializer_prior_noise;
   double reloc_request_period;
 
   bool output_loam_points{true};
