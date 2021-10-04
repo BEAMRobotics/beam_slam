@@ -459,16 +459,20 @@ void VisualInertialOdometry::ExtendMap() {
   for (auto &id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
+
     // add constraints to triangulated ids
     if (lm) {
       visual_map_->AddConstraint(cur_kf_time, id,
                                  tracker_->Get(cur_kf_time, id), transaction);
     } else {
+
       // otherwise then triangulate then add the constraints
       std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
       std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
+
+      // triangulate features with long tracks
       if (track.size() > 5) {
         for (auto &m : track) {
           beam::opt<Eigen::Matrix4d> T =

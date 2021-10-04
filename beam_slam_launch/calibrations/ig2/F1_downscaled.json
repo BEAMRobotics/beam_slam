@@ -1,4 +1,5 @@
 {
+  "__comment__":"This is the intrinsics for when F1 images are downscaled by a quarter",
   "date": "2021_09_11",
   "method": "kalibr",
   "camera_type": "DOUBLESPHERE",

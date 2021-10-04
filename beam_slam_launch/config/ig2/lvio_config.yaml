@@ -80,7 +80,6 @@ lo_initializer:
   scan_registration_map_size: 10
   scan_output_directory: '' # Outputs scans as PCD files IFF not empty
 
-
 odom_pub:
   publish_tf: false # Default: true
   predict_to_current_time: false # Default: false
