@@ -24,7 +24,7 @@ public:
     double submap_distance{10};
 
     // Size of submaps (L x L in gravity normal plane)
-    // Creates an L x L x infinty cropbox centered on submap pose
+    // Creates an L x L x infinty cropbox centered on each submap pose
     double submap_size{20};
 
     // Nominal direction of gravity in pointcloud world frame

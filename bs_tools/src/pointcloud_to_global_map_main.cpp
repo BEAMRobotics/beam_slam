@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (FLAGS_output_data) {
+    BEAM_INFO(FLAGS_output_data);
     std::string data_path = output_path + "data/";
     boost::filesystem::create_directory(data_path);
     BEAM_INFO("Saving global map data to {}", data_path);
@@ -42,6 +43,8 @@ int main(int argc, char *argv[]) {
   }
 
   if (FLAGS_output_results) {
+    BEAM_INFO(FLAGS_output_results);
+
     std::string results_path = output_path + "results/";
     boost::filesystem::create_directory(results_path);
     BEAM_INFO("Saving global map results to {}", results_path);

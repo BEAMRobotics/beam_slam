@@ -9,6 +9,7 @@ find_package(
   beam REQUIRED 
   COMPONENTS 
   utils
+  filtering
 )
 
 find_package(
@@ -36,10 +37,6 @@ catkin_package(
     ${PROJECT_NAME}
 )
 
-add_library(
-  ${PROJECT_NAME}
-  src/pointcloud_to_global_map.cpp
-)
 
 include_directories(
   include
@@ -48,16 +45,22 @@ include_directories(
   ${CERES_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  ${fuse_core_INCLUDE_DIRS}
-  ${fuse_graphs_INCLUDE_DIRS}
-  ${fuse_models_INCLUDE_DIRS}
-  ${fuse_publishers_INCLUDE_DIRS}
-  ${fuse_variables_INCLUDE_DIRS}
-  ${fuse_constraints_INCLUDE_DIRS}
   ${bs_constraints_INCLUDE_DIRS}
   ${bs_common_INCLUDE_DIRS}
   ${bs_variables_INCLUDE_DIRS}
   ${bs_models_INCLUDE_DIRS}
+)
+
+add_library(
+  ${PROJECT_NAME}
+  src/pointcloud_to_global_map.cpp
+)
+
+target_link_libraries( 
+  ${PROJECT_NAME}
+    ${bs_models_LIBRARIES}
+    beam::utils
+    beam::filtering
 )
 
 ## Add executables
