@@ -292,9 +292,13 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
         visual_map_->GetLandmark(id);
     if (lm) {
       Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-      Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
-      pixels.push_back(pixeli);
-      points.push_back(point);
+      if (point.norm() < 1000) {
+        Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
+        pixels.push_back(pixeli);
+        points.push_back(point);
+      } else {
+        // remove landmark from graph
+      }
     }
   }
 
@@ -333,9 +337,10 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
             .inverse();
     Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-    
+
     // dont use refined estimate if its far from initial estimate
-    if(beam::PassedMotionThreshold(T_WORLD_BASELINK_estimate, T_WORLD_BASELINK, 10.0, 0.5)){
+    if (beam::PassedMotionThreshold(T_WORLD_BASELINK_estimate, T_WORLD_BASELINK,
+                                    10.0, 0.5)) {
       return T_WORLD_BASELINK_estimate;
     } else {
       return T_WORLD_BASELINK;
