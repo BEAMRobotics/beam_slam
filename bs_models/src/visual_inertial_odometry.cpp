@@ -310,6 +310,9 @@ void VisualInertialOdometry::onGraphUpdate(
 
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
+
+  // Update imu preint info with new graph
+  imu_preint_->UpdateGraph(graph);
 }
 
 void VisualInertialOdometry::SendInitializationGraph(
