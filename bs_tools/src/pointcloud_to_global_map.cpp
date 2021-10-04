@@ -179,7 +179,6 @@ bool PointcloudToGlobalMap::CreateGlobalMap() {
     while (j < w_max) {
       Eigen::Vector3f t_box_cloud = -i * i_vec - j * j_vec;
       T_box_cloud.block(0, 3, 3, 1) = t_box_cloud;
-      // std::cout << T_box_cloud << std::endl;
       cropbox.SetTransform(T_box_cloud);
       cropbox.Filter();
       *subcloud = cropbox.GetFilteredCloud();
@@ -196,26 +195,6 @@ bool PointcloudToGlobalMap::CreateGlobalMap() {
                                     time, 0);
         submaps.push_back(submap);
       }
-
-      // pcl::PointXYZ min_cropped;
-      // pcl::PointXYZ max_cropped;
-      // pcl::getMinMax3D(*subcloud, min_cropped, max_cropped);
-      // std::cout << "i: " << i << ", j: " << j << std::endl << std::endl;
-      // std::cout << "length range: " << i - params_.submap_size / 2 << " to "
-      //           << i + params_.submap_size / 2 << std::endl
-      //           << std::endl;
-      // std::cout << "width range: " << j - params_.submap_size / 2 << " to "
-      //           << j + params_.submap_size / 2 << std::endl
-      //           << std::endl;
-      // std::cout << "x range: " << min_cropped.x << " to " << max_cropped.x
-      //           << std::endl
-      //           << std::endl;
-      // std::cout << "y range: " << min_cropped.y << " to " << max_cropped.y
-      //           << std::endl
-      //           << std::endl;
-      // std::cout << "z range: " << min_cropped.z << " to " << max_cropped.z
-      //           << std::endl
-      //           << std::endl;
 
       j += params_.submap_distance; // iterate j
     }
