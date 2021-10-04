@@ -296,9 +296,11 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
         visual_map_->GetLandmark(id);
     if (lm) {
       Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-      Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
-      pixels.push_back(pixeli);
-      points.push_back(point);
+      if (point.norm() < 1000) {
+        Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
+        pixels.push_back(pixeli);
+        points.push_back(point);
+      }
     }
   }
 
