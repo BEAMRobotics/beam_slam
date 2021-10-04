@@ -227,87 +227,6 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr &msg) {
 
 void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
-  // find all the obsolete keyframes
-  std::vector<Keyframe> obsolete_keyframes;
-  for (auto &kf : keyframes_) {
-    try {
-      fuse_variables::Orientation3DStamped::SharedPtr orientation =
-          fuse_variables::Orientation3DStamped::make_shared();
-      *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped &>(
-          graph->getVariable(visual_map_->GetOrientationUUID(kf.Stamp())));
-    } catch (const std::out_of_range &oor) {
-      obsolete_keyframes.push_back(kf);
-    }
-  }
-
-  auto transaction = fuse_core::Transaction::make_shared();
-  for (auto &kf : obsolete_keyframes) {
-    std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
-    std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
-    std::vector<uint64_t> landmarks =
-        tracker_->GetLandmarkIDsInImage(kf.Stamp());
-
-    // get all 2d-3d correspondences in keyframe
-    for (auto &id : landmarks) {
-      try {
-        fuse_variables::Point3DLandmark::SharedPtr lm =
-            fuse_variables::Point3DLandmark::make_shared();
-        *lm = dynamic_cast<const fuse_variables::Point3DLandmark &>(
-            graph->getVariable(visual_map_->GetLandmarkUUID(id)));
-        bool not_from_kf = true;
-        for (auto &lmid : kf.Landmarks()) {
-          if (id == lmid) {
-            not_from_kf = false;
-          }
-        }
-        if (not_from_kf) {
-          Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-          Eigen::Vector2i pixeli = tracker_->Get(kf.Stamp(), id).cast<int>();
-          pixels.push_back(pixeli);
-          points.push_back(point);
-        }
-      } catch (const std::out_of_range &oor) {
-      }
-    }
-
-    // relocalize by refining the previous pose for the keyframe
-    Eigen::Matrix4d T_CAMERA_WORLD_est =
-        visual_map_->GetCameraPose(kf.Stamp()).value();
-    Eigen::Matrix4d T_WORLD_CAMERA =
-        pose_refiner_
-            ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
-            .inverse();
-    Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-    visual_map_->AddBaselinkPose(T_WORLD_BASELINK, kf.Stamp(), transaction);
-
-    // Retriangulate all landmarks that were introduced in this keyframe
-    for (auto &id : kf.Landmarks()) {
-      // otherwise then triangulate then add the constraints
-      std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
-      std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
-      std::vector<ros::Time> observation_stamps;
-      beam_cv::FeatureTrack track = tracker_->GetTrack(id);
-      for (auto &m : track) {
-        beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
-        // check if the pose is in the graph (keyframe)
-        if (T.has_value()) {
-          pixels.push_back(m.value.cast<int>());
-          T_cam_world_v.push_back(T.value().inverse());
-          observation_stamps.push_back(m.time_point);
-        }
-      }
-      if (T_cam_world_v.size() >= 2) {
-        beam::opt<Eigen::Vector3d> point =
-            beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                     pixels);
-        if (point.has_value()) {
-          visual_map_->AddLandmark(point.value(), id, transaction);
-        }
-      }
-    }
-  }
-  sendTransaction(transaction);
-
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
 }
@@ -414,7 +333,13 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
             .inverse();
     Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-    return T_WORLD_BASELINK;
+    
+    // dont use refined estimate if its far from initial estimate
+    if(beam::PassedMotionThreshold(T_WORLD_BASELINK_estimate, T_WORLD_BASELINK, 10.0, 0.5)){
+      return T_WORLD_BASELINK_estimate;
+    } else {
+      return T_WORLD_BASELINK;
+    }
   } else {
     // get pose estimate using imu preintegration
     return T_WORLD_BASELINK_estimate;
@@ -424,7 +349,7 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
 bool VisualInertialOdometry::IsKeyframe(const ros::Time &img_time,
                                         const Eigen::Matrix4d &T_WORLD_CAMERA,
                                         bool compute_median) {
-  // get pose of most recent keyframe                                       
+  // get pose of most recent keyframe
   ros::Time prev_kf_time = keyframes_.back().Stamp();
   Eigen::Matrix4d T_WORLD_CAM0 =
       visual_map_->GetCameraPose(prev_kf_time).value();
@@ -435,7 +360,8 @@ bool VisualInertialOdometry::IsKeyframe(const ros::Time &img_time,
 
   // compute total parallax
   std::vector<uint64_t> frame1_ids = tracker_->GetLandmarkIDsInImage(img_time);
-  std::vector<uint64_t> frame0_ids = tracker_->GetLandmarkIDsInImage(prev_kf_time);
+  std::vector<uint64_t> frame0_ids =
+      tracker_->GetLandmarkIDsInImage(prev_kf_time);
   double total_parallax = 0.0;
   double num_correspondences = 0.0;
   std::vector<double> parallaxes;
@@ -456,8 +382,8 @@ bool VisualInertialOdometry::IsKeyframe(const ros::Time &img_time,
         parallaxes.push_back(d);
       } else {
         total_parallax += d;
-        num_correspondences += 1.0;
       }
+      num_correspondences += 1.0;
     } catch (const std::out_of_range &oor) {
     }
   }
@@ -471,7 +397,7 @@ bool VisualInertialOdometry::IsKeyframe(const ros::Time &img_time,
     avg_parallax = total_parallax / num_correspondences;
   }
 
-  if(avg_parallax > camera_params_.keyframe_parallax){
+  if (avg_parallax > 5.0) {
     return true;
   }
   return false;
