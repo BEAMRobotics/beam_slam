@@ -61,11 +61,11 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   if (!extrinsics_.GetT_SENSOR_BASELINK(T_MOVINGFRAME_BASELINK,
                                         poses_reader.GetMovingFrame())) {
     BEAM_ERROR("Cannot lookup extrinsics. Exiting.");
-    //throw std::runtime_error{"Cannot lookup extrinsics."};
+    // throw std::runtime_error{"Cannot lookup extrinsics."};
   }
 
-  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-      transforms = poses_reader.GetPoses();
+  std::vector<Eigen::Affine3d, beam::AlignAff3d> transforms =
+      poses_reader.GetPoses();
   std::vector<ros::Time> timestamps = poses_reader.GetTimeStamps();
 
   // create buffer core with cache time slightly larger than the difference

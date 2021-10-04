@@ -1,0 +1,95 @@
+# optimization params
+optimization_period: 0.5
+lag_duration: 7
+
+# sensor models
+sensor_models:
+  - name: 'camera'
+    type: 'bs_models::VisualInertialOdometry'
+    motion_models: ['unicycle_3d']
+    ignition: true
+  - name: 'lo_initializer'
+    type: 'bs_models::LoInitializer'
+
+# motion models
+motion_models:
+  - name: 'unicycle_3d'
+    type: 'bs_models::Unicycle3D'
+
+# publishers:
+#   - name: 'odom_pub'
+#     type: 'bs_publishers::Odometry3DPublisher'
+
+# solver options
+solver_options:
+  minimizer_type: "TRUST_REGION"
+  linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
+  minimizer_progress_to_stdout: false
+  num_threads: 6
+  num_linear_solver_threads: 6
+  max_num_iterations: 50
+  max_solver_time_in_seconds: 0.05
+  gradient_tolerance: 0.00000015
+  parameter_tolerance: 0.00000015
+  function_tolerance: 0.00000015
+
+unicycle_3d:
+  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2]
+  buffer_length: 100000
+
+
+camera:
+  source: "VIO"
+  image_topic: "/F1/downscaled/image_color"
+  imu_topic: "/imu/data"
+  reloc_topic: "/reloc_request"
+  init_path_topic: "/lo_initialiser_result"
+  frame_odometry_output_topic: "/vio_init"
+  new_keyframes_topic: "/new_keyframes"
+  slam_chunk_topic: "/slam_chunks"
+  landmark_topic: "/landmarks"
+  descriptor: "BEBLID"
+  window_size: 150 # number of images to store landmark information for before clearing for new images
+  num_features_to_track: 100 # number of features to track from image to image
+  keyframe_window_size: 10 # number of keyframes to store before wiping for new images
+  keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe
+  keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe
+  keyframe_min_time_in_seconds: 0.25 # minimum amount of time between keyframes
+  init_max_optimization_time_in_seconds: 1.0 # max amount of time to optimize the initializer map
+  init_map_output_directory: "" # Outputs vio map into directory if not empty
+
+lo_initializer:
+  matcher_params_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
+  ceres_config_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
+  differential: false # Default: false
+  matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
+  lidar_topic: '/lidar_h/velodyne_points'
+  imu_topic: '/imu/data'
+  output_topic: '/lo_initialiser_result'
+  nominal_gravity_direction: '-Z'
+  undistort_scans: true
+  aggregation_time: 0.1
+  trajectory_time_window: 5
+  min_trajectory_distance: 1
+  outlier_threshold_trans_m: 0.3
+  outlier_threshold_rot_deg: 15
+  scan_registration_map_size: 10
+  scan_output_directory: '' # Outputs scans as PCD files IFF not empty
+
+odom_pub:
+  publish_tf: false # Default: true
+  predict_to_current_time: false # Default: false
+  tf_publish_frequency: 10 # Default: 10
+  tf_cache_time: 10 # Default: 10
+  tf_timeout: 0.1 # Default: 0.1
+  queue_size: 1 # Publisher queue size. Default: 1
+  map_frame_id: 'map' # I DONT THINK THIS IS USED. Default: map
+  odom_frame_id: 'world' # I DONT THINK THIS IS USED. Default: odom
+  base_link_frame_id: 'base_link' # I DONT THINK THIS IS USED. Default: base_link
+  base_link_output_frame_id: 'imu_link' # Stored in odometry.child_frame_id Default: base_link_frame_id
+  world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
+  topic: '/optimized_odometry' # Output odometry topic

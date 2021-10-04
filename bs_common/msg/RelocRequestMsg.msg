@@ -1,5 +1,5 @@
-# lidar scan at current timestamp. Size is: num_points x 3
-float32[] scan
+# lidar measurement at current timestamp, expressed in the baselink frame
+LidarMeasurementMsg lidar_measurement
 
 # image at current timestamp.
 sensor_msgs/Image image

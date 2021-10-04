@@ -284,8 +284,8 @@ size_t
       }
     } else {
       // otherwise then triangulate then add the constraints
-      std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> T_cam_world_v;
-      std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
+      std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
+      std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
       for (auto& m : track) {
@@ -321,8 +321,8 @@ size_t
 
 bool VIOInitialization::LocalizeFrame(const Frame& frame,
                                       Eigen::Matrix4d& T_WORLD_BASELINK) {
-  std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
-  std::vector<Eigen::Vector3d, beam_cv::AlignVec3d> points;
+  std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+  std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
 
   // get 2d-3d correspondences
