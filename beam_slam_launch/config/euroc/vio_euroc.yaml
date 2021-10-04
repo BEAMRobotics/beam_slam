@@ -58,7 +58,7 @@ camera:
   keyframe_window_size: 10 # number of keyframes to store before wiping for new images
   keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe
   keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe
-  keyframe_min_time_in_seconds: 0.25 # minimum amount of time between keyframes
+  keyframe_min_time_in_seconds: 0.2 # minimum amount of time between keyframes
   init_max_optimization_time_in_seconds: 1.0 # max amount of time to optimize the initializer map
   init_map_output_directory: "" # Outputs vio map into directory if not empty
 

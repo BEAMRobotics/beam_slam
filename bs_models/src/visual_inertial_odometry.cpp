@@ -182,6 +182,7 @@ void VisualInertialOdometry::processImage(
 
         // notify that a new keyframe is detected
         NotifyNewKeyframe(T_WORLD_CAMERA);
+        std::cout << T_WORLD_BASELINK << std::endl;
 
         // extend map
         ExtendMap();
@@ -336,7 +337,14 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
             .inverse();
     Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-    return T_WORLD_BASELINK;
+
+    // dont use refined estimate if its far from initial estimate
+    if (beam::PassedMotionThreshold(T_WORLD_BASELINK_estimate, T_WORLD_BASELINK,
+                                    20.0, 1.0)) {
+      return T_WORLD_BASELINK_estimate;
+    } else {
+      return T_WORLD_BASELINK;
+    }
   } else {
     // get pose estimate using imu preintegration
     return T_WORLD_BASELINK_estimate;
@@ -345,21 +353,7 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
 
 bool VisualInertialOdometry::IsKeyframe(
     const ros::Time &img_time, const Eigen::Matrix4d &T_WORLD_BASELINK) {
-  ros::Time prev_kf_time = keyframes_.back().Stamp();
-  Eigen::Matrix4d T_prevkf = visual_map_->GetBaselinkPose(prev_kf_time).value();
-  double parallax = tracker_->ComputeParallax(img_time, prev_kf_time, true);
-
-  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
-  std::vector<uint64_t> triangulated_landmarks;
-  for (auto &id : landmarks) {
-    if (visual_map_->GetLandmark(id)) {
-      triangulated_landmarks.push_back(id);
-    }
-  }
-  ROS_DEBUG("Parallax: %f, Triangulated/Total Tracks: %zu/%zu", parallax,
-            triangulated_landmarks.size(), landmarks.size());
-
-  if (img_time.toSec() - prev_kf_time.toSec() >=
+  if (img_time.toSec() - keyframes_.back().Stamp().toSec() >=
       camera_params_.keyframe_min_time_in_seconds) {
     return true;
   }
@@ -425,7 +419,7 @@ void VisualInertialOdometry::ExtendMap() {
       }
     }
   }
-  
+
   ROS_INFO("Keyframe time: %f", cur_kf_time.toSec());
   ROS_INFO("Added %zu new landmarks.", keyframes_.back().Landmarks().size());
 
