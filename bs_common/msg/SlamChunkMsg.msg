@@ -1,5 +1,10 @@
+# lidar/loam data, expressed in the lidar frame 
 LidarMeasurementMsg lidar_measurement
+
+# camera measurement
 CameraMeasurementMsg camera_measurement
+
+# trajectory measurement: some intermediary frames between keyframes
 TrajectoryMeasurementMsg trajectory_measurement
 
 # A timestamp associated with the slam chunk. Camera measurement should be from an 

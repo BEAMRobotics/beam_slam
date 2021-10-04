@@ -14,12 +14,9 @@ struct GlobalMapperParams : public ParameterBase {
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-    getParamRequired<std::string>(nh, "input_topic", input_topic);
     getParam<std::string>(nh, "global_map_config", global_map_config, "");
     getParam<std::string>(nh, "output_path", output_path, "");
-    getParam<std::string>(nh, "new_submaps_topic", new_submaps_topic, "submaps");
-    getParam<std::string>(nh, "global_map_topic", global_map_topic, "global_map");
-    getParam<std::string>(nh, "new_scans_topic", new_scans_topic, "scans");
+    getParam<std::string>(nh, "offline_map_path", offline_map_path, "");
     getParam<bool>(nh, "save_global_map_data", save_global_map_data, false);
     getParam<bool>(nh, "save_submaps", save_submaps, false);
     getParam<bool>(nh, "save_submap_frames", save_submap_frames, true);
@@ -28,17 +25,15 @@ struct GlobalMapperParams : public ParameterBase {
                    save_local_mapper_trajectory, true);
     getParam<bool>(nh, "save_local_mapper_maps", save_local_mapper_maps, false);
     getParam<bool>(nh, "publish_new_submaps", publish_new_submaps, false);
-    getParam<bool>(nh, "publish_updated_global_map", publish_updated_global_map, false);
+    getParam<bool>(nh, "publish_updated_global_map", publish_updated_global_map,
+                   false);
     getParam<bool>(nh, "publish_new_scans", publish_new_scans, false);
-
+    getParam<bool>(nh, "disable_loop_closure", disable_loop_closure, false);
   }
 
-  std::string input_topic;
   std::string global_map_config;
   std::string output_path;
-  std::string new_submaps_topic;
-  std::string global_map_topic;
-  std::string new_scans_topic;
+  std::string offline_map_path;
   bool save_global_map_data;
   bool save_submaps;
   bool save_submap_frames;
@@ -48,6 +43,7 @@ struct GlobalMapperParams : public ParameterBase {
   bool publish_new_submaps;
   bool publish_updated_global_map;
   bool publish_new_scans;
+  bool disable_loop_closure;
 };
 
 }  // namespace models

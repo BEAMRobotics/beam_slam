@@ -100,7 +100,7 @@ class GlobalMapRefinementTest : public ::testing::Test {
 
 TEST_F(GlobalMapRefinementTest, MultiScan) {
   // create path
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> nodes;
+  std::vector<Eigen::Vector3d, beam::AlignVec3d> nodes;
   nodes.push_back(Eigen::Vector3d(0, 0, 0));
   nodes.push_back(Eigen::Vector3d(2, -0.5, 0));
   nodes.push_back(Eigen::Vector3d(4, 0.5, 0));
@@ -112,8 +112,7 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
   ros::Time stamp_current = ros::Time(0);
   ros::Duration time_inc = ros::Duration(1);  // increment by 1 s
   std::vector<ScanPose> scan_poses;
-  std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d>>
-      gt_poses;
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> gt_poses;
   for (size_t i = 0; i < num_scans; i++) {
     // get pose
     double interpolation_point =
@@ -148,7 +147,7 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
   // NOTE: we set T_WORLD_SUBMAP to identity so that T_WORLD_BASELINK =
   // T_SUBMAP_BASELINK to make things simpler
   Eigen::Matrix4d T_WORLD_SUBMAP = Eigen::Matrix4d::Identity();
-  std::shared_ptr<Submap> submap = std::make_shared<Submap>(
+  SubmapPtr submap = std::make_shared<Submap>(
       scan_poses.at(0).Stamp(), T_WORLD_SUBMAP, nullptr, extrinsics_);
   for (const ScanPose& sp : scan_poses) {
     submap->AddLidarMeasurement(sp.Cloud(), sp.T_REFFRAME_BASELINK(),
@@ -162,12 +161,12 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
     submap->AddLidarMeasurement(sp.LoamCloud().surfaces.weak.cloud,
                                 sp.T_REFFRAME_BASELINK(), sp.Stamp(), 4);
   }
-  std::vector<std::shared_ptr<Submap>> submaps{submap};
+  std::vector<SubmapPtr> submaps{submap};
 
   // create global map
   std::shared_ptr<GlobalMap> global_map =
       std::make_shared<GlobalMap>(nullptr, extrinsics_);
-  global_map->SetSubmaps(submaps);
+  global_map->SetOnlineSubmaps(submaps);
 
   // load params
   GlobalMapRefinement::Params params;
@@ -206,7 +205,7 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
 
 TEST_F(GlobalMapRefinementTest, ScanToMap) {
   // create path
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> nodes;
+  std::vector<Eigen::Vector3d, beam::AlignVec3d> nodes;
   nodes.push_back(Eigen::Vector3d(0, 0, 0));
   nodes.push_back(Eigen::Vector3d(1, -0.5, 0));
   nodes.push_back(Eigen::Vector3d(3, 0.5, 0));
@@ -218,8 +217,7 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
   ros::Time stamp_current = ros::Time(0);
   ros::Duration time_inc = ros::Duration(1);  // increment by 1 s
   std::vector<ScanPose> scan_poses;
-  std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d>>
-      gt_poses;
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> gt_poses;
   for (size_t i = 0; i < num_scans - 5; i++) {
     // get pose
     double interpolation_point =
@@ -254,7 +252,7 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
   // NOTE: we set T_WORLD_SUBMAP to identity so that T_WORLD_BASELINK =
   // T_SUBMAP_BASELINK to make things simpler
   Eigen::Matrix4d T_WORLD_SUBMAP = Eigen::Matrix4d::Identity();
-  std::shared_ptr<Submap> submap = std::make_shared<Submap>(
+  SubmapPtr submap = std::make_shared<Submap>(
       scan_poses.at(0).Stamp(), T_WORLD_SUBMAP, nullptr, extrinsics_);
   for (const ScanPose& sp : scan_poses) {
     submap->AddLidarMeasurement(sp.Cloud(), sp.T_REFFRAME_BASELINK(),
@@ -268,12 +266,12 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
     submap->AddLidarMeasurement(sp.LoamCloud().surfaces.weak.cloud,
                                 sp.T_REFFRAME_BASELINK(), sp.Stamp(), 4);
   }
-  std::vector<std::shared_ptr<Submap>> submaps{submap};
+  std::vector<SubmapPtr> submaps{submap};
 
   // create global map
   std::shared_ptr<GlobalMap> global_map =
       std::make_shared<GlobalMap>(nullptr, extrinsics_);
-  global_map->SetSubmaps(submaps);
+  global_map->SetOnlineSubmaps(submaps);
 
   // load params
   GlobalMapRefinement::Params params;

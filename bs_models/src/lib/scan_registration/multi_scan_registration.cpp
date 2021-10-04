@@ -193,11 +193,6 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
     boost::filesystem::create_directory(current_scan_path_);
   }
 
-  // for building a lidar map with multi scan registration, we will average the
-  // pose estimates from each scan registration. This stores the cumulative sum
-  // of all DOFs (x, y, z, rx, ry, rz)
-  std::vector<double> estimated_scan_poses_sum(6);
-
   int counter = 0;
   int num_constraints = 0;
 
@@ -210,6 +205,7 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
                       << new_scan.Stamp().nsec << "\n\n";
   }
 
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> lidar_poses_est;
   for (auto ref_iter = reference_clouds_.begin();
        ref_iter != reference_clouds_.end(); ref_iter++) {
     counter++;
@@ -230,14 +226,7 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
       Eigen::Matrix4d T_WORLD_LIDARREF = (*ref_iter).T_REFFRAME_LIDAR();
       Eigen::Matrix4d T_WORLD_LIDARCURRENT =
           T_WORLD_LIDARREF * T_LIDARREF_LIDARTGT;
-      Eigen::Vector3d r =
-          beam::RToLieAlgebra(T_WORLD_LIDARCURRENT.block(0, 0, 3, 3));
-      estimated_scan_poses_sum[0] += T_WORLD_LIDARCURRENT(0, 3);
-      estimated_scan_poses_sum[1] += T_WORLD_LIDARCURRENT(1, 3);
-      estimated_scan_poses_sum[2] += T_WORLD_LIDARCURRENT(2, 3);
-      estimated_scan_poses_sum[3] += r[0];
-      estimated_scan_poses_sum[4] += r[1];
-      estimated_scan_poses_sum[5] += r[2];
+      lidar_poses_est.push_back(T_WORLD_LIDARCURRENT);
     }
 
     /**
@@ -291,14 +280,7 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
 
   // calculate average and add to lidar map
   if (!params_.disable_lidar_map) {
-    Eigen::Matrix4d T_WORLD_LIDAR_AVG = Eigen::Matrix4d::Identity();
-    Eigen::Vector3d r(estimated_scan_poses_sum[3] / num_constraints,
-                      estimated_scan_poses_sum[4] / num_constraints,
-                      estimated_scan_poses_sum[5] / num_constraints);
-    T_WORLD_LIDAR_AVG.block(0, 0, 3, 3) = beam::LieAlgebraToR(r);
-    T_WORLD_LIDAR_AVG(0, 3) = estimated_scan_poses_sum[0] / num_constraints;
-    T_WORLD_LIDAR_AVG(1, 3) = estimated_scan_poses_sum[1] / num_constraints;
-    T_WORLD_LIDAR_AVG(2, 3) = estimated_scan_poses_sum[2] / num_constraints;
+    Eigen::Matrix4d T_WORLD_LIDAR_AVG = beam::AverageTransforms(lidar_poses_est);
     map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(), T_WORLD_LIDAR_AVG);
   }
 

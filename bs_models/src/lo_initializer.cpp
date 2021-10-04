@@ -95,13 +95,13 @@ void LoInitializer::processLidar(
     T_WORLD_IMULAST = keyframes_.back().T_REFFRAME_BASELINK();
   }
 
-  PointCloudPtr cloud_current = beam::ROSToPCL(*msg);
+  PointCloud cloud_current = beam::ROSToPCL(*msg);
 
   // init first message
   if (keyframe_start_time_.toSec() == 0) {
     ROS_DEBUG("Set first scan and imu start time.");
     keyframe_start_time_ = msg->header.stamp;
-    if (!AddPointcloudToKeyframe(*cloud_current, msg->header.stamp)) {
+    if (!AddPointcloudToKeyframe(cloud_current, msg->header.stamp)) {
       keyframe_start_time_ = ros::Time(0);
     }
     prev_stamp_ = msg->header.stamp;
@@ -119,7 +119,7 @@ void LoInitializer::processLidar(
     T_WORLD_KEYFRAME_ = T_WORLD_IMULAST;
   }
 
-  AddPointcloudToKeyframe(*cloud_current, msg->header.stamp);
+  AddPointcloudToKeyframe(cloud_current, msg->header.stamp);
   prev_stamp_ = msg->header.stamp;
 }
 

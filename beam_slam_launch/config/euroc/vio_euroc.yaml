@@ -1,13 +1,13 @@
 # optimization params
-optimization_period: 1
-lag_duration: 10
+optimization_period: 0.5
+lag_duration: 7
 
 # sensor models
 sensor_models:
-  # - name: 'camera'
-  #   type: 'bs_models::camera_to_camera::VisualInertialOdom'
-  #   motion_models: ['unicycle_3d']
-  #   ignition: true
+  - name: 'camera'
+    type: 'bs_models::VisualInertialOdometry'
+    motion_models: ['unicycle_3d']
+    ignition: true
   - name: 'gt_initializer'
     type: 'bs_models::GTInitializer'
 
@@ -16,15 +16,19 @@ motion_models:
   - name: 'unicycle_3d'
     type: 'bs_models::Unicycle3D'
 
+# publishers:
+#   - name: 'odom_pub'
+#     type: 'bs_publishers::Odometry3DPublisher'
+
 # solver options
 solver_options:
   minimizer_type: "TRUST_REGION"
   linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
-  minimizer_progress_to_stdout: true
+  minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
-  max_num_iterations: 15
-  max_solver_time_in_seconds: 0.7
+  max_num_iterations: 50
+  max_solver_time_in_seconds: 0.05
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
@@ -48,19 +52,33 @@ camera:
   new_keyframes_topic: "/new_keyframes"
   slam_chunk_topic: "/slam_chunks"
   landmark_topic: "/landmarks"
-  descriptor: "ORB"
+  descriptor: "BEBLID"
   window_size: 150 # number of images to store landmark information for before clearing for new images
   num_features_to_track: 100 # number of features to track from image to image
-  keyframe_window_size: 20 # number of keyframes to store before wiping for new images
+  keyframe_window_size: 10 # number of keyframes to store before wiping for new images
   keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe
   keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe
-  keyframe_min_time_in_seconds: 0.5 # minimum amount of time between keyframes
-  init_max_optimization_time_in_seconds: 1.0 # max amopunt of time to optimize the initializer map
+  keyframe_min_time_in_seconds: 0.25 # minimum amount of time between keyframes
+  init_max_optimization_time_in_seconds: 1.0 # max amount of time to optimize the initializer map
   init_map_output_directory: "" # Outputs vio map into directory if not empty
 
 gt_initializer:
   imu_topic: "/imu0"
-  pose_file_path: "/home/jake/V1_01_poses.ply"
+  pose_file_path: "/home/jake/data/VIO/euroc/V1_01_poses.ply"
   trajectory_time_window: 5.0
   output_topic: "/lo_initialiser_result"
   min_trajectory_length: 0.5 # trajectory length to accept (in metres)
+
+odom_pub:
+  publish_tf: false # Default: true
+  predict_to_current_time: false # Default: false
+  tf_publish_frequency: 10 # Default: 10
+  tf_cache_time: 10 # Default: 10
+  tf_timeout: 0.1 # Default: 0.1
+  queue_size: 1 # Publisher queue size. Default: 1
+  map_frame_id: 'map' # I DONT THINK THIS IS USED. Default: map
+  odom_frame_id: 'world' # I DONT THINK THIS IS USED. Default: odom
+  base_link_frame_id: 'base_link' # I DONT THINK THIS IS USED. Default: base_link
+  base_link_output_frame_id: 'imu0' # Stored in odometry.child_frame_id Default: base_link_frame_id
+  world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
+  topic: 'fixed_lag_smoother/optimized_odometry' # Output odometry topic

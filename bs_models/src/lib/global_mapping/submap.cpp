@@ -68,6 +68,8 @@ int Submap::Updates() const { return graph_updates_; }
 
 ros::Time Submap::Stamp() const { return stamp_; }
 
+uint8_t Submap::DescriptorType() const { return descriptor_type_; }
+
 std::map<uint64_t, ScanPose>::iterator Submap::LidarKeyframesBegin() {
   return lidar_keyframe_poses_.begin();
 }
@@ -125,6 +127,15 @@ void Submap::AddCameraMeasurement(
           "measurement.");
       continue;
     }
+
+    if (descriptor_type_int != descriptor_type_ && descriptor_type_ != 255) {
+      BEAM_WARN(
+          "Current camera measurement has a different descriptor type. "
+          "Changing "
+          "type in submap.");
+    }
+    descriptor_type_ = descriptor_type_int;
+
     cv::Mat descriptor = beam_cv::Descriptor::CreateDescriptor(
         landmark_msg.descriptor, descriptor_type->second);
     beam_containers::LandmarkMeasurement new_landmark{
@@ -165,7 +176,7 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
 }
 
 void Submap::AddTrajectoryMeasurement(
-    const std::vector<Eigen::Matrix4d, pose_allocator>& poses,
+    const std::vector<Eigen::Matrix4d, beam::AlignMat4d>& poses,
     const std::vector<ros::Time>& stamps, const ros::Time& stamp) {
   std::vector<PoseStamped> poses_stamped;
   for (int i = 0; i < poses.size(); i++) {
@@ -325,6 +336,30 @@ std::vector<PointCloud> Submap::GetLidarPointsInWorldFrame(
   return map;
 }
 
+PointCloud Submap::GetLidarPointsInWorldFrameCombined(bool use_initials) const {
+  PointCloud map;
+  for (auto it = lidar_keyframe_poses_.begin();
+       it != lidar_keyframe_poses_.end(); it++) {
+    const PointCloud& cloud_in_lidar_frame = it->second.Cloud();
+    Eigen::Matrix4d T_WORLD_LIDAR;
+    if (use_initials) {
+      const Eigen::Matrix4d& T_SUBMAP_LIDAR =
+          it->second.T_REFFRAME_LIDAR_INIT();
+      T_WORLD_LIDAR = T_WORLD_SUBMAP_initial_ * T_SUBMAP_LIDAR;
+    } else {
+      Eigen::Matrix4d T_SUBMAP_LIDAR = it->second.T_REFFRAME_LIDAR();
+      T_WORLD_LIDAR = T_WORLD_SUBMAP_ * T_SUBMAP_LIDAR;
+    }
+
+    PointCloud cloud_in_world_frame;
+    pcl::transformPointCloud(cloud_in_lidar_frame, cloud_in_world_frame,
+                             T_WORLD_LIDAR);
+    map += cloud_in_world_frame;
+  }
+
+  return map;
+}
+
 beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
     bool use_initials) const {
   beam_matching::LoamPointCloud map;
@@ -343,6 +378,7 @@ beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
     cloud_in_world_frame.TransformPointCloud(T_WORLD_LIDAR);
     map.Merge(cloud_in_world_frame);
   }
+  return map;
 }
 
 std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {
@@ -475,6 +511,8 @@ bool Submap::LoadData(const std::string& input_dir,
     T_WORLD_SUBMAP_initial_ =
         beam::VectorToEigenTransform(T_WORLD_SUBMAP_initial_vec);
     T_SUBMAP_WORLD_initial_ = beam::InvertTransform(T_WORLD_SUBMAP_initial_);
+
+    descriptor_type_ = J_submap["descriptor_type"];
   } catch (...) {
     BEAM_ERROR("Cannot load submap json, invalid data. Input: {}",
                input_dir + "submap.json");
@@ -647,6 +685,7 @@ void Submap::SaveData(const std::string& output_dir) {
       {"num_subframes", subframe_poses_.size()},
       {"num_landmarks", landmarks_.size()},
       {"device_id", fuse_core::uuid::to_string(position_.uuid())},
+      {"descriptor_type", descriptor_type_},
       {"position_xyz", {position_.x(), position_.y(), position_.z()}},
       {"orientation_xyzw",
        {orientation_.x(), orientation_.y(), orientation_.z(),
@@ -744,8 +783,8 @@ void Submap::TriangulateKeypoints(bool override_points) {
     Eigen::Matrix4d T_SUBMAP_WORLD = beam::InvertTransform(T_WORLD_SUBMAP_);
 
     // get poses and pixels for each measurement in the track
-    std::vector<Eigen::Matrix4d, beam_cv::AlignMat4d> Ts_CAM_WORLD;
-    std::vector<Eigen::Vector2i, beam_cv::AlignVec2i> pixels;
+    std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_CAM_WORLD;
+    std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
     for (const beam_containers::LandmarkMeasurement& measurement : track) {
       // find keyframe from measurement stamp
       std::map<uint64_t, Eigen::Matrix4d>::const_iterator keyframe_pose =

@@ -78,11 +78,11 @@ class ScanRegistrationBase {
 
   RegistrationMap& GetMapMutable();
 
- protected:
-  bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
-
   bool PassedRegThreshold(const Eigen::Matrix4d& T_measured,
                           std::string& summary = _tmp_string);
+
+ protected:
+  bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   ScanRegistrationParamsBase base_params_;
   Eigen::Matrix<double, 6, 6> covariance_;
