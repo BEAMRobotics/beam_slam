@@ -174,7 +174,7 @@ void VisualInertialOdometry::processImage(
       init_odom_publisher_.publish(odom);
 
       // process keyframe
-      if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
+      if (IsKeyframe(img_time, T_WORLD_CAMERA)) {
         // update keyframe info
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);
@@ -421,24 +421,57 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
   }
 }
 
-bool VisualInertialOdometry::IsKeyframe(
-    const ros::Time &img_time, const Eigen::Matrix4d &T_WORLD_BASELINK) {
+bool VisualInertialOdometry::IsKeyframe(const ros::Time &img_time,
+                                        const Eigen::Matrix4d &T_WORLD_CAMERA,
+                                        bool compute_median) {
+  // get pose of most recent keyframe                                       
   ros::Time prev_kf_time = keyframes_.back().Stamp();
-  Eigen::Matrix4d T_prevkf = visual_map_->GetBaselinkPose(prev_kf_time).value();
-  double parallax = tracker_->ComputeParallax(img_time, prev_kf_time, true);
+  Eigen::Matrix4d T_WORLD_CAM0 =
+      visual_map_->GetCameraPose(prev_kf_time).value();
 
-  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
-  std::vector<uint64_t> triangulated_landmarks;
-  for (auto &id : landmarks) {
-    if (visual_map_->GetLandmark(id)) {
-      triangulated_landmarks.push_back(id);
+  // get relative rotation from current image to prev kf
+  Eigen::Matrix4d T_CAM0_CAM1 = T_WORLD_CAM0.inverse() * T_WORLD_CAMERA;
+  Eigen::Matrix3d R_CAM0_CAM1 = T_CAM0_CAM1.block(0, 0, 3, 3);
+
+  // compute total parallax
+  std::vector<uint64_t> frame1_ids = tracker_->GetLandmarkIDsInImage(img_time);
+  std::vector<uint64_t> frame0_ids = tracker_->GetLandmarkIDsInImage(prev_kf_time);
+  double total_parallax = 0.0;
+  double num_correspondences = 0.0;
+  std::vector<double> parallaxes;
+  for (auto &id : frame1_ids) {
+    try {
+      // pixel in cam1 rotated into cam0
+      Eigen::Vector2i p1 = tracker_->Get(img_time, id).cast<int>();
+      Eigen::Vector3d bp1;
+      cam_model_->BackProject(p1, bp1);
+      Eigen::Vector3d adjusted_bp1 = R_CAM0_CAM1 * bp1;
+      Eigen::Vector2d adjusted_p1;
+      cam_model_->ProjectPoint(adjusted_bp1, adjusted_p1);
+
+      // pixel in cam0
+      Eigen::Vector2d p0 = tracker_->Get(prev_kf_time, id);
+      double d = beam::distance(adjusted_p1, p0);
+      if (compute_median) {
+        parallaxes.push_back(d);
+      } else {
+        total_parallax += d;
+        num_correspondences += 1.0;
+      }
+    } catch (const std::out_of_range &oor) {
     }
   }
-  ROS_DEBUG("Parallax: %f, Triangulated/Total Tracks: %zu/%zu", parallax,
-            triangulated_landmarks.size(), landmarks.size());
 
-  if (img_time.toSec() - prev_kf_time.toSec() >=
-      camera_params_.keyframe_min_time_in_seconds) {
+  // compute average parallax (median or mean)
+  double avg_parallax;
+  if (compute_median) {
+    std::sort(parallaxes.begin(), parallaxes.end());
+    avg_parallax = parallaxes[parallaxes.size() / 2];
+  } else {
+    avg_parallax = total_parallax / num_correspondences;
+  }
+
+  if(avg_parallax > camera_params_.keyframe_parallax){
     return true;
   }
   return false;
