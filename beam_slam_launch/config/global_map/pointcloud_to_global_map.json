@@ -1,5 +1,5 @@
 {
   "submap_distance_m": 10,
   "submap_size_m": 20,
-  "nominal_gravity_direction": "-Y"
+  "nominal_gravity_direction": "-Z"
 }
