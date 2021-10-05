@@ -126,6 +126,12 @@ class ImuPreintegration {
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
 
+  /**
+   * @brief Updates current graph copy
+   * @param graph_msg graph to update with
+   */
+  void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
+
  private:
   /**
    * @brief Checks parameters
@@ -149,7 +155,8 @@ class ImuPreintegration {
   bs_common::ImuState imu_state_k_;  // intermediate frame
   bs_common::PreIntegrator
       pre_integrator_ij;  // preintegrate between key frames
-  std::queue<bs_common::IMUData> imu_data_buffer_;  // store imu data
+  std::queue<bs_common::IMUData> current_imu_data_buffer_;  // store imu data
+  std::queue<bs_common::IMUData> total_imu_data_buffer_;  // store imu data
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};     // zero gyroscope bias
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};     // zero acceleration bias
 };

@@ -6,30 +6,34 @@
 
 namespace bs_models {
 
-ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
+ImuPreintegration::ImuPreintegration(const Params &params) : params_(params) {
   CheckParameters();
   SetPreintegrator();
 }
 
-ImuPreintegration::ImuPreintegration(const Params& params,
-                                     const Eigen::Vector3d& init_bg,
-                                     const Eigen::Vector3d& init_ba)
+ImuPreintegration::ImuPreintegration(const Params &params,
+                                     const Eigen::Vector3d &init_bg,
+                                     const Eigen::Vector3d &init_ba)
     : params_(params), bg_(init_bg), ba_(init_ba) {
   CheckParameters();
   SetPreintegrator();
 }
 
 void ImuPreintegration::ClearBuffer() {
-  for (size_t i = 0; i < imu_data_buffer_.size(); i++) imu_data_buffer_.pop();
+  std::queue<bs_common::IMUData> empty;
+  std::swap(current_imu_data_buffer_, empty);
+  std::swap(total_imu_data_buffer_, empty);
 }
 
-void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
+void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu &msg) {
   bs_common::IMUData imu_data(msg);
-  imu_data_buffer_.push(imu_data);
+  current_imu_data_buffer_.push(imu_data);
+  total_imu_data_buffer_.push(imu_data);
 }
 
-void ImuPreintegration::AddToBuffer(const bs_common::IMUData& imu_data) {
-  imu_data_buffer_.push(imu_data);
+void ImuPreintegration::AddToBuffer(const bs_common::IMUData &imu_data) {
+  current_imu_data_buffer_.push(imu_data);
+  total_imu_data_buffer_.push(imu_data);
 }
 
 void ImuPreintegration::CheckParameters() {
@@ -52,13 +56,17 @@ void ImuPreintegration::ResetPreintegrator() {
 }
 
 void ImuPreintegration::SetStart(
-    const ros::Time& t_start,
+    const ros::Time &t_start,
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   // adjust IMU buffer
-  while (t_start > imu_data_buffer_.front().t) {
-    imu_data_buffer_.pop();
+  while (t_start > current_imu_data_buffer_.front().t) {
+    current_imu_data_buffer_.pop();
+  }
+
+  while (t_start > total_imu_data_buffer_.front().t) {
+    total_imu_data_buffer_.pop();
   }
 
   // set IMU state
@@ -85,12 +93,13 @@ void ImuPreintegration::SetStart(
   imu_state_k_ = imu_state_i_;
 }
 
-bs_common::ImuState ImuPreintegration::PredictState(
-    const bs_common::PreIntegrator& pre_integrator,
-    const bs_common::ImuState& imu_state_curr, const ros::Time& t_now) {
+bs_common::ImuState
+ImuPreintegration::PredictState(const bs_common::PreIntegrator &pre_integrator,
+                                const bs_common::ImuState &imu_state_curr,
+                                const ros::Time &t_now) {
   // get commonly used variables
-  const double& dt = pre_integrator.delta.t.toSec();
-  const Eigen::Matrix3d& q_curr = imu_state_curr.OrientationMat();
+  const double &dt = pre_integrator.delta.t.toSec();
+  const Eigen::Matrix3d &q_curr = imu_state_curr.OrientationMat();
 
   // predict new states
   Eigen::Quaterniond q_new(q_curr * pre_integrator.delta.q.matrix());
@@ -113,21 +122,21 @@ bs_common::ImuState ImuPreintegration::PredictState(
   return imu_state_new;
 }
 
-bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
-                                const ros::Time& t_now) {
+bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
+                                const ros::Time &t_now) {
   // encapsulate IMU measurements between frames
   bs_common::PreIntegrator pre_integrator_interval;
 
   // check requested time
-  if (t_now < imu_data_buffer_.front().t) {
+  if (t_now < current_imu_data_buffer_.front().t) {
     return false;
   }
 
   // Populate integrators
-  while (t_now > imu_data_buffer_.front().t) {
-    pre_integrator_interval.data.emplace_back(imu_data_buffer_.front());
-    pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
-    imu_data_buffer_.pop();
+  while (t_now > current_imu_data_buffer_.front().t) {
+    pre_integrator_interval.data.emplace_back(current_imu_data_buffer_.front());
+    pre_integrator_ij.data.emplace_back(current_imu_data_buffer_.front());
+    current_imu_data_buffer_.pop();
   }
   // integrate between frames
   pre_integrator_interval.Integrate(t_now, imu_state_i_.GyroBiasVec(),
@@ -147,22 +156,23 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU,
 
 fuse_core::Transaction::SharedPtr
 ImuPreintegration::RegisterNewImuPreintegratedFactor(
-    const ros::Time& t_now,
+    const ros::Time &t_now,
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
   bs_constraints::relative_pose::ImuState3DStampedTransaction transaction(
       t_now);
 
   // check requested time
-  if (t_now < imu_data_buffer_.front().t) {
+  if (t_now < current_imu_data_buffer_.front().t) {
     return nullptr;
   }
 
   // generate prior constraint at start
   if (first_window_) {
-    Eigen::Matrix<double, 15, 15> prior_covariance{Eigen::Matrix<double, 15, 15>::Identity()};
-    for (int i = 0; i < 15; i++){
-      prior_covariance(i,i) = params_.cov_prior_noise;
+    Eigen::Matrix<double, 15, 15> prior_covariance{
+        Eigen::Matrix<double, 15, 15>::Identity()};
+    for (int i = 0; i < 15; i++) {
+      prior_covariance(i, i) = params_.cov_prior_noise;
     }
 
     // Add relative constraints and variables for first key frame
@@ -174,9 +184,10 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   }
 
   // populate integrator
-  while (t_now > imu_data_buffer_.front().t && !imu_data_buffer_.empty()) {
-    pre_integrator_ij.data.emplace_back(imu_data_buffer_.front());
-    imu_data_buffer_.pop();
+  while (t_now > current_imu_data_buffer_.front().t &&
+         !current_imu_data_buffer_.empty()) {
+    pre_integrator_ij.data.emplace_back(current_imu_data_buffer_.front());
+    current_imu_data_buffer_.pop();
   }
 
   // integrate between key frames, incrementally calculating covariance and
@@ -206,6 +217,11 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // move predicted state to previous state
   imu_state_i_ = std::move(imu_state_j);
 
+  // clear total imu data buffer for data before new state i
+  while (imu_state_i_.Stamp() > total_imu_data_buffer_.front().t) {
+    total_imu_data_buffer_.pop();
+  }
+
   // copy state to kth frame
   imu_state_k_ = imu_state_i_;
 
@@ -214,4 +230,65 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   return transaction.GetTransaction();
 }
 
-}  // namespace bs_models
+void ImuPreintegration::UpdateGraph(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
+
+  // get timestamp for state i
+  ros::Time stamp_i = imu_state_i_.Stamp();
+
+  try {
+    // get position
+    fuse_variables::Position3DStamped::SharedPtr position =
+        fuse_variables::Position3DStamped::make_shared();
+    auto position_uuid = fuse_core::uuid::generate(position->type(), stamp_i,
+                                                   fuse_core::uuid::NIL);
+    *position = dynamic_cast<const fuse_variables::Position3DStamped &>(
+        graph_msg->getVariable(position_uuid));
+    imu_state_i_.SetPosition(position->data());
+
+    // get orientaiton
+    fuse_variables::Orientation3DStamped::SharedPtr orientation =
+        fuse_variables::Orientation3DStamped::make_shared();
+    auto orientation_uuid = fuse_core::uuid::generate(
+        orientation->type(), stamp_i, fuse_core::uuid::NIL);
+    *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped &>(
+        graph_msg->getVariable(orientation_uuid));
+    imu_state_i_.SetOrientation(orientation->data());
+
+    // get velocity
+    fuse_variables::VelocityLinear3DStamped::SharedPtr velocity =
+        fuse_variables::VelocityLinear3DStamped::make_shared();
+    auto velocity_uuid = fuse_core::uuid::generate(velocity->type(), stamp_i,
+                                                   fuse_core::uuid::NIL);
+    *velocity = dynamic_cast<const fuse_variables::VelocityLinear3DStamped &>(
+        graph_msg->getVariable(velocity_uuid));
+    imu_state_i_.SetVelocity(velocity->data());
+
+    // get gyro bias
+    bs_variables::GyroscopeBias3DStamped::SharedPtr gyrobias =
+        bs_variables::GyroscopeBias3DStamped::make_shared();
+    auto gyrobias_uuid = fuse_core::uuid::generate(gyrobias->type(), stamp_i,
+                                                   fuse_core::uuid::NIL);
+    *gyrobias = dynamic_cast<const bs_variables::GyroscopeBias3DStamped &>(
+        graph_msg->getVariable(gyrobias_uuid));
+    imu_state_i_.SetGyroBias(gyrobias->data());
+
+    // get accel bias
+    bs_variables::AccelerationBias3DStamped::SharedPtr accelbias =
+        bs_variables::AccelerationBias3DStamped::make_shared();
+    auto accelbias_uuid = fuse_core::uuid::generate(accelbias->type(), stamp_i,
+                                                    fuse_core::uuid::NIL);
+    *accelbias = dynamic_cast<const bs_variables::AccelerationBias3DStamped &>(
+        graph_msg->getVariable(accelbias_uuid));
+    imu_state_i_.SetAccelBias(accelbias->data());
+
+    // reset current data buffer to be the total buffer starting at state i
+    current_imu_data_buffer_ = total_imu_data_buffer_;
+
+    // copy state i to kth frame
+    imu_state_k_ = imu_state_i_;
+
+  } catch (const std::out_of_range& oor) {}
+}
+
+} // namespace bs_models
