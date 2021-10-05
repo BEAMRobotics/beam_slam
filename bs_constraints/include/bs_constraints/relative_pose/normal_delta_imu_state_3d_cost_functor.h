@@ -9,14 +9,15 @@
 #include <bs_common/preintegrator.h>
 #include <bs_common/utils.h>
 
-namespace bs_constraints { namespace relative_pose {
+namespace bs_constraints {
+namespace relative_pose {
 
 /**
  * @brief Implements a cost function that models a difference between 3D
  * IMU states according to DOI: 10.15607/RSS.2015.XI.006
  */
 class NormalDeltaImuState3DCostFunctor {
-public:
+ public:
   FUSE_MAKE_ALIGNED_OPERATOR_NEW();
 
   /**
@@ -27,7 +28,7 @@ public:
    */
   NormalDeltaImuState3DCostFunctor(
       const bs_common::ImuState& imu_state_i,
-      const bs_common::PreIntegrator& pre_integrator);
+      const std::shared_ptr<bs_common::PreIntegrator> pre_integrator);
 
   /**
    * @brief Compute the cost values/residuals using the provided
@@ -41,10 +42,10 @@ public:
                   const T* const gyrobias2, const T* const accelbias2,
                   T* residual) const;
 
-private:
-  Eigen::Matrix<double, 15, 15> A_; //!< The residual weighting matrix
+ private:
   bs_common::ImuState imu_state_i_;
-  bs_common::PreIntegrator pre_integrator_;
+  std::shared_ptr<bs_common::PreIntegrator> pre_integrator_;
+  Eigen::Matrix<double, 15, 15> A_;  //!< The residual weighting matrix
 };
 
 template <typename T>
@@ -61,10 +62,14 @@ inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
 
 NormalDeltaImuState3DCostFunctor::NormalDeltaImuState3DCostFunctor(
     const bs_common::ImuState& imu_state_i,
-    const bs_common::PreIntegrator& pre_integrator)
-    : A_(pre_integrator_.delta.sqrt_inv_cov),
-      imu_state_i_(imu_state_i),
-      pre_integrator_(pre_integrator) {}
+    const std::shared_ptr<bs_common::PreIntegrator> pre_integrator)
+    : imu_state_i_(imu_state_i),
+      pre_integrator_(pre_integrator),
+      A_(pre_integrator->delta.sqrt_inv_cov) {
+  // DEBUG
+  std::cout << "COV @ STAMP: " << imu_state_i_.Stamp() << "\n"
+            << A_ << std::endl;
+}
 
 template <typename T>
 bool NormalDeltaImuState3DCostFunctor::operator()(
@@ -89,17 +94,17 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
   Eigen::Matrix<T, 3, 1> ba_j(accelbias2[0], accelbias2[1], accelbias2[2]);
 
   // map preintegrator to templated
-  T dt = static_cast<T>(pre_integrator_.delta.t.toSec());
-  Eigen::Quaternion<T> dq = pre_integrator_.delta.q.cast<T>();
-  Eigen::Matrix<T, 3, 1> dp = pre_integrator_.delta.p.cast<T>();
-  Eigen::Matrix<T, 3, 1> dv = pre_integrator_.delta.v.cast<T>();
+  T dt = static_cast<T>(pre_integrator_->delta.t.toSec());
+  Eigen::Quaternion<T> dq = pre_integrator_->delta.q.cast<T>();
+  Eigen::Matrix<T, 3, 1> dp = pre_integrator_->delta.p.cast<T>();
+  Eigen::Matrix<T, 3, 1> dv = pre_integrator_->delta.v.cast<T>();
   Eigen::Matrix<T, 3, 1> dbg = bg_i - imu_state_i_.GyroBiasVec().cast<T>();
   Eigen::Matrix<T, 3, 1> dba = ba_i - imu_state_i_.AccelBiasVec().cast<T>();
-  Eigen::Matrix<T, 3, 3> dq_dbg = pre_integrator_.jacobian.dq_dbg.cast<T>();
-  Eigen::Matrix<T, 3, 3> dp_dbg = pre_integrator_.jacobian.dp_dbg.cast<T>();
-  Eigen::Matrix<T, 3, 3> dp_dba = pre_integrator_.jacobian.dp_dba.cast<T>();
-  Eigen::Matrix<T, 3, 3> dv_dbg = pre_integrator_.jacobian.dv_dbg.cast<T>();
-  Eigen::Matrix<T, 3, 3> dv_dba = pre_integrator_.jacobian.dv_dba.cast<T>();
+  Eigen::Matrix<T, 3, 3> dq_dbg = pre_integrator_->jacobian.dq_dbg.cast<T>();
+  Eigen::Matrix<T, 3, 3> dp_dbg = pre_integrator_->jacobian.dp_dbg.cast<T>();
+  Eigen::Matrix<T, 3, 3> dp_dba = pre_integrator_->jacobian.dp_dba.cast<T>();
+  Eigen::Matrix<T, 3, 3> dv_dbg = pre_integrator_->jacobian.dv_dbg.cast<T>();
+  Eigen::Matrix<T, 3, 3> dv_dba = pre_integrator_->jacobian.dv_dba.cast<T>();
 
   // map gravity to templated
   Eigen::Matrix<T, 3, 1> G = GRAVITY_WORLD.cast<T>();
@@ -148,4 +153,5 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
   return true;
 }
 
-}} // namespace bs_constraints::relative_pose
+}  // namespace relative_pose
+}  // namespace bs_constraints

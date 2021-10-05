@@ -63,9 +63,9 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
   }
 
   if (compute_jacobian) {
-    jacobian.dp_dbg +=
-        dtd * jacobian.dv_dbg - 0.5 * dtd * dtd * delta.q.matrix() *
-                                    beam::SkewTransform(a_mid) * jacobian.dq_dbg;
+    jacobian.dp_dbg += dtd * jacobian.dv_dbg -
+                       0.5 * dtd * dtd * delta.q.matrix() *
+                           beam::SkewTransform(a_mid) * jacobian.dq_dbg;
     jacobian.dp_dba +=
         dtd * jacobian.dv_dba - 0.5 * dtd * dtd * delta.q.matrix();
     jacobian.dv_dbg -=
@@ -112,7 +112,7 @@ void PreIntegrator::ComputeSqrtInvCov() {
   if (delta.cov.block<6, 6>(ES_BG, ES_BG).isZero(cov_tol)) {
     delta.cov.block<6, 6>(ES_BG, ES_BG).setIdentity();
     delta.cov.block<6, 6>(ES_BG, ES_BG) *= cov_tol;
-  }  
+  }
 
   delta.sqrt_inv_cov =
       Eigen::LLT<Eigen::Matrix<double, ES_SIZE, ES_SIZE>>(delta.cov.inverse())
