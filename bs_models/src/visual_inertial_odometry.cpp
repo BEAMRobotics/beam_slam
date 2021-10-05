@@ -182,10 +182,10 @@ void VisualInertialOdometry::processImage(
 
         // notify that a new keyframe is detected
         NotifyNewKeyframe(T_WORLD_CAMERA);
-        std::cout << T_WORLD_BASELINK << std::endl;
 
         // extend map
         ExtendMap();
+        std::cout << T_WORLD_BASELINK << std::endl;
 
         // publish oldest keyframe for global mapper
         PublishSlamChunk();
@@ -286,25 +286,9 @@ void VisualInertialOdometry::SendInitializationGraph(
 
 Eigen::Matrix4d
 VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
-  std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
-  std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
-  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
 
-  // get 2d-3d correspondences
-  for (auto &id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm =
-        visual_map_->GetLandmark(id);
-    if (lm) {
-      Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-      if (point.norm() < 1000) {
-        Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
-        pixels.push_back(pixeli);
-        points.push_back(point);
-      }
-    }
-  }
-
-  // get pose estimate from imu
+  // get pose estimate using imu preintegration and constant velocity
+  // assumption
   Eigen::Matrix4d T_WORLD_BASELINK_inertial;
   imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
 
@@ -330,25 +314,39 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
       T_WORLD_BASELINK_inertial.block<3, 3>(0, 0);
   T_WORLD_BASELINK_estimate.block<3, 1>(0, 3) = new_position.transpose();
 
-  // refine pose using motion only BA if there are enough points
-  if (points.size() >= 15) {
+  std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+  std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
+  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
+
+  // get 2d-3d correspondences
+  for (auto &id : landmarks) {
+    fuse_variables::Point3DLandmark::SharedPtr lm =
+        visual_map_->GetLandmark(id);
+    if (lm) {
+      Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
+      Eigen::Vector3d tfd_point =
+          (T_WORLD_BASELINK_estimate.inverse() * point.homogeneous())
+              .hnormalized();
+      if (tfd_point.norm() < 500) {
+        Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
+        pixels.push_back(pixeli);
+        points.push_back(point);
+      }
+    }
+  }
+
+  // estimate pose using motion only BA if there are enough points
+  if (points.size() >= 20) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
-        (T_WORLD_BASELINK_estimate * T_cam_baselink_.inverse()).inverse();
+        beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
+                                                        points, 200);
     Eigen::Matrix4d T_WORLD_CAMERA =
         pose_refiner_
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
             .inverse();
     Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-
-    // dont use refined estimate if its far from initial estimate
-    if (beam::PassedMotionThreshold(T_WORLD_BASELINK_estimate, T_WORLD_BASELINK,
-                                    20.0, 1.0)) {
-      return T_WORLD_BASELINK_estimate;
-    } else {
-      return T_WORLD_BASELINK;
-    }
+    return T_WORLD_BASELINK;
   } else {
-    // get pose estimate using imu preintegration
     return T_WORLD_BASELINK_estimate;
   }
 }
@@ -383,39 +381,35 @@ void VisualInertialOdometry::ExtendMap() {
       visual_map_->AddConstraint(cur_kf_time, id,
                                  tracker_->Get(cur_kf_time, id), transaction);
     } else {
-
       // otherwise then triangulate then add the constraints
       std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
       std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
 
-      // triangulate features with long tracks
-      if (track.size() > 5) {
-        for (auto &m : track) {
-          beam::opt<Eigen::Matrix4d> T =
-              visual_map_->GetCameraPose(m.time_point);
-
-          // check if the pose is in the graph (keyframe)
-          if (T.has_value()) {
-            pixels.push_back(m.value.cast<int>());
-            T_cam_world_v.push_back(T.value().inverse());
-            observation_stamps.push_back(m.time_point);
-          }
+      // get measurements of landmark for triangulation
+      for (auto &m : track) {
+        beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
+        // check if the pose is in the graph (keyframe)
+        if (T.has_value()) {
+          pixels.push_back(m.value.cast<int>());
+          T_cam_world_v.push_back(T.value().inverse());
+          observation_stamps.push_back(m.time_point);
         }
+      }
 
-        if (T_cam_world_v.size() >= 2) {
-          beam::opt<Eigen::Vector3d> point =
-              beam_cv::Triangulation::TriangulatePoint(cam_model_,
-                                                       T_cam_world_v, pixels);
-          if (point.has_value()) {
-            keyframes_.back().AddLandmark(id);
-            visual_map_->AddLandmark(point.value(), id, transaction);
-            for (int i = 0; i < observation_stamps.size(); i++) {
-              visual_map_->AddConstraint(
-                  observation_stamps[i], id,
-                  tracker_->Get(observation_stamps[i], id), transaction);
-            }
+      // triangulate long tracks and be strict with introduction of new points
+      if (T_cam_world_v.size() >= 3) {
+        beam::opt<Eigen::Vector3d> point =
+            beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+                                                     pixels, 5.0);
+        if (point.has_value()) {
+          keyframes_.back().AddLandmark(id);
+          visual_map_->AddLandmark(point.value(), id, transaction);
+          for (int i = 0; i < observation_stamps.size(); i++) {
+            visual_map_->AddConstraint(observation_stamps[i], id,
+                                       tracker_->Get(observation_stamps[i], id),
+                                       transaction);
           }
         }
       }
