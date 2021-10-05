@@ -225,10 +225,10 @@ void ScanPose::SaveData(const std::string& output_dir) const {
           beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
-  if (!beam::SavePointCloud<pcl::PointXYZ>(
-          output_dir + "loam_edges_strong.pcd",
-          loampointcloud_.edges.strong.cloud,
-          beam::PointCloudFileType::PCDBINARY, error_message)) {
+  if (!beam::SavePointCloud<pcl::PointXYZ>(output_dir + "loam_edges_strong.pcd",
+                                           loampointcloud_.edges.strong.cloud,
+                                           beam::PointCloudFileType::PCDBINARY,
+                                           error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
   if (!beam::SavePointCloud<pcl::PointXYZ>(
@@ -418,10 +418,10 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
     return;
   }
 
-  std::string file_name_prefix = save_path + std::to_string(stamp_.toSec());
-  boost::filesystem::create_directories(file_name_prefix);
+  std::string cloud_dir = save_path + std::to_string(stamp_.toSec()) + "/";
+  boost::filesystem::create_directory(cloud_dir);
   if (!to_reference_frame) {
-    loampointcloud_.Save(file_name_prefix, true);
+    loampointcloud_.Save(cloud_dir, true);
     return;
   }
 
@@ -429,7 +429,7 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
       T_REFFRAME_BASELINK() * T_BASELINK_LIDAR_;
   beam_matching::LoamPointCloud loam_cloud_transformed = loampointcloud_;
   loam_cloud_transformed.TransformPointCloud(T_REFFRAME_LIDAR_final);
-  loam_cloud_transformed.Save(file_name_prefix, true);
+  loam_cloud_transformed.Save(cloud_dir, true);
 }
 
 }  // namespace bs_models
