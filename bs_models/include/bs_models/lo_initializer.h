@@ -30,9 +30,6 @@ namespace bs_models {
  * NOTE: this has been implemented as a sensor model for ease of use, however,
  * it does not access the fuse graph in any way since the estimation done in the
  * initializer neesd to be de-coupled from the graph used by the main SLAM.
- *
- * NOTE: coordinate frames: all data is transformed to the imu frame asap (see
- * AddPointcloud function) and worked with in the imu frame.
  */
 class LoInitializer : public fuse_core::AsyncSensorModel {
  public:
@@ -51,19 +48,9 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
 
  protected:
   /**
-   * @brief todo
+   * @brief loads all params and sets up scan registration and feature extractor
    */
   void onInit() override;
-
-  /**
-   * @brief todo
-   */
-  void onStart() override {}
-
-  /**
-   * @brief todo
-   */
-  void onStop() override;
 
   /**
    * @brief Register scan against previous and then add to the queue of scan
@@ -74,18 +61,7 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
    * min, but the trajectory is not long enough, throw away the first scan in
    * the queue and continue collecting keyframes
    */
-  void ProcessCurrentKeyframe();
-
-  /**
-   * @brief Add the current pointcloud to the current keyframe (or cloud
-   * aggregate). This will lookup the relative pose between the current keyframe
-   * and the frame associated with this time, using imu preintegration. Then
-   * transform the current pointcloud into the keyframe coordinate system.
-   * @param cloud pointcloud in the lidar sensor frame
-   * @param time timestamp associated with this cloud
-   * @return true if successful
-   */
-  bool AddPointcloudToKeyframe(const PointCloud& cloud, const ros::Time& time);
+  void ProcessCurrentKeyframe(const ros::Time& time);
 
   /**
    * @brief Sets the first scan pose in the keyframes list to identity, and
@@ -121,7 +97,7 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
    */
   double CalculateTrajectoryLength(const std::list<ScanPose>& keyframes);
 
-  // subscribers
+  // subscribers & publishers
   ros::Subscriber lidar_subscriber_;
   ros::Publisher results_publisher_;
 
@@ -135,8 +111,6 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   // scan registration objects
   std::unique_ptr<scan_registration::ScanToMapLoamRegistration>
       scan_registration_;
-  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
-      matcher_;
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
 
   // store all current keyframes to be processed. Data in scan poses have

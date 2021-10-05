@@ -32,7 +32,7 @@ void LoInitializer::onInit() {
       private_node_handle_.advertise<bs_common::InitializedPathMsg>(
           params_.output_topic, 1000);
 
-  // initial scan registration
+  // init scan registration
   std::shared_ptr<LoamParams> matcher_params =
       std::make_shared<LoamParams>(params_.matcher_params_path);
 
@@ -44,32 +44,19 @@ void LoInitializer::onInit() {
   beam_optimization::CeresParams ceres_params(params_.ceres_config_path);
   matcher_params->optimizer_params = ceres_params;
 
-  matcher_ = std::make_unique<LoamMatcher>(*matcher_params);
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
       std::make_unique<LoamMatcher>(*matcher_params);
-  scan_registration::ScanToMapLoamRegistration::Params params;
-  params.outlier_threshold_trans_m = params_.outlier_threshold_trans_m;
-  params.outlier_threshold_rot_deg = params_.outlier_threshold_rot_deg;
-  params.map_size = params_.scan_registration_map_size;
-  params.store_full_cloud = false;
+
+  scan_registration::ScanToMapLoamRegistration::Params reg_params;
+  reg_params.LoadFromJson(params_.registration_config_path);
+  reg_params.store_full_cloud = false;
+
   scan_registration_ =
       std::make_unique<scan_registration::ScanToMapLoamRegistration>(
-          std::move(matcher), params.GetBaseParams(), params.map_size,
-          params.store_full_cloud);
+          std::move(matcher), reg_params.GetBaseParams(), reg_params.map_size,
+          reg_params.store_full_cloud);
+  scan_registration_->SetFixedCovariance(0.000001);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
-
-  // set covariance if not set to zero in config
-  if (std::accumulate(params_.matcher_noise_diagonal.begin(),
-                      params_.matcher_noise_diagonal.end(), 0.0) > 0) {
-    Eigen::Matrix<double, 6, 6> covariance;
-    covariance.setIdentity();
-    for (int i = 0; i < 6; i++) {
-      covariance(i, i) = params_.matcher_noise_diagonal[i];
-    }
-    scan_registration_->SetFixedCovariance(covariance);
-  } else {
-    scan_registration_->SetFixedCovariance(params_.matcher_noise);
-  }
 
   // if outputting scans, clear folder
   if (!params_.scan_output_directory.empty()) {
@@ -101,9 +88,8 @@ void LoInitializer::processLidar(
   if (keyframe_start_time_.toSec() == 0) {
     ROS_DEBUG("Set first scan and imu start time.");
     keyframe_start_time_ = msg->header.stamp;
-    if (!AddPointcloudToKeyframe(cloud_current, msg->header.stamp)) {
-      keyframe_start_time_ = ros::Time(0);
-    }
+    keyframe_cloud_ += cloud_current;
+    keyframe_scan_counter_++;
     prev_stamp_ = msg->header.stamp;
     return;
   }
@@ -112,20 +98,20 @@ void LoInitializer::processLidar(
 
   if (msg->header.stamp - keyframe_start_time_ + current_scan_period >
       params_.aggregation_time) {
-    ProcessCurrentKeyframe();
+    ProcessCurrentKeyframe(msg->header.stamp);
     keyframe_cloud_.clear();
     keyframe_start_time_ = msg->header.stamp;
     keyframe_scan_counter_ = 0;
     T_WORLD_KEYFRAME_ = T_WORLD_IMULAST;
   }
 
-  AddPointcloudToKeyframe(cloud_current, msg->header.stamp);
+  keyframe_cloud_ += cloud_current;
+  keyframe_scan_counter_++;
+
   prev_stamp_ = msg->header.stamp;
 }
 
-void LoInitializer::onStop() {}
-
-void LoInitializer::ProcessCurrentKeyframe() {
+void LoInitializer::ProcessCurrentKeyframe(const ros::Time& time) {
   beam::HighResolutionTimer timer;
   if (keyframe_cloud_.size() == 0) {
     return;
@@ -134,9 +120,16 @@ void LoInitializer::ProcessCurrentKeyframe() {
   ROS_DEBUG("Processing keyframe containing %d scans and %d points.",
             keyframe_scan_counter_, keyframe_cloud_.size());
 
+  Eigen::Matrix4d T_BASELINK_LIDAR;
+  if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, time)) {
+    ROS_WARN("Unable to get imu to lidar transform with time $.5f",
+             time.toSec());
+    return;
+  }
+
   // create scan pose
   ScanPose current_scan_pose(keyframe_cloud_, keyframe_start_time_,
-                             T_WORLD_KEYFRAME_, Eigen::Matrix4d::Identity(),
+                             T_WORLD_KEYFRAME_, T_BASELINK_LIDAR,
                              feature_extractor_);
 
   scan_registration_->RegisterNewScan(current_scan_pose);
@@ -184,22 +177,6 @@ void LoInitializer::ProcessCurrentKeyframe() {
   }
 }
 
-bool LoInitializer::AddPointcloudToKeyframe(const PointCloud& cloud,
-                                            const ros::Time& time) {
-  Eigen::Matrix4d T_BASELINK_LIDAR;
-  if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, time)) {
-    ROS_WARN("Unable to get imu to lidar transform with time $.5f",
-             time.toSec());
-    return false;
-  }
-
-  PointCloud cloud_converted;
-  pcl::transformPointCloud(cloud, cloud_converted, T_BASELINK_LIDAR);
-  keyframe_cloud_ += cloud_converted;
-  keyframe_scan_counter_++;
-  return true;
-}
-
 void LoInitializer::SetTrajectoryStart() {
   auto iter = keyframes_.begin();
   const Eigen::Matrix4d& T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_BASELINK();
@@ -228,7 +205,7 @@ void LoInitializer::OutputResults() {
     return;
   }
 
-  ROS_DEBUG("Saving results to %s", params_.scan_output_directory.c_str());
+  ROS_INFO("Saving results to %s", params_.scan_output_directory.c_str());
 
   // create directories
   std::string save_path_init =
