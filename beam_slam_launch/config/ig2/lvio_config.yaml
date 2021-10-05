@@ -63,9 +63,9 @@ camera:
   init_map_output_directory: "" # Outputs vio map into directory if not empty
 
 lo_initializer:
-  registration_config_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
-  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
-  ceres_config_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
+  registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
+  matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
   lidar_topic: '/lidar_h/velodyne_points'
   output_topic: '/lo_initialiser_result'
   aggregation_time: 0.1

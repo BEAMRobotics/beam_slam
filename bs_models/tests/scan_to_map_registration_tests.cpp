@@ -204,9 +204,9 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
                     data_.T_BASELINK_LIDAR, feature_extractor);
   ScanPose SP3_pert(data_.S3, ros::Time(2), data_.T_WORLD_S3_pert,
                     data_.T_BASELINK_LIDAR, feature_extractor);
-  //   SP1.Save("/home/nick/tmp/loam_scan_registration/sp1/");
-  //   SP2.Save("/home/nick/tmp/loam_scan_registration/sp2/");
-  //   SP3.Save("/home/nick/tmp/loam_scan_registration/sp3/");
+  //   SP1.Save("/userhome/tmp/loam_scan_registration/sp1/");
+  //   SP2.Save("/userhome/tmp/loam_scan_registration/sp2/");
+  //   SP3.Save("/userhome/tmp/loam_scan_registration/sp3/");
 
   // init scan registration
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
@@ -226,21 +226,21 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
   // add transactions
   auto transaction1 = scan_registration->RegisterNewScan(SP1).GetTransaction();
 
-  //   scan_registration->GetMap().Save("/home/nick/tmp/loam_scan_registration/maps/1/");
+  //   scan_registration->GetMap().Save("/userhome/tmp/loam_scan_registration/maps/1/");
   EXPECT_EQ(scan_registration->GetMap().NumLoamClouds(), 1);
   EXPECT_EQ(scan_registration->GetMap().NumPointClouds(), 0);
 
   auto transaction2 =
       scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
 
-  //   scan_registration->GetMap().Save("/home/nick/tmp/loam_scan_registration/maps/2/");
+  //   scan_registration->GetMap().Save("/userhome/tmp/loam_scan_registration/maps/2/");
   EXPECT_EQ(scan_registration->GetMap().NumLoamClouds(), 2);
   EXPECT_EQ(scan_registration->GetMap().NumPointClouds(), 0);
 
   auto transaction3 =
       scan_registration->RegisterNewScan(SP3_pert).GetTransaction();
 
-  //   scan_registration->GetMap().Save("/home/nick/tmp/loam_scan_registration/maps/3/");
+  //   scan_registration->GetMap().Save("/userhome/tmp/loam_scan_registration/maps/3/");
   EXPECT_EQ(scan_registration->GetMap().NumLoamClouds(), 3);
   EXPECT_EQ(scan_registration->GetMap().NumPointClouds(), 0);
 

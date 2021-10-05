@@ -530,7 +530,7 @@ TEST_F(MultiScanRegistrationTest, TransactionsAndUpdates) {
   auto o3 = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
       graph.getVariable(SP3.Orientation().uuid()));
 
-  //   multi_scan_registration->GetMap().Save("/home/nick/tmp/loam_scan_registration/lidar_map2/");
+  //   multi_scan_registration->GetMap().Save("/userhome/tmp/loam_scan_registration/lidar_map2/");
 
   EXPECT_TRUE(VectorsEqual(SP1.Position().data(), p1.data(), 3));
   EXPECT_TRUE(VectorsEqual(SP1.Orientation().data(), o1.data(), 4));
@@ -887,7 +887,7 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
 
   // print lidar map
   //   RegistrationMap& map = RegistrationMap::GetInstance();
-  //   map.Save("/home/nick/tmp/loam_scan_registration/lidar_map/");
+  //   map.Save("/userhome/tmp/loam_scan_registration/lidar_map/");
 
   //   EXPECT_TRUE(map.NumPointClouds() == 3);
   EXPECT_TRUE(multi_scan_registration->GetMap().NumPointClouds() == 3);
@@ -967,10 +967,10 @@ TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
   SP2_pert.UpdatePose(graph);
   SP3_pert.UpdatePose(graph);
 
-  //   SP1.SaveCloud("/home/nick/tmp/loam_scan_registration/sp1/", true, true);
-  //   SP2_pert.SaveCloud("/home/nick/tmp/loam_scan_registration/sp2/", true,
+  //   SP1.SaveCloud("/userhome/tmp/loam_scan_registration/sp1/", true, true);
+  //   SP2_pert.SaveCloud("/userhome/tmp/loam_scan_registration/sp2/", true,
   //                      true);
-  //   SP3_pert.SaveCloud("/home/nick/tmp/loam_scan_registration/sp3/", true,
+  //   SP3_pert.SaveCloud("/userhome/tmp/loam_scan_registration/sp3/", true,
   //                      true);
 
   // Check results
@@ -1101,12 +1101,12 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
     scan_pose.UpdatePose(graph);
 
     // save scans
-    // scan_pose.SaveCloud("/home/nick/tmp/multi_scan_tests/");
+    // scan_pose.SaveCloud("/userhome/tmp/multi_scan_tests/");
     // PointCloud pc;
     // pcl::transformPointCloud(scan_pose.Cloud(), pc, gt_poses.at(i));
     // PointCloudCol pc_col = beam::ColorPointCloud(pc, 0, 0, 255);
 
-    // std::string filename = "/home/nick/tmp/multi_scan_tests/" +
+    // std::string filename = "/userhome/tmp/multi_scan_tests/" +
     //                        std::to_string(scan_pose.Stamp().toSec()) +
     //                        "_ground_truth.pcd";
     // pcl::io::savePCDFileASCII(filename, pc_col);

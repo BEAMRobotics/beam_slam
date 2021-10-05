@@ -78,7 +78,7 @@ class RelocRefinementBase {
 
   /* Debugging tools that can only be set here */
   bool output_results_{false};
-  std::string debug_output_path_{"/home/nick/results/beam_slam/reloc/"};
+  std::string debug_output_path_{"/userhome/results/beam_slam/reloc/"};
   std::string output_path_stamped_;  // to be created in implementation
 };
 
