@@ -13,8 +13,8 @@ baselink_frame: "camera"
 
 # calibrations
 static_extrinsics: true,
-camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
-imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
+camera_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
+imu_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
 
 ## model plugins: declare all plugins to use and give a unique name
 
@@ -25,9 +25,9 @@ sensor_models:
 ## plugin params: specify all params for the plugins, using their unique name
 
 lo_initializer:
-  registration_config_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
-  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
-  ceres_config_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
+  registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
+  matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
   lidar_topic: '/lidar_h/velodyne_points'
   output_topic: '/lo_initialiser_result'
   aggregation_time: 0.1

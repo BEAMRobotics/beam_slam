@@ -4,6 +4,7 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_core/transaction.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <tf/transform_datatypes.h>
@@ -32,16 +33,15 @@ void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                               const fuse_variables::Orientation3DStamped& o,
                               Eigen::Matrix4d& T_WORLD_SENSOR);
 
-Eigen::Matrix4d
-    FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
-                             const fuse_variables::Orientation3DStamped& o);
+Eigen::Matrix4d FusePoseToEigenTransform(
+    const fuse_variables::Position3DStamped& p,
+    const fuse_variables::Orientation3DStamped& o);
 
 void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
                                    Eigen::Matrix4d& T_WORLD_SENSOR);
 
 void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
                                        Eigen::Matrix4d& T_WORLD_SENSOR);
-
 
 void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS,
                                          Eigen::Matrix4d& T);
@@ -53,6 +53,11 @@ void EigenTransformToTransformStampedMsg(
     const Eigen::Matrix4d& T, const ros::Time& stamp, int seq,
     const std::string& parent_frame_id, const std::string& child_frame_id,
     geometry_msgs::TransformStamped& tf_stamped);
+
+void EigenTransformToPoseStamped(const Eigen::Matrix4d& T,
+                                 const ros::Time& stamp, int seq,
+                                 const std::string& frame_id,
+                                 geometry_msgs::PoseStamped& pose_stamped);
 
 void OdometryMsgToTransformedStamped(
     const nav_msgs::Odometry& message, const ros::Time& stamp, int seq,

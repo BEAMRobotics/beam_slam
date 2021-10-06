@@ -112,7 +112,7 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   /** Params that can only be updated here: */
   bool output_graph_updates_{false};
   std::string graph_updates_path_ =
-      "/home/nick/results/beam_slam/graph_updates/";
+      "/userhome/results/beam_slam/graph_updates/";
   bool update_local_map_on_graph_update_{true};
 };
 

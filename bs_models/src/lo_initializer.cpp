@@ -6,6 +6,7 @@
 
 #include <beam_optimization/CeresParams.h>
 #include <beam_utils/math.h>
+#include <beam_utils/time.h>
 #include <beam_utils/pointclouds.h>
 
 #include <bs_common/bs_msgs.h>
@@ -57,14 +58,6 @@ void LoInitializer::onInit() {
           reg_params.store_full_cloud);
   scan_registration_->SetFixedCovariance(0.000001);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
-
-  // if outputting scans, clear folder
-  if (!params_.scan_output_directory.empty()) {
-    if (boost::filesystem::is_directory(params_.scan_output_directory)) {
-      boost::filesystem::remove_all(params_.scan_output_directory);
-    }
-    boost::filesystem::create_directory(params_.scan_output_directory);
-  }
 }
 
 void LoInitializer::processLidar(
@@ -75,11 +68,11 @@ void LoInitializer::processLidar(
 
   ROS_DEBUG("Received incoming scan");
 
-  Eigen::Matrix4d T_WORLD_IMULAST;
+  Eigen::Matrix4d T_WORLD_BASELINKLAST;
   if (keyframes_.empty()) {
-    T_WORLD_IMULAST = Eigen::Matrix4d::Identity();
+    T_WORLD_BASELINKLAST = Eigen::Matrix4d::Identity();
   } else {
-    T_WORLD_IMULAST = keyframes_.back().T_REFFRAME_BASELINK();
+    T_WORLD_BASELINKLAST = keyframes_.back().T_REFFRAME_BASELINK();
   }
 
   PointCloud cloud_current = beam::ROSToPCL(*msg);
@@ -102,7 +95,7 @@ void LoInitializer::processLidar(
     keyframe_cloud_.clear();
     keyframe_start_time_ = msg->header.stamp;
     keyframe_scan_counter_ = 0;
-    T_WORLD_KEYFRAME_ = T_WORLD_IMULAST;
+    T_WORLD_KEYFRAME_ = T_WORLD_BASELINKLAST;
   }
 
   keyframe_cloud_ += cloud_current;
@@ -133,11 +126,12 @@ void LoInitializer::ProcessCurrentKeyframe(const ros::Time& time) {
                              feature_extractor_);
 
   scan_registration_->RegisterNewScan(current_scan_pose);
-  Eigen::Matrix4d T_WORLD_SCAN;
+  Eigen::Matrix4d T_WORLD_LIDAR;
   bool scan_in_map = scan_registration_->GetMap().GetScanPose(
-      current_scan_pose.Stamp(), T_WORLD_SCAN);
+      current_scan_pose.Stamp(), T_WORLD_LIDAR);
   if (scan_in_map) {
-    current_scan_pose.UpdatePose(T_WORLD_SCAN);
+    current_scan_pose.UpdatePose(T_WORLD_LIDAR *
+                                 beam::InvertTransform(T_BASELINK_LIDAR));
     keyframes_.push_back(current_scan_pose);
   } else {
     return;
@@ -207,48 +201,17 @@ void LoInitializer::OutputResults() {
 
   ROS_INFO("Saving results to %s", params_.scan_output_directory.c_str());
 
-  // create directories
-  std::string save_path_init =
-      params_.scan_output_directory + "/initial_poses/";
-  boost::filesystem::create_directory(save_path_init);
-  std::string save_path_final = params_.scan_output_directory + "/final_poses/";
-  boost::filesystem::create_directory(save_path_final);
-
-  // create frame for storing clouds
-  PointCloudCol frame = beam::CreateFrameCol();
+  // create save directory
+  std::string save_path =
+      params_.scan_output_directory +
+      beam::ConvertTimeToDate(std::chrono::system_clock::now()) + "/";
+  boost::filesystem::create_directory(save_path);
 
   // iterate through all keyframes, update based on graph and save initial and
   // final values
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
-    const Eigen::Matrix4d& T_WORLD_SCAN_FIN = iter->T_REFFRAME_LIDAR();
-    const Eigen::Matrix4d& T_WORLD_SCAN_INIT = iter->T_REFFRAME_LIDAR_INIT();
-    PointCloud cloud_world_final;
-    PointCloud cloud_world_init;
-    pcl::transformPointCloud(iter->Cloud(), cloud_world_final,
-                             T_WORLD_SCAN_FIN);
-    pcl::transformPointCloud(iter->Cloud(), cloud_world_init,
-                             T_WORLD_SCAN_INIT);
-
-    PointCloudCol cloud_world_final_col =
-        beam::ColorPointCloud(cloud_world_final, 0, 255, 0);
-    PointCloudCol cloud_world_init_col =
-        beam::ColorPointCloud(cloud_world_init, 255, 0, 0);
-
-    beam::MergeFrameToCloud(cloud_world_final_col, frame, T_WORLD_SCAN_FIN);
-    beam::MergeFrameToCloud(cloud_world_init_col, frame, T_WORLD_SCAN_INIT);
-
-    std::string filename = std::to_string(iter->Stamp().toSec()) + ".pcd";
-    std::string error_message;
-    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-            save_path_final + filename, cloud_world_final_col,
-            beam::PointCloudFileType::PCDBINARY, error_message)) {
-      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
-    }
-    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-            save_path_init + filename, cloud_world_init_col,
-            beam::PointCloudFileType::PCDBINARY, error_message)) {
-      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
-    }
+    iter->SaveCloud(save_path, true, true);
+    iter->SaveLoamCloud(save_path, true, true);
   }
 }
 
@@ -256,37 +219,17 @@ void LoInitializer::PublishResults() {
   bs_common::InitializedPathMsg msg;
 
   // get pose variables and add them to the msg
+  std::string baselink_frame_id = extrinsics_.GetImuFrameId();
   int counter = 0;
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
-    std_msgs::Header header;
-    header.frame_id = extrinsics_.GetImuFrameId();
-    header.seq = counter;
-    header.stamp = iter->Stamp();
-
-    const Eigen::Matrix4d& T = iter->T_REFFRAME_BASELINK();
-
-    geometry_msgs::Point position;
-    position.x = T(0, 3);
-    position.y = T(1, 3);
-    position.z = T(2, 3);
-
-    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
-    Eigen::Quaterniond q(R);
-
-    geometry_msgs::Quaternion orientation;
-    orientation.x = q.x();
-    orientation.y = q.y();
-    orientation.z = q.z();
-    orientation.w = q.w();
-
     geometry_msgs::PoseStamped pose;
-    pose.header = header;
-    pose.pose.position = position;
-    pose.pose.orientation = orientation;
+    bs_common::EigenTransformToPoseStamped(iter->T_REFFRAME_BASELINK(),
+                                           iter->Stamp(), counter,
+                                           baselink_frame_id, pose);
     msg.poses.push_back(pose);
+
     counter++;
   }
-
   results_publisher_.publish(msg);
 }
 
