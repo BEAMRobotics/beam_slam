@@ -137,7 +137,7 @@ void VisualInertialOdometry::processImage(
 
     // process in initialization mode
     if (!initialization_->Initialized()) {
-      if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.5) {
+      if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.1) {
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
