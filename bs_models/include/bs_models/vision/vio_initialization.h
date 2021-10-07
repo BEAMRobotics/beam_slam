@@ -46,6 +46,7 @@ public:
    * @brief Notifies initialization that image at this time is to be used for
    * init
    * @param cur_time timestamp of image
+   * @return success flag
    */
   bool AddImage(ros::Time cur_time);
 

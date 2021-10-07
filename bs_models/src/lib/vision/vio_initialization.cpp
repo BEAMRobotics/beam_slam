@@ -254,8 +254,6 @@ void VIOInitialization::AddPosesAndInertialConstraints(
       velocity->x() = velocity_vec[0];
       velocity->y() = velocity_vec[1];
       velocity->z() = velocity_vec[2];
-      ROS_INFO("Initial velocity:");
-      std::cout << velocity_vec << std::endl;
       imu_preint_->SetStart(frame.t, img_orientation, img_position, velocity);
     } else {
       // get imu transaction
@@ -546,7 +544,7 @@ void VIOInitialization::OutputResults(const std::vector<Frame> &frames) {
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
     for (auto &f : frames) {
       frame_cloud = beam::AddFrameToCloud(
-          frame_cloud, visual_map_->GetCameraPose(f.t).value(), 0.001);
+          frame_cloud, visual_map_->GetBaselinkPose(f.t).value(), 0.001);
     }
 
     // add all landmark points to cloud and save
