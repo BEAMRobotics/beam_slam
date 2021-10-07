@@ -74,7 +74,6 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
 
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames_, true);
-    OutputResults(valid_frames_);
 
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames_);
@@ -86,25 +85,27 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
     // optimize valid frames
     OptimizeGraph();
 
-    // localize the frames that are outside of the given path
-    for (auto &f : invalid_frames_) {
-      Eigen::Matrix4d T_WORLD_BASELINK;
-      // if failure to localize next frame then init is a failure
-      if (!LocalizeFrame(f, T_WORLD_BASELINK)) {
-        return false;
+    if (invalid_frames_.size() > 0) {
+      // localize the frames that are outside of the given path
+      for (auto &f : invalid_frames_) {
+        Eigen::Matrix4d T_WORLD_BASELINK;
+        // if failure to localize next frame then init is a failure
+        if (!LocalizeFrame(f, T_WORLD_BASELINK)) {
+          return false;
+        }
+        beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
+                                                        f.p);
       }
-      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
-                                                      f.p);
+
+      // add localized poses and imu constraints
+      AddPosesAndInertialConstraints(invalid_frames_, false);
+
+      // add landmarks and visual constraints for the invalid frames
+      init_lms += AddVisualConstraints(invalid_frames_);
+
+      // optimize with invalid frames
+      OptimizeGraph();
     }
-
-    // add localized poses and imu constraints
-    AddPosesAndInertialConstraints(invalid_frames_, false);
-
-    // add landmarks and visual constraints for the invalid frames
-    init_lms += AddVisualConstraints(invalid_frames_);
-
-    // optimize with invalid frames
-    OptimizeGraph();
 
     // output post optimization poses
     ROS_INFO("Frame poses after optimization:");
@@ -242,29 +243,28 @@ void VIOInitialization::AddPosesAndInertialConstraints(
     fuse_variables::Position3DStamped::SharedPtr img_position =
         visual_map_->GetPosition(frame.t);
 
-    // // Add respective imu constraints
-    // if (set_start && i == 0) {
-    //   // estimate velocity at frame.t
-    //   Eigen::Vector3d velocity_vec;
-    //   EstimateVelocityFromPath(init_path_->poses, frame.t, velocity_vec);
-    //   // make fuse variable
-    //   fuse_variables::VelocityLinear3DStamped::SharedPtr velocity =
-    //       std::make_shared<fuse_variables::VelocityLinear3DStamped>(frame.t);
-    //   velocity->x() = velocity_vec[0];
-    //   velocity->y() = velocity_vec[1];
-    //   velocity->z() = velocity_vec[2];
-    //   ROS_INFO("Initial velocity:");
-    //   std::cout << velocity_vec << std::endl;
-    //   imu_preint_->SetStart(frame.t, img_orientation, img_position,
-    //   velocity);
-    // } else {
-    //   // get imu transaction
-    //   fuse_core::Transaction::SharedPtr transaction =
-    //       imu_preint_->RegisterNewImuPreintegratedFactor(
-    //           frame.t, img_orientation, img_position);
-    //   // update graph with the transaction
-    //   local_graph_->update(*transaction);
-    // }
+    // Add respective imu constraints
+    if (set_start && i == 0) {
+      // estimate velocity at frame.t
+      Eigen::Vector3d velocity_vec;
+      EstimateVelocityFromPath(init_path_->poses, frame.t, velocity_vec);
+      // make fuse variable
+      fuse_variables::VelocityLinear3DStamped::SharedPtr velocity =
+          std::make_shared<fuse_variables::VelocityLinear3DStamped>(frame.t);
+      velocity->x() = velocity_vec[0];
+      velocity->y() = velocity_vec[1];
+      velocity->z() = velocity_vec[2];
+      ROS_INFO("Initial velocity:");
+      std::cout << velocity_vec << std::endl;
+      imu_preint_->SetStart(frame.t, img_orientation, img_position, velocity);
+    } else {
+      // get imu transaction
+      fuse_core::Transaction::SharedPtr transaction =
+          imu_preint_->RegisterNewImuPreintegratedFactor(
+              frame.t, img_orientation, img_position);
+      // update graph with the transaction
+      local_graph_->update(*transaction);
+    }
   }
 }
 

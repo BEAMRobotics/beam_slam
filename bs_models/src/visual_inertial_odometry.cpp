@@ -286,57 +286,24 @@ void VisualInertialOdometry::SendInitializationGraph(
 
 Eigen::Matrix4d
 VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
-
-  // get pose estimate using imu preintegration and constant velocity
-  // assumption
-  Eigen::Matrix4d T_WORLD_BASELINK_inertial;
-  imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
-
-  // get previous two keyframe positions
-  ros::Time prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
-  ros::Time cur_kf_time = keyframes_.back().Stamp();
-  Eigen::Matrix4d T_prevkf = visual_map_->GetBaselinkPose(prev_kf_time).value();
-  Eigen::Vector3d p_prevkf = T_prevkf.block<3, 1>(0, 3).transpose();
-  Eigen::Matrix4d T_curkf = visual_map_->GetBaselinkPose(cur_kf_time).value();
-  Eigen::Vector3d p_curkf = T_curkf.block<3, 1>(0, 3).transpose();
-
-  // compute velocity from last two keyframe positions
-  Eigen::Vector3d velocity =
-      (p_curkf - p_prevkf) / (cur_kf_time.toSec() - prev_kf_time.toSec());
-
-  // compute current position estimate assuming velocity is constant
-  Eigen::Vector3d new_position =
-      p_curkf + (img_time.toSec() - cur_kf_time.toSec()) * velocity;
-
-  // combine imu rotation estimate and constant velocity position estimate
-  Eigen::Matrix4d T_WORLD_BASELINK_estimate = Eigen::Matrix4d::Identity();
-  T_WORLD_BASELINK_estimate.block<3, 3>(0, 0) =
-      T_WORLD_BASELINK_inertial.block<3, 3>(0, 0);
-  T_WORLD_BASELINK_estimate.block<3, 1>(0, 3) = new_position.transpose();
-
+  // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
-
-  // get 2d-3d correspondences
   for (auto &id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
     if (lm) {
       Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-      Eigen::Vector3d tfd_point =
-          (T_WORLD_BASELINK_estimate.inverse() * point.homogeneous())
-              .hnormalized();
-      if (tfd_point.norm() < 500) {
-        Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
-        pixels.push_back(pixeli);
-        points.push_back(point);
-      }
+      Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
+      pixels.push_back(pixeli);
+      points.push_back(point);
     }
   }
 
-  // estimate pose using motion only BA if there are enough points
+  // perform pose estimation
   if (points.size() >= 20) {
+    // estimate pose using motion only BA if there are enough points
     Eigen::Matrix4d T_CAMERA_WORLD_est =
         beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
                                                         points, 200);
@@ -347,6 +314,33 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
     Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
     return T_WORLD_BASELINK;
   } else {
+    // otherwise use the constant velocity motion model and imu
+    Eigen::Matrix4d T_WORLD_BASELINK_inertial;
+    imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
+
+    // get previous two keyframe positions
+    ros::Time prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
+    ros::Time cur_kf_time = keyframes_.back().Stamp();
+    Eigen::Matrix4d T_prevkf =
+        visual_map_->GetBaselinkPose(prev_kf_time).value();
+    Eigen::Vector3d p_prevkf = T_prevkf.block<3, 1>(0, 3).transpose();
+    Eigen::Matrix4d T_curkf = visual_map_->GetBaselinkPose(cur_kf_time).value();
+    Eigen::Vector3d p_curkf = T_curkf.block<3, 1>(0, 3).transpose();
+
+    // compute velocity from last two keyframe positions
+    Eigen::Vector3d velocity =
+        (p_curkf - p_prevkf) / (cur_kf_time.toSec() - prev_kf_time.toSec());
+
+    // compute current position estimate assuming velocity is constant
+    Eigen::Vector3d new_position =
+        p_curkf + (img_time.toSec() - cur_kf_time.toSec()) * velocity;
+
+    // combine imu rotation estimate and constant velocity position estimate
+    Eigen::Matrix4d T_WORLD_BASELINK_estimate = Eigen::Matrix4d::Identity();
+    T_WORLD_BASELINK_estimate.block<3, 3>(0, 0) =
+        T_WORLD_BASELINK_inertial.block<3, 3>(0, 0);
+    T_WORLD_BASELINK_estimate.block<3, 1>(0, 3) = new_position.transpose();
+
     return T_WORLD_BASELINK_estimate;
   }
 }
