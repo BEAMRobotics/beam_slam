@@ -14,7 +14,7 @@ namespace relative_pose {
 RelativeImuState3DStampedConstraint::RelativeImuState3DStampedConstraint(
     const std::string& source, const bs_common::ImuState& imu_state_i,
     const bs_common::ImuState& imu_state_j,
-    const bs_common::PreIntegrator& pre_integrator)
+    const std::shared_ptr<bs_common::PreIntegrator>& pre_integrator)
     : fuse_core::Constraint(
           source,
           {imu_state_i.Orientation().uuid(), imu_state_i.Position().uuid(),

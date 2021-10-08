@@ -214,10 +214,12 @@ class RelativePoseTransactionBase {
       const bs_common::ImuState& imu_state_j,
       const bs_common::PreIntegrator& pre_integrator,
       const std::string& source = "NULL") {
+    std::shared_ptr<bs_common::PreIntegrator> pre_integrator_ptr =
+        std::make_shared<bs_common::PreIntegrator>(pre_integrator);
     // build and add constraint
     auto constraint =
         bs_constraints::relative_pose::RelativeImuState3DStampedConstraint::
-            make_shared(source, imu_state_i, imu_state_j, pre_integrator);
+            make_shared(source, imu_state_i, imu_state_j, pre_integrator_ptr);
     transaction_->addConstraint(constraint, override_constraints_);
   }
 

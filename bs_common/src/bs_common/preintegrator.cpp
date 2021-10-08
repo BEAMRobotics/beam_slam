@@ -92,7 +92,7 @@ bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg,
     Increment(data[i + 1].t - d.t, d, bg, ba, compute_jacobian,
               compute_covariance);
   }
-  assert(("Image time cannot be earlier than last imu.") &&
+  assert(("Frame time cannot be earlier than last imu.") &&
          (t >= data.back().t));
   Increment(t - data.back().t, data.back(), bg, ba, compute_jacobian,
             compute_covariance);
@@ -105,9 +105,14 @@ bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg,
 void PreIntegrator::ComputeSqrtInvCov() {
   // Ensure covariance non-zero (within pre-defined tolarance) to avoid
   // ill-conditioned matrix during optimization
-  if (delta.cov.isZero(cov_tol)) {
-    delta.cov.setIdentity();
-    delta.cov *= cov_tol;
+  if (delta.cov.block<9, 9>(ES_Q, ES_Q).isZero(cov_tol)) {
+    delta.cov.block<9, 9>(ES_Q, ES_Q).setIdentity();
+    delta.cov.block<9, 9>(ES_Q, ES_Q) *= cov_tol;
+  }
+
+  if (delta.cov.block<6, 6>(ES_BG, ES_BG).isZero(cov_tol)) {
+    delta.cov.block<6, 6>(ES_BG, ES_BG).setIdentity();
+    delta.cov.block<6, 6>(ES_BG, ES_BG) *= cov_tol;
   }
 
   delta.sqrt_inv_cov =
