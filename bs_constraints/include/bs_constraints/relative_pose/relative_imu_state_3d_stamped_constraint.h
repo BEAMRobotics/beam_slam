@@ -49,7 +49,7 @@ class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
   RelativeImuState3DStampedConstraint(
       const std::string& source, const bs_common::ImuState& imu_state_i,
       const bs_common::ImuState& imu_state_j,
-      const std::shared_ptr<bs_common::PreIntegrator> pre_integrator);
+      const std::shared_ptr<bs_common::PreIntegrator>& pre_integrator);
 
   /**
    * @brief Destructor
