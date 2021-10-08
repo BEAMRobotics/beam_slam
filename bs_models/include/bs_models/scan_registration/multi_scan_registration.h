@@ -163,7 +163,7 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
   bool output_scan_registration_results_{false};
   std::string current_scan_path_;
   std::string tmp_output_path_{
-      "/home/nick/results/beam_slam/scan_registration/multi_scan/"};
+      "/userhome/results/beam_slam/scan_registration/multi_scan/"};
   PointCloudCol coord_frame_;
 };
 

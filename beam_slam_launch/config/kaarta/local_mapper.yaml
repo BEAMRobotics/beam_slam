@@ -45,12 +45,12 @@ lidar_odometry:
   # Local scan registration
   local_registration_type: 'MAPLOAM' 
   local_registration_config_path: 'DEFAULT_PATH' 
-  local_matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
   local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
 
   # global scan registration
   global_registration_type: 'LOAM' 
-  global_matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
   global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
 
   # general params
@@ -62,7 +62,7 @@ lidar_odometry:
   publish_local_map: true
   publish_registration_results: true
   frame_initializer_type: 'POSEFILE' 
-  frame_initializer_info: '/home/nick/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply'
+  frame_initializer_info: '/userhome/datasets/slam/kaarta/2019-07-10-17-32-53/trajectory_2019-07-10-17-32-53.ply'
   frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
   reloc_request_period: 1
   scan_output_directory: ''

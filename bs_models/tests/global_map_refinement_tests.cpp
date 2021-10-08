@@ -95,7 +95,7 @@ class GlobalMapRefinementTest : public ::testing::Test {
   std::shared_ptr<LoamFeatureExtractor> feature_extractor_;
   Eigen::Matrix<double, 6, 6> covariance_;
 
-  std::string output_root_ = "/home/nick/tmp/refinement_tests/";
+  std::string output_root_ = "/userhome/tmp/refinement_tests/";
 };
 
 TEST_F(GlobalMapRefinementTest, MultiScan) {
@@ -311,9 +311,9 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
 /*
 TEST_F(GlobalMapRefinementTest, MultiScanRealData) {
   std::string globalmap_dir =
-      "/home/nick/results/beam_slam/global_map_refinement/test/GlobalMapData/";
+      "/userhome/results/beam_slam/global_map_refinement/test/GlobalMapData/";
   std::string output_dir =
-      "/home/nick/results/beam_slam/global_map_refinement/test/ResultsRefinedUnitTets/";
+      "/userhome/results/beam_slam/global_map_refinement/test/ResultsRefinedUnitTets/";
 
   // load params
   GlobalMapRefinement::Params params;

@@ -13,8 +13,8 @@ baselink_frame: "camera"
 
 # calibrations
 static_extrinsics: true,
-camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
-imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
+camera_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/camera.json"
+imu_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/kaarta/imu.json"
 
 ## model plugins: declare all plugins to use and give a unique name
 
@@ -25,20 +25,12 @@ sensor_models:
 ## plugin params: specify all params for the plugins, using their unique name
 
 lo_initializer:
-  matcher_params_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
-  ceres_config_path: '/home/nick/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
-  differential: false # Default: false
-  matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
-  lidar_topic: '/velodyne_points'
-  imu_topic: '/imu/data'
-  output_topic: 'lo_initialiser_result'
-  nominal_gravity_direction: '-Z'
-  undistort_scans: true
+  registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
+  matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
+  lidar_topic: '/lidar_h/velodyne_points'
+  output_topic: '/lo_initialiser_result'
   aggregation_time: 0.1
   trajectory_time_window: 5
   min_trajectory_distance: 1
-  outlier_threshold_trans_m: 0.3
-  outlier_threshold_rot_deg: 15
-  scan_registration_map_size: 10
-  scan_output_directory: '/home/nick/results/beam_slam/lo_initializer/' # Outputs scans as PCD files IFF not empty
-
+  scan_output_directory: '' 

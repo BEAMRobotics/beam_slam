@@ -22,8 +22,8 @@ motion_models:
 
 # solver options
 solver_options:
-  minimizer_type: "TRUST_REGION"
-  linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
+  minimizer_type: 'TRUST_REGION'
+  linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
   minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
@@ -43,42 +43,35 @@ unicycle_3d:
 
 
 camera:
-  source: "VIO"
-  image_topic: "/F1/downscaled/image_color"
-  imu_topic: "/imu/data"
-  reloc_topic: "/reloc_request"
-  init_path_topic: "/lo_initialiser_result"
-  frame_odometry_output_topic: "/vio_init"
-  new_keyframes_topic: "/new_keyframes"
-  slam_chunk_topic: "/slam_chunks"
-  landmark_topic: "/landmarks"
-  descriptor: "BEBLID"
-  window_size: 150 # number of images to store landmark information for before clearing for new images
+  source: 'VIO'
+  image_topic: '/F1/downscaled/image_color'
+  imu_topic: '/imu/data'
+  reloc_topic: '/reloc_request'
+  init_path_topic: '/lo_initialiser_result'
+  frame_odometry_output_topic: '/vio_init'
+  new_keyframes_topic: '/new_keyframes'
+  slam_chunk_topic: '/slam_chunks'
+  landmark_topic: '/landmarks'
+  descriptor: 'BEBLID'
+  window_size: 150 # number of images to store landmark information in tracker
   num_features_to_track: 100 # number of features to track from image to image
-  keyframe_window_size: 10 # number of keyframes to store before wiping for new images
-  keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe
-  keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe
+  keyframe_window_size: 10 # number of keyframes to store before publishing slam chunk
+  keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe (NOT USED)
+  keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe (NOT USED)
   keyframe_min_time_in_seconds: 0.25 # minimum amount of time between keyframes
   init_max_optimization_time_in_seconds: 1.0 # max amount of time to optimize the initializer map
-  init_map_output_directory: "" # Outputs vio map into directory if not empty
+  init_map_output_directory: '' # Outputs vio map into directory if not empty
 
 lo_initializer:
-  matcher_params_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
-  ceres_config_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
-  differential: false # Default: false
-  matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
+  registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
+  matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
   lidar_topic: '/lidar_h/velodyne_points'
-  imu_topic: '/imu/data'
   output_topic: '/lo_initialiser_result'
-  nominal_gravity_direction: '-Z'
-  undistort_scans: true
   aggregation_time: 0.1
   trajectory_time_window: 5
   min_trajectory_distance: 1
-  outlier_threshold_trans_m: 0.3
-  outlier_threshold_rot_deg: 15
-  scan_registration_map_size: 10
-  scan_output_directory: '' # Outputs scans as PCD files IFF not empty
+  scan_output_directory: '' 
 
 odom_pub:
   publish_tf: false # Default: true

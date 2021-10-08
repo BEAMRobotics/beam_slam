@@ -101,5 +101,5 @@ lidar_odometry:
   topic: '/velodyne_points'
   frame_initializer_type: 'POSEFILE' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/home/jake/data/LVIO/kaarta/trajectory_2019-07-10-16-55-15_loop_closed.ply' # for ODOMETRY: topic, for POSEFILE: path
-  # scan_output_directory: '/home/nick/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty
+  # scan_output_directory: '/userhome/results/beam_slam/scans/' # Outputs scans as PCD files IFF not empty
   scan_output_directory: ''

@@ -9,5 +9,5 @@
 
 # calibrations
 /calibration_params/static_extrinsics: true,
-/calibration_params/camera_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/ntu/camera.json"
-/calibration_params/imu_intrinsics_path: "/home/nick/catkin_ws/src/beam_slam/calibrations/ntu/imu.json"
+/calibration_params/camera_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/calibrations/ntu/camera.json"
+/calibration_params/imu_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/calibrations/ntu/imu.json"
