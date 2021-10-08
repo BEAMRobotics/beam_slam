@@ -17,7 +17,7 @@ namespace relative_pose {
  * IMU states according to DOI: 10.15607/RSS.2015.XI.006
  */
 class NormalDeltaImuState3DCostFunctor {
- public:
+public:
   FUSE_MAKE_ALIGNED_OPERATOR_NEW();
 
   /**
@@ -27,7 +27,7 @@ class NormalDeltaImuState3DCostFunctor {
    * and current IMU states
    */
   NormalDeltaImuState3DCostFunctor(
-      const bs_common::ImuState& imu_state_i,
+      const bs_common::ImuState &imu_state_i,
       const std::shared_ptr<bs_common::PreIntegrator> pre_integrator);
 
   /**
@@ -35,21 +35,21 @@ class NormalDeltaImuState3DCostFunctor {
    * variable/parameter values
    */
   template <typename T>
-  bool operator()(const T* const orientation1, const T* const position1,
-                  const T* const velocity1, const T* const gyrobias1,
-                  const T* const accelbias1, const T* const orientation2,
-                  const T* const position2, const T* const velocity2,
-                  const T* const gyrobias2, const T* const accelbias2,
-                  T* residual) const;
+  bool operator()(const T *const orientation1, const T *const position1,
+                  const T *const velocity1, const T *const gyrobias1,
+                  const T *const accelbias1, const T *const orientation2,
+                  const T *const position2, const T *const velocity2,
+                  const T *const gyrobias2, const T *const accelbias2,
+                  T *residual) const;
 
- private:
+private:
   bs_common::ImuState imu_state_i_;
   std::shared_ptr<bs_common::PreIntegrator> pre_integrator_;
-  Eigen::Matrix<double, 15, 15> A_;  //!< The residual weighting matrix
+  Eigen::Matrix<double, 15, 15> A_; //!< The residual weighting matrix
 };
 
 template <typename T>
-inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
+inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1> &theta) {
   Eigen::Quaternion<T> dq;
   Eigen::Matrix<T, 3, 1> half_theta = theta;
   half_theta /= static_cast<T>(2.0);
@@ -61,23 +61,19 @@ inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
 }
 
 NormalDeltaImuState3DCostFunctor::NormalDeltaImuState3DCostFunctor(
-    const bs_common::ImuState& imu_state_i,
+    const bs_common::ImuState &imu_state_i,
     const std::shared_ptr<bs_common::PreIntegrator> pre_integrator)
-    : imu_state_i_(imu_state_i),
-      pre_integrator_(pre_integrator),
-      A_(pre_integrator->delta.sqrt_inv_cov) {
-  // DEBUG
-  std::cout << "COV @ STAMP: " << imu_state_i_.Stamp() << "\n"
-            << A_ << std::endl;
-}
+    : imu_state_i_(imu_state_i), pre_integrator_(pre_integrator),
+      A_(pre_integrator->delta.sqrt_inv_cov) {}
 
 template <typename T>
-bool NormalDeltaImuState3DCostFunctor::operator()(
-    const T* const orientation1, const T* const position1,
-    const T* const velocity1, const T* const gyrobias1,
-    const T* const accelbias1, const T* const orientation2,
-    const T* const position2, const T* const velocity2,
-    const T* const gyrobias2, const T* const accelbias2, T* residual) const {
+bool NormalDeltaImuState3DCostFunctor::
+operator()(const T *const orientation1, const T *const position1,
+           const T *const velocity1, const T *const gyrobias1,
+           const T *const accelbias1, const T *const orientation2,
+           const T *const position2, const T *const velocity2,
+           const T *const gyrobias2, const T *const accelbias2,
+           T *residual) const {
   // map input to templated
   Eigen::Quaternion<T> q_i(orientation1[0], orientation1[1], orientation1[2],
                            orientation1[3]);
@@ -153,5 +149,5 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
   return true;
 }
 
-}  // namespace relative_pose
-}  // namespace bs_constraints
+} // namespace relative_pose
+} // namespace bs_constraints
