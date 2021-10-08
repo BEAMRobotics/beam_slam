@@ -197,11 +197,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // predict state at end of window using integrated imu measurements
   bs_common::ImuState imu_state_j =
       PredictState(pre_integrator_ij, imu_state_i_, t_now);
-
-  // DEBUG
-  std::cout << "COV @ STAMP: " << imu_state_i_.Stamp() << "\n"
-            << pre_integrator_ij.delta.sqrt_inv_cov << std::endl;
-
+      
   // Add relative constraints and variables between key frames
   transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j,
                                             pre_integrator_ij);

@@ -223,7 +223,6 @@ void VisualInertialOdometry::onGraphUpdate(
 /***********************************************************
 *                           Helpers                        *
 ************************************************************/
-
 Eigen::Matrix4d
 VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
   // get 2d-3d correspondences
