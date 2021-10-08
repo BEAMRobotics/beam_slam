@@ -37,17 +37,13 @@ catkin_package(
     ${PROJECT_NAME}
 )
 
-
 include_directories(
   include
   ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${CERES_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
-  ${bs_constraints_INCLUDE_DIRS}
   ${bs_common_INCLUDE_DIRS}
-  ${bs_variables_INCLUDE_DIRS}
   ${bs_models_INCLUDE_DIRS}
 )
 
@@ -56,11 +52,11 @@ add_library(
   src/pointcloud_to_global_map.cpp
 )
 
-target_link_libraries( 
-  ${PROJECT_NAME}
-    ${bs_models_LIBRARIES}
-    beam::utils
-    beam::filtering
+target_link_libraries(${PROJECT_NAME}
+  ${bs_models_LIBRARIES}
+  ${bs_common_LIBRARIES}
+  beam::utils
+  beam::filtering
 )
 
 ## Add executables
@@ -69,26 +65,10 @@ add_executable(${PROJECT_NAME}_global_map_refinement_main
 )
 target_include_directories(${PROJECT_NAME}_global_map_refinement_main
   PUBLIC
-  ${CERES_INCLUDE_DIRS}
-  ${fuse_core_INCLUDE_DIRS}
-  ${fuse_graphs_INCLUDE_DIRS}
-  ${fuse_models_INCLUDE_DIRS}
-  ${fuse_publishers_INCLUDE_DIRS}
-  ${fuse_variables_INCLUDE_DIRS}
-  ${fuse_constraints_INCLUDE_DIRS}
   ${bs_constraints_INCLUDE_DIRS}
-  ${bs_common_INCLUDE_DIRS}
-  ${bs_variables_INCLUDE_DIRS}
   ${bs_models_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
-  ${CERES_LIBRARIES}  
-  ${fuse_core_LIBRARIES}
-  ${fuse_graphs_LIBRARIES}
-  ${fuse_models_LIBRARIES}
-  ${fuse_publishers_LIBRARIES}
-  ${fuse_variables_LIBRARIES}
-  ${fuse_constraints_LIBRARIES}
   ${bs_constraints_LIBRARIES}
   ${bs_common_LIBRARIES}
   ${bs_variables_LIBRARIES}
@@ -103,14 +83,8 @@ add_executable(${PROJECT_NAME}_pointcloud_to_global_map_main
 target_include_directories(${PROJECT_NAME}_pointcloud_to_global_map_main
   PUBLIC
   include
-  ${bs_common_INCLUDE_DIRS}
-  ${bs_models_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME}_pointcloud_to_global_map_main
   ${PROJECT_NAME}
-  ${bs_common_LIBRARIES}
-  ${bs_models_LIBRARIES}
-  beam::utils
-  beam::filtering
 	gflags
 )

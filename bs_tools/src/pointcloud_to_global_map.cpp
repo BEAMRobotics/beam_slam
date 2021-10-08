@@ -4,17 +4,15 @@
 
 #include <beam_calibration/Radtan.h>
 #include <beam_filtering/CropBox.h>
+#include <beam_utils/filesystem.h>
 #include <beam_utils/log.h>
+#include <beam_utils/pointclouds.h>
 
 #include <bs_common/extrinsics_lookup_base.h>
 #include <bs_common/utils.h>
 #include <bs_models/global_mapping/submap.h>
 
 namespace bs_tools {
-
-PointcloudToGlobalMap::Params::Params() {
-  // no complex parameters rn
-}
 
 void PointcloudToGlobalMap::Params::LoadJson(const std::string &config_path) {
   std::string read_file = config_path;
@@ -25,8 +23,8 @@ void PointcloudToGlobalMap::Params::LoadJson(const std::string &config_path) {
   }
 
   if (read_file == "DEFAULT_PATH") {
-    read_file =
-        bs_common::GetBeamSlamConfigPath() + "global_map/global_map.json";
+    read_file = bs_common::GetBeamSlamConfigPath() +
+                "global_map/pointcloud_to_global_map.json";
   }
 
   BEAM_INFO("Loading global map config file: {}", read_file);
@@ -37,15 +35,26 @@ void PointcloudToGlobalMap::Params::LoadJson(const std::string &config_path) {
     return;
   }
 
-  submap_distance = J["submap_distance_m"];
-  submap_size = J["submap_size_m"];
-
+  try {
+    submap_distance = J["submap_distance_m"];
+  } catch (const std::exception &e) {
+    BEAM_ERROR("Could not read submap_distance_m from JSON.");
+  }
+  try {
+    submap_size = J["submap_size_m"];
+  } catch (const std::exception &e) {
+    BEAM_ERROR("Could not read submap_size_m from JSON.");
+  }
   if (submap_distance > submap_size) {
     BEAM_WARN("Submap size less than submap distance specified.  Submaps will "
               "not overlap, and some pointcloud regions will be lost.");
   }
 
-  nominal_gravity_direction = J["nominal_gravity_direction"];
+  try {
+    nominal_gravity_direction = J["nominal_gravity_direction"];
+  } catch (const std::exception &e) {
+    BEAM_ERROR("Could not read nominal_gravity_direction from JSON.");
+  }
   if (nominal_gravity_direction != "-X" && nominal_gravity_direction != "+X" &&
       nominal_gravity_direction != "-Y" && nominal_gravity_direction != "+Y" &&
       nominal_gravity_direction != "-Z" && nominal_gravity_direction != "+Z") {
@@ -54,52 +63,55 @@ void PointcloudToGlobalMap::Params::LoadJson(const std::string &config_path) {
   }
 }
 
-PointcloudToGlobalMap::PointcloudToGlobalMap(const std::string &pointcloud,
+PointcloudToGlobalMap::PointcloudToGlobalMap(const std::string &pointcloud_path,
                                              const Params &params)
-    : pointcloud_(pointcloud), params_(params) {
+    : pointcloud_(pointcloud_path), params_(params) {
   CreateGlobalMap();
 }
 
-PointcloudToGlobalMap::PointcloudToGlobalMap(const std::string &pointcloud,
+PointcloudToGlobalMap::PointcloudToGlobalMap(const std::string &pointcloud_path,
                                              const std::string &config_path)
-    : pointcloud_(pointcloud) {
+    : pointcloud_(pointcloud_path) {
   params_.LoadJson(config_path);
   CreateGlobalMap();
 }
 
 bool PointcloudToGlobalMap::CreateGlobalMap() {
-
   // construct global map and submaps
   std::shared_ptr<beam_calibration::CameraModel> camera =
       std::make_shared<beam_calibration::Radtan>(
           0, 0, Eigen::Matrix<double, 8, 1>::Zero());
   // simulate lidar extrinsics with all identity transformations
   bs_common::ExtrinsicsLookupBase::FrameIds frame_ids{
-      "base_link", "camera_link", "lidar_link", "base_link", "base_link"};
+      "imu_link", "camera_link", "lidar_link", "world", "imu_link"};
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics =
       std::make_shared<bs_common::ExtrinsicsLookupBase>(frame_ids);
-  extrinsics->SetTransform(Eigen::Matrix4d::Identity(), "lidar_link",
-                           "base_link");
+  Eigen::Matrix4d eye = Eigen::Matrix4d::Identity();
+  extrinsics->SetTransform(eye, frame_ids.imu, frame_ids.camera);
+  extrinsics->SetTransform(eye, frame_ids.imu, frame_ids.lidar);
   global_map_ = std::make_shared<bs_models::global_mapping::GlobalMap>(
       camera, extrinsics);
   std::vector<std::shared_ptr<bs_models::global_mapping::Submap>> submaps;
 
   // construct clouds and cropbox
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud =
-      std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-  pcl::PointCloud<pcl::PointXYZ>::Ptr subcloud =
-      std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  PointCloudPtr cloud = std::make_shared<PointCloud>();
+  PointCloudPtr subcloud = std::make_shared<PointCloud>();
   beam_filtering::CropBox<pcl::PointXYZ> cropbox;
   cropbox.SetRemoveOutsidePoints(true);
 
   // read point cloud and add to cropbox
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(pointcloud_, *cloud) ==
-      -1) //* load the file
-  {
-    BEAM_ERROR("Couldn't read valid PCD file at location {}", pointcloud_);
+  int read_status;
+  if (beam::GetExtension(pointcloud_) == ".pcd") {
+    read_status = pcl::io::loadPCDFile<pcl::PointXYZ>(pointcloud_, *cloud);
+  } else if (beam::GetExtension(pointcloud_) == ".ply") {
+    read_status = pcl::io::loadPLYFile<pcl::PointXYZ>(pointcloud_, *cloud);
+  }
+  if (read_status == -1) {
+    BEAM_ERROR("Couldn't read valid PCD or PLY file at location {}",
+               pointcloud_);
     return false;
   }
-  BEAM_INFO("Loaded pointcloud from PCD file at location {}", pointcloud_);
+  BEAM_INFO("Loaded pointcloud from file at location {}", pointcloud_);
   cropbox.SetInputCloud(cloud);
 
   // establish a system to iterate through center points
@@ -118,6 +130,7 @@ bool PointcloudToGlobalMap::CreateGlobalMap() {
   pcl::PointXYZ min;
   pcl::PointXYZ max;
   pcl::getMinMax3D(*cloud, min, max);
+  bool dimension_check;
   if (params_.nominal_gravity_direction.back() == 'Z') {
     // length [i] direction => X
     // width [j] direction => Y
@@ -130,6 +143,7 @@ bool PointcloudToGlobalMap::CreateGlobalMap() {
     i_vec = Eigen::Vector3f::UnitX();
     j_vec = Eigen::Vector3f::UnitY();
     R_box_cloud = Eigen::Matrix3f::Identity();
+    dimension_check = (max.z - min.z) < l_max && (max.z - min.z) < w_max;
   } else if (params_.nominal_gravity_direction.back() == 'Y') {
     // length [i] direction => X
     // width [j] direction => Z
@@ -142,6 +156,7 @@ bool PointcloudToGlobalMap::CreateGlobalMap() {
     i_vec = Eigen::Vector3f::UnitX();
     j_vec = Eigen::Vector3f::UnitZ();
     R_box_cloud = Eigen::AngleAxisf(M_PI / -2, Eigen::Vector3f::UnitX());
+    dimension_check = (max.y - min.y) < l_max && (max.y - min.y) < w_max;
   } else if (params_.nominal_gravity_direction.back() == 'X') {
     // length [i] direction => Y
     // width [j] direction => Z
@@ -154,12 +169,17 @@ bool PointcloudToGlobalMap::CreateGlobalMap() {
     i_vec = Eigen::Vector3f::UnitY();
     j_vec = Eigen::Vector3f::UnitZ();
     R_box_cloud = Eigen::AngleAxisf(M_PI / 2, Eigen::Vector3f::UnitY());
+    dimension_check = (max.x - min.x) < l_max && (max.x - min.x) < w_max;
+  }
+  if (!dimension_check) {
+    BEAM_INFO("The current nominal gravity direction is not the smallest "
+              "dimension. Proceeding with warning.");
   }
 
   // distribute extra map on either side of submap grid
-  int l_n = (int)(l / params_.submap_distance);
+  int l_n = static_cast<int>(l / params_.submap_distance);
   i += (l - (l_n * params_.submap_distance)) / 2;
-  int w_n = (int)(w / params_.submap_distance);
+  int w_n = static_cast<int>(w / params_.submap_distance);
   j += (w - (w_n * params_.submap_distance)) / 2;
 
   // configure cropbox to handle transforms for any nominal gravity
@@ -207,14 +227,6 @@ bool PointcloudToGlobalMap::CreateGlobalMap() {
 } // namespace bs_tools
 
 bool PointcloudToGlobalMap::SaveGlobalMapData(const std::string &output_path) {
-  // verify output_path
-  if (!boost::filesystem::exists(output_path)) {
-    BEAM_INFO("Output directory does not exist, can not save global map "
-              "data. Input: {}",
-              output_path);
-    return false;
-  }
-
   // save
   global_map_->SaveData(output_path);
   return true;
@@ -222,20 +234,9 @@ bool PointcloudToGlobalMap::SaveGlobalMapData(const std::string &output_path) {
 
 bool PointcloudToGlobalMap::SaveGlobalMapResults(
     const std::string &output_path) {
-  // verify output_path
-  if (!boost::filesystem::exists(output_path)) {
-    BEAM_INFO("Output directory does not exist, can not save global map "
-              "results. Input: {}",
-              output_path);
-    return false;
-  }
-
   // save
-  global_map_->SaveTrajectoryFile(output_path);
-  global_map_->SaveTrajectoryClouds(output_path);
-  global_map_->SaveSubmapFrames(output_path);
-  global_map_->SaveLidarSubmaps(output_path);
-  global_map_->SaveKeypointSubmaps(output_path);
+  global_map_->SaveSubmapFrames(output_path, false);
+  global_map_->SaveLidarSubmaps(output_path, false);
   return true;
 }
 

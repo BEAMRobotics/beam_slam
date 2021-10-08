@@ -16,19 +16,17 @@ public:
    * file.
    */
   struct Params {
-    /** constructor to make sure special default variables are set */
-    Params();
 
-    // Euclidean distance between submap poses
-    // Measured projected in gravity normal plane
+    /** Euclidean distance between submap poses
+     *   Measured projected in gravity normal plane */
     double submap_distance{10};
 
-    // Size of submaps (L x L in gravity normal plane)
-    // Creates an L x L x infinty cropbox centered on each submap pose
+    /** Size of submaps (L x L in gravity normal plane)
+     *  Creates an L x L x infinty cropbox centered on each submap pose */
     double submap_size{20};
 
-    // Nominal direction of gravity in pointcloud world frame
-    // This dimension is not cropped (single floor mapping assumption)
+    /** Nominal direction of gravity in pointcloud world frame
+     * This dimension is not cropped (single floor mapping assumption) */
     std::string nominal_gravity_direction{"-Z"};
 
     /** Loads config settings from a json file. If config_path empty, it will
@@ -41,7 +39,7 @@ public:
   /**
    * @brief delete default constructor
    */
-  // PointcloudToGlobalMap() = delete;
+  PointcloudToGlobalMap() = delete;
 
   /**
    * @brief constructor requiring a pointcloud and optional params
@@ -50,8 +48,8 @@ public:
    * global map class. This can either be a .pcd or .ply
    * @param params see struct above
    */
-  PointcloudToGlobalMap(const std::string &pointcloud,
-                        const Params &params = Params());
+  PointcloudToGlobalMap(const std::string &pointcloud_path,
+                        const Params &params);
 
   /**
    * @brief constructor requiring a pointcloud and a path to a
@@ -61,7 +59,7 @@ public:
    * global map class. This can either be a .pcd or .ply
    * @param config_path full path to json config file to load the params struct
    */
-  PointcloudToGlobalMap(const std::string &pointcloud,
+  PointcloudToGlobalMap(const std::string &pointcloud_path,
                         const std::string &config_path);
 
   /**
