@@ -117,7 +117,7 @@ class PreIntegrator {
    */
   void ComputeSqrtInvCov();
 
-  double cov_tol{1e-9};  // tolarance on zero covariance matrix
+  double cov_tol{1e-6};  // tolarance on zero covariance matrix
 
   Eigen::Matrix3d cov_w;  // continuous noise covariance
   Eigen::Matrix3d cov_a;

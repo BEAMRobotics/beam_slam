@@ -93,10 +93,9 @@ void ImuPreintegration::SetStart(
   imu_state_k_ = imu_state_i_;
 }
 
-bs_common::ImuState
-ImuPreintegration::PredictState(const bs_common::PreIntegrator &pre_integrator,
-                                const bs_common::ImuState &imu_state_curr,
-                                const ros::Time &t_now) {
+bs_common::ImuState ImuPreintegration::PredictState(
+    const bs_common::PreIntegrator &pre_integrator,
+    const bs_common::ImuState &imu_state_curr, const ros::Time &t_now) {
   // get commonly used variables
   const double &dt = pre_integrator.delta.t.toSec();
   const Eigen::Matrix3d &q_curr = imu_state_curr.OrientationMat();
@@ -198,7 +197,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // predict state at end of window using integrated imu measurements
   bs_common::ImuState imu_state_j =
       PredictState(pre_integrator_ij, imu_state_i_, t_now);
-
+      
   // Add relative constraints and variables between key frames
   transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j,
                                             pre_integrator_ij);
@@ -232,7 +231,6 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
 void ImuPreintegration::UpdateGraph(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
-
   // get timestamp for state i
   ros::Time stamp_i = imu_state_i_.Stamp();
 
@@ -288,7 +286,8 @@ void ImuPreintegration::UpdateGraph(
     // copy state i to kth frame
     imu_state_k_ = imu_state_i_;
 
-  } catch (const std::out_of_range& oor) {}
+  } catch (const std::out_of_range &oor) {
+  }
 }
 
-} // namespace bs_models
+}  // namespace bs_models
