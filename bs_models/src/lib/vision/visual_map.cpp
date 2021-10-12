@@ -5,27 +5,23 @@
 #include <bs_constraints/visual/visual_constraint.h>
 #include <bs_constraints/visual/visual_constraint_fixed.h>
 
-namespace bs_models { namespace vision {
+namespace bs_models {
+namespace vision {
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-                     const std::string& source, const size_t tracked_features,
+                     const std::string &source, const size_t tracked_features,
                      const size_t window_size)
-    : cam_model_(cam_model),
-      source_(source),
-      tracked_features_(tracked_features),
-      window_size_(window_size) {}
+    : cam_model_(cam_model), source_(source),
+      tracked_features_(tracked_features), window_size_(window_size) {}
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                      fuse_core::Graph::SharedPtr local_graph,
-                     const std::string& source, const size_t tracked_features,
+                     const std::string &source, const size_t tracked_features,
                      const size_t window_size)
-    : cam_model_(cam_model),
-      local_graph_(local_graph),
-      source_(source),
-      tracked_features_(tracked_features),
-      window_size_(window_size) {}
+    : cam_model_(cam_model), local_graph_(local_graph), source_(source),
+      tracked_features_(tracked_features), window_size_(window_size) {}
 
-beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time& stamp) {
+beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time &stamp) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
     return {};
@@ -49,7 +45,7 @@ beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time& stamp) {
   }
 }
 
-beam::opt<Eigen::Matrix4d> VisualMap::GetBaselinkPose(const ros::Time& stamp) {
+beam::opt<Eigen::Matrix4d> VisualMap::GetBaselinkPose(const ros::Time &stamp) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
     return {};
@@ -70,7 +66,7 @@ beam::opt<Eigen::Matrix4d> VisualMap::GetBaselinkPose(const ros::Time& stamp) {
 }
 
 fuse_variables::Point3DLandmark::SharedPtr
-    VisualMap::GetLandmark(uint64_t landmark_id) {
+VisualMap::GetLandmark(uint64_t landmark_id) {
   fuse_variables::Point3DLandmark::SharedPtr landmark =
       fuse_variables::Point3DLandmark::make_shared();
   auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
@@ -79,13 +75,13 @@ fuse_variables::Point3DLandmark::SharedPtr
   if (!local_graph_) {
     if (graph_) {
       try {
-        *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(
+        *landmark = dynamic_cast<const fuse_variables::Point3DLandmark &>(
             graph_->getVariable(landmark_uuid));
 
         // update local maps with most recent update
         landmark_positions_[landmark_id] = landmark;
         return landmark;
-      } catch (const std::out_of_range& oor) {
+      } catch (const std::out_of_range &oor) {
         if (landmark_positions_.find(landmark_id) ==
             landmark_positions_.end()) {
           return nullptr;
@@ -101,16 +97,17 @@ fuse_variables::Point3DLandmark::SharedPtr
     }
   } else {
     try {
-      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(
+      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark &>(
           local_graph_->getVariable(landmark_uuid));
       return landmark;
-    } catch (const std::out_of_range& oor) {}
+    } catch (const std::out_of_range &oor) {
+    }
   }
   return nullptr;
 }
 
 fuse_variables::Point3DFixedLandmark::SharedPtr
-    VisualMap::GetFixedLandmark(uint64_t landmark_id) {
+VisualMap::GetFixedLandmark(uint64_t landmark_id) {
   fuse_variables::Point3DFixedLandmark::SharedPtr landmark =
       fuse_variables::Point3DFixedLandmark::make_shared();
   auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
@@ -119,13 +116,13 @@ fuse_variables::Point3DFixedLandmark::SharedPtr
   if (!local_graph_) {
     if (graph_) {
       try {
-        *landmark = dynamic_cast<const fuse_variables::Point3DFixedLandmark&>(
+        *landmark = dynamic_cast<const fuse_variables::Point3DFixedLandmark &>(
             graph_->getVariable(landmark_uuid));
 
         // update local maps with most recent update
         fixed_landmark_positions_[landmark_id] = landmark;
         return landmark;
-      } catch (const std::out_of_range& oor) {
+      } catch (const std::out_of_range &oor) {
         if (fixed_landmark_positions_.find(landmark_id) ==
             fixed_landmark_positions_.end()) {
           return nullptr;
@@ -142,16 +139,17 @@ fuse_variables::Point3DFixedLandmark::SharedPtr
     }
   } else {
     try {
-      *landmark = dynamic_cast<const fuse_variables::Point3DFixedLandmark&>(
+      *landmark = dynamic_cast<const fuse_variables::Point3DFixedLandmark &>(
           local_graph_->getVariable(landmark_uuid));
       return landmark;
-    } catch (const std::out_of_range& oor) {}
+    } catch (const std::out_of_range &oor) {
+    }
   }
   return nullptr;
 }
 
 fuse_variables::Orientation3DStamped::SharedPtr
-    VisualMap::GetOrientation(const ros::Time& stamp) {
+VisualMap::GetOrientation(const ros::Time &stamp) {
   fuse_variables::Orientation3DStamped::SharedPtr corr_orientation =
       fuse_variables::Orientation3DStamped::make_shared();
   auto corr_orientation_uuid = fuse_core::uuid::generate(
@@ -162,13 +160,13 @@ fuse_variables::Orientation3DStamped::SharedPtr
     if (graph_) {
       try {
         *corr_orientation =
-            dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+            dynamic_cast<const fuse_variables::Orientation3DStamped &>(
                 graph_->getVariable(corr_orientation_uuid));
 
         // update local maps with most recent update
         orientations_[stamp.toNSec()] = corr_orientation;
         return corr_orientation;
-      } catch (const std::out_of_range& oor) {
+      } catch (const std::out_of_range &oor) {
         if (orientations_.find(stamp.toNSec()) == orientations_.end()) {
           return nullptr;
         } else {
@@ -181,16 +179,17 @@ fuse_variables::Orientation3DStamped::SharedPtr
   } else {
     try {
       *corr_orientation =
-          dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+          dynamic_cast<const fuse_variables::Orientation3DStamped &>(
               local_graph_->getVariable(corr_orientation_uuid));
       return corr_orientation;
-    } catch (const std::out_of_range& oor) {}
+    } catch (const std::out_of_range &oor) {
+    }
   }
   return nullptr;
 }
 
 fuse_variables::Position3DStamped::SharedPtr
-    VisualMap::GetPosition(const ros::Time& stamp) {
+VisualMap::GetPosition(const ros::Time &stamp) {
   fuse_variables::Position3DStamped::SharedPtr corr_position =
       fuse_variables::Position3DStamped::make_shared();
   auto corr_position_uuid = fuse_core::uuid::generate(
@@ -200,13 +199,14 @@ fuse_variables::Position3DStamped::SharedPtr
   if (!local_graph_) {
     if (graph_) {
       try {
-        *corr_position = dynamic_cast<const fuse_variables::Position3DStamped&>(
-            graph_->getVariable(corr_position_uuid));
+        *corr_position =
+            dynamic_cast<const fuse_variables::Position3DStamped &>(
+                graph_->getVariable(corr_position_uuid));
 
         // update local maps with most recent update
         positions_[stamp.toNSec()] = corr_position;
         return corr_position;
-      } catch (const std::out_of_range& oor) {
+      } catch (const std::out_of_range &oor) {
         if (positions_.find(stamp.toNSec()) == positions_.end()) {
           return nullptr;
         } else {
@@ -221,17 +221,18 @@ fuse_variables::Position3DStamped::SharedPtr
     }
   } else {
     try {
-      *corr_position = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      *corr_position = dynamic_cast<const fuse_variables::Position3DStamped &>(
           local_graph_->getVariable(corr_position_uuid));
       return corr_position;
-    } catch (const std::out_of_range& oor) {}
+    } catch (const std::out_of_range &oor) {
+    }
   }
   return nullptr;
 }
 
-void VisualMap::AddCameraPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
-                        const ros::Time& stamp,
-                        fuse_core::Transaction::SharedPtr transaction) {
+void VisualMap::AddCameraPose(const Eigen::Matrix4d &T_WORLD_CAMERA,
+                              const ros::Time &stamp,
+                              fuse_core::Transaction::SharedPtr transaction) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
     return;
@@ -250,8 +251,8 @@ void VisualMap::AddCameraPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
   AddOrientation(q, stamp, transaction);
 }
 
-void VisualMap::AddBaselinkPose(const Eigen::Matrix4d& T_WORLD_BASELINK,
-                                const ros::Time& stamp,
+void VisualMap::AddBaselinkPose(const Eigen::Matrix4d &T_WORLD_BASELINK,
+                                const ros::Time &stamp,
                                 fuse_core::Transaction::SharedPtr transaction) {
   Eigen::Quaterniond q;
   Eigen::Vector3d p;
@@ -264,8 +265,8 @@ void VisualMap::AddBaselinkPose(const Eigen::Matrix4d& T_WORLD_BASELINK,
   AddOrientation(q, stamp, transaction);
 }
 
-void VisualMap::AddOrientation(const Eigen::Quaterniond& q_WORLD_BASELINK,
-                               const ros::Time& stamp,
+void VisualMap::AddOrientation(const Eigen::Quaterniond &q_WORLD_BASELINK,
+                               const ros::Time &stamp,
                                fuse_core::Transaction::SharedPtr transaction) {
   // cosntruct orientation variable
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
@@ -279,8 +280,8 @@ void VisualMap::AddOrientation(const Eigen::Quaterniond& q_WORLD_BASELINK,
   AddOrientation(orientation, transaction);
 }
 
-void VisualMap::AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK,
-                            const ros::Time& stamp,
+void VisualMap::AddPosition(const Eigen::Vector3d &p_WORLD_BASELINK,
+                            const ros::Time &stamp,
                             fuse_core::Transaction::SharedPtr transaction) {
   // construct position variable
   fuse_variables::Position3DStamped::SharedPtr position =
@@ -293,7 +294,7 @@ void VisualMap::AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK,
   AddPosition(position, transaction);
 }
 
-void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
+void VisualMap::AddLandmark(const Eigen::Vector3d &position, uint64_t id,
                             fuse_core::Transaction::SharedPtr transaction) {
   // construct landmark variable
   fuse_variables::Point3DLandmark::SharedPtr landmark =
@@ -307,7 +308,7 @@ void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
 }
 
 void VisualMap::AddFixedLandmark(
-    const Eigen::Vector3d& position, uint64_t id,
+    const Eigen::Vector3d &position, uint64_t id,
     fuse_core::Transaction::SharedPtr transaction) {
   // construct landmark variable
   fuse_variables::Point3DFixedLandmark::SharedPtr landmark =
@@ -394,8 +395,8 @@ void VisualMap::AddFixedLandmark(
   }
 }
 
-void VisualMap::AddConstraint(const ros::Time& stamp, uint64_t lm_id,
-                              const Eigen::Vector2d& pixel,
+void VisualMap::AddConstraint(const ros::Time &stamp, uint64_t lm_id,
+                              const Eigen::Vector2d &pixel,
                               fuse_core::Transaction::SharedPtr transaction) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
@@ -412,32 +413,35 @@ void VisualMap::AddConstraint(const ros::Time& stamp, uint64_t lm_id,
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
       GetOrientation(stamp);
   if (position && orientation) {
-    if (lm) {
-      // add normal visual constraint
-      fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
-          fuse_constraints::VisualConstraint::make_shared(
-              source_, *orientation, *position, *lm, pixel, T_cam_baselink_,
-              cam_model_);
-      if (transaction) {
-        transaction->addConstraint(vis_constraint);
-      } else if (local_graph_) {
-        local_graph_->addConstraint(vis_constraint);
-      } else {
-        ROS_WARN("Must input local graph or transaction.");
+    try {
+      if (lm) {
+        // add normal visual constraint
+        fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
+            fuse_constraints::VisualConstraint::make_shared(
+                source_, *orientation, *position, *lm, pixel, T_cam_baselink_,
+                cam_model_);
+        if (transaction) {
+          transaction->addConstraint(vis_constraint);
+        } else if (local_graph_) {
+          local_graph_->addConstraint(vis_constraint);
+        } else {
+          ROS_WARN("Must input local graph or transaction.");
+        }
+      } else if (lm_fixed) {
+        // add fixed visual constraint
+        fuse_constraints::VisualConstraintFixed::SharedPtr vis_constraint =
+            fuse_constraints::VisualConstraintFixed::make_shared(
+                source_, *orientation, *position, *lm_fixed, pixel,
+                T_cam_baselink_, cam_model_);
+        if (transaction) {
+          transaction->addConstraint(vis_constraint);
+        } else if (local_graph_) {
+          local_graph_->addConstraint(vis_constraint);
+        } else {
+          ROS_WARN("Must input local graph or transaction.");
+        }
       }
-    } else if (lm_fixed) {
-      // add fixed visual constraint
-      fuse_constraints::VisualConstraintFixed::SharedPtr vis_constraint =
-          fuse_constraints::VisualConstraintFixed::make_shared(
-              source_, *orientation, *position, *lm_fixed, pixel,
-              T_cam_baselink_, cam_model_);
-      if (transaction) {
-        transaction->addConstraint(vis_constraint);
-      } else if (local_graph_) {
-        local_graph_->addConstraint(vis_constraint);
-      } else {
-        ROS_WARN("Must input local graph or transaction.");
-      }
+    } catch (const std::logic_error &le) {
     }
   }
 }
@@ -468,5 +472,5 @@ fuse_core::UUID VisualMap::GetOrientationUUID(ros::Time stamp) {
 void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   graph_ = std::move(graph_msg);
 }
-
-}} // namespace bs_models::vision
+}
+} // namespace bs_models::vision
