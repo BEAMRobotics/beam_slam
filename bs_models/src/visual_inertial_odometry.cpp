@@ -35,7 +35,7 @@ void VisualInertialOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // initialize pose refiner object with params
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2);
 
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
