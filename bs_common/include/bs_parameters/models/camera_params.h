@@ -9,7 +9,8 @@
 #include <string>
 #include <vector>
 
-namespace bs_parameters { namespace models {
+namespace bs_parameters {
+namespace models {
 
 /**
  * @brief Defines the set of parameters required by the ScanMatcher class
@@ -21,58 +22,90 @@ public:
    *
    * @param[in] nh - The ROS node handle with which to load parameters
    */
-  void loadFromROS(const ros::NodeHandle& nh) final {
+  void loadFromROS(const ros::NodeHandle &nh) final {
+    // subscribing topics
     getParam<std::string>(nh, "image_topic", image_topic, "");
-    getParam<std::string>(nh, "source", source, "VIO");
     getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
-    getParam<std::string>(nh, "reloc_topic", reloc_topic, "");
-    getParam<std::string>(nh, "init_map_output_directory",
-                          init_map_output_directory, "");
 
+    // publishing topics
+    getParam<std::string>(nh, "reloc_topic", reloc_topic, "");
     getParam<std::string>(nh, "frame_odometry_output_topic",
                           frame_odometry_output_topic, "/vio_init");
-    getParam<std::string>(nh, "landmark_topic", landmark_topic,
-                          "/landmarks");
+    getParam<std::string>(nh, "landmark_topic", landmark_topic, "/landmarks");
     getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
                           "/slam_chunks");
     getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
                           "/slam_chunks");
-    getParam<std::string>(nh, "descriptor", descriptor, "ORB");
 
+    // initial odometry source frame
+    getParam<std::string>(nh, "source", source, "VIO");
+
+    // vision configs
+    getParam<std::string>(nh, "descriptor", descriptor, "ORB");
+    getParam<std::string>(nh, "descriptor_config", descriptor_config, "");
+    getParam<std::string>(nh, "detector", detector, "GFTT");
+    getParam<std::string>(nh, "detector_config", detector_config, "");
+    getParam<std::string>(nh, "tracker_config", tracker_config, "");
+
+    // memory management params
     getParam<int>(nh, "window_size", window_size, 100);
     getParam<int>(nh, "keyframe_window_size", keyframe_window_size, 20);
     getParam<int>(nh, "num_features_to_track", num_features_to_track, 300);
+
+    // keyframe decision parameters
     getParam<int>(nh, "keyframe_parallax", keyframe_parallax, 20);
     getParam<int>(nh, "keyframe_tracks_drop", keyframe_tracks_drop, 100);
-
     getParam<double>(nh, "keyframe_min_time_in_seconds",
-                     keyframe_min_time_in_seconds, 0.3);
+                     keyframe_min_time_in_seconds, 0.2);
+
+    // vio initialization params
     getParam<double>(nh, "init_max_optimization_time_in_seconds",
                      init_max_optimization_time_in_seconds, 0.3);
+    getParam<std::string>(nh, "init_map_output_directory",
+                          init_map_output_directory, "");
+    getParam<bool>(nh, "init_use_scale_estimate", init_use_scale_estimate,
+                   false);
   }
 
+  // subscribing topics
   std::string image_topic{};
   std::string init_path_topic{};
   std::string imu_topic{};
+
+  // publishing topics
   std::string reloc_topic{};
-  std::string source{};
   std::string frame_odometry_output_topic{};
   std::string new_keyframes_topic{};
   std::string landmark_topic{};
   std::string slam_chunk_topic{};
-  std::string descriptor{};
-  std::string init_map_output_directory{};
 
+  // initial odometry source frame
+  std::string source{};
+
+  // vision configs
+  std::string descriptor{};
+  std::string descriptor_config{};
+  std::string detector{};
+  std::string detector_config{};
+  std::string tracker_config{};
+
+  // memory management params
   int window_size{};
   int keyframe_window_size{};
   int num_features_to_track{};
+
+  // keyframe decision parameters
   int keyframe_parallax{};
   int keyframe_tracks_drop{};
   double keyframe_min_time_in_seconds{};
-  double init_max_optimization_time_in_seconds{};
-};
 
-}} // namespace bs_parameters::models
+  // vio initialization params
+  std::string init_map_output_directory{};
+  double init_max_optimization_time_in_seconds{};
+  bool init_use_scale_estimate{};
+};
+}
+} // namespace bs_parameters::models
 
 #endif

@@ -1,0 +1,10 @@
+{
+  "num_features": 100,
+  "quality_level": 0.01,
+  "min_distance": 1,
+  "block_size": 3,
+  "use_harris_detector": false,
+  "k": 0.04,
+  "grid_cols": 3,
+  "grid_rows": 2
+}
