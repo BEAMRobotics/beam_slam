@@ -44,7 +44,7 @@ void VisualInertialOdometry::onInit() {
       cam_model_, camera_params_.source, camera_params_.num_features_to_track,
       camera_params_.keyframe_window_size);
 
-  // Initialize tracker variables
+  // Get descriptor type
   descriptor_type_ =
       beam_cv::DescriptorTypeStringMap[camera_params_.descriptor];
   for (auto &it : beam_cv::DescriptorTypeIntMap) {
@@ -52,18 +52,27 @@ void VisualInertialOdometry::onInit() {
       descriptor_type_int_ = it.first;
     }
   }
-  std::shared_ptr<beam_cv::Descriptor> descriptor =
-      beam_cv::Descriptor::Create(descriptor_type_);
-  std::shared_ptr<beam_cv::Detector> detector =
-      std::make_shared<beam_cv::GFTTDetector>(
-          camera_params_.num_features_to_track);
-  tracker_ = std::make_shared<beam_cv::KLTracker>(detector, descriptor,
-                                                  camera_params_.window_size);
+
+  // Initialize descriptor
+  std::shared_ptr<beam_cv::Descriptor> descriptor = beam_cv::Descriptor::Create(
+      descriptor_type_, camera_params_.descriptor_config);
+
+  // Initialize detector
+  std::shared_ptr<beam_cv::Detector> detector = beam_cv::Detector::Create(
+      beam_cv::DetectorTypeStringMap[camera_params_.detector],
+      camera_params_.detector_config);
+
+  // Initialize tracker
+  beam_cv::KLTracker::Params tracker_params;
+  tracker_params.LoadFromJson(camera_params_.tracker_config);
+  tracker_ = std::make_shared<beam_cv::KLTracker>(
+      tracker_params, detector, descriptor, camera_params_.window_size);
 
   // Create initializer object
   initialization_ = std::make_shared<vision::VIOInitialization>(
       cam_model_, tracker_, camera_params_.init_path_topic,
-      calibration_params_.imu_intrinsics_path, false,
+      calibration_params_.imu_intrinsics_path,
+      camera_params_.init_use_scale_estimate,
       camera_params_.init_max_optimization_time_in_seconds,
       camera_params_.init_map_output_directory);
 
@@ -239,7 +248,7 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
       points.push_back(point);
     }
   }
-  
+
   // perform pose estimation
   if (points.size() >= 20) {
     // estimate pose using motion only BA if there are enough points

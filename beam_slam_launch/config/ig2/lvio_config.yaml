@@ -53,14 +53,19 @@ camera:
   slam_chunk_topic: '/slam_chunks'
   landmark_topic: '/landmarks'
   descriptor: 'BEBLID'
+  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/ig2/descriptor.json'
+  detector: 'GFTT'
+  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/ig2/detector.json'
+  tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/ig2/tracker.json'
   window_size: 150 # number of images to store landmark information in tracker
-  num_features_to_track: 100 # number of features to track from image to image
+  num_features_to_track: 100 # number of features per keyframe to store in local visual map
   keyframe_window_size: 10 # number of keyframes to store before publishing slam chunk
   keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe (NOT USED)
   keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe (NOT USED)
   keyframe_min_time_in_seconds: 0.25 # minimum amount of time between keyframes
   init_max_optimization_time_in_seconds: 1.0 # max amount of time to optimize the initializer map
-  init_map_output_directory: '' # Outputs vio map into directory if not empty
+  init_map_output_directory: '' # Outputs vio initial map into directory if not empty
+  init_use_scale_estimate: false # Set to true if using sfm initializer
 
 lo_initializer:
   registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
