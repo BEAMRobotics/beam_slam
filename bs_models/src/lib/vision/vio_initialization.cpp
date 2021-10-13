@@ -62,15 +62,7 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 
     // Align poses to world gravity
-    Eigen::Quaterniond q =
-        Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
-    for (auto &f : valid_frames_) {
-      f.q = q * f.q;
-      f.p = q * f.p;
-      // Apply scale estimate if desired
-      if (use_scale_estimate_)
-        f.p = scale_ * f.p;
-    }
+    AlignPosesToGravity();
 
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames_, true);
@@ -571,6 +563,34 @@ void VIOInitialization::OutputResults(const std::vector<Frame> &frames) {
             beam::PointCloudFileType::PCDBINARY, error_message)) {
       BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
     }
+  }
+}
+
+void VIOInitialization::AlignPosesToGravity() {
+  // estimate rotation from estimated gravity to world gravity
+  Eigen::Quaterniond q =
+      Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
+
+  // apply rotation to initial path
+  for (auto &pose : init_path_->poses) {
+    Eigen::Matrix4d T;
+    bs_common::PoseMsgToTransformationMatrix(pose, T);
+    Eigen::Quaterniond ori;
+    Eigen::Vector3d pos;
+    beam::TransformMatrixToQuaternionAndTranslation(T, ori, pos);
+    ori = q * ori;
+    pos = q * pos;
+    beam::QuaternionAndTranslationToTransformMatrix(ori, pos, T);
+    bs_common::TransformationMatrixToPoseMsg(T, pose.header.stamp, pose);
+  }
+
+  // apply rotation to valid frames
+  for (auto &f : valid_frames_) {
+    f.q = q * f.q;
+    f.p = q * f.p;
+    // Apply scale estimate if desired
+    if (use_scale_estimate_)
+      f.p = scale_ * f.p;
   }
 }
 }
