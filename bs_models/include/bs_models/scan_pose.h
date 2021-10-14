@@ -41,6 +41,47 @@ class ScanPose {
           feature_extractor = nullptr);
 
   /**
+   * @brief constructor for when inputting a PointXYZIRT pointcloud
+   * (velodyne pointcloud)
+   * @param cloud input pointcloud of type pcl::PointCloud<PointXYZIRT>>
+   * @param stamp timestamp for this scan frame
+   * @param T_REFFRAME_BASELINK transformation from the baselink frame to the
+   * reference frame
+   * @param T_BASELINK_LIDAR optional extrinsics between baselink and lidar. If
+   * not set, it will assume the baselink is the lidar frame so this transform
+   * will be set to identity.
+   * @param feature_extractor optional loam feature extractor. If supplied, the
+   * constructor will extract loam features and store it in this class
+   */
+  ScanPose(
+      const pcl::PointCloud<PointXYZIRT>& cloud, const ros::Time& stamp,
+      const Eigen::Matrix4d& T_REFFRAME_BASELINK,
+      const Eigen::Matrix4d& T_BASELINK_LIDAR = Eigen::Matrix4d::Identity(),
+      const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
+          feature_extractor = nullptr);
+
+  /**
+   * @brief constructor for when inputting a PointXYZITRRNR pointcloud
+   * (ouster pointcloud)
+   * @param cloud input pointcloud of type
+   * pcl::PointCloud<PointXYZITRRNR>>
+   * @param stamp timestamp for this scan frame
+   * @param T_REFFRAME_BASELINK transformation from the baselink frame to the
+   * reference frame
+   * @param T_BASELINK_LIDAR optional extrinsics between baselink and lidar. If
+   * not set, it will assume the baselink is the lidar frame so this transform
+   * will be set to identity.
+   * @param feature_extractor optional loam feature extractor. If supplied, the
+   * constructor will extract loam features and store it in this class
+   */
+  ScanPose(
+      const pcl::PointCloud<PointXYZITRRNR>& cloud,
+      const ros::Time& stamp, const Eigen::Matrix4d& T_REFFRAME_BASELINK,
+      const Eigen::Matrix4d& T_BASELINK_LIDAR = Eigen::Matrix4d::Identity(),
+      const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
+          feature_extractor = nullptr);
+
+  /**
    * @brief constructor that does not require an input cloud. YOU WILL NEED TO
    * MANUALLY ADD CLOUDS AFTER INSTANTIATION USING: AddPointCloud(...) and/or
    * AddLoamCloud(...)
