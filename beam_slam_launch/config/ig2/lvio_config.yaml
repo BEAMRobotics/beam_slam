@@ -64,7 +64,7 @@ camera:
   keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe (NOT USED)
   keyframe_min_time_in_seconds: 0.25 # minimum amount of time between keyframes
   init_max_optimization_time_in_seconds: 1.0 # max amount of time to optimize the initializer map
-  init_map_output_directory: '/userhome' # Outputs vio initial map into directory if not empty
+  init_map_output_directory: '' # Outputs vio initial map into directory if not empty
   init_use_scale_estimate: false # Set to true if using sfm initializer
 
 lo_initializer:

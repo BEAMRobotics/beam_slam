@@ -35,7 +35,7 @@ void VisualInertialOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // initialize pose refiner object with params
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
 
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
@@ -107,9 +107,9 @@ void VisualInertialOdometry::onStart() {
       camera_params_.reloc_topic, 10);
 }
 
-/***********************************************************
-*                          Callbacks                       *
-************************************************************/
+/************************************************************
+ *                          Callbacks                       *
+ ************************************************************/
 void VisualInertialOdometry::processImage(
     const sensor_msgs::Image::ConstPtr &msg) {
   // get most recent extrinsics, if failure then process frame later
@@ -134,7 +134,7 @@ void VisualInertialOdometry::processImage(
 
     // process in initialization mode
     if (!initialization_->Initialized()) {
-      if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.25) {
+      if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.5) {
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
@@ -196,7 +196,7 @@ void VisualInertialOdometry::processImage(
         keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
         added_since_kf_++;
       }
-      ROS_DEBUG("Total time to process frame: %.5f", frame_timer.elapsed());
+      ROS_INFO("Total time to process frame: %.5f", frame_timer.elapsed());
     }
     image_buffer_.pop();
   }
@@ -229,9 +229,9 @@ void VisualInertialOdometry::onGraphUpdate(
   imu_preint_->UpdateGraph(graph);
 }
 
-/***********************************************************
-*                           Helpers                        *
-************************************************************/
+/************************************************************
+ *                           Helpers                        *
+ ************************************************************/
 Eigen::Matrix4d
 VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
   // get 2d-3d correspondences
@@ -321,7 +321,7 @@ void VisualInertialOdometry::ExtendMap() {
       if (T_cam_world_v.size() >= 3) {
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                     pixels, 5.0);
+                                                     pixels);
         if (point.has_value()) {
           keyframes_.back().AddLandmark(id);
           visual_map_->AddLandmark(point.value(), id, transaction);
@@ -412,9 +412,9 @@ void VisualInertialOdometry::SendInitializationGraph(
   PublishLandmarkIDs(new_landmarks);
 }
 
-/***********************************************************
-*                     Publishing stuff                     *
-************************************************************/
+/************************************************************
+ *                     Publishing stuff                     *
+ ************************************************************/
 void VisualInertialOdometry::NotifyNewKeyframe(
     const Eigen::Matrix4d &T_WORLD_BASELINK) {
   // send camera pose to graph

@@ -593,5 +593,5 @@ void VIOInitialization::AlignPosesToGravity() {
       f.p = scale_ * f.p;
   }
 }
-}
-} // namespace bs_models::vision
+} // namespace vision
+} // namespace bs_models
