@@ -54,6 +54,7 @@ lidar_odometry:
   global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
 
   # general params
+  lidar_type: 'VELODYNE'
   input_filters_config_path: 'DEFAULT_PATH' 
   input_topic: '/velodyne_points'
   output_loam_points: true 

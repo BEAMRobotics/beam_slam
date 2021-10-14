@@ -152,9 +152,6 @@ void LidarOdometry::onStop() {
 fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
-  PointCloud cloud_current_unfiltered = beam::ROSToPCL(*msg);
-  PointCloud cloud_current = beam_filtering::FilterPointCloud(
-      cloud_current_unfiltered, input_filter_params_);
 
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,
@@ -173,19 +170,47 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     return nullptr;
   }
 
-  ScanPose current_scan_pose(cloud_current, msg->header.stamp,
-                             T_WORLD_BASELINKCURRENT, T_BASELINK_LIDAR,
-                             feature_extractor_);
+  std::shared_ptr<ScanPose> current_scan_pose;
+  if (params_.lidar_type == "VELODYNE") {
+    pcl::PointCloud<PointXYZIRT> cloud_current_unfiltered;
+    beam::ROSToPCL(cloud_current_unfiltered, *msg);
+    pcl::PointCloud<PointXYZIRT> cloud_filtered =
+        beam_filtering::FilterPointCloud<PointXYZIRT>(
+            cloud_current_unfiltered, input_filter_params_);
+    current_scan_pose = std::make_shared<ScanPose>(
+        cloud_filtered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
+        T_BASELINK_LIDAR, feature_extractor_);
+    // current_scan_pose = std::make_shared<ScanPose>(
+    //     cloud_current_unfiltered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
+    //     T_BASELINK_LIDAR, feature_extractor_);
+  } else if (params_.lidar_type == "OUSTER") {
+    pcl::PointCloud<PointXYZITRRNR> cloud_current_unfiltered;
+    beam::ROSToPCL(cloud_current_unfiltered, *msg);
+    // pcl::PointCloud<PointXYZITRRNR> cloud_filtered =
+    //     beam_filtering::FilterPointCloud(cloud_current_unfiltered,
+    //                                      input_filter_params_);
+    // current_scan_pose = std::make_shared<ScanPose>(
+    //     cloud_filtered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
+    //     T_BASELINK_LIDAR, feature_extractor_);
+    current_scan_pose = std::make_shared<ScanPose>(
+        cloud_current_unfiltered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
+        T_BASELINK_LIDAR, feature_extractor_);
+  } else {
+    BEAM_ERROR(
+        "Invalid lidar type param. Options: VELODYNE, OUSTER, input: {}. Using "
+        "default: VELODYNE",
+        params_.lidar_type);
+  }
 
   fuse_core::Transaction::SharedPtr gm_transaction;
   if (params_.register_to_gm) {
-    gm_transaction = RegisterScanToGlobalMap(current_scan_pose);
+    gm_transaction = RegisterScanToGlobalMap(*current_scan_pose);
   }
 
   fuse_core::Transaction::SharedPtr lm_transaction;
   if (params_.register_to_lm) {
     lm_transaction =
-        local_scan_registration_->RegisterNewScan(current_scan_pose)
+        local_scan_registration_->RegisterNewScan(*current_scan_pose)
             .GetTransaction();
   }
 
@@ -193,11 +218,11 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   fuse_core::Transaction::SharedPtr prior_transaction;
   if (params_.use_pose_priors) {
     auto p = fuse_variables::Position3DStamped::make_shared(
-        current_scan_pose.Position());
+        current_scan_pose->Position());
     auto o = fuse_variables::Orientation3DStamped::make_shared(
-        current_scan_pose.Orientation());
+        current_scan_pose->Orientation());
     prior_transaction = fuse_core::Transaction::make_shared();
-    prior_transaction->stamp(current_scan_pose.Stamp());
+    prior_transaction->stamp(current_scan_pose->Stamp());
     prior_transaction->addVariable(p);
     prior_transaction->addVariable(o);
 
@@ -218,8 +243,8 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   }
 
   PublishScanRegistrationResults(lm_transaction, gm_transaction,
-                                 current_scan_pose);
-  active_clouds_.push_back(current_scan_pose);
+                                 *current_scan_pose);
+  active_clouds_.push_back(*current_scan_pose);
 
   // combine to one transaction and return
   fuse_core::Transaction::SharedPtr transaction =

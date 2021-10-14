@@ -2,6 +2,7 @@
 
 #include <map>
 
+#include <pcl/kdtree/kdtree_flann.h>
 #include <boost/filesystem.hpp>
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>

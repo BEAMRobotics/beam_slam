@@ -131,6 +131,7 @@ target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
     ${CERES_LIBRARIES}
+    ${PCL_LIBRARIES}
     ${fuse_core_LIBRARIES}
     ${fuse_graphs_LIBRARIES}
     ${fuse_models_LIBRARIES}

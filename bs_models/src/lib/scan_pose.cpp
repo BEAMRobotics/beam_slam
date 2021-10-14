@@ -36,6 +36,62 @@ ScanPose::ScanPose(const PointCloud& cloud, const ros::Time& stamp,
   }
 }
 
+ScanPose::ScanPose(const pcl::PointCloud<PointXYZIRT>& cloud, const ros::Time& stamp,
+                   const Eigen::Matrix4d& T_REFFRAME_BASELINK,
+                   const Eigen::Matrix4d& T_BASELINK_LIDAR,
+                   const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
+                       feature_extractor)
+    : stamp_(stamp),
+      T_REFFRAME_BASELINK_initial_(T_REFFRAME_BASELINK),
+      T_BASELINK_LIDAR_(T_BASELINK_LIDAR) {
+  // convert to regular pointcloud
+  for (const auto& p : cloud){
+    pointcloud_.push_back(pcl::PointXYZ(p.x, p.y, p.z));
+  }
+
+  // create fuse variables
+  position_ = fuse_variables::Position3DStamped(stamp, fuse_core::uuid::NIL);
+  orientation_ =
+      fuse_variables::Orientation3DStamped(stamp, fuse_core::uuid::NIL);
+
+  // add transform
+  bs_common::EigenTransformToFusePose(T_REFFRAME_BASELINK, position_,
+                                      orientation_);
+
+  if (feature_extractor != nullptr) {
+    cloud_type_ = "LOAMPOINTCLOUD";
+    loampointcloud_ = feature_extractor->ExtractFeatures(cloud);
+  }
+}
+
+ScanPose::ScanPose(const pcl::PointCloud<PointXYZITRRNR>& cloud, const ros::Time& stamp,
+                   const Eigen::Matrix4d& T_REFFRAME_BASELINK,
+                   const Eigen::Matrix4d& T_BASELINK_LIDAR,
+                   const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
+                       feature_extractor)
+    : stamp_(stamp),
+      T_REFFRAME_BASELINK_initial_(T_REFFRAME_BASELINK),
+      T_BASELINK_LIDAR_(T_BASELINK_LIDAR) {
+  // convert to regular pointcloud
+  for (const auto& p : cloud){
+    pointcloud_.push_back(pcl::PointXYZ(p.x, p.y, p.z));
+  }
+  
+  // create fuse variables
+  position_ = fuse_variables::Position3DStamped(stamp, fuse_core::uuid::NIL);
+  orientation_ =
+      fuse_variables::Orientation3DStamped(stamp, fuse_core::uuid::NIL);
+
+  // add transform
+  bs_common::EigenTransformToFusePose(T_REFFRAME_BASELINK, position_,
+                                      orientation_);
+
+  if (feature_extractor != nullptr) {
+    cloud_type_ = "LOAMPOINTCLOUD";
+    loampointcloud_ = feature_extractor->ExtractFeatures(cloud);
+  }
+}
+
 ScanPose::ScanPose(const ros::Time& stamp,
                    const Eigen::Matrix4d& T_REFFRAME_BASELINK,
                    const Eigen::Matrix4d& T_BASELINK_LIDAR)
@@ -67,6 +123,7 @@ void ScanPose::AddPointCloud(const beam_matching::LoamPointCloud& cloud,
   } else {
     loampointcloud_.Merge(cloud);
   }
+  cloud_type_ = "LOAMPOINTCLOUD";
 }
 
 void ScanPose::AddPointCloud(const PointCloud& cloud, int type,
@@ -93,6 +150,7 @@ void ScanPose::AddPointCloud(const PointCloud& cloud, int type,
     return;
   }
   AddPointCloud(new_loam_cloud, override_cloud);
+  cloud_type_ = "LOAMPOINTCLOUD";
 }
 
 bool ScanPose::UpdatePose(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
