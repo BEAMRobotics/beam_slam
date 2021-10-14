@@ -8,7 +8,10 @@ This repo contains beam's lidar-camera-inertial SLAM code. All other SLAM code i
 
 * fuse: https://github.com/locusrobotics/fuse (kinetic-devel branch for ROS Kinetic, devel branch for ROS Melodic)
 * tf2_2d: https://github.com/locusrobotics/tf2_2d.git
-* qwt: sudo apt-get install libqwt-dev
+* qwt: sudo apt-get install libqwt-dev (for Kinetic only)
+
+If you want to run IMU tests, you will also need:
+
 * basalt: https://github.com/BEAMRobotics/basalt-headers-mirror
 * sophus: https://github.com/strasdat/Sophus (tested at commit 936265f)
 
