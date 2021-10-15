@@ -216,20 +216,19 @@ void VIOInitialization::PerformIMUInitialization(std::vector<Frame> &frames) {
 
 void VIOInitialization::AddPosesAndInertialConstraints(
     const std::vector<Frame> &frames, bool set_start) {
-  // add initial poses and imu data to preintegrator
-  for (int i = 0; i < frames.size(); i++) {
-    // Add frame's pose to graph
-    Frame frame = frames[i];
+  // add imu data and poses
+  for (auto &frame : frames) {
     visual_map_->AddPosition(frame.p, frame.t);
     visual_map_->AddOrientation(frame.q, frame.t);
-    Eigen::Matrix4d T;
-    beam::QuaternionAndTranslationToTransformMatrix(frame.q, frame.p, T);
-
-    // Push its imu messages
     for (auto &imu_data : frame.preint.data) {
       imu_preint_->AddToBuffer(imu_data);
     }
+  }
 
+  // add inertial constraints between poses
+  for (int i = 0; i < frames.size(); i++) {
+    // Get frame's pose to graph
+    Frame frame = frames[i];
     fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
         visual_map_->GetOrientation(frame.t);
     fuse_variables::Position3DStamped::SharedPtr img_position =
@@ -252,7 +251,7 @@ void VIOInitialization::AddPosesAndInertialConstraints(
       fuse_core::Transaction::SharedPtr transaction =
           imu_preint_->RegisterNewImuPreintegratedFactor(
               frame.t, img_orientation, img_position);
-      // update graph with the transaction
+      // // update graph with the transaction
       local_graph_->update(*transaction);
     }
   }

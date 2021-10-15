@@ -67,33 +67,36 @@ void ImuPreintegration::SetStart(
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   // adjust IMU buffer
-  while (t_start > current_imu_data_buffer_.front().t) {
+  while (!current_imu_data_buffer_.empty() &&
+         t_start > current_imu_data_buffer_.front().t) {
     current_imu_data_buffer_.pop();
   }
 
-  while (t_start > total_imu_data_buffer_.front().t) {
+  while (!total_imu_data_buffer_.empty() &&
+         t_start > total_imu_data_buffer_.front().t) {
     total_imu_data_buffer_.pop();
   }
 
   // set IMU state
-  bs_common::ImuState imu_state_i(t_start);
+  std::shared_ptr<bs_common::ImuState> imu_state_i =
+      std::make_shared<bs_common::ImuState>(t_start);
 
   if (R_WORLD_IMU) {
-    imu_state_i.SetOrientation(R_WORLD_IMU->data());
+    imu_state_i->SetOrientation(R_WORLD_IMU->data());
   }
 
   if (t_WORLD_IMU) {
-    imu_state_i.SetPosition(t_WORLD_IMU->data());
+    imu_state_i->SetPosition(t_WORLD_IMU->data());
   }
 
   if (velocity) {
-    imu_state_i.SetVelocity(velocity->data());
+    imu_state_i->SetVelocity(velocity->data());
   }
 
-  imu_state_i.SetGyroBias(bg_);
-  imu_state_i.SetAccelBias(ba_);
+  imu_state_i->SetGyroBias(bg_);
+  imu_state_i->SetAccelBias(ba_);
 
-  *imu_state_i_ = imu_state_i;
+  imu_state_i_ = imu_state_i;
 
   // copy start IMU state to initialize kth frame between keyframes
   imu_state_k_ = imu_state_i_->Clone();
@@ -139,7 +142,8 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
   }
 
   // Populate integrators
-  while (t_now > current_imu_data_buffer_.front().t) {
+  while (!current_imu_data_buffer_.empty() &&
+         t_now > current_imu_data_buffer_.front().t) {
     pre_integrator_interval.data.emplace_back(current_imu_data_buffer_.front());
     pre_integrator_ij->data.emplace_back(current_imu_data_buffer_.front());
     current_imu_data_buffer_.pop();
@@ -155,7 +159,8 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
 
   // populate transformation matrix
   beam::QuaternionAndTranslationToTransformMatrix(
-      imu_state_k_->OrientationQuat(), imu_state_k_->PositionVec(), T_WORLD_IMU);
+      imu_state_k_->OrientationQuat(), imu_state_k_->PositionVec(),
+      T_WORLD_IMU);
 
   return true;
 }
@@ -190,8 +195,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   }
 
   // populate integrator
-  while (t_now > current_imu_data_buffer_.front().t &&
-         !current_imu_data_buffer_.empty()) {
+  while (!current_imu_data_buffer_.empty() &&
+         t_now > current_imu_data_buffer_.front().t) {
     pre_integrator_ij->data.emplace_back(current_imu_data_buffer_.front());
     current_imu_data_buffer_.pop();
   }
@@ -199,32 +204,35 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // integrate between key frames, incrementally calculating covariance and
   // jacobians
   pre_integrator_ij->Integrate(t_now, imu_state_i_->GyroBiasVec(),
-                              imu_state_i_->AccelBiasVec(), true, true);
+                               imu_state_i_->AccelBiasVec(), true, true);
 
   // predict state at end of window using integrated imu measurements
-  bs_common::ImuState imu_state_j =
-      PredictState(*pre_integrator_ij, *imu_state_i_, t_now);
+  std::shared_ptr<bs_common::ImuState> imu_state_j =
+      std::make_shared<bs_common::ImuState>();
+
+  *imu_state_j = PredictState(*pre_integrator_ij, *imu_state_i_, t_now);
 
   // Add relative constraints and variables between key frames
-  transaction.AddRelativeImuStateConstraint(*imu_state_i_, imu_state_j,
+  transaction.AddRelativeImuStateConstraint(*imu_state_i_, *imu_state_j,
                                             *pre_integrator_ij);
-  transaction.AddImuStateVariables(imu_state_j);
+  transaction.AddImuStateVariables(*imu_state_j);
 
   // update orientation and position of predicted imu state with arguments
   if (R_WORLD_IMU && t_WORLD_IMU) {
-    imu_state_j.SetOrientation(R_WORLD_IMU->data());
-    imu_state_j.SetPosition(t_WORLD_IMU->data());
+    imu_state_j->SetOrientation(R_WORLD_IMU->data());
+    imu_state_j->SetPosition(t_WORLD_IMU->data());
     Eigen::Vector3d new_velocity =
-        (imu_state_j.PositionVec() - imu_state_i_->PositionVec()) /
+        (imu_state_j->PositionVec() - imu_state_i_->PositionVec()) /
         (t_now.toSec() - imu_state_i_->Stamp().toSec());
-    imu_state_j.SetVelocity(new_velocity);
+    imu_state_j->SetVelocity(new_velocity);
   }
 
   // move predicted state to previous state
-  *imu_state_i_ = imu_state_j;
+  imu_state_i_ = imu_state_j;
 
   // clear total imu data buffer for data before new state i
-  while (imu_state_i_->Stamp() > total_imu_data_buffer_.front().t) {
+  while (!total_imu_data_buffer_.empty() &&
+         imu_state_i_->Stamp() > total_imu_data_buffer_.front().t) {
     total_imu_data_buffer_.pop();
   }
 
@@ -242,7 +250,6 @@ void ImuPreintegration::UpdateGraph(
   if (imu_state_i_->Update(graph_msg)) {
     // reset current data buffer to be the total buffer starting at state i
     current_imu_data_buffer_ = total_imu_data_buffer_;
-
     // copy state i to kth frame
     imu_state_k_ = imu_state_i_->Clone();
   }
