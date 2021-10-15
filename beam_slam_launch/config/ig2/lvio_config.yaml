@@ -44,7 +44,7 @@ unicycle_3d:
 
 camera:
   source: 'VIO'
-  image_topic: '/F1/downscaled/image_color'
+  image_topic: '/F1/downscaled/image_mono'
   imu_topic: '/imu/data'
   reloc_topic: '/reloc_request'
   init_path_topic: '/lo_initialiser_result'

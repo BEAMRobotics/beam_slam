@@ -247,4 +247,11 @@ void ImuState::InstantiateVariables() {
       stamp_, fuse_core::uuid::NIL);
 }
 
+std::shared_ptr<ImuState> ImuState::Clone() {
+  std::shared_ptr<ImuState> clone_state =
+      std::make_shared<ImuState>(Stamp(), OrientationQuat(), PositionVec(),
+                                 VelocityVec(), GyroBiasVec(), AccelBiasVec());
+  return clone_state;
+}
+
 } // namespace bs_common

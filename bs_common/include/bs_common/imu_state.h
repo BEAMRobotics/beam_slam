@@ -221,6 +221,12 @@ class ImuState {
    */
   void Print(std::ostream& stream = std::cout) const;
 
+    /**
+   * @brief Creates a deep copy of this imu state and returns a pointer to it.
+   * @return pointer to a deep copy of this imu state
+   */
+  std::shared_ptr<ImuState> Clone();
+
  private:
   /**
    * @brief instantiates fuse/beam variables contained in this ImuState
@@ -229,7 +235,6 @@ class ImuState {
 
   int updates_{0};
   ros::Time stamp_;
-  // TODO: Turn all these into shared ptrs
   fuse_variables::Orientation3DStamped::SharedPtr orientation_;
   fuse_variables::Position3DStamped::SharedPtr position_;
   fuse_variables::VelocityLinear3DStamped::SharedPtr velocity_;
