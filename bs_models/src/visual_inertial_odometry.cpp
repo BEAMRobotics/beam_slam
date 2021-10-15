@@ -304,16 +304,18 @@ void VisualInertialOdometry::ExtendMap() {
       std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
       std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
-      beam_cv::FeatureTrack track = tracker_->GetTrack(id);
 
       // get measurements of landmark for triangulation
-      for (auto &m : track) {
-        beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
-        // check if the pose is in the graph (keyframe)
-        if (T.has_value()) {
-          pixels.push_back(m.value.cast<int>());
-          T_cam_world_v.push_back(T.value().inverse());
-          observation_stamps.push_back(m.time_point);
+      for (auto &kf : keyframes_) {
+        try {
+          Eigen::Vector2d pixel = tracker_->Get(kf.Stamp(), id);
+          beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(kf.Stamp());
+          if (T.has_value()) {
+            pixels.push_back(pixel.cast<int>());
+            T_cam_world_v.push_back(T.value().inverse());
+            observation_stamps.push_back(kf.Stamp());
+          }
+        } catch (const std::out_of_range &oor) {
         }
       }
 
