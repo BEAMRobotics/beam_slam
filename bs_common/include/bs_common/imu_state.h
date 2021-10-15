@@ -229,11 +229,12 @@ class ImuState {
 
   int updates_{0};
   ros::Time stamp_;
-  fuse_variables::Orientation3DStamped orientation_;
-  fuse_variables::Position3DStamped position_;
-  fuse_variables::VelocityLinear3DStamped velocity_;
-  bs_variables::GyroscopeBias3DStamped gyrobias_;
-  bs_variables::AccelerationBias3DStamped accelbias_;
+  // TODO: Turn all these into shared ptrs
+  fuse_variables::Orientation3DStamped::SharedPtr orientation_;
+  fuse_variables::Position3DStamped::SharedPtr position_;
+  fuse_variables::VelocityLinear3DStamped::SharedPtr velocity_;
+  bs_variables::GyroscopeBias3DStamped::SharedPtr gyrobias_;
+  bs_variables::AccelerationBias3DStamped::SharedPtr accelbias_;
 };
 
 }  // namespace bs_common

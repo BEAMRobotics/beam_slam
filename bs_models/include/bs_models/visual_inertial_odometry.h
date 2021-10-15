@@ -183,7 +183,6 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<VisualMap> visual_map_;
-  ActiveSubmap &active_submap_ = ActiveSubmap::GetInstance();
   beam_cv::DescriptorType descriptor_type_;
   uint8_t descriptor_type_int_;
 
@@ -201,6 +200,9 @@ protected:
   Eigen::Matrix4d T_cam_baselink_;
   bs_common::ExtrinsicsLookupOnline &extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  // current active submap index
+  ActiveSubmap &active_submap_ = ActiveSubmap::GetInstance();
 };
 
 } // namespace bs_models

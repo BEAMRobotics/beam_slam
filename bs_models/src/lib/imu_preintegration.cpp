@@ -93,9 +93,10 @@ void ImuPreintegration::SetStart(
   imu_state_k_ = imu_state_i_;
 }
 
-bs_common::ImuState ImuPreintegration::PredictState(
-    const bs_common::PreIntegrator &pre_integrator,
-    const bs_common::ImuState &imu_state_curr, const ros::Time &t_now) {
+bs_common::ImuState
+ImuPreintegration::PredictState(const bs_common::PreIntegrator &pre_integrator,
+                                const bs_common::ImuState &imu_state_curr,
+                                const ros::Time &t_now) {
   // get commonly used variables
   const double &dt = pre_integrator.delta.t.toSec();
   const Eigen::Matrix3d &q_curr = imu_state_curr.OrientationMat();
@@ -197,7 +198,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // predict state at end of window using integrated imu measurements
   bs_common::ImuState imu_state_j =
       PredictState(pre_integrator_ij, imu_state_i_, t_now);
-      
+
   // Add relative constraints and variables between key frames
   transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j,
                                             pre_integrator_ij);
@@ -231,63 +232,14 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
 void ImuPreintegration::UpdateGraph(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
-  // get timestamp for state i
-  ros::Time stamp_i = imu_state_i_.Stamp();
-
-  try {
-    // get position
-    fuse_variables::Position3DStamped::SharedPtr position =
-        fuse_variables::Position3DStamped::make_shared();
-    auto position_uuid = fuse_core::uuid::generate(position->type(), stamp_i,
-                                                   fuse_core::uuid::NIL);
-    *position = dynamic_cast<const fuse_variables::Position3DStamped &>(
-        graph_msg->getVariable(position_uuid));
-    imu_state_i_.SetPosition(position->data());
-
-    // get orientaiton
-    fuse_variables::Orientation3DStamped::SharedPtr orientation =
-        fuse_variables::Orientation3DStamped::make_shared();
-    auto orientation_uuid = fuse_core::uuid::generate(
-        orientation->type(), stamp_i, fuse_core::uuid::NIL);
-    *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped &>(
-        graph_msg->getVariable(orientation_uuid));
-    imu_state_i_.SetOrientation(orientation->data());
-
-    // get velocity
-    fuse_variables::VelocityLinear3DStamped::SharedPtr velocity =
-        fuse_variables::VelocityLinear3DStamped::make_shared();
-    auto velocity_uuid = fuse_core::uuid::generate(velocity->type(), stamp_i,
-                                                   fuse_core::uuid::NIL);
-    *velocity = dynamic_cast<const fuse_variables::VelocityLinear3DStamped &>(
-        graph_msg->getVariable(velocity_uuid));
-    imu_state_i_.SetVelocity(velocity->data());
-
-    // get gyro bias
-    bs_variables::GyroscopeBias3DStamped::SharedPtr gyrobias =
-        bs_variables::GyroscopeBias3DStamped::make_shared();
-    auto gyrobias_uuid = fuse_core::uuid::generate(gyrobias->type(), stamp_i,
-                                                   fuse_core::uuid::NIL);
-    *gyrobias = dynamic_cast<const bs_variables::GyroscopeBias3DStamped &>(
-        graph_msg->getVariable(gyrobias_uuid));
-    imu_state_i_.SetGyroBias(gyrobias->data());
-
-    // get accel bias
-    bs_variables::AccelerationBias3DStamped::SharedPtr accelbias =
-        bs_variables::AccelerationBias3DStamped::make_shared();
-    auto accelbias_uuid = fuse_core::uuid::generate(accelbias->type(), stamp_i,
-                                                    fuse_core::uuid::NIL);
-    *accelbias = dynamic_cast<const bs_variables::AccelerationBias3DStamped &>(
-        graph_msg->getVariable(accelbias_uuid));
-    imu_state_i_.SetAccelBias(accelbias->data());
-
+  // if update was successful then also rest buffer and state k
+  if (imu_state_i_.Update(graph_msg)) {
     // reset current data buffer to be the total buffer starting at state i
     current_imu_data_buffer_ = total_imu_data_buffer_;
 
     // copy state i to kth frame
     imu_state_k_ = imu_state_i_;
-
-  } catch (const std::out_of_range &oor) {
   }
 }
 
-}  // namespace bs_models
+} // namespace bs_models
