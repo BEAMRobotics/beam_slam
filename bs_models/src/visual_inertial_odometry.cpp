@@ -248,13 +248,14 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
       points.push_back(point);
     }
   }
+   // get pose estimate
+  Eigen::Matrix4d T_WORLD_BASELINK_inertial;
+  imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
 
-  // perform pose estimation
+  // refine with visual info if possible
   if (points.size() >= 20) {
-    // estimate pose using motion only BA if there are enough points
     Eigen::Matrix4d T_CAMERA_WORLD_est =
-        beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
-                                                        points, 200);
+        (T_WORLD_BASELINK_inertial * T_cam_baselink_.inverse()).inverse();
     Eigen::Matrix4d T_WORLD_CAMERA =
         pose_refiner_
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
@@ -263,9 +264,6 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
     return T_WORLD_BASELINK;
   } else {
     // otherwise use the imu estimate
-    Eigen::Matrix4d T_WORLD_BASELINK_inertial;
-    imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
-
     return T_WORLD_BASELINK_inertial;
   }
 }
