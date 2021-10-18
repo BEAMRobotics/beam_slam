@@ -96,7 +96,7 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
         imu_preint_->GetPose(T_WORLD_BASELINK, f.t);
         beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
                                                         f.p);
-        // add pose to graph and inertial cosntraints
+        // add pose and inertial constraints to graph
         std::vector<Frame> cur_frame = {f};
         AddPosesAndInertialConstraints(cur_frame, false);
       }

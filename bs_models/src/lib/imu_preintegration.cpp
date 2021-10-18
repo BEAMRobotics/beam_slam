@@ -137,7 +137,8 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
   bs_common::PreIntegrator pre_integrator_interval;
 
   // check requested time
-  if (t_now < current_imu_data_buffer_.front().t) {
+  if (current_imu_data_buffer_.empty() ||
+      t_now < current_imu_data_buffer_.front().t) {
     return false;
   }
 
@@ -174,7 +175,11 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
       t_now);
 
   // check requested time
-  if (t_now < current_imu_data_buffer_.front().t) {
+  if (!current_imu_data_buffer_.empty()) {
+    if (t_now < current_imu_data_buffer_.front().t) {
+      return nullptr;
+    }
+  } else if (t_now < pre_integrator_ij->data.front().t) {
     return nullptr;
   }
 
