@@ -89,8 +89,8 @@ public:
     T pixel_projected[2];
     (*compute_projection)(P_CAMERA_const, &(pixel_projected[0]));
 
-    residual[0] = T(0.1) * (pixel_measurement_.cast<T>()[0] - pixel_projected[0]);
-    residual[1] = T(0.1) * (pixel_measurement_.cast<T>()[1] - pixel_projected[1]);
+    residual[0] = (pixel_measurement_.cast<T>()[0] - pixel_projected[0]);
+    residual[1] = (pixel_measurement_.cast<T>()[1] - pixel_projected[1]);
     return true;
   }
 
