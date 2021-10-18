@@ -115,14 +115,6 @@ private:
   size_t AddVisualConstraints(const std::vector<Frame> &frames);
 
   /**
-   * @brief Localizes a given frame using the current landmarks
-   * @param frames input frames
-   * @param T_WORLD_BASELINK[out] estimated pose of the camera
-   * @return true or false if it succeeded or not
-   */
-  bool LocalizeFrame(const Frame &frame, Eigen::Matrix4d &T_WORLD_BASELINK);
-
-  /**
    * @brief Outputs frame poses to standard output
    * @param frames vector of frames to output
    */
