@@ -66,6 +66,11 @@ void LoInitializer::processLidar(
     return;
   }
 
+  if ((msg->header.stamp - prev_stamp_).toSec() <
+      (1.0 / params_.max_frequency)) {
+    return;
+  }
+
   ROS_DEBUG("Received incoming scan");
 
   Eigen::Matrix4d T_WORLD_BASELINKLAST;

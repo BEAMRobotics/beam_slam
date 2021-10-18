@@ -28,6 +28,8 @@ struct LoInitializerParams : public ParameterBase {
     getParamRequired<std::string>(nh, "output_topic", output_topic);
     getParam<double>(nh, "min_trajectory_distance", min_trajectory_distance, 3);
 
+    getParam<int>(nh, "max_frequency", max_frequency, 5);
+
     double aggregation_time_double;
     getParam<double>(nh, "aggregation_time", aggregation_time_double, 0.1);
     aggregation_time = ros::Duration(aggregation_time_double);
@@ -45,6 +47,8 @@ struct LoInitializerParams : public ParameterBase {
   std::string output_topic;
   
   double min_trajectory_distance;
+
+  int max_frequency;
 
   ros::Duration aggregation_time;
   ros::Duration trajectory_time_window;

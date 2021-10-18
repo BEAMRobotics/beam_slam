@@ -248,7 +248,7 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
       points.push_back(point);
     }
   }
-   // get pose estimate
+  // get pose estimate
   Eigen::Matrix4d T_WORLD_BASELINK_inertial;
   imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
 
