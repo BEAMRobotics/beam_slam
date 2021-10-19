@@ -86,7 +86,7 @@ private:
   /**
    * @brief Build a vector of frames with the current init path and the
    * frame_times_ vector, if a frame is outside of the given path it will be
-   * referred to as an invalid frame and its pose will be set to 0
+   * referred to as an invalid frame and its pose will be set to I
    */
   void BuildFrameVectors();
 

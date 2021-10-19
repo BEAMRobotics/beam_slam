@@ -111,7 +111,7 @@ private:
    * @brief creates inertial cosntraint for the current keyframe and merges with
    * the input transaction
    * @param transaction current transaction to merge inertial constraints with
-   * (typically built from extend map)
+   * (built within extend map)
    */
   void AddInertialConstraint(fuse_core::Transaction::SharedPtr transaction);
 

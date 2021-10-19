@@ -180,21 +180,21 @@ void VisualInertialOdometry::processImage(
         ROS_INFO("%s",
                  beam::TransformationMatrixToString(T_WORLD_BASELINK).c_str());
 
-        // publish new landmarks
-        PublishLandmarkIDs(keyframes_.back().Landmarks());
+        // // publish new landmarks
+        // PublishLandmarkIDs(keyframes_.back().Landmarks());
 
-        // publish oldest keyframe for global mapper
-        PublishSlamChunk();
+        // // publish oldest keyframe for global mapper
+        // PublishSlamChunk();
       } else {
-        // compute relative pose to most recent kf
-        Eigen::Matrix4d T_WORLD_BASELINK_curkf =
-            visual_map_->GetBaselinkPose(keyframes_.back().Stamp()).value();
-        Eigen::Matrix4d T_curframe_curkeyframe =
-            T_WORLD_BASELINK.inverse() * T_WORLD_BASELINK_curkf;
+        // // compute relative pose to most recent kf
+        // Eigen::Matrix4d T_WORLD_BASELINK_curkf =
+        //     visual_map_->GetBaselinkPose(keyframes_.back().Stamp()).value();
+        // Eigen::Matrix4d T_curframe_curkeyframe =
+        //     T_WORLD_BASELINK.inverse() * T_WORLD_BASELINK_curkf;
 
-        // add to current keyframes trajectory
-        keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
-        added_since_kf_++;
+        // // add to current keyframes trajectory
+        // keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
+        // added_since_kf_++;
       }
       ROS_INFO("Total time to process frame: %.5f", frame_timer.elapsed());
     }
@@ -317,8 +317,8 @@ void VisualInertialOdometry::ExtendMap() {
         }
       }
 
-      // triangulate long tracks and be strict with introduction of new points
-      if (T_cam_world_v.size() >= 3) {
+      // triangulate new points
+      if (T_cam_world_v.size() >= 2) {
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
                                                      pixels);

@@ -33,8 +33,7 @@ void ImuPreintegration::ClearBuffer() {
 
 void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu &msg) {
   bs_common::IMUData imu_data(msg);
-  current_imu_data_buffer_.push(imu_data);
-  total_imu_data_buffer_.push(imu_data);
+  AddToBuffer(imu_data);
 }
 
 void ImuPreintegration::AddToBuffer(const bs_common::IMUData &imu_data) {
@@ -139,6 +138,7 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
   // check requested time
   if (current_imu_data_buffer_.empty() ||
       t_now < current_imu_data_buffer_.front().t) {
+    ROS_WARN("Requested time is prior to the current imu data buffer [GetPose]");
     return false;
   }
 
@@ -177,9 +177,11 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // check requested time
   if (!current_imu_data_buffer_.empty()) {
     if (t_now < current_imu_data_buffer_.front().t) {
+      ROS_WARN("Requested time is prior to the current imu data buffer.");
       return nullptr;
     }
   } else if (t_now < pre_integrator_ij->data.front().t) {
+    ROS_WARN("Requested time is prior to the current imu data buffer.");
     return nullptr;
   }
 
@@ -251,11 +253,11 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
 void ImuPreintegration::UpdateGraph(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
-  // if update was successful then also rest buffer and state k
+  // if update was successful then also reset buffer and state k
   if (imu_state_i_->Update(graph_msg)) {
     // reset current data buffer to be the total buffer starting at state i
     current_imu_data_buffer_ = total_imu_data_buffer_;
-    // copy state i to kth frame
+    // reset state k to state i
     imu_state_k_ = imu_state_i_->Clone();
   }
 }
