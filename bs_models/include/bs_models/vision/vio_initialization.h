@@ -95,7 +95,7 @@ private:
    * poses (can be up to scale from sfm, or in real world scale from lidar)
    * @param frames input frames with poses to estimate imu parameters
    */
-  void PerformIMUInitialization(std::vector<Frame> &frames);
+  void PerformIMUInitialization();
 
   /**
    * @brief Adds all poses and inertial constraints contained within the frames
@@ -134,24 +134,24 @@ private:
   /**
    * @brief Solves for the gyroscope bias
    */
-  void SolveGyroBias(std::vector<Frame> &frames);
+  void SolveGyroBias();
 
   /**
    * @brief Solves for acceleromater bias (gravity must be estimated before
    * calling this)
    */
-  void SolveAccelBias(std::vector<Frame> &frames);
+  void SolveAccelBias();
 
   /**
    * @brief Solves for Gravity and Scale factor (scale factor only used if
    * frames are in arbitrary scale)
    */
-  void SolveGravityAndScale(std::vector<Frame> &frames);
+  void SolveGravityAndScale();
 
   /**
    * @brief Refines the previously estimated gravity and scale factor
    */
-  void RefineGravityAndScale(std::vector<Frame> &frames);
+  void RefineGravityAndScale();
 
   /**
    * @brief Aligns the valid frames and init path to estimated gravity

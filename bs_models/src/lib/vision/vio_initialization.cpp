@@ -57,7 +57,7 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
     BuildFrameVectors();
 
     // Initialize imu preintegration
-    PerformIMUInitialization(valid_frames_);
+    PerformIMUInitialization();
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 
@@ -191,11 +191,11 @@ void VIOInitialization::BuildFrameVectors() {
   }
 }
 
-void VIOInitialization::PerformIMUInitialization(std::vector<Frame> &frames) {
+void VIOInitialization::PerformIMUInitialization() {
   // estimate gyroscope bias
   if (init_path_->gyroscope_bias.x == 0 && init_path_->gyroscope_bias.y == 0 &&
       init_path_->gyroscope_bias.z == 0) {
-    SolveGyroBias(frames);
+    SolveGyroBias();
   } else {
     bg_ << init_path_->gyroscope_bias.x, init_path_->gyroscope_bias.y,
         init_path_->gyroscope_bias.z;
@@ -204,8 +204,8 @@ void VIOInitialization::PerformIMUInitialization(std::vector<Frame> &frames) {
   // estimate gravity and scale
   if (init_path_->gravity.x == 0 && init_path_->gravity.y == 0 &&
       init_path_->gravity.z == 0) {
-    SolveGravityAndScale(frames);
-    RefineGravityAndScale(frames);
+    SolveGravityAndScale();
+    RefineGravityAndScale();
   } else {
     gravity_ << init_path_->gravity.x, init_path_->gravity.y,
         init_path_->gravity.z;
@@ -216,7 +216,7 @@ void VIOInitialization::PerformIMUInitialization(std::vector<Frame> &frames) {
   if (init_path_->accelerometer_bias.x == 0 &&
       init_path_->accelerometer_bias.y == 0 &&
       init_path_->accelerometer_bias.z == 0) {
-    SolveAccelBias(frames);
+    SolveAccelBias();
   } else {
     ba_ << init_path_->accelerometer_bias.x, init_path_->accelerometer_bias.y,
         init_path_->accelerometer_bias.z;
@@ -332,24 +332,26 @@ void VIOInitialization::OptimizeGraph() {
   local_graph_->optimize(options);
 }
 
-void VIOInitialization::SolveGyroBias(std::vector<Frame> &frames) {
-  for (size_t i = 0; i < frames.size(); i++) {
-    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+void VIOInitialization::SolveGyroBias() {
+  for (size_t i = 0; i < valid_frames_.size(); i++) {
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
+                                      false);
   }
   Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
   Eigen::Vector3d b = Eigen::Vector3d::Zero();
 
-  for (size_t j = 1; j < frames.size(); ++j) {
+  for (size_t j = 1; j < valid_frames_.size(); ++j) {
     const size_t i = j - 1;
 
-    Frame frame_i = frames[i];
-    Frame frame_j = frames[j];
+    Frame frame_i = valid_frames_[i];
+    Frame frame_j = valid_frames_[j];
 
-    const Eigen::Quaterniond &dq = frames[j].preint.delta.q;
-    const Eigen::Matrix3d &dq_dbg = frames[j].preint.jacobian.dq_dbg;
+    const Eigen::Quaterniond &dq = valid_frames_[j].preint.delta.q;
+    const Eigen::Matrix3d &dq_dbg = valid_frames_[j].preint.jacobian.dq_dbg;
     A += dq_dbg.transpose() * dq_dbg;
 
-    Eigen::Quaterniond tmp = (frames[i].q * dq).conjugate() * frames[j].q;
+    Eigen::Quaterniond tmp =
+        (valid_frames_[i].q * dq).conjugate() * valid_frames_[j].q;
     Eigen::Matrix3d tmp_R = tmp.normalized().toRotationMatrix();
 
     b += dq_dbg.transpose() * beam::RToLieAlgebra(tmp_R);
@@ -360,41 +362,43 @@ void VIOInitialization::SolveGyroBias(std::vector<Frame> &frames) {
   bg_ = svd.solve(b);
 }
 
-void VIOInitialization::SolveAccelBias(std::vector<Frame> &frames) {
+void VIOInitialization::SolveAccelBias() {
   if (gravity_.isZero(1e-9)) {
     ROS_WARN(
         "Can't estimate acceleration bias without first estimating gravity.");
     return;
   }
-  for (size_t i = 0; i < frames.size(); i++) {
-    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+  for (size_t i = 0; i < valid_frames_.size(); i++) {
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true, false);
   }
   Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b = Eigen::Vector4d::Zero();
 
-  for (size_t j = 1; j + 1 < frames.size(); ++j) {
+  for (size_t j = 1; j + 1 < valid_frames_.size(); ++j) {
     const size_t i = j - 1;
     const size_t k = j + 1;
 
-    const bs_common::Delta &delta_ij = frames[j].preint.delta;
-    const bs_common::Delta &delta_jk = frames[k].preint.delta;
-    const bs_common::Jacobian &jacobian_ij = frames[j].preint.jacobian;
-    const bs_common::Jacobian &jacobian_jk = frames[k].preint.jacobian;
+    const bs_common::Delta &delta_ij = valid_frames_[j].preint.delta;
+    const bs_common::Delta &delta_jk = valid_frames_[k].preint.delta;
+    const bs_common::Jacobian &jacobian_ij = valid_frames_[j].preint.jacobian;
+    const bs_common::Jacobian &jacobian_jk = valid_frames_[k].preint.jacobian;
 
     Eigen::Matrix<double, 3, 4> C;
-    C.block<3, 1>(0, 0) = delta_ij.t.toSec() * (frames[k].p - frames[j].p) -
-                          delta_jk.t.toSec() * (frames[j].p - frames[i].p);
+    C.block<3, 1>(0, 0) =
+        delta_ij.t.toSec() * (valid_frames_[k].p - valid_frames_[j].p) -
+        delta_jk.t.toSec() * (valid_frames_[j].p - valid_frames_[i].p);
     C.block<3, 3>(0, 1) =
-        -(frames[j].q * jacobian_jk.dp_dba * delta_ij.t.toSec() +
-          frames[i].q * jacobian_ij.dv_dba * delta_ij.t.toSec() *
+        -(valid_frames_[j].q * jacobian_jk.dp_dba * delta_ij.t.toSec() +
+          valid_frames_[i].q * jacobian_ij.dv_dba * delta_ij.t.toSec() *
               delta_jk.t.toSec() -
-          frames[i].q * jacobian_ij.dp_dba * delta_jk.t.toSec());
-    Eigen::Vector3d d =
-        0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
-            (delta_ij.t.toSec() + delta_jk.t.toSec()) * gravity_ +
-        delta_ij.t.toSec() * (frames[j].q * delta_jk.p) +
-        delta_ij.t.toSec() * delta_jk.t.toSec() * (frames[i].q * delta_ij.v) -
-        delta_jk.t.toSec() * (frames[i].q * delta_ij.p);
+          valid_frames_[i].q * jacobian_ij.dp_dba * delta_jk.t.toSec());
+    Eigen::Vector3d d = 0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
+                            (delta_ij.t.toSec() + delta_jk.t.toSec()) *
+                            gravity_ +
+                        delta_ij.t.toSec() * (valid_frames_[j].q * delta_jk.p) +
+                        delta_ij.t.toSec() * delta_jk.t.toSec() *
+                            (valid_frames_[i].q * delta_ij.v) -
+                        delta_jk.t.toSec() * (valid_frames_[i].q * delta_ij.p);
     A += C.transpose() * C;
     b += C.transpose() * d;
   }
@@ -405,32 +409,33 @@ void VIOInitialization::SolveAccelBias(std::vector<Frame> &frames) {
   ba_ = x.segment<3>(1);
 }
 
-void VIOInitialization::SolveGravityAndScale(std::vector<Frame> &frames) {
-  for (size_t i = 0; i < frames.size(); i++) {
-    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+void VIOInitialization::SolveGravityAndScale() {
+  for (size_t i = 0; i < valid_frames_.size(); i++) {
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true, false);
   }
   Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b = Eigen::Vector4d::Zero();
 
-  for (size_t j = 1; j + 1 < frames.size(); ++j) {
+  for (size_t j = 1; j + 1 < valid_frames_.size(); ++j) {
     const size_t i = j - 1;
     const size_t k = j + 1;
 
-    const bs_common::Delta &delta_ij = frames[j].preint.delta;
-    const bs_common::Delta &delta_jk = frames[k].preint.delta;
-    const bs_common::Jacobian &jacobian_ij = frames[j].preint.jacobian;
-    const bs_common::Jacobian &jacobian_jk = frames[k].preint.jacobian;
+    const bs_common::Delta &delta_ij = valid_frames_[j].preint.delta;
+    const bs_common::Delta &delta_jk = valid_frames_[k].preint.delta;
+    const bs_common::Jacobian &jacobian_ij = valid_frames_[j].preint.jacobian;
+    const bs_common::Jacobian &jacobian_jk = valid_frames_[k].preint.jacobian;
 
     Eigen::Matrix<double, 3, 4> C;
     C.block<3, 3>(0, 0) = -0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
                           (delta_ij.t.toSec() + delta_jk.t.toSec()) *
                           Eigen::Matrix3d::Identity();
-    C.block<3, 1>(0, 3) = delta_ij.t.toSec() * (frames[k].p - frames[j].p) -
-                          delta_jk.t.toSec() * (frames[j].p - frames[i].p);
-    Eigen::Vector3d d =
-        delta_ij.t.toSec() * (frames[j].q * delta_jk.p) +
-        delta_ij.t.toSec() * delta_jk.t.toSec() * (frames[i].q * delta_ij.v) -
-        delta_jk.t.toSec() * (frames[i].q * delta_ij.p);
+    C.block<3, 1>(0, 3) =
+        delta_ij.t.toSec() * (valid_frames_[k].p - valid_frames_[j].p) -
+        delta_jk.t.toSec() * (valid_frames_[j].p - valid_frames_[i].p);
+    Eigen::Vector3d d = delta_ij.t.toSec() * (valid_frames_[j].q * delta_jk.p) +
+                        delta_ij.t.toSec() * delta_jk.t.toSec() *
+                            (valid_frames_[i].q * delta_ij.v) -
+                        delta_jk.t.toSec() * (valid_frames_[i].q * delta_ij.p);
     A += C.transpose() * C;
     b += C.transpose() * d;
   }
@@ -442,12 +447,13 @@ void VIOInitialization::SolveGravityAndScale(std::vector<Frame> &frames) {
   scale_ = x(3);
 }
 
-void VIOInitialization::RefineGravityAndScale(std::vector<Frame> &frames) {
+void VIOInitialization::RefineGravityAndScale() {
   static const double damp = 0.1;
-  for (size_t i = 0; i < frames.size(); i++) {
-    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+  for (size_t i = 0; i < valid_frames_.size(); i++) {
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
+                                      false);
   }
-  int N = (int)frames.size();
+  int N = (int)valid_frames_.size();
   Eigen::MatrixXd A;
   Eigen::VectorXd b;
   Eigen::VectorXd x;
@@ -460,23 +466,23 @@ void VIOInitialization::RefineGravityAndScale(std::vector<Frame> &frames) {
     b.setZero();
     Eigen::Matrix<double, 3, 2> Tg = s2_tangential_basis(gravity_);
 
-    for (size_t j = 1; j < frames.size(); ++j) {
+    for (size_t j = 1; j < valid_frames_.size(); ++j) {
       const size_t i = j - 1;
 
-      const bs_common::Delta &delta = frames[j].preint.delta;
+      const bs_common::Delta &delta = valid_frames_[j].preint.delta;
 
       A.block<3, 2>(i * 6, 0) = -0.5 * delta.t.toSec() * delta.t.toSec() * Tg;
-      A.block<3, 1>(i * 6, 2) = frames[j].p - frames[i].p;
+      A.block<3, 1>(i * 6, 2) = valid_frames_[j].p - valid_frames_[i].p;
       A.block<3, 3>(i * 6, 3 + i * 3) =
           -delta.t.toSec() * Eigen::Matrix3d::Identity();
       b.segment<3>(i * 6) = 0.5 * delta.t.toSec() * delta.t.toSec() * gravity_ +
-                            frames[i].q * delta.p;
+                            valid_frames_[i].q * delta.p;
 
       A.block<3, 2>(i * 6 + 3, 0) = -delta.t.toSec() * Tg;
       A.block<3, 3>(i * 6 + 3, 3 + i * 3) = -Eigen::Matrix3d::Identity();
       A.block<3, 3>(i * 6 + 3, 3 + j * 3) = Eigen::Matrix3d::Identity();
       b.segment<3>(i * 6 + 3) =
-          delta.t.toSec() * gravity_ + frames[i].q * delta.v;
+          delta.t.toSec() * gravity_ + valid_frames_[i].q * delta.v;
     }
 
     x = A.fullPivHouseholderQr().solve(b);
