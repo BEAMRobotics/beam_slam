@@ -1,0 +1,88 @@
+## optimization params - these can be accessed by anything under the namespace /fixed_lag_smoother
+optimization_frequency: 1
+lag_duration: 5
+
+## model plugins: declare all plugins to use and give a unique name
+sensor_models:
+  - name: 'lidar_odometry'
+    type: 'bs_models::LidarOdometry'
+    motion_models: ['unicycle_3d']
+
+motion_models:
+  - name: 'unicycle_3d'
+    type: 'bs_models::Unicycle3D'
+
+publishers:
+  - name: 'odom_pub'
+    type: 'bs_publishers::Odometry3DPublisher'
+  - name: 'path_pub'
+    type: 'bs_publishers::Path3DPublisher'
+  - name: 'graph_pub'
+    type: 'fuse_publishers::SerializedPublisher'
+
+## plugin params: specify all params for the plugins, using their unique name
+
+solver_options:
+  minimizer_type: "TRUST_REGION"
+  linear_solver_type: "SPARSE_NORMAL_CHOLESKY"
+  minimizer_progress_to_stdout: false
+  num_threads: 6
+  num_linear_solver_threads: 6
+  max_num_iterations: 30
+  gradient_tolerance: 0.00000015
+  parameter_tolerance: 0.00000015
+  function_tolerance: 0.00000015
+
+unicycle_3d:
+  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2]
+  buffer_length: 100000
+
+lidar_odometry:
+  # Local scan registration
+  local_registration_type: 'MAPLOAM' 
+  local_registration_config_path: 'DEFAULT_PATH' 
+  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+
+  # global scan registration
+  global_registration_type: 'LOAM' 
+  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+
+  # general params
+  lidar_type: 'VELODYNE'
+  input_filters_config_path: 'DEFAULT_PATH' 
+  input_topic: '/velodyne_points'
+  output_loam_points: true 
+  output_lidar_points: true
+  publish_active_submap: true
+  publish_local_map: true
+  publish_registration_results: true
+  frame_initializer_type: 'ODOMETRY' 
+  frame_initializer_info: '/odom_topic'
+  frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
+  reloc_request_period: 1
+  scan_output_directory: ''
+
+path_pub:
+  frame_id: 'world' # Stored in pose header. Default: odom
+  path_topic: 'path' # Default: path
+  pose_array_topic: 'pose_array' # Default: pose_array
+
+odom_pub:
+  publish_tf: false # Default: true
+  predict_to_current_time: false # Default: false
+  tf_publish_frequency: 10 # Default: 10
+  tf_cache_time: 10 # Default: 10
+  tf_timeout: 0.1 # Default: 0.1
+  queue_size: 1 # Publisher queue size. Default: 1
+  map_frame_id: 'map' # Default: map
+  odom_frame_id: 'world' # Default: odom
+  base_link_frame_id: 'imu' # Default: base_link
+  base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
+  world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
+  topic: 'optimized_odometry' # Output odometry topic
