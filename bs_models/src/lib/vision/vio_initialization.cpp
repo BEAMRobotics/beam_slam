@@ -5,6 +5,7 @@
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/filesystem.h>
+#include <beam_utils/math.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 
 #include <bs_common/utils.h>
@@ -48,7 +49,7 @@ VIOInitialization::VIOInitialization(
       n.subscribe(path_topic, 10, &VIOInitialization::ProcessInitPath, this);
 }
 
-bool VIOInitialization::AddImage(ros::Time cur_time) {
+bool VIOInitialization::AddImage(const ros::Time &cur_time) {
   frame_times_.push_back(cur_time.toNSec());
   if (init_path_) {
     ROS_INFO("Attempting VIO Initialization.");
@@ -57,9 +58,14 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
     BuildFrameVectors();
 
     // Initialize imu preintegration
-    PerformIMUInitialization();
+    if (!PerformIMUInitialization()) {
+      return false;
+    }
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
+
+    // Align poses to world gravity
+    AlignPosesToGravity();
 
     // Add imu data to imu preint buffer
     for (auto &f : valid_frames_) {
@@ -73,18 +79,11 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
       }
     }
 
-    // Align poses to world gravity
-    AlignPosesToGravity();
-
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames_, true);
 
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames_);
-
-    // output pre optimization poses
-    ROS_INFO("Frame poses before optimization:");
-    OutputFramePoses(valid_frames_);
 
     // optimize valid frames
     OptimizeGraph();
@@ -93,12 +92,13 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
       // localize the frames that are outside of the given path
       for (auto &f : invalid_frames_) {
         Eigen::Matrix4d T_WORLD_BASELINK;
-        imu_preint_->GetPose(T_WORLD_BASELINK, f.t);
+        if (!imu_preint_->GetPose(T_WORLD_BASELINK, f.t)) {
+          return false;
+        }
         beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
                                                         f.p);
         // add pose and inertial constraints to graph
-        std::vector<Frame> cur_frame = {f};
-        AddPosesAndInertialConstraints(cur_frame, false);
+        AddPosesAndInertialConstraints({f}, false);
       }
 
       // add landmarks and visual constraints for the invalid frames
@@ -108,11 +108,8 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
       OptimizeGraph();
     }
 
-    // output post optimization poses
-    ROS_INFO("Frame poses after optimization:");
-    OutputFramePoses(valid_frames_);
-    OutputFramePoses(invalid_frames_);
-    OutputResults(valid_frames_);
+    // output results
+    OutputResults();
 
     // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
@@ -188,38 +185,6 @@ void VIOInitialization::BuildFrameVectors() {
       Frame new_frame{stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
       invalid_frames_.push_back(new_frame);
     }
-  }
-}
-
-void VIOInitialization::PerformIMUInitialization() {
-  // estimate gyroscope bias
-  if (init_path_->gyroscope_bias.x == 0 && init_path_->gyroscope_bias.y == 0 &&
-      init_path_->gyroscope_bias.z == 0) {
-    SolveGyroBias();
-  } else {
-    bg_ << init_path_->gyroscope_bias.x, init_path_->gyroscope_bias.y,
-        init_path_->gyroscope_bias.z;
-  }
-
-  // estimate gravity and scale
-  if (init_path_->gravity.x == 0 && init_path_->gravity.y == 0 &&
-      init_path_->gravity.z == 0) {
-    SolveGravityAndScale();
-    RefineGravityAndScale();
-  } else {
-    gravity_ << init_path_->gravity.x, init_path_->gravity.y,
-        init_path_->gravity.z;
-    scale_ = init_path_->scale;
-  }
-
-  // estimate accelerometer bias
-  if (init_path_->accelerometer_bias.x == 0 &&
-      init_path_->accelerometer_bias.y == 0 &&
-      init_path_->accelerometer_bias.z == 0) {
-    SolveAccelBias();
-  } else {
-    ba_ << init_path_->accelerometer_bias.x, init_path_->accelerometer_bias.y,
-        init_path_->accelerometer_bias.z;
   }
 }
 
@@ -332,6 +297,24 @@ void VIOInitialization::OptimizeGraph() {
   local_graph_->optimize(options);
 }
 
+bool VIOInitialization::PerformIMUInitialization() {
+  if (valid_frames_.size() <= 4) {
+    ROS_WARN("Not enough keyframes to perform imu initialization.");
+    return false;
+  }
+  // estimate gyroscope bias
+  SolveGyroBias();
+
+  // estimate gravity and scale
+  SolveGravityAndScale();
+  RefineGravityAndScale();
+
+  // estimate accelerometer bias
+  SolveAccelBias();
+
+  return true;
+}
+
 void VIOInitialization::SolveGyroBias() {
   for (size_t i = 0; i < valid_frames_.size(); i++) {
     valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
@@ -369,7 +352,8 @@ void VIOInitialization::SolveAccelBias() {
     return;
   }
   for (size_t i = 0; i < valid_frames_.size(); i++) {
-    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true, false);
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
+                                      false);
   }
   Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b = Eigen::Vector4d::Zero();
@@ -411,7 +395,8 @@ void VIOInitialization::SolveAccelBias() {
 
 void VIOInitialization::SolveGravityAndScale() {
   for (size_t i = 0; i < valid_frames_.size(); i++) {
-    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true, false);
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
+                                      false);
   }
   Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b = Eigen::Vector4d::Zero();
@@ -464,7 +449,7 @@ void VIOInitialization::RefineGravityAndScale() {
   for (size_t iter = 0; iter < 5; ++iter) {
     A.setZero();
     b.setZero();
-    Eigen::Matrix<double, 3, 2> Tg = s2_tangential_basis(gravity_);
+    Eigen::Matrix<double, 3, 2> Tg = beam::S2TangentialBasis(gravity_);
 
     for (size_t j = 1; j < valid_frames_.size(); ++j) {
       const size_t i = j - 1;
@@ -492,54 +477,11 @@ void VIOInitialization::RefineGravityAndScale() {
   scale_ = x(2);
 }
 
-void VIOInitialization::OutputFramePoses(const std::vector<Frame> &frames) {
-  for (auto &f : frames) {
-    std::cout << f.t << std::endl;
-    std::cout << visual_map_->GetBaselinkPose(f.t) << std::endl;
-  }
-}
-
-void VIOInitialization::OutputResults(const std::vector<Frame> &frames) {
-  if (!boost::filesystem::exists(output_directory_) ||
-      output_directory_.empty()) {
-    ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
-             "Initializer results.");
-  } else {
-    // add frame poses to cloud and save
-    pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
-    for (auto &f : frames) {
-      frame_cloud = beam::AddFrameToCloud(
-          frame_cloud, visual_map_->GetBaselinkPose(f.t).value(), 0.001);
-    }
-
-    // add all landmark points to cloud and save
-    std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
-        frames[0].t, frames[frames.size() - 1].t);
-    pcl::PointCloud<pcl::PointXYZ> points_cloud;
-    for (auto &id : landmarks) {
-      fuse_variables::Point3DLandmark::SharedPtr lm =
-          visual_map_->GetLandmark(id);
-      if (lm) {
-        pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
-        points_cloud.push_back(p);
-      }
-    }
-
-    std::string error_message{};
-    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-            output_directory_ + "/frames.pcd", frame_cloud,
-            beam::PointCloudFileType::PCDBINARY, error_message)) {
-      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
-    }
-    if (!beam::SavePointCloud<pcl::PointXYZ>(
-            output_directory_ + "/points.pcd", points_cloud,
-            beam::PointCloudFileType::PCDBINARY, error_message)) {
-      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
-    }
-  }
-}
-
 void VIOInitialization::AlignPosesToGravity() {
+  if (gravity_.isZero(1e-9)) {
+    ROS_WARN("Can't align poses to gravity as it has not been estimated yet.");
+    return;
+  }
   // estimate rotation from estimated gravity to world gravity
   Eigen::Quaterniond q =
       Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
@@ -566,5 +508,71 @@ void VIOInitialization::AlignPosesToGravity() {
       f.p = scale_ * f.p;
   }
 }
+
+void VIOInitialization::OutputResults() {
+  // print results to stdout
+  for (auto &f : valid_frames_) {
+    beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+    if (T.has_value()) {
+      ROS_DEBUG("Keyframe time: %f, %s", f.t.toSec(),
+               beam::TransformationMatrixToString(T.value()).c_str());
+    }
+  }
+  for (auto &f : invalid_frames_) {
+    beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+    if (T.has_value()) {
+      ROS_DEBUG("Keyframe time: %f, %s", f.t.toSec(),
+               beam::TransformationMatrixToString(T.value()).c_str());
+    }
+  }
+
+  // output results to point cloud in specified path
+  if (!boost::filesystem::exists(output_directory_) ||
+      output_directory_.empty()) {
+    ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
+             "Initializer results.");
+  } else {
+    // add frame poses to cloud and save
+    pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
+    for (auto &f : valid_frames_) {
+      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+      if (T.has_value()) {
+        frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
+      }
+    }
+    for (auto &f : invalid_frames_) {
+      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+      if (T.has_value()) {
+        frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
+      }
+    }
+
+    // add all landmark points to cloud and save
+    std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
+        valid_frames_[0].t, invalid_frames_[invalid_frames_.size() - 1].t);
+    pcl::PointCloud<pcl::PointXYZ> points_cloud;
+    for (auto &id : landmarks) {
+      fuse_variables::Point3DLandmark::SharedPtr lm =
+          visual_map_->GetLandmark(id);
+      if (lm) {
+        pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
+        points_cloud.push_back(p);
+      }
+    }
+
+    std::string error_message{};
+    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+            output_directory_ + "/frames.pcd", frame_cloud,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
+    if (!beam::SavePointCloud<pcl::PointXYZ>(
+            output_directory_ + "/points.pcd", points_cloud,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
+  }
+}
+
 } // namespace vision
 } // namespace bs_models

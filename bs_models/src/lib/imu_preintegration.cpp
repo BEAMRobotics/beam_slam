@@ -131,8 +131,7 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
   // check requested time
   if (current_imu_data_buffer_.empty() ||
       t_now < current_imu_data_buffer_.front().t) {
-    ROS_WARN(
-        "Requested time is prior to the current imu data buffer [GetPose]");
+    ROS_WARN("IMU Buffer empty or requested time is outside of window.");
     return false;
   }
 
@@ -168,11 +167,11 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // check requested time
   if (!current_imu_data_buffer_.empty()) {
     if (t_now < current_imu_data_buffer_.front().t) {
-      ROS_WARN("Requested time is prior to the current imu data buffer.");
+      ROS_WARN("Requested transaction time is prior to the current imu data buffer.");
       return nullptr;
     }
   } else if (t_now < pre_integrator_ij.data.front().t) {
-    ROS_WARN("Requested time is prior to the current imu data buffer.");
+    ROS_WARN("Requested transaction time is prior to the current imu data buffer.");
     return nullptr;
   }
 
@@ -202,7 +201,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // integrate between key frames, incrementally calculating covariance and
   // jacobians
   pre_integrator_ij.Integrate(t_now, imu_state_i_.GyroBiasVec(),
-                               imu_state_i_.AccelBiasVec(), true, true);
+                              imu_state_i_.AccelBiasVec(), true, true);
 
   // predict state at end of window using integrated imu measurements
   bs_common::ImuState imu_state_j =
