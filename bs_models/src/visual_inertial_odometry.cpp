@@ -180,17 +180,16 @@ void VisualInertialOdometry::processImage(
         ROS_INFO("%s",
                  beam::TransformationMatrixToString(T_WORLD_BASELINK).c_str());
       } else {
-        // // compute relative pose to most recent kf
-        // Eigen::Matrix4d T_WORLD_BASELINK_curkf =
-        //     visual_map_->GetBaselinkPose(keyframes_.back().Stamp()).value();
-        // Eigen::Matrix4d T_curframe_curkeyframe =
-        //     T_WORLD_BASELINK.inverse() * T_WORLD_BASELINK_curkf;
-
-        // // add to current keyframes trajectory
-        // keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
+        // compute relative pose to most recent kf
+        Eigen::Matrix4d T_WORLD_BASELINK_curkf =
+            visual_map_->GetBaselinkPose(keyframes_.back().Stamp()).value();
+        Eigen::Matrix4d T_curframe_curkeyframe =
+            T_WORLD_BASELINK.inverse() * T_WORLD_BASELINK_curkf;
+        // add to current keyframes trajectory
+        keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
         added_since_kf_++;
       }
-      ROS_INFO("Total time to process frame: %.5f", frame_timer.elapsed());
+      ROS_DEBUG("Total time to process frame: %.5f", frame_timer.elapsed());
     }
     image_buffer_.pop();
   }
@@ -218,6 +217,13 @@ void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
   // make deep copy to make updating graph easier
   fuse_core::Graph::SharedPtr copy = std::move(graph->clone());
+  // publish marginalized slam chunks
+  while (!keyframes_.empty() &&
+         !copy->variableExists(
+             visual_map_->GetPositionUUID(keyframes_.front().Stamp()))) {
+    PublishSlamChunk(keyframes_.front());
+    keyframes_.pop_front();
+  }
   // Update graph object in visual map
   visual_map_->UpdateGraph(copy);
   // Update imu preint info with new graph
@@ -337,6 +343,9 @@ void VisualInertialOdometry::ExtendMap() {
 
   // send transaction to graph
   sendTransaction(transaction);
+
+  // publish new landmarks
+  PublishLandmarkIDs(keyframes_.back().Landmarks());
 }
 
 void VisualInertialOdometry::AddInertialConstraint(
@@ -441,10 +450,10 @@ void VisualInertialOdometry::NotifyNewKeyframe(
 }
 
 void VisualInertialOdometry::PublishInitialOdometry(
-    const ros::Time &img_time, const Eigen::Matrix4d &T_WORLD_BASELINK) {
+    const ros::Time &time, const Eigen::Matrix4d &T_WORLD_BASELINK) {
   // build pose message
   geometry_msgs::PoseStamped pose;
-  bs_common::TransformationMatrixToPoseMsg(T_WORLD_BASELINK, img_time, pose);
+  bs_common::TransformationMatrixToPoseMsg(T_WORLD_BASELINK, time, pose);
 
   // build odom message
   nav_msgs::Odometry odom;
@@ -457,91 +466,79 @@ void VisualInertialOdometry::PublishInitialOdometry(
   init_odom_publisher_.publish(odom);
 }
 
-void VisualInertialOdometry::PublishSlamChunk() {
-  // this just makes sure the visual map has the most recent variables
-  for (auto &kf : keyframes_) {
-    visual_map_->GetCameraPose(kf.Stamp());
+void VisualInertialOdometry::PublishSlamChunk(Keyframe keyframe) {
+  // build slam chunk
+  ros::Time keyframe_time = keyframe.Stamp();
+  bs_common::SlamChunkMsg slam_chunk;
+
+  // get keyframe pose and flatten it
+  beam::opt<Eigen::Matrix4d> T_WORLD_BASELINK =
+      visual_map_->GetBaselinkPose(keyframe_time);
+  if (T_WORLD_BASELINK.has_value()) {
+    std::vector<double> pose;
+    for (uint8_t i = 0; i < 3; i++) {
+      for (uint8_t j = 0; j < 4; j++) {
+        pose.push_back(T_WORLD_BASELINK.value()(i, j));
+      }
+    }
+    slam_chunk.T_WORLD_BASELINK = pose;
+  } else {
+    ROS_WARN(
+        "Attempting to publish slam chunk [%f] that no longer exists in graph.",
+        keyframe_time.toSec());
+    return;
   }
 
-  // only once keyframes reaches the max window size, publish the keyframe
-  if (keyframes_.size() == camera_params_.keyframe_window_size - 1) {
-    // remove keyframe placeholder if first keyframe
-    if (keyframes_.front().Stamp() == ros::Time(0)) {
-      keyframes_.pop_front();
-    }
-
-    // build slam chunk
-    bs_common::SlamChunkMsg slam_chunk;
-
-    // stamp
-    ros::Time kf_to_publish = keyframes_.front().Stamp();
-    slam_chunk.stamp = kf_to_publish;
-
-    // keyframe pose
-    Eigen::Matrix4d T_WORLD_BASELINK =
-        visual_map_->GetCameraPose(kf_to_publish).value() * T_cam_baselink_;
-
+  // build trajectory msg
+  TrajectoryMeasurementMsg trajectory;
+  for (auto &it : keyframe.Trajectory()) {
     // flatten 4x4 pose
     std::vector<double> pose;
     for (uint8_t i = 0; i < 3; i++) {
       for (uint8_t j = 0; j < 4; j++) {
-        pose.push_back(T_WORLD_BASELINK(i, j));
+        pose.push_back(it.second(i, j));
       }
     }
-    slam_chunk.T_WORLD_BASELINK = pose;
-
-    // trajectory
-    TrajectoryMeasurementMsg trajectory;
-    for (auto &it : keyframes_.front().Trajectory()) {
-      // flatten 4x4 pose
-      std::vector<double> pose;
-      for (uint8_t i = 0; i < 3; i++) {
-        for (uint8_t j = 0; j < 4; j++) {
-          pose.push_back(it.second(i, j));
-        }
-      }
-      ros::Time stamp;
-      stamp.fromNSec(it.first);
-      trajectory.stamps.push_back(stamp.toSec());
-      for (auto &x : pose) {
-        trajectory.poses.push_back(x);
-      }
+    ros::Time stamp;
+    stamp.fromNSec(it.first);
+    trajectory.stamps.push_back(stamp.toSec());
+    for (auto &x : pose) {
+      trajectory.poses.push_back(x);
     }
-    slam_chunk.trajectory_measurement = trajectory;
-
-    // camera measurements
-    CameraMeasurementMsg camera_measurement;
-    camera_measurement.descriptor_type = descriptor_type_int_;
-    camera_measurement.sensor_id = 0;
-    camera_measurement.measurement_id = keyframes_.front().SequenceNumber();
-    camera_measurement.image = keyframes_.front().Image();
-
-    // landmark measurements
-    std::vector<LandmarkMeasurementMsg> landmarks;
-    std::vector<uint64_t> landmark_ids =
-        tracker_->GetLandmarkIDsInImage(kf_to_publish);
-    for (auto &id : landmark_ids) {
-      LandmarkMeasurementMsg lm;
-      lm.landmark_id = id;
-      cv::Mat descriptor = tracker_->GetDescriptor(kf_to_publish, id);
-      std::vector<float> descriptor_v =
-          beam_cv::Descriptor::ConvertDescriptor(descriptor, descriptor_type_);
-      lm.descriptor = descriptor_v;
-      Eigen::Vector2d pixel = tracker_->Get(kf_to_publish, id);
-      lm.pixel_u = pixel[0];
-      lm.pixel_v = pixel[1];
-      landmarks.push_back(lm);
-    }
-
-    camera_measurement.landmarks = landmarks;
-    slam_chunk.camera_measurement = camera_measurement;
-
-    // publish slam chunk
-    slam_chunk_publisher_.publish(slam_chunk);
-
-    // remove keyframe
-    keyframes_.pop_front();
   }
+
+  // build landmark measurements msg
+  std::vector<LandmarkMeasurementMsg> landmarks;
+  std::vector<uint64_t> landmark_ids =
+      tracker_->GetLandmarkIDsInImage(keyframe_time);
+  for (auto &id : landmark_ids) {
+    LandmarkMeasurementMsg lm;
+    lm.landmark_id = id;
+    cv::Mat descriptor = tracker_->GetDescriptor(keyframe_time, id);
+    std::vector<float> descriptor_v =
+        beam_cv::Descriptor::ConvertDescriptor(descriptor, descriptor_type_);
+    lm.descriptor = descriptor_v;
+    Eigen::Vector2d pixel = tracker_->Get(keyframe_time, id);
+    lm.pixel_u = pixel[0];
+    lm.pixel_v = pixel[1];
+    landmarks.push_back(lm);
+  }
+
+  // build camera measurement msg
+  CameraMeasurementMsg camera_measurement;
+  camera_measurement.descriptor_type = descriptor_type_int_;
+  camera_measurement.sensor_id = 0;
+  camera_measurement.measurement_id = keyframe.SequenceNumber();
+  camera_measurement.image = keyframe.Image();
+  camera_measurement.landmarks = landmarks;
+
+  // add msgs to slam chunk
+  slam_chunk.stamp = keyframe_time;
+  slam_chunk.trajectory_measurement = trajectory;
+  slam_chunk.camera_measurement = camera_measurement;
+
+  // publish slam chunk
+  slam_chunk_publisher_.publish(slam_chunk);
 }
 
 void VisualInertialOdometry::PublishLandmarkIDs(

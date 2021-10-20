@@ -98,9 +98,8 @@ public:
    * @param id of the landmark to add
    * @param transaction to add to
    */
-  void
-  AddFixedLandmark(const Eigen::Vector3d &position, uint64_t id,
-                   fuse_core::Transaction::SharedPtr transaction);
+  void AddFixedLandmark(const Eigen::Vector3d &position, uint64_t id,
+                        fuse_core::Transaction::SharedPtr transaction);
 
   /**
    * @brief Helper function to add a new landmark variable to a transaction or
@@ -199,13 +198,25 @@ public:
    * @brief Gets fuse uuid of stamped position
    * @param stamp of position
    */
-  fuse_core::UUID GetPositionUUID(ros::Time stamp);
+  fuse_core::UUID GetPositionUUID(const ros::Time &stamp);
 
   /**
    * @brief Gets fuse uuid of stamped orientation
    * @param stamp of orientation
    */
-  fuse_core::UUID GetOrientationUUID(ros::Time stamp);
+  fuse_core::UUID GetOrientationUUID(const ros::Time &stamp);
+
+  /**
+   * @brief Checks if a given pose at a time is in the graph
+   * @return bool
+   */
+  bool PoseExists(const ros::Time &stamp);
+
+  /**
+   * @brief Checks if a given landmark is in the graph
+   * @return bool
+   */
+  bool LandmarkExists(uint64_t landmark_id);
 
   /**
    * @brief Updates current graph copy
@@ -226,7 +237,7 @@ protected:
   // memory management variables
   size_t tracked_features_{100}; // # of features tracked per frame
   size_t window_size_{20};       // # of keyframe poses to retain in local maps
-  
+
   // copy of the current graph
   fuse_core::Graph::SharedPtr graph_;
 

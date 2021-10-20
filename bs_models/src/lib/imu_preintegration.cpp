@@ -201,10 +201,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // populate integrator
   while (!current_imu_data_buffer_.empty() &&
          t_now > current_imu_data_buffer_.front().t) {
-    pre_integrator_ij.data
-        .emplace_ // clear intermeidate preintegrator if there is
-                  // back(current_imu_data_buffer_.front());
-            current_imu_data_buffer_.pop();
+    pre_integrator_ij.data.emplace_back(current_imu_data_buffer_.front());
+    current_imu_data_buffer_.pop();
   }
 
   // integrate between key frames, incrementally calculating covariance and

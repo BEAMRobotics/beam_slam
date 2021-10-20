@@ -131,16 +131,16 @@ private:
 
   /**
    * @brief Publishes the initial odometry estimate of frame
-   * @param img_time time frame
+   * @param time time of pose
    * @param T_WORLD_BASELINK initial odometry estimate
    */
-  void PublishInitialOdometry(const ros::Time &img_time,
+  void PublishInitialOdometry(const ros::Time &time,
                               const Eigen::Matrix4d &T_WORLD_BASELINK);
 
   /**
    * @brief Publishes the oldest keyframe that is stored as a slam chunk message
    */
-  void PublishSlamChunk();
+  void PublishSlamChunk(Keyframe keyframe);
 
   /**
    * @brief Publishes landmark ids

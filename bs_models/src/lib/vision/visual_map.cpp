@@ -67,8 +67,6 @@ VisualMap::GetLandmark(uint64_t landmark_id) {
     try {
       *landmark = dynamic_cast<const fuse_variables::Point3DLandmark &>(
           graph_->getVariable(landmark_uuid));
-      // update local maps with most recent update
-      landmark_positions_[landmark_id] = landmark;
       return landmark;
     } catch (const std::out_of_range &oor) {
       if (landmark_positions_.find(landmark_id) == landmark_positions_.end()) {
@@ -94,8 +92,6 @@ VisualMap::GetFixedLandmark(uint64_t landmark_id) {
     try {
       *landmark = dynamic_cast<const fuse_variables::Point3DFixedLandmark &>(
           graph_->getVariable(landmark_uuid));
-      // update local maps with most recent update
-      fixed_landmark_positions_[landmark_id] = landmark;
       return landmark;
     } catch (const std::out_of_range &oor) {
       if (fixed_landmark_positions_.find(landmark_id) ==
@@ -124,8 +120,6 @@ VisualMap::GetOrientation(const ros::Time &stamp) {
       *corr_orientation =
           dynamic_cast<const fuse_variables::Orientation3DStamped &>(
               graph_->getVariable(corr_orientation_uuid));
-      // update local maps with most recent update
-      orientations_[stamp.toNSec()] = corr_orientation;
       return corr_orientation;
     } catch (const std::out_of_range &oor) {
       if (orientations_.find(stamp.toNSec()) == orientations_.end()) {
@@ -151,8 +145,6 @@ VisualMap::GetPosition(const ros::Time &stamp) {
     try {
       *corr_position = dynamic_cast<const fuse_variables::Position3DStamped &>(
           graph_->getVariable(corr_position_uuid));
-      // update local maps with most recent update
-      positions_[stamp.toNSec()] = corr_position;
       return corr_position;
     } catch (const std::out_of_range &oor) {
       if (positions_.find(stamp.toNSec()) == positions_.end()) {
@@ -355,7 +347,7 @@ fuse_core::UUID VisualMap::GetLandmarkUUID(uint64_t landmark_id) {
   return landmark_uuid;
 }
 
-fuse_core::UUID VisualMap::GetPositionUUID(ros::Time stamp) {
+fuse_core::UUID VisualMap::GetPositionUUID(const ros::Time &stamp) {
   fuse_variables::Position3DStamped::SharedPtr corr_position =
       fuse_variables::Position3DStamped::make_shared();
   auto corr_position_uuid = fuse_core::uuid::generate(
@@ -363,12 +355,30 @@ fuse_core::UUID VisualMap::GetPositionUUID(ros::Time stamp) {
   return corr_position_uuid;
 }
 
-fuse_core::UUID VisualMap::GetOrientationUUID(ros::Time stamp) {
+fuse_core::UUID VisualMap::GetOrientationUUID(const ros::Time &stamp) {
   fuse_variables::Orientation3DStamped::SharedPtr corr_orientation =
       fuse_variables::Orientation3DStamped::make_shared();
   auto corr_orientation_uuid = fuse_core::uuid::generate(
       corr_orientation->type(), stamp, fuse_core::uuid::NIL);
   return corr_orientation_uuid;
+}
+
+bool VisualMap::PoseExists(const ros::Time &stamp) {
+  if ((graph_->variableExists(GetOrientationUUID(stamp)) &&
+       graph_->variableExists(GetPositionUUID(stamp))) ||
+      (positions_.find(stamp.toNSec()) != positions_.end() &&
+       orientations_.find(stamp.toNSec()) != orientations_.end())) {
+    return true;
+  }
+  return false;
+}
+
+bool VisualMap::LandmarkExists(uint64_t landmark_id) {
+  if (graph_->variableExists(GetLandmarkUUID(landmark_id)) ||
+      landmark_positions_.find(landmark_id) != landmark_positions_.end()) {
+    return true;
+  }
+  return false;
 }
 
 void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
