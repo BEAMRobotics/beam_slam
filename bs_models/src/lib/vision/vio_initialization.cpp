@@ -236,7 +236,7 @@ size_t
 VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
   ros::Time start = frames[0].t, end = frames[frames.size() - 1].t;
   size_t num_landmarks = 0;
-
+  // make transaction
   auto landmark_transaction = fuse_core::Transaction::make_shared();
   landmark_transaction->stamp(end);
   // get all landmarks in the window
@@ -289,7 +289,6 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
   }
   // send transaction to graph
   local_graph_->update(*landmark_transaction);
-
   // update visual map with updated graph
   visual_map_->UpdateGraph(local_graph_);
 

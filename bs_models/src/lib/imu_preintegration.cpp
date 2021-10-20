@@ -47,6 +47,10 @@ void ImuPreintegration::SetPreintegrator() {
   pre_integrator_ij.cov_a = params_.cov_accel_noise;
   pre_integrator_ij.cov_bg = params_.cov_gyro_bias;
   pre_integrator_ij.cov_ba = params_.cov_accel_bias;
+  pre_integrator_kj.cov_w = params_.cov_gyro_noise;
+  pre_integrator_kj.cov_a = params_.cov_accel_noise;
+  pre_integrator_kj.cov_bg = params_.cov_gyro_bias;
+  pre_integrator_kj.cov_ba = params_.cov_accel_bias;
 }
 
 void ImuPreintegration::ResetPreintegrator() {
@@ -125,29 +129,30 @@ ImuPreintegration::PredictState(const bs_common::PreIntegrator &pre_integrator,
 
 bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
                                 const ros::Time &t_now) {
-  // encapsulate IMU measurements between frames
-  bs_common::PreIntegrator pre_integrator_interval;
+  // clear intermediate preintegrator
+  pre_integrator_kj.Reset();
+  pre_integrator_kj.data.clear();
 
   // check requested time
-  if (current_imu_data_buffer_.empty() ||
+  if (!current_imu_data_buffer_.empty() &&
       t_now < current_imu_data_buffer_.front().t) {
-    ROS_WARN("IMU Buffer empty or requested time is outside of window.");
+    ROS_WARN("Requested time is outside of window.");
     return false;
   }
 
   // Populate integrators
   while (!current_imu_data_buffer_.empty() &&
          t_now > current_imu_data_buffer_.front().t) {
-    pre_integrator_interval.data.emplace_back(current_imu_data_buffer_.front());
+    pre_integrator_kj.data.emplace_back(current_imu_data_buffer_.front());
     pre_integrator_ij.data.emplace_back(current_imu_data_buffer_.front());
     current_imu_data_buffer_.pop();
   }
   // integrate between frames
-  pre_integrator_interval.Integrate(t_now, imu_state_i_.GyroBiasVec(),
-                                    imu_state_i_.AccelBiasVec(), false, false);
+  pre_integrator_kj.Integrate(t_now, imu_state_i_.GyroBiasVec(),
+                              imu_state_i_.AccelBiasVec(), false, false);
 
   // predict state at end of window using integrated IMU measurements
-  imu_state_k_ = PredictState(pre_integrator_interval, imu_state_k_, t_now);
+  imu_state_k_ = PredictState(pre_integrator_kj, imu_state_k_, t_now);
 
   // populate transformation matrix
   beam::QuaternionAndTranslationToTransformMatrix(
@@ -167,11 +172,13 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // check requested time
   if (!current_imu_data_buffer_.empty()) {
     if (t_now < current_imu_data_buffer_.front().t) {
-      ROS_WARN("Requested transaction time is prior to the current imu data buffer.");
+      ROS_WARN("Requested transaction time is prior to the current imu data "
+               "buffer.");
       return nullptr;
     }
   } else if (t_now < pre_integrator_ij.data.front().t) {
-    ROS_WARN("Requested transaction time is prior to the current imu data buffer.");
+    ROS_WARN(
+        "Requested transaction time is prior to the current imu data buffer.");
     return nullptr;
   }
 
@@ -194,8 +201,10 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   // populate integrator
   while (!current_imu_data_buffer_.empty() &&
          t_now > current_imu_data_buffer_.front().t) {
-    pre_integrator_ij.data.emplace_back(current_imu_data_buffer_.front());
-    current_imu_data_buffer_.pop();
+    pre_integrator_ij.data
+        .emplace_ // clear intermeidate preintegrator if there is
+                  // back(current_imu_data_buffer_.front());
+            current_imu_data_buffer_.pop();
   }
 
   // integrate between key frames, incrementally calculating covariance and
@@ -239,8 +248,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   return transaction.GetTransaction();
 }
 
-void ImuPreintegration::UpdateGraph(
-    fuse_core::Graph::SharedPtr graph_msg) {
+void ImuPreintegration::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
   // if update was successful then also reset buffer and state k
   if (imu_state_i_.Update(graph_msg)) {
     // reset current data buffer to be the total buffer starting at state i

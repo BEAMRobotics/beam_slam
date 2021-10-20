@@ -154,6 +154,7 @@ private:
   bs_common::ImuState imu_state_i_;           // current key frame
   bs_common::ImuState imu_state_k_;           // intermediate frame
   bs_common::PreIntegrator pre_integrator_ij; // preintegrate between key frames
+  bs_common::PreIntegrator pre_integrator_kj; // preintegrate from intermediate frame 
   std::queue<bs_common::IMUData> current_imu_data_buffer_; // store imu data
   std::queue<bs_common::IMUData> total_imu_data_buffer_;   // store imu data
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias

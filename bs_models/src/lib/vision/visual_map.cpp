@@ -63,7 +63,6 @@ VisualMap::GetLandmark(uint64_t landmark_id) {
   fuse_variables::Point3DLandmark::SharedPtr landmark =
       fuse_variables::Point3DLandmark::make_shared();
   auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
-
   if (graph_) {
     try {
       *landmark = dynamic_cast<const fuse_variables::Point3DLandmark &>(
@@ -91,7 +90,6 @@ VisualMap::GetFixedLandmark(uint64_t landmark_id) {
   fuse_variables::Point3DFixedLandmark::SharedPtr landmark =
       fuse_variables::Point3DFixedLandmark::make_shared();
   auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
-
   if (graph_) {
     try {
       *landmark = dynamic_cast<const fuse_variables::Point3DFixedLandmark &>(
@@ -121,8 +119,6 @@ VisualMap::GetOrientation(const ros::Time &stamp) {
       fuse_variables::Orientation3DStamped::make_shared();
   auto corr_orientation_uuid = fuse_core::uuid::generate(
       corr_orientation->type(), stamp, fuse_core::uuid::NIL);
-
-  // first check the graph for the variable if its initialized
   if (graph_) {
     try {
       *corr_orientation =
@@ -151,9 +147,6 @@ VisualMap::GetPosition(const ros::Time &stamp) {
       fuse_variables::Position3DStamped::make_shared();
   auto corr_position_uuid = fuse_core::uuid::generate(
       corr_position->type(), stamp, fuse_core::uuid::NIL);
-
-  // first check the graph for the variable if its initialized
-
   if (graph_) {
     try {
       *corr_position = dynamic_cast<const fuse_variables::Position3DStamped &>(
