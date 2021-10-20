@@ -120,7 +120,7 @@ private:
  * fuse optimizer
  * @param init_graph the graph obtained from the initializer
  */
-  void SendInitializationGraph(const fuse_graphs::HashGraph &init_graph);
+  void SendInitializationGraph(const fuse_core::Graph::SharedPtr &init_graph);
 
   /**
    * @brief Adds the keyframe pose to the graph and publishes keyframe header to

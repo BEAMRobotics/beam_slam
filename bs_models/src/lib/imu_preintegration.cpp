@@ -240,7 +240,7 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 }
 
 void ImuPreintegration::UpdateGraph(
-    fuse_core::Graph::ConstSharedPtr graph_msg) {
+    fuse_core::Graph::SharedPtr graph_msg) {
   // if update was successful then also reset buffer and state k
   if (imu_state_i_.Update(graph_msg)) {
     // reset current data buffer to be the total buffer starting at state i

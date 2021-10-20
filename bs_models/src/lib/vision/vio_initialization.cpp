@@ -38,10 +38,7 @@ VIOInitialization::VIOInitialization(
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
 
   // create visual map
-  visual_map_ = std::make_shared<vision::VisualMap>(cam_model_, local_graph_);
-
-  // create pose refiner
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
+  visual_map_ = std::make_shared<vision::VisualMap>(cam_model_);
 
   // make subscriber for init path
   ros::NodeHandle n;
@@ -130,8 +127,8 @@ void VIOInitialization::ProcessInitPath(
 
 bool VIOInitialization::Initialized() { return is_initialized_; }
 
-const fuse_graphs::HashGraph &VIOInitialization::GetGraph() {
-  return *local_graph_;
+const fuse_core::Graph::SharedPtr &VIOInitialization::GetGraph() {
+  return local_graph_;
 }
 
 std::shared_ptr<bs_models::ImuPreintegration>
@@ -192,8 +189,12 @@ void VIOInitialization::AddPosesAndInertialConstraints(
     const std::vector<Frame> &frames, bool set_start) {
   // add poses to graph
   for (auto &frame : frames) {
-    visual_map_->AddPosition(frame.p, frame.t);
-    visual_map_->AddOrientation(frame.q, frame.t);
+    auto pose_transaction = fuse_core::Transaction::make_shared();
+    pose_transaction->stamp(frame.t);
+    visual_map_->AddPosition(frame.p, frame.t, pose_transaction);
+    visual_map_->AddOrientation(frame.q, frame.t, pose_transaction);
+    // send transaction to graph
+    local_graph_->update(*pose_transaction);
   }
 
   // add inertial constraints between poses
@@ -219,13 +220,16 @@ void VIOInitialization::AddPosesAndInertialConstraints(
       imu_preint_->SetStart(frame.t, img_orientation, img_position, velocity);
     } else {
       // get imu transaction
-      fuse_core::Transaction::SharedPtr transaction =
+      fuse_core::Transaction::SharedPtr imu_transaction =
           imu_preint_->RegisterNewImuPreintegratedFactor(
               frame.t, img_orientation, img_position);
-      // update graph with the transaction
-      local_graph_->update(*transaction);
+      // send transaction to graph
+      local_graph_->update(*imu_transaction);
     }
   }
+
+  // update visual map with updated graph
+  visual_map_->UpdateGraph(local_graph_);
 }
 
 size_t
@@ -233,6 +237,8 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
   ros::Time start = frames[0].t, end = frames[frames.size() - 1].t;
   size_t num_landmarks = 0;
 
+  auto landmark_transaction = fuse_core::Transaction::make_shared();
+  landmark_transaction->stamp(end);
   // get all landmarks in the window
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInWindow(start, end);
@@ -243,7 +249,8 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
       // if the landmark already exists then add constraint
       for (auto &f : frames) {
         try {
-          visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id));
+          visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id),
+                                     landmark_transaction);
         } catch (const std::out_of_range &oor) {
         }
       }
@@ -270,16 +277,21 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
                                                      pixels);
         if (point.has_value()) {
           num_landmarks++;
-          visual_map_->AddLandmark(point.value(), id);
+          visual_map_->AddLandmark(point.value(), id, landmark_transaction);
           for (int i = 0; i < observation_stamps.size(); i++) {
-            visual_map_->AddConstraint(
-                observation_stamps[i], id,
-                tracker_->Get(observation_stamps[i], id));
+            visual_map_->AddConstraint(observation_stamps[i], id,
+                                       tracker_->Get(observation_stamps[i], id),
+                                       landmark_transaction);
           }
         }
       }
     }
   }
+  // send transaction to graph
+  local_graph_->update(*landmark_transaction);
+
+  // update visual map with updated graph
+  visual_map_->UpdateGraph(local_graph_);
 
   return num_landmarks;
 }
@@ -514,15 +526,17 @@ void VIOInitialization::OutputResults() {
   for (auto &f : valid_frames_) {
     beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
     if (T.has_value()) {
-      ROS_DEBUG("Keyframe time: %f, %s", f.t.toSec(),
-               beam::TransformationMatrixToString(T.value()).c_str());
+      ROS_DEBUG("Initialization Keyframe Time: %f", f.t.toSec());
+      ROS_DEBUG("Pose: %s",
+                beam::TransformationMatrixToString(T.value()).c_str());
     }
   }
   for (auto &f : invalid_frames_) {
     beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
     if (T.has_value()) {
-      ROS_DEBUG("Keyframe time: %f, %s", f.t.toSec(),
-               beam::TransformationMatrixToString(T.value()).c_str());
+      ROS_DEBUG("Initialization Keyframe Time: %f", f.t.toSec());
+      ROS_DEBUG("Pose: %s",
+                beam::TransformationMatrixToString(T.value()).c_str());
     }
   }
 

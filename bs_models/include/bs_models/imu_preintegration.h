@@ -130,7 +130,7 @@ public:
    * @brief Updates current graph copy
    * @param graph_msg graph to update with
    */
-  void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
+  void UpdateGraph(fuse_core::Graph::SharedPtr graph_msg);
 
 private:
   /**

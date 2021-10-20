@@ -66,7 +66,7 @@ public:
    * @brief Returns a read only version of the current local graph
    * @return read-only graph
    */
-  const fuse_graphs::HashGraph &GetGraph();
+  const fuse_core::Graph::SharedPtr &GetGraph();
 
   /**
    * @brief Returns a pointer to the imu preintegration object used
@@ -154,7 +154,6 @@ protected:
   ros::Subscriber path_subscriber_;
 
   // computer vision objects
-  std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::vision::VisualMap> visual_map_;
@@ -164,7 +163,7 @@ protected:
   bs_models::ImuPreintegration::Params imu_params_;
 
   // graph object for optimization
-  std::shared_ptr<fuse_graphs::HashGraph> local_graph_;
+  fuse_core::Graph::SharedPtr local_graph_;
   double max_optimization_time_;
 
   // stores the added imu messages and times of keyframes to use for init

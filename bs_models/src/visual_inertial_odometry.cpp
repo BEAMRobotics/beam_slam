@@ -179,12 +179,6 @@ void VisualInertialOdometry::processImage(
         // log keyframe pose
         ROS_INFO("%s",
                  beam::TransformationMatrixToString(T_WORLD_BASELINK).c_str());
-
-        // // publish new landmarks
-        // PublishLandmarkIDs(keyframes_.back().Landmarks());
-
-        // // publish oldest keyframe for global mapper
-        // PublishSlamChunk();
       } else {
         // // compute relative pose to most recent kf
         // Eigen::Matrix4d T_WORLD_BASELINK_curkf =
@@ -194,7 +188,7 @@ void VisualInertialOdometry::processImage(
 
         // // add to current keyframes trajectory
         // keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
-        // added_since_kf_++;
+        added_since_kf_++;
       }
       ROS_INFO("Total time to process frame: %.5f", frame_timer.elapsed());
     }
@@ -222,11 +216,12 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr &msg) {
 
 void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
+  // make deep copy to make updating graph easier
+  fuse_core::Graph::SharedPtr copy = std::move(graph->clone());
   // Update graph object in visual map
-  visual_map_->UpdateGraph(graph);
-
+  visual_map_->UpdateGraph(copy);
   // Update imu preint info with new graph
-  imu_preint_->UpdateGraph(graph);
+  imu_preint_->UpdateGraph(copy);
 }
 
 /************************************************************
@@ -364,12 +359,12 @@ void VisualInertialOdometry::AddInertialConstraint(
 }
 
 void VisualInertialOdometry::SendInitializationGraph(
-    const fuse_graphs::HashGraph &init_graph) {
+    const fuse_core::Graph::SharedPtr &init_graph) {
   std::vector<uint64_t> new_landmarks;
   auto transaction = fuse_core::Transaction::make_shared();
 
   // add each variable in graph as they should be added
-  for (auto &var : init_graph.getVariables()) {
+  for (auto &var : init_graph->getVariables()) {
     fuse_variables::Point3DLandmark::SharedPtr landmark =
         fuse_variables::Point3DLandmark::make_shared();
     fuse_variables::Position3DStamped::SharedPtr position =
@@ -394,7 +389,7 @@ void VisualInertialOdometry::SendInitializationGraph(
   }
 
   // add each constraint in the graph
-  for (auto &constraint : init_graph.getConstraints()) {
+  for (auto &constraint : init_graph->getConstraints()) {
     transaction->addConstraint(std::move(constraint.clone()));
   }
 
