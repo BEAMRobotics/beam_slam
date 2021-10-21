@@ -521,30 +521,30 @@ void VIOInitialization::AlignPosesToGravity() {
 }
 
 void VIOInitialization::OutputResults() {
-  // print results to stdout
-  for (auto &f : valid_frames_) {
-    beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
-    if (T.has_value()) {
-      ROS_DEBUG("Initialization Keyframe Time: %f", f.t.toSec());
-      ROS_DEBUG("Pose: %s",
-                beam::TransformationMatrixToString(T.value()).c_str());
-    }
-  }
-  for (auto &f : invalid_frames_) {
-    beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
-    if (T.has_value()) {
-      ROS_DEBUG("Initialization Keyframe Time: %f", f.t.toSec());
-      ROS_DEBUG("Pose: %s",
-                beam::TransformationMatrixToString(T.value()).c_str());
-    }
-  }
-
   // output results to point cloud in specified path
   if (!boost::filesystem::exists(output_directory_) ||
       output_directory_.empty()) {
     ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
              "Initializer results.");
   } else {
+    // print results to stdout
+    for (auto &f : valid_frames_) {
+      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+      if (T.has_value()) {
+        ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
+        ROS_INFO("Pose: %s",
+                 beam::TransformationMatrixToString(T.value()).c_str());
+      }
+    }
+    for (auto &f : invalid_frames_) {
+      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+      if (T.has_value()) {
+        ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
+        ROS_INFO("Pose: %s",
+                 beam::TransformationMatrixToString(T.value()).c_str());
+      }
+    }
+
     // add frame poses to cloud and save
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
     for (auto &f : valid_frames_) {

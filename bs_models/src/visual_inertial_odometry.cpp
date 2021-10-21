@@ -35,7 +35,7 @@ void VisualInertialOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // initialize pose refiner object with params
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2);
 
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
@@ -126,7 +126,7 @@ void VisualInertialOdometry::processImage(
   ros::Time img_time = image_buffer_.front().header.stamp;
 
   // add image to map or initializer
-  if (imu_time > img_time && !imu_buffer_.empty()) {
+  if (imu_time >= img_time && !imu_buffer_.empty()) {
     // add image to tracker
     tracker_->AddImage(
         beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
@@ -203,7 +203,7 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr &msg) {
   ros::Time img_time = image_buffer_.front().header.stamp;
 
   // add IMU messages to preintegrator or initializer
-  while (imu_buffer_.front().header.stamp <= img_time && !imu_buffer_.empty()) {
+  while (imu_buffer_.front().header.stamp < img_time && !imu_buffer_.empty()) {
     if (!initialization_->Initialized()) {
       initialization_->AddIMU(imu_buffer_.front());
     } else {
