@@ -30,7 +30,7 @@ public:
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
             const std::string &source = "VIO",
-            const size_t tracked_features = 100, const size_t window_size = 20);
+            const size_t tracked_features = 100, const size_t window_size = 10);
 
   /**
    * @brief Default destructor
@@ -195,6 +195,12 @@ public:
   fuse_core::UUID GetLandmarkUUID(uint64_t landmark_id);
 
   /**
+   * @brief Gets fuse uuid of landmark
+   * @param landmark_id of landmark
+   */
+  fuse_core::UUID GetFixedLandmarkUUID(uint64_t landmark_id);
+
+  /**
    * @brief Gets fuse uuid of stamped position
    * @param stamp of position
    */
@@ -219,6 +225,12 @@ public:
   bool LandmarkExists(uint64_t landmark_id);
 
   /**
+   * @brief Checks if a given landmark is in the graph
+   * @return bool
+   */
+  bool FixedLandmarkExists(uint64_t landmark_id);
+
+  /**
    * @brief Updates current graph copy
    * @param graph_msg graph to update with
    */
@@ -236,7 +248,7 @@ protected:
 
   // memory management variables
   size_t tracked_features_{100}; // # of features tracked per frame
-  size_t window_size_{20};       // # of keyframe poses to retain in local maps
+  size_t window_size_{10};       // # of keyframe poses to retain in local maps
 
   // copy of the current graph
   fuse_core::Graph::SharedPtr graph_;

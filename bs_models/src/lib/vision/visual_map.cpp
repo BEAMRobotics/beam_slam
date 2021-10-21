@@ -347,6 +347,13 @@ fuse_core::UUID VisualMap::GetLandmarkUUID(uint64_t landmark_id) {
   return landmark_uuid;
 }
 
+fuse_core::UUID VisualMap::GetFixedLandmarkUUID(uint64_t landmark_id) {
+  fuse_variables::Point3DFixedLandmark::SharedPtr landmark =
+      fuse_variables::Point3DFixedLandmark::make_shared();
+  auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
+  return landmark_uuid;
+}
+
 fuse_core::UUID VisualMap::GetPositionUUID(const ros::Time &stamp) {
   fuse_variables::Position3DStamped::SharedPtr corr_position =
       fuse_variables::Position3DStamped::make_shared();
@@ -364,18 +371,22 @@ fuse_core::UUID VisualMap::GetOrientationUUID(const ros::Time &stamp) {
 }
 
 bool VisualMap::PoseExists(const ros::Time &stamp) {
-  if ((graph_->variableExists(GetOrientationUUID(stamp)) &&
-       graph_->variableExists(GetPositionUUID(stamp))) ||
-      (positions_.find(stamp.toNSec()) != positions_.end() &&
-       orientations_.find(stamp.toNSec()) != orientations_.end())) {
+  if (graph_->variableExists(GetOrientationUUID(stamp)) &&
+      graph_->variableExists(GetPositionUUID(stamp))) {
     return true;
   }
   return false;
 }
 
 bool VisualMap::LandmarkExists(uint64_t landmark_id) {
-  if (graph_->variableExists(GetLandmarkUUID(landmark_id)) ||
-      landmark_positions_.find(landmark_id) != landmark_positions_.end()) {
+  if (graph_->variableExists(GetLandmarkUUID(landmark_id))) {
+    return true;
+  }
+  return false;
+}
+
+bool VisualMap::FixedLandmarkExists(uint64_t landmark_id) {
+  if (graph_->variableExists(GetFixedLandmarkUUID(landmark_id))) {
     return true;
   }
   return false;
@@ -383,6 +394,66 @@ bool VisualMap::LandmarkExists(uint64_t landmark_id) {
 
 void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
   graph_ = std::move(graph_msg);
+
+  // update landmarks
+  for (auto &lm : landmark_positions_) {
+    fuse_variables::Point3DLandmark::SharedPtr landmark =
+        fuse_variables::Point3DLandmark::make_shared();
+    auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), lm.first);
+    try {
+      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark &>(
+          graph_->getVariable(landmark_uuid));
+      landmark_positions_[lm.first] = landmark;
+    } catch (const std::out_of_range &oor) {
+    }
+  }
+
+  // update fixed landmarks
+  for (auto &flm : fixed_landmark_positions_) {
+    fuse_variables::Point3DFixedLandmark::SharedPtr fixed_landmark =
+        fuse_variables::Point3DFixedLandmark::make_shared();
+    auto fixed_landmark_uuid =
+        fuse_core::uuid::generate(fixed_landmark->type(), flm.first);
+    try {
+      *fixed_landmark =
+          dynamic_cast<const fuse_variables::Point3DFixedLandmark &>(
+              graph_->getVariable(fixed_landmark_uuid));
+      fixed_landmark_positions_[flm.first] = fixed_landmark;
+    } catch (const std::out_of_range &oor) {
+    }
+  }
+
+  // update positions
+  for (auto &p : positions_) {
+    ros::Time stamp = ros::Time::now();
+    stamp.fromNSec(p.first);
+    fuse_variables::Position3DStamped::SharedPtr position =
+        fuse_variables::Position3DStamped::make_shared();
+    auto position_uuid = fuse_core::uuid::generate(position->type(), stamp,
+                                                   fuse_core::uuid::NIL);
+    try {
+      *position = dynamic_cast<const fuse_variables::Position3DStamped &>(
+          graph_->getVariable(position_uuid));
+      positions_[p.first] = position;
+    } catch (const std::out_of_range &oor) {
+    }
+  }
+
+  // update orientations
+  for (auto &o : orientations_) {
+    ros::Time stamp = ros::Time::now();
+    stamp.fromNSec(o.first);
+    fuse_variables::Orientation3DStamped::SharedPtr orientation =
+        fuse_variables::Orientation3DStamped::make_shared();
+    auto orientation_uuid = fuse_core::uuid::generate(
+        orientation->type(), stamp, fuse_core::uuid::NIL);
+    try {
+      *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped &>(
+          graph_->getVariable(orientation_uuid));
+      orientations_[o.first] = orientation;
+    } catch (const std::out_of_range &oor) {
+    }
+  }
 }
 
 } // namespace vision
