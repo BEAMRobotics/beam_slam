@@ -392,10 +392,8 @@ bool VisualMap::FixedLandmarkExists(uint64_t landmark_id) {
   return false;
 }
 
-void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
-  graph_ = std::move(graph_msg);
-
-  // update landmarks
+bool VisualMap::UpdateLandmarks() {
+  // update local copy of landmarks
   for (auto &lm : landmark_positions_) {
     fuse_variables::Point3DLandmark::SharedPtr landmark =
         fuse_variables::Point3DLandmark::make_shared();
@@ -407,7 +405,9 @@ void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
     } catch (const std::out_of_range &oor) {
     }
   }
+}
 
+bool VisualMap::UpdateFixedLandmarks() {
   // update fixed landmarks
   for (auto &flm : fixed_landmark_positions_) {
     fuse_variables::Point3DFixedLandmark::SharedPtr fixed_landmark =
@@ -422,7 +422,9 @@ void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
     } catch (const std::out_of_range &oor) {
     }
   }
+}
 
+bool VisualMap::UpdatePositions() {
   // update positions
   for (auto &p : positions_) {
     ros::Time stamp = ros::Time::now();
@@ -438,7 +440,9 @@ void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
     } catch (const std::out_of_range &oor) {
     }
   }
+}
 
+bool VisualMap::UpdateOrientations() {
   // update orientations
   for (auto &o : orientations_) {
     ros::Time stamp = ros::Time::now();
@@ -454,6 +458,15 @@ void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
     } catch (const std::out_of_range &oor) {
     }
   }
+}
+
+void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
+  graph_ = std::move(graph_msg);
+  // update local copies of variables with the new graph
+  UpdateLandmarks();
+  UpdateFixedLandmarks();
+  UpdatePositions();
+  UpdateOrientations();
 }
 
 } // namespace vision

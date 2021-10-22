@@ -236,6 +236,31 @@ public:
    */
   void UpdateGraph(fuse_core::Graph::SharedPtr graph_msg);
 
+private:
+  /**
+   * @brief Checks if a given landmark is in the graph
+   * @return bool
+   */
+  bool UpdateLandmarks();
+
+  /**
+   * @brief Checks if a given landmark is in the graph
+   * @return bool
+   */
+  bool UpdateFixedLandmarks();
+
+  /**
+   * @brief Checks if a given landmark is in the graph
+   * @return bool
+   */
+  bool UpdatePositions();
+
+  /**
+   * @brief Checks if a given landmark is in the graph
+   * @return bool
+   */
+  bool UpdateOrientations();
+
 protected:
   // temp maps for in between optimization cycles
   std::map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
