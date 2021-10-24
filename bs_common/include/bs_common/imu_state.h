@@ -221,6 +221,12 @@ class ImuState {
    */
   void Print(std::ostream& stream = std::cout) const;
 
+    /**
+   * @brief Creates a deep copy of this imu state and returns a pointer to it.
+   * @return pointer to a deep copy of this imu state
+   */
+  std::shared_ptr<ImuState> Clone();
+
  private:
   /**
    * @brief instantiates fuse/beam variables contained in this ImuState
@@ -229,11 +235,11 @@ class ImuState {
 
   int updates_{0};
   ros::Time stamp_;
-  fuse_variables::Orientation3DStamped orientation_;
-  fuse_variables::Position3DStamped position_;
-  fuse_variables::VelocityLinear3DStamped velocity_;
-  bs_variables::GyroscopeBias3DStamped gyrobias_;
-  bs_variables::AccelerationBias3DStamped accelbias_;
+  fuse_variables::Orientation3DStamped::SharedPtr orientation_;
+  fuse_variables::Position3DStamped::SharedPtr position_;
+  fuse_variables::VelocityLinear3DStamped::SharedPtr velocity_;
+  bs_variables::GyroscopeBias3DStamped::SharedPtr gyrobias_;
+  bs_variables::AccelerationBias3DStamped::SharedPtr accelbias_;
 };
 
 }  // namespace bs_common

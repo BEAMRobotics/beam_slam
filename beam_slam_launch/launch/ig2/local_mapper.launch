@@ -1,0 +1,15 @@
+<launch>
+  
+  <!-- Load calibration params for this dataset,  including intrinsics and extrinsics. 
+       Note: These are global params that need to be loaded for all launch files. -->
+  <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/calibration_params.yaml"/>
+
+  <!-- Include calibration publisher for this dataset -->
+  <include file="$(find beam_slam_launch)/launch/ig2/calibration_publisher_ig2.launch" />
+
+  <!-- Launch initializer -->
+  <node pkg="fuse_optimizers" type="batch_optimizer_node" name="LVIO" output="screen">
+    <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/local_mapper.yaml"/>
+  </node>
+
+</launch>

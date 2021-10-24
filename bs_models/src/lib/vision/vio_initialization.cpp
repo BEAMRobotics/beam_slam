@@ -61,6 +61,18 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 
+    // Add imu data to imu preint buffer
+    for (auto &f : valid_frames_) {
+      for (auto &imu_data : f.preint.data) {
+        imu_preint_->AddToBuffer(imu_data);
+      }
+    }
+    for (auto &f : invalid_frames_) {
+      for (auto &imu_data : f.preint.data) {
+        imu_preint_->AddToBuffer(imu_data);
+      }
+    }
+
     // Align poses to world gravity
     AlignPosesToGravity();
 
@@ -81,16 +93,13 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
       // localize the frames that are outside of the given path
       for (auto &f : invalid_frames_) {
         Eigen::Matrix4d T_WORLD_BASELINK;
-        // if failure to localize next frame then init is a failure
-        if (!LocalizeFrame(f, T_WORLD_BASELINK)) {
-          return false;
-        }
+        imu_preint_->GetPose(T_WORLD_BASELINK, f.t);
         beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
                                                         f.p);
+        // add pose and inertial constraints to graph
+        std::vector<Frame> cur_frame = {f};
+        AddPosesAndInertialConstraints(cur_frame, false);
       }
-
-      // add localized poses and imu constraints
-      AddPosesAndInertialConstraints(invalid_frames_, false);
 
       // add landmarks and visual constraints for the invalid frames
       init_lms += AddVisualConstraints(invalid_frames_);
@@ -216,20 +225,16 @@ void VIOInitialization::PerformIMUInitialization(std::vector<Frame> &frames) {
 
 void VIOInitialization::AddPosesAndInertialConstraints(
     const std::vector<Frame> &frames, bool set_start) {
-  // add initial poses and imu data to preintegrator
-  for (int i = 0; i < frames.size(); i++) {
-    // Add frame's pose to graph
-    Frame frame = frames[i];
+  // add poses to graph
+  for (auto &frame : frames) {
     visual_map_->AddPosition(frame.p, frame.t);
     visual_map_->AddOrientation(frame.q, frame.t);
-    Eigen::Matrix4d T;
-    beam::QuaternionAndTranslationToTransformMatrix(frame.q, frame.p, T);
+  }
 
-    // Push its imu messages
-    for (auto &imu_data : frame.preint.data) {
-      imu_preint_->AddToBuffer(imu_data);
-    }
-
+  // add inertial constraints between poses
+  for (int i = 0; i < frames.size(); i++) {
+    // Get frame's pose to graph
+    Frame frame = frames[i];
     fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
         visual_map_->GetOrientation(frame.t);
     fuse_variables::Position3DStamped::SharedPtr img_position =
@@ -312,44 +317,6 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
   }
 
   return num_landmarks;
-}
-
-bool VIOInitialization::LocalizeFrame(const Frame &frame,
-                                      Eigen::Matrix4d &T_WORLD_BASELINK) {
-  std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
-  std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
-  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(frame.t);
-
-  // get 2d-3d correspondences
-  for (auto &id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm =
-        visual_map_->GetLandmark(id);
-    if (lm) {
-      Eigen::Vector2i pixeli = tracker_->Get(frame.t, id).cast<int>();
-      pixels.push_back(pixeli);
-      Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-      points.push_back(point);
-    }
-  }
-
-  if (points.size() < 15) {
-    return false;
-  }
-
-  // estimate with ransac pnp
-  Eigen::Matrix4d T_CAMERA_WORLD_est =
-      beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
-                                                      points);
-
-  // refine pose using reprojection error
-  Eigen::Matrix4d T_CAMERA_WORLD_ref =
-      pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points);
-  Eigen::Matrix4d T_WORLD_CAMERA = T_CAMERA_WORLD_ref.inverse();
-  extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
-
-  // transform into baselink frame
-  T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-  return true;
 }
 
 void VIOInitialization::OptimizeGraph() {
@@ -593,5 +560,5 @@ void VIOInitialization::AlignPosesToGravity() {
       f.p = scale_ * f.p;
   }
 }
-}
-} // namespace bs_models::vision
+} // namespace vision
+} // namespace bs_models

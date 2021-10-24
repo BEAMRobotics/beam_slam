@@ -35,7 +35,7 @@ void VisualInertialOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // initialize pose refiner object with params
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
 
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
@@ -107,9 +107,9 @@ void VisualInertialOdometry::onStart() {
       camera_params_.reloc_topic, 10);
 }
 
-/***********************************************************
-*                          Callbacks                       *
-************************************************************/
+/************************************************************
+ *                          Callbacks                       *
+ ************************************************************/
 void VisualInertialOdometry::processImage(
     const sensor_msgs::Image::ConstPtr &msg) {
   // get most recent extrinsics, if failure then process frame later
@@ -134,7 +134,7 @@ void VisualInertialOdometry::processImage(
 
     // process in initialization mode
     if (!initialization_->Initialized()) {
-      if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.25) {
+      if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.5) {
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
@@ -196,7 +196,7 @@ void VisualInertialOdometry::processImage(
         keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
         added_since_kf_++;
       }
-      ROS_DEBUG("Total time to process frame: %.5f", frame_timer.elapsed());
+      ROS_INFO("Total time to process frame: %.5f", frame_timer.elapsed());
     }
     image_buffer_.pop();
   }
@@ -229,9 +229,9 @@ void VisualInertialOdometry::onGraphUpdate(
   imu_preint_->UpdateGraph(graph);
 }
 
-/***********************************************************
-*                           Helpers                        *
-************************************************************/
+/************************************************************
+ *                           Helpers                        *
+ ************************************************************/
 Eigen::Matrix4d
 VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
   // get 2d-3d correspondences
@@ -248,13 +248,14 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
       points.push_back(point);
     }
   }
+  // get pose estimate
+  Eigen::Matrix4d T_WORLD_BASELINK_inertial;
+  imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
 
-  // perform pose estimation
+  // refine with visual info if possible
   if (points.size() >= 20) {
-    // estimate pose using motion only BA if there are enough points
     Eigen::Matrix4d T_CAMERA_WORLD_est =
-        beam_cv::AbsolutePoseEstimator::RANSACEstimator(cam_model_, pixels,
-                                                        points, 200);
+        (T_WORLD_BASELINK_inertial * T_cam_baselink_.inverse()).inverse();
     Eigen::Matrix4d T_WORLD_CAMERA =
         pose_refiner_
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
@@ -263,9 +264,6 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
     return T_WORLD_BASELINK;
   } else {
     // otherwise use the imu estimate
-    Eigen::Matrix4d T_WORLD_BASELINK_inertial;
-    imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
-
     return T_WORLD_BASELINK_inertial;
   }
 }
@@ -300,20 +298,22 @@ void VisualInertialOdometry::ExtendMap() {
       visual_map_->AddConstraint(cur_kf_time, id,
                                  tracker_->Get(cur_kf_time, id), transaction);
     } else {
-      // otherwise then triangulate then add the constraints
+      // otherwise then triangulate and add the constraints
       std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
       std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
-      beam_cv::FeatureTrack track = tracker_->GetTrack(id);
 
       // get measurements of landmark for triangulation
-      for (auto &m : track) {
-        beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
-        // check if the pose is in the graph (keyframe)
-        if (T.has_value()) {
-          pixels.push_back(m.value.cast<int>());
-          T_cam_world_v.push_back(T.value().inverse());
-          observation_stamps.push_back(m.time_point);
+      for (auto &kf : keyframes_) {
+        try {
+          Eigen::Vector2d pixel = tracker_->Get(kf.Stamp(), id);
+          beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(kf.Stamp());
+          if (T.has_value()) {
+            pixels.push_back(pixel.cast<int>());
+            T_cam_world_v.push_back(T.value().inverse());
+            observation_stamps.push_back(kf.Stamp());
+          }
+        } catch (const std::out_of_range &oor) {
         }
       }
 
@@ -321,7 +321,7 @@ void VisualInertialOdometry::ExtendMap() {
       if (T_cam_world_v.size() >= 3) {
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                     pixels, 5.0);
+                                                     pixels);
         if (point.has_value()) {
           keyframes_.back().AddLandmark(id);
           visual_map_->AddLandmark(point.value(), id, transaction);
@@ -412,9 +412,9 @@ void VisualInertialOdometry::SendInitializationGraph(
   PublishLandmarkIDs(new_landmarks);
 }
 
-/***********************************************************
-*                     Publishing stuff                     *
-************************************************************/
+/************************************************************
+ *                     Publishing stuff                     *
+ ************************************************************/
 void VisualInertialOdometry::NotifyNewKeyframe(
     const Eigen::Matrix4d &T_WORLD_BASELINK) {
   // send camera pose to graph
