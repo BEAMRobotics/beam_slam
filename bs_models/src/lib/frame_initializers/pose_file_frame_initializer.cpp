@@ -64,7 +64,7 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     // throw std::runtime_error{"Cannot lookup extrinsics."};
   }
 
-  std::vector<Eigen::Affine3d, beam::AlignAff3d> transforms =
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> transforms =
       poses_reader.GetPoses();
   std::vector<ros::Time> timestamps = poses_reader.GetTimeStamps();
 
@@ -79,7 +79,7 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
 
   for (int i = 0; i < transforms.size(); i++) {
-    const Eigen::Matrix4d& T_WORLD_MOVINGFRAME = transforms[i].matrix();
+    const Eigen::Matrix4d& T_WORLD_MOVINGFRAME = transforms[i];
     Eigen::Matrix4d T_WORLD_BASELINK =
         T_WORLD_MOVINGFRAME * T_MOVINGFRAME_BASELINK;
     geometry_msgs::TransformStamped tf_stamped;

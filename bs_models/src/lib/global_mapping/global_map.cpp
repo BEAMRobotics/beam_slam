@@ -942,7 +942,7 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
       Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
       Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_SUBMAP * T_SUBMAP_BASELINK;
       poses.AddSingleTimeStamp(pose_stamped.stamp);
-      poses.AddSinglePose(Eigen::Affine3d(T_WORLD_BASELINK));
+      poses.AddSinglePose(T_WORLD_BASELINK);
     }
   }
 
@@ -968,7 +968,7 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
       Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;
       Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_SUBMAP * T_SUBMAP_BASELINK;
       poses_initial.AddSingleTimeStamp(pose_stamped.stamp);
-      poses_initial.AddSinglePose(Eigen::Affine3d(T_WORLD_BASELINK));
+      poses_initial.AddSinglePose(T_WORLD_BASELINK);
     }
   }
 
