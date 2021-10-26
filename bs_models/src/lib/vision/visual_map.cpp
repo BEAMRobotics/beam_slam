@@ -258,7 +258,6 @@ void VisualMap::AddOrientation(
   if (orientations_.size() > window_size_) {
     orientations_.erase(orientations_.begin());
   }
-
   // add to transaction
   transaction->addVariable(orientation);
   orientations_[orientation->stamp().toNSec()] = orientation;
@@ -271,7 +270,6 @@ void VisualMap::AddPosition(
   if (positions_.size() > window_size_) {
     positions_.erase(positions_.begin());
   }
-
   // add to transaction
   transaction->addVariable(position);
   positions_[position->stamp().toNSec()] = position;
@@ -283,7 +281,6 @@ void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
   if (landmark_positions_.size() > window_size_ * tracked_features_) {
     landmark_positions_.erase(landmark_positions_.begin());
   }
-
   // add to transaction
   transaction->addVariable(landmark);
   landmark_positions_[landmark->id()] = landmark;
@@ -295,7 +292,6 @@ void VisualMap::AddFixedLandmark(
   if (fixed_landmark_positions_.size() > window_size_ * tracked_features_) {
     fixed_landmark_positions_.erase(fixed_landmark_positions_.begin());
   }
-
   // add to transaction
   transaction->addVariable(landmark);
   fixed_landmark_positions_[landmark->id()] = landmark;
@@ -339,6 +335,19 @@ void VisualMap::AddConstraint(const ros::Time &stamp, uint64_t lm_id,
     }
   }
 }
+
+void VisualMap::ReplaceFixedWithNonFixed(
+    uint64_t landmark_id, fuse_core::Transaction::SharedPtr transaction) {
+  /*
+  1. Get landmark variable, add same one but non fixed
+  2. Get connected constraints, copy it but as non fixed and add it, remove
+  fixed constraint
+  3. Remove fixed landmark
+  */
+}
+
+void VisualMap::ReplaceNonFixedWithFixed(
+    uint64_t landmark_id, fuse_core::Transaction::SharedPtr transaction) {}
 
 fuse_core::UUID VisualMap::GetLandmarkUUID(uint64_t landmark_id) {
   fuse_variables::Point3DLandmark::SharedPtr landmark =
@@ -392,7 +401,7 @@ bool VisualMap::FixedLandmarkExists(uint64_t landmark_id) {
   return false;
 }
 
-bool VisualMap::UpdateLandmarks() {
+void VisualMap::UpdateLandmarks() {
   // update local copy of landmarks
   for (auto &lm : landmark_positions_) {
     fuse_variables::Point3DLandmark::SharedPtr landmark =
@@ -407,7 +416,7 @@ bool VisualMap::UpdateLandmarks() {
   }
 }
 
-bool VisualMap::UpdateFixedLandmarks() {
+void VisualMap::UpdateFixedLandmarks() {
   // update fixed landmarks
   for (auto &flm : fixed_landmark_positions_) {
     fuse_variables::Point3DFixedLandmark::SharedPtr fixed_landmark =
@@ -424,7 +433,7 @@ bool VisualMap::UpdateFixedLandmarks() {
   }
 }
 
-bool VisualMap::UpdatePositions() {
+void VisualMap::UpdatePositions() {
   // update positions
   for (auto &p : positions_) {
     ros::Time stamp = ros::Time::now();
@@ -442,7 +451,7 @@ bool VisualMap::UpdatePositions() {
   }
 }
 
-bool VisualMap::UpdateOrientations() {
+void VisualMap::UpdateOrientations() {
   // update orientations
   for (auto &o : orientations_) {
     ros::Time stamp = ros::Time::now();

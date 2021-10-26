@@ -189,6 +189,22 @@ public:
                    fuse_core::Transaction::SharedPtr transaction);
 
   /**
+   * @brief Replaces a given fixed landmark with a non-fixed one
+   * @param landmark_id if of landmark to replace
+   * @param transaction to edit
+   */
+  void ReplaceFixedWithNonFixed(uint64_t landmark_id,
+                                fuse_core::Transaction::SharedPtr transaction);
+
+  /**
+   * @brief Replaces a given non-fixed landmark with a fixed one
+   * @param landmark_id if of landmark to replace
+   * @param transaction to edit
+   */
+  void ReplaceNonFixedWithFixed(uint64_t landmark_id,
+                                fuse_core::Transaction::SharedPtr transaction);
+
+  /**
    * @brief Gets fuse uuid of landmark
    * @param landmark_id of landmark
    */
@@ -238,28 +254,28 @@ public:
 
 private:
   /**
-   * @brief Checks if a given landmark is in the graph
-   * @return bool
+   * @brief Updates local copies of variables with the values in the current
+   * graph
    */
-  bool UpdateLandmarks();
+  void UpdateLandmarks();
 
   /**
-   * @brief Checks if a given landmark is in the graph
-   * @return bool
+   * @brief Updates local copies of variables with the values in the current
+   * graph
    */
-  bool UpdateFixedLandmarks();
+  void UpdateFixedLandmarks();
 
   /**
-   * @brief Checks if a given landmark is in the graph
-   * @return bool
+   * @brief Updates local copies of variables with the values in the current
+   * graph
    */
-  bool UpdatePositions();
+  void UpdatePositions();
 
   /**
-   * @brief Checks if a given landmark is in the graph
-   * @return bool
+   * @brief Updates local copies of variables with the values in the current
+   * graph
    */
-  bool UpdateOrientations();
+  void UpdateOrientations();
 
 protected:
   // temp maps for in between optimization cycles

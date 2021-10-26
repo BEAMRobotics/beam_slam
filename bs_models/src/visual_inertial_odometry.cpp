@@ -66,7 +66,7 @@ void VisualInertialOdometry::onInit() {
   beam_cv::KLTracker::Params tracker_params;
   tracker_params.LoadFromJson(camera_params_.tracker_config);
   tracker_ = std::make_shared<beam_cv::KLTracker>(
-      tracker_params, detector, descriptor, camera_params_.window_size);
+      tracker_params, detector, descriptor, camera_params_.tracker_window_size);
 
   // Create initializer object
   initialization_ = std::make_shared<vision::VIOInitialization>(

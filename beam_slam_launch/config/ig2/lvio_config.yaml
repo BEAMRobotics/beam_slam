@@ -57,7 +57,7 @@ camera:
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/fast_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/tracker.json'
-  window_size: 100 # number of images to store landmark information in tracker
+  tracker_window_size: 100 # number of images to store landmark information in tracker
   num_features_to_track: 100 # number of features per keyframe to store in local visual map (should match whats in detector config)
   keyframe_window_size: 10 # number of keyframes to store in local visual map
   keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe (NOT USED)

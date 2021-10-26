@@ -35,21 +35,19 @@ public:
     getParam<std::string>(nh, "landmark_topic", landmark_topic, "/landmarks");
     getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
                           "/slam_chunks");
-    getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
-                          "/slam_chunks");
 
     // initial odometry source frame
     getParam<std::string>(nh, "source", source, "VIO");
 
     // vision configs
     getParam<std::string>(nh, "descriptor", descriptor, "ORB");
+    getParam<std::string>(nh, "detector", detector, "FAST");
     getParam<std::string>(nh, "descriptor_config", descriptor_config, "");
-    getParam<std::string>(nh, "detector", detector, "GFTT");
     getParam<std::string>(nh, "detector_config", detector_config, "");
     getParam<std::string>(nh, "tracker_config", tracker_config, "");
 
     // memory management params
-    getParam<int>(nh, "window_size", window_size, 100);
+    getParam<int>(nh, "tracker_window_size", tracker_window_size, 100);
     getParam<int>(nh, "keyframe_window_size", keyframe_window_size, 20);
     getParam<int>(nh, "num_features_to_track", num_features_to_track, 300);
 
@@ -91,7 +89,7 @@ public:
   std::string tracker_config{};
 
   // memory management params
-  int window_size{};
+  int tracker_window_size{};
   int keyframe_window_size{};
   int num_features_to_track{};
 
@@ -105,7 +103,7 @@ public:
   double init_max_optimization_time_in_seconds{};
   bool init_use_scale_estimate{};
 };
-}
-} // namespace bs_parameters::models
+} // namespace models
+} // namespace bs_parameters
 
 #endif
