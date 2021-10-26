@@ -1,0 +1,19 @@
+{
+  "__comment__":"This is the intrinsics for when F1 images are downscaled by a quarter",
+  "date": "2021_09_11",
+  "method": "kalibr",
+  "camera_type": "KANNALABRANDT",
+  "image_width": 512,
+  "image_height": 384,
+  "frame_id": "F1_link",
+  "intrinsics": [
+    190.7897, 
+    190.602,
+    255.332700592, 
+    197.662265068,
+    0.0038663000000000000318, 
+    0.024943365054747011073,
+    -0.020060572215327615586,
+    0.0046978196460776200025
+  ]
+}
