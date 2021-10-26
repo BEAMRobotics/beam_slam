@@ -1,0 +1,13 @@
+## global parameters: These will be used in multiple locations
+
+# frames
+/calibration_params/imu_frame: "imu_link"
+/calibration_params/lidar_frame: "lidar_h_link"
+/calibration_params/camera_frame: "F1_link"
+/calibration_params/world_frame: "world"
+/calibration_params/baselink_frame: "imu_link"
+
+# calibrations
+/calibration_params/static_extrinsics: true
+/calibration_params/camera_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/ig2/F1_downscaled.json"
+/calibration_params/imu_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/ig2/imu.json"
