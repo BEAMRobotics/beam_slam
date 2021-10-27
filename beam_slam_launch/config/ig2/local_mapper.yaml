@@ -62,14 +62,14 @@ lidar_odometry:
   # general params
   lidar_type: 'VELODYNE'
   input_filters_config_path: 'DEFAULT_PATH' 
-  input_topic: '/velodyne_points'
+  input_topic: '/lidar_h/velodyne_points'
   output_loam_points: true 
   output_lidar_points: true
   publish_active_submap: true
   publish_local_map: true
   publish_registration_results: true
   frame_initializer_type: 'ODOMETRY' 
-  frame_initializer_info: '/vio_init'
+  frame_initializer_info: '/local_mapper/visual_inertial_odometry/odometry'
   frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
   reloc_request_period: 1
   scan_output_directory: ''
@@ -80,8 +80,6 @@ visual_inertial_odometry:
   image_topic: '/F1/downscaled/image_mono'
   imu_topic: '/imu/data'
   init_path_topic: '/lo_initialiser_result'
-  # topics for publishing
-  frame_odometry_output_topic: '/vio_init'
   # feature tracking configs
   descriptor: 'BEBLID'
   detector: 'FAST'

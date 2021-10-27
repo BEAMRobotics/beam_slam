@@ -94,17 +94,17 @@ void VisualInertialOdometry::onStart() {
       ros::TransportHints().tcpNoDelay(false));
 
   // Advertise publishers
-  init_odom_publisher_ = private_node_handle_.advertise<nav_msgs::Odometry>(
-      camera_params_.frame_odometry_output_topic, 10);
+  init_odom_publisher_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 10);
   new_keyframe_publisher_ =
       private_node_handle_.advertise<std_msgs::Header>("keyframes", 10);
-  slam_chunk_publisher_ =
-      private_node_handle_.advertise<SlamChunkMsg>("slam_results", 10);
   landmark_publisher_ =
       private_node_handle_.advertise<std_msgs::UInt64MultiArray>("landmarks",
                                                                  10);
-  reloc_publisher_ =
-      private_node_handle_.advertise<RelocRequestMsg>("reloc_request", 10);
+  slam_chunk_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
+      "/local_mapper/slam_results", 10);
+  reloc_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
+      "/local_mapper/reloc_request", 10);
 }
 
 /************************************************************

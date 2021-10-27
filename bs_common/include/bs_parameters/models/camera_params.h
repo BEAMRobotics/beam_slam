@@ -28,9 +28,6 @@ public:
     getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
 
-    // publishing topics
-    getParam<std::string>(nh, "frame_odometry_output_topic",
-                          frame_odometry_output_topic, "/vio_init");
     // vision configs
     getParam<std::string>(nh, "descriptor", descriptor, "ORB");
     getParam<std::string>(nh, "descriptor_config", descriptor_config, "");
@@ -61,9 +58,6 @@ public:
   std::string image_topic{};
   std::string init_path_topic{};
   std::string imu_topic{};
-
-  // publishing topics
-  std::string frame_odometry_output_topic{};
 
   // vision configs
   std::string descriptor{};
