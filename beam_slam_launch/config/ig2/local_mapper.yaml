@@ -2,16 +2,19 @@
 optimization_period: 0.5
 lag_duration: 7
 
-# sensor models
+## model plugins: declare all plugins to use and give a unique name
 sensor_models:
-  - name: 'camera'
+  - name: 'visual_inertial_odometry'
     type: 'bs_models::VisualInertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
+  # - name: 'lidar_odometry'
+  #   type: 'bs_models::LidarOdometry'
+  #   motion_models: ['unicycle_3d']
   - name: 'lo_initializer'
     type: 'bs_models::LoInitializer'
+  
 
-# motion models
 motion_models:
   - name: 'unicycle_3d'
     type: 'bs_models::Unicycle3D'
@@ -19,8 +22,13 @@ motion_models:
 # publishers:
 #   - name: 'odom_pub'
 #     type: 'bs_publishers::Odometry3DPublisher'
+#   - name: 'path_pub'
+#     type: 'bs_publishers::Path3DPublisher'
+#   - name: 'graph_pub'
+#     type: 'fuse_publishers::SerializedPublisher'
 
-# solver options
+## plugin params: specify all params for the plugins, using their unique name
+
 solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_SCHUR'
@@ -41,28 +49,50 @@ unicycle_3d:
                            1.0e-2, 1.0e-2, 1.0e-2]
   buffer_length: 100000
 
+lidar_odometry:
+  # Local scan registration
+  local_registration_type: 'MAPLOAM' 
+  local_registration_config_path: 'DEFAULT_PATH' 
+  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+  # global scan registration
+  global_registration_type: 'LOAM' 
+  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+  # general params
+  lidar_type: 'VELODYNE'
+  input_filters_config_path: 'DEFAULT_PATH' 
+  input_topic: '/lidar_h/velodyne_points'
+  output_loam_points: true 
+  output_lidar_points: true
+  publish_active_submap: true
+  publish_local_map: true
+  publish_registration_results: true
+  frame_initializer_type: 'ODOMETRY' 
+  frame_initializer_info: '/local_mapper/visual_inertial_odometry/odometry'
+  frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
+  reloc_request_period: 1
+  scan_output_directory: ''
 
-camera:
-  source: 'VIO'
+
+visual_inertial_odometry:
+  # topics to subscribe to
   image_topic: '/F1/downscaled/image_mono'
   imu_topic: '/imu/data'
-  reloc_topic: '/reloc_request'
   init_path_topic: '/lo_initialiser_result'
-  frame_odometry_output_topic: '/vio_init'
-  new_keyframes_topic: '/new_keyframes'
-  slam_chunk_topic: '/slam_chunks'
-  landmark_topic: '/landmarks'
+  # feature tracking configs
   descriptor: 'BEBLID'
   detector: 'FAST'
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/fast_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/tracker.json'
-  tracker_window_size: 100 # number of images to store landmark information in tracker
+  # keyframe decision params and memory management params
+  window_size: 100 # number of images to store landmark information in tracker
   num_features_to_track: 100 # number of features per keyframe to store in local visual map (should match whats in detector config)
-  keyframe_window_size: 10 # number of keyframes to store in local visual map
-  keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe (NOT USED)
-  keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe (NOT USED)
+  keyframe_window_size: 20 # number of keyframes to store in local visual map
+  keyframe_parallax: 10 # if avg parallax to the previous keyframe exceeds this then set keyframe 
   keyframe_min_time_in_seconds: 0.25 # minimum amount of time between keyframes
+  # initialization params
   init_max_optimization_time_in_seconds: 0.5 # max amount of time to optimize the initializer map
   init_map_output_directory: '/userhome' # Outputs vio initial map into directory if not empty
   init_use_scale_estimate: false # Set to true if using sfm initializer
@@ -79,6 +109,11 @@ lo_initializer:
   scan_output_directory: '' 
   max_frequency: 5 
 
+path_pub:
+  frame_id: 'world' # Stored in pose header. Default: odom
+  path_topic: 'path' # Default: path
+  pose_array_topic: 'pose_array' # Default: pose_array
+
 odom_pub:
   publish_tf: false # Default: true
   predict_to_current_time: false # Default: false
@@ -86,9 +121,9 @@ odom_pub:
   tf_cache_time: 10 # Default: 10
   tf_timeout: 0.1 # Default: 0.1
   queue_size: 1 # Publisher queue size. Default: 1
-  map_frame_id: 'map' # I DONT THINK THIS IS USED. Default: map
-  odom_frame_id: 'world' # I DONT THINK THIS IS USED. Default: odom
-  base_link_frame_id: 'base_link' # I DONT THINK THIS IS USED. Default: base_link
-  base_link_output_frame_id: 'imu_link' # Stored in odometry.child_frame_id Default: base_link_frame_id
+  map_frame_id: 'map' # Default: map
+  odom_frame_id: 'world' # Default: odom
+  base_link_frame_id: 'imu' # Default: base_link
+  base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
   world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
-  topic: '/optimized_odometry' # Output odometry topic
+  topic: 'optimized_odometry' # Output odometry topic

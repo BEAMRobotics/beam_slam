@@ -9,10 +9,9 @@ namespace bs_models {
 namespace vision {
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-                     const std::string &source, const size_t tracked_features,
-                     const size_t window_size)
-    : cam_model_(cam_model), source_(source),
-      tracked_features_(tracked_features), window_size_(window_size) {}
+                     const size_t tracked_features, const size_t window_size)
+    : cam_model_(cam_model), tracked_features_(tracked_features),
+      window_size_(window_size) {}
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time &stamp) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
