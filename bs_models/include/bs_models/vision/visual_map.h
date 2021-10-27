@@ -28,7 +28,6 @@ public:
    * @param cam_model camera model being used
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-            const std::string& source = "VIO",
             const size_t tracked_features = 100, const size_t window_size = 20);
 
   /**
@@ -38,7 +37,6 @@ public:
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
             fuse_core::Graph::SharedPtr local_graph,
-            const std::string& source = "VIO",
             const size_t tracked_features = 100, const size_t window_size = 20);
 
   /**
@@ -257,7 +255,7 @@ protected:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // source for the odometry topic to use when publishing
-  std::string source_{};
+  std::string source_{"VIO"};
 };
 
 }} // namespace bs_models::vision

@@ -29,18 +29,8 @@ public:
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
 
     // publishing topics
-    getParam<std::string>(nh, "reloc_topic", reloc_topic, "");
     getParam<std::string>(nh, "frame_odometry_output_topic",
                           frame_odometry_output_topic, "/vio_init");
-    getParam<std::string>(nh, "landmark_topic", landmark_topic, "/landmarks");
-    getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
-                          "/slam_chunks");
-    getParam<std::string>(nh, "slam_chunk_topic", slam_chunk_topic,
-                          "/slam_chunks");
-
-    // initial odometry source frame
-    getParam<std::string>(nh, "source", source, "VIO");
-
     // vision configs
     getParam<std::string>(nh, "descriptor", descriptor, "ORB");
     getParam<std::string>(nh, "descriptor_config", descriptor_config, "");
@@ -55,7 +45,6 @@ public:
 
     // keyframe decision parameters
     getParam<int>(nh, "keyframe_parallax", keyframe_parallax, 20);
-    getParam<int>(nh, "keyframe_tracks_drop", keyframe_tracks_drop, 100);
     getParam<double>(nh, "keyframe_min_time_in_seconds",
                      keyframe_min_time_in_seconds, 0.2);
 
@@ -74,14 +63,7 @@ public:
   std::string imu_topic{};
 
   // publishing topics
-  std::string reloc_topic{};
   std::string frame_odometry_output_topic{};
-  std::string new_keyframes_topic{};
-  std::string landmark_topic{};
-  std::string slam_chunk_topic{};
-
-  // initial odometry source frame
-  std::string source{};
 
   // vision configs
   std::string descriptor{};
