@@ -124,7 +124,8 @@ public:
   fuse_core::Transaction::SharedPtr RegisterNewImuPreintegratedFactor(
       const ros::Time &t_now,
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
-      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
+      bool update_velocity = false);
 
   /**
    * @brief Updates current graph copy
@@ -154,7 +155,8 @@ private:
   bs_common::ImuState imu_state_i_;           // current key frame
   bs_common::ImuState imu_state_k_;           // intermediate frame
   bs_common::PreIntegrator pre_integrator_ij; // preintegrate between key frames
-  bs_common::PreIntegrator pre_integrator_kj; // preintegrate from intermediate frame 
+  bs_common::PreIntegrator
+      pre_integrator_kj; // preintegrate from intermediate frame
   std::queue<bs_common::IMUData> current_imu_data_buffer_; // store imu data
   std::queue<bs_common::IMUData> total_imu_data_buffer_;   // store imu data
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias

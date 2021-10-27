@@ -165,7 +165,8 @@ fuse_core::Transaction::SharedPtr
 ImuPreintegration::RegisterNewImuPreintegratedFactor(
     const ros::Time &t_now,
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
-    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
+    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
+    bool update_velocity) {
   bs_constraints::relative_pose::ImuState3DStampedTransaction transaction(
       t_now);
 
@@ -223,6 +224,12 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
   if (R_WORLD_IMU && t_WORLD_IMU) {
     imu_state_j.SetOrientation(R_WORLD_IMU->data());
     imu_state_j.SetPosition(t_WORLD_IMU->data());
+    if (update_velocity) {
+      Eigen::Vector3d new_velocity =
+          (imu_state_j.PositionVec() - imu_state_i_.PositionVec()) /
+          (t_now.toSec() - imu_state_i_.Stamp().toSec());
+      imu_state_j.SetVelocity(new_velocity);
+    }
   }
 
   // move predicted state to previous state
