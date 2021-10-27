@@ -41,7 +41,7 @@ void VisualInertialOdometry::onInit() {
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
   visual_map_ = std::make_shared<VisualMap>(
-      cam_model_, camera_params_.source, camera_params_.num_features_to_track,
+      cam_model_, camera_params_.num_features_to_track,
       camera_params_.keyframe_window_size);
 
   // Get descriptor type
@@ -94,17 +94,17 @@ void VisualInertialOdometry::onStart() {
       ros::TransportHints().tcpNoDelay(false));
 
   // Advertise publishers
-  init_odom_publisher_ = private_node_handle_.advertise<nav_msgs::Odometry>(
-      camera_params_.frame_odometry_output_topic, 10);
-  new_keyframe_publisher_ = private_node_handle_.advertise<std_msgs::Header>(
-      camera_params_.new_keyframes_topic, 10);
-  slam_chunk_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
-      camera_params_.slam_chunk_topic, 10);
+  init_odom_publisher_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 10);
+  new_keyframe_publisher_ =
+      private_node_handle_.advertise<std_msgs::Header>("keyframes", 10);
   landmark_publisher_ =
-      private_node_handle_.advertise<std_msgs::UInt64MultiArray>(
-          camera_params_.landmark_topic, 10);
+      private_node_handle_.advertise<std_msgs::UInt64MultiArray>("landmarks",
+                                                                 10);
+  slam_chunk_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
+      "/local_mapper/slam_results", 10);
   reloc_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
-      camera_params_.reloc_topic, 10);
+      "/local_mapper/reloc_request", 10);
 }
 
 /************************************************************

@@ -9,16 +9,14 @@ namespace bs_models {
 namespace vision {
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-                     const std::string &source, const size_t tracked_features,
-                     const size_t window_size)
-    : cam_model_(cam_model), source_(source),
-      tracked_features_(tracked_features), window_size_(window_size) {}
+                     const size_t tracked_features, const size_t window_size)
+    : cam_model_(cam_model), tracked_features_(tracked_features),
+      window_size_(window_size) {}
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                      fuse_core::Graph::SharedPtr local_graph,
-                     const std::string &source, const size_t tracked_features,
-                     const size_t window_size)
-    : cam_model_(cam_model), local_graph_(local_graph), source_(source),
+                     const size_t tracked_features, const size_t window_size)
+    : cam_model_(cam_model), local_graph_(local_graph),
       tracked_features_(tracked_features), window_size_(window_size) {}
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time &stamp) {
@@ -472,5 +470,5 @@ fuse_core::UUID VisualMap::GetOrientationUUID(ros::Time stamp) {
 void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   graph_ = std::move(graph_msg);
 }
-}
-} // namespace bs_models::vision
+} // namespace vision
+} // namespace bs_models
