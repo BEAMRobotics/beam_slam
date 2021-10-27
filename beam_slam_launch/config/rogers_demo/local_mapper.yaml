@@ -63,7 +63,7 @@ lidar_odometry:
   publish_local_map: true
   publish_registration_results: false
   frame_initializer_type: 'ODOMETRY' 
-  frame_initializer_info: '/lvi_sam/lidar_mapping/odometry'
+  frame_initializer_info: '/lvi_sam/lidar/mapping/odometry'
   frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
   reloc_request_period: 0
   scan_output_directory: ''

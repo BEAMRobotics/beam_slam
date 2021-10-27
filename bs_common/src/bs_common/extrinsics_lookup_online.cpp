@@ -225,12 +225,12 @@ bool ExtrinsicsLookupOnline::LookupTransform(Eigen::Matrix4d& T,
     tf_listener_.lookupTransform(to_frame, from_frame, time, TROS);
   } catch (tf::TransformException& ex) {
     if (static_extrinsics_) {
-      BEAM_WARN("Cannot lookup static extrinsics between frames: {} , {}",
-                to_frame, from_frame);
+      BEAM_WARN("Cannot lookup static extrinsics between frames: {} , {}. Reason: {}",
+                to_frame, from_frame, ex.what());
     } else {
       BEAM_WARN(
-          "Cannot lookup dynamic extrinsics between {} and {} for t = %.10f",
-          to_frame, from_frame, time.toSec());
+          "Cannot lookup dynamic extrinsics between {} and {} for t = %.10f. Reason: {}",
+          to_frame, from_frame, time.toSec(), ex.what());
     }
     return false;
   }
