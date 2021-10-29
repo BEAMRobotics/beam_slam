@@ -337,16 +337,86 @@ void VisualMap::AddConstraint(const ros::Time &stamp, uint64_t lm_id,
 
 void VisualMap::ReplaceFixedWithNonFixed(
     uint64_t landmark_id, fuse_core::Transaction::SharedPtr transaction) {
-  /*
-  1. Get landmark variable, add same one but non fixed
-  2. Get connected constraints, copy it but as non fixed and add it, remove
-  fixed constraint
-  3. Remove fixed landmark
-  */
+  // only do this if the landmark exists in the current graph
+  if (LandmarkExists(landmark_id)) {
+    fuse_variables::Point3DLandmark::SharedPtr lm = GetLandmark(landmark_id);
+
+    for (auto &c :
+         graph_->getConnectedConstraints(GetLandmarkUUID(landmark_id))) {
+
+      // 1. get a copy of the constraint
+      fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
+          fuse_constraints::VisualConstraint::make_shared();
+      if (c.type() == vis_constraint->type()) {
+        *vis_constraint =
+            dynamic_cast<const fuse_constraints::VisualConstraint &>(c);
+      }
+
+      // 2. get a copy of one of its connected poses
+      fuse_variables::Position3DStamped::SharedPtr position =
+          fuse_variables::Position3DStamped::make_shared();
+      for (auto &var_uuid : c.variables()) {
+        const fuse_core::Variable &var = graph_->getVariable(var_uuid);
+        if (var.type() == position->type()) {
+          *position =
+              dynamic_cast<const fuse_variables::Position3DStamped &>(var);
+        }
+      }
+
+      // 3. remove the current constraint and variable
+      transaction->removeConstraint(c.uuid());
+      transaction->removeVariable(lm->uuid());
+
+      // 4. Add new fixed variable and the constraint to it
+      Eigen::Vector3d lm_position(lm->data());
+      AddFixedLandmark(lm_position, landmark_id, transaction);
+      AddConstraint(position->stamp(), landmark_id, vis_constraint->pixel(),
+                    transaction);
+    }
+  }
 }
 
 void VisualMap::ReplaceNonFixedWithFixed(
-    uint64_t landmark_id, fuse_core::Transaction::SharedPtr transaction) {}
+    uint64_t landmark_id, fuse_core::Transaction::SharedPtr transaction) {
+  // only do this if the landmark exists in the current graph
+  if (FixedLandmarkExists(landmark_id)) {
+    fuse_variables::Point3DFixedLandmark::SharedPtr lm =
+        GetFixedLandmark(landmark_id);
+
+    for (auto &c :
+         graph_->getConnectedConstraints(GetFixedLandmarkUUID(landmark_id))) {
+
+      // 1. get a copy of the constraint
+      fuse_constraints::VisualConstraintFixed::SharedPtr vis_constraint =
+          fuse_constraints::VisualConstraintFixed::make_shared();
+      if (c.type() == vis_constraint->type()) {
+        *vis_constraint =
+            dynamic_cast<const fuse_constraints::VisualConstraintFixed &>(c);
+      }
+
+      // 2. get a copy of one of its connected poses
+      fuse_variables::Position3DStamped::SharedPtr position =
+          fuse_variables::Position3DStamped::make_shared();
+      for (auto &var_uuid : c.variables()) {
+        const fuse_core::Variable &var = graph_->getVariable(var_uuid);
+        if (var.type() == position->type()) {
+          *position =
+              dynamic_cast<const fuse_variables::Position3DStamped &>(var);
+        }
+      }
+
+      // 3. remove the current constraint and variable
+      transaction->removeConstraint(c.uuid());
+      transaction->removeVariable(lm->uuid());
+
+      // 4. Add new fixed variable and the constraint to it
+      Eigen::Vector3d lm_position(lm->data());
+      AddLandmark(lm_position, landmark_id, transaction);
+      AddConstraint(position->stamp(), landmark_id, vis_constraint->pixel(),
+                    transaction);
+    }
+  }
+}
 
 fuse_core::UUID VisualMap::GetLandmarkUUID(uint64_t landmark_id) {
   fuse_variables::Point3DLandmark::SharedPtr landmark =
