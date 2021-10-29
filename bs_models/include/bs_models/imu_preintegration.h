@@ -102,7 +102,7 @@ public:
    * @brief Gets current IMU state, which is the last registered key frame
    * @return ImuState
    */
-  bs_common::ImuState GetImuState() const { return *imu_state_i_; }
+  bs_common::ImuState GetImuState() const { return imu_state_i_; }
 
   /**
    * @brief Gets pose of IMU with respect to world frame
@@ -124,13 +124,14 @@ public:
   fuse_core::Transaction::SharedPtr RegisterNewImuPreintegratedFactor(
       const ros::Time &t_now,
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
-      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
+      bool update_velocity = false);
 
   /**
    * @brief Updates current graph copy
    * @param graph_msg graph to update with
    */
-  void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
+  void UpdateGraph(fuse_core::Graph::SharedPtr graph_msg);
 
 private:
   /**
@@ -151,9 +152,11 @@ private:
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
 
-  std::shared_ptr<bs_common::ImuState> imu_state_i_;           // current key frame
-  std::shared_ptr<bs_common::ImuState> imu_state_k_;           // intermediate frame
-  std::shared_ptr<bs_common::PreIntegrator> pre_integrator_ij; // preintegrate between key frames
+  bs_common::ImuState imu_state_i_;           // current key frame
+  bs_common::ImuState imu_state_k_;           // intermediate frame
+  bs_common::PreIntegrator pre_integrator_ij; // preintegrate between key frames
+  bs_common::PreIntegrator
+      pre_integrator_kj; // preintegrate from intermediate frame
   std::queue<bs_common::IMUData> current_imu_data_buffer_; // store imu data
   std::queue<bs_common::IMUData> total_imu_data_buffer_;   // store imu data
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias

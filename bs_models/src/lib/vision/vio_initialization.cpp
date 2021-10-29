@@ -5,6 +5,7 @@
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/filesystem.h>
+#include <beam_utils/math.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 
 #include <bs_common/utils.h>
@@ -37,10 +38,7 @@ VIOInitialization::VIOInitialization(
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
 
   // create visual map
-  visual_map_ = std::make_shared<vision::VisualMap>(cam_model_, local_graph_);
-
-  // create pose refiner
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-3);
+  visual_map_ = std::make_shared<vision::VisualMap>(cam_model_);
 
   // make subscriber for init path
   ros::NodeHandle n;
@@ -48,7 +46,7 @@ VIOInitialization::VIOInitialization(
       n.subscribe(path_topic, 10, &VIOInitialization::ProcessInitPath, this);
 }
 
-bool VIOInitialization::AddImage(ros::Time cur_time) {
+bool VIOInitialization::AddImage(const ros::Time &cur_time) {
   frame_times_.push_back(cur_time.toNSec());
   if (init_path_) {
     ROS_INFO("Attempting VIO Initialization.");
@@ -57,9 +55,14 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
     BuildFrameVectors();
 
     // Initialize imu preintegration
-    PerformIMUInitialization(valid_frames_);
+    if (!PerformIMUInitialization()) {
+      return false;
+    }
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
+
+    // Align poses to world gravity
+    AlignPosesToGravity();
 
     // Add imu data to imu preint buffer
     for (auto &f : valid_frames_) {
@@ -73,18 +76,11 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
       }
     }
 
-    // Align poses to world gravity
-    AlignPosesToGravity();
-
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames_, true);
 
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames_);
-
-    // output pre optimization poses
-    ROS_INFO("Frame poses before optimization:");
-    OutputFramePoses(valid_frames_);
 
     // optimize valid frames
     OptimizeGraph();
@@ -93,12 +89,13 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
       // localize the frames that are outside of the given path
       for (auto &f : invalid_frames_) {
         Eigen::Matrix4d T_WORLD_BASELINK;
-        imu_preint_->GetPose(T_WORLD_BASELINK, f.t);
+        if (!imu_preint_->GetPose(T_WORLD_BASELINK, f.t)) {
+          return false;
+        }
         beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
                                                         f.p);
         // add pose and inertial constraints to graph
-        std::vector<Frame> cur_frame = {f};
-        AddPosesAndInertialConstraints(cur_frame, false);
+        AddPosesAndInertialConstraints({f}, false);
       }
 
       // add landmarks and visual constraints for the invalid frames
@@ -108,11 +105,8 @@ bool VIOInitialization::AddImage(ros::Time cur_time) {
       OptimizeGraph();
     }
 
-    // output post optimization poses
-    ROS_INFO("Frame poses after optimization:");
-    OutputFramePoses(valid_frames_);
-    OutputFramePoses(invalid_frames_);
-    OutputResults(valid_frames_);
+    // output results
+    OutputResults();
 
     // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
@@ -133,8 +127,8 @@ void VIOInitialization::ProcessInitPath(
 
 bool VIOInitialization::Initialized() { return is_initialized_; }
 
-const fuse_graphs::HashGraph &VIOInitialization::GetGraph() {
-  return *local_graph_;
+const fuse_core::Graph::SharedPtr &VIOInitialization::GetGraph() {
+  return local_graph_;
 }
 
 std::shared_ptr<bs_models::ImuPreintegration>
@@ -191,44 +185,16 @@ void VIOInitialization::BuildFrameVectors() {
   }
 }
 
-void VIOInitialization::PerformIMUInitialization(std::vector<Frame> &frames) {
-  // estimate gyroscope bias
-  if (init_path_->gyroscope_bias.x == 0 && init_path_->gyroscope_bias.y == 0 &&
-      init_path_->gyroscope_bias.z == 0) {
-    SolveGyroBias(frames);
-  } else {
-    bg_ << init_path_->gyroscope_bias.x, init_path_->gyroscope_bias.y,
-        init_path_->gyroscope_bias.z;
-  }
-
-  // estimate gravity and scale
-  if (init_path_->gravity.x == 0 && init_path_->gravity.y == 0 &&
-      init_path_->gravity.z == 0) {
-    SolveGravityAndScale(frames);
-    RefineGravityAndScale(frames);
-  } else {
-    gravity_ << init_path_->gravity.x, init_path_->gravity.y,
-        init_path_->gravity.z;
-    scale_ = init_path_->scale;
-  }
-
-  // estimate accelerometer bias
-  if (init_path_->accelerometer_bias.x == 0 &&
-      init_path_->accelerometer_bias.y == 0 &&
-      init_path_->accelerometer_bias.z == 0) {
-    SolveAccelBias(frames);
-  } else {
-    ba_ << init_path_->accelerometer_bias.x, init_path_->accelerometer_bias.y,
-        init_path_->accelerometer_bias.z;
-  }
-}
-
 void VIOInitialization::AddPosesAndInertialConstraints(
     const std::vector<Frame> &frames, bool set_start) {
   // add poses to graph
   for (auto &frame : frames) {
-    visual_map_->AddPosition(frame.p, frame.t);
-    visual_map_->AddOrientation(frame.q, frame.t);
+    auto pose_transaction = fuse_core::Transaction::make_shared();
+    pose_transaction->stamp(frame.t);
+    visual_map_->AddPosition(frame.p, frame.t, pose_transaction);
+    visual_map_->AddOrientation(frame.q, frame.t, pose_transaction);
+    // send transaction to graph
+    local_graph_->update(*pose_transaction);
   }
 
   // add inertial constraints between poses
@@ -254,20 +220,25 @@ void VIOInitialization::AddPosesAndInertialConstraints(
       imu_preint_->SetStart(frame.t, img_orientation, img_position, velocity);
     } else {
       // get imu transaction
-      fuse_core::Transaction::SharedPtr transaction =
+      fuse_core::Transaction::SharedPtr imu_transaction =
           imu_preint_->RegisterNewImuPreintegratedFactor(
               frame.t, img_orientation, img_position);
-      // update graph with the transaction
-      local_graph_->update(*transaction);
+      // send transaction to graph
+      local_graph_->update(*imu_transaction);
     }
   }
+
+  // update visual map with updated graph
+  visual_map_->UpdateGraph(local_graph_);
 }
 
 size_t
 VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
   ros::Time start = frames[0].t, end = frames[frames.size() - 1].t;
   size_t num_landmarks = 0;
-
+  // make transaction
+  auto landmark_transaction = fuse_core::Transaction::make_shared();
+  landmark_transaction->stamp(end);
   // get all landmarks in the window
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInWindow(start, end);
@@ -278,7 +249,8 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
       // if the landmark already exists then add constraint
       for (auto &f : frames) {
         try {
-          visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id));
+          visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id),
+                                     landmark_transaction);
         } catch (const std::out_of_range &oor) {
         }
       }
@@ -305,16 +277,20 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
                                                      pixels);
         if (point.has_value()) {
           num_landmarks++;
-          visual_map_->AddLandmark(point.value(), id);
+          visual_map_->AddLandmark(point.value(), id, landmark_transaction);
           for (int i = 0; i < observation_stamps.size(); i++) {
-            visual_map_->AddConstraint(
-                observation_stamps[i], id,
-                tracker_->Get(observation_stamps[i], id));
+            visual_map_->AddConstraint(observation_stamps[i], id,
+                                       tracker_->Get(observation_stamps[i], id),
+                                       landmark_transaction);
           }
         }
       }
     }
   }
+  // send transaction to graph
+  local_graph_->update(*landmark_transaction);
+  // update visual map with updated graph
+  visual_map_->UpdateGraph(local_graph_);
 
   return num_landmarks;
 }
@@ -332,24 +308,44 @@ void VIOInitialization::OptimizeGraph() {
   local_graph_->optimize(options);
 }
 
-void VIOInitialization::SolveGyroBias(std::vector<Frame> &frames) {
-  for (size_t i = 0; i < frames.size(); i++) {
-    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+bool VIOInitialization::PerformIMUInitialization() {
+  if (valid_frames_.size() <= 4) {
+    ROS_WARN("Not enough keyframes to perform imu initialization.");
+    return false;
+  }
+  // estimate gyroscope bias
+  SolveGyroBias();
+
+  // estimate gravity and scale
+  SolveGravityAndScale();
+  RefineGravityAndScale();
+
+  // estimate accelerometer bias
+  SolveAccelBias();
+
+  return true;
+}
+
+void VIOInitialization::SolveGyroBias() {
+  for (size_t i = 0; i < valid_frames_.size(); i++) {
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
+                                      false);
   }
   Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
   Eigen::Vector3d b = Eigen::Vector3d::Zero();
 
-  for (size_t j = 1; j < frames.size(); ++j) {
+  for (size_t j = 1; j < valid_frames_.size(); ++j) {
     const size_t i = j - 1;
 
-    Frame frame_i = frames[i];
-    Frame frame_j = frames[j];
+    Frame frame_i = valid_frames_[i];
+    Frame frame_j = valid_frames_[j];
 
-    const Eigen::Quaterniond &dq = frames[j].preint.delta.q;
-    const Eigen::Matrix3d &dq_dbg = frames[j].preint.jacobian.dq_dbg;
+    const Eigen::Quaterniond &dq = valid_frames_[j].preint.delta.q;
+    const Eigen::Matrix3d &dq_dbg = valid_frames_[j].preint.jacobian.dq_dbg;
     A += dq_dbg.transpose() * dq_dbg;
 
-    Eigen::Quaterniond tmp = (frames[i].q * dq).conjugate() * frames[j].q;
+    Eigen::Quaterniond tmp =
+        (valid_frames_[i].q * dq).conjugate() * valid_frames_[j].q;
     Eigen::Matrix3d tmp_R = tmp.normalized().toRotationMatrix();
 
     b += dq_dbg.transpose() * beam::RToLieAlgebra(tmp_R);
@@ -360,41 +356,44 @@ void VIOInitialization::SolveGyroBias(std::vector<Frame> &frames) {
   bg_ = svd.solve(b);
 }
 
-void VIOInitialization::SolveAccelBias(std::vector<Frame> &frames) {
+void VIOInitialization::SolveAccelBias() {
   if (gravity_.isZero(1e-9)) {
     ROS_WARN(
         "Can't estimate acceleration bias without first estimating gravity.");
     return;
   }
-  for (size_t i = 0; i < frames.size(); i++) {
-    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+  for (size_t i = 0; i < valid_frames_.size(); i++) {
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
+                                      false);
   }
   Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b = Eigen::Vector4d::Zero();
 
-  for (size_t j = 1; j + 1 < frames.size(); ++j) {
+  for (size_t j = 1; j + 1 < valid_frames_.size(); ++j) {
     const size_t i = j - 1;
     const size_t k = j + 1;
 
-    const bs_common::Delta &delta_ij = frames[j].preint.delta;
-    const bs_common::Delta &delta_jk = frames[k].preint.delta;
-    const bs_common::Jacobian &jacobian_ij = frames[j].preint.jacobian;
-    const bs_common::Jacobian &jacobian_jk = frames[k].preint.jacobian;
+    const bs_common::Delta &delta_ij = valid_frames_[j].preint.delta;
+    const bs_common::Delta &delta_jk = valid_frames_[k].preint.delta;
+    const bs_common::Jacobian &jacobian_ij = valid_frames_[j].preint.jacobian;
+    const bs_common::Jacobian &jacobian_jk = valid_frames_[k].preint.jacobian;
 
     Eigen::Matrix<double, 3, 4> C;
-    C.block<3, 1>(0, 0) = delta_ij.t.toSec() * (frames[k].p - frames[j].p) -
-                          delta_jk.t.toSec() * (frames[j].p - frames[i].p);
+    C.block<3, 1>(0, 0) =
+        delta_ij.t.toSec() * (valid_frames_[k].p - valid_frames_[j].p) -
+        delta_jk.t.toSec() * (valid_frames_[j].p - valid_frames_[i].p);
     C.block<3, 3>(0, 1) =
-        -(frames[j].q * jacobian_jk.dp_dba * delta_ij.t.toSec() +
-          frames[i].q * jacobian_ij.dv_dba * delta_ij.t.toSec() *
+        -(valid_frames_[j].q * jacobian_jk.dp_dba * delta_ij.t.toSec() +
+          valid_frames_[i].q * jacobian_ij.dv_dba * delta_ij.t.toSec() *
               delta_jk.t.toSec() -
-          frames[i].q * jacobian_ij.dp_dba * delta_jk.t.toSec());
-    Eigen::Vector3d d =
-        0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
-            (delta_ij.t.toSec() + delta_jk.t.toSec()) * gravity_ +
-        delta_ij.t.toSec() * (frames[j].q * delta_jk.p) +
-        delta_ij.t.toSec() * delta_jk.t.toSec() * (frames[i].q * delta_ij.v) -
-        delta_jk.t.toSec() * (frames[i].q * delta_ij.p);
+          valid_frames_[i].q * jacobian_ij.dp_dba * delta_jk.t.toSec());
+    Eigen::Vector3d d = 0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
+                            (delta_ij.t.toSec() + delta_jk.t.toSec()) *
+                            gravity_ +
+                        delta_ij.t.toSec() * (valid_frames_[j].q * delta_jk.p) +
+                        delta_ij.t.toSec() * delta_jk.t.toSec() *
+                            (valid_frames_[i].q * delta_ij.v) -
+                        delta_jk.t.toSec() * (valid_frames_[i].q * delta_ij.p);
     A += C.transpose() * C;
     b += C.transpose() * d;
   }
@@ -405,32 +404,34 @@ void VIOInitialization::SolveAccelBias(std::vector<Frame> &frames) {
   ba_ = x.segment<3>(1);
 }
 
-void VIOInitialization::SolveGravityAndScale(std::vector<Frame> &frames) {
-  for (size_t i = 0; i < frames.size(); i++) {
-    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+void VIOInitialization::SolveGravityAndScale() {
+  for (size_t i = 0; i < valid_frames_.size(); i++) {
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
+                                      false);
   }
   Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b = Eigen::Vector4d::Zero();
 
-  for (size_t j = 1; j + 1 < frames.size(); ++j) {
+  for (size_t j = 1; j + 1 < valid_frames_.size(); ++j) {
     const size_t i = j - 1;
     const size_t k = j + 1;
 
-    const bs_common::Delta &delta_ij = frames[j].preint.delta;
-    const bs_common::Delta &delta_jk = frames[k].preint.delta;
-    const bs_common::Jacobian &jacobian_ij = frames[j].preint.jacobian;
-    const bs_common::Jacobian &jacobian_jk = frames[k].preint.jacobian;
+    const bs_common::Delta &delta_ij = valid_frames_[j].preint.delta;
+    const bs_common::Delta &delta_jk = valid_frames_[k].preint.delta;
+    const bs_common::Jacobian &jacobian_ij = valid_frames_[j].preint.jacobian;
+    const bs_common::Jacobian &jacobian_jk = valid_frames_[k].preint.jacobian;
 
     Eigen::Matrix<double, 3, 4> C;
     C.block<3, 3>(0, 0) = -0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
                           (delta_ij.t.toSec() + delta_jk.t.toSec()) *
                           Eigen::Matrix3d::Identity();
-    C.block<3, 1>(0, 3) = delta_ij.t.toSec() * (frames[k].p - frames[j].p) -
-                          delta_jk.t.toSec() * (frames[j].p - frames[i].p);
-    Eigen::Vector3d d =
-        delta_ij.t.toSec() * (frames[j].q * delta_jk.p) +
-        delta_ij.t.toSec() * delta_jk.t.toSec() * (frames[i].q * delta_ij.v) -
-        delta_jk.t.toSec() * (frames[i].q * delta_ij.p);
+    C.block<3, 1>(0, 3) =
+        delta_ij.t.toSec() * (valid_frames_[k].p - valid_frames_[j].p) -
+        delta_jk.t.toSec() * (valid_frames_[j].p - valid_frames_[i].p);
+    Eigen::Vector3d d = delta_ij.t.toSec() * (valid_frames_[j].q * delta_jk.p) +
+                        delta_ij.t.toSec() * delta_jk.t.toSec() *
+                            (valid_frames_[i].q * delta_ij.v) -
+                        delta_jk.t.toSec() * (valid_frames_[i].q * delta_ij.p);
     A += C.transpose() * C;
     b += C.transpose() * d;
   }
@@ -442,12 +443,13 @@ void VIOInitialization::SolveGravityAndScale(std::vector<Frame> &frames) {
   scale_ = x(3);
 }
 
-void VIOInitialization::RefineGravityAndScale(std::vector<Frame> &frames) {
+void VIOInitialization::RefineGravityAndScale() {
   static const double damp = 0.1;
-  for (size_t i = 0; i < frames.size(); i++) {
-    frames[i].preint.Integrate(frames[i].t, bg_, ba_, true, false);
+  for (size_t i = 0; i < valid_frames_.size(); i++) {
+    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
+                                      false);
   }
-  int N = (int)frames.size();
+  int N = (int)valid_frames_.size();
   Eigen::MatrixXd A;
   Eigen::VectorXd b;
   Eigen::VectorXd x;
@@ -458,25 +460,25 @@ void VIOInitialization::RefineGravityAndScale(std::vector<Frame> &frames) {
   for (size_t iter = 0; iter < 5; ++iter) {
     A.setZero();
     b.setZero();
-    Eigen::Matrix<double, 3, 2> Tg = s2_tangential_basis(gravity_);
+    Eigen::Matrix<double, 3, 2> Tg = beam::S2TangentialBasis(gravity_);
 
-    for (size_t j = 1; j < frames.size(); ++j) {
+    for (size_t j = 1; j < valid_frames_.size(); ++j) {
       const size_t i = j - 1;
 
-      const bs_common::Delta &delta = frames[j].preint.delta;
+      const bs_common::Delta &delta = valid_frames_[j].preint.delta;
 
       A.block<3, 2>(i * 6, 0) = -0.5 * delta.t.toSec() * delta.t.toSec() * Tg;
-      A.block<3, 1>(i * 6, 2) = frames[j].p - frames[i].p;
+      A.block<3, 1>(i * 6, 2) = valid_frames_[j].p - valid_frames_[i].p;
       A.block<3, 3>(i * 6, 3 + i * 3) =
           -delta.t.toSec() * Eigen::Matrix3d::Identity();
       b.segment<3>(i * 6) = 0.5 * delta.t.toSec() * delta.t.toSec() * gravity_ +
-                            frames[i].q * delta.p;
+                            valid_frames_[i].q * delta.p;
 
       A.block<3, 2>(i * 6 + 3, 0) = -delta.t.toSec() * Tg;
       A.block<3, 3>(i * 6 + 3, 3 + i * 3) = -Eigen::Matrix3d::Identity();
       A.block<3, 3>(i * 6 + 3, 3 + j * 3) = Eigen::Matrix3d::Identity();
       b.segment<3>(i * 6 + 3) =
-          delta.t.toSec() * gravity_ + frames[i].q * delta.v;
+          delta.t.toSec() * gravity_ + valid_frames_[i].q * delta.v;
     }
 
     x = A.fullPivHouseholderQr().solve(b);
@@ -486,54 +488,11 @@ void VIOInitialization::RefineGravityAndScale(std::vector<Frame> &frames) {
   scale_ = x(2);
 }
 
-void VIOInitialization::OutputFramePoses(const std::vector<Frame> &frames) {
-  for (auto &f : frames) {
-    std::cout << f.t << std::endl;
-    std::cout << visual_map_->GetBaselinkPose(f.t) << std::endl;
-  }
-}
-
-void VIOInitialization::OutputResults(const std::vector<Frame> &frames) {
-  if (!boost::filesystem::exists(output_directory_) ||
-      output_directory_.empty()) {
-    ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
-             "Initializer results.");
-  } else {
-    // add frame poses to cloud and save
-    pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
-    for (auto &f : frames) {
-      frame_cloud = beam::AddFrameToCloud(
-          frame_cloud, visual_map_->GetBaselinkPose(f.t).value(), 0.001);
-    }
-
-    // add all landmark points to cloud and save
-    std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
-        frames[0].t, frames[frames.size() - 1].t);
-    pcl::PointCloud<pcl::PointXYZ> points_cloud;
-    for (auto &id : landmarks) {
-      fuse_variables::Point3DLandmark::SharedPtr lm =
-          visual_map_->GetLandmark(id);
-      if (lm) {
-        pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
-        points_cloud.push_back(p);
-      }
-    }
-
-    std::string error_message{};
-    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-            output_directory_ + "/frames.pcd", frame_cloud,
-            beam::PointCloudFileType::PCDBINARY, error_message)) {
-      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
-    }
-    if (!beam::SavePointCloud<pcl::PointXYZ>(
-            output_directory_ + "/points.pcd", points_cloud,
-            beam::PointCloudFileType::PCDBINARY, error_message)) {
-      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
-    }
-  }
-}
-
 void VIOInitialization::AlignPosesToGravity() {
+  if (gravity_.isZero(1e-9)) {
+    ROS_WARN("Can't align poses to gravity as it has not been estimated yet.");
+    return;
+  }
   // estimate rotation from estimated gravity to world gravity
   Eigen::Quaterniond q =
       Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
@@ -560,5 +519,73 @@ void VIOInitialization::AlignPosesToGravity() {
       f.p = scale_ * f.p;
   }
 }
+
+void VIOInitialization::OutputResults() {
+  // output results to point cloud in specified path
+  if (!boost::filesystem::exists(output_directory_) ||
+      output_directory_.empty()) {
+    ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
+             "Initializer results.");
+  } else {
+    // print results to stdout
+    for (auto &f : valid_frames_) {
+      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+      if (T.has_value()) {
+        ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
+        ROS_INFO("Pose: %s",
+                 beam::TransformationMatrixToString(T.value()).c_str());
+      }
+    }
+    for (auto &f : invalid_frames_) {
+      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+      if (T.has_value()) {
+        ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
+        ROS_INFO("Pose: %s",
+                 beam::TransformationMatrixToString(T.value()).c_str());
+      }
+    }
+
+    // add frame poses to cloud and save
+    pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
+    for (auto &f : valid_frames_) {
+      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+      if (T.has_value()) {
+        frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
+      }
+    }
+    for (auto &f : invalid_frames_) {
+      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+      if (T.has_value()) {
+        frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
+      }
+    }
+
+    // add all landmark points to cloud and save
+    std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
+        valid_frames_[0].t, invalid_frames_[invalid_frames_.size() - 1].t);
+    pcl::PointCloud<pcl::PointXYZ> points_cloud;
+    for (auto &id : landmarks) {
+      fuse_variables::Point3DLandmark::SharedPtr lm =
+          visual_map_->GetLandmark(id);
+      if (lm) {
+        pcl::PointXYZ p(lm->x(), lm->y(), lm->z());
+        points_cloud.push_back(p);
+      }
+    }
+
+    std::string error_message{};
+    if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+            output_directory_ + "/frames.pcd", frame_cloud,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
+    if (!beam::SavePointCloud<pcl::PointXYZ>(
+            output_directory_ + "/points.pcd", points_cloud,
+            beam::PointCloudFileType::PCDBINARY, error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
+  }
+}
+
 } // namespace vision
 } // namespace bs_models

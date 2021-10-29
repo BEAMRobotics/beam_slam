@@ -111,7 +111,7 @@ private:
    * @brief creates inertial cosntraint for the current keyframe and merges with
    * the input transaction
    * @param transaction current transaction to merge inertial constraints with
-   * (typically built from extend map)
+   * (built within extend map)
    */
   void AddInertialConstraint(fuse_core::Transaction::SharedPtr transaction);
 
@@ -120,7 +120,7 @@ private:
  * fuse optimizer
  * @param init_graph the graph obtained from the initializer
  */
-  void SendInitializationGraph(const fuse_graphs::HashGraph &init_graph);
+  void SendInitializationGraph(const fuse_core::Graph::SharedPtr &init_graph);
 
   /**
    * @brief Adds the keyframe pose to the graph and publishes keyframe header to
@@ -131,16 +131,16 @@ private:
 
   /**
    * @brief Publishes the initial odometry estimate of frame
-   * @param img_time time frame
+   * @param time time of pose
    * @param T_WORLD_BASELINK initial odometry estimate
    */
-  void PublishInitialOdometry(const ros::Time &img_time,
+  void PublishInitialOdometry(const ros::Time &time,
                               const Eigen::Matrix4d &T_WORLD_BASELINK);
 
   /**
    * @brief Publishes the oldest keyframe that is stored as a slam chunk message
    */
-  void PublishSlamChunk();
+  void PublishSlamChunk(Keyframe keyframe);
 
   /**
    * @brief Publishes landmark ids
