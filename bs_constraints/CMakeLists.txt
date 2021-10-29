@@ -6,6 +6,7 @@ set(build_depends
   fuse_graphs
   fuse_variables
   fuse_constraints
+  fuse_loss
   bs_variables
   geometry_msgs
   pluginlib

@@ -25,6 +25,7 @@
   <depend>fuse_graphs</depend>
   <depend>fuse_variables</depend>
   <depend>fuse_constraints</depend>
+  <depend>fuse_loss</depend>
   <depend>bs_common</depend>
   <depend>bs_variables</depend>
 
