@@ -2,6 +2,7 @@
 
 #include <queue>
 
+#include <bs_common/bs_msgs.h>
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
 #include <bs_constraints/relative_pose/imu_state_3d_stamped_transaction.h>
@@ -127,6 +128,16 @@ public:
    * @param graph_msg graph to update with
    */
   void UpdateGraph(fuse_core::Graph::SharedPtr graph_msg);
+
+  /**
+   * @brief Estimates inertial parameters given an initial path and imu messages
+   */
+  static void
+  EstimateParameters(const bs_common::InitializedPathMsg &path,
+                     const std::queue<sensor_msgs::Imu> &imu_buffer,
+                     const bs_models::ImuPreintegration::Params &params,
+                     Eigen::Vector3d &gravity, Eigen::Vector3d &bg,
+                     Eigen::Vector3d &ba, double &scale);
 
 private:
   /**

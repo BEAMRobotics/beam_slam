@@ -8,11 +8,12 @@
 
 #include <bs_variables/accel_bias_3d_stamped.h>
 #include <bs_variables/gyro_bias_3d_stamped.h>
+#include <bs_common/preintegrator.h>
 
 namespace bs_common {
 
 class ImuState {
- public:
+public:
   /**
    * @brief default constructor
    */
@@ -23,7 +24,7 @@ class ImuState {
    * while all other variables are set to zero.
    * @param time timestamp for this imu state
    */
-  ImuState(const ros::Time& time);
+  ImuState(const ros::Time &time);
 
   /**
    * @brief constructor when inputting orientation, position, and velocity. Bias
@@ -33,8 +34,19 @@ class ImuState {
    * @param position position for this imu state
    * @param velocity velocity for this imu state
    */
-  ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-           const Eigen::Vector3d& position, const Eigen::Vector3d& velocity);
+  ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
+           const Eigen::Vector3d &position, const Eigen::Vector3d &velocity);
+
+  /**
+   * @brief constructor when inputting orientation, position, and velocity. Bias
+   * variables and velocity are set to zero.
+   * @param time timestamp for this imu state
+   * @param orientation orientation for this imu state
+   * @param position position for this imu state
+   * @param preint preintegrator for this state
+   */
+  ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
+           const Eigen::Vector3d &position, const bs_common::PreIntegrator &preint);
 
   /**
    * @brief constructor when inputting orientation, position, and velocity,
@@ -46,9 +58,9 @@ class ImuState {
    * @param gyrobias gyroscope bias for this imu state
    * @param accelbias acceleration bias for this imu state
    */
-  ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-           const Eigen::Vector3d& position, const Eigen::Vector3d& velocity,
-           const Eigen::Vector3d& gyrobias, const Eigen::Vector3d& accelbias);
+  ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
+           const Eigen::Vector3d &position, const Eigen::Vector3d &velocity,
+           const Eigen::Vector3d &gyrobias, const Eigen::Vector3d &accelbias);
 
   /**
    * @brief update the variables of this ImuState given some graph message
@@ -56,7 +68,7 @@ class ImuState {
    * variable uuids that are stored herein
    * @return true update was successful (i.e., uuids were in the graph message)
    */
-  bool Update(const fuse_core::Graph::ConstSharedPtr& graph_msg);
+  bool Update(const fuse_core::Graph::ConstSharedPtr &graph_msg);
 
   /**
    * @brief get the number of times this ImuState has its variables updated by
@@ -139,95 +151,99 @@ class ImuState {
   Eigen::Vector3d AccelBiasVec() const;
 
   /**
+   * @brief get the preintegrator
+   */
+  std::shared_ptr<bs_common::PreIntegrator> GetPreintegrator();
+
+  /**
+   * @brief set the preintegrator
+   */
+  void SetPreintegrator(const bs_common::PreIntegrator &preint);
+
+  /**
    * @brief set orientation using double data type
    */
-  void SetOrientation(const double& w, const double& x, const double& y,
-                      const double& z);
+  void SetOrientation(const double &w, const double &x, const double &y,
+                      const double &z);
 
   /**
    * @brief set orientation using Eigen::Quaterniond data type
    */
-  void SetOrientation(const Eigen::Quaterniond& orientation);
+  void SetOrientation(const Eigen::Quaterniond &orientation);
 
   /**
    * @brief set orientation using c-style array
    */
-  void SetOrientation(const double* orientation);
+  void SetOrientation(const double *orientation);
 
   /**
    * @brief set position using double data type
    */
-  void SetPosition(const double& x, const double& y, const double& z);
+  void SetPosition(const double &x, const double &y, const double &z);
 
   /**
    * @brief set position using Eigen::Vector3d data type
    */
-  void SetPosition(const Eigen::Vector3d& position);
+  void SetPosition(const Eigen::Vector3d &position);
 
   /**
    * @brief set position using c-style array
    */
-  void SetPosition(const double* position);
+  void SetPosition(const double *position);
 
   /**
    * @brief set velocity using double data type
    */
-  void SetVelocity(const double& x, const double& y, const double& z);
+  void SetVelocity(const double &x, const double &y, const double &z);
 
   /**
    * @brief set velocity using Eigen::Vector3d data type
    */
-  void SetVelocity(const Eigen::Vector3d& velocity);
+  void SetVelocity(const Eigen::Vector3d &velocity);
 
   /**
    * @brief set velocity using c-style array
    */
-  void SetVelocity(const double* velocity);
+  void SetVelocity(const double *velocity);
 
   /**
    * @brief set gyroscope bias using double data type
    */
-  void SetGyroBias(const double& x, const double& y, const double& z);
+  void SetGyroBias(const double &x, const double &y, const double &z);
 
   /**
    * @brief set gyroscope bias using Eigen::Vector3d data type
    */
-  void SetGyroBias(const Eigen::Vector3d& gyrobias);
+  void SetGyroBias(const Eigen::Vector3d &gyrobias);
 
   /**
    * @brief set gyroscope bias using c-style array
    */
-  void SetGyroBias(const double* gyrobias);
+  void SetGyroBias(const double *gyrobias);
 
   /**
    * @brief set acceleration bias using double data type
    */
-  void SetAccelBias(const double& x, const double& y, const double& z);
+  void SetAccelBias(const double &x, const double &y, const double &z);
 
   /**
    * @brief set acceleration bias using Eigen::Vector3d data type
    */
-  void SetAccelBias(const Eigen::Vector3d& accelbias);
+  void SetAccelBias(const Eigen::Vector3d &accelbias);
 
   /**
    * @brief set acceleration bias using c-style array
    */
-  void SetAccelBias(const double* accelbias);
+  void SetAccelBias(const double *accelbias);
 
   /**
    * @brief print relevant information about what is currently contained in this
    * ImuState.
    * @param stream input stream
    */
-  void Print(std::ostream& stream = std::cout) const;
+  void Print(std::ostream &stream = std::cout) const;
 
-    /**
-   * @brief Creates a deep copy of this imu state and returns a pointer to it.
-   * @return pointer to a deep copy of this imu state
-   */
-  std::shared_ptr<ImuState> Clone();
-
- private:
+private:
   /**
    * @brief instantiates fuse/beam variables contained in this ImuState
    */
@@ -240,6 +256,7 @@ class ImuState {
   fuse_variables::VelocityLinear3DStamped::SharedPtr velocity_;
   bs_variables::GyroscopeBias3DStamped::SharedPtr gyrobias_;
   bs_variables::AccelerationBias3DStamped::SharedPtr accelbias_;
+  std::shared_ptr<bs_common::PreIntegrator> preint_;
 };
 
-}  // namespace bs_common
+} // namespace bs_common

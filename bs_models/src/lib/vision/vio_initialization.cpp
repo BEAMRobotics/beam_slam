@@ -25,7 +25,6 @@ VIOInitialization::VIOInitialization(
   // set imu preintegration params
   nlohmann::json J;
   beam::ReadJson(imu_intrinsics_path, J);
-
   imu_params_.cov_gyro_noise =
       Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
   imu_params_.cov_accel_noise =
@@ -33,13 +32,10 @@ VIOInitialization::VIOInitialization(
   imu_params_.cov_gyro_bias = Eigen::Matrix3d::Identity() * J["cov_gyro_bias"];
   imu_params_.cov_accel_bias =
       Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
-
   // create optimzation graph
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
-
   // create visual map
   visual_map_ = std::make_shared<vision::VisualMap>(cam_model_);
-
   // make subscriber for init path
   ros::NodeHandle n;
   path_subscriber_ =
@@ -50,43 +46,31 @@ bool VIOInitialization::AddImage(const ros::Time &cur_time) {
   frame_times_.push_back(cur_time.toNSec());
   if (init_path_) {
     ROS_INFO("Attempting VIO Initialization.");
-
-    // Build frame vectors
-    BuildFrameVectors();
-
-    // Initialize imu preintegration
-    if (!PerformIMUInitialization()) {
-      return false;
-    }
+    // Estimate imu biases and gravity using the initial path
+    bs_models::ImuPreintegration::EstimateParameters(
+        *init_path_, imu_buffer_, imu_params_, gravity_, bg_, ba_, scale_);
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
-
+    // Build frame vectors
+    BuildFrameVectors();
     // Align poses to world gravity
     AlignPosesToGravity();
-
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames_, true);
-
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames_);
-
     // optimize valid frames
     OptimizeGraph();
-
     if (invalid_frames_.size() > 0) {
       // Localize invalid frames and add to the graph
       AddPosesAndInertialConstraints(invalid_frames_, false);
-
       // add landmarks and visual constraints for the invalid frames
       init_lms += AddVisualConstraints(invalid_frames_);
-
       // optimize with invalid frames
       OptimizeGraph();
     }
-
     // output results
     OutputResults();
-
     // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
     is_initialized_ = true;
@@ -128,18 +112,6 @@ void VIOInitialization::BuildFrameVectors() {
     if (stamp < start)
       continue;
 
-    // add imu data to frames preintegrator
-    PreIntegrator preintegrator;
-    preintegrator.cov_w = imu_params_.cov_gyro_noise;
-    preintegrator.cov_a = imu_params_.cov_accel_noise;
-    preintegrator.cov_bg = imu_params_.cov_gyro_bias;
-    preintegrator.cov_ba = imu_params_.cov_accel_bias;
-    while (imu_buffer_.front().header.stamp <= stamp && !imu_buffer_.empty()) {
-      IMUData imu_data(imu_buffer_.front());
-      preintegrator.data.push_back(imu_data);
-      imu_buffer_.pop();
-    }
-
     if (stamp <= end) {
       // get pose of frame using path
       Eigen::Matrix4d T_WORLD_BASELINK;
@@ -148,17 +120,15 @@ void VIOInitialization::BuildFrameVectors() {
       Eigen::Quaterniond q_WORLD_BASELINK;
       beam::TransformMatrixToQuaternionAndTranslation(
           T_WORLD_BASELINK, q_WORLD_BASELINK, p_WORLD_BASELINK);
-
       // create frame and add to valid frame vector
-      Frame new_frame{stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
+      Frame new_frame{stamp, p_WORLD_BASELINK, q_WORLD_BASELINK};
       valid_frames_.push_back(new_frame);
     } else {
       // get arbitrary pose values
       Eigen::Vector3d p_WORLD_BASELINK(0, 0, 0);
       Eigen::Quaterniond q_WORLD_BASELINK(0, 0, 0, 0);
-
       // create frame and add to invalid frame vector
-      Frame new_frame{stamp, p_WORLD_BASELINK, q_WORLD_BASELINK, preintegrator};
+      Frame new_frame{stamp, p_WORLD_BASELINK, q_WORLD_BASELINK};
       invalid_frames_.push_back(new_frame);
     }
   }
@@ -166,23 +136,23 @@ void VIOInitialization::BuildFrameVectors() {
 
 void VIOInitialization::AddPosesAndInertialConstraints(
     const std::vector<Frame> &frames, bool set_start) {
-
   // add inertial constraints between poses
   for (int i = 0; i < frames.size(); i++) {
     Frame frame = frames[i];
     // add imu data to preint for this frame
-    for (auto &imu_data : frame.preint.data) {
-      imu_preint_->AddToBuffer(imu_data);
+    while (imu_buffer_.front().header.stamp <= frame.t &&
+           !imu_buffer_.empty()) {
+      imu_preint_->AddToBuffer(imu_buffer_.front());
+      imu_buffer_.pop();
     }
 
+    // if the current frame doesnt have a pose then estimate it using the imu
     if (frame.p.isZero(1e-5) && frame.q.w() <= 1e-5 && frame.q.x() <= 1e-5 &&
         frame.q.y() <= 1e-5 && frame.q.z() <= 1e-5) {
-      std::cout << frame.t << " : invalid" << std::endl;
       Eigen::Matrix4d T_WORLD_BASELINK;
       if (!imu_preint_->GetPose(T_WORLD_BASELINK, frame.t)) {
         return;
       }
-      std::cout << T_WORLD_BASELINK << std::endl;
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, frame.q,
                                                       frame.p);
     }
@@ -303,186 +273,6 @@ void VIOInitialization::OptimizeGraph() {
   local_graph_->optimize(options);
 }
 
-bool VIOInitialization::PerformIMUInitialization() {
-  if (valid_frames_.size() <= 4) {
-    ROS_WARN("Not enough keyframes to perform imu initialization.");
-    return false;
-  }
-  // estimate gyroscope bias
-  SolveGyroBias();
-
-  // estimate gravity and scale
-  SolveGravityAndScale();
-  RefineGravityAndScale();
-
-  // estimate accelerometer bias
-  SolveAccelBias();
-
-  return true;
-}
-
-void VIOInitialization::SolveGyroBias() {
-  for (size_t i = 0; i < valid_frames_.size(); i++) {
-    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
-                                      false);
-  }
-  Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
-  Eigen::Vector3d b = Eigen::Vector3d::Zero();
-
-  for (size_t j = 1; j < valid_frames_.size(); ++j) {
-    const size_t i = j - 1;
-
-    Frame frame_i = valid_frames_[i];
-    Frame frame_j = valid_frames_[j];
-
-    const Eigen::Quaterniond &dq = valid_frames_[j].preint.delta.q;
-    const Eigen::Matrix3d &dq_dbg = valid_frames_[j].preint.jacobian.dq_dbg;
-    A += dq_dbg.transpose() * dq_dbg;
-
-    Eigen::Quaterniond tmp =
-        (valid_frames_[i].q * dq).conjugate() * valid_frames_[j].q;
-    Eigen::Matrix3d tmp_R = tmp.normalized().toRotationMatrix();
-
-    b += dq_dbg.transpose() * beam::RToLieAlgebra(tmp_R);
-  }
-
-  Eigen::JacobiSVD<Eigen::Matrix3d> svd(A, Eigen::ComputeFullU |
-                                               Eigen::ComputeFullV);
-  bg_ = svd.solve(b);
-}
-
-void VIOInitialization::SolveAccelBias() {
-  if (gravity_.isZero(1e-9)) {
-    ROS_WARN(
-        "Can't estimate acceleration bias without first estimating gravity.");
-    return;
-  }
-  for (size_t i = 0; i < valid_frames_.size(); i++) {
-    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
-                                      false);
-  }
-  Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
-  Eigen::Vector4d b = Eigen::Vector4d::Zero();
-
-  for (size_t j = 1; j + 1 < valid_frames_.size(); ++j) {
-    const size_t i = j - 1;
-    const size_t k = j + 1;
-
-    const bs_common::Delta &delta_ij = valid_frames_[j].preint.delta;
-    const bs_common::Delta &delta_jk = valid_frames_[k].preint.delta;
-    const bs_common::Jacobian &jacobian_ij = valid_frames_[j].preint.jacobian;
-    const bs_common::Jacobian &jacobian_jk = valid_frames_[k].preint.jacobian;
-
-    Eigen::Matrix<double, 3, 4> C;
-    C.block<3, 1>(0, 0) =
-        delta_ij.t.toSec() * (valid_frames_[k].p - valid_frames_[j].p) -
-        delta_jk.t.toSec() * (valid_frames_[j].p - valid_frames_[i].p);
-    C.block<3, 3>(0, 1) =
-        -(valid_frames_[j].q * jacobian_jk.dp_dba * delta_ij.t.toSec() +
-          valid_frames_[i].q * jacobian_ij.dv_dba * delta_ij.t.toSec() *
-              delta_jk.t.toSec() -
-          valid_frames_[i].q * jacobian_ij.dp_dba * delta_jk.t.toSec());
-    Eigen::Vector3d d = 0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
-                            (delta_ij.t.toSec() + delta_jk.t.toSec()) *
-                            gravity_ +
-                        delta_ij.t.toSec() * (valid_frames_[j].q * delta_jk.p) +
-                        delta_ij.t.toSec() * delta_jk.t.toSec() *
-                            (valid_frames_[i].q * delta_ij.v) -
-                        delta_jk.t.toSec() * (valid_frames_[i].q * delta_ij.p);
-    A += C.transpose() * C;
-    b += C.transpose() * d;
-  }
-
-  Eigen::JacobiSVD<Eigen::Matrix4d> svd(A, Eigen::ComputeFullU |
-                                               Eigen::ComputeFullV);
-  Eigen::Vector4d x = svd.solve(b);
-  ba_ = x.segment<3>(1);
-}
-
-void VIOInitialization::SolveGravityAndScale() {
-  for (size_t i = 0; i < valid_frames_.size(); i++) {
-    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
-                                      false);
-  }
-  Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
-  Eigen::Vector4d b = Eigen::Vector4d::Zero();
-
-  for (size_t j = 1; j + 1 < valid_frames_.size(); ++j) {
-    const size_t i = j - 1;
-    const size_t k = j + 1;
-
-    const bs_common::Delta &delta_ij = valid_frames_[j].preint.delta;
-    const bs_common::Delta &delta_jk = valid_frames_[k].preint.delta;
-    const bs_common::Jacobian &jacobian_ij = valid_frames_[j].preint.jacobian;
-    const bs_common::Jacobian &jacobian_jk = valid_frames_[k].preint.jacobian;
-
-    Eigen::Matrix<double, 3, 4> C;
-    C.block<3, 3>(0, 0) = -0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
-                          (delta_ij.t.toSec() + delta_jk.t.toSec()) *
-                          Eigen::Matrix3d::Identity();
-    C.block<3, 1>(0, 3) =
-        delta_ij.t.toSec() * (valid_frames_[k].p - valid_frames_[j].p) -
-        delta_jk.t.toSec() * (valid_frames_[j].p - valid_frames_[i].p);
-    Eigen::Vector3d d = delta_ij.t.toSec() * (valid_frames_[j].q * delta_jk.p) +
-                        delta_ij.t.toSec() * delta_jk.t.toSec() *
-                            (valid_frames_[i].q * delta_ij.v) -
-                        delta_jk.t.toSec() * (valid_frames_[i].q * delta_ij.p);
-    A += C.transpose() * C;
-    b += C.transpose() * d;
-  }
-
-  Eigen::JacobiSVD<Eigen::Matrix4d> svd(A, Eigen::ComputeFullU |
-                                               Eigen::ComputeFullV);
-  Eigen::Vector4d x = svd.solve(b);
-  gravity_ = x.segment<3>(0).normalized() * GRAVITY_NOMINAL;
-  scale_ = x(3);
-}
-
-void VIOInitialization::RefineGravityAndScale() {
-  static const double damp = 0.1;
-  for (size_t i = 0; i < valid_frames_.size(); i++) {
-    valid_frames_[i].preint.Integrate(valid_frames_[i].t, bg_, ba_, true,
-                                      false);
-  }
-  int N = (int)valid_frames_.size();
-  Eigen::MatrixXd A;
-  Eigen::VectorXd b;
-  Eigen::VectorXd x;
-  A.resize((N - 1) * 6, 2 + 1 + 3 * N);
-  b.resize((N - 1) * 6);
-  x.resize(2 + 1 + 3 * N);
-
-  for (size_t iter = 0; iter < 5; ++iter) {
-    A.setZero();
-    b.setZero();
-    Eigen::Matrix<double, 3, 2> Tg = beam::S2TangentialBasis(gravity_);
-
-    for (size_t j = 1; j < valid_frames_.size(); ++j) {
-      const size_t i = j - 1;
-
-      const bs_common::Delta &delta = valid_frames_[j].preint.delta;
-
-      A.block<3, 2>(i * 6, 0) = -0.5 * delta.t.toSec() * delta.t.toSec() * Tg;
-      A.block<3, 1>(i * 6, 2) = valid_frames_[j].p - valid_frames_[i].p;
-      A.block<3, 3>(i * 6, 3 + i * 3) =
-          -delta.t.toSec() * Eigen::Matrix3d::Identity();
-      b.segment<3>(i * 6) = 0.5 * delta.t.toSec() * delta.t.toSec() * gravity_ +
-                            valid_frames_[i].q * delta.p;
-
-      A.block<3, 2>(i * 6 + 3, 0) = -delta.t.toSec() * Tg;
-      A.block<3, 3>(i * 6 + 3, 3 + i * 3) = -Eigen::Matrix3d::Identity();
-      A.block<3, 3>(i * 6 + 3, 3 + j * 3) = Eigen::Matrix3d::Identity();
-      b.segment<3>(i * 6 + 3) =
-          delta.t.toSec() * gravity_ + valid_frames_[i].q * delta.v;
-    }
-
-    x = A.fullPivHouseholderQr().solve(b);
-    Eigen::Vector2d dg = x.segment<2>(0);
-    gravity_ = (gravity_ + damp * Tg * dg).normalized() * GRAVITY_NOMINAL;
-  }
-  scale_ = x(2);
-}
-
 void VIOInitialization::AlignPosesToGravity() {
   if (gravity_.isZero(1e-9)) {
     ROS_WARN("Can't align poses to gravity as it has not been estimated yet.");
@@ -527,16 +317,14 @@ void VIOInitialization::OutputResults() {
       beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
       if (T.has_value()) {
         ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
-        ROS_INFO("Pose: %s",
-                 beam::TransformationMatrixToString(T.value()).c_str());
+        ROS_INFO("%s", beam::TransformationMatrixToString(T.value()).c_str());
       }
     }
     for (auto &f : invalid_frames_) {
       beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
       if (T.has_value()) {
         ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
-        ROS_INFO("Pose: %s",
-                 beam::TransformationMatrixToString(T.value()).c_str());
+        ROS_INFO("%s", beam::TransformationMatrixToString(T.value()).c_str());
       }
     }
 

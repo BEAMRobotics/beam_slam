@@ -22,7 +22,6 @@ struct Frame {
   ros::Time t;
   Eigen::Vector3d p;
   Eigen::Quaterniond q;
-  bs_common::PreIntegrator preint;
 };
 
 class VIOInitialization {
@@ -110,34 +109,6 @@ private:
    * @brief Optimizes the current local graph
    */
   void OptimizeGraph();
-
-  /**
-   * @brief Estimates imu parameters given a vector of frames with some known
-   * poses (can be up to scale from sfm, or in real world scale from lidar)
-   */
-  bool PerformIMUInitialization();
-
-  /**
-   * @brief Solves for the gyroscope bias
-   */
-  void SolveGyroBias();
-
-  /**
-   * @brief Solves for acceleromater bias (gravity must be estimated before
-   * calling this)
-   */
-  void SolveAccelBias();
-
-  /**
-   * @brief Solves for Gravity and Scale factor (scale factor only used if
-   * frames are in arbitrary scale)
-   */
-  void SolveGravityAndScale();
-
-  /**
-   * @brief Refines the previously estimated gravity and scale factor
-   */
-  void RefineGravityAndScale();
 
   /**
    * @brief Aligns the valid frames and init path to estimated gravity

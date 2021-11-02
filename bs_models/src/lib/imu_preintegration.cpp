@@ -49,11 +49,11 @@ void ImuPreintegration::SetPreintegrator() {
 
 void ImuPreintegration::ResetPreintegrator(const ros::Time &t_now) {
   pre_integrator_ij.Reset();
-  pre_integrator_kj.data.erase(
-      std::remove_if(pre_integrator_kj.data.begin(),
-                     pre_integrator_kj.data.end(),
+  pre_integrator_ij.data.erase(
+      std::remove_if(pre_integrator_ij.data.begin(),
+                     pre_integrator_ij.data.end(),
                      [&](const bs_common::IMUData &d) { return d.t < t_now; }),
-      pre_integrator_kj.data.end());
+      pre_integrator_ij.data.end());
   pre_integrator_kj.Reset();
   pre_integrator_kj.data.erase(
       std::remove_if(pre_integrator_kj.data.begin(),
@@ -144,8 +144,8 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
     return false;
   }
 
+  // integrate between frames if there is data to integrate
   if (!pre_integrator_kj.data.empty()) {
-    // integrate between frames
     pre_integrator_kj.Integrate(t_now, imu_state_i_.GyroBiasVec(),
                                 imu_state_i_.AccelBiasVec(), false, false);
   }
@@ -241,12 +241,185 @@ void ImuPreintegration::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
   if (imu_state_i_.Update(graph_msg)) {
     // reset kj integrator and add all the current windows messages to it
     pre_integrator_kj.data.clear();
+    pre_integrator_kj.Reset();
     for (auto &d : pre_integrator_ij.data) {
       pre_integrator_kj.data.push_back(d);
     }
     // reset state k to state i
     imu_state_k_ = imu_state_i_;
   }
+}
+
+void ImuPreintegration::EstimateParameters(
+    const bs_common::InitializedPathMsg &path,
+    const std::queue<sensor_msgs::Imu> &imu_buffer,
+    const bs_models::ImuPreintegration::Params &params,
+    Eigen::Vector3d &gravity, Eigen::Vector3d &bg, Eigen::Vector3d &ba,
+    double &scale) {
+  // set parameter estimates to 0
+  gravity = Eigen::Vector3d::Zero();
+  bg = Eigen::Vector3d::Zero();
+  ba = Eigen::Vector3d::Zero();
+  scale = 1.0;
+
+  /***************************
+   * Build list of imu frames *
+   ****************************/
+  std::queue<sensor_msgs::Imu> imu_buffer_copy = imu_buffer;
+  ros::Time start = path.poses[0].header.stamp;
+  ros::Time end = path.poses[path.poses.size() - 1].header.stamp;
+  std::vector<bs_common::ImuState> imu_frames;
+  for (auto &pose : path.poses) {
+    ros::Time stamp = pose.header.stamp;
+    if (stamp < imu_buffer_copy.front().header.stamp)
+      continue;
+
+    // add imu data to frames preintegrator
+    bs_common::PreIntegrator preintegrator;
+    preintegrator.cov_w = params.cov_gyro_noise;
+    preintegrator.cov_a = params.cov_accel_noise;
+    preintegrator.cov_bg = params.cov_gyro_bias;
+    preintegrator.cov_ba = params.cov_accel_bias;
+    while (imu_buffer_copy.front().header.stamp <= stamp &&
+           !imu_buffer_copy.empty()) {
+      bs_common::IMUData imu_data(imu_buffer_copy.front());
+      preintegrator.data.push_back(imu_data);
+      imu_buffer_copy.pop();
+    }
+    Eigen::Matrix4d T_WORLD_BASELINK;
+    bs_common::PoseMsgToTransformationMatrix(pose, T_WORLD_BASELINK);
+    Eigen::Vector3d p_WORLD_BASELINK;
+    Eigen::Quaterniond q_WORLD_BASELINK;
+    beam::TransformMatrixToQuaternionAndTranslation(
+        T_WORLD_BASELINK, q_WORLD_BASELINK, p_WORLD_BASELINK);
+
+    // create frame and add to valid frame vector
+    bs_common::ImuState new_frame(stamp, q_WORLD_BASELINK, p_WORLD_BASELINK,
+                                  preintegrator);
+    imu_frames.push_back(new_frame);
+  }
+
+  /***************************
+   *     Estimate Gyro Bias   *
+   ****************************/
+  for (size_t i = 0; i < imu_frames.size(); i++) {
+    imu_frames[i].GetPreintegrator()->Integrate(imu_frames[i].Stamp(), bg, ba,
+                                                true, false);
+  }
+  Eigen::Matrix3d A1 = Eigen::Matrix3d::Zero();
+  Eigen::Vector3d b1 = Eigen::Vector3d::Zero();
+  for (size_t j = 1; j < imu_frames.size(); ++j) {
+    const size_t i = j - 1;
+    const Eigen::Quaterniond &dq = imu_frames[j].GetPreintegrator()->delta.q;
+    const Eigen::Matrix3d &dq_dbg =
+        imu_frames[j].GetPreintegrator()->jacobian.dq_dbg;
+    A1 += dq_dbg.transpose() * dq_dbg;
+
+    Eigen::Quaterniond tmp =
+        (imu_frames[i].OrientationQuat() * dq).conjugate() *
+        imu_frames[j].OrientationQuat();
+    Eigen::Matrix3d tmp_R = tmp.normalized().toRotationMatrix();
+
+    b1 += dq_dbg.transpose() * beam::RToLieAlgebra(tmp_R);
+  }
+
+  Eigen::JacobiSVD<Eigen::Matrix3d> svd1(A1, Eigen::ComputeFullU |
+                                                 Eigen::ComputeFullV);
+  bg = svd1.solve(b1);
+
+  /*****************************
+   * Estimate gravity and scale *
+   ******************************/
+  for (size_t i = 0; i < imu_frames.size(); i++) {
+    imu_frames[i].GetPreintegrator()->Integrate(imu_frames[i].Stamp(), bg, ba,
+                                                true, false);
+  }
+  Eigen::Matrix4d A2 = Eigen::Matrix4d::Zero();
+  Eigen::Vector4d b2 = Eigen::Vector4d::Zero();
+
+  for (size_t j = 1; j + 1 < imu_frames.size(); ++j) {
+    const size_t i = j - 1;
+    const size_t k = j + 1;
+
+    const bs_common::Delta &delta_ij = imu_frames[j].GetPreintegrator()->delta;
+    const bs_common::Delta &delta_jk = imu_frames[k].GetPreintegrator()->delta;
+    const bs_common::Jacobian &jacobian_ij =
+        imu_frames[j].GetPreintegrator()->jacobian;
+    const bs_common::Jacobian &jacobian_jk =
+        imu_frames[k].GetPreintegrator()->jacobian;
+
+    Eigen::Matrix<double, 3, 4> C;
+    C.block<3, 3>(0, 0) = -0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
+                          (delta_ij.t.toSec() + delta_jk.t.toSec()) *
+                          Eigen::Matrix3d::Identity();
+    C.block<3, 1>(0, 3) =
+        delta_ij.t.toSec() *
+            (imu_frames[k].PositionVec() - imu_frames[j].PositionVec()) -
+        delta_jk.t.toSec() *
+            (imu_frames[j].PositionVec() - imu_frames[i].PositionVec());
+    Eigen::Vector3d d =
+        delta_ij.t.toSec() * (imu_frames[j].OrientationQuat() * delta_jk.p) +
+        delta_ij.t.toSec() * delta_jk.t.toSec() *
+            (imu_frames[i].OrientationQuat() * delta_ij.v) -
+        delta_jk.t.toSec() * (imu_frames[i].OrientationQuat() * delta_ij.p);
+    A2 += C.transpose() * C;
+    b2 += C.transpose() * d;
+  }
+  Eigen::JacobiSVD<Eigen::Matrix4d> svd2(A2, Eigen::ComputeFullU |
+                                                 Eigen::ComputeFullV);
+  Eigen::Vector4d x = svd2.solve(b2);
+  gravity = x.segment<3>(0).normalized() * GRAVITY_NOMINAL;
+  scale = x(3);
+
+  /***************************
+   *    Estimate Accel Bias   *
+   ****************************/
+  for (size_t i = 0; i < imu_frames.size(); i++) {
+    imu_frames[i].GetPreintegrator()->Integrate(imu_frames[i].Stamp(), bg, ba,
+                                                true, false);
+  }
+  Eigen::Matrix4d A3 = Eigen::Matrix4d::Zero();
+  Eigen::Vector4d b3 = Eigen::Vector4d::Zero();
+
+  for (size_t j = 1; j + 1 < imu_frames.size(); ++j) {
+    const size_t i = j - 1;
+    const size_t k = j + 1;
+
+    const bs_common::Delta &delta_ij = imu_frames[j].GetPreintegrator()->delta;
+    const bs_common::Delta &delta_jk = imu_frames[k].GetPreintegrator()->delta;
+    const bs_common::Jacobian &jacobian_ij =
+        imu_frames[j].GetPreintegrator()->jacobian;
+    const bs_common::Jacobian &jacobian_jk =
+        imu_frames[k].GetPreintegrator()->jacobian;
+
+    Eigen::Matrix<double, 3, 4> C;
+    C.block<3, 1>(0, 0) =
+        delta_ij.t.toSec() *
+            (imu_frames[k].PositionVec() - imu_frames[j].PositionVec()) -
+        delta_jk.t.toSec() *
+            (imu_frames[j].PositionVec() - imu_frames[i].PositionVec());
+    C.block<3, 3>(0, 1) =
+        -(imu_frames[j].OrientationQuat() * jacobian_jk.dp_dba *
+              delta_ij.t.toSec() +
+          imu_frames[i].OrientationQuat() * jacobian_ij.dv_dba *
+              delta_ij.t.toSec() * delta_jk.t.toSec() -
+          imu_frames[i].OrientationQuat() * jacobian_ij.dp_dba *
+              delta_jk.t.toSec());
+    Eigen::Vector3d d =
+        0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
+            (delta_ij.t.toSec() + delta_jk.t.toSec()) * gravity +
+        delta_ij.t.toSec() * (imu_frames[j].OrientationQuat() * delta_jk.p) +
+        delta_ij.t.toSec() * delta_jk.t.toSec() *
+            (imu_frames[i].OrientationQuat() * delta_ij.v) -
+        delta_jk.t.toSec() * (imu_frames[i].OrientationQuat() * delta_ij.p);
+    A3 += C.transpose() * C;
+    b3 += C.transpose() * d;
+  }
+
+  Eigen::JacobiSVD<Eigen::Matrix4d> svd3(A3, Eigen::ComputeFullU |
+                                                 Eigen::ComputeFullV);
+  x = svd3.solve(b3);
+  ba = x.segment<3>(1);
 }
 
 } // namespace bs_models
