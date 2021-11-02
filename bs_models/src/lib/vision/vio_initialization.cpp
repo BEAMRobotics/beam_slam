@@ -64,18 +64,6 @@ bool VIOInitialization::AddImage(const ros::Time &cur_time) {
     // Align poses to world gravity
     AlignPosesToGravity();
 
-    // Add imu data to imu preint buffer
-    for (auto &f : valid_frames_) {
-      for (auto &imu_data : f.preint.data) {
-        imu_preint_->AddToBuffer(imu_data);
-      }
-    }
-    for (auto &f : invalid_frames_) {
-      for (auto &imu_data : f.preint.data) {
-        imu_preint_->AddToBuffer(imu_data);
-      }
-    }
-
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames_, true);
 
@@ -86,17 +74,8 @@ bool VIOInitialization::AddImage(const ros::Time &cur_time) {
     OptimizeGraph();
 
     if (invalid_frames_.size() > 0) {
-      // localize the frames that are outside of the given path
-      for (auto &f : invalid_frames_) {
-        Eigen::Matrix4d T_WORLD_BASELINK;
-        if (!imu_preint_->GetPose(T_WORLD_BASELINK, f.t)) {
-          return false;
-        }
-        beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, f.q,
-                                                        f.p);
-        // add pose and inertial constraints to graph
-        AddPosesAndInertialConstraints({f}, false);
-      }
+      // Localize invalid frames and add to the graph
+      AddPosesAndInertialConstraints(invalid_frames_, false);
 
       // add landmarks and visual constraints for the invalid frames
       init_lms += AddVisualConstraints(invalid_frames_);
@@ -187,20 +166,36 @@ void VIOInitialization::BuildFrameVectors() {
 
 void VIOInitialization::AddPosesAndInertialConstraints(
     const std::vector<Frame> &frames, bool set_start) {
-  // add poses to graph
-  for (auto &frame : frames) {
+
+  // add inertial constraints between poses
+  for (int i = 0; i < frames.size(); i++) {
+    Frame frame = frames[i];
+    // add imu data to preint for this frame
+    for (auto &imu_data : frame.preint.data) {
+      imu_preint_->AddToBuffer(imu_data);
+    }
+
+    if (frame.p.isZero(1e-5) && frame.q.w() <= 1e-5 && frame.q.x() <= 1e-5 &&
+        frame.q.y() <= 1e-5 && frame.q.z() <= 1e-5) {
+      std::cout << frame.t << " : invalid" << std::endl;
+      Eigen::Matrix4d T_WORLD_BASELINK;
+      if (!imu_preint_->GetPose(T_WORLD_BASELINK, frame.t)) {
+        return;
+      }
+      std::cout << T_WORLD_BASELINK << std::endl;
+      beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, frame.q,
+                                                      frame.p);
+    }
+
+    // add pose to graph
     auto pose_transaction = fuse_core::Transaction::make_shared();
     pose_transaction->stamp(frame.t);
     visual_map_->AddPosition(frame.p, frame.t, pose_transaction);
     visual_map_->AddOrientation(frame.q, frame.t, pose_transaction);
     // send transaction to graph
     local_graph_->update(*pose_transaction);
-  }
 
-  // add inertial constraints between poses
-  for (int i = 0; i < frames.size(); i++) {
-    // Get frame's pose to graph
-    Frame frame = frames[i];
+    // get the fuse pose variables
     fuse_variables::Orientation3DStamped::SharedPtr img_orientation =
         visual_map_->GetOrientation(frame.t);
     fuse_variables::Position3DStamped::SharedPtr img_position =

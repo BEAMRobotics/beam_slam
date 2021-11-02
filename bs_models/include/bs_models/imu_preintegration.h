@@ -58,11 +58,6 @@ public:
   ~ImuPreintegration() = default;
 
   /**
-   * @brief Clear IMU buffer
-   */
-  void ClearBuffer();
-
-  /**
    * @brief Populate IMU buffer with IMU data from raw sensor data
    */
   void AddToBuffer(const sensor_msgs::Imu &msg);
@@ -147,7 +142,7 @@ private:
   /**
    * @brief Calls Preintegrator reset() and clears stored imu data
    */
-  void ResetPreintegrator();
+  void ResetPreintegrator(const ros::Time &t_now);
 
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
@@ -157,8 +152,6 @@ private:
   bs_common::PreIntegrator pre_integrator_ij; // preintegrate between key frames
   bs_common::PreIntegrator
       pre_integrator_kj; // preintegrate from intermediate frame
-  std::queue<bs_common::IMUData> current_imu_data_buffer_; // store imu data
-  std::queue<bs_common::IMUData> total_imu_data_buffer_;   // store imu data
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero acceleration bias
 };
