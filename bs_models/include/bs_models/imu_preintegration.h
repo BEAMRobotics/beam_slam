@@ -2,6 +2,7 @@
 
 #include <queue>
 
+#include <bs_common/bs_msgs.h>
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
 #include <bs_constraints/relative_pose/imu_state_3d_stamped_transaction.h>
@@ -56,11 +57,6 @@ public:
    * @brief Destructor
    */
   ~ImuPreintegration() = default;
-
-  /**
-   * @brief Clear IMU buffer
-   */
-  void ClearBuffer();
 
   /**
    * @brief Populate IMU buffer with IMU data from raw sensor data
@@ -133,6 +129,16 @@ public:
    */
   void UpdateGraph(fuse_core::Graph::SharedPtr graph_msg);
 
+  /**
+   * @brief Estimates inertial parameters given an initial path and imu messages
+   */
+  static void
+  EstimateParameters(const bs_common::InitializedPathMsg &path,
+                     const std::queue<sensor_msgs::Imu> &imu_buffer,
+                     const bs_models::ImuPreintegration::Params &params,
+                     Eigen::Vector3d &gravity, Eigen::Vector3d &bg,
+                     Eigen::Vector3d &ba, double &scale);
+
 private:
   /**
    * @brief Checks parameters
@@ -147,7 +153,7 @@ private:
   /**
    * @brief Calls Preintegrator reset() and clears stored imu data
    */
-  void ResetPreintegrator();
+  void ResetPreintegrator(const ros::Time &t_now);
 
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
@@ -157,8 +163,6 @@ private:
   bs_common::PreIntegrator pre_integrator_ij; // preintegrate between key frames
   bs_common::PreIntegrator
       pre_integrator_kj; // preintegrate from intermediate frame
-  std::queue<bs_common::IMUData> current_imu_data_buffer_; // store imu data
-  std::queue<bs_common::IMUData> total_imu_data_buffer_;   // store imu data
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero acceleration bias
 };

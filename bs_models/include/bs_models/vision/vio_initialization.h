@@ -8,7 +8,6 @@
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/bs_msgs.h>
-#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/active_submap.h>
 #include <bs_models/imu_preintegration.h>
 #include <bs_models/vision/visual_map.h>
@@ -22,7 +21,6 @@ struct Frame {
   ros::Time t;
   Eigen::Vector3d p;
   Eigen::Quaterniond q;
-  bs_common::PreIntegrator preint;
 };
 
 class VIOInitialization {
@@ -112,34 +110,6 @@ private:
   void OptimizeGraph();
 
   /**
-   * @brief Estimates imu parameters given a vector of frames with some known
-   * poses (can be up to scale from sfm, or in real world scale from lidar)
-   */
-  bool PerformIMUInitialization();
-
-  /**
-   * @brief Solves for the gyroscope bias
-   */
-  void SolveGyroBias();
-
-  /**
-   * @brief Solves for acceleromater bias (gravity must be estimated before
-   * calling this)
-   */
-  void SolveAccelBias();
-
-  /**
-   * @brief Solves for Gravity and Scale factor (scale factor only used if
-   * frames are in arbitrary scale)
-   */
-  void SolveGravityAndScale();
-
-  /**
-   * @brief Refines the previously estimated gravity and scale factor
-   */
-  void RefineGravityAndScale();
-
-  /**
    * @brief Aligns the valid frames and init path to estimated gravity
    */
   void AlignPosesToGravity();
@@ -178,12 +148,6 @@ protected:
   bool is_initialized_{false};
   bool use_scale_estimate_{false};
 
-  // imu intrinsics
-  Eigen::Matrix3d cov_gyro_noise_;
-  Eigen::Matrix3d cov_accel_noise_;
-  Eigen::Matrix3d cov_gyro_bias_;
-  Eigen::Matrix3d cov_accel_bias_;
-
   // preintegration parameters
   Eigen::Vector3d gravity_{0, 0, 0};
   Eigen::Vector3d bg_{0, 0, 0};
@@ -192,10 +156,6 @@ protected:
 
   // initialization path
   std::shared_ptr<InitializedPathMsg> init_path_;
-
-  // robot extrinsics
-  Eigen::Matrix4d T_cam_baselink_;
-  ExtrinsicsLookupOnline &extrinsics_ = ExtrinsicsLookupOnline::GetInstance();
 
   // directory to optionally output the initialization results
   std::string output_directory_;

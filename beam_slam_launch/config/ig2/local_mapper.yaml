@@ -77,7 +77,7 @@ lidar_odometry:
 
 visual_inertial_odometry:
   # topics to subscribe to
-  image_topic: '/F1/downscaled/image_mono'
+  image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
   init_path_topic: '/lo_initialiser_result'
   # feature tracking configs

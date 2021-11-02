@@ -24,6 +24,18 @@ ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
 }
 
 ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
+         const Eigen::Vector3d &position,
+         const bs_common::PreIntegrator &preint): stamp_(time) {
+  InstantiateVariables();
+  SetOrientation(orientation);
+  SetPosition(position);
+  SetPreintegrator(preint);
+  SetVelocity(0, 0, 0);
+  SetGyroBias(0, 0, 0);
+  SetAccelBias(0, 0, 0);
+}
+
+ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
                    const Eigen::Vector3d &position,
                    const Eigen::Vector3d &velocity,
                    const Eigen::Vector3d &gyrobias,
@@ -112,6 +124,14 @@ bs_variables::AccelerationBias3DStamped ImuState::AccelBias() const {
 Eigen::Vector3d ImuState::AccelBiasVec() const {
   Eigen::Vector3d ba(accelbias_->x(), accelbias_->y(), accelbias_->z());
   return ba;
+}
+
+std::shared_ptr<bs_common::PreIntegrator> ImuState::GetPreintegrator() {
+  return preint_;
+}
+
+void ImuState::SetPreintegrator(const bs_common::PreIntegrator &preint) {
+  *preint_ = preint;
 }
 
 void ImuState::SetOrientation(const double &w, const double &x, const double &y,
@@ -245,13 +265,7 @@ void ImuState::InstantiateVariables() {
       stamp_, fuse_core::uuid::NIL);
   accelbias_ = std::make_shared<bs_variables::AccelerationBias3DStamped>(
       stamp_, fuse_core::uuid::NIL);
-}
-
-std::shared_ptr<ImuState> ImuState::Clone() {
-  std::shared_ptr<ImuState> clone_state =
-      std::make_shared<ImuState>(Stamp(), OrientationQuat(), PositionVec(),
-                                 VelocityVec(), GyroBiasVec(), AccelBiasVec());
-  return clone_state;
+  preint_ = std::make_shared<bs_common::PreIntegrator>();
 }
 
 } // namespace bs_common
