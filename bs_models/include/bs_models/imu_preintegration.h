@@ -106,7 +106,8 @@ public:
    * @param T_WORLD_IMU reference to pose matrix to fill in
    * @return true if successful
    */
-  bool GetPose(Eigen::Matrix4d &T_WORLD_IMU, const ros::Time &t_now);
+  bool GetPose(Eigen::Matrix4d &T_WORLD_IMU, const ros::Time &t_now,
+               std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance = nullptr);
 
   /**
    * @brief Registers new transaction between key frames

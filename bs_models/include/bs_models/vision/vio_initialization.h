@@ -7,6 +7,7 @@
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_common/bs_msgs.h>
 #include <bs_models/active_submap.h>
 #include <bs_models/imu_preintegration.h>
@@ -46,7 +47,7 @@ public:
    * @param cur_time timestamp of image
    * @return success flag
    */
-  bool AddImage(const ros::Time& cur_time);
+  bool AddImage(const ros::Time &cur_time);
 
   /**
    * @brief Adds an imu measurement to the initializer
@@ -105,6 +106,13 @@ private:
   size_t AddVisualConstraints(const std::vector<Frame> &frames);
 
   /**
+   * @brief Localizes a given frame using the tracker and the current visual map
+   * @param img_time time of image to localize
+   * @return T_WORLD_BASELINK
+   */
+  Eigen::Matrix4d LocalizeFrame(const ros::Time &img_time);
+
+  /**
    * @brief Optimizes the current local graph
    */
   void OptimizeGraph();
@@ -127,6 +135,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
   std::shared_ptr<bs_models::vision::VisualMap> visual_map_;
+  std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
 
   // imu preintegration object
   std::shared_ptr<bs_models::ImuPreintegration> imu_preint_;
@@ -153,6 +162,11 @@ protected:
   Eigen::Vector3d bg_{0, 0, 0};
   Eigen::Vector3d ba_{0, 0, 0};
   double scale_{1};
+
+  // extrinsic info
+  Eigen::Matrix4d T_cam_baselink_;
+  bs_common::ExtrinsicsLookupOnline &extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // initialization path
   std::shared_ptr<InitializedPathMsg> init_path_;

@@ -135,19 +135,20 @@ ImuPreintegration::PredictState(const bs_common::PreIntegrator &pre_integrator,
   return imu_state_new;
 }
 
-bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
-                                const ros::Time &t_now) {
+bool ImuPreintegration::GetPose(
+    Eigen::Matrix4d &T_WORLD_IMU, const ros::Time &t_now,
+    std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance) {
   // check requested time
   if (t_now < pre_integrator_kj.data.front().t ||
       pre_integrator_kj.data.empty()) {
     ROS_WARN("Requested time is outside of window, or no imu data available.");
     return false;
   }
-
+  
   // integrate between frames if there is data to integrate
   if (!pre_integrator_kj.data.empty()) {
     pre_integrator_kj.Integrate(t_now, imu_state_i_.GyroBiasVec(),
-                                imu_state_i_.AccelBiasVec(), false, false);
+                                imu_state_i_.AccelBiasVec(), true, false);
   }
 
   // predict state at end of window using integrated IMU measurements
@@ -163,6 +164,11 @@ bool ImuPreintegration::GetPose(Eigen::Matrix4d &T_WORLD_IMU,
                      pre_integrator_kj.data.end(),
                      [&](const bs_common::IMUData &d) { return d.t < t_now; }),
       pre_integrator_kj.data.end());
+
+  // extract the computed covariance if requested
+  if (covariance) {
+    *covariance = pre_integrator_kj.delta.cov.block<6, 6>(0, 0);
+  }
 
   return true;
 }
