@@ -8,7 +8,6 @@
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/bs_msgs.h>
-#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/active_submap.h>
 #include <bs_models/imu_preintegration.h>
 #include <bs_models/vision/visual_map.h>
@@ -149,12 +148,6 @@ protected:
   bool is_initialized_{false};
   bool use_scale_estimate_{false};
 
-  // imu intrinsics
-  Eigen::Matrix3d cov_gyro_noise_;
-  Eigen::Matrix3d cov_accel_noise_;
-  Eigen::Matrix3d cov_gyro_bias_;
-  Eigen::Matrix3d cov_accel_bias_;
-
   // preintegration parameters
   Eigen::Vector3d gravity_{0, 0, 0};
   Eigen::Vector3d bg_{0, 0, 0};
@@ -163,10 +156,6 @@ protected:
 
   // initialization path
   std::shared_ptr<InitializedPathMsg> init_path_;
-
-  // robot extrinsics
-  Eigen::Matrix4d T_cam_baselink_;
-  ExtrinsicsLookupOnline &extrinsics_ = ExtrinsicsLookupOnline::GetInstance();
 
   // directory to optionally output the initialization results
   std::string output_directory_;

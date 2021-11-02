@@ -104,14 +104,12 @@ void VIOInitialization::BuildFrameVectors() {
   ros::Time end = init_path_->poses[init_path_->poses.size() - 1].header.stamp;
   valid_frames_.clear();
   invalid_frames_.clear();
-
   // get start and end time of input path
   for (auto &kf : frame_times_) {
     ros::Time stamp;
     stamp.fromNSec(kf);
     if (stamp < start)
       continue;
-
     if (stamp <= end) {
       // get pose of frame using path
       Eigen::Matrix4d T_WORLD_BASELINK;
