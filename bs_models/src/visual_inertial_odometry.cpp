@@ -227,21 +227,18 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
   }
   // get pose estimate
   Eigen::Matrix4d T_WORLD_BASELINK_inertial;
-  imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time);
-  // refine with visual info if possible
-  if (points.size() >= 20) {
-    Eigen::Matrix4d T_CAMERA_WORLD_est =
-        (T_WORLD_BASELINK_inertial * T_cam_baselink_.inverse()).inverse();
-    Eigen::Matrix4d T_WORLD_CAMERA =
-        pose_refiner_
-            ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points)
-            .inverse();
-    Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-    return T_WORLD_BASELINK;
-  } else {
-    // otherwise use the imu estimate
-    return T_WORLD_BASELINK_inertial;
-  }
+  std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance;
+  imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time, covariance);
+  // refine with visual info
+  Eigen::Matrix4d T_CAMERA_WORLD_est =
+      (T_WORLD_BASELINK_inertial * T_cam_baselink_.inverse()).inverse();
+  Eigen::Matrix4d T_WORLD_CAMERA =
+      pose_refiner_
+          ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points,
+                       covariance)
+          .inverse();
+  Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
+  return T_WORLD_BASELINK;
 }
 
 bool VisualInertialOdometry::IsKeyframe(

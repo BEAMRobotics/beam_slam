@@ -36,6 +36,8 @@ VIOInitialization::VIOInitialization(
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
   // create visual map
   visual_map_ = std::make_shared<vision::VisualMap>(cam_model_);
+  // initialize pose refiner object with params
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2);
   // make subscriber for init path
   ros::NodeHandle n;
   path_subscriber_ =
@@ -147,10 +149,7 @@ void VIOInitialization::AddPosesAndInertialConstraints(
     // if the current frame doesnt have a pose then estimate it using the imu
     if (frame.p.isZero(1e-5) && frame.q.w() <= 1e-5 && frame.q.x() <= 1e-5 &&
         frame.q.y() <= 1e-5 && frame.q.z() <= 1e-5) {
-      Eigen::Matrix4d T_WORLD_BASELINK;
-      if (!imu_preint_->GetPose(T_WORLD_BASELINK, frame.t)) {
-        return;
-      }
+      Eigen::Matrix4d T_WORLD_BASELINK = LocalizeFrame(frame.t);
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, frame.q,
                                                       frame.p);
     }
@@ -256,6 +255,41 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
   visual_map_->UpdateGraph(local_graph_);
 
   return num_landmarks;
+}
+
+Eigen::Matrix4d VIOInitialization::LocalizeFrame(const ros::Time &img_time) {
+  // get most recent extrinsics, if failure then process frame later
+  if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
+    ROS_ERROR("Unable to get camera to baselink transform.");
+  }
+  // get 2d-3d correspondences
+  std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+  std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
+  std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
+  for (auto &id : landmarks) {
+    fuse_variables::Point3DLandmark::SharedPtr lm =
+        visual_map_->GetLandmark(id);
+    if (lm) {
+      Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
+      Eigen::Vector2i pixeli = tracker_->Get(img_time, id).cast<int>();
+      pixels.push_back(pixeli);
+      points.push_back(point);
+    }
+  }
+  // get pose estimate
+  Eigen::Matrix4d T_WORLD_BASELINK_inertial;
+  std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance;
+  imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time, covariance);
+  // refine with visual info
+  Eigen::Matrix4d T_CAMERA_WORLD_est =
+      (T_WORLD_BASELINK_inertial * T_cam_baselink_.inverse()).inverse();
+  Eigen::Matrix4d T_WORLD_CAMERA =
+      pose_refiner_
+          ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points,
+                       covariance)
+          .inverse();
+  Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
+  return T_WORLD_BASELINK;
 }
 
 void VIOInitialization::OptimizeGraph() {
