@@ -105,6 +105,7 @@ add_library(
   src/unicycle_3d_ignition.cpp
   src/lidar_odometry.cpp
   src/visual_inertial_odometry.cpp
+  src/inertial_odometry.cpp
   src/global_mapper.cpp
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp
