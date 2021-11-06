@@ -12,44 +12,41 @@ find_package(
   cv
   utils
   matching
-  filtering)
+  mapping
+  filtering
+)
 
-find_package(
-  catkin REQUIRED
-  COMPONENTS
+set(catkin_build_depends
     std_msgs
     geometry_msgs
     nav_msgs
     pluginlib
     rosbag
     roscpp
-    roslint
     sensor_msgs
-    std_srvs
     tf2
     tf2_2d
     tf2_geometry_msgs
     tf2_ros
+    fuse_core
+    fuse_graphs
+    fuse_models
+    fuse_publishers
+    fuse_variables
+    fuse_constraints
+    bs_common
+    bs_constraints
+    bs_variables
+)
+
+find_package(
+  catkin REQUIRED
+  COMPONENTS
+    ${catkin_build_depends}
     message_generation
-    )
+)
 
-find_package(gflags REQUIRED)
-find_package(Ceres REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(Boost REQUIRED)
 find_package(OpenCV 4.5.2 REQUIRED COMPONENTS)
-
-find_package(fuse_core REQUIRED)
-find_package(fuse_publishers REQUIRED)
-find_package(fuse_variables REQUIRED)
-find_package(fuse_graphs REQUIRED)
-find_package(fuse_models REQUIRED)
-find_package(fuse_constraints REQUIRED)
-
-find_package(bs_constraints REQUIRED)
-find_package(bs_common REQUIRED)
-find_package(bs_variables REQUIRED)
-
 
 catkin_package(
   INCLUDE_DIRS
@@ -57,21 +54,8 @@ catkin_package(
   LIBRARIES
     ${PROJECT_NAME}
   CATKIN_DEPENDS 
-    std_msgs
-    geometry_msgs
+    ${catkin_build_depends}
     message_runtime
-    nav_msgs
-    pluginlib
-    rosbag
-    roscpp
-    sensor_msgs
-    tf2
-    tf2_geometry_msgs
-    tf2_ros
-  DEPENDS
-    Boost
-    CERES
-    EIGEN3
 )
 
 ###########
@@ -79,20 +63,8 @@ catkin_package(
 ###########
 include_directories(
   include
-  ${Boost_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-  ${CERES_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  ${fuse_core_INCLUDE_DIRS}
-  ${fuse_graphs_INCLUDE_DIRS}
-  ${fuse_models_INCLUDE_DIRS}
-  ${fuse_publishers_INCLUDE_DIRS}
-  ${fuse_variables_INCLUDE_DIRS}
-  ${fuse_constraints_INCLUDE_DIRS}
-  ${bs_constraints_INCLUDE_DIRS}
-  ${bs_common_INCLUDE_DIRS}
-  ${bs_variables_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -125,22 +97,14 @@ add_library(
   src/lib/active_submap.cpp
   src/lib/imu_preintegration.cpp
 )
+add_dependencies(${PROJECT_NAME}
+  ${catkin_EXPORTED_TARGETS}
+)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
-    ${CERES_LIBRARIES}
-    ${PCL_LIBRARIES}
-    ${fuse_core_LIBRARIES}
-    ${fuse_graphs_LIBRARIES}
-    ${fuse_models_LIBRARIES}
-    ${fuse_publishers_LIBRARIES}
-    ${fuse_variables_LIBRARIES}
-    ${fuse_constraints_LIBRARIES}
-    ${bs_constraints_LIBRARIES}
-    ${bs_common_LIBRARIES}
-    ${bs_variables_LIBRARIES}
     beam::utils
     beam::matching
     beam::filtering
@@ -155,18 +119,12 @@ target_link_libraries(
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
 
-  # Lint tests
-  roslint_add_test()
-
   # scan pose tests
   add_executable(${PROJECT_NAME}_scan_pose_tests 
     tests/scan_pose_tests.cpp)
   target_link_libraries(${PROJECT_NAME}_scan_pose_tests 
     ${PROJECT_NAME}
-    gtest_main
-    beam::utils
-    beam::filtering
-    beam::matching)
+    gtest_main)
   add_test(NAME ${PROJECT_NAME}_scan_pose_tests 
         COMMAND ${PROJECT_NAME}_scan_pose_tests)
   
@@ -197,7 +155,7 @@ if(CATKIN_ENABLE_TESTING)
   )
 
   # IMU preintegration tests
-  find_package(basalt)
+  find_package(basalt QUIET)
   if(basalt_FOUND)
     catkin_add_gtest(${PROJECT_NAME}_imu_preintegration_tests
       tests/imu_preintegration_tests.cpp
@@ -209,8 +167,6 @@ if(CATKIN_ENABLE_TESTING)
     )
     target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
       ${PROJECT_NAME}
-      ${catkin_LIBRARIES}
-      ${CERES_LIBRARIES}
       ${basalt_LIBRARIES}
     )
     set_target_properties(${PROJECT_NAME}_imu_preintegration_tests
@@ -218,6 +174,8 @@ if(CATKIN_ENABLE_TESTING)
         CXX_STANDARD 14
         CXX_STANDARD_REQUIRED YES
     )
+  else()
+    message( "Basalt not found, not building imu tests." )  
   endif()
 
   # Reprojection tests
@@ -227,7 +185,6 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(${PROJECT_NAME}_reprojection_test
     ${PROJECT_NAME}
     ${catkin_LIBRARIES}
-    ${CERES_LIBRARIES}
   )
   set_target_properties(${PROJECT_NAME}_reprojection_test
     PROPERTIES
@@ -241,9 +198,6 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(${PROJECT_NAME}_global_map_refinement_tests 
     ${PROJECT_NAME}
     gtest_main
-    beam::utils
-    beam::filtering
-    beam::matching
   )
   add_test(NAME ${PROJECT_NAME}_global_map_refinement_tests 
           COMMAND ${PROJECT_NAME}_global_map_refinement_tests)
