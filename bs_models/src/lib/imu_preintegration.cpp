@@ -148,7 +148,7 @@ bool ImuPreintegration::GetPose(
   // integrate between frames if there is data to integrate
   if (!pre_integrator_kj.data.empty()) {
     pre_integrator_kj.Integrate(t_now, imu_state_i_.GyroBiasVec(),
-                                imu_state_i_.AccelBiasVec(), true, false);
+                                imu_state_i_.AccelBiasVec(), true, true);
   }
 
   // predict state at end of window using integrated IMU measurements
