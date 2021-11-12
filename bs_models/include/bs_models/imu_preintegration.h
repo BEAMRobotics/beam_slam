@@ -36,6 +36,8 @@ public:
     Eigen::Matrix3d cov_gyro_bias{Eigen::Matrix3d::Identity() * 1e-6};
     Eigen::Matrix3d cov_accel_bias{Eigen::Matrix3d::Identity() * 1e-4};
     std::string source{"IMUPREINTEGRATION"};
+
+    bool LoadFromJSON(const std::string& path);
   };
 
   /**

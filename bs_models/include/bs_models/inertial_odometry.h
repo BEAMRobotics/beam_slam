@@ -30,6 +30,7 @@ public:
    */
   ~InertialOdometry() override = default;
 
+private:
   /**
    * @brief Callback for imu processing, this will make sure the imu messages
    * are added to the buffer at the correct time
@@ -44,17 +45,9 @@ public:
    */
   void processInitPath(const InitializedPathMsg::ConstPtr &msg);
 
-protected:
-  fuse_core::UUID device_id_; //!< The UUID of this device
-
   /**
    * @brief Perform any required initialization for the sensor model
-   *
-   * This could include things like reading from the parameter server or
-   * subscribing to topics. The class's node handles will be properly
-   * initialized before SensorModel::onInit() is called. Spinning of the
-   * callback queue will not begin until after the call to SensorModel::onInit()
-   * completes.
+   * (Load parameters from yaml files and read in imu intrinsics)
    */
   void onInit() override;
 
@@ -74,9 +67,14 @@ protected:
    */
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
+  /**
+   * @brief Process an imu message by adding it to the preintegrator, and if
+   * designated time has elapsed since previous state then register a
+   * transaction and send to the graph
+   */
   void RegisterImuMessage(const sensor_msgs::Imu &msg);
 
-protected:
+  fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
   bs_parameters::models::InertialOdometryParams inertial_params_;
 
@@ -104,11 +102,10 @@ protected:
   Eigen::Vector3d gravity_, bg_, ba_;
   double scale_;
 
-  // time of previous states
+  // time of previous imu state
   ros::Time previous_state;
 
   // robot extrinsics
-  Eigen::Matrix4d T_cam_baselink_;
   bs_common::ExtrinsicsLookupOnline &extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 };

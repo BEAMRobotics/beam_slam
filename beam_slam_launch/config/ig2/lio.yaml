@@ -79,6 +79,7 @@ inertial_odometry:
   init_path_topic: '/lo_initialiser_result'
   init_use_scale_estimate: false
   keyframe_rate: 0.1
+  msg_queue_size: 10000
 
 lo_initializer:
   registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'

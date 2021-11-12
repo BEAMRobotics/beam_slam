@@ -28,17 +28,17 @@
   </class>
   <class type="bs_models::GTInitializer" base_class_type="fuse_core::SensorModel">
     <description>
-      Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate
+      Class for initializing a SLAM process using a ground truth trajectory
     </description>
   </class>
   <class type="bs_models::VisualInertialOdometry" base_class_type="fuse_core::SensorModel">
     <description>
-      An adapter-type sensor that produces relative pose constraints
+      An adapter-type sensor that produces camera rate odometry
     </description>
   </class>
     <class type="bs_models::InertialOdometry" base_class_type="fuse_core::SensorModel">
     <description>
-      An adapter-type sensor that produces relative pose constraints
+      An adapter-type sensor that produces high-rate odometry estimates from IMU data
     </description>
   </class>
   <class type="bs_models::GlobalMapper" base_class_type="fuse_core::SensorModel">

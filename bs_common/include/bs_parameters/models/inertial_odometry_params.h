@@ -10,7 +10,7 @@ namespace models {
 using namespace fuse_models::parameters;
 
 /**
- * @brief Defines the set of parameters required by the Imu3D class
+ * @brief Defines the set of parameters required by the InertialOdometry class
  */
 struct InertialOdometryParams : public ParameterBase {
 public:
@@ -26,8 +26,10 @@ public:
     getParam<bool>(nh, "init_use_scale_estimate", init_use_scale_estimate,
                    false);
     getParam<double>(nh, "keyframe_rate", keyframe_rate, 0.1);
+    getParam<int>(nh, "msg_queue_size", msg_queue_size, 10000);
   }
 
+  int msg_queue_size{};
   std::string input_topic{};
   std::string init_path_topic{};
   bool init_use_scale_estimate{};

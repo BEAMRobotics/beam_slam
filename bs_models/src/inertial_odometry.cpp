@@ -4,8 +4,6 @@
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 
-#include <nlohmann/json.hpp>
-
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel)
 
@@ -21,25 +19,15 @@ void InertialOdometry::onInit() {
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   inertial_params_.loadFromROS(private_node_handle_);
   calibration_params_.loadFromROS();
-
-  // read imu params
-  nlohmann::json J;
-  beam::ReadJson(calibration_params_.imu_intrinsics_path, J);
-  imu_params_.cov_gyro_noise =
-      Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
-  imu_params_.cov_accel_noise =
-      Eigen::Matrix3d::Identity() * J["cov_accel_noise"];
-  imu_params_.cov_gyro_bias = Eigen::Matrix3d::Identity() * J["cov_gyro_bias"];
-  imu_params_.cov_accel_bias =
-      Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
+  imu_params_.LoadFromJSON(calibration_params_.imu_intrinsics_path);
 }
 
 void InertialOdometry::onStart() {
   // subscribe to topics
   imu_subscriber_ = node_handle_.subscribe<sensor_msgs::Imu>(
-      ros::names::resolve(inertial_params_.input_topic), 10000,
-      &ThrottledIMUCallback::callback, &throttled_imu_callback_,
-      ros::TransportHints().tcpNoDelay(false));
+      ros::names::resolve(inertial_params_.input_topic),
+      inertial_params_.msg_queue_size, &ThrottledIMUCallback::callback,
+      &throttled_imu_callback_, ros::TransportHints().tcpNoDelay(false));
   path_subscriber_ =
       node_handle_.subscribe(inertial_params_.init_path_topic, 10,
                              &InertialOdometry::processInitPath, this);
@@ -58,6 +46,7 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr &msg) {
 
 void InertialOdometry::processInitPath(
     const InitializedPathMsg::ConstPtr &msg) {
+  ROS_INFO("Initializing IMU biases and gravity from initial path.");
   // Estimate imu biases and gravity using the initial path
   bs_models::ImuPreintegration::EstimateParameters(
       *msg, imu_buffer_, imu_params_, gravity_, bg_, ba_, scale_);
@@ -69,27 +58,28 @@ void InertialOdometry::processInitPath(
   int i = 0;
   for (auto &pose : msg->poses) {
     // align the pose to the estimated gravity
-    Eigen::Matrix4d T;
-    bs_common::PoseMsgToTransformationMatrix(pose, T);
-    Eigen::Quaterniond ori;
-    Eigen::Vector3d pos;
-    beam::TransformMatrixToQuaternionAndTranslation(T, ori, pos);
-    ori = q * ori;
-    pos = q * pos;
+    Eigen::Matrix4d T_WORLD_BASELINK;
+    bs_common::PoseMsgToTransformationMatrix(pose, T_WORLD_BASELINK);
+    Eigen::Quaterniond init_orientation;
+    Eigen::Vector3d init_position;
+    beam::TransformMatrixToQuaternionAndTranslation(
+        T_WORLD_BASELINK, init_orientation, init_position);
+    init_orientation = q * init_orientation;
+    init_position = q * init_position;
     // get stamp of the pose to add
     ros::Time pose_stamp = pose.header.stamp;
     // create fuse variables for the pose
-    fuse_variables::Orientation3DStamped::SharedPtr orientation =
+    fuse_variables::Orientation3DStamped::SharedPtr fuse_orientation =
         std::make_shared<fuse_variables::Orientation3DStamped>(pose_stamp);
-    orientation->w() = ori.w();
-    orientation->x() = ori.x();
-    orientation->y() = ori.y();
-    orientation->z() = ori.z();
-    fuse_variables::Position3DStamped::SharedPtr position =
+    fuse_orientation->w() = init_orientation.w();
+    fuse_orientation->x() = init_orientation.x();
+    fuse_orientation->y() = init_orientation.y();
+    fuse_orientation->z() = init_orientation.z();
+    fuse_variables::Position3DStamped::SharedPtr fuse_position =
         std::make_shared<fuse_variables::Position3DStamped>(pose_stamp);
-    position->x() = pos[0];
-    position->y() = pos[1];
-    position->z() = pos[2];
+    fuse_position->x() = init_position[0];
+    fuse_position->y() = init_position[1];
+    fuse_position->z() = init_position[2];
     // add imu messages to preint
     while (imu_buffer_.front().header.stamp < pose_stamp &&
            !imu_buffer_.empty()) {
@@ -107,12 +97,13 @@ void InertialOdometry::processInitPath(
       velocity->x() = velocity_vec[0];
       velocity->y() = velocity_vec[1];
       velocity->z() = velocity_vec[2];
-      imu_preint_->SetStart(pose_stamp, orientation, position, velocity);
+      imu_preint_->SetStart(pose_stamp, fuse_orientation, fuse_position,
+                            velocity);
     } else {
       // register constraint with this pose
       fuse_core::Transaction::SharedPtr imu_transaction =
-          imu_preint_->RegisterNewImuPreintegratedFactor(pose_stamp,
-                                                         orientation, position);
+          imu_preint_->RegisterNewImuPreintegratedFactor(
+              pose_stamp, fuse_orientation, fuse_position);
       sendTransaction(imu_transaction);
     }
     previous_state = pose_stamp;
@@ -123,14 +114,15 @@ void InertialOdometry::processInitPath(
     RegisterImuMessage(imu_buffer_.front());
     imu_buffer_.pop();
   }
+  ROS_INFO("Finished imu initialization.");
 }
 
 void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   if (imu_preint_) {
     // make deep copy to make updating graph easier
-    fuse_core::Graph::SharedPtr copy = std::move(graph->clone());
+    fuse_core::Graph::SharedPtr graph_copy = std::move(graph->clone());
     // Update imu preint info with new graph
-    imu_preint_->UpdateGraph(copy);
+    imu_preint_->UpdateGraph(graph_copy);
   }
 }
 
@@ -140,12 +132,15 @@ void InertialOdometry::RegisterImuMessage(const sensor_msgs::Imu &msg) {
   Eigen::Matrix4d T_WORLD_BASELINK;
   std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance =
       std::make_shared<Eigen::Matrix<double, 6, 6>>();
-  imu_preint_->GetPose(T_WORLD_BASELINK, msg.header.stamp, covariance);
+  if (!imu_preint_->GetPose(T_WORLD_BASELINK, msg.header.stamp, covariance)) {
+    ROS_ERROR("Error getting pose, skipping imu measurement");
+    return;
+  }
   boost::array<float, 36> covariance_flat;
   covariance_flat.fill(0);
   for (size_t i = 0; i < 6; i++) {
     for (size_t j = 0; j < 6; j++) {
-      covariance_flat[i * 6 + j] = (*covariance)(i,j);
+      covariance_flat[i * 6 + j] = (*covariance)(i, j);
     }
   }
 
@@ -165,6 +160,10 @@ void InertialOdometry::RegisterImuMessage(const sensor_msgs::Imu &msg) {
       inertial_params_.keyframe_rate) {
     fuse_core::Transaction::SharedPtr imu_transaction =
         imu_preint_->RegisterNewImuPreintegratedFactor(msg.header.stamp);
+    if (!imu_transaction) {
+      ROS_ERROR("Error registering inertial transaction, skipping imu measurement");
+      return;
+    }
     sendTransaction(imu_transaction);
     previous_state = msg.header.stamp;
   }
