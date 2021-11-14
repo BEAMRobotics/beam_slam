@@ -40,6 +40,7 @@ public:
    */
   ~VisualInertialOdometry() override = default;
 
+private:
   /**
    * @brief Callback for image processing, this callback will add visual
    * constraints and triangulate new landmarks when required
@@ -54,7 +55,6 @@ public:
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr &msg);
 
-protected:
   fuse_core::UUID device_id_; //!< The UUID of this device
 
   /**
@@ -84,7 +84,6 @@ protected:
    */
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
-private:
   /**
    * @brief Localizes a given frame using the tracker and the current visual map
    * @param img_time time of image to localize
@@ -148,7 +147,6 @@ private:
    */
   void PublishLandmarkIDs(const std::vector<uint64_t> &ids);
 
-protected:
   // loadable camera parameters
   bs_parameters::models::CameraParams camera_params_;
 

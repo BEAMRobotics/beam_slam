@@ -1,10 +1,8 @@
 #include <bs_models/imu_3d.h>
 
-#include <nlohmann/json.hpp>
-
+#include <beam_utils/filesystem.h>
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
-#include <beam_utils/filesystem.h>
 
 #include <bs_common/utils.h>
 
@@ -14,8 +12,7 @@ PLUGINLIB_EXPORT_CLASS(bs_models::Imu3D, fuse_core::SensorModel)
 namespace bs_models {
 
 Imu3D::Imu3D()
-    : fuse_core::AsyncSensorModel(1),
-      device_id_(fuse_core::uuid::NIL),
+    : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL),
       throttled_callback_(
           std::bind(&Imu3D::process, this, std::placeholders::_1)) {}
 
@@ -54,17 +51,10 @@ void Imu3D::onInit() {
   init_accel_bias_ << ba, ba, ba;
 
   // init imu preintegration
-  nlohmann::json J;
-  beam::ReadJson(calibration_params_.imu_intrinsics_path, J);
-
-  ImuPreintegration::Params imu_preintegration_params{
-    cov_prior_noise : params_.cov_prior_noise,
-    cov_gyro_noise : Eigen::Matrix3d::Identity() * J["cov_gyro_noise"],
-    cov_accel_noise : Eigen::Matrix3d::Identity() * J["cov_accel_noise"],
-    cov_gyro_bias : Eigen::Matrix3d::Identity() * J["cov_gyro_bias"],
-    cov_accel_bias : Eigen::Matrix3d::Identity() * J["cov_accel_bias"],
-    source : name()
-  };
+  ImuPreintegration::Params imu_preintegration_params;
+  imu_preintegration_params.LoadFromJSON(
+      calibration_params_.imu_intrinsics_path);
+  imu_preintegration_params.cov_prior_noise = params_.cov_prior_noise;
 
   imu_preintegration_ = std::make_unique<ImuPreintegration>(
       imu_preintegration_params, init_gyro_bias_, init_accel_bias_);
@@ -85,7 +75,7 @@ void Imu3D::onStart() {
 
 void Imu3D::onStop() { subscriber_.shutdown(); }
 
-void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
+void Imu3D::process(const sensor_msgs::Imu::ConstPtr &msg) {
   // add msg to preintegration buffers
   imu_preintegration_->AddToBuffer(*msg);
   ros::Time t_proc = msg->header.stamp;
@@ -137,7 +127,7 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
         ROS_INFO("Sending transaction.");
         try {
           sendTransaction(new_transaction);
-        } catch (const std::exception& e) {
+        } catch (const std::exception &e) {
           ROS_WARN("Cannot send transaction. Error: %s", e.what());
         }
       }
@@ -146,9 +136,9 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
 };
 
 bool Imu3D::GetEstimatedPose(
-    fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
-    fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
-    const ros::Time& time) {
+    fuse_variables::Orientation3DStamped::SharedPtr &R_WORLD_IMU,
+    fuse_variables::Position3DStamped::SharedPtr &t_WORLD_IMU,
+    const ros::Time &time) {
   Eigen::Matrix4d T_WORLD_IMU;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_IMU, time,
                                             extrinsics_.GetImuFrameId())) {
@@ -163,4 +153,4 @@ bool Imu3D::GetEstimatedPose(
   return true;
 }
 
-}  // namespace bs_models
+} // namespace bs_models

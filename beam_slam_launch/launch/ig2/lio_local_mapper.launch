@@ -9,7 +9,7 @@
 
   <!-- Launch initializer -->
   <node pkg="fuse_optimizers" type="batch_optimizer_node" name="local_mapper" output="screen">
-    <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/local_mapper.yaml"/>
+    <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/lio.yaml"/>
   </node>
 
 </launch>

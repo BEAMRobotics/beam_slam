@@ -27,7 +27,7 @@ class Imu3D : public fuse_core::AsyncSensorModel {
    */
   virtual ~Imu3D() = default;
 
- protected:
+ private:
   /**
    * @brief Perform required initialization for the sensor model
    */
