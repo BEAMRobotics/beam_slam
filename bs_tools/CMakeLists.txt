@@ -38,7 +38,7 @@ add_dependencies(${PROJECT_NAME}
 target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
-    beam::utils
+    beam::beam
 )
 
 ## Add executables
@@ -54,4 +54,5 @@ target_include_directories(${PROJECT_NAME}_global_map_refinement_main
 )
 target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
   ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
 )

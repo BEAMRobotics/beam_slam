@@ -14,6 +14,7 @@ find_package(
   matching
   mapping
   filtering
+  optimization
 )
 
 set(catkin_build_depends
@@ -111,6 +112,7 @@ target_link_libraries(
     beam::mapping
     beam::calibration
     beam::cv
+    beam::optimization
 )
 
 #############
