@@ -3,8 +3,39 @@
 #include <fuse_core/transaction.h>
 
 #include <beam_utils/math.h>
+#include <nlohmann/json.hpp>
 
 namespace bs_models {
+
+bool ImuPreintegration::Params::LoadFromJSON(const std::string &path) {
+  nlohmann::json J;
+  beam::ReadJson(path, J);
+  try {
+    cov_gyro_noise = Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
+  } catch (...) {
+    BEAM_ERROR("Missing or misspelt parameter: 'cov_gryo_noise'");
+    return false;
+  }
+  try {
+    cov_accel_noise = Eigen::Matrix3d::Identity() * J["cov_accel_noise"];
+  } catch (...) {
+    BEAM_ERROR("Missing or misspelt parameter: 'cov_accel_noise'");
+    return false;
+  }
+  try {
+    cov_gyro_bias = Eigen::Matrix3d::Identity() * J["cov_gyro_bias"];
+  } catch (...) {
+    BEAM_ERROR("Missing or misspelt parameter: 'cov_gyro_bias'");
+    return false;
+  }
+  try {
+    cov_accel_bias = Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
+  } catch (...) {
+    BEAM_ERROR("Missing or misspelt parameter: 'cov_accel_bias'");
+    return false;
+  }
+  return true;
+}
 
 ImuPreintegration::ImuPreintegration(const Params &params) : params_(params) {
   CheckParameters();
@@ -144,11 +175,11 @@ bool ImuPreintegration::GetPose(
     ROS_WARN("Requested time is outside of window, or no imu data available.");
     return false;
   }
-  
+
   // integrate between frames if there is data to integrate
   if (!pre_integrator_kj.data.empty()) {
     pre_integrator_kj.Integrate(t_now, imu_state_i_.GyroBiasVec(),
-                                imu_state_i_.AccelBiasVec(), true, false);
+                                imu_state_i_.AccelBiasVec(), true, true);
   }
 
   // predict state at end of window using integrated IMU measurements

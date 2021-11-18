@@ -113,12 +113,14 @@ void VisualInertialOdometry::processImage(
   // get current imu and image timestamps
   ros::Time imu_time = imu_buffer_.front().header.stamp;
   ros::Time img_time = image_buffer_.front().header.stamp;
+
   // add image to map or initializer
   if (imu_time >= img_time && !imu_buffer_.empty()) {
     // add image to tracker
     tracker_->AddImage(
         beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
         img_time);
+
     // process in initialization mode
     if (!initialization_->Initialized()) {
       if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.5) {
@@ -142,6 +144,7 @@ void VisualInertialOdometry::processImage(
       Eigen::Matrix4d T_WORLD_BASELINK = LocalizeFrame(img_time);
       // publish pose to odom topic
       PublishInitialOdometry(img_time, T_WORLD_BASELINK);
+
       // process keyframe
       if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
         // log keyframe time
@@ -227,7 +230,8 @@ VisualInertialOdometry::LocalizeFrame(const ros::Time &img_time) {
   }
   // get pose estimate
   Eigen::Matrix4d T_WORLD_BASELINK_inertial;
-  std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance;
+  std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance =
+      std::make_shared<Eigen::Matrix<double, 6, 6>>();
   imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time, covariance);
   // refine with visual info
   Eigen::Matrix4d T_CAMERA_WORLD_est =
