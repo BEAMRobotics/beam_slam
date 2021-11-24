@@ -4,17 +4,15 @@
 
 #include <bs_models/frame_initializers/frame_initializer_base.h>
 
-namespace bs_models {
-namespace frame_initializers {
+namespace bs_models { namespace frame_initializers {
 
 /**
  * @brief This class can be used to estimate a pose of a frame given its
  * timestamp. This is done by building a tf tree with incoming odometry messages
  * then looking up the transform at the given time.
- *
  */
 class OdometryFrameInitializer : public FrameInitializerBase {
- public:
+public:
   /**
    * @brief Constructor
    * @param topic odometry topic to subscribe to
@@ -35,12 +33,17 @@ class OdometryFrameInitializer : public FrameInitializerBase {
    */
   void OdometryCallback(const nav_msgs::OdometryConstPtr message);
 
- private:
+private:
   /**
    * @brief Check to see if world frame and baselink frame IDs match those
    * supplied in odometry messages.
    */
   void CheckOdometryFrameIDs(const nav_msgs::OdometryConstPtr message);
+
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  std::make_shared<tf2::BufferCore> poses_;
 
   ros::Subscriber odometry_subscriber_;
   bool check_world_baselink_frames_{true};
@@ -48,5 +51,4 @@ class OdometryFrameInitializer : public FrameInitializerBase {
   std::string sensor_frame_id_;
 };
 
-}  // namespace frame_initializers
-}  // namespace bs_models
+}} // namespace bs_models::frame_initializers

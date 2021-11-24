@@ -85,9 +85,11 @@ private:
   ros::Time first_pose_time_{ros::Time(0)};
 
   // other tunable parameters
-  // int max_lookup_attempts_{3};
   double poses_buffer_time_{100};
-  double extrinsics_buffer_time_{100};
+
+  // robot extrinsics
+  bs_common::ExtrinsicsLookupOnline &extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
 } // namespace lidar_aggregation

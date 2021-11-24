@@ -110,17 +110,8 @@ void LidarAggregationNodelet::LoadParams() {
     throw std::invalid_argument{"Could not load parameter odometry_topic"};
   }
 
-  if (nh_.getParam("lidar_aggregation/aggregator/dynamic_extrinsics",
-                   params_.dynamic_extrinsics)) {
-    ROS_INFO("Loaded parameter dynamic_extrinsics: %d",
-             params_.dynamic_extrinsics);
-  } else {
-    params_.dynamic_extrinsics = false;
-    ROS_INFO("Could not load parameter dynamic_extrinsics, setting to false");
-  }
-
   if (nh_.getParam("lidar_aggregation/aggregator/clear_queue_on_update",
-                   params_.dynamic_extrinsics)) {
+                   params_.clear_queue_on_update)) {
     ROS_INFO("Loaded parameter clear_queue_on_update: %d",
              params_.clear_queue_on_update);
   } else {
@@ -138,90 +129,11 @@ void LidarAggregationNodelet::LoadParams() {
     ROS_INFO("Could not load parameter max_aggregation_time_seconds, using 10");
   }
 
-  if (nh_.getParam("lidar_aggregation/aggregator/baselink_frame",
-                   params_.baselink_frame)) {
-    ROS_INFO("Loaded parameter baselink_frame: %s",
-             params_.baselink_frame.c_str());
-  } else {
-    params_.baselink_frame = "";
-    ROS_INFO(
-        "Could not load parameter baselink_frame, using frame from "
-        "odometry message.");
-  }
-
-  if (nh_.getParam("lidar_aggregation/aggregator/lidar_frame",
-                   params_.lidar_frame)) {
-    ROS_INFO("Loaded parameter lidar_frame: %s", params_.lidar_frame.c_str());
-  } else {
-    params_.lidar_frame = "";
-    ROS_INFO(
-        "Could not load parameter lidar_frame, using frame from "
-        "input pointcloud message.");
-  }
-
-  std::string log_level;
-  if (nh_.getParam("lidar_aggregation/aggregator/log_level", log_level)) {
-    ROS_INFO("Loaded parameter log_level: %s", log_level.c_str());
-  } else {
-    log_level = "INFO";
-    ROS_INFO("Could not load parameter log_level, using: INFO");
-  }
-  if (log_level == "INFO") {
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
-                                   ros::console::levels::Info);
-  } else if (log_level == "DEBUG") {
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
-                                   ros::console::levels::Debug);
-  } else if (log_level == "WARN") {
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
-                                   ros::console::levels::Warn);
-  } else if (log_level == "ERROR") {
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
-                                   ros::console::levels::Error);
-  } else if (log_level == "FATAL") {
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
-                                   ros::console::levels::Fatal);
-  } else {
-    ROS_ERROR("Invalid log_level, options: DEBUG, INFO, WARN, ERROR, FATAL.");
-  }
-}
-
-bool LidarAggregationNodelet::SetExtrinsics() {
-  // we will not add the extrinsics to the TfTree if they are dynamic, because
-  // it'll need to be looked up each time we extract a pose
-  if (params_.dynamic_extrinsics) {
-    return true;
-  }
-
-  if (extrinsics_set_) {
-    return true;
-  }
-
-  // if baselink_frame or lidar_frame params not set, we will have to wait
-  // till we get the first odometry and pointcloud messages to set the
-  // extrinsics
-  if (params_.baselink_frame.empty() || params_.lidar_frame.empty()) {
-    return false;
-  }
-
-  if (AddExtrinsic(ros::Time(0), 5)) {
-    ROS_DEBUG("Successfully set static extrinsics");
-    extrinsics_set_ = true;
-    return true;
-  }
-
-  return false;
 }
 
 void LidarAggregationNodelet::AggregationTimeCallback(
     const std_msgs::TimeConstPtr message) {
   ROS_DEBUG("Received aggregation time message.");
-  if (!SetExtrinsics()) {
-    ROS_WARN(
-        "Extrinsics not yet set, not creating aggregate. Make sure your "
-        "extrinsics are being published to tf.");
-    return;
-  }
 
   ROS_DEBUG("Creating aggregate");
   aggregator_->Aggregate(message->data);

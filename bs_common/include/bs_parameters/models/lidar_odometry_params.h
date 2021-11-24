@@ -6,16 +6,17 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <ros/param.h>
 
+#include <beam_utils/pointsclouds.h>
+
 #include <bs_parameters/parameter_base.h>
 
-namespace bs_parameters {
-namespace models {
+namespace bs_parameters { namespace models {
 
 /**
- * @brief Defines the set of parameters required by the ScanMatcher class
+ * @brief Defines the set of parameters required by the LidarOdometry class
  */
 struct LidarOdometryParams : public ParameterBase {
- public:
+public:
   /**
    * @brief Method for loading parameter values from ROS.
    *
@@ -76,19 +77,31 @@ struct LidarOdometryParams : public ParameterBase {
      * appropriate config in beam_slam_launch/config/matcher_config/. Setting to
      * empty will use the default params defined in the class */
     getParam<std::string>(nh, "global_matcher_params_path",
-                          global_matcher_params_path, global_matcher_params_path);
+                          global_matcher_params_path,
+                          global_matcher_params_path);
 
     /** Scan registration config path for local registration. DEFAULT_PATH uses
      * the appropriate config in beam_slam_launch/config/registration_config/.
      * Setting to empty will use the default params defined in the class */
     getParam<std::string>(nh, "local_registration_config_path",
-                          local_registration_config_path, local_registration_config_path);
+                          local_registration_config_path,
+                          local_registration_config_path);
 
     /**
      * type of lidar. Options: VELODYNE, OUSTER. This is needed so we know how
      * to convert the PointCloud2 msgs in the lidar odometry.
      */
-    getParam<std::string>(nh, "lidar_type", lidar_type, lidar_type);
+    lidar_type_str = "VELODYNE";
+    getParam<std::string>(nh, "lidar_type", lidar_type_str, lidar_type_str);
+    auto iter = beam::LidarTypeStringMap.find(lidar_type_str);
+    if (iter == beam::LidarTypeStringMap.end()) {
+      ROS_ERROR("Invalid lidar type input param, using default (VELODYNE). "
+                "Options: %s",
+                beam::GetLidarTypes().c_str());
+      lidar_type = beam::LidarType::VELODYNE;
+    } else {
+      lidar_type = iter->second;
+    }
 
     /** DEFAULT_PATH uses the config in
      * beam_slam_launch_config/config/registration_config/input_filters.json.
@@ -113,7 +126,8 @@ struct LidarOdometryParams : public ParameterBase {
      * map and the online map. Therefore we don't want to send the reloc request
      * right when sending the scan pose to the graph. That being said, the reloc
      * request cannot be at a higher frequency than the optimizer. */
-    getParam<double>(nh, "reloc_request_period", reloc_request_period, reloc_request_period);
+    getParam<double>(nh, "reloc_request_period", reloc_request_period,
+                     reloc_request_period);
 
     /** Optional For Odometry frame initializer */
     getParam<std::string>(nh, "sensor_frame_id_override",
@@ -134,9 +148,8 @@ struct LidarOdometryParams : public ParameterBase {
     }
     if (std::accumulate(lm_noise_diagonal.begin(), lm_noise_diagonal.end(),
                         0.0) == 0.0) {
-      ROS_INFO(
-          "Local mapper noise diagonal set to zero, not performing "
-          "registration to local map.");
+      ROS_INFO("Local mapper noise diagonal set to zero, not performing "
+               "registration to local map.");
       register_to_lm = false;
     }
     for (int i = 0; i < 6; i++) {
@@ -150,18 +163,16 @@ struct LidarOdometryParams : public ParameterBase {
     nh.param("global_registration_noise_diagonal", gm_noise_diagonal,
              gm_noise_diagonal);
     if (gm_noise_diagonal.size() != 6) {
-      ROS_ERROR(
-          "Invalid global_registration_noise_diagonal params, required 6 "
-          "params, "
-          "given: %d. Using default (0.1 for all)",
-          gm_noise_diagonal.size());
+      ROS_ERROR("Invalid global_registration_noise_diagonal params, required 6 "
+                "params, "
+                "given: %d. Using default (0.1 for all)",
+                gm_noise_diagonal.size());
       gm_noise_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }
     if (std::accumulate(gm_noise_diagonal.begin(), gm_noise_diagonal.end(),
                         0.0) == 0) {
-      ROS_INFO(
-          "Global mapper noise diagonal set to zero, not performing "
-          "registration to global map.");
+      ROS_INFO("Global mapper noise diagonal set to zero, not performing "
+               "registration to global map.");
       register_to_gm = false;
     }
     for (int i = 0; i < 6; i++) {
@@ -174,10 +185,9 @@ struct LidarOdometryParams : public ParameterBase {
     nh.param("frame_initializer_prior_noise_diagonal", prior_diagonal,
              prior_diagonal);
     if (prior_diagonal.size() != 6) {
-      ROS_ERROR(
-          "Invalid gm_noise_diagonal params, required 6 params, "
-          "given: %d. Using default (0.1 for all)",
-          prior_diagonal.size());
+      ROS_ERROR("Invalid gm_noise_diagonal params, required 6 params, "
+                "given: %d. Using default (0.1 for all)",
+                prior_diagonal.size());
       prior_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }
     if (std::accumulate(prior_diagonal.begin(), prior_diagonal.end(), 0.0) ==
@@ -185,9 +195,7 @@ struct LidarOdometryParams : public ParameterBase {
       ROS_INFO("Prior diagonal set to zero, not adding priors");
       use_pose_priors = false;
     }
-    for (int i = 0; i < 6; i++) {
-      prior_covariance(i, i) = prior_diagonal[i];
-    }
+    for (int i = 0; i < 6; i++) { prior_covariance(i, i) = prior_diagonal[i]; }
   }
 
   // Local Scan Registration Params
@@ -206,7 +214,6 @@ struct LidarOdometryParams : public ParameterBase {
   bool register_to_gm{true};
 
   // General params
-  std::string lidar_type{"VELODYNE"};
   std::string input_topic;
   std::string frame_initializer_type{"ODOMETRY"};
   std::string frame_initializer_info{""};
@@ -222,6 +229,8 @@ struct LidarOdometryParams : public ParameterBase {
   bool publish_registration_results{false};
   bool use_pose_priors{true};
 
+  beam::LidarType lidar_type{beam::LidarType::VELODYNE};
+
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};
 
@@ -229,5 +238,4 @@ struct LidarOdometryParams : public ParameterBase {
   std::string sensor_frame_id_override;
 };
 
-}  // namespace models
-}  // namespace bs_parameters
+}} // namespace bs_parameters::models

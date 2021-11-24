@@ -4,15 +4,18 @@ lag_duration: 7
 
 ## model plugins: declare all plugins to use and give a unique name
 sensor_models:
+  - name: 'lo_initializer'
+    type: 'bs_models::LoInitializer'
   - name: 'inertial_odometry'
     type: 'bs_models::InertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
+  - name: 'lidar_aggregation'
+    type: 'bs_models::LidarAggregation'  
   # - name: 'lidar_odometry'
   #   type: 'bs_models::LidarOdometry'
   #   motion_models: ['unicycle_3d']
-  - name: 'lo_initializer'
-    type: 'bs_models::LoInitializer'
+    
   
 
 motion_models:
@@ -49,6 +52,33 @@ unicycle_3d:
                            1.0e-2, 1.0e-2, 1.0e-2]
   buffer_length: 100000
 
+lo_initializer:
+  registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
+  matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16_init.json' 
+  ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
+  lidar_topic: '/lidar_h/velodyne_points'
+  output_topic: '/lo_initialiser_result'
+  aggregation_time: 0.1
+  trajectory_time_window: 5
+  min_trajectory_distance: 0.5
+  scan_output_directory: '' 
+  max_frequency: 5 
+
+inertial_odometry:
+  input_topic: '/imu/data'
+  init_path_topic: '/lo_initialiser_result'
+  init_use_scale_estimate: false
+  keyframe_rate: 0.1
+  msg_queue_size: 10000
+
+lidar_aggregation:
+  aggregation_time_topic: inertial_pose_stamps 
+  odometry_topic: inertial_odometry
+  use_trigger: true
+  pointcloud_topic: /lidar_h/velodyne_packets_unpacked 
+  aggregate_topic: /lidar_h/velodyne_points_undistorted
+  max_aggregation_time_seconds: 0.1 
+
 lidar_odometry:
   # Local scan registration
   local_registration_type: 'MAPLOAM' 
@@ -73,25 +103,6 @@ lidar_odometry:
   frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
   reloc_request_period: 1
   scan_output_directory: ''
-
-inertial_odometry:
-  input_topic: '/imu/data'
-  init_path_topic: '/lo_initialiser_result'
-  init_use_scale_estimate: false
-  keyframe_rate: 0.1
-  msg_queue_size: 10000
-
-lo_initializer:
-  registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
-  matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16_init.json' 
-  ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
-  lidar_topic: '/lidar_h/velodyne_points'
-  output_topic: '/lo_initialiser_result'
-  aggregation_time: 0.1
-  trajectory_time_window: 5
-  min_trajectory_distance: 0.5
-  scan_output_directory: '' 
-  max_frequency: 5 
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom

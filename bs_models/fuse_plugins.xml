@@ -21,6 +21,11 @@
       An adapter-type sensor that produces relative pose constraints
     </description>
   </class>
+  <class type="bs_models::LidarAggregation" base_class_type="fuse_core::SensorModel">
+    <description>
+      A sensor model for aggregating and motion compensating lidar data
+    </description>
+  </class>
   <class type="bs_models::LoInitializer" base_class_type="fuse_core::SensorModel">
     <description>
       Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate

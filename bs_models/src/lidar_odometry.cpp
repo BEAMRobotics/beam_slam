@@ -6,10 +6,10 @@
 
 #include <beam_utils/filesystem.h>
 
+#include <bs_common/bs_msgs.h>
+#include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
-#include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry, fuse_core::SensorModel)
@@ -132,7 +132,7 @@ void LidarOdometry::onStart() {
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
             "/local_mapper/registration/aligned_gm", 10);
   }
-};
+}
 
 void LidarOdometry::onStop() {
   // if output set, save scans before stopping
@@ -171,35 +171,27 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   }
 
   std::shared_ptr<ScanPose> current_scan_pose;
-  if (params_.lidar_type == "VELODYNE") {
+  if (params_.lidar_type == beam::LidarType::VELODYNE) {
     pcl::PointCloud<PointXYZIRT> cloud_current_unfiltered;
     beam::ROSToPCL(cloud_current_unfiltered, *msg);
     pcl::PointCloud<PointXYZIRT> cloud_filtered =
-        beam_filtering::FilterPointCloud<PointXYZIRT>(
-            cloud_current_unfiltered, input_filter_params_);
+        beam_filtering::FilterPointCloud<PointXYZIRT>(cloud_current_unfiltered,
+                                                      input_filter_params_);
     current_scan_pose = std::make_shared<ScanPose>(
         cloud_filtered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
         T_BASELINK_LIDAR, feature_extractor_);
-    // current_scan_pose = std::make_shared<ScanPose>(
-    //     cloud_current_unfiltered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
-    //     T_BASELINK_LIDAR, feature_extractor_);
-  } else if (params_.lidar_type == "OUSTER") {
+  } else if (params_.lidar_type == beam::LidarType::OUSTER) {
     pcl::PointCloud<PointXYZITRRNR> cloud_current_unfiltered;
     beam::ROSToPCL(cloud_current_unfiltered, *msg);
-    // pcl::PointCloud<PointXYZITRRNR> cloud_filtered =
-    //     beam_filtering::FilterPointCloud(cloud_current_unfiltered,
-    //                                      input_filter_params_);
-    // current_scan_pose = std::make_shared<ScanPose>(
-    //     cloud_filtered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
-    //     T_BASELINK_LIDAR, feature_extractor_);
+    pcl::PointCloud<PointXYZITRRNR> cloud_filtered =
+        beam_filtering::FilterPointCloud(cloud_current_unfiltered,
+                                         input_filter_params_);
     current_scan_pose = std::make_shared<ScanPose>(
-        cloud_current_unfiltered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
+        cloud_filtered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
         T_BASELINK_LIDAR, feature_extractor_);
   } else {
     BEAM_ERROR(
-        "Invalid lidar type param. Options: VELODYNE, OUSTER, input: {}. Using "
-        "default: VELODYNE",
-        params_.lidar_type);
+        "Invalid lidar type param. Lidar type may not be implemented yet.");
   }
 
   fuse_core::Transaction::SharedPtr gm_transaction;
@@ -249,15 +241,9 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   // combine to one transaction and return
   fuse_core::Transaction::SharedPtr transaction =
       fuse_core::Transaction::make_shared();
-  if (lm_transaction != nullptr) {
-    transaction->merge(*lm_transaction);
-  }
-  if (gm_transaction != nullptr) {
-    transaction->merge(*gm_transaction);
-  }
-  if (prior_transaction != nullptr) {
-    transaction->merge(*prior_transaction);
-  }
+  if (lm_transaction != nullptr) { transaction->merge(*lm_transaction); }
+  if (gm_transaction != nullptr) { transaction->merge(*gm_transaction); }
+  if (prior_transaction != nullptr) { transaction->merge(*prior_transaction); }
 
   return transaction;
 }
@@ -356,8 +342,8 @@ void LidarOdometry::SetupRegistration() {
   }
 }
 
-fuse_core::Transaction::SharedPtr LidarOdometry::RegisterScanToGlobalMap(
-    const ScanPose& scan_pose) {
+fuse_core::Transaction::SharedPtr
+    LidarOdometry::RegisterScanToGlobalMap(const ScanPose& scan_pose) {
   Eigen::Matrix4d T_MAPEST_SCAN = scan_pose.T_REFFRAME_LIDAR();
   Eigen::Matrix4d T_MAPEST_MAP;
 
@@ -371,9 +357,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::RegisterScanToGlobalMap(
     global_loam_matching_->SetRef(current_map);
     global_loam_matching_->SetTarget(scan_in_map_frame);
 
-    if (!global_loam_matching_->Match()) {
-      return nullptr;
-    }
+    if (!global_loam_matching_->Match()) { return nullptr; }
 
     T_MAPEST_MAP = global_loam_matching_->GetResult().matrix();
   } else {
@@ -386,9 +370,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::RegisterScanToGlobalMap(
     global_matching_->SetRef(current_map);
     global_matching_->SetTarget(scan_in_map_frame);
 
-    if (!global_matching_->Match()) {
-      return nullptr;
-    }
+    if (!global_matching_->Match()) { return nullptr; }
 
     T_MAPEST_MAP = global_matching_->GetResult().matrix();
   }
@@ -480,9 +462,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     active_clouds_.erase(i++);
   }
 
-  if (!output_graph_updates_) {
-    return;
-  }
+  if (!output_graph_updates_) { return; }
 
   std::string update_time =
       beam::ConvertTimeToDate(std::chrono::system_clock::now());
@@ -553,9 +533,7 @@ void LidarOdometry::SendRelocRequest(const ScanPose& scan_pose) {
 }
 
 void LidarOdometry::PublishMarginalizedScanPose(const ScanPose& scan_pose) {
-  if (!params_.output_loam_points && params_.output_lidar_points) {
-    return;
-  }
+  if (!params_.output_loam_points && params_.output_lidar_points) { return; }
 
   // output to global mapper
   SlamChunkMsg slam_chunk_msg;
@@ -564,9 +542,7 @@ void LidarOdometry::PublishMarginalizedScanPose(const ScanPose& scan_pose) {
   std::vector<double> pose;
   const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
   for (uint8_t i = 0; i < 3; i++) {
-    for (uint8_t j = 0; j < 4; j++) {
-      pose.push_back(T(i, j));
-    }
+    for (uint8_t j = 0; j < 4; j++) { pose.push_back(T(i, j)); }
   }
 
   slam_chunk_msg.T_WORLD_BASELINK = pose;
@@ -632,12 +608,8 @@ void LidarOdometry::PublishScanRegistrationResults(
     const fuse_core::Transaction::SharedPtr& transaction_lm,
     const fuse_core::Transaction::SharedPtr& transaction_gm,
     const ScanPose& scan_pose) {
-  if (!params_.publish_registration_results) {
-    return;
-  }
-  if (transaction_lm == nullptr && transaction_gm == nullptr) {
-    return;
-  }
+  if (!params_.publish_registration_results) { return; }
+  if (transaction_lm == nullptr && transaction_gm == nullptr) { return; }
 
   const PointCloud& scan_in_lidar_frame = scan_pose.Cloud();
   Eigen::Matrix4d T_WORLD_BASELINKINIT = scan_pose.T_REFFRAME_BASELINK();
@@ -710,9 +682,8 @@ void LidarOdometry::PublishScanRegistrationResults(
         const RegistrationMap& map = local_scan_registration_->GetMap();
         ros::Time ref_stamp;
         if (!map.GetUUIDStamp(variables.at(0), ref_stamp)) {
-          BEAM_WARN(
-              "UUID not found in registration map, not publishing scan "
-              "registration result.");
+          BEAM_WARN("UUID not found in registration map, not publishing scan "
+                    "registration result.");
           continue;
         }
         Eigen::Matrix4d T_WORLD_REF;
@@ -764,4 +735,4 @@ void LidarOdometry::PublishScanRegistrationResults(
   published_registration_results_++;
 }
 
-}  // namespace bs_models
+} // namespace bs_models

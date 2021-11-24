@@ -33,7 +33,10 @@ void InertialOdometry::onStart() {
                              &InertialOdometry::processInitPath, this);
   // Advertise publishers
   init_odom_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
+      private_node_handle_.advertise<nav_msgs::Odometry>("inertial_odometry", 100);
+
+  inertial_pose_stamps_publisher_ =
+      nh_.advertise<std_msgs::Time>("inertial_pose_stamps", 1000);      
 }
 
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr &msg) {
@@ -154,6 +157,7 @@ void InertialOdometry::RegisterImuMessage(const sensor_msgs::Imu &msg) {
   odom.header.frame_id = extrinsics_.GetBaselinkFrameId();
   odom.child_frame_id = extrinsics_.GetWorldFrameId();
   init_odom_publisher_.publish(odom);
+  inertial_pose_stamps_publisher_.publish(pose.header.stamp);
 
   // register inertial constraint
   if ((msg.header.stamp.toSec() - previous_state.toSec()) >=
