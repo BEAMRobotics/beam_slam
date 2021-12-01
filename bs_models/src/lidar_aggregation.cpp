@@ -2,8 +2,6 @@
 
 #include <pluginlib/class_list_macros.h>
 
-#include <bs_models/frame_initializers/frame_initializers.h>
-
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::LidarAggregation, fuse_core::SensorModel)
 

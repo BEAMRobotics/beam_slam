@@ -96,8 +96,7 @@ add_library(
   src/lib/frame_initializers/frame_initializer_base.cpp
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
-  src/lib/lidar_aggregators/end_time_lidar_aggregator.cpp
-  src/lib/lidar_aggregators/lidar_aggregator_base.cpp
+  src/lib/lidar_aggregator.cpp
   src/lib/scan_pose.cpp
   src/lib/active_submap.cpp
   src/lib/imu_preintegration.cpp

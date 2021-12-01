@@ -1,6 +1,5 @@
 #pragma once
 
-#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_parameters/models/lidar_aggregation_params.h>
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/throttled_callback.h>
