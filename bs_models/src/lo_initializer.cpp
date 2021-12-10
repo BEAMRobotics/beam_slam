@@ -1,13 +1,13 @@
 #include <bs_models/lo_initializer.h>
 
-#include <pluginlib/class_list_macros.h>
-#include <pcl/common/transforms.h>
 #include <boost/filesystem.hpp>
+#include <pcl/common/transforms.h>
+#include <pluginlib/class_list_macros.h>
 
 #include <beam_optimization/CeresParams.h>
 #include <beam_utils/math.h>
-#include <beam_utils/time.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/time.h>
 
 #include <bs_common/bs_msgs.h>
 
@@ -58,10 +58,36 @@ void LoInitializer::onInit() {
           reg_params.store_full_cloud);
   scan_registration_->SetFixedCovariance(0.000001);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
+
+  // get filter params
+  nlohmann::json J;
+  std::string filepath = bs_common::GetBeamSlamConfigPath() +
+                         "registration_config/input_filters.json";
+
+  ROS_INFO("Reading input filter params from %s", filepath.c_str());
+  if (!beam::ReadJson(filepath, J)) {
+    ROS_ERROR("Cannot read input filters json, not using any filters.");
+  } else {
+    nlohmann::json J_filters;
+    bool json_valid{true};
+    try {
+      J_filters = J["filters"];
+    } catch (...) {
+      ROS_ERROR(
+          "Missing 'filters' param in input filters config file. Not using "
+          "filters.");
+      std::cout << "Json Dump: " << J.dump() << "\n";
+      json_valid = false;
+    }
+    if (json_valid) {
+      input_filter_params_ = beam_filtering::LoadFilterParamsVector(J_filters);
+      ROS_INFO("Loaded %d input filters", input_filter_params_.size());
+    }
+  }
 }
 
 void LoInitializer::processLidar(
-    const sensor_msgs::PointCloud2::ConstPtr& msg) {
+    const sensor_msgs::PointCloud2::ConstPtr &msg) {
   if (initialization_complete_) {
     return;
   }
@@ -82,11 +108,14 @@ void LoInitializer::processLidar(
 
   PointCloud cloud_current = beam::ROSToPCL(*msg);
 
+  PointCloud cloud_filtered = beam_filtering::FilterPointCloud<pcl::PointXYZ>(
+      cloud_current, input_filter_params_);
+
   // init first message
   if (keyframe_start_time_.toSec() == 0) {
     ROS_DEBUG("Set first scan and imu start time.");
     keyframe_start_time_ = msg->header.stamp;
-    keyframe_cloud_ += cloud_current;
+    keyframe_cloud_ += cloud_filtered;
     keyframe_scan_counter_++;
     prev_stamp_ = msg->header.stamp;
     return;
@@ -103,13 +132,13 @@ void LoInitializer::processLidar(
     T_WORLD_KEYFRAME_ = T_WORLD_BASELINKLAST;
   }
 
-  keyframe_cloud_ += cloud_current;
+  keyframe_cloud_ += cloud_filtered;
   keyframe_scan_counter_++;
 
   prev_stamp_ = msg->header.stamp;
 }
 
-void LoInitializer::ProcessCurrentKeyframe(const ros::Time& time) {
+void LoInitializer::ProcessCurrentKeyframe(const ros::Time &time) {
   beam::HighResolutionTimer timer;
   if (keyframe_cloud_.size() == 0) {
     return;
@@ -178,13 +207,13 @@ void LoInitializer::ProcessCurrentKeyframe(const ros::Time& time) {
 
 void LoInitializer::SetTrajectoryStart() {
   auto iter = keyframes_.begin();
-  const Eigen::Matrix4d& T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_BASELINK();
+  const Eigen::Matrix4d &T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_KEYFRAME0_WORLDOLD =
       beam::InvertTransform(T_WORLDOLD_KEYFRAME0);
   iter->UpdatePose(Eigen::Matrix4d::Identity());
   iter++;
   while (iter != keyframes_.end()) {
-    const Eigen::Matrix4d& T_WORLDOLD_KEYFRAMEX = iter->T_REFFRAME_BASELINK();
+    const Eigen::Matrix4d &T_WORLDOLD_KEYFRAMEX = iter->T_REFFRAME_BASELINK();
     Eigen::Matrix4d T_KEYFRAME0_KEYFRAMEX =
         T_KEYFRAME0_WORLDOLD * T_WORLDOLD_KEYFRAMEX;
     iter->UpdatePose(T_KEYFRAME0_KEYFRAMEX);
@@ -198,9 +227,8 @@ void LoInitializer::OutputResults() {
   }
 
   if (!boost::filesystem::exists(params_.scan_output_directory)) {
-    ROS_ERROR(
-        "Output directory does not exist. Not outputting LO Initializer "
-        "results.");
+    ROS_ERROR("Output directory does not exist. Not outputting LO Initializer "
+              "results.");
     return;
   }
 
@@ -238,8 +266,8 @@ void LoInitializer::PublishResults() {
   results_publisher_.publish(msg);
 }
 
-double LoInitializer::CalculateTrajectoryLength(
-    const std::list<ScanPose>& keyframes) {
+double
+LoInitializer::CalculateTrajectoryLength(const std::list<ScanPose> &keyframes) {
   double length{0};
   auto iter = keyframes.begin();
   Eigen::Vector3d prev_position = iter->T_REFFRAME_BASELINK().block(0, 3, 3, 1);
@@ -257,4 +285,4 @@ double LoInitializer::CalculateTrajectoryLength(
   return length;
 }
 
-}  // namespace bs_models
+} // namespace bs_models

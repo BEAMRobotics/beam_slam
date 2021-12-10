@@ -171,7 +171,8 @@ bool ImuPreintegration::GetPose(
     std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance) {
   // check requested time
   if (t_now < pre_integrator_kj.data.front().t ||
-      pre_integrator_kj.data.empty()) {
+      pre_integrator_kj.data.empty() ||
+      t_now < pre_integrator_kj.data.back().t) {
     ROS_WARN("Requested time is outside of window, or no imu data available.");
     return false;
   }
@@ -214,7 +215,8 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
       t_now);
   // check requested time
   if (t_now < pre_integrator_ij.data.front().t ||
-      pre_integrator_ij.data.empty()) {
+      pre_integrator_ij.data.empty() ||
+      t_now < pre_integrator_ij.data.back().t) {
     ROS_WARN(
         "Requested time is outside of window, or no imu data is available.");
     return nullptr;
@@ -285,6 +287,13 @@ void ImuPreintegration::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
     // reset state k to state i
     imu_state_k_ = imu_state_i_;
   }
+}
+
+void ImuPreintegration::Clear() {
+  pre_integrator_kj.data.clear();
+  pre_integrator_kj.Reset();
+  pre_integrator_ij.data.clear();
+  pre_integrator_ij.Reset();
 }
 
 void ImuPreintegration::EstimateParameters(

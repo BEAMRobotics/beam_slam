@@ -61,6 +61,11 @@ public:
   ~ImuPreintegration() = default;
 
   /**
+   * @brief Clears all data from preintegrators and resets them
+   */
+  void Clear();
+
+  /**
    * @brief Populate IMU buffer with IMU data from raw sensor data
    */
   void AddToBuffer(const sensor_msgs::Imu &msg);

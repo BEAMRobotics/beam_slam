@@ -1,28 +1,28 @@
 #include <basalt/spline/se3_spline.h>
-#include <gtest/gtest.h>
 #include <fuse_core/constraint.h>
 #include <fuse_core/uuid.h>
 #include <fuse_core/variable.h>
 #include <fuse_graphs/hash_graph.h>
+#include <gtest/gtest.h>
 
-#include <test_utils.h>
-#include <bs_constraints/relative_pose/relative_constraints.h>
-#include <bs_constraints/global/absolute_constraint.h>
-#include <bs_models/imu_preintegration.h>
 #include <beam_utils/math.h>
+#include <bs_constraints/global/absolute_constraint.h>
+#include <bs_constraints/relative_pose/relative_constraints.h>
+#include <bs_models/imu_preintegration.h>
+#include <test_utils.h>
 
-void CalculateRelativeMotion(const bs_common::ImuState& IS1,
-                             const bs_common::ImuState& IS2,
-                             ros::Duration& delta_t,
-                             Eigen::Quaterniond& delta_q,
-                             Eigen::Vector3d& delta_p,
-                             Eigen::Vector3d& delta_v) {
+void CalculateRelativeMotion(const bs_common::ImuState &IS1,
+                             const bs_common::ImuState &IS2,
+                             ros::Duration &delta_t,
+                             Eigen::Quaterniond &delta_q,
+                             Eigen::Vector3d &delta_p,
+                             Eigen::Vector3d &delta_v) {
   // calculate change in time
   delta_t = ros::Duration(IS2.Stamp() - IS1.Stamp());
-  const double& dt = delta_t.toSec();
+  const double &dt = delta_t.toSec();
 
   // calculate change in motion
-  const Eigen::Matrix3d& R1_transpose = IS1.OrientationMat().transpose();
+  const Eigen::Matrix3d &R1_transpose = IS1.OrientationMat().transpose();
   delta_q = R1_transpose * IS2.OrientationMat();
   delta_v = R1_transpose *
             (IS2.VelocityVec() - IS1.VelocityVec() - GRAVITY_WORLD * dt);
@@ -32,7 +32,7 @@ void CalculateRelativeMotion(const bs_common::ImuState& IS1,
 }
 
 class Data {
- public:
+public:
   Data() {
     // set time of simulation
     int64_t t_simulation = t_sim_start + t_sim_duration;
@@ -58,9 +58,9 @@ class Data {
 
       // assign info to start of interval in imu data
       bs_common::IMUData imu_data;
-      imu_data.t = ros::Time(t_ns * 1e-9);  // [sec]
-      imu_data.w = rot_vel_body;            // [rad/sec]
-      imu_data.a = lin_accel_body;          // [m/sec^2]
+      imu_data.t = ros::Time(t_ns * 1e-9); // [sec]
+      imu_data.w = rot_vel_body;           // [rad/sec]
+      imu_data.a = lin_accel_body;         // [m/sec^2]
 
       // populate ground truth imu measurements buffer
       imu_data_gt.emplace_back(imu_data);
@@ -116,10 +116,10 @@ class Data {
 
   // spline parameters
   int num_knots = 15;
-  int64_t t_sim_start = 0;        // [nano sec]
-  int64_t t_sim_interval = 10e9;  // [nano sec]
-  int64_t t_sim_duration = 20e9;  // [nano sec]
-  int64_t dt_ns = 1e7;            // [nano sec]
+  int64_t t_sim_start = 0;       // [nano sec]
+  int64_t t_sim_interval = 10e9; // [nano sec]
+  int64_t t_sim_duration = 20e9; // [nano sec]
+  int64_t dt_ns = 1e7;           // [nano sec]
 
   // buffers
   std::vector<bs_common::IMUData> imu_data_gt;
@@ -156,8 +156,8 @@ class Data {
   Eigen::Vector3d delta_v_23;
 };
 
-int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
-                   fuse_graphs::HashGraph& graph) {
+int AddConstraints(const fuse_core::Transaction::SharedPtr &transaction,
+                   fuse_graphs::HashGraph &graph) {
   // instantiate constraints counter
   int counter{0};
 
@@ -174,14 +174,14 @@ int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
     if (iter->type() == dummy_relative_constraint.type()) {
       auto constraint =
           dynamic_cast<const bs_constraints::relative_pose::
-                           RelativeImuState3DStampedConstraint&>(*iter);
+                           RelativeImuState3DStampedConstraint &>(*iter);
       auto constraint_ptr = bs_constraints::relative_pose::
           RelativeImuState3DStampedConstraint::make_shared(constraint);
       graph.addConstraint(constraint_ptr);
       counter++;
     } else if (iter->type() == dummy_absolute_constraint.type()) {
       auto constraint = dynamic_cast<
-          const bs_constraints::global::AbsoluteImuState3DStampedConstraint&>(
+          const bs_constraints::global::AbsoluteImuState3DStampedConstraint &>(
           *iter);
       auto constraint_ptr = bs_constraints::global::
           AbsoluteImuState3DStampedConstraint::make_shared(constraint);
@@ -194,9 +194,9 @@ int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
   return counter;
 }
 
-std::vector<fuse_core::UUID> AddVariables(
-    const fuse_core::Transaction::SharedPtr& transaction,
-    fuse_graphs::HashGraph& graph) {
+std::vector<fuse_core::UUID>
+AddVariables(const fuse_core::Transaction::SharedPtr &transaction,
+             fuse_graphs::HashGraph &graph) {
   // instantiate dummy fuse/beam variables
   fuse_variables::Orientation3DStamped dummy_orientation;
   fuse_variables::Position3DStamped dummy_position;
@@ -211,30 +211,30 @@ std::vector<fuse_core::UUID> AddVariables(
        iter++) {
     if (iter->type() == dummy_orientation.type()) {
       auto var =
-          dynamic_cast<const fuse_variables::Orientation3DStamped&>(*iter);
+          dynamic_cast<const fuse_variables::Orientation3DStamped &>(*iter);
       fuse_core::Variable::SharedPtr var_ptr =
           fuse_variables::Orientation3DStamped::make_shared(var);
       graph.addVariable(var_ptr);
     } else if (iter->type() == dummy_position.type()) {
-      auto var = dynamic_cast<const fuse_variables::Position3DStamped&>(*iter);
+      auto var = dynamic_cast<const fuse_variables::Position3DStamped &>(*iter);
       fuse_core::Variable::SharedPtr var_ptr =
           fuse_variables::Position3DStamped::make_shared(var);
       graph.addVariable(var_ptr);
     } else if (iter->type() == dummy_velocity.type()) {
       auto var =
-          dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(*iter);
+          dynamic_cast<const fuse_variables::VelocityLinear3DStamped &>(*iter);
       fuse_core::Variable::SharedPtr var_ptr =
           fuse_variables::VelocityLinear3DStamped::make_shared(var);
       graph.addVariable(var_ptr);
     } else if (iter->type() == dummy_imu_bias_gyro.type()) {
       auto var =
-          dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(*iter);
+          dynamic_cast<const bs_variables::GyroscopeBias3DStamped &>(*iter);
       fuse_core::Variable::SharedPtr var_ptr =
           bs_variables::GyroscopeBias3DStamped::make_shared(var);
       graph.addVariable(var_ptr);
     } else if (iter->type() == dummy_imu_bias_accel.type()) {
       auto var =
-          dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(*iter);
+          dynamic_cast<const bs_variables::AccelerationBias3DStamped &>(*iter);
       fuse_core::Variable::SharedPtr var_ptr =
           bs_variables::AccelerationBias3DStamped::make_shared(var);
       graph.addVariable(var_ptr);
@@ -424,7 +424,7 @@ TEST(ImuPreintegration, Simple2StateFG) {
 }
 
 class ImuPreintegration_ZeroNoiseConstantBias : public ::testing::Test {
- public:
+public:
   void SetUp() override {
     // set small, random bias values
     bg = Eigen::Vector3d::Random() / 100;
@@ -442,16 +442,6 @@ class ImuPreintegration_ZeroNoiseConstantBias : public ::testing::Test {
     // instantiate preintegration class with zero noise and biases.
     imu_preintegration =
         std::make_unique<bs_models::ImuPreintegration>(params, bg, ba);
-
-    // populate ImuPreintegration with synthetic imu measurements
-    for (bs_common::IMUData msg : data.imu_data_gt) {
-      // adjust raw IMU measurements with biases
-      msg.w += bg;
-      msg.a += ba;
-
-      // populate IMU message buffer
-      imu_preintegration->AddToBuffer(msg);
-    }
 
     // get copies of IMU states and assign constant biases
     IS1 = data.IS1;
@@ -564,13 +554,22 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   /**
    * GetPose() functionality
    */
+  int cur_time = 1;
+  // populate ImuPreintegration with synthetic imu measurements
+  for (bs_common::IMUData msg : data.imu_data_gt) {
+    // adjust raw IMU measurements with biases
+    msg.w += bg;
+    msg.a += ba;
+    // populate IMU message buffer
+    imu_preintegration->AddToBuffer(msg);
 
-  for (int i = 1; i - 1 < data.pose_gt.size(); i++) {
-    Eigen::Matrix4d T_WORLD_IMU;
-    imu_preintegration->GetPose(T_WORLD_IMU, ros::Time(i));
-    bs_models::ExpectTransformsNear(T_WORLD_IMU, data.pose_gt[i - 1]);
+    if (msg.t == ros::Time(cur_time) && cur_time - 1 < data.pose_gt.size()) {
+      Eigen::Matrix4d T_WORLD_IMU;
+      imu_preintegration->GetPose(T_WORLD_IMU, ros::Time(cur_time));
+      bs_models::ExpectTransformsNear(T_WORLD_IMU, data.pose_gt[cur_time - 1]);
+      cur_time++;
+    }
   }
-
   // expect false from incorrect time
   Eigen::Matrix4d T_WORLD_IMU;
   EXPECT_FALSE(imu_preintegration->GetPose(T_WORLD_IMU, t_start));
@@ -578,7 +577,6 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   /**
    * RegisterNewImuPreintegratedFactor() functionality
    */
-
   // expect false as incorrect time will return nullptr
   EXPECT_FALSE(imu_preintegration->RegisterNewImuPreintegratedFactor(t_start));
 
@@ -588,7 +586,6 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
 
   // get end imu state from preintegration
   bs_common::ImuState IS_end = imu_preintegration->GetImuState();
-
   // check
   bs_models::ExpectImuStateNear(IS_end, IS3);
 
@@ -635,6 +632,9 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   // check
   bs_models::ExpectImuStateNear(IS1, IS_start);
   bs_models::ExpectImuStateNear(IS3, IS_end);
+
+  // clear data in preintegrators
+  imu_preintegration->Clear();
 }
 
 TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
@@ -645,8 +645,21 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
       fuse_variables::Position3DStamped::make_shared(IS1.Position());
   fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
+
   imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
   bs_common::ImuState IS_start = imu_preintegration->GetImuState();
+  // populate ImuPreintegration with synthetic imu measurements up to middle
+  for (bs_common::IMUData msg : data.imu_data_gt) {
+    if (msg.t <= t_middle) {
+      // adjust raw IMU measurements with biases
+      msg.w += bg;
+      msg.a += ba;
+      // populate IMU message buffer
+      imu_preintegration->AddToBuffer(msg);
+    } else {
+      break;
+    }
+  }
 
   // for testing, call GetPose() from start to middle
   for (int i = t_start.toSec() + 1; i - 1 < t_middle.toSec(); i++) {
@@ -658,6 +671,18 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
   auto transaction1 =
       imu_preintegration->RegisterNewImuPreintegratedFactor(t_middle);
   bs_common::ImuState IS_middle = imu_preintegration->GetImuState();
+
+  // populate ImuPreintegration with synthetic imu measurements from middle to
+  // end
+  for (bs_common::IMUData msg : data.imu_data_gt) {
+    if (msg.t > t_middle && msg.t <= t_end) {
+      // adjust raw IMU measurements with biases
+      msg.w += bg;
+      msg.a += ba;
+      // populate IMU message buffer
+      imu_preintegration->AddToBuffer(msg);
+    }
+  }
 
   auto transaction2 =
       imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
@@ -683,29 +708,20 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
   bs_models::ExpectImuStateNear(IS1, IS_start);
   bs_models::ExpectImuStateNear(IS2, IS_middle);
   bs_models::ExpectImuStateNear(IS3, IS_end);
+
+  imu_preintegration->Clear();
 }
 
 class ImuPreintegration_ProccessNoiseConstantBias : public ::testing::Test {
- public:
+public:
   void SetUp() override {
     // set small, random bias values
     bg = Eigen::Vector3d::Random() / 100;
     ba = Eigen::Vector3d::Random() / 10;
 
-    // generate random process noise, assuming gaussian
-    std::random_device rd{};
-    std::mt19937 gen{rd()};
-
-    // assume Euroc MAV dataset noise
-    static const double ACCEL_STD_DEV = 0.013026127;
-    static const double GYRO_STD_DEV = 0.044721359;
-
-    std::normal_distribution<> gyro_noise_dist{0, GYRO_STD_DEV};
-    std::normal_distribution<> accel_noise_dist{0, ACCEL_STD_DEV};
-
     // set intrinsic noise of imu
-    params.cov_gyro_noise.setIdentity() * GYRO_STD_DEV* GYRO_STD_DEV;
-    params.cov_accel_noise.setIdentity() * ACCEL_STD_DEV* ACCEL_STD_DEV;
+    params.cov_gyro_noise.setIdentity() * GYRO_STD_DEV *GYRO_STD_DEV;
+    params.cov_accel_noise.setIdentity() * ACCEL_STD_DEV *ACCEL_STD_DEV;
     params.cov_gyro_bias.setIdentity() * 1e-9;
     params.cov_accel_bias.setIdentity() * 1e-9;
 
@@ -713,21 +729,6 @@ class ImuPreintegration_ProccessNoiseConstantBias : public ::testing::Test {
     // bias terms (i.e. bg, ba) are set to zero
     imu_preintegration =
         std::make_unique<bs_models::ImuPreintegration>(params, bg, ba);
-
-    // populate ImuPreintegration with synthetic imu measurements
-    for (bs_common::IMUData msg : data.imu_data_gt) {
-      // adjust raw IMU measurements with biases and noise
-      msg.w[0] += bg[0] + gyro_noise_dist(gen);
-      msg.w[1] += bg[1] + gyro_noise_dist(gen);
-      msg.w[2] += bg[2] + gyro_noise_dist(gen);
-
-      msg.a[0] += ba[0] + accel_noise_dist(gen);
-      msg.a[1] += ba[1] + accel_noise_dist(gen);
-      msg.a[2] += ba[2] + accel_noise_dist(gen);
-
-      // populate IMU message buffer
-      imu_preintegration->AddToBuffer(msg);
-    }
 
     // get copies of IMU states at start and assign constant biases
     IS1 = data.IS1;
@@ -737,6 +738,16 @@ class ImuPreintegration_ProccessNoiseConstantBias : public ::testing::Test {
     // get stamp of IMU state at start
     t_start = IS1.Stamp();
   }
+
+  // assume Euroc MAV dataset noise
+  const double ACCEL_STD_DEV = 0.013026127;
+  const double GYRO_STD_DEV = 0.044721359;
+
+  std::normal_distribution<> gyro_noise_dist{0, GYRO_STD_DEV};
+  std::normal_distribution<> accel_noise_dist{0, ACCEL_STD_DEV};
+
+  std::random_device rd{};
+  std::mt19937 gen{rd()};
 
   Eigen::Vector3d bg;
   Eigen::Vector3d ba;
@@ -772,44 +783,62 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
   // smaller windows, taking key frames every second (as recorded by the ground
   // truth poses). Though predicted poses will not match the ground truth poses,
   // they should be reasonably close given typical process noise
-  for (int i = 1; i - 1 < data.pose_gt.size(); i++) {
-    // get ground truth pose every key frame
-    ros::Time t_now = ros::Time(i);
-    Eigen::Matrix4d T_WORLD_IMU_gt = data.pose_gt.at(i - 1);
+  int cur_time = 1;
+  // populate ImuPreintegration with synthetic imu measurements
+  for (bs_common::IMUData msg : data.imu_data_gt) {
+    // adjust raw IMU measurements with biases and noise
+    msg.w[0] += bg[0] + gyro_noise_dist(gen);
+    msg.w[1] += bg[1] + gyro_noise_dist(gen);
+    msg.w[2] += bg[2] + gyro_noise_dist(gen);
 
-    // convert ground truth pose to fuse variable shared pointers
-    fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt;
-    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt;
-    bs_common::EigenTransformToFusePose(T_WORLD_IMU_gt, t_WORLD_IMU_gt,
-                                        R_WORLD_IMU_gt);
+    msg.a[0] += ba[0] + accel_noise_dist(gen);
+    msg.a[1] += ba[1] + accel_noise_dist(gen);
+    msg.a[2] += ba[2] + accel_noise_dist(gen);
 
-    // Register factor
-    auto transaction = imu_preintegration->RegisterNewImuPreintegratedFactor(
-        t_now, R_WORLD_IMU_gt, t_WORLD_IMU_gt);
+    // populate IMU message buffer
+    imu_preintegration->AddToBuffer(msg);
 
-    // get predicted, current IMU state
-    IS_predicted_vec.emplace_back(imu_preintegration->GetImuState());
+    if (msg.t == ros::Time(cur_time) && cur_time - 1 < data.pose_gt.size()) {
+      // get ground truth pose every key frame
+      ros::Time t_now = ros::Time(cur_time);
+      Eigen::Matrix4d T_WORLD_IMU_gt = data.pose_gt.at(cur_time - 1);
 
-    // update and optimize
-    graph.update(*transaction);
-    graph.optimize();
+      // convert ground truth pose to fuse variable shared pointers
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt;
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt;
+      bs_common::EigenTransformToFusePose(T_WORLD_IMU_gt, t_WORLD_IMU_gt,
+                                          R_WORLD_IMU_gt);
 
-    // get ground truth IMU state
-    bs_common::ImuState IS_ground_truth(t_now);
-    IS_ground_truth.SetOrientation(R_WORLD_IMU_gt->data());
-    IS_ground_truth.SetPosition(t_WORLD_IMU_gt->data());
-    IS_ground_truth.SetVelocity(data.linear_velocity_gt.at(i - 1));
-    IS_ground_truth.SetGyroBias(bg);
-    IS_ground_truth.SetAccelBias(ba);
+      // Register factor
+      auto transaction = imu_preintegration->RegisterNewImuPreintegratedFactor(
+          t_now, R_WORLD_IMU_gt, t_WORLD_IMU_gt);
 
-    IS_ground_truth_vec.emplace_back(IS_ground_truth);
+      // get predicted, current IMU state
+      IS_predicted_vec.emplace_back(imu_preintegration->GetImuState());
+
+      // update and optimize
+      graph.update(*transaction);
+      graph.optimize();
+
+      // get ground truth IMU state
+      bs_common::ImuState IS_ground_truth(t_now);
+      IS_ground_truth.SetOrientation(R_WORLD_IMU_gt->data());
+      IS_ground_truth.SetPosition(t_WORLD_IMU_gt->data());
+      IS_ground_truth.SetVelocity(data.linear_velocity_gt.at(cur_time - 1));
+      IS_ground_truth.SetGyroBias(bg);
+      IS_ground_truth.SetAccelBias(ba);
+
+      IS_ground_truth_vec.emplace_back(IS_ground_truth);
+
+      cur_time++;
+    }
   }
 
   // update IMU states with optimized graph
   auto g = fuse_graphs::HashGraph::make_shared(graph);
   for (size_t i = 0; i < IS_predicted_vec.size(); i++) {
     // get copy of predicted and update
-    bs_common::ImuState& IS_predicted = IS_predicted_vec.at(i);
+    bs_common::ImuState &IS_predicted = IS_predicted_vec.at(i);
     IS_predicted.Update(g);
 
     // DEBUG
@@ -822,7 +851,12 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
   }
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
+
+  Eigen::Matrix3d R;
+  R << 0.999877, -0.00365216, 0.0152233, 0.00351742, 0.999954, 0.00886823, -0.015255, -0.0081359, 0.999845;
+  std::cout << R << std::endl;
+  std::cout << Eigen::AngleAxis<double>(R).toRotationMatrix() << std::endl;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

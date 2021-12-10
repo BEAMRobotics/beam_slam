@@ -1,7 +1,7 @@
 #include <bs_models/scan_registration/scan_registration_base.h>
 
-#include <nlohmann/json.hpp>
 #include <beam_utils/filesystem.h>
+#include <nlohmann/json.hpp>
 
 namespace bs_models {
 namespace scan_registration {
@@ -9,7 +9,7 @@ namespace scan_registration {
 using namespace beam_matching;
 using namespace bs_common;
 
-void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
+void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string &config) {
   // check file exists
   if (config.empty()) {
     return;
@@ -36,11 +36,11 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
 }
 
 ScanRegistrationBase::ScanRegistrationBase(
-    const ScanRegistrationParamsBase& base_params)
+    const ScanRegistrationParamsBase &base_params)
     : base_params_(base_params) {}
 
 void ScanRegistrationBase::SetFixedCovariance(
-    const Eigen::Matrix<double, 6, 6>& covariance) {
+    const Eigen::Matrix<double, 6, 6> &covariance) {
   covariance_ = covariance;
   use_fixed_covariance_ = true;
 }
@@ -53,39 +53,23 @@ void ScanRegistrationBase::SetFixedCovariance(double covariance) {
   use_fixed_covariance_ = true;
 }
 
-const RegistrationMap& ScanRegistrationBase::GetMap() const { return map_; }
+const RegistrationMap &ScanRegistrationBase::GetMap() const { return map_; }
 
-RegistrationMap& ScanRegistrationBase::GetMapMutable() { return map_; }
+RegistrationMap &ScanRegistrationBase::GetMapMutable() { return map_; }
 
-bool ScanRegistrationBase::PassedRegThreshold(const Eigen::Matrix4d& T_measured,
-                                              std::string& summary) {
-  double t_error = T_measured.block(0, 3, 3, 1).norm();
-  Eigen::Matrix3d R = T_measured.block(0, 0, 3, 3);
-  double r_error_rad = std::abs(Eigen::AngleAxis<double>(R).angle());
-  double r_error_deg = beam::Rad2Deg(r_error_rad);
-
-  if (t_error > base_params_.outlier_threshold_trans_m) {
-    summary = "Calculated translation is greater than threshold (" +
-              std::to_string(t_error) + " > " +
-              std::to_string(base_params_.outlier_threshold_trans_m) +
-              ") - FAILED";
-    return false;
+bool ScanRegistrationBase::PassedRegThreshold(const Eigen::Matrix4d &T_measured,
+                                              std::string &summary) {
+  if (beam::PassedMotionThreshold(Eigen::Matrix4d::Identity(), T_measured,
+                                  base_params_.outlier_threshold_rot_deg,
+                                  base_params_.outlier_threshold_trans_m, false,
+                                  true, true)) {
+    return true;
   }
-
-  if (r_error_deg > base_params_.outlier_threshold_rot_deg) {
-    summary = "Calculated rotation is greater than threshold (" +
-              std::to_string(r_error_deg) + " > " +
-              std::to_string(base_params_.outlier_threshold_rot_deg) +
-              ") - FAILED";
-    return false;
-  }
-
-  summary = "PASSED";
-  return true;
+  return false;
 }
 
 bool ScanRegistrationBase::PassedMotionThresholds(
-    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
+    const Eigen::Matrix4d &T_CLOUD1_CLOUD2) {
   // check max translation
   double d_12 = T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm();
   if (base_params_.max_motion_trans_m > 0 &&
@@ -109,14 +93,14 @@ bool ScanRegistrationBase::PassedMotionThresholds(
     passed_rot = false;
   }
 
-  if(base_params_.min_motion_rot_deg == 0){
+  if (base_params_.min_motion_rot_deg == 0) {
     return passed_trans;
-  } else if (base_params_.min_motion_trans_m == 0){
+  } else if (base_params_.min_motion_trans_m == 0) {
     return passed_rot;
   }
 
   return (passed_trans || passed_rot);
 }
 
-}  // namespace scan_registration
-}  // namespace bs_models
+} // namespace scan_registration
+} // namespace bs_models
