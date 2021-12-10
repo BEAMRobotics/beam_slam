@@ -852,11 +852,6 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
 }
 
 int main(int argc, char **argv) {
-
-  Eigen::Matrix3d R;
-  R << 0.999877, -0.00365216, 0.0152233, 0.00351742, 0.999954, 0.00886823, -0.015255, -0.0081359, 0.999845;
-  std::cout << R << std::endl;
-  std::cout << Eigen::AngleAxis<double>(R).toRotationMatrix() << std::endl;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
