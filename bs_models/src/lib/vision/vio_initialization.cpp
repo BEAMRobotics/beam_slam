@@ -278,7 +278,8 @@ Eigen::Matrix4d VIOInitialization::LocalizeFrame(const ros::Time &img_time) {
   }
   // get pose estimate
   Eigen::Matrix4d T_WORLD_BASELINK_inertial;
-  std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance;
+  std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance = 
+      std::make_shared<Eigen::Matrix<double, 6, 6>>();
   imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time, covariance);
   // refine with visual info
   Eigen::Matrix4d T_CAMERA_WORLD_est =
