@@ -20,7 +20,7 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   }
 
   beam_mapping::Poses poses_reader;
-  if(!poses_reader.LoadFromFile()){
+  if(!poses_reader.LoadFromFile(file_path)){
     BEAM_ERROR(
         "Invalid file extension for pose file. Options: .json, .txt, .ply");
     throw std::invalid_argument{"Invalid extensions type."};

@@ -43,7 +43,7 @@ private:
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
-  std::make_shared<tf2::BufferCore> poses_;
+  std::shared_ptr<tf2::BufferCore> poses_;
 
   ros::Subscriber odometry_subscriber_;
   bool check_world_baselink_frames_{true};

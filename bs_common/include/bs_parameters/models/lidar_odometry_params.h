@@ -6,7 +6,7 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <ros/param.h>
 
-#include <beam_utils/pointsclouds.h>
+#include <beam_utils/pointclouds.h>
 
 #include <bs_parameters/parameter_base.h>
 
@@ -91,14 +91,14 @@ public:
      * type of lidar. Options: VELODYNE, OUSTER. This is needed so we know how
      * to convert the PointCloud2 msgs in the lidar odometry.
      */
-    lidar_type_str = "VELODYNE";
+    std::string lidar_type_str = "VELODYNE";
     getParam<std::string>(nh, "lidar_type", lidar_type_str, lidar_type_str);
-    auto iter = beam::LidarTypeStringMap.find(lidar_type_str);
-    if (iter == beam::LidarTypeStringMap.end()) {
+    auto iter = LidarTypeStringMap.find(lidar_type_str);
+    if (iter == LidarTypeStringMap.end()) {
       ROS_ERROR("Invalid lidar type input param, using default (VELODYNE). "
                 "Options: %s",
-                beam::GetLidarTypes().c_str());
-      lidar_type = beam::LidarType::VELODYNE;
+                GetLidarTypes().c_str());
+      lidar_type = LidarType::VELODYNE;
     } else {
       lidar_type = iter->second;
     }
@@ -229,7 +229,7 @@ public:
   bool publish_registration_results{false};
   bool use_pose_priors{true};
 
-  beam::LidarType lidar_type{beam::LidarType::VELODYNE};
+  LidarType lidar_type{LidarType::VELODYNE};
 
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};

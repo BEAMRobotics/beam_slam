@@ -1,8 +1,11 @@
 #pragma once
 
-#include <bs_parameters/models/lidar_aggregation_params.h>
+#include <std_msgs/Time.h>
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/throttled_callback.h>
+
+#include <bs_models/lidar_aggregator.h>
+#include <bs_parameters/models/lidar_aggregation_params.h>
 
 namespace bs_models {
 
@@ -21,14 +24,16 @@ private:
 
   void onStop() override;
 
-  void process(const sensor_msgs::PointCloud2::ConstPtr& msg);
+  void ProcessPointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg);
+
+  void ProcessTimeTrigger(const std_msgs::Time::ConstPtr& msg);
 
   template <typename PointT>
   std::map<uint64_t, pcl::PointCloud<PointT>>
       SeparateTimeStamps(const pcl::PointCloud<PointT>& cloud,
                          const ros::Time& stamp) {
     if (!point_stamps_checked_) {
-      if (cloud.at(0).time == ros::Time(0)) {
+      if (cloud.at(0).time == 0) {
         BEAM_WARN("Pointclouds do not have timestamped points. If scans are "
                   "output on a per-packet basis, this is okay, otherwise "
                   "motion compensation will not work.");
@@ -79,13 +84,15 @@ private:
 
   bs_parameters::models::LidarAggregationParams params_;
 
-  std::unique_ptr<EndTimeLidarAggregator> lidar_aggregator_;
+  std::unique_ptr<LidarAggregator<PointXYZIRT>> velodyne_lidar_aggregator_;
+  std::unique_ptr<LidarAggregator<PointXYZITRRNR>> ouster_lidar_aggregator_;
 
   bool per_point_timestamps_{true};
   bool point_stamps_checked_{false};
+  int counter_{0};
 
-  // todo: are these needed?
-  ros::Time first_pose_time_{ros::Time(0)};
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // params only tunable here
   double poses_buffer_time_{30};

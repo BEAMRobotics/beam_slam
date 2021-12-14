@@ -171,7 +171,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   }
 
   std::shared_ptr<ScanPose> current_scan_pose;
-  if (params_.lidar_type == beam::LidarType::VELODYNE) {
+  if (params_.lidar_type == LidarType::VELODYNE) {
     pcl::PointCloud<PointXYZIRT> cloud_current_unfiltered;
     beam::ROSToPCL(cloud_current_unfiltered, *msg);
     pcl::PointCloud<PointXYZIRT> cloud_filtered =
@@ -180,7 +180,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     current_scan_pose = std::make_shared<ScanPose>(
         cloud_filtered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
         T_BASELINK_LIDAR, feature_extractor_);
-  } else if (params_.lidar_type == beam::LidarType::OUSTER) {
+  } else if (params_.lidar_type == LidarType::OUSTER) {
     pcl::PointCloud<PointXYZITRRNR> cloud_current_unfiltered;
     beam::ROSToPCL(cloud_current_unfiltered, *msg);
     pcl::PointCloud<PointXYZITRRNR> cloud_filtered =

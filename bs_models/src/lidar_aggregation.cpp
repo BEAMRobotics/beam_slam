@@ -9,7 +9,6 @@ namespace bs_models {
 
 LidarAggregation::LidarAggregation()
     : fuse_core::AsyncSensorModel(1),
-      device_id_(fuse_core::uuid::NIL),
       throttled_callback_pc_(std::bind(&LidarAggregation::ProcessPointcloud,
                                        this, std::placeholders::_1)),
       throttled_callback_time_(std::bind(&LidarAggregation::ProcessTimeTrigger,
@@ -18,10 +17,23 @@ LidarAggregation::LidarAggregation()
 void LidarAggregation::onInit() {
   params_.loadFromROS(private_node_handle_);
 
-  lidar_aggregator_ = std::make_unique<EndTimeLidarAggregator>(
-      params_.odometry_topic, odometry_queue_size_, poses_buffer_time_,
-      ros::Duration(params_.max_aggregation_time_seconds),
-      params_.sensor_frame_id_override, params_.lidar_type);
+  if (params_.lidar_type == LidarType::VELODYNE) {
+    velodyne_lidar_aggregator_ = std::make_unique<LidarAggregator<PointXYZIRT>>(
+        params_.odometry_topic, odometry_subscriber_queue_size_,
+        poses_buffer_time_, ros::Duration(params_.max_aggregation_time_seconds),
+        params_.sensor_frame_id_override);
+  } else if (params_.lidar_type == LidarType::OUSTER) {
+    ouster_lidar_aggregator_ =
+        std::make_unique<LidarAggregator<PointXYZITRRNR>>(
+            params_.odometry_topic, odometry_subscriber_queue_size_,
+            poses_buffer_time_,
+            ros::Duration(params_.max_aggregation_time_seconds),
+            params_.sensor_frame_id_override);
+  } else {
+    BEAM_ERROR(
+        "Invalid lidar type param. Lidar type may not be implemented yet.");
+    throw std::invalid_argument{"Invalid lidar type."};
+  }
 }
 
 void LidarAggregation::onStart() {
@@ -48,58 +60,56 @@ void LidarAggregation::onStop() {
 
 void LidarAggregation::ProcessPointcloud(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
-  if (params_.lidar_type == beam::LidarType::VELODYNE) {
+  if (params_.lidar_type == LidarType::VELODYNE) {
     pcl::PointCloud<PointXYZIRT> cloud;
     beam::ROSToPCL(cloud, *msg);
     std::map<uint64_t, pcl::PointCloud<PointXYZIRT>> sorted_clouds =
-        SeparateTimeStamps<PointXYZIRT>(cloud, msg.stamp);
+        SeparateTimeStamps<PointXYZIRT>(cloud, msg->header.stamp);
     for (auto iter = sorted_clouds.begin(); iter != sorted_clouds.end();
          iter++) {
-      LidarChunk lidar_chunk<PointXYZIRT>();
-      lidar_chunk.stamp.fromNSec(iter->first);
-      *(lidar_chunk.cloud) = iter->second;
-      lidar_aggregator_->Add(lidar_chunk);
+      ros::Time t;
+      t.fromNSec(iter->first);
+      LidarChunk<PointXYZIRT> lidar_chunk(t, iter->second);
+      velodyne_lidar_aggregator_->Add(lidar_chunk);
     }
-  } else if (params_.lidar_type == beam::LidarType::OUSTER) {
+  } else if (params_.lidar_type == LidarType::OUSTER) {
     pcl::PointCloud<PointXYZITRRNR> cloud;
     beam::ROSToPCL(cloud, *msg);
     std::map<uint64_t, pcl::PointCloud<PointXYZITRRNR>> sorted_clouds =
-        SeparateTimeStamps<PointXYZITRRNR>(cloud, msg.stamp);
+        SeparateTimeStamps<PointXYZITRRNR>(cloud, msg->header.stamp);
     for (auto iter = sorted_clouds.begin(); iter != sorted_clouds.end();
          iter++) {
-      LidarChunk lidar_chunk<PointXYZITRRNR>();
-      lidar_chunk.stamp.fromNSec(iter->first);
-      *(lidar_chunk.cloud) = iter->second;
-      lidar_aggregator_->Add(lidar_chunk);
+      ros::Time t;
+      t.fromNSec(iter->first);
+      LidarChunk<PointXYZITRRNR> lidar_chunk(t, iter->second);
+      ouster_lidar_aggregator_->Add(lidar_chunk);
     }
-  } else {
-    BEAM_ERROR(
-        "Invalid lidar type param. Lidar type may not be implemented yet.");
-    throw std::invalid_argument{"Invalid lidar type."};
   }
 }
 
 void LidarAggregation::ProcessTimeTrigger(const std_msgs::Time::ConstPtr& msg) {
-  lidar_aggregator_->Aggregate(message->data);
-  if (params_.lidar_type == beam::LidarType::VELODYNE) {
+  if (params_.lidar_type == LidarType::VELODYNE) {
+    velodyne_lidar_aggregator_->Aggregate(msg->data);
     std::vector<LidarAggregate<PointXYZIRT>> aggregates =
-        lidar_aggregator_->Get();
-    for (const auto& cloud : aggregates) {
-      sensor_msgs::PointCloud2 cloud_msg = beam::PCLToROS(cloud_msg, cloud);
+        velodyne_lidar_aggregator_->Get();
+    for (const auto& aggregate : aggregates) {
+      sensor_msgs::PointCloud2 cloud_msg =
+          beam::PCLToROS(aggregate.cloud, aggregate.time,
+                         extrinsics_.GetLidarFrameId(), counter_);
       aggregate_publisher_.publish(cloud_msg);
     }
-  } else if (params_.lidar_type == beam::LidarType::OUSTER) {
+  } else if (params_.lidar_type == LidarType::OUSTER) {
+    ouster_lidar_aggregator_->Aggregate(msg->data);
     std::vector<LidarAggregate<PointXYZITRRNR>> aggregates =
-        lidar_aggregator_->Get();
-    for (const auto& cloud : aggregates) {
-      sensor_msgs::PointCloud2 cloud_msg = beam::PCLToROS(cloud_msg, cloud);
+        ouster_lidar_aggregator_->Get();
+    for (const auto& aggregate : aggregates) {
+      sensor_msgs::PointCloud2 cloud_msg =
+          beam::PCLToROS(aggregate.cloud, aggregate.time,
+                         extrinsics_.GetLidarFrameId(), counter_);
       aggregate_publisher_.publish(cloud_msg);
     }
-  } else {
-    BEAM_ERROR(
-        "Invalid lidar type param. Lidar type may not be implemented yet.");
-    throw std::invalid_argument{"Invalid lidar type."};
   }
+  counter_++;
 }
 
 } // namespace bs_models
