@@ -376,12 +376,11 @@ fuse_core::Transaction::SharedPtr
   }
 
   // check against threshold. Use threshold params from local matcher
-  std::string summary;
-  if (!local_scan_registration_->PassedRegThreshold(T_MAPEST_MAP, summary)) {
+  if (!local_scan_registration_->PassedRegThreshold(T_MAPEST_MAP)) {
     BEAM_WARN(
         "Failed global scan matcher transform threshold check for stamp {}.{}. "
-        "Skipping measurement. Reason: {}",
-        scan_pose.Stamp().sec, scan_pose.Stamp().nsec, summary);
+        "Skipping measurement.",
+        scan_pose.Stamp().sec, scan_pose.Stamp().nsec);
     return nullptr;
   }
 

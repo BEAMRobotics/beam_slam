@@ -7,6 +7,7 @@
 #include <fuse_graphs/hash_graph.h>
 
 #include <beam_utils/pointclouds.h>
+#include <beam_filtering/Utils.h>
 #include <beam_matching/Matchers.h>
 #include <beam_matching/loam/LoamPointCloud.h>
 #include <beam_matching/loam/LoamFeatureExtractor.h>
@@ -112,6 +113,8 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   std::unique_ptr<scan_registration::ScanToMapLoamRegistration>
       scan_registration_;
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
+
+  std::vector<beam_filtering::FilterParamsType> input_filter_params_;
 
   // store all current keyframes to be processed. Data in scan poses have
   // already been converted to the baselink frame, and T_BASELINK_LIDAR is set

@@ -183,12 +183,11 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
 
   Eigen::Matrix4d T_MAPEST_MAP = matcher_->GetResult().matrix();
 
-  std::string summary;
-  if (!PassedRegThreshold(T_MAPEST_MAP, summary)) {
+  if (!PassedRegThreshold(T_MAPEST_MAP)) {
     BEAM_WARN(
         "Failed scan matcher transform threshold check for stamp {}.{}. "
-        "Skipping measurement. Reason: {}",
-        scan_pose.Stamp().sec, scan_pose.Stamp().nsec, summary);
+        "Skipping measurement.",
+        scan_pose.Stamp().sec, scan_pose.Stamp().nsec);
     return false;
   }
 

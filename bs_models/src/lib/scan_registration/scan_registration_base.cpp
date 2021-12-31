@@ -60,35 +60,12 @@ RegistrationMap& ScanRegistrationBase::GetMapMutable() {
   return map_;
 }
 
-bool ScanRegistrationBase::PassedRegThreshold(const Eigen::Matrix4d& T_measured,
-                                              std::string& summary) {
-  double t_error = T_measured.block(0, 3, 3, 1).norm();
-  Eigen::Matrix<double, 3, 3, Eigen::DontAlign> R =
-      T_measured.block(0, 0, 3, 3);
-  Eigen::Matrix<double, 3, 3, Eigen::DontAlign> R_out1 =
-      Eigen::AngleAxis<double>(R).toRotationMatrix();
-
-  double r_error_rad = std::abs(Eigen::AngleAxis<double>(R).angle());
-  double r_error_deg = beam::Rad2Deg(r_error_rad);
-
-  if (t_error > base_params_.outlier_threshold_trans_m) {
-    summary = "Calculated translation is greater than threshold (" +
-              std::to_string(t_error) + " > " +
-              std::to_string(base_params_.outlier_threshold_trans_m) +
-              ") - FAILED";
-    return false;
-  }
-
-  if (r_error_deg > base_params_.outlier_threshold_rot_deg) {
-    summary = "Calculated rotation is greater than threshold (" +
-              std::to_string(r_error_deg) + " > " +
-              std::to_string(base_params_.outlier_threshold_rot_deg) +
-              ") - FAILED";
-    return false;
-  }
-
-  summary = "PASSED";
-  return true;
+bool ScanRegistrationBase::PassedRegThreshold(
+    const Eigen::Matrix4d& T_measured) {
+  return beam::PassedMotionThreshold(Eigen::Matrix4d::Identity(), T_measured,
+                                  base_params_.outlier_threshold_rot_deg,
+                                  base_params_.outlier_threshold_trans_m, false,
+                                  true, true);
 }
 
 bool ScanRegistrationBase::PassedMotionThresholds(
