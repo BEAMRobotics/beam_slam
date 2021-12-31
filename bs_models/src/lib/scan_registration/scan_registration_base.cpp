@@ -1,10 +1,9 @@
 #include <bs_models/scan_registration/scan_registration_base.h>
 
-#include <nlohmann/json.hpp>
 #include <beam_utils/filesystem.h>
+#include <nlohmann/json.hpp>
 
-namespace bs_models {
-namespace scan_registration {
+namespace bs_models { namespace scan_registration {
 
 using namespace beam_matching;
 using namespace bs_common;
@@ -53,14 +52,22 @@ void ScanRegistrationBase::SetFixedCovariance(double covariance) {
   use_fixed_covariance_ = true;
 }
 
-const RegistrationMap& ScanRegistrationBase::GetMap() const { return map_; }
+const RegistrationMap& ScanRegistrationBase::GetMap() const {
+  return map_;
+}
 
-RegistrationMap& ScanRegistrationBase::GetMapMutable() { return map_; }
+RegistrationMap& ScanRegistrationBase::GetMapMutable() {
+  return map_;
+}
 
 bool ScanRegistrationBase::PassedRegThreshold(const Eigen::Matrix4d& T_measured,
                                               std::string& summary) {
   double t_error = T_measured.block(0, 3, 3, 1).norm();
-  Eigen::Matrix3d R = T_measured.block(0, 0, 3, 3);
+  Eigen::Matrix<double, 3, 3, Eigen::DontAlign> R =
+      T_measured.block(0, 0, 3, 3);
+  Eigen::Matrix<double, 3, 3, Eigen::DontAlign> R_out1 =
+      Eigen::AngleAxis<double>(R).toRotationMatrix();
+
   double r_error_rad = std::abs(Eigen::AngleAxis<double>(R).angle());
   double r_error_deg = beam::Rad2Deg(r_error_rad);
 
@@ -109,14 +116,13 @@ bool ScanRegistrationBase::PassedMotionThresholds(
     passed_rot = false;
   }
 
-  if(base_params_.min_motion_rot_deg == 0){
+  if (base_params_.min_motion_rot_deg == 0) {
     return passed_trans;
-  } else if (base_params_.min_motion_trans_m == 0){
+  } else if (base_params_.min_motion_trans_m == 0) {
     return passed_rot;
   }
 
   return (passed_trans || passed_rot);
 }
 
-}  // namespace scan_registration
-}  // namespace bs_models
+}} // namespace bs_models::scan_registration

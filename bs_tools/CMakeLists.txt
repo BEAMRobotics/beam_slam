@@ -26,7 +26,7 @@ catkin_package(
 
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
+  #${catkin_INCLUDE_DIRS}
 )
 add_library(
   ${PROJECT_NAME}
@@ -34,6 +34,14 @@ add_library(
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
+)
+target_include_directories(${PROJECT_NAME}
+  PUBLIC
+    include
+    ${Boost_INCLUDE_DIRS}
+    ${catkin_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIRS}
 )
 target_link_libraries(
   ${PROJECT_NAME}

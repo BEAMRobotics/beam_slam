@@ -5,7 +5,6 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-find_package(tf REQUIRED)
 find_package(
   beam REQUIRED
   COMPONENTS 
@@ -20,11 +19,10 @@ set(catkin_build_depends
     geometry_msgs
     sensor_msgs
     nav_msgs
+    tf
     fuse_variables
     fuse_constraints
-    fuse_models
     bs_variables
-    tf
 )
 
 find_package(
@@ -65,8 +63,11 @@ catkin_package(
   CATKIN_DEPENDS
     ${catkin_build_depends}
     message_runtime
+  DEPENDS
+    Boost
+    CERES
+    EIGEN3  
 )
-
 
 ###########
 ## Build ##
@@ -92,6 +93,15 @@ add_library(${PROJECT_NAME}
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
+)
+
+target_include_directories(${PROJECT_NAME}
+  PUBLIC
+    include
+    ${Boost_INCLUDE_DIRS}
+    ${catkin_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIRS}
 )
 target_link_libraries(
   ${PROJECT_NAME}

@@ -4,8 +4,8 @@
 #include <nlohmann/json.hpp>
 
 #include <beam_calibration/TfTree.h>
-#include <beam_utils/log.h>
 #include <beam_utils/filesystem.h>
+#include <beam_utils/log.h>
 #include <beam_utils/math.h>
 #include <beam_utils/time.h>
 
@@ -80,7 +80,8 @@ void ExtrinsicsLookupBase::LoadExtrinsics(const std::string& filepath) {
 
   // iterate through calibrations and add to the tftree
   for (auto calib : J["calibrations"]) {
-    BEAM_INFO("Adding transfrom from {} to {}", calib["from_frame"], calib["to_frame"]);
+    BEAM_INFO("Adding transfrom from {} to {}", calib["from_frame"],
+              calib["to_frame"]);
     Eigen::Matrix4d::Identity();
     std::vector<double> v = calib["transform"];
     Eigen::Affine3d T;
@@ -482,4 +483,4 @@ bool ExtrinsicsLookupBase::SetTransform(const Eigen::Matrix4d& T,
   return true;
 }
 
-}  // namespace bs_common
+} // namespace bs_common

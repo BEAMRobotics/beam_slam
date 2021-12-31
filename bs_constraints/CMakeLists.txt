@@ -12,8 +12,6 @@ set(build_depends
   pluginlib
   roscpp
   tf2
-  tf2_geometry_msgs
-  tf2_ros
   bs_common
   bs_variables
 )
@@ -38,8 +36,6 @@ catkin_package(
     CERES
     EIGEN3
     tf2
-    tf2_geometry_msgs
-    tf2_ros
 )
 
 ###########
@@ -65,6 +61,7 @@ add_dependencies(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
   PUBLIC
     include
+    ${Boost_INCLUDE_DIRS}
     ${catkin_INCLUDE_DIRS}
     ${CERES_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIRS}
@@ -99,10 +96,12 @@ if(CATKIN_ENABLE_TESTING)
     ${catkin_EXPORTED_TARGETS}
   )
   target_include_directories(test_absolute_imu_state_3d_stamped_constraint
-    PRIVATE
+    PUBLIC
       include
+      ${Boost_INCLUDE_DIRS}
       ${catkin_INCLUDE_DIRS}
       ${CERES_INCLUDE_DIRS}
+      ${EIGEN3_INCLUDE_DIRS}
   )
   target_link_libraries(test_absolute_imu_state_3d_stamped_constraint
     ${PROJECT_NAME}

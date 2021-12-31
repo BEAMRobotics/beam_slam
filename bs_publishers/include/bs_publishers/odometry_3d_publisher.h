@@ -4,7 +4,6 @@
 #include <fuse_core/graph.h>
 #include <fuse_core/transaction.h>
 #include <fuse_core/uuid.h>
-#include <fuse_publishers/stamped_variable_synchronizer.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
@@ -15,6 +14,7 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
+#include <bs_publishers/stamped_variable_synchronizer.h>
 #include <bs_parameters/publishers/odometry_3d_publisher_params.h>
 
 namespace bs_publishers {
@@ -145,7 +145,7 @@ protected:
    * @brief Object that searches for the most recent common timestamp for a set
    * of variables
    */
-  using Synchronizer = fuse_publishers::StampedVariableSynchronizer<
+  using Synchronizer = bs_publishers::StampedVariableSynchronizer<
       fuse_variables::Orientation3DStamped, fuse_variables::Position3DStamped,
       fuse_variables::VelocityLinear3DStamped,
       fuse_variables::VelocityAngular3DStamped>;
