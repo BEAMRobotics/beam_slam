@@ -1,22 +1,36 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.14)
 project(bs_common)
 
-find_package(tf REQUIRED)
-find_package(beam REQUIRED COMPONENTS utils filtering matching calibration)
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
+
+find_package(
+  beam REQUIRED
+  COMPONENTS 
+  utils 
+  filtering 
+  matching 
+  calibration
+)
+
+set(catkin_build_depends
+    std_msgs
+    geometry_msgs
+    sensor_msgs
+    nav_msgs
+    tf
+    fuse_variables
+    fuse_constraints
+    bs_variables
+)
 
 find_package(
   catkin REQUIRED 
   COMPONENTS
-    ${build_depends}
-    fuse_variables
-    fuse_constraints
-    fuse_models
-    sensor_msgs
-    geometry_msgs
-    std_msgs
-    bs_variables
+    ${catkin_build_depends}
     message_generation
-  )
+)
 
 add_message_files(
   DIRECTORY
@@ -47,22 +61,22 @@ catkin_package(
   LIBRARIES
     ${PROJECT_NAME}
   CATKIN_DEPENDS
-    ${build_depends}
-    fuse_variables
-    fuse_constraints
-    fuse_models
-    sensor_msgs
-    std_msgs
-    geometry_msgs
-    bs_variables
+    ${catkin_build_depends}
+    message_runtime
+  DEPENDS
+    Boost
+    CERES
+    EIGEN3  
 )
-
 
 ###########
 ## Build ##
 ###########
-
-add_compile_options(-std=c++14)
+include_directories(
+  include
+  ${catkin_INCLUDE_DIRS}
+  ${beam_INCLUDE_DIRS}
+)
 
 # library
 add_library(${PROJECT_NAME}
@@ -76,19 +90,22 @@ add_library(${PROJECT_NAME}
   src/bs_common/preintegrator.cpp
   src/bs_common/utils.cpp
   src/bs_common/bs_msgs.cpp
-  )
+)
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
-  )
+)
+
 target_include_directories(${PROJECT_NAME}
   PUBLIC
-  include
-  ${catkin_INCLUDE_DIRS}
-  )
+    include
+    ${Boost_INCLUDE_DIRS}
+    ${catkin_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIRS}
+)
 target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
-    ${tf_LIBRARIES}
     beam::utils
     beam::matching
   )

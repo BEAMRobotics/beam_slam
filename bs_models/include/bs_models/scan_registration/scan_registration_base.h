@@ -78,8 +78,7 @@ class ScanRegistrationBase {
 
   RegistrationMap& GetMapMutable();
 
-  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured,
-                          std::string& summary = _tmp_string);
+  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured);
 
  protected:
   bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);

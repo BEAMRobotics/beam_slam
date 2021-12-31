@@ -20,14 +20,7 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   }
 
   beam_mapping::Poses poses_reader;
-  std::string extension = boost::filesystem::extension(file_path);
-  if (extension == ".json") {
-    poses_reader.LoadFromJSON(file_path);
-  } else if (extension == ".txt") {
-    poses_reader.LoadFromTXT(file_path);
-  } else if (extension == ".ply") {
-    poses_reader.LoadFromPLY(file_path);
-  } else {
+  if(!poses_reader.LoadFromFile(file_path)){
     BEAM_ERROR(
         "Invalid file extension for pose file. Options: .json, .txt, .ply");
     throw std::invalid_argument{"Invalid extensions type."};
@@ -54,14 +47,14 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     BEAM_ERROR(
         "Cannot use pose file with a moving frame that is not equal to the "
         "baselink frame when extrinsics are not static.");
-    throw std::runtime_error{"Extrinsics must be static."};
+    throw std::runtime_error{"Invalid pose file."};
   }
 
   Eigen::Matrix4d T_MOVINGFRAME_BASELINK;
   if (!extrinsics_.GetT_SENSOR_BASELINK(T_MOVINGFRAME_BASELINK,
                                         poses_reader.GetMovingFrame())) {
     BEAM_ERROR("Cannot lookup extrinsics. Exiting.");
-    // throw std::runtime_error{"Cannot lookup extrinsics."};
+    throw std::runtime_error{"Cannot lookup extrinsics."};
   }
 
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> transforms =
@@ -76,7 +69,7 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     cache_time = 10;
   }
 
-  poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
+  std::shared_ptr<tf2::BufferCore> poses = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
 
   for (int i = 0; i < transforms.size(); i++) {
     const Eigen::Matrix4d& T_WORLD_MOVINGFRAME = transforms[i];
@@ -86,10 +79,10 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     bs_common::EigenTransformToTransformStampedMsg(
         T_WORLD_BASELINK, timestamps[i], i, extrinsics_.GetWorldFrameId(),
         extrinsics_.GetBaselinkFrameId(), tf_stamped);
-    poses_->setTransform(tf_stamped, authority_, false);
+    poses->setTransform(tf_stamped, authority_, false);
   }
 
-  pose_lookup_ = std::make_shared<bs_common::PoseLookup>(poses_);
+  pose_lookup_ = std::make_shared<bs_common::PoseLookup>(poses);
 }
 
 }  // namespace frame_initializers

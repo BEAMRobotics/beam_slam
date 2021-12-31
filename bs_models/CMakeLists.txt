@@ -5,6 +5,8 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
+find_package(Eigen3 3.3.7 REQUIRED)
+
 find_package(
   beam REQUIRED 
   COMPONENTS 
@@ -26,13 +28,8 @@ set(catkin_build_depends
     roscpp
     sensor_msgs
     tf2
-    tf2_2d
-    tf2_geometry_msgs
-    tf2_ros
     fuse_core
     fuse_graphs
-    fuse_models
-    fuse_publishers
     fuse_variables
     fuse_constraints
     bs_common
@@ -57,22 +54,22 @@ catkin_package(
   CATKIN_DEPENDS 
     ${catkin_build_depends}
     message_runtime
+  DEPENDS
+    Boost
+    CERES
+    EIGEN3
 )
 
 ###########
 ## Build ##
 ###########
-include_directories(
-  include
-  ${OpenCV_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-)
 
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
   src/imu_3d.cpp
   src/lo_initializer.cpp
+  src/lidar_aggregation.cpp
   src/gt_initializer.cpp
   src/unicycle_3d.cpp
   src/unicycle_3d_ignition.cpp
@@ -95,12 +92,30 @@ add_library(
   src/lib/frame_initializers/frame_initializer_base.cpp
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
+  src/lib/lidar_aggregator.cpp
   src/lib/scan_pose.cpp
   src/lib/active_submap.cpp
   src/lib/imu_preintegration.cpp
 )
+
+include_directories(
+  include
+  ${OpenCV_INCLUDE_DIRS}
+  #${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+)
+
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
+)
+
+target_include_directories(${PROJECT_NAME}
+  PUBLIC
+    include
+    ${Boost_INCLUDE_DIRS}
+    ${catkin_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIRS}
 )
 
 ## Specify libraries to link a library or executable target against

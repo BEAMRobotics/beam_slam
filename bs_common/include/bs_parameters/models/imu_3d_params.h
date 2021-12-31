@@ -1,13 +1,10 @@
 #pragma once
 
 #include <fuse_core/parameter.h>
-#include <fuse_models/parameters/parameter_base.h>
 #include <ros/param.h>
 
 namespace bs_parameters {
 namespace models {
-
-using namespace fuse_models::parameters;
 
 /**
  * @brief Defines the set of parameters required by the Imu3D class

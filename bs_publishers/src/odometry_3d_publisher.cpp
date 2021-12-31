@@ -6,8 +6,7 @@
 #include <bs_constraints/motion/unicycle_3d_predict.h>
 
 // Register this publisher with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_publishers::Odometry3DPublisher,
-                       fuse_core::Publisher)
+PLUGINLIB_EXPORT_CLASS(bs_publishers::Odometry3DPublisher, fuse_core::Publisher)
 
 namespace bs_publishers {
 

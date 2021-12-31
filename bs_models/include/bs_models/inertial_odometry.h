@@ -87,6 +87,7 @@ private:
 
   // publishers
   ros::Publisher init_odom_publisher_;
+  ros::Publisher inertial_pose_stamps_publisher_;
 
   // buffer imu messages when initializing
   std::queue<sensor_msgs::Imu> imu_buffer_;

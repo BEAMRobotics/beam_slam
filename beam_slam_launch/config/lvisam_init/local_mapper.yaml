@@ -17,8 +17,6 @@ publishers:
     type: 'bs_publishers::Odometry3DPublisher'
   - name: 'path_pub'
     type: 'bs_publishers::Path3DPublisher'
-  - name: 'graph_pub'
-    type: 'fuse_publishers::SerializedPublisher'
 
 ## plugin params: specify all params for the plugins, using their unique name
 

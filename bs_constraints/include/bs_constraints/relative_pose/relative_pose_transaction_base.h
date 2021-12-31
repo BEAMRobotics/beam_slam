@@ -12,11 +12,10 @@
 
 #include <bs_common/imu_state.h>
 #include <bs_common/utils.h>
-#include <bs_constraints/relative_pose/relative_imu_state_3d_stamped_constraint.h>
 #include <bs_constraints/global/absolute_imu_state_3d_stamped_constraint.h>
+#include <bs_constraints/relative_pose/relative_imu_state_3d_stamped_constraint.h>
 
-namespace bs_constraints {
-namespace relative_pose {
+namespace bs_constraints { namespace relative_pose {
 
 /**
  *
@@ -33,7 +32,7 @@ namespace relative_pose {
  */
 template <typename ConstraintType, typename PriorType>
 class RelativePoseTransactionBase {
- public:
+public:
   SMART_PTR_DEFINITIONS(RelativePoseTransactionBase<ConstraintType, PriorType>);
 
   RelativePoseTransactionBase(const ros::Time& transaction_stamp,
@@ -46,9 +45,7 @@ class RelativePoseTransactionBase {
   }
 
   fuse_core::Transaction::SharedPtr GetTransaction() {
-    if (transaction_->empty()) {
-      return nullptr;
-    }
+    if (transaction_->empty()) { return nullptr; }
     return transaction_;
   }
 
@@ -250,11 +247,10 @@ class RelativePoseTransactionBase {
         override_variables_);
   }
 
- protected:
+protected:
   fuse_core::Transaction::SharedPtr transaction_;
   bool override_constraints_;
   bool override_variables_;
 };
 
-}  // namespace relative_pose
-}  // namespace bs_constraints
+}} // namespace bs_constraints::relative_pose

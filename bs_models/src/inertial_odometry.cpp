@@ -1,5 +1,7 @@
 #include <bs_models/inertial_odometry.h>
+
 #include <pluginlib/class_list_macros.h>
+#include <std_msgs/Time.h>
 
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
@@ -33,7 +35,10 @@ void InertialOdometry::onStart() {
                              &InertialOdometry::processInitPath, this);
   // Advertise publishers
   init_odom_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
+      node_handle_.advertise<nav_msgs::Odometry>("inertial_odometry", 100);
+
+  inertial_pose_stamps_publisher_ =
+      node_handle_.advertise<std_msgs::Time>("inertial_pose_stamps", 1000);      
 }
 
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr &msg) {
@@ -147,13 +152,16 @@ void InertialOdometry::RegisterImuMessage(const sensor_msgs::Imu &msg) {
   geometry_msgs::PoseStamped pose;
   bs_common::TransformationMatrixToPoseMsg(T_WORLD_BASELINK, msg.header.stamp,
                                            pose);
-  nav_msgs::Odometry odom;
-  odom.pose.pose = pose.pose;
-  odom.pose.covariance = covariance_flat;
-  odom.header.stamp = pose.header.stamp;
-  odom.header.frame_id = extrinsics_.GetBaselinkFrameId();
-  odom.child_frame_id = extrinsics_.GetWorldFrameId();
-  init_odom_publisher_.publish(odom);
+  nav_msgs::Odometry odom_msg;
+  odom_msg.pose.pose = pose.pose;
+  odom_msg.pose.covariance = covariance_flat;
+  odom_msg.header.stamp = pose.header.stamp;
+  odom_msg.header.frame_id = extrinsics_.GetBaselinkFrameId();
+  odom_msg.child_frame_id = extrinsics_.GetWorldFrameId();
+  init_odom_publisher_.publish(odom_msg);
+  std_msgs::Time time_msg;
+  time_msg.data = pose.header.stamp;
+  inertial_pose_stamps_publisher_.publish(time_msg);
 
   // register inertial constraint
   if ((msg.header.stamp.toSec() - previous_state.toSec()) >=

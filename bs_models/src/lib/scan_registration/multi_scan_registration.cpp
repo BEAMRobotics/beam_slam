@@ -521,13 +521,12 @@ bool MultiScanRegistration::MatchScans(
 
   OutputResults(scan_pose_ref, scan_pose_tgt, T_LIDARREF_LIDARTGT, false);
 
-  std::string summary;
-  if (!PassedRegThreshold(T_RefEst_Ref, summary)) {
+  if (!PassedRegThreshold(T_RefEst_Ref)) {
     BEAM_WARN(
         "Failed scan matcher transform threshold check for stamp {}.{}. to "
-        "stamp {}.{}. Skipping measurement. Reason: {}",
+        "stamp {}.{}. Skipping measurement.",
         scan_pose_tgt.Stamp().sec, scan_pose_tgt.Stamp().nsec,
-        scan_pose_ref.Stamp().sec, scan_pose_ref.Stamp().nsec, summary);
+        scan_pose_ref.Stamp().sec, scan_pose_ref.Stamp().nsec);
     return false;
   }
 
@@ -585,13 +584,12 @@ bool MultiScanLoamRegistration::MatchScans(
 
   OutputResults(scan_pose_ref, scan_pose_tgt, T_LIDARREF_LIDARTGT, true);
 
-  std::string summary;
-  if (!PassedRegThreshold(T_RefEst_Ref, summary)) {
+  if (!PassedRegThreshold(T_RefEst_Ref)) {
     BEAM_WARN(
         "Failed scan matcher transform threshold check for stamp {}.{}. to "
-        "stamp {}.{}. Skipping measurement. Reason: {}",
+        "stamp {}.{}. Skipping measurement.",
         scan_pose_tgt.Stamp().sec, scan_pose_tgt.Stamp().nsec,
-        scan_pose_ref.Stamp().sec, scan_pose_ref.Stamp().nsec, summary);
+        scan_pose_ref.Stamp().sec, scan_pose_ref.Stamp().nsec);
     return false;
   }
 

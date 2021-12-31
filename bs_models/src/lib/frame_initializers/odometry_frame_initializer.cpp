@@ -6,8 +6,7 @@
 
 #include <bs_common/utils.h>
 
-namespace bs_models {
-namespace frame_initializers {
+namespace bs_models { namespace frame_initializers {
 
 OdometryFrameInitializer::OdometryFrameInitializer(
     const std::string& topic, int queue_size, int64_t poses_buffer_time,
@@ -75,16 +74,15 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
 
 void OdometryFrameInitializer::OdometryCallback(
     const nav_msgs::OdometryConstPtr message) {
-  if (check_world_baselink_frames_) {
-    CheckOdometryFrameIDs(message);
-  }
+  if (check_world_baselink_frames_) { CheckOdometryFrameIDs(message); }
 
   // if sensor_frame is already baselink, then we can directly copy
   if (sensor_frame_id_ == extrinsics_.GetBaselinkFrameId()) {
     geometry_msgs::TransformStamped tf_stamped;
     bs_common::OdometryMsgToTransformedStamped(
         *message, message->header.stamp, message->header.seq,
-        extrinsics_.GetWorldFrameId(), sensor_frame_id_, tf_stamped);
+        extrinsics_.GetWorldFrameId(), extrinsics_.GetBaselinkFrameId(),
+        tf_stamped);
     poses_->setTransform(tf_stamped, authority_, false);
     return;
   }
@@ -101,7 +99,8 @@ void OdometryFrameInitializer::OdometryCallback(
     geometry_msgs::TransformStamped tf_stamped;
     bs_common::EigenTransformToTransformStampedMsg(
         T_WORLD_BASELINK, message->header.stamp, message->header.seq,
-        extrinsics_.GetWorldFrameId(), sensor_frame_id_, tf_stamped);
+        extrinsics_.GetWorldFrameId(), extrinsics_.GetBaselinkFrameId(),
+        tf_stamped);
     poses_->setTransform(tf_stamped, authority_, false);
     return;
   } else {
@@ -110,5 +109,4 @@ void OdometryFrameInitializer::OdometryCallback(
   }
 }
 
-}  // namespace frame_initializers
-}  // namespace bs_models
+}} // namespace bs_models::frame_initializers

@@ -3,13 +3,12 @@
 #include <beam_utils/filesystem.h>
 #include <nlohmann/json.hpp>
 
-namespace bs_models {
-namespace scan_registration {
+namespace bs_models { namespace scan_registration {
 
 using namespace beam_matching;
 using namespace bs_common;
 
-void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string &config) {
+void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
   // check file exists
   if (config.empty()) {
     return;
@@ -36,11 +35,11 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string &config) {
 }
 
 ScanRegistrationBase::ScanRegistrationBase(
-    const ScanRegistrationParamsBase &base_params)
+    const ScanRegistrationParamsBase& base_params)
     : base_params_(base_params) {}
 
 void ScanRegistrationBase::SetFixedCovariance(
-    const Eigen::Matrix<double, 6, 6> &covariance) {
+    const Eigen::Matrix<double, 6, 6>& covariance) {
   covariance_ = covariance;
   use_fixed_covariance_ = true;
 }
@@ -53,23 +52,24 @@ void ScanRegistrationBase::SetFixedCovariance(double covariance) {
   use_fixed_covariance_ = true;
 }
 
-const RegistrationMap &ScanRegistrationBase::GetMap() const { return map_; }
+const RegistrationMap& ScanRegistrationBase::GetMap() const {
+  return map_;
+}
 
-RegistrationMap &ScanRegistrationBase::GetMapMutable() { return map_; }
+RegistrationMap& ScanRegistrationBase::GetMapMutable() {
+  return map_;
+}
 
-bool ScanRegistrationBase::PassedRegThreshold(const Eigen::Matrix4d &T_measured,
-                                              std::string &summary) {
-  if (beam::PassedMotionThreshold(Eigen::Matrix4d::Identity(), T_measured,
+bool ScanRegistrationBase::PassedRegThreshold(
+    const Eigen::Matrix4d& T_measured) {
+  return beam::PassedMotionThreshold(Eigen::Matrix4d::Identity(), T_measured,
                                   base_params_.outlier_threshold_rot_deg,
                                   base_params_.outlier_threshold_trans_m, false,
-                                  true, true)) {
-    return true;
-  }
-  return false;
+                                  true, true);
 }
 
 bool ScanRegistrationBase::PassedMotionThresholds(
-    const Eigen::Matrix4d &T_CLOUD1_CLOUD2) {
+    const Eigen::Matrix4d& T_CLOUD1_CLOUD2) {
   // check max translation
   double d_12 = T_CLOUD1_CLOUD2.block(0, 3, 3, 1).norm();
   if (base_params_.max_motion_trans_m > 0 &&
@@ -102,5 +102,4 @@ bool ScanRegistrationBase::PassedMotionThresholds(
   return (passed_trans || passed_rot);
 }
 
-} // namespace scan_registration
-} // namespace bs_models
+}} // namespace bs_models::scan_registration

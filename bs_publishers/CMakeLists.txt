@@ -8,9 +8,6 @@ set(build_depends
   nav_msgs
   pluginlib
   roscpp
-  tf2
-  tf2_geometry_msgs
-  tf2_ros
   bs_models
   bs_common
   bs_constraints
@@ -35,7 +32,7 @@ catkin_package(
 
 add_compile_options(-std=c++14)
 
-# fuse_publishers library
+# bs_publishers library
 add_library(${PROJECT_NAME}
   src/path_3d_publisher.cpp
   src/odometry_3d_publisher.cpp
@@ -45,9 +42,12 @@ add_dependencies(${PROJECT_NAME}
   )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
-  include
-  ${catkin_INCLUDE_DIRS}
-  )
+    include
+    ${Boost_INCLUDE_DIRS}
+    ${catkin_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIRS}
+)
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   )

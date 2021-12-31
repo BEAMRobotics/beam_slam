@@ -39,9 +39,6 @@ class FrameInitializerBase {
  protected:
   std::string authority_;
   std::shared_ptr<bs_common::PoseLookup> pose_lookup_;
-  std::shared_ptr<tf2::BufferCore> poses_{nullptr};
-  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
-      bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
 }  // namespace frame_initializers

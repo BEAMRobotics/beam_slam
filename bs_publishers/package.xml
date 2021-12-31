@@ -19,8 +19,6 @@
   <depend>pluginlib</depend>
   <depend>roscpp</depend>
   <depend>tf2</depend>
-  <depend>tf2_geometry_msgs</depend>
-  <depend>tf2_ros</depend>
 
   <depend>fuse_core</depend>
   <depend>fuse_variables</depend>
