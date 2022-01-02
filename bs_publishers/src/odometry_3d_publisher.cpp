@@ -23,14 +23,14 @@ void Odometry3DPublisher::onInit() {
 
   if (params_.world_frame_id == params_.map_frame_id) {
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>(params_.tf_cache_time);
-    tf_listener_ =
-        std::make_unique<tf2_ros::TransformListener>(*tf_buffer_, node_handle_);
+    tf_listener_ = std::make_unique<tf2_ros::TransformListener>(
+        *tf_buffer_, private_node_handle_);
   }
 
-  odom_pub_ = node_handle_.advertise<nav_msgs::Odometry>(
+  odom_pub_ = private_node_handle_.advertise<nav_msgs::Odometry>(
       ros::names::resolve(params_.topic), params_.queue_size);
 
-  tf_publish_timer_ = node_handle_.createTimer(
+  tf_publish_timer_ = private_node_handle_.createTimer(
       ros::Duration(1.0 / params_.tf_publish_frequency),
       &Odometry3DPublisher::tfPublishTimerCallback, this, false, false);
 }

@@ -19,7 +19,7 @@
 #include <bs_models/vision/vio_initialization.h>
 #include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
-#include <bs_parameters/models/camera_params.h>
+#include <bs_parameters/models/vio_params.h>
 
 namespace bs_models {
 
@@ -148,7 +148,7 @@ private:
   void PublishLandmarkIDs(const std::vector<uint64_t> &ids);
 
   // loadable camera parameters
-  bs_parameters::models::CameraParams camera_params_;
+  bs_parameters::models::VioParams vio_params_;
 
   // calibration parameters
   bs_parameters::models::CalibrationParams calibration_params_;

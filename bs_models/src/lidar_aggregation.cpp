@@ -37,19 +37,20 @@ void LidarAggregation::onInit() {
 }
 
 void LidarAggregation::onStart() {
-  pointcloud_subscriber_ = node_handle_.subscribe<sensor_msgs::PointCloud2>(
-      ros::names::resolve(params_.pointcloud_topic),
-      lidar_subscriber_queue_size_, &ThrottledCallbackPC::callback,
-      &throttled_callback_pc_, ros::TransportHints().tcpNoDelay(false));
+  pointcloud_subscriber_ =
+      private_node_handle_.subscribe<sensor_msgs::PointCloud2>(
+          ros::names::resolve(params_.pointcloud_topic),
+          lidar_subscriber_queue_size_, &ThrottledCallbackPC::callback,
+          &throttled_callback_pc_, ros::TransportHints().tcpNoDelay(false));
 
-  aggregation_time_subscriber_ = node_handle_.subscribe<std_msgs::Time>(
+  aggregation_time_subscriber_ = private_node_handle_.subscribe<std_msgs::Time>(
       ros::names::resolve(params_.aggregation_time_topic),
       aggregation_time_subscriber_queue_size_, &ThrottledCallbackTime::callback,
       &throttled_callback_time_, ros::TransportHints().tcpNoDelay(false));
 
   aggregate_publisher_ =
       private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-          params_.aggregate_topic, aggregate_publisher_queue_size_);
+          "points_undistorted", aggregate_publisher_queue_size_);
 }
 
 void LidarAggregation::onStop() {

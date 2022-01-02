@@ -20,8 +20,8 @@ void GTInitializer::onInit() {
 
   // advertise init path publisher
   results_publisher_ =
-      private_node_handle_.advertise<bs_common::InitializedPathMsg>(
-          "gt_initializer/result", 100);
+      private_node_handle_.advertise<bs_common::InitializedPathMsg>("result",
+                                                                    100);
 
   // subscribe to imu topic
   imu_subscriber_ = private_node_handle_.subscribe(

@@ -27,19 +27,19 @@ void InertialOdometry::onInit() {
 
 void InertialOdometry::onStart() {
   // subscribe to topics
-  imu_subscriber_ = node_handle_.subscribe<sensor_msgs::Imu>(
+  imu_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Imu>(
       ros::names::resolve(inertial_params_.input_topic),
       inertial_params_.msg_queue_size, &ThrottledIMUCallback::callback,
       &throttled_imu_callback_, ros::TransportHints().tcpNoDelay(false));
   path_subscriber_ =
-      node_handle_.subscribe(inertial_params_.init_path_topic, 10,
-                             &InertialOdometry::processInitPath, this);
+      private_node_handle_.subscribe(inertial_params_.init_path_topic, 10,
+                                     &InertialOdometry::processInitPath, this);
   // Advertise publishers
-  init_odom_publisher_ = node_handle_.advertise<nav_msgs::Odometry>(
-      "inertial_odometry/odometry", 100);
+  init_odom_publisher_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
 
-  inertial_pose_stamps_publisher_ = node_handle_.advertise<std_msgs::Time>(
-      "inertial_odometry/pose_stamps", 1000);
+  inertial_pose_stamps_publisher_ =
+      private_node_handle_.advertise<std_msgs::Time>("pose_stamps", 1000);
 }
 
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {

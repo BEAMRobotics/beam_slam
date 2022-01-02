@@ -48,12 +48,11 @@ lidar_odometry:
   downsample_size: 0 # voxel size (m) for downsample filter. Default: 0.03. Set to 0 for no downsampling
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
   input_topic: '/os1_cloud_node1/points'
-  output_topic: '/slam_results'
   frame_initializer_type: 'ODOMETRY' # options: ODOMETRY, POSEFILE
   frame_initializer_info: '/leica/odometry/relative' # for ODOMETRY: topic, for POSEFILE: path
   sensor_frame_id_override: 'imu'
-  scan_output_directory: '/userhome/results/beam_slam/scan_matcher/' # Outputs scans as PCD files IFF not empty
-  # scan_output_directory: ''
+  # scan_output_directory: '/userhome/results/beam_slam/scan_matcher/' # Outputs scans as PCD files IFF not empty
+  scan_output_directory: ''
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom
@@ -72,4 +71,4 @@ odom_pub:
   base_link_frame_id: 'base_link' # I DONT THINK THIS IS USED. Default: base_link
   base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
   world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
-  topic: 'fixed_lag_smoother/optimized_odometry' # Output odometry topic
+  topic: '/local_mapper/optimized_odometry' # Output odometry topic

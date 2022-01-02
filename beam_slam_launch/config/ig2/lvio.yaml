@@ -77,7 +77,7 @@ visual_inertial_odometry:
   # topics to subscribe to
   image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
-  init_path_topic: '/lo_initialiser/result'
+  init_path_topic: '/local_mapper/lo_initializer/result'
   # feature tracking configs
   descriptor: 'BEBLID'
   detector: 'FAST'
@@ -123,4 +123,4 @@ odom_pub:
   base_link_frame_id: 'imu' # Default: base_link
   base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
   world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
-  topic: 'optimized_odometry' # Output odometry topic
+  topic: '/local_mapper/optimized_odometry' # Output odometry topic

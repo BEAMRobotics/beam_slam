@@ -40,13 +40,13 @@ void Unicycle3DIgnition::onInit() {
   params_.loadFromROS(private_node_handle_);
 
   // Advertise
-  subscriber_ = node_handle_.subscribe(
+  subscriber_ = private_node_handle_.subscribe(
       ros::names::resolve(params_.topic), params_.queue_size,
       &Unicycle3DIgnition::subscriberCallback, this);
-  set_pose_service_ = node_handle_.advertiseService(
+  set_pose_service_ = private_node_handle_.advertiseService(
       ros::names::resolve(params_.set_pose_service),
       &Unicycle3DIgnition::setPoseServiceCallback, this);
-  set_pose_deprecated_service_ = node_handle_.advertiseService(
+  set_pose_deprecated_service_ = private_node_handle_.advertiseService(
       ros::names::resolve(params_.set_pose_deprecated_service),
       &Unicycle3DIgnition::setPoseDeprecatedServiceCallback, this);
 }
@@ -100,7 +100,9 @@ void Unicycle3DIgnition::start() {
   }
 }
 
-void Unicycle3DIgnition::stop() { started_ = false; }
+void Unicycle3DIgnition::stop() {
+  started_ = false;
+}
 
 void Unicycle3DIgnition::subscriberCallback(
     const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg) {
@@ -168,13 +170,12 @@ void Unicycle3DIgnition::process(
   position_cov << pose.pose.covariance[0], pose.pose.covariance[1],
       pose.pose.covariance[6], pose.pose.covariance[7];
   if (!position_cov.isApprox(position_cov.transpose())) {
-    throw std::invalid_argument(
-        "Attempting to set the pose with a "
-        "non-symmetric position covariance matrix [" +
-        std::to_string(position_cov(0)) + ", " +
-        std::to_string(position_cov(1)) + " ; " +
-        std::to_string(position_cov(2)) + ", " +
-        std::to_string(position_cov(3)) + "].");
+    throw std::invalid_argument("Attempting to set the pose with a "
+                                "non-symmetric position covariance matrix [" +
+                                std::to_string(position_cov(0)) + ", " +
+                                std::to_string(position_cov(1)) + " ; " +
+                                std::to_string(position_cov(2)) + ", " +
+                                std::to_string(position_cov(3)) + "].");
   }
   Eigen::SelfAdjointEigenSolver<fuse_core::Matrix2d> solver(position_cov);
   if (solver.eigenvalues().minCoeff() <= 0.0) {
@@ -189,11 +190,10 @@ void Unicycle3DIgnition::process(
   auto orientation_cov = fuse_core::Matrix1d();
   orientation_cov << pose.pose.covariance[35];
   if (orientation_cov(0) <= 0.0) {
-    throw std::invalid_argument(
-        "Attempting to set the pose with a "
-        "non-positive-definite orientation covariance "
-        "matrix [" +
-        std::to_string(orientation_cov(0)) + "].");
+    throw std::invalid_argument("Attempting to set the pose with a "
+                                "non-positive-definite orientation covariance "
+                                "matrix [" +
+                                std::to_string(orientation_cov(0)) + "].");
   }
 
   // Now that the pose has been validated and the optimizer has been reset,
@@ -331,4 +331,4 @@ void Unicycle3DIgnition::sendPrior(
                   << position->y() << ", yaw: " << orientation->yaw() << ")");
 }
 
-}  // namespace bs_models
+} // namespace bs_models

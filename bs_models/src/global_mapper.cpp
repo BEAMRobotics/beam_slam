@@ -1,11 +1,11 @@
 #include <bs_models/global_mapper.h>
 
+#include <boost/filesystem.hpp>
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
-#include <boost/filesystem.hpp>
 
-#include <beam_utils/math.h>
 #include <beam_utils/log.h>
+#include <beam_utils/math.h>
 #include <beam_utils/time.h>
 
 #include <bs_common/utils.h>
@@ -118,40 +118,43 @@ void GlobalMapper::onInit() {
 
 void GlobalMapper::onStart() {
   // init subscribers and publishers
-  slam_chunk_subscriber_ = node_handle_.subscribe<bs_common::SlamChunkMsg>(
-      ros::names::resolve("/local_mapper/slam_results"), 100,
-      &ThrottledCallbackSlamChunk::callback, &throttled_callback_slam_chunk_,
-      ros::TransportHints().tcpNoDelay(false));
+  slam_chunk_subscriber_ =
+      private_node_handle_.subscribe<bs_common::SlamChunkMsg>(
+          ros::names::resolve("/local_mapper/slam_results"), 100,
+          &ThrottledCallbackSlamChunk::callback,
+          &throttled_callback_slam_chunk_,
+          ros::TransportHints().tcpNoDelay(false));
 
   reloc_request_subscriber_ =
-      node_handle_.subscribe<bs_common::RelocRequestMsg>(
+      private_node_handle_.subscribe<bs_common::RelocRequestMsg>(
           ros::names::resolve("/local_mapper/reloc_request"), 1,
           &ThrottledCallbackRelocRequest::callback, &throttled_callback_reloc_,
           ros::TransportHints().tcpNoDelay(false));
 
-  active_submap_publisher_ = node_handle_.advertise<bs_common::SubmapMsg>(
-      "/global_mapper/active_submap", 10);
+  active_submap_publisher_ =
+      private_node_handle_.advertise<bs_common::SubmapMsg>("active_submap", 10);
 
   if (params_.publish_new_submaps) {
-    submap_lidar_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        "/global_mapper/submaps/lidar", 10);
+    submap_lidar_publisher_ =
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+            "submaps/lidar", 10);
     submap_keypoints_publisher_ =
-        node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "/global_mapper/submaps/visual", 10);
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+            "submaps/visual", 10);
   }
 
   if (params_.publish_new_scans) {
-    new_scans_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(
-        "/global_mapper/scans", 50);
+    new_scans_publisher_ =
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>("scans", 50);
   }
 
   if (params_.publish_updated_global_map) {
     global_map_lidar_publisher_ =
-        node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "/global_mapper/global_map/lidar", 10);
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+            "global_map/lidar", 10);
     global_map_keypoints_publisher_ =
-        node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "/global_mapper/global_map/visual", 10);
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+            "global_map/visual", 10);
   }
 
   // get intrinsics
@@ -182,7 +185,7 @@ void GlobalMapper::onStop() {
   BEAM_INFO("Running final loop closure");
   fuse_core::Transaction::SharedPtr transaction_ptr = nullptr;
 
-  if(!params_.disable_loop_closure){
+  if (!params_.disable_loop_closure) {
     transaction_ptr = global_map_->TriggerLoopClosure();
   }
 
@@ -243,9 +246,7 @@ void GlobalMapper::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 }
 
 void GlobalMapper::UpdateExtrinsics() {
-  if (extrinsics_online_.IsStatic() && extrinsics_initialized_) {
-    return;
-  }
+  if (extrinsics_online_.IsStatic() && extrinsics_initialized_) { return; }
 
   ROS_DEBUG("Updating extrinsics.");
   // update all three transforms
@@ -263,4 +264,4 @@ void GlobalMapper::UpdateExtrinsics() {
   ROS_DEBUG("Done updating extrinsics.");
 }
 
-}  // namespace bs_models
+} // namespace bs_models

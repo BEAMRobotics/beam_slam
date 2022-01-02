@@ -30,8 +30,8 @@ void LoInitializer::onInit() {
 
   // init publisher
   results_publisher_ =
-      private_node_handle_.advertise<bs_common::InitializedPathMsg>(
-          "lo_initializer/result", 1000);
+      private_node_handle_.advertise<bs_common::InitializedPathMsg>("result",
+                                                                    1000);
 
   // init scan registration
   std::shared_ptr<LoamParams> matcher_params =

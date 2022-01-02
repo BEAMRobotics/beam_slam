@@ -29,9 +29,6 @@ public:
     /** Input lidar topic (distorted) */
     getParamRequired<std::string>(nh, "pointcloud_topic", pointcloud_topic);
 
-    /** Output topic for aggregate, motion compensated lidar scans */
-    getParamRequired<std::string>(nh, "aggregate_topic", aggregate_topic);
-
     /** Odometry topic to sample poses from. */
     getParamRequired<std::string>(nh, "odometry_topic", odometry_topic);
 
@@ -72,7 +69,6 @@ public:
   std::string aggregation_time_topic;
   std::string odometry_topic;
   std::string pointcloud_topic;
-  std::string aggregate_topic;
   std::string sensor_frame_id_override;
   LidarType lidar_type{LidarType::VELODYNE};
   double max_aggregation_time_seconds{0.1};

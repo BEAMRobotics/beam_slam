@@ -4,7 +4,7 @@ lag_duration: 7
 
 # sensor models
 sensor_models:
-  - name: 'camera'
+  - name: 'vio'
     type: 'bs_models::VisualInertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
@@ -42,30 +42,23 @@ unicycle_3d:
   buffer_length: 100000
 
 
-camera:
+vio:
   source: 'VIO'
   image_topic: '/cam0/image_raw'
   imu_topic: '/imu0'
-  reloc_topic: '/reloc_request'
-  init_path_topic: '/gt_initialiser/result'
-  frame_odometry_output_topic: '/vio_init'
-  new_keyframes_topic: '/new_keyframes'
-  slam_chunk_topic: '/slam_chunks'
-  landmark_topic: '/landmarks'
+  init_path_topic: '/local_mapper/gt_initialiser/result'
   descriptor: 'BEBLID'
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/descriptor.json'
   detector: 'FAST'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/fast_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/tracker.json'
-  tracker_window_size: 150 # number of images to store landmark information in tracker
-  num_features_to_track: 100 # number of features per keyframe to store in local visual map (should match whats in detector config)
-  keyframe_window_size: 10 # number of keyframes to store before publishing slam chunk
-  keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe (NOT USED)
-  keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe (NOT USED)
-  keyframe_min_time_in_seconds: 0.2 # minimum amount of time between keyframes
-  init_max_optimization_time_in_seconds: 1.0 # max amount of time to optimize the initializer map
-  init_map_output_directory: '' # Outputs vio initial map into directory if not empty
-  init_use_scale_estimate: false # Set to true if using sfm initializer
+  tracker_window_size: 150 
+  num_features_to_track: 100
+  keyframe_window_size: 10 
+  keyframe_min_time_in_seconds: 0.2 
+  init_max_optimization_time_in_seconds: 1.0
+  init_map_output_directory: '' 
+  init_use_scale_estimate: false 
 
 gt_initializer:
   imu_topic: "/imu0"
@@ -85,4 +78,4 @@ odom_pub:
   base_link_frame_id: 'base_link' # I DONT THINK THIS IS USED. Default: base_link
   base_link_output_frame_id: 'imu0' # Stored in odometry.child_frame_id Default: base_link_frame_id
   world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
-  topic: 'fixed_lag_smoother/optimized_odometry' # Output odometry topic
+  topic: '/local_mapper/optimized_odometry' # Output odometry topic
