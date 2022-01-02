@@ -18,7 +18,6 @@ public:
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
-    getParam<std::string>(nh, "output_topic", output_topic, "");
     getParam<std::string>(nh, "pose_file_path", pose_file_path, "");
     getParam<double>(nh, "min_trajectory_length", min_trajectory_length, 0.5);
 
@@ -30,7 +29,6 @@ public:
 
   std::string pose_file_path;
   std::string imu_topic;
-  std::string output_topic;
   double min_trajectory_length;
 
   ros::Duration trajectory_time_window;

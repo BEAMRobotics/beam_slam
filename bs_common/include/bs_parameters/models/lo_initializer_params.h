@@ -25,7 +25,6 @@ struct LoInitializerParams : public ParameterBase {
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           "");
     getParamRequired<std::string>(nh, "lidar_topic", lidar_topic);
-    getParamRequired<std::string>(nh, "output_topic", output_topic);
     getParam<double>(nh, "min_trajectory_distance", min_trajectory_distance, 3);
 
     getParam<int>(nh, "max_frequency", max_frequency, 5);
@@ -44,7 +43,6 @@ struct LoInitializerParams : public ParameterBase {
   std::string ceres_config_path;
   std::string scan_output_directory;
   std::string lidar_topic;
-  std::string output_topic;
   
   double min_trajectory_distance;
 

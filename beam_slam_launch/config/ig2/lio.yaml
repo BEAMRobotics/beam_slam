@@ -10,8 +10,8 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
-  - name: 'lidar_aggregation'
-    type: 'bs_models::LidarAggregation'  
+  # - name: 'lidar_aggregation'
+  #   type: 'bs_models::LidarAggregation'  
   # - name: 'lidar_odometry'
   #   type: 'bs_models::LidarOdometry'
   #   motion_models: ['unicycle_3d']
@@ -54,8 +54,7 @@ lo_initializer:
   registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
   matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16_init.json' 
   ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
-  lidar_topic: '/lidar_h/velodyne_points'
-  output_topic: '/lo_initialiser_result'
+  lidar_topic: '/lidar_h/velodyne_packets_unpacked'
   aggregation_time: 0.1
   trajectory_time_window: 5
   min_trajectory_distance: 0.5
@@ -64,7 +63,7 @@ lo_initializer:
 
 inertial_odometry:
   input_topic: '/imu/data'
-  init_path_topic: '/lo_initialiser_result'
+  init_path_topic: '/lo_initialiser/result'
   init_use_scale_estimate: false
   keyframe_rate: 0.1
   msg_queue_size: 10000
@@ -90,14 +89,14 @@ lidar_odometry:
   # general params
   lidar_type: 'VELODYNE'
   input_filters_config_path: 'DEFAULT_PATH' 
-  input_topic: '/lidar_h/velodyne_points'
+  input_topic: '/lidar_h/velodyne_points_undistorted'
   output_loam_points: true 
   output_lidar_points: true
   publish_active_submap: true
   publish_local_map: true
   publish_registration_results: true
   frame_initializer_type: 'ODOMETRY' 
-  frame_initializer_info: '/local_mapper/inertial_odometry/odometry'
+  frame_initializer_info: 'inertial_odometry/odometry'
   frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
   reloc_request_period: 1
   scan_output_directory: ''
