@@ -430,8 +430,8 @@ void VisualInertialOdometry::PublishInitialOdometry(
   nav_msgs::Odometry odom;
   odom.pose.pose = pose.pose;
   odom.header.stamp = pose.header.stamp;
-  odom.header.frame_id = extrinsics_.GetBaselinkFrameId();
-  odom.child_frame_id = extrinsics_.GetWorldFrameId();
+  odom.header.frame_id = extrinsics_.GetWorldFrameId();
+  odom.child_frame_id = extrinsics_.GetBaselinkFrameId();
 
   init_odom_publisher_.publish(odom);
 }
