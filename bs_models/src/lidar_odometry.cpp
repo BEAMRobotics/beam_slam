@@ -101,7 +101,7 @@ void LidarOdometry::onInit() {
 }
 
 void LidarOdometry::onStart() {
-  subscriber_ = node_handle_.subscribe<sensor_msgs::PointCloud2>(
+  subscriber_ = private_node_handle_.subscribe<sensor_msgs::PointCloud2>(
       ros::names::resolve(params_.input_topic), 10,
       &ThrottledCallback::callback, &throttled_callback_,
       ros::TransportHints().tcpNoDelay(false));
@@ -124,13 +124,13 @@ void LidarOdometry::onStart() {
   if (params_.publish_registration_results) {
     registration_publisher_init_ =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "/local_mapper/registration/initial", 10);
+            "registration/initial", 10);
     registration_publisher_aligned_lm_ =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "/local_mapper/registration/aligned_lm", 10);
+            "registration/aligned_lm", 10);
     registration_publisher_aligned_gm_ =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "/local_mapper/registration/aligned_gm", 10);
+            "registration/aligned_gm", 10);
   }
 }
 

@@ -67,7 +67,7 @@ void Imu3D::onInit() {
 }
 
 void Imu3D::onStart() {
-  subscriber_ = node_handle_.subscribe<sensor_msgs::Imu>(
+  subscriber_ = private_node_handle_.subscribe<sensor_msgs::Imu>(
       ros::names::resolve(params_.input_topic), params_.queue_size,
       &ThrottledCallback::callback, &throttled_callback_,
       ros::TransportHints().tcpNoDelay(false));

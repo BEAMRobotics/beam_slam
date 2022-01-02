@@ -7,7 +7,7 @@
 
 namespace bs_models {
 
-bool ImuPreintegration::Params::LoadFromJSON(const std::string &path) {
+bool ImuPreintegration::Params::LoadFromJSON(const std::string& path) {
   nlohmann::json J;
   beam::ReadJson(path, J);
   try {
@@ -37,25 +37,25 @@ bool ImuPreintegration::Params::LoadFromJSON(const std::string &path) {
   return true;
 }
 
-ImuPreintegration::ImuPreintegration(const Params &params) : params_(params) {
+ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
   CheckParameters();
   SetPreintegrator();
 }
 
-ImuPreintegration::ImuPreintegration(const Params &params,
-                                     const Eigen::Vector3d &init_bg,
-                                     const Eigen::Vector3d &init_ba)
+ImuPreintegration::ImuPreintegration(const Params& params,
+                                     const Eigen::Vector3d& init_bg,
+                                     const Eigen::Vector3d& init_ba)
     : params_(params), bg_(init_bg), ba_(init_ba) {
   CheckParameters();
   SetPreintegrator();
 }
 
-void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu &msg) {
+void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
   bs_common::IMUData imu_data(msg);
   AddToBuffer(imu_data);
 }
 
-void ImuPreintegration::AddToBuffer(const bs_common::IMUData &imu_data) {
+void ImuPreintegration::AddToBuffer(const bs_common::IMUData& imu_data) {
   pre_integrator_ij.data.push_back(imu_data);
   pre_integrator_kj.data.push_back(imu_data);
 }
@@ -78,37 +78,36 @@ void ImuPreintegration::SetPreintegrator() {
   pre_integrator_kj.cov_ba = params_.cov_accel_bias;
 }
 
-void ImuPreintegration::ResetPreintegrator(const ros::Time &t_now) {
+void ImuPreintegration::ResetPreintegrator(const ros::Time& t_now) {
   pre_integrator_ij.Reset();
   pre_integrator_ij.data.erase(
       std::remove_if(pre_integrator_ij.data.begin(),
                      pre_integrator_ij.data.end(),
-                     [&](const bs_common::IMUData &d) { return d.t < t_now; }),
+                     [&](const bs_common::IMUData& d) { return d.t < t_now; }),
       pre_integrator_ij.data.end());
   pre_integrator_kj.Reset();
   pre_integrator_kj.data.erase(
       std::remove_if(pre_integrator_kj.data.begin(),
                      pre_integrator_kj.data.end(),
-                     [&](const bs_common::IMUData &d) { return d.t < t_now; }),
+                     [&](const bs_common::IMUData& d) { return d.t < t_now; }),
       pre_integrator_kj.data.end());
 }
 
 void ImuPreintegration::SetStart(
-    const ros::Time &t_start,
+    const ros::Time& t_start,
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
-
   // remove data in buffer that is before the start state
   pre_integrator_ij.data.erase(std::remove_if(pre_integrator_ij.data.begin(),
                                               pre_integrator_ij.data.end(),
-                                              [&](const bs_common::IMUData &d) {
+                                              [&](const bs_common::IMUData& d) {
                                                 return d.t < t_start;
                                               }),
                                pre_integrator_ij.data.end());
   pre_integrator_kj.data.erase(std::remove_if(pre_integrator_kj.data.begin(),
                                               pre_integrator_kj.data.end(),
-                                              [&](const bs_common::IMUData &d) {
+                                              [&](const bs_common::IMUData& d) {
                                                 return d.t < t_start;
                                               }),
                                pre_integrator_kj.data.end());
@@ -116,17 +115,11 @@ void ImuPreintegration::SetStart(
   // set IMU state
   bs_common::ImuState imu_state_i(t_start);
 
-  if (R_WORLD_IMU) {
-    imu_state_i.SetOrientation(R_WORLD_IMU->data());
-  }
+  if (R_WORLD_IMU) { imu_state_i.SetOrientation(R_WORLD_IMU->data()); }
 
-  if (t_WORLD_IMU) {
-    imu_state_i.SetPosition(t_WORLD_IMU->data());
-  }
+  if (t_WORLD_IMU) { imu_state_i.SetPosition(t_WORLD_IMU->data()); }
 
-  if (velocity) {
-    imu_state_i.SetVelocity(velocity->data());
-  }
+  if (velocity) { imu_state_i.SetVelocity(velocity->data()); }
 
   imu_state_i.SetGyroBias(bg_);
   imu_state_i.SetAccelBias(ba_);
@@ -137,13 +130,12 @@ void ImuPreintegration::SetStart(
   imu_state_k_ = imu_state_i_;
 }
 
-bs_common::ImuState
-ImuPreintegration::PredictState(const bs_common::PreIntegrator &pre_integrator,
-                                const bs_common::ImuState &imu_state_curr,
-                                const ros::Time &t_now) {
+bs_common::ImuState ImuPreintegration::PredictState(
+    const bs_common::PreIntegrator& pre_integrator,
+    const bs_common::ImuState& imu_state_curr, const ros::Time& t_now) {
   // get commonly used variables
-  const double &dt = pre_integrator.delta.t.toSec();
-  const Eigen::Matrix3d &q_curr = imu_state_curr.OrientationMat();
+  const double& dt = pre_integrator.delta.t.toSec();
+  const Eigen::Matrix3d& q_curr = imu_state_curr.OrientationMat();
 
   // predict new states
   Eigen::Quaterniond q_new(q_curr * pre_integrator.delta.q.matrix());
@@ -155,9 +147,7 @@ ImuPreintegration::PredictState(const bs_common::PreIntegrator &pre_integrator,
 
   // set time
   ros::Time t_new = imu_state_curr.Stamp() + pre_integrator.delta.t;
-  if (t_now != ros::Time(0)) {
-    t_new = t_now;
-  }
+  if (t_now != ros::Time(0)) { t_new = t_now; }
 
   // return predicted IMU state
   bs_common::ImuState imu_state_new(t_new, q_new, p_new, v_new,
@@ -167,7 +157,7 @@ ImuPreintegration::PredictState(const bs_common::PreIntegrator &pre_integrator,
 }
 
 bool ImuPreintegration::GetPose(
-    Eigen::Matrix4d &T_WORLD_IMU, const ros::Time &t_now,
+    Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now,
     std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance) {
   // check requested time
   if (t_now < pre_integrator_kj.data.front().t ||
@@ -194,7 +184,7 @@ bool ImuPreintegration::GetPose(
   pre_integrator_kj.data.erase(
       std::remove_if(pre_integrator_kj.data.begin(),
                      pre_integrator_kj.data.end(),
-                     [&](const bs_common::IMUData &d) { return d.t < t_now; }),
+                     [&](const bs_common::IMUData& d) { return d.t < t_now; }),
       pre_integrator_kj.data.end());
 
   // extract the computed covariance if requested
@@ -206,22 +196,26 @@ bool ImuPreintegration::GetPose(
 }
 
 fuse_core::Transaction::SharedPtr
-ImuPreintegration::RegisterNewImuPreintegratedFactor(
-    const ros::Time &t_now,
-    fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
-    fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
-    bool update_velocity) {
+    ImuPreintegration::RegisterNewImuPreintegratedFactor(
+        const ros::Time& t_now,
+        fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
+        fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
+        bool update_velocity) {
   bs_constraints::relative_pose::ImuState3DStampedTransaction transaction(
       t_now);
+  
   // check requested time
-  if (t_now < pre_integrator_ij.data.front().t ||
-      pre_integrator_ij.data.empty() ||
-      t_now < pre_integrator_ij.data.back().t) {
-    ROS_WARN(
-        "Requested time is outside of window, or no imu data is available.");
+  if (pre_integrator_ij.data.empty()) {
+    ROS_WARN("Cannot register IMU factor, no imu data is available.");
     return nullptr;
   }
-
+  if (t_now < pre_integrator_ij.data.front().t ||
+      t_now < pre_integrator_ij.data.back().t) {
+    ROS_WARN(
+        "Cannot register IMU factor, requested time is outside of window.");
+    return nullptr;
+  }
+  
   // generate prior constraint at start
   if (first_window_) {
     Eigen::Matrix<double, 15, 15> prior_covariance{
@@ -237,21 +231,21 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
 
     first_window_ = false;
   }
-
+  
   // integrate between key frames, incrementally calculating covariance and
   // jacobians
   pre_integrator_ij.Integrate(t_now, imu_state_i_.GyroBiasVec(),
                               imu_state_i_.AccelBiasVec(), true, true);
-
+  
   // predict state at end of window using integrated imu measurements
   bs_common::ImuState imu_state_j =
       PredictState(pre_integrator_ij, imu_state_i_, t_now);
-
+  
   // Add relative constraints and variables between key frames
   transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j,
                                             pre_integrator_ij);
   transaction.AddImuStateVariables(imu_state_j);
-
+  
   // update orientation and position of predicted imu state with arguments
   if (R_WORLD_IMU && t_WORLD_IMU) {
     imu_state_j.SetOrientation(R_WORLD_IMU->data());
@@ -263,15 +257,13 @@ ImuPreintegration::RegisterNewImuPreintegratedFactor(
       imu_state_j.SetVelocity(new_velocity);
     }
   }
-
+  
   // move predicted state to previous state
   imu_state_i_ = imu_state_j;
 
   // copy state i to kth frame
   imu_state_k_ = imu_state_i_;
-
   ResetPreintegrator(t_now);
-
   return transaction.GetTransaction();
 }
 
@@ -281,7 +273,7 @@ void ImuPreintegration::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
     // reset kj integrator and add all the current windows messages to it
     pre_integrator_kj.data.clear();
     pre_integrator_kj.Reset();
-    for (auto &d : pre_integrator_ij.data) {
+    for (auto& d : pre_integrator_ij.data) {
       pre_integrator_kj.data.push_back(d);
     }
     // reset state k to state i
@@ -297,11 +289,11 @@ void ImuPreintegration::Clear() {
 }
 
 void ImuPreintegration::EstimateParameters(
-    const bs_common::InitializedPathMsg &path,
-    const std::queue<sensor_msgs::Imu> &imu_buffer,
-    const bs_models::ImuPreintegration::Params &params,
-    Eigen::Vector3d &gravity, Eigen::Vector3d &bg, Eigen::Vector3d &ba,
-    double &scale) {
+    const bs_common::InitializedPathMsg& path,
+    const std::queue<sensor_msgs::Imu>& imu_buffer,
+    const bs_models::ImuPreintegration::Params& params,
+    Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
+    double& scale) {
   // set parameter estimates to 0
   gravity = Eigen::Vector3d::Zero();
   bg = Eigen::Vector3d::Zero();
@@ -315,10 +307,9 @@ void ImuPreintegration::EstimateParameters(
   ros::Time start = path.poses[0].header.stamp;
   ros::Time end = path.poses[path.poses.size() - 1].header.stamp;
   std::vector<bs_common::ImuState> imu_frames;
-  for (auto &pose : path.poses) {
+  for (auto& pose : path.poses) {
     ros::Time stamp = pose.header.stamp;
-    if (stamp < imu_buffer_copy.front().header.stamp)
-      continue;
+    if (stamp < imu_buffer_copy.front().header.stamp) continue;
 
     // add imu data to frames preintegrator
     bs_common::PreIntegrator preintegrator;
@@ -356,8 +347,8 @@ void ImuPreintegration::EstimateParameters(
   Eigen::Vector3d b1 = Eigen::Vector3d::Zero();
   for (size_t j = 1; j < imu_frames.size(); ++j) {
     const size_t i = j - 1;
-    const Eigen::Quaterniond &dq = imu_frames[j].GetPreintegrator()->delta.q;
-    const Eigen::Matrix3d &dq_dbg =
+    const Eigen::Quaterniond& dq = imu_frames[j].GetPreintegrator()->delta.q;
+    const Eigen::Matrix3d& dq_dbg =
         imu_frames[j].GetPreintegrator()->jacobian.dq_dbg;
     A1 += dq_dbg.transpose() * dq_dbg;
 
@@ -368,7 +359,6 @@ void ImuPreintegration::EstimateParameters(
 
     b1 += dq_dbg.transpose() * beam::RToLieAlgebra(tmp_R);
   }
-
   Eigen::JacobiSVD<Eigen::Matrix3d> svd1(A1, Eigen::ComputeFullU |
                                                  Eigen::ComputeFullV);
   bg = svd1.solve(b1);
@@ -382,16 +372,16 @@ void ImuPreintegration::EstimateParameters(
   }
   Eigen::Matrix4d A2 = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b2 = Eigen::Vector4d::Zero();
-
+  
   for (size_t j = 1; j + 1 < imu_frames.size(); ++j) {
     const size_t i = j - 1;
     const size_t k = j + 1;
 
-    const bs_common::Delta &delta_ij = imu_frames[j].GetPreintegrator()->delta;
-    const bs_common::Delta &delta_jk = imu_frames[k].GetPreintegrator()->delta;
-    const bs_common::Jacobian &jacobian_ij =
+    const bs_common::Delta& delta_ij = imu_frames[j].GetPreintegrator()->delta;
+    const bs_common::Delta& delta_jk = imu_frames[k].GetPreintegrator()->delta;
+    const bs_common::Jacobian& jacobian_ij =
         imu_frames[j].GetPreintegrator()->jacobian;
-    const bs_common::Jacobian &jacobian_jk =
+    const bs_common::Jacobian& jacobian_jk =
         imu_frames[k].GetPreintegrator()->jacobian;
 
     Eigen::Matrix<double, 3, 4> C;
@@ -416,7 +406,7 @@ void ImuPreintegration::EstimateParameters(
   Eigen::Vector4d x = svd2.solve(b2);
   gravity = x.segment<3>(0).normalized() * GRAVITY_NOMINAL;
   scale = x(3);
-
+  
   /***************************
    *    Estimate Accel Bias   *
    ****************************/
@@ -426,16 +416,15 @@ void ImuPreintegration::EstimateParameters(
   }
   Eigen::Matrix4d A3 = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b3 = Eigen::Vector4d::Zero();
-
   for (size_t j = 1; j + 1 < imu_frames.size(); ++j) {
     const size_t i = j - 1;
     const size_t k = j + 1;
 
-    const bs_common::Delta &delta_ij = imu_frames[j].GetPreintegrator()->delta;
-    const bs_common::Delta &delta_jk = imu_frames[k].GetPreintegrator()->delta;
-    const bs_common::Jacobian &jacobian_ij =
+    const bs_common::Delta& delta_ij = imu_frames[j].GetPreintegrator()->delta;
+    const bs_common::Delta& delta_jk = imu_frames[k].GetPreintegrator()->delta;
+    const bs_common::Jacobian& jacobian_ij =
         imu_frames[j].GetPreintegrator()->jacobian;
-    const bs_common::Jacobian &jacobian_jk =
+    const bs_common::Jacobian& jacobian_jk =
         imu_frames[k].GetPreintegrator()->jacobian;
 
     Eigen::Matrix<double, 3, 4> C;
@@ -461,7 +450,6 @@ void ImuPreintegration::EstimateParameters(
     A3 += C.transpose() * C;
     b3 += C.transpose() * d;
   }
-
   Eigen::JacobiSVD<Eigen::Matrix4d> svd3(A3, Eigen::ComputeFullU |
                                                  Eigen::ComputeFullV);
   x = svd3.solve(b3);

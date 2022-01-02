@@ -16,7 +16,7 @@ imu_intrinsics_path: "/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/calibr
 
 # sensor models
 sensor_models:
-  - name: 'camera'
+  - name: 'vio'
     type: 'bs_models::VisualInertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
@@ -53,25 +53,19 @@ unicycle_3d:
   buffer_length: 100000
 
 
-camera:
-  source: "VIO"
+vio:
   image_topic: "/monocular_camera/image"
   imu_topic: "/imu/data"
-  reloc_topic: "/reloc_request"
-  init_path_topic: "/lo_initialiser_result"
-  frame_odometry_output_topic: "/vio_init"
-  new_keyframes_topic: "/new_keyframes"
-  slam_chunk_topic: "/slam_chunks"
-  landmark_topic: "/landmarks"
+  init_path_topic: "/local_mapper/lo_initialiser/result"
   descriptor: "ORB"
-  tracker_window_size: 150 # number of images to store landmark information for before clearing for new images
-  num_features_to_track: 100 # number of features to track from image to image
-  keyframe_window_size: 20 # number of keyframes to store before wiping for new images
-  keyframe_parallax: 70 # if avg parallax to the previous keyframe exceeds this then set keyframe
-  keyframe_tracks_drop: 150 # if number of visible landmarks in images drops below this then set keyframe
-  keyframe_min_time_in_seconds: 0.5 # minimum amount of time between keyframes
-  init_max_optimization_time_in_seconds: 1.0 # max amopunt of time to optimize the initializer map
-  init_map_output_directory: "" # Outputs vio map into directory if not empty
+  tracker_window_size: 150 
+  num_features_to_track: 100
+  keyframe_window_size: 20 
+  keyframe_parallax: 70 
+  keyframe_tracks_drop: 150 
+  keyframe_min_time_in_seconds: 0.5
+  init_max_optimization_time_in_seconds: 1.0 
+  init_map_output_directory: "" 
 
 lo_initializer:
   matcher_params_path: '/home/jake/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' # DEFAULT_PATH uses the appropriate config in beam_slam_launch/config/matcher_config/. Setting to empty will use the default params defined in the class
@@ -80,7 +74,6 @@ lo_initializer:
   matcher_noise: 1e-9 # Sets all diagonals on the covariance matrix to this value. Can also specify matcher_noise_diagonal instead which takes priority. Default: 1e-9.
   lidar_topic: '/velodyne_points'
   imu_topic: '/imu/data'
-  output_topic: '/lo_initialiser_result'
   nominal_gravity_direction: '-Z'
   undistort_scans: true
   aggregation_time: 0.1

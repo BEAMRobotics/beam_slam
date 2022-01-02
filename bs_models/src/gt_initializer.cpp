@@ -7,10 +7,9 @@
 #include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::GTInitializer,
-                       fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::GTInitializer, fuse_core::SensorModel)
 
-namespace bs_models { 
+namespace bs_models {
 
 GTInitializer::GTInitializer() : fuse_core::AsyncSensorModel(1) {}
 
@@ -21,8 +20,8 @@ void GTInitializer::onInit() {
 
   // advertise init path publisher
   results_publisher_ =
-      private_node_handle_.advertise<bs_common::InitializedPathMsg>(
-          gt_initializer_params_.output_topic, 100);
+      private_node_handle_.advertise<bs_common::InitializedPathMsg>("result",
+                                                                    100);
 
   // subscribe to imu topic
   imu_subscriber_ = private_node_handle_.subscribe(
@@ -94,4 +93,4 @@ void GTInitializer::PublishResults() {
   results_publisher_.publish(msg);
 }
 
-} // namespace bs_models::frame_to_frame
+} // namespace bs_models

@@ -10,8 +10,8 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
-  - name: 'lidar_aggregation'
-    type: 'bs_models::LidarAggregation'  
+  # - name: 'lidar_aggregation'
+  #   type: 'bs_models::LidarAggregation'  
   # - name: 'lidar_odometry'
   #   type: 'bs_models::LidarOdometry'
   #   motion_models: ['unicycle_3d']
@@ -54,8 +54,7 @@ lo_initializer:
   registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
   matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16_init.json' 
   ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
-  lidar_topic: '/lidar_h/velodyne_points'
-  output_topic: '/lo_initialiser_result'
+  lidar_topic: '/lidar_h/velodyne_packets_unpacked'
   aggregation_time: 0.1
   trajectory_time_window: 5
   min_trajectory_distance: 0.5
@@ -64,17 +63,16 @@ lo_initializer:
 
 inertial_odometry:
   input_topic: '/imu/data'
-  init_path_topic: '/lo_initialiser_result'
+  init_path_topic: '/local_mapper/lo_initializer/result'
   init_use_scale_estimate: false
   keyframe_rate: 0.1
   msg_queue_size: 10000
 
 lidar_aggregation:
-  aggregation_time_topic: inertial_pose_stamps 
-  odometry_topic: inertial_odometry
+  aggregation_time_topic: /local_mapper/inertial_odometry/pose_stamps 
+  odometry_topic: /local_mapper/inertial_odometry/odometry
   use_trigger: true
   pointcloud_topic: /lidar_h/velodyne_packets_unpacked 
-  aggregate_topic: /lidar_h/velodyne_points_undistorted
   max_aggregation_time_seconds: 0.1 
 
 lidar_odometry:
@@ -90,7 +88,7 @@ lidar_odometry:
   # general params
   lidar_type: 'VELODYNE'
   input_filters_config_path: 'DEFAULT_PATH' 
-  input_topic: '/lidar_h/velodyne_points'
+  input_topic: '/local_mapper/lidar_aggregation/points_undistorted'
   output_loam_points: true 
   output_lidar_points: true
   publish_active_submap: true
@@ -119,4 +117,4 @@ odom_pub:
   base_link_frame_id: 'imu' # Default: base_link
   base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
   world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
-  topic: 'optimized_odometry' # Output odometry topic
+  topic: '/local_mapper/optimized_odometry' # Output odometry topic

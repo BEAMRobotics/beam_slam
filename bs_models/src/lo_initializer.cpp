@@ -30,8 +30,8 @@ void LoInitializer::onInit() {
 
   // init publisher
   results_publisher_ =
-      private_node_handle_.advertise<bs_common::InitializedPathMsg>(
-          params_.output_topic, 1000);
+      private_node_handle_.advertise<bs_common::InitializedPathMsg>("result",
+                                                                    1000);
 
   // init scan registration
   std::shared_ptr<LoamParams> matcher_params =
@@ -87,10 +87,8 @@ void LoInitializer::onInit() {
 }
 
 void LoInitializer::processLidar(
-    const sensor_msgs::PointCloud2::ConstPtr &msg) {
-  if (initialization_complete_) {
-    return;
-  }
+    const sensor_msgs::PointCloud2::ConstPtr& msg) {
+  if (initialization_complete_) { return; }
 
   if ((msg->header.stamp - prev_stamp_).toSec() <
       (1.0 / params_.max_frequency)) {
@@ -138,11 +136,9 @@ void LoInitializer::processLidar(
   prev_stamp_ = msg->header.stamp;
 }
 
-void LoInitializer::ProcessCurrentKeyframe(const ros::Time &time) {
+void LoInitializer::ProcessCurrentKeyframe(const ros::Time& time) {
   beam::HighResolutionTimer timer;
-  if (keyframe_cloud_.size() == 0) {
-    return;
-  }
+  if (keyframe_cloud_.size() == 0) { return; }
 
   ROS_DEBUG("Processing keyframe containing %d scans and %d points.",
             keyframe_scan_counter_, keyframe_cloud_.size());
@@ -207,13 +203,13 @@ void LoInitializer::ProcessCurrentKeyframe(const ros::Time &time) {
 
 void LoInitializer::SetTrajectoryStart() {
   auto iter = keyframes_.begin();
-  const Eigen::Matrix4d &T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_BASELINK();
+  const Eigen::Matrix4d& T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_KEYFRAME0_WORLDOLD =
       beam::InvertTransform(T_WORLDOLD_KEYFRAME0);
   iter->UpdatePose(Eigen::Matrix4d::Identity());
   iter++;
   while (iter != keyframes_.end()) {
-    const Eigen::Matrix4d &T_WORLDOLD_KEYFRAMEX = iter->T_REFFRAME_BASELINK();
+    const Eigen::Matrix4d& T_WORLDOLD_KEYFRAMEX = iter->T_REFFRAME_BASELINK();
     Eigen::Matrix4d T_KEYFRAME0_KEYFRAMEX =
         T_KEYFRAME0_WORLDOLD * T_WORLDOLD_KEYFRAMEX;
     iter->UpdatePose(T_KEYFRAME0_KEYFRAMEX);
@@ -222,9 +218,7 @@ void LoInitializer::SetTrajectoryStart() {
 }
 
 void LoInitializer::OutputResults() {
-  if (params_.scan_output_directory.empty()) {
-    return;
-  }
+  if (params_.scan_output_directory.empty()) { return; }
 
   if (!boost::filesystem::exists(params_.scan_output_directory)) {
     ROS_ERROR("Output directory does not exist. Not outputting LO Initializer "
@@ -266,8 +260,8 @@ void LoInitializer::PublishResults() {
   results_publisher_.publish(msg);
 }
 
-double
-LoInitializer::CalculateTrajectoryLength(const std::list<ScanPose> &keyframes) {
+double LoInitializer::CalculateTrajectoryLength(
+    const std::list<ScanPose>& keyframes) {
   double length{0};
   auto iter = keyframes.begin();
   Eigen::Vector3d prev_position = iter->T_REFFRAME_BASELINK().block(0, 3, 3, 1);

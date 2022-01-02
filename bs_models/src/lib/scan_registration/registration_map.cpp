@@ -1,15 +1,14 @@
 #include <bs_models/scan_registration/registration_map.h>
 
 #include <boost/filesystem.hpp>
-#include <pcl/common/transforms.h>
-#include <pcl/io/pcd_io.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
+#include <pcl/common/transforms.h>
+#include <pcl/io/pcd_io.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
 
-namespace bs_models {
-namespace scan_registration {
+namespace bs_models { namespace scan_registration {
 
 RegistrationMap::RegistrationMap() {
   bs_common::ExtrinsicsLookupOnline& extrinsics_online =
@@ -19,16 +18,16 @@ RegistrationMap::RegistrationMap() {
   ros::NodeHandle n;
 
   // setup publishers
-  lidar_map_publisher_ =
-      n.advertise<sensor_msgs::PointCloud2>("/local_map/lidar_map", 10);
+  lidar_map_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/local_mapper/local_map/lidar_map", 10);
   loam_edges_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/local_map/loam_map/edges_strong", 10);
+      "/local_mapper/local_map/loam_map/edges_strong", 10);
   loam_edges_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/local_map/loam_map/edges_weak", 10);
+      "/local_mapper/local_map/loam_map/edges_weak", 10);
   loam_surfaces_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/local_map/loam_map/surfaces_strong", 10);
+      "/local_mapper/local_map/loam_map/surfaces_strong", 10);
   loam_surfaces_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/local_map/loam_map/surfaces_weak", 10);
+      "/local_mapper/local_map/loam_map/surfaces_weak", 10);
 }
 
 RegistrationMap& RegistrationMap::GetInstance() {
@@ -49,7 +48,9 @@ bool RegistrationMap::SetParams(int map_size, bool publish_updates) {
   return true;
 }
 
-int RegistrationMap::MapSize() const { return map_size_; }
+int RegistrationMap::MapSize() const {
+  return map_size_;
+}
 
 bool RegistrationMap::Empty() const {
   return loam_clouds_in_map_frame_.empty() && clouds_in_map_frame_.empty();
@@ -278,9 +279,7 @@ bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
 bool RegistrationMap::GetUUIDStamp(const fuse_core::UUID& uuid,
                                    ros::Time& stamp) const {
   auto iter = uuid_map_.find(uuid);
-  if (iter == uuid_map_.end()) {
-    return false;
-  }
+  if (iter == uuid_map_.end()) { return false; }
   stamp.fromNSec(iter->second);
   return true;
 }
@@ -294,9 +293,7 @@ void RegistrationMap::Clear() {
 }
 
 void RegistrationMap::Publish() {
-  if (!publish_updates_) {
-    return;
-  }
+  if (!publish_updates_) { return; }
 
   ros::Time update_time = ros::Time::now();
 
@@ -338,6 +335,4 @@ void RegistrationMap::Publish() {
   updates_counter_++;
 }
 
-}  // namespace scan_registration
-
-}  // namespace bs_models
+}} // namespace bs_models::scan_registration
