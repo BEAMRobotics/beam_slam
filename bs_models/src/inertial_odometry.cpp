@@ -167,8 +167,8 @@ void InertialOdometry::RegisterImuMessage(const sensor_msgs::Imu& msg) {
   odom_msg.pose.pose = pose.pose;
   odom_msg.pose.covariance = covariance_flat;
   odom_msg.header.stamp = pose.header.stamp;
-  odom_msg.header.frame_id = extrinsics_.GetBaselinkFrameId();
-  odom_msg.child_frame_id = extrinsics_.GetWorldFrameId();
+  odom_msg.header.frame_id = extrinsics_.GetWorldFrameId();
+  odom_msg.child_frame_id = extrinsics_.GetBaselinkFrameId();
   init_odom_publisher_.publish(odom_msg);
 
   // register inertial constraint
