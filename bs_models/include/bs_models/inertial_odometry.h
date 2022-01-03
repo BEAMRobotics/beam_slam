@@ -60,7 +60,7 @@ private:
   /**
    * @brief Unsubscribe to the input topic
    */
-  void onStop() override {}
+  void onStop() override;
 
   /**
    * @brief Callback for when a newly optimized graph is available

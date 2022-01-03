@@ -81,9 +81,9 @@ visual_inertial_odometry:
   # feature tracking configs
   descriptor: 'BEBLID'
   detector: 'FAST'
-  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/descriptor.json'
-  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/fast_detector.json'
-  tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/tracker.json'
+  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/descriptor.json'
+  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
+  tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
   # keyframe decision params and memory management params
   tracker_window_size: 100 # number of images to store landmark information in tracker
   num_features_to_track: 100 # number of features per keyframe to store in local visual map (should match whats in detector config)
@@ -102,7 +102,7 @@ lo_initializer:
   lidar_topic: '/lidar_h/velodyne_points'
   aggregation_time: 0.1
   trajectory_time_window: 5
-  min_trajectory_distance: 0.5
+  min_trajectory_distance: 1
   scan_output_directory: '' 
   max_frequency: 5 
 

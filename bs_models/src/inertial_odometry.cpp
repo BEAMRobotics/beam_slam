@@ -6,6 +6,8 @@
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 
+#include <beam_utils/pcl_conversions.h>
+
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel)
 
@@ -40,6 +42,11 @@ void InertialOdometry::onStart() {
 
   inertial_pose_stamps_publisher_ =
       private_node_handle_.advertise<std_msgs::Time>("pose_stamps", 1000);
+}
+
+void InertialOdometry::onStop() {
+  imu_subscriber_.shutdown();
+  path_subscriber_.shutdown();
 }
 
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {

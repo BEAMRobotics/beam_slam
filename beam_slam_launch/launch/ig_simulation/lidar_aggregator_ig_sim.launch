@@ -1,0 +1,11 @@
+<launch>
+<!-- Load calibration params for this dataset,  including intrinsics and extrinsics. 
+       Note: These are global params that need to be loaded for all launch files. -->
+  <rosparam command="load" file="$(find beam_slam_launch)/config/ig_simulation/calibration_params.yaml"/>
+
+  <!-- Run fixed-lag-smoother, treating imu preintegration as a unary factor -->
+  <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="fixed_lag_smoother" output="screen">
+    <rosparam command="load" file="$(find beam_slam_launch)/config/ig_simulation/lidar_aggregator_ig_sim.yaml"/>
+  </node>
+
+</launch>

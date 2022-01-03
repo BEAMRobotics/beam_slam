@@ -48,10 +48,10 @@ vio:
   imu_topic: '/imu0'
   init_path_topic: '/local_mapper/gt_initialiser/result'
   descriptor: 'BEBLID'
-  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/descriptor.json'
+  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/descriptor.json'
   detector: 'FAST'
-  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/fast_detector.json'
-  tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vision_config/tracker.json'
+  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
+  tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
   tracker_window_size: 150 
   num_features_to_track: 100
   keyframe_window_size: 10 

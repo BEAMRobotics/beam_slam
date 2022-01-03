@@ -240,4 +240,9 @@ bool ExtrinsicsLookupOnline::LookupTransform(Eigen::Matrix4d& T,
   return true;
 }
 
+std::string ExtrinsicsLookupOnline::GetFrameIdsString(){
+  return extrinsics_->GetFrameIdsString();
+}
+
+
 }  // namespace bs_common

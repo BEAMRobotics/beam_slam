@@ -483,4 +483,18 @@ bool ExtrinsicsLookupBase::SetTransform(const Eigen::Matrix4d& T,
   return true;
 }
 
+std::string ExtrinsicsLookupBase::GetFrameIdsString(){
+  std::string frame_ids_str;
+  frame_ids_str+=frame_ids_.imu;
+  frame_ids_str+=",";
+  frame_ids_str+=frame_ids_.camera;
+  frame_ids_str+=",";
+  frame_ids_str+=frame_ids_.lidar;
+  frame_ids_str+=",";
+  frame_ids_str+=frame_ids_.world;
+  frame_ids_str+=",";
+  frame_ids_str+=frame_ids_.baselink;
+  return frame_ids_str;
+}
+
 } // namespace bs_common

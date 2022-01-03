@@ -68,7 +68,6 @@ private:
   /** subscribe to lidar data */
   ros::Subscriber aggregation_time_subscriber_;
   ros::Subscriber pointcloud_subscriber_;
-  ros::Subscriber odometry_subscriber_;
 
   /** Publishers */
   ros::Publisher aggregate_publisher_;

@@ -64,9 +64,10 @@ void OdometryFrameInitializer::CheckOdometryFrameIDs(
                                           extrinsics_.GetLidarFrameId())) {
       sensor_frame_id_ = extrinsics_.GetLidarFrameId();
     } else {
-      BEAM_ERROR(
-          "Sensor frame id in odometry message not equal to any sensor frame "
-          "in extrinsics. Please provide a sensor_frame_id_override.");
+      BEAM_ERROR("Sensor frame id in odometry message ({}) not equal to any "
+                 "sensor frame in extrinsics. Please provide a "
+                 "sensor_frame_id_override. Available sensor frame ids: {}",
+                 child_frame_id, extrinsics_.GetFrameIdsString());
       throw std::invalid_argument{"Invalid frame id"};
     }
   }

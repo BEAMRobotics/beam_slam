@@ -83,7 +83,8 @@ public:
     // check aggregates have been added
     if (lidar_chunks_.size() == 0) { return; }
 
-    while (!aggregation_times_.empty()) {
+    // continue as long as aggregation times and lidar chunks are not empty
+    while (!aggregation_times_.empty() && !lidar_chunks_.empty()) {
       const ros::Time current_aggregate_time = aggregation_times_.front();
 
       // if the aggregation time is ahead of the first lidar chunk, then we
@@ -95,7 +96,7 @@ public:
         continue;
       }
 
-      // If aggregation time is ahead of the latest lidar chunk, then we return
+      // If aggregation time is after the latest lidar chunk, then we return
       // and wait for more points to arrive
       if (current_aggregate_time.toNSec() > lidar_chunks_.rbegin()->first) {
         return;
@@ -106,38 +107,43 @@ public:
 
       // get lidar pose at aggregation time
       Eigen::Matrix4d T_WORLD_LIDARAGG;
-      if (!frame_intializer_->GetEstimatedPose(T_WORLD_LIDARAGG,
-                                               current_aggregate_time,
-                                               extrinsics_.GetLidarFrameId())) {
-        BEAM_WARN(
-            "Cannot get lidar pose at requested aggregation time, skipping.");
+      std::string error_msg;
+      if (!frame_intializer_->GetEstimatedPose(
+              T_WORLD_LIDARAGG, current_aggregate_time,
+              extrinsics_.GetLidarFrameId(), error_msg)) {
+        ROS_DEBUG("Cannot get lidar pose at requested aggregation time, "
+                  "skipping. Reason: %s",
+                  error_msg.c_str());
         return;
       }
 
       // iterate through all lidar chunks, transform to corrected position, then
       // add to final aggregate
       LidarAggregate<PointT> current_aggregate(current_aggregate_time);
+
       while (!lidar_chunks_.empty()) {
+        const auto& current_chunk = lidar_chunks_.begin();
         uint64_t current_chunk_time = lidar_chunks_.begin()->first;
 
         // get lidar pose at current chunk time
         Eigen::Matrix4d T_WORLD_LIDARCHUNK;
-        ros::Time query_time;
-        query_time.fromNSec(current_chunk_time);
+        std::string error_msg;
         if (!frame_intializer_->GetEstimatedPose(
-                T_WORLD_LIDARCHUNK, query_time,
-                extrinsics_.GetLidarFrameId())) {
-          BEAM_WARN("Cannot get lidar pose at lidar chunk time, skipping.");
-          lidar_chunks_.erase(current_chunk_time);
+                T_WORLD_LIDARCHUNK, current_chunk->second.time,
+                extrinsics_.GetLidarFrameId(), error_msg)) {
+          ROS_DEBUG(
+              "Cannot get lidar pose at lidar chunk time, skipping. Reason: {}",
+              error_msg.c_str());
+          lidar_chunks_.erase(current_chunk->first);
           continue;
         }
 
-        Eigen::Matrix4d T_LIDARCHUNK_LIDARAGG =
-            beam::InvertTransform(T_WORLD_LIDARCHUNK) * T_WORLD_LIDARAGG;
+        Eigen::Matrix4d T_LIDARAGG_LIDARCHUNK =
+            beam::InvertTransform(T_WORLD_LIDARAGG) * T_WORLD_LIDARCHUNK;
 
         pcl::PointCloud<PointT> compensated_chunk;
-        pcl::transformPointCloud(lidar_chunks_.begin()->second.cloud,
-                                 compensated_chunk, T_LIDARCHUNK_LIDARAGG);
+        pcl::transformPointCloud(current_chunk->second.cloud, compensated_chunk,
+                                 T_LIDARAGG_LIDARCHUNK);
 
         current_aggregate.cloud += compensated_chunk;
         lidar_chunks_.erase(current_chunk_time);
@@ -158,5 +164,4 @@ private:
   // params
   ros::Duration max_aggregate_duration_;
 };
-
 } // namespace bs_models
