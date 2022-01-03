@@ -252,6 +252,12 @@ class ExtrinsicsLookupBase {
   bool SetTransform(const Eigen::Matrix4d& T, const std::string& to_frame,
                     const std::string& from_frame);
 
+  /**
+   * @brief get all stored frame ids
+   * @return string of comma separated frame ids
+   */
+  std::string GetFrameIdsString();
+
  private:
   Eigen::Matrix4d T_LIDAR_IMU_;
   Eigen::Matrix4d T_LIDAR_CAMERA_;

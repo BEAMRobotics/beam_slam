@@ -10,8 +10,9 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
-  # - name: 'lidar_aggregation'
-  #   type: 'bs_models::LidarAggregation'  
+  - name: 'lidar_aggregation'
+    type: 'bs_models::LidarAggregation'  
+    motion_models: ['unicycle_3d']
   # - name: 'lidar_odometry'
   #   type: 'bs_models::LidarOdometry'
   #   motion_models: ['unicycle_3d']
@@ -57,7 +58,7 @@ lo_initializer:
   lidar_topic: '/lidar_h/velodyne_packets_unpacked'
   aggregation_time: 0.1
   trajectory_time_window: 5
-  min_trajectory_distance: 0.5
+  min_trajectory_distance: 1
   scan_output_directory: '' 
   max_frequency: 5 
 
@@ -69,10 +70,10 @@ inertial_odometry:
   msg_queue_size: 10000
 
 lidar_aggregation:
-  aggregation_time_topic: /local_mapper/inertial_odometry/pose_stamps 
-  odometry_topic: /local_mapper/inertial_odometry/odometry
+  aggregation_time_topic: '/local_mapper/inertial_odometry/pose_stamps'
+  odometry_topic: '/local_mapper/inertial_odometry/odometry'
   use_trigger: true
-  pointcloud_topic: /lidar_h/velodyne_packets_unpacked 
+  pointcloud_topic: '/lidar_h/velodyne_packets_unpacked'
   max_aggregation_time_seconds: 0.1 
 
 lidar_odometry:

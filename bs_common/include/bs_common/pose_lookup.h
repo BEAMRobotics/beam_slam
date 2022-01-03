@@ -7,6 +7,8 @@
 
 namespace bs_common {
 
+static std::string pose_lookup_error_msg = "";
+
 /**
  * @brief This class can be used to estimate the pose of any frame given its
  * timestamp and a tf2::BufferCore which contains the poses.
@@ -18,7 +20,7 @@ namespace bs_common {
  *
  */
 class PoseLookup {
- public:
+public:
   /**
    * @brief Constructor
    * @param poses shared pointer to the poses
@@ -30,26 +32,29 @@ class PoseLookup {
    * @param T_WORLD_SENSOR reference to result
    * @param sensor_frame sensor frame id
    * @param time stamp of the frame being initialized
+   * @param error_msg if unsuccesful, this message will explain why
    * @return true if pose lookup was successful
    */
   bool GetT_WORLD_SENSOR(Eigen::Matrix4d& T_WORLD_SENSOR,
-                         const std::string& sensor_frame,
-                         const ros::Time& time);
+                         const std::string& sensor_frame, const ros::Time& time,
+                         std::string& error_msg = pose_lookup_error_msg);
 
   /**
    * @brief Gets estimate of baselink frame pose wrt world frame
    * @param T_WORLD_BASELINK reference to result
    * @param time pose time to lookup.
+   * @param error_msg if unsuccesful, this message will explain why 
    * @return true if pose lookup was successful
    */
   bool GetT_WORLD_BASELINK(Eigen::Matrix4d& T_WORLD_BASELINK,
-                           const ros::Time& time);
+                           const ros::Time& time,
+                           std::string& error_msg = pose_lookup_error_msg);
 
- private:
+private:
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   std::shared_ptr<tf2::BufferCore> poses_{nullptr};
 };
 
-}  // namespace bs_common
+} // namespace bs_common

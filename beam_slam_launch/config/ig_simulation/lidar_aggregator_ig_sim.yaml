@@ -1,0 +1,56 @@
+# optimization params
+optimization_period: 0.5
+lag_duration: 7
+
+## model plugins: declare all plugins to use and give a unique name
+sensor_models:
+  - name: 'lo_initializer'
+    type: 'bs_models::LoInitializer'
+  - name: 'lidar_aggregation'
+    type: 'bs_models::LidarAggregation'  
+    motion_models: ['unicycle_3d'] 
+
+motion_models:
+  - name: 'unicycle_3d'
+    type: 'bs_models::Unicycle3D'
+
+## plugin params: specify all params for the plugins, using their unique name
+
+solver_options:
+  minimizer_type: 'TRUST_REGION'
+  linear_solver_type: 'SPARSE_SCHUR'
+  minimizer_progress_to_stdout: false
+  num_threads: 6
+  num_linear_solver_threads: 6
+  max_num_iterations: 20
+  max_solver_time_in_seconds: 0.05
+  gradient_tolerance: 0.00000015
+  parameter_tolerance: 0.00000015
+  function_tolerance: 0.00000015
+
+unicycle_3d:
+  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2]
+  buffer_length: 100000
+
+lo_initializer:
+  registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
+  matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16_init.json' 
+  ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
+  lidar_topic: '/hvlp/velodyne_points'
+  aggregation_time: 0.1
+  trajectory_time_window: 5
+  min_trajectory_distance: 1
+  scan_output_directory: '' 
+  max_frequency: 5 
+
+lidar_aggregation:
+  aggregation_time_topic: ''
+  odometry_topic: '/odometry/ground_truth'
+  use_trigger: false
+  pointcloud_topic: '/hvlp/velodyne_points'
+  max_aggregation_time_seconds: 0.1 
+  sensor_frame_id_override: 'inertial_link'

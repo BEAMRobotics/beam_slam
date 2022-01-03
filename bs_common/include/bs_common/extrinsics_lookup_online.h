@@ -17,7 +17,7 @@ namespace bs_common {
  * with those same global params. See global_mapper.cpp for an example use case.
  */
 class ExtrinsicsLookupOnline {
- public:
+public:
   /**
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
@@ -32,8 +32,8 @@ class ExtrinsicsLookupOnline {
   /**
    * @brief Delete copy assignment operator
    */
-  ExtrinsicsLookupOnline& operator=(const ExtrinsicsLookupOnline& other) =
-      delete;
+  ExtrinsicsLookupOnline&
+      operator=(const ExtrinsicsLookupOnline& other) = delete;
 
   /**
    * @brief Get a copy of the instrinsics stored herein
@@ -234,7 +234,13 @@ class ExtrinsicsLookupOnline {
    */
   bool IsSensorFrameIdValid(const std::string& sensor_frame);
 
- private:
+  /**
+   * @brief get all stored frame ids
+   * @return string of comma separated frame ids
+   */
+  std::string GetFrameIdsString();
+
+private:
   /**
    * @brief Constructor
    */
@@ -262,4 +268,4 @@ class ExtrinsicsLookupOnline {
   bool static_extrinsics_{true};
 };
 
-}  // namespace bs_common
+} // namespace bs_common

@@ -1,13 +1,14 @@
 #pragma once
 
-#include <ros/ros.h>
 #include <Eigen/Dense>
+#include <ros/ros.h>
 #include <tf2/buffer_core.h>
 
 #include <bs_common/pose_lookup.h>
 
-namespace bs_models {
-namespace frame_initializers {
+namespace bs_models { namespace frame_initializers {
+
+static std::string frame_initializer_error_msg = "";
 
 /**
  * @brief This base class shows the contract between a FrameInitializer class.
@@ -21,7 +22,7 @@ namespace frame_initializers {
  *
  */
 class FrameInitializerBase {
- public:
+public:
   /**
    * @brief Gets estimated pose of sensor frame wrt world frame using
    * Poselookup.
@@ -31,15 +32,15 @@ class FrameInitializerBase {
    * @return true if pose lookup was successful
    */
   bool GetEstimatedPose(Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
-                        const std::string& sensor_frame_id) {
+                        const std::string& sensor_frame_id,
+                        std::string& error_msg = frame_initializer_error_msg) {
     return pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id,
-                                           time);
+                                           time, error_msg);
   };
 
- protected:
+protected:
   std::string authority_;
   std::shared_ptr<bs_common::PoseLookup> pose_lookup_;
 };
 
-}  // namespace frame_initializers
-}  // namespace bs_models
+}} // namespace bs_models::frame_initializers
