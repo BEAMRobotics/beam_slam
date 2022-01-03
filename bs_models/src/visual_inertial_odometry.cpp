@@ -204,7 +204,7 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
 void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
-  ROS_INFO("---Updating graph---");
+  ROS_DEBUG("VIO: Updating Graph");
   // make deep copy to make updating graph easier
   fuse_core::Graph::SharedPtr copy = std::move(graph->clone());
 
@@ -468,6 +468,11 @@ void VisualInertialOdometry::PublishInitialOdometry(
 }
 
 void VisualInertialOdometry::PublishSlamChunk(Keyframe keyframe) {
+  // dont publish placeholder
+  if(keyframe.Stamp() == ros::Time(0)){
+    return;
+  }
+  
   ros::Time keyframe_time = keyframe.Stamp();
   bs_common::SlamChunkMsg slam_chunk;
 
