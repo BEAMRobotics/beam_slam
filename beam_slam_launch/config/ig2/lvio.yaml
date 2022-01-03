@@ -1,6 +1,6 @@
 # optimization params
 optimization_period: 0.5
-lag_duration: 7
+lag_duration: 5
 
 ## model plugins: declare all plugins to use and give a unique name
 sensor_models:
@@ -72,7 +72,6 @@ lidar_odometry:
   reloc_request_period: 1
   scan_output_directory: ''
 
-
 visual_inertial_odometry:
   # topics to subscribe to
   image_topic: '/F1/image_mono/downscaled'
@@ -88,11 +87,10 @@ visual_inertial_odometry:
   tracker_window_size: 100 # number of images to store landmark information in tracker
   num_features_to_track: 100 # number of features per keyframe to store in local visual map (should match whats in detector config)
   keyframe_window_size: 20 # number of keyframes to store in local visual map
-  keyframe_parallax: 10 # if avg parallax to the previous keyframe exceeds this then set keyframe 
-  keyframe_min_time_in_seconds: 0.25 # minimum amount of time between keyframes
+  keyframe_parallax: 15.0 # if avg parallax to the previous keyframe exceeds this then set keyframe 
   # initialization params
   init_max_optimization_time_in_seconds: 0.5 # max amount of time to optimize the initializer map
-  init_map_output_directory: '/userhome' # Outputs vio initial map into directory if not empty
+  init_map_output_directory: '' # Outputs vio initial map into directory if not empty
   init_use_scale_estimate: false # Set to true if using sfm initializer
 
 lo_initializer:

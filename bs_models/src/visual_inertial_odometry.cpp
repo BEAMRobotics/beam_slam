@@ -36,7 +36,7 @@ void VisualInertialOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // initialize pose refiner object with params
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2, true, 1.0);
 
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
@@ -174,7 +174,6 @@ void VisualInertialOdometry::processImage(
             visual_map_->GetBaselinkPose(keyframes_.back().Stamp()).value();
         Eigen::Matrix4d T_curframe_curkeyframe =
             T_WORLD_BASELINK.inverse() * T_WORLD_BASELINK_curkf;
-
         // add to current keyframes trajectory
         keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
         added_since_kf_++;
@@ -205,6 +204,7 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
 void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
+  ROS_INFO("---Updating graph---");
   // make deep copy to make updating graph easier
   fuse_core::Graph::SharedPtr copy = std::move(graph->clone());
 
@@ -263,11 +263,42 @@ Eigen::Matrix4d
 
 bool VisualInertialOdometry::IsKeyframe(
     const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_BASELINK) {
-  if (img_time.toSec() - keyframes_.back().Stamp().toSec() >=
-      vio_params_.keyframe_min_time_in_seconds) {
-    return true;
+  // get timestamp of last keyframe
+  ros::Time kf_time = keyframes_.back().Stamp();
+  // compute relative pose from this frame to last keyframe
+  beam::opt<Eigen::Matrix4d> kf_pose = visual_map_->GetBaselinkPose(kf_time);
+  Eigen::Matrix4d T_kf_cf = kf_pose.value().inverse() * T_WORLD_BASELINK;
+  // compute avg parallax
+  double total_parallax = 0;
+  double num_correspondences = 0;
+  // get pixel correspondences in this frame and last frame
+  std::vector<uint64_t> cf_landmarks =
+      tracker_->GetLandmarkIDsInImage(img_time);
+  for (auto& id : cf_landmarks) {
+    try {
+      Eigen::Vector2d cf_pixel = tracker_->Get(img_time, id);
+      Eigen::Vector2d kf_pixel = tracker_->Get(kf_time, id);
+      // back project pixel in cf
+      Eigen::Vector3d cf_ray;
+      if (!cam_model_->BackProject(cf_pixel.cast<int>(), cf_ray)) { break; }
+      // rotate ray to be in kf
+      Eigen::Vector3d cf_ray_inkf = (T_kf_cf.block<3, 3>(0, 0) * cf_ray);
+      // project ray to get pixel in kf
+      Eigen::Vector2d cf_pixel_inkf;
+      if (!cam_model_->ProjectPoint(cf_ray_inkf, cf_pixel_inkf)) { break; }
+      // accumulate
+      total_parallax += beam::distance(kf_pixel, cf_pixel_inkf);
+      num_correspondences += 1.0;
+    } catch (const std::out_of_range& oor) {}
   }
-  return false;
+  // decide if this frame is a keyframe
+  double avg_parallax = total_parallax / num_correspondences;
+  if (avg_parallax > vio_params_.keyframe_parallax) {
+    return true;
+  } else {
+    if (added_since_kf_ > vio_params_.tracker_window_size - 10) { return true; }
+    return false;
+  }
 }
 
 void VisualInertialOdometry::ExtendMap() {
