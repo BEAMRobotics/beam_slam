@@ -36,7 +36,7 @@ void VisualInertialOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // initialize pose refiner object with params
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2, true, 1.0);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(5e-2, true, 1.0);
 
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
@@ -161,13 +161,13 @@ void VisualInertialOdometry::processImage(
       // process keyframe
       if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
         ROS_INFO("Keyframe time: %f", img_time.toSec());
+        ROS_INFO("%s",
+                 beam::TransformationMatrixToString(T_WORLD_BASELINK).c_str());
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
         NotifyNewKeyframe(T_WORLD_BASELINK);
         ExtendMap();
-        ROS_INFO("%s",
-                 beam::TransformationMatrixToString(T_WORLD_BASELINK).c_str());
       } else {
         // compute relative pose to most recent kf
         Eigen::Matrix4d T_WORLD_BASELINK_curkf =
@@ -204,7 +204,6 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
 void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
-  ROS_DEBUG("VIO: Updating Graph");
   // make deep copy to make updating graph easier
   fuse_core::Graph::SharedPtr copy = std::move(graph->clone());
 
@@ -221,6 +220,14 @@ void VisualInertialOdometry::onGraphUpdate(
 
   // Update imu preint info with new graph
   imu_preint_->UpdateGraph(copy);
+
+  int num_states = 0;
+  for (auto& var : copy->getVariables()) {
+    fuse_variables::Position3DStamped::SharedPtr position =
+        fuse_variables::Position3DStamped::make_shared();
+    if (var.type() == position->type()) { num_states++; }
+  }
+  ROS_INFO("VIO: Updating Graph. Size: %d", num_states);
 }
 
 /************************************************************
@@ -250,24 +257,32 @@ Eigen::Matrix4d
   imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time, covariance);
 
   // refine with visual info
-  Eigen::Matrix4d T_CAMERA_WORLD_est =
-      (T_WORLD_BASELINK_inertial * T_cam_baselink_.inverse()).inverse();
-  Eigen::Matrix4d T_WORLD_CAMERA =
-      pose_refiner_
-          ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points,
-                       covariance)
-          .inverse();
-  Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-  return T_WORLD_BASELINK;
+  if (pixels.size() >= 15) {
+    Eigen::Matrix4d T_CAMERA_WORLD_est =
+        (T_WORLD_BASELINK_inertial * T_cam_baselink_.inverse()).inverse();
+    Eigen::Matrix4d T_WORLD_CAMERA =
+        pose_refiner_
+            ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points,
+                         covariance)
+            .inverse();
+    Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
+    return T_WORLD_BASELINK;
+  }
+  return T_WORLD_BASELINK_inertial;
 }
 
 bool VisualInertialOdometry::IsKeyframe(
     const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // get timestamp of last keyframe
   ros::Time kf_time = keyframes_.back().Stamp();
-  // compute relative pose from this frame to last keyframe
+
+  // compute relative rotation from this frame to last keyframe using imu
   beam::opt<Eigen::Matrix4d> kf_pose = visual_map_->GetBaselinkPose(kf_time);
-  Eigen::Matrix4d T_kf_cf = kf_pose.value().inverse() * T_WORLD_BASELINK;
+  Eigen::Matrix4d cf_pose;
+  imu_preint_->GetPose(cf_pose, img_time);
+  Eigen::Matrix3d R_kf_cf =
+      (kf_pose.value().inverse() * cf_pose).block<3, 3>(0, 0);
+
   // compute avg parallax
   double total_parallax = 0;
   double num_correspondences = 0;
@@ -276,13 +291,14 @@ bool VisualInertialOdometry::IsKeyframe(
       tracker_->GetLandmarkIDsInImage(img_time);
   for (auto& id : cf_landmarks) {
     try {
+      // get pixels from each frame
       Eigen::Vector2d cf_pixel = tracker_->Get(img_time, id);
       Eigen::Vector2d kf_pixel = tracker_->Get(kf_time, id);
       // back project pixel in cf
       Eigen::Vector3d cf_ray;
       if (!cam_model_->BackProject(cf_pixel.cast<int>(), cf_ray)) { break; }
       // rotate ray to be in kf
-      Eigen::Vector3d cf_ray_inkf = (T_kf_cf.block<3, 3>(0, 0) * cf_ray);
+      Eigen::Vector3d cf_ray_inkf = R_kf_cf * cf_ray;
       // project ray to get pixel in kf
       Eigen::Vector2d cf_pixel_inkf;
       if (!cam_model_->ProjectPoint(cf_ray_inkf, cf_pixel_inkf)) { break; }
@@ -293,6 +309,7 @@ bool VisualInertialOdometry::IsKeyframe(
   }
   // decide if this frame is a keyframe
   double avg_parallax = total_parallax / num_correspondences;
+  std::cout << "Parallax: " << avg_parallax << std::endl;
   if (avg_parallax > vio_params_.keyframe_parallax) {
     return true;
   } else {
@@ -317,6 +334,8 @@ void VisualInertialOdometry::ExtendMap() {
         visual_map_->GetLandmark(id);
     // add constraints to triangulated ids
     if (lm) {
+      // TODO: check if its an inlier before adding
+
       visual_map_->AddConstraint(cur_kf_time, id,
                                  tracker_->Get(cur_kf_time, id), transaction);
     } else {
@@ -341,7 +360,7 @@ void VisualInertialOdometry::ExtendMap() {
       if (T_cam_world_v.size() >= 2) {
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                     pixels);
+                                                     pixels, 5.0);
         if (point.has_value()) {
           keyframes_.back().AddLandmark(id);
           visual_map_->AddLandmark(point.value(), id, transaction);
@@ -425,6 +444,9 @@ void VisualInertialOdometry::SendInitializationGraph(
  ************************************************************/
 void VisualInertialOdometry::NotifyNewKeyframe(
     const Eigen::Matrix4d& T_WORLD_BASELINK) {
+  // TODO: Move this to extend map so its all in one transactions (to reduce #
+  // TODO: of transactions fuse has to deal with)
+
   // send camera pose to graph
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(keyframes_.back().Stamp());
@@ -469,10 +491,8 @@ void VisualInertialOdometry::PublishInitialOdometry(
 
 void VisualInertialOdometry::PublishSlamChunk(Keyframe keyframe) {
   // dont publish placeholder
-  if(keyframe.Stamp() == ros::Time(0)){
-    return;
-  }
-  
+  if (keyframe.Stamp() == ros::Time(0)) { return; }
+
   ros::Time keyframe_time = keyframe.Stamp();
   bs_common::SlamChunkMsg slam_chunk;
 
