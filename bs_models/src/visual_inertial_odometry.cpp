@@ -169,7 +169,7 @@ void VisualInertialOdometry::processImage(
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
         NotifyNewKeyframe(T_WORLD_BASELINK);
-        ExtendMap();
+        ExtendMap(T_WORLD_BASELINK);
       } else {
         // compute relative pose to most recent kf
         Eigen::Matrix4d T_WORLD_BASELINK_curkf =
