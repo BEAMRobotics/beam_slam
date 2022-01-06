@@ -270,12 +270,10 @@ bool VisualInertialOdometry::IsKeyframe(
   // get timestamp of last keyframe
   ros::Time kf_time = keyframes_.back().Stamp();
 
-  // compute relative rotation from this frame to last keyframe using imu
+  // compute relative rotation from this frame to last keyframe
   beam::opt<Eigen::Matrix4d> kf_pose = visual_map_->GetBaselinkPose(kf_time);
-  Eigen::Matrix4d cf_pose;
-  imu_preint_->GetPose(cf_pose, img_time);
   Eigen::Matrix3d R_kf_cf =
-      (kf_pose.value().inverse() * cf_pose).block<3, 3>(0, 0);
+      (kf_pose.value().inverse() * T_WORLD_BASELINK).block<3, 3>(0, 0);
 
   // compute avg parallax
   double total_parallax = 0;
@@ -316,10 +314,10 @@ void VisualInertialOdometry::ExtendMap(
     const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // get current and previous keyframe timestamps
   ros::Time cur_kf_time = keyframes_.back().Stamp();
-
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(cur_kf_time);
-
+  // add pose to map
+  visual_map_->AddBaselinkPose(T_WORLD_BASELINK, cur_kf_time, transaction);
   // add visual constraints
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInImage(cur_kf_time);
@@ -436,13 +434,6 @@ void VisualInertialOdometry::SendInitializationGraph(
  ************************************************************/
 void VisualInertialOdometry::NotifyNewKeyframe(
     const Eigen::Matrix4d& T_WORLD_BASELINK) {
-  // send camera pose to graph
-  auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(keyframes_.back().Stamp());
-  visual_map_->AddBaselinkPose(T_WORLD_BASELINK, keyframes_.back().Stamp(),
-                               transaction);
-  sendTransaction(transaction);
-
   // build header message and publish for lidar slam
   std_msgs::Header keyframe_header;
   keyframe_header.stamp = keyframes_.back().Stamp();
