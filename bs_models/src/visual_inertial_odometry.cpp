@@ -312,9 +312,9 @@ bool VisualInertialOdometry::IsKeyframe(
   }
 }
 
-void VisualInertialOdometry::ExtendMap() {
+void VisualInertialOdometry::ExtendMap(
+    const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // get current and previous keyframe timestamps
-  ros::Time prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
   ros::Time cur_kf_time = keyframes_.back().Stamp();
 
   auto transaction = fuse_core::Transaction::make_shared();
