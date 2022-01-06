@@ -33,19 +33,21 @@ public:
       const Eigen::Vector2d& pixel_measurement,
       const std::shared_ptr<beam_calibration::CameraModel> cam_model,
       const Eigen::Matrix4d& T_cam_baselink)
-      : pixel_measurement_(pixel_measurement), cam_model_(cam_model) {
+      : pixel_measurement_(pixel_measurement),
+        cam_model_(cam_model),
+        T_cam_baselink_(T_cam_baselink) {
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
         new ceres::NumericDiffCostFunction<
             beam_optimization::CameraProjectionFunctor, ceres::CENTRAL, 2, 3>(
             new beam_optimization::CameraProjectionFunctor(
                 cam_model_, pixel_measurement_))));
-    T_cam_baselink_ = T_cam_baselink;
   }
 
   template <typename T>
   bool operator()(const T* const R_WORLD_BASELINK,
                   const T* const t_WORLD_BASELINK, const T* const P_WORLD,
                   T* residual) const {
+    // transform point from world frame into camera frame
     Eigen::Matrix<T, 4, 4> T_CAM_BASELINK = T_cam_baselink_.cast<T>();
 
     T R_WORLD_BASELINK_mat[9];
@@ -86,9 +88,11 @@ public:
 
     const T* P_CAMERA_const = &(P_CAMERA[0]);
 
+    // project point into pixel space
     T pixel_projected[2];
     (*compute_projection)(P_CAMERA_const, &(pixel_projected[0]));
 
+    // compute pixel distance
     residual[0] = (pixel_measurement_.cast<T>()[0] - pixel_projected[0]);
     residual[1] = (pixel_measurement_.cast<T>()[1] - pixel_projected[1]);
     return true;

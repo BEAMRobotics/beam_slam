@@ -1,4 +1,5 @@
 #include <bs_constraints/visual/reprojection_functor.h>
+#include <bs_constraints/visual/unit_sphere_reprojection_functor.h>
 #include <bs_constraints/visual/visual_constraint.h>
 #include <fuse_loss/cauchy_loss.h>
 #include <fuse_loss/huber_loss.h>
@@ -58,8 +59,8 @@ void VisualConstraint::print(std::ostream &stream) const {
 }
 
 ceres::CostFunction *VisualConstraint::costFunction() const {
-  return new ceres::AutoDiffCostFunction<ReprojectionFunctor, 2, 4, 3, 3>(
-      new ReprojectionFunctor(pixel_, cam_model_, T_cam_baselink_));
+  return new ceres::AutoDiffCostFunction<UnitSphereReprojectionFunctor, 2, 4, 3, 3>(
+      new UnitSphereReprojectionFunctor(pixel_, cam_model_, T_cam_baselink_));
 }
 
 } // namespace fuse_constraints

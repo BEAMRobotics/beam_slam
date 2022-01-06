@@ -236,7 +236,7 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
       if (T_cam_world_v.size() >= 2) {
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                     pixels, 5.0);
+                                                     pixels);
         if (point.has_value()) {
           num_landmarks++;
           visual_map_->AddLandmark(point.value(), id, landmark_transaction);
