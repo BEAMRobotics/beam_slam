@@ -159,11 +159,19 @@ bs_common::ImuState ImuPreintegration::PredictState(
 bool ImuPreintegration::GetPose(
     Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now,
     std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance) {
-  // check requested time
-  if (t_now < pre_integrator_kj.data.front().t ||
-      pre_integrator_kj.data.empty() ||
-      t_now < pre_integrator_kj.data.back().t) {
-    ROS_WARN("Requested time is outside of window, or no imu data available.");
+  // check requested time given a non empty integrator
+  if (!pre_integrator_kj.data.empty()) {
+    if (t_now < pre_integrator_kj.data.back().t) {
+      ROS_WARN("Requested time is before current imu measurement. Request a"
+               "pose at a timestamp >= the most recent imu measurement.");
+      return false;
+    }
+  }
+
+  // check requested time given an empty integrator
+  if (t_now < imu_state_k_.Stamp()) {
+    ROS_WARN("Requested time is before current imu state. Request a pose "
+             "at a timestamp >= the most recent imu measurement.");
     return false;
   }
 
@@ -199,23 +207,22 @@ fuse_core::Transaction::SharedPtr
     ImuPreintegration::RegisterNewImuPreintegratedFactor(
         const ros::Time& t_now,
         fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
-        fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
-        bool update_velocity) {
+        fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
   bs_constraints::relative_pose::ImuState3DStampedTransaction transaction(
       t_now);
-  
+
   // check requested time
   if (pre_integrator_ij.data.empty()) {
     ROS_WARN("Cannot register IMU factor, no imu data is available.");
     return nullptr;
   }
-  if (t_now < pre_integrator_ij.data.front().t ||
-      t_now < pre_integrator_ij.data.back().t) {
-    ROS_WARN(
-        "Cannot register IMU factor, requested time is outside of window.");
+  if (t_now < pre_integrator_ij.data.back().t) {
+    ROS_WARN("Cannot register IMU factor, requested time is prior to the end "
+             "of the window. Request a pose at a timestamp >= the most recent "
+             "imu measurement.");
     return nullptr;
   }
-  
+
   // generate prior constraint at start
   if (first_window_) {
     Eigen::Matrix<double, 15, 15> prior_covariance{
@@ -231,33 +238,45 @@ fuse_core::Transaction::SharedPtr
 
     first_window_ = false;
   }
-  
+
   // integrate between key frames, incrementally calculating covariance and
   // jacobians
   pre_integrator_ij.Integrate(t_now, imu_state_i_.GyroBiasVec(),
                               imu_state_i_.AccelBiasVec(), true, true);
-  
+
   // predict state at end of window using integrated imu measurements
   bs_common::ImuState imu_state_j =
       PredictState(pre_integrator_ij, imu_state_i_, t_now);
-  
+
   // Add relative constraints and variables between key frames
   transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j,
                                             pre_integrator_ij);
   transaction.AddImuStateVariables(imu_state_j);
-  
+
   // update orientation and position of predicted imu state with arguments
   if (R_WORLD_IMU && t_WORLD_IMU) {
+    // get old pose
+    Eigen::Matrix4d T_WORLD_IMUold;
+    beam::QuaternionAndTranslationToTransformMatrix(
+        imu_state_j.OrientationQuat(), imu_state_j.PositionVec(),
+        T_WORLD_IMUold);
+    // update with new estimate
     imu_state_j.SetOrientation(R_WORLD_IMU->data());
     imu_state_j.SetPosition(t_WORLD_IMU->data());
-    if (update_velocity) {
-      Eigen::Vector3d new_velocity =
-          (imu_state_j.PositionVec() - imu_state_i_.PositionVec()) /
-          (t_now.toSec() - imu_state_i_.Stamp().toSec());
-      imu_state_j.SetVelocity(new_velocity);
-    }
+    // get new pose
+    Eigen::Matrix4d T_WORLD_IMUnew;
+    beam::QuaternionAndTranslationToTransformMatrix(
+        imu_state_j.OrientationQuat(), imu_state_j.PositionVec(),
+        T_WORLD_IMUnew);
+    // get relative change
+    Eigen::Matrix4d T_new_old = T_WORLD_IMUnew.inverse() * T_WORLD_IMUold;
+    // update the velocity estimate
+    Eigen::Vector3d new_velocity =
+        T_new_old.block<3, 3>(0, 0) * imu_state_j.VelocityVec();
+
+    imu_state_j.SetVelocity(new_velocity);
   }
-  
+
   // move predicted state to previous state
   imu_state_i_ = imu_state_j;
 
@@ -372,7 +391,7 @@ void ImuPreintegration::EstimateParameters(
   }
   Eigen::Matrix4d A2 = Eigen::Matrix4d::Zero();
   Eigen::Vector4d b2 = Eigen::Vector4d::Zero();
-  
+
   for (size_t j = 1; j + 1 < imu_frames.size(); ++j) {
     const size_t i = j - 1;
     const size_t k = j + 1;
@@ -406,7 +425,7 @@ void ImuPreintegration::EstimateParameters(
   Eigen::Vector4d x = svd2.solve(b2);
   gravity = x.segment<3>(0).normalized() * GRAVITY_NOMINAL;
   scale = x(3);
-  
+
   /***************************
    *    Estimate Accel Bias   *
    ****************************/

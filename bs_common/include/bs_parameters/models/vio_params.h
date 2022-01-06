@@ -51,8 +51,7 @@ public:
     // (NOT USED) getParam<int>(nh, "keyframe_parallax", keyframe_parallax, 20);
 
     // minimum amount of time between keyframes
-    getParam<double>(nh, "keyframe_min_time_in_seconds",
-                     keyframe_min_time_in_seconds, 0.2);
+    getParam<double>(nh, "keyframe_parallax", keyframe_parallax, 10.0);
 
     /** vio initialization params */
 
@@ -87,8 +86,7 @@ public:
   int num_features_to_track{};
 
   // keyframe decision parameters
-  // int keyframe_parallax{70};
-  double keyframe_min_time_in_seconds{};
+  double keyframe_parallax{10.0};
 
   // vio initialization params
   std::string init_map_output_directory{};

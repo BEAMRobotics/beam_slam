@@ -72,7 +72,6 @@ add_library(
   src/lidar_aggregation.cpp
   src/gt_initializer.cpp
   src/unicycle_3d.cpp
-  src/unicycle_3d_ignition.cpp
   src/lidar_odometry.cpp
   src/visual_inertial_odometry.cpp
   src/inertial_odometry.cpp
