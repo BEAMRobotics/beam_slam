@@ -14,9 +14,6 @@
 #include <ceres/numeric_diff_cost_function.h>
 #include <ceres/rotation.h>
 
-template <class T>
-using opt = beam::optional<T>;
-
 namespace fuse_constraints {
 
 class UnitSphereReprojectionFunctor {
