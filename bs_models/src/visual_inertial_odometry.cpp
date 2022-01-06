@@ -160,9 +160,11 @@ void VisualInertialOdometry::processImage(
 
       // process keyframe
       if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
+        // log keyframe info
         ROS_INFO("Keyframe time: %f", img_time.toSec());
         ROS_INFO("%s",
                  beam::TransformationMatrixToString(T_WORLD_BASELINK).c_str());
+        // update map with keyframe
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);
         added_since_kf_ = 0;
@@ -220,14 +222,6 @@ void VisualInertialOdometry::onGraphUpdate(
 
   // Update imu preint info with new graph
   imu_preint_->UpdateGraph(copy);
-
-  int num_states = 0;
-  for (auto& var : copy->getVariables()) {
-    fuse_variables::Position3DStamped::SharedPtr position =
-        fuse_variables::Position3DStamped::make_shared();
-    if (var.type() == position->type()) { num_states++; }
-  }
-  ROS_INFO("VIO: Updating Graph. Size: %d", num_states);
 }
 
 /************************************************************
@@ -309,7 +303,7 @@ bool VisualInertialOdometry::IsKeyframe(
   }
   // decide if this frame is a keyframe
   double avg_parallax = total_parallax / num_correspondences;
-  std::cout << "Parallax: " << avg_parallax << std::endl;
+  ROS_DEBUG("Computed parallax to last keyframe: %f", avg_parallax);
   if (avg_parallax > vio_params_.keyframe_parallax) {
     return true;
   } else {
@@ -334,8 +328,6 @@ void VisualInertialOdometry::ExtendMap() {
         visual_map_->GetLandmark(id);
     // add constraints to triangulated ids
     if (lm) {
-      // TODO: check if its an inlier before adding
-
       visual_map_->AddConstraint(cur_kf_time, id,
                                  tracker_->Get(cur_kf_time, id), transaction);
     } else {
@@ -444,9 +436,6 @@ void VisualInertialOdometry::SendInitializationGraph(
  ************************************************************/
 void VisualInertialOdometry::NotifyNewKeyframe(
     const Eigen::Matrix4d& T_WORLD_BASELINK) {
-  // TODO: Move this to extend map so its all in one transactions (to reduce #
-  // TODO: of transactions fuse has to deal with)
-
   // send camera pose to graph
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(keyframes_.back().Stamp());
