@@ -37,7 +37,7 @@ public:
     Eigen::Vector2i pixel_i = pixel_measurement.cast<int>();
     cam_model_->BackProject(pixel_i, unit_sphere_pixel_);
 
-    // compuyte tagnet base of the measurement
+    // compute tanget base of the measurement
     Eigen::Vector3d b1, b2;
     Eigen::Vector3d a = unit_sphere_pixel_.normalized();
     Eigen::Vector3d tmp(0, 0, 1);

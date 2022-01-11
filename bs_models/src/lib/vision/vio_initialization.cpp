@@ -50,7 +50,7 @@ bool VIOInitialization::AddImage(const ros::Time &cur_time) {
     ROS_INFO("Attempting VIO Initialization.");
     // Estimate imu biases and gravity using the initial path
     bs_models::ImuPreintegration::EstimateParameters(
-        *init_path_, imu_buffer_, imu_params_, gravity_, bg_, ba_, scale_);
+        *init_path_, imu_buffer_, imu_params_, gravity_, bg_, ba_, velocities_, scale_);
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
     // Build frame vectors

@@ -101,6 +101,7 @@ private:
   std::shared_ptr<ImuPreintegration> imu_preint_;
   bs_models::ImuPreintegration::Params imu_params_;
   Eigen::Vector3d gravity_, bg_, ba_;
+  std::vector<Eigen::Vector3d> velocities_;
   double scale_;
 
   // time of previous imu state
