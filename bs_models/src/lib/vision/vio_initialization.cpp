@@ -10,15 +10,15 @@
 
 #include <bs_common/utils.h>
 
-namespace bs_models {
-namespace vision {
+namespace bs_models { namespace vision {
 
 VIOInitialization::VIOInitialization(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
-    std::shared_ptr<beam_cv::Tracker> tracker, const std::string &path_topic,
-    const std::string &imu_intrinsics_path, bool use_scale_estimate,
-    double max_optimization_time, const std::string &output_directory)
-    : cam_model_(cam_model), tracker_(tracker),
+    std::shared_ptr<beam_cv::Tracker> tracker, const std::string& path_topic,
+    const std::string& imu_intrinsics_path, bool use_scale_estimate,
+    double max_optimization_time, const std::string& output_directory)
+    : cam_model_(cam_model),
+      tracker_(tracker),
       use_scale_estimate_(use_scale_estimate),
       max_optimization_time_(max_optimization_time),
       output_directory_(output_directory) {
@@ -44,13 +44,19 @@ VIOInitialization::VIOInitialization(
       n.subscribe(path_topic, 10, &VIOInitialization::ProcessInitPath, this);
 }
 
-bool VIOInitialization::AddImage(const ros::Time &cur_time) {
+bool VIOInitialization::AddImage(const ros::Time& cur_time) {
   frame_times_.push_back(cur_time.toNSec());
   if (init_path_) {
     ROS_INFO("Attempting VIO Initialization.");
+    // prune poses in path that come before any imu messages
+    while (init_path_->poses[0].header.stamp <
+           imu_buffer_.front().header.stamp) {
+      init_path_->poses.erase(init_path_->poses.begin());
+    }
     // Estimate imu biases and gravity using the initial path
-    bs_models::ImuPreintegration::EstimateParameters(
-        *init_path_, imu_buffer_, imu_params_, gravity_, bg_, ba_, velocities_, scale_);
+    bs_models::ImuPreintegration::EstimateParameters(*init_path_, imu_buffer_,
+                                                     imu_params_, gravity_, bg_,
+                                                     ba_, velocities_, scale_);
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
     // Build frame vectors
@@ -80,24 +86,26 @@ bool VIOInitialization::AddImage(const ros::Time &cur_time) {
   return is_initialized_;
 }
 
-void VIOInitialization::AddIMU(const sensor_msgs::Imu &msg) {
+void VIOInitialization::AddIMU(const sensor_msgs::Imu& msg) {
   imu_buffer_.push(msg);
 }
 
 void VIOInitialization::ProcessInitPath(
-    const InitializedPathMsg::ConstPtr &msg) {
+    const InitializedPathMsg::ConstPtr& msg) {
   init_path_ = std::make_shared<InitializedPathMsg>();
   *init_path_ = *msg;
 }
 
-bool VIOInitialization::Initialized() { return is_initialized_; }
+bool VIOInitialization::Initialized() {
+  return is_initialized_;
+}
 
-const fuse_core::Graph::SharedPtr &VIOInitialization::GetGraph() {
+const fuse_core::Graph::SharedPtr& VIOInitialization::GetGraph() {
   return local_graph_;
 }
 
 std::shared_ptr<bs_models::ImuPreintegration>
-VIOInitialization::GetPreintegrator() {
+    VIOInitialization::GetPreintegrator() {
   return imu_preint_;
 }
 
@@ -107,11 +115,10 @@ void VIOInitialization::BuildFrameVectors() {
   valid_frames_.clear();
   invalid_frames_.clear();
   // get start and end time of input path
-  for (auto &kf : frame_times_) {
+  for (auto& kf : frame_times_) {
     ros::Time stamp;
     stamp.fromNSec(kf);
-    if (stamp < start)
-      continue;
+    if (stamp < start) continue;
     if (stamp <= end) {
       // get pose of frame using path
       Eigen::Matrix4d T_WORLD_BASELINK;
@@ -135,7 +142,7 @@ void VIOInitialization::BuildFrameVectors() {
 }
 
 void VIOInitialization::AddPosesAndInertialConstraints(
-    const std::vector<Frame> &frames, bool set_start) {
+    const std::vector<Frame>& frames, bool is_valid) {
   // add inertial constraints between poses
   for (int i = 0; i < frames.size(); i++) {
     Frame frame = frames[i];
@@ -147,8 +154,7 @@ void VIOInitialization::AddPosesAndInertialConstraints(
     }
 
     // if the current frame doesnt have a pose then estimate it using the imu
-    if (frame.p.isZero(1e-5) && frame.q.w() <= 1e-5 && frame.q.x() <= 1e-5 &&
-        frame.q.y() <= 1e-5 && frame.q.z() <= 1e-5) {
+    if (!is_valid) {
       Eigen::Matrix4d T_WORLD_BASELINK = LocalizeFrame(frame.t);
       beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, frame.q,
                                                       frame.p);
@@ -168,20 +174,39 @@ void VIOInitialization::AddPosesAndInertialConstraints(
     fuse_variables::Position3DStamped::SharedPtr img_position =
         visual_map_->GetPosition(frame.t);
 
-    // Add respective imu constraints
-    if (set_start && i == 0) {
-      // estimate velocity at frame.t
-      Eigen::Vector3d velocity_vec;
-      EstimateVelocityFromPath(init_path_->poses, frame.t, velocity_vec);
-      // make fuse variable
-      fuse_variables::VelocityLinear3DStamped::SharedPtr velocity =
-          std::make_shared<fuse_variables::VelocityLinear3DStamped>(frame.t);
+    // estimate velocity at frame if its a valid frame
+    fuse_variables::VelocityLinear3DStamped::SharedPtr velocity =
+        std::make_shared<fuse_variables::VelocityLinear3DStamped>(frame.t);
+    if (is_valid) {
+      size_t index = 0;
+      for (size_t i = 0; i < init_path_->poses.size(); i++) {
+        auto pose = init_path_->poses[i];
+        if (pose.header.stamp > frame.t) {
+          index = i - 1;
+          break;
+        }
+      }
+      Eigen::Vector3d velocity_vec = beam::InterpolateVector(
+          velocities_[index], init_path_->poses[index].header.stamp.toSec(),
+          velocities_[index + 1],
+          init_path_->poses[index + 1].header.stamp.toSec(), frame.t.toSec());
       velocity->x() = velocity_vec[0];
       velocity->y() = velocity_vec[1];
       velocity->z() = velocity_vec[2];
+    }
+
+    // Add appropriate imu constraints
+    if (is_valid && i == 0) {
       imu_preint_->SetStart(frame.t, img_orientation, img_position, velocity);
-    } else {
-      // get imu transaction
+    } else if (is_valid) {
+      // get imu transaction using velocity
+      fuse_core::Transaction::SharedPtr imu_transaction =
+          imu_preint_->RegisterNewImuPreintegratedFactor(
+              frame.t, img_orientation, img_position, velocity);
+      // send transaction to graph
+      local_graph_->update(*imu_transaction);
+    } else if (!is_valid) {
+      // get imu transaction without velocity
       fuse_core::Transaction::SharedPtr imu_transaction =
           imu_preint_->RegisterNewImuPreintegratedFactor(
               frame.t, img_orientation, img_position);
@@ -195,7 +220,7 @@ void VIOInitialization::AddPosesAndInertialConstraints(
 }
 
 size_t
-VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
+    VIOInitialization::AddVisualConstraints(const std::vector<Frame>& frames) {
   ros::Time start = frames[0].t, end = frames[frames.size() - 1].t;
   size_t num_landmarks = 0;
   // make transaction
@@ -204,17 +229,16 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
   // get all landmarks in the window
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInWindow(start, end);
-  for (auto &id : landmarks) {
+  for (auto& id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
     if (lm) {
       // if the landmark already exists then add constraint
-      for (auto &f : frames) {
+      for (auto& f : frames) {
         try {
           visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id),
                                      landmark_transaction);
-        } catch (const std::out_of_range &oor) {
-        }
+        } catch (const std::out_of_range& oor) {}
       }
     } else {
       // otherwise then triangulate then add the constraints
@@ -222,7 +246,7 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
       std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
-      for (auto &m : track) {
+      for (auto& m : track) {
         beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
 
         // check if the pose is in the graph (keyframe)
@@ -257,7 +281,7 @@ VIOInitialization::AddVisualConstraints(const std::vector<Frame> &frames) {
   return num_landmarks;
 }
 
-Eigen::Matrix4d VIOInitialization::LocalizeFrame(const ros::Time &img_time) {
+Eigen::Matrix4d VIOInitialization::LocalizeFrame(const ros::Time& img_time) {
   // get most recent extrinsics, if failure then process frame later
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get camera to baselink transform.");
@@ -266,7 +290,7 @@ Eigen::Matrix4d VIOInitialization::LocalizeFrame(const ros::Time &img_time) {
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInImage(img_time);
-  for (auto &id : landmarks) {
+  for (auto& id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
     if (lm) {
@@ -278,7 +302,7 @@ Eigen::Matrix4d VIOInitialization::LocalizeFrame(const ros::Time &img_time) {
   }
   // get pose estimate
   Eigen::Matrix4d T_WORLD_BASELINK_inertial;
-  std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance = 
+  std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance =
       std::make_shared<Eigen::Matrix<double, 6, 6>>();
   imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time, covariance);
   // refine with visual info
@@ -316,7 +340,7 @@ void VIOInitialization::AlignPosesToGravity() {
       Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
 
   // apply rotation to initial path
-  for (auto &pose : init_path_->poses) {
+  for (auto& pose : init_path_->poses) {
     Eigen::Matrix4d T;
     bs_common::PoseMsgToTransformationMatrix(pose, T);
     Eigen::Quaterniond ori;
@@ -328,13 +352,15 @@ void VIOInitialization::AlignPosesToGravity() {
     bs_common::TransformationMatrixToPoseMsg(T, pose.header.stamp, pose);
   }
 
+  // apply rotation to velocities
+  for (auto& vel : velocities_) { vel = q * vel; }
+
   // apply rotation to valid frames
-  for (auto &f : valid_frames_) {
+  for (auto& f : valid_frames_) {
     f.q = q * f.q;
     f.p = q * f.p;
     // Apply scale estimate if desired
-    if (use_scale_estimate_)
-      f.p = scale_ * f.p;
+    if (use_scale_estimate_) f.p = scale_ * f.p;
   }
 }
 
@@ -346,14 +372,14 @@ void VIOInitialization::OutputResults() {
              "Initializer results.");
   } else {
     // print results to stdout
-    for (auto &f : valid_frames_) {
+    for (auto& f : valid_frames_) {
       beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
       if (T.has_value()) {
         ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
         ROS_INFO("%s", beam::TransformationMatrixToString(T.value()).c_str());
       }
     }
-    for (auto &f : invalid_frames_) {
+    for (auto& f : invalid_frames_) {
       beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
       if (T.has_value()) {
         ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
@@ -363,13 +389,13 @@ void VIOInitialization::OutputResults() {
 
     // add frame poses to cloud and save
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
-    for (auto &f : valid_frames_) {
+    for (auto& f : valid_frames_) {
       beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
       if (T.has_value()) {
         frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
       }
     }
-    for (auto &f : invalid_frames_) {
+    for (auto& f : invalid_frames_) {
       beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
       if (T.has_value()) {
         frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
@@ -380,7 +406,7 @@ void VIOInitialization::OutputResults() {
     std::vector<uint64_t> landmarks = tracker_->GetLandmarkIDsInWindow(
         valid_frames_[0].t, invalid_frames_[invalid_frames_.size() - 1].t);
     pcl::PointCloud<pcl::PointXYZ> points_cloud;
-    for (auto &id : landmarks) {
+    for (auto& id : landmarks) {
       fuse_variables::Point3DLandmark::SharedPtr lm =
           visual_map_->GetLandmark(id);
       if (lm) {
@@ -403,5 +429,4 @@ void VIOInitialization::OutputResults() {
   }
 }
 
-} // namespace vision
-} // namespace bs_models
+}} // namespace bs_models::vision

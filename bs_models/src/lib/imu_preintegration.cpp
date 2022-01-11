@@ -207,7 +207,8 @@ fuse_core::Transaction::SharedPtr
     ImuPreintegration::RegisterNewImuPreintegratedFactor(
         const ros::Time& t_now,
         fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
-        fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU) {
+        fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
+        fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   bs_constraints::relative_pose::ImuState3DStampedTransaction transaction(
       t_now);
 
@@ -268,13 +269,16 @@ fuse_core::Transaction::SharedPtr
     beam::QuaternionAndTranslationToTransformMatrix(
         imu_state_j.OrientationQuat(), imu_state_j.PositionVec(),
         T_WORLD_IMUnew);
-    // get relative change
-    Eigen::Matrix4d T_new_old = T_WORLD_IMUnew.inverse() * T_WORLD_IMUold;
-    // update the velocity estimate
-    Eigen::Vector3d new_velocity =
-        T_new_old.block<3, 3>(0, 0) * imu_state_j.VelocityVec();
-
-    imu_state_j.SetVelocity(new_velocity);
+    if (!velocity) {
+      // get relative change
+      Eigen::Matrix4d T_new_old = T_WORLD_IMUnew.inverse() * T_WORLD_IMUold;
+      // update the velocity estimate according to new pose
+      Eigen::Vector3d new_velocity =
+          T_new_old.block<3, 3>(0, 0) * imu_state_j.VelocityVec();
+      imu_state_j.SetVelocity(new_velocity);
+    } else {
+      imu_state_j.SetVelocity(velocity->data());
+    }
   }
 
   // move predicted state to previous state
@@ -328,7 +332,12 @@ void ImuPreintegration::EstimateParameters(
   std::vector<bs_common::ImuState> imu_frames;
   for (auto& pose : path.poses) {
     ros::Time stamp = pose.header.stamp;
-    if (stamp < imu_buffer_copy.front().header.stamp) continue;
+    if (stamp < imu_buffer_copy.front().header.stamp) {
+      ROS_ERROR("Pose in path is prior to imu measurements, cannot initialize "
+                "with this path.");
+      throw std::runtime_error{"Pose in path is prior to imu measurements, "
+                               "cannot initialize with this path."};
+    }
 
     // add imu data to frames preintegrator
     bs_common::PreIntegrator preintegrator;

@@ -91,10 +91,10 @@ private:
    * @brief Adds all poses of given frames to the graph and te inertial
    * constraints between them
    * @param frames input frames
-   * @param set_start when true will set the first frames pose as the prior
+   * @param is_valid flag to notify if the frames are valid (have poses and velocities)
    */
   void AddPosesAndInertialConstraints(const std::vector<Frame>& frames,
-                                      bool set_start);
+                                      bool is_valid);
 
   /**
    * @brief Adds visual constraints to input frames, will triangulate landmarks
