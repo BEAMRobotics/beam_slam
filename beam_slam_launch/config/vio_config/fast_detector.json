@@ -1,5 +1,5 @@
 {
-  "num_features": 100,
+  "num_features": 200,
   "threshold": 10,
   "nonmax_suppression": true,
   "type": "TYPE_9_16",
