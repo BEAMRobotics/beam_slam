@@ -44,7 +44,7 @@ public:
    * @brief Constructor
    * @param params all input params optional. See struct above
    */
-  ImuPreintegration(const Params &params);
+  ImuPreintegration(const Params& params);
 
   /**
    * @brief Constructor
@@ -52,8 +52,8 @@ public:
    * @param init_bg initial gyroscope bias
    * @param init_ba initial acceleration bias
    */
-  ImuPreintegration(const Params &params, const Eigen::Vector3d &init_bg,
-                    const Eigen::Vector3d &init_ba);
+  ImuPreintegration(const Params& params, const Eigen::Vector3d& init_bg,
+                    const Eigen::Vector3d& init_ba);
 
   /**
    * @brief Destructor
@@ -68,12 +68,12 @@ public:
   /**
    * @brief Populate IMU buffer with IMU data from raw sensor data
    */
-  void AddToBuffer(const sensor_msgs::Imu &msg);
+  void AddToBuffer(const sensor_msgs::Imu& msg);
 
   /**
    * @brief Populate IMU buffer with IMU data
    */
-  void AddToBuffer(const bs_common::IMUData &imu_data);
+  void AddToBuffer(const bs_common::IMUData& imu_data);
 
   /**
    * @brief Sets the initial IMU state with respect to world frame
@@ -83,7 +83,7 @@ public:
    * @param velocity velocity of initial IMU state (if null set to zero)
    */
   void SetStart(
-      const ros::Time &t_start,
+      const ros::Time& t_start,
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
       fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
@@ -97,9 +97,9 @@ public:
    * @return ImuState
    */
   bs_common::ImuState
-  PredictState(const bs_common::PreIntegrator &pre_integrator,
-               const bs_common::ImuState &imu_state_curr,
-               const ros::Time &t_now = ros::Time(0));
+      PredictState(const bs_common::PreIntegrator& pre_integrator,
+                   const bs_common::ImuState& imu_state_curr,
+                   const ros::Time& t_now = ros::Time(0));
 
   /**
    * @brief Gets current IMU state, which is the last registered key frame
@@ -113,8 +113,9 @@ public:
    * @param T_WORLD_IMU reference to pose matrix to fill in
    * @return true if successful
    */
-  bool GetPose(Eigen::Matrix4d &T_WORLD_IMU, const ros::Time &t_now,
-               std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance = nullptr);
+  bool GetPose(
+      Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now,
+      std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance = nullptr);
 
   /**
    * @brief Registers new transaction between key frames
@@ -126,9 +127,10 @@ public:
    * @return transaction if successful. If not, nullptr is returned
    */
   fuse_core::Transaction::SharedPtr RegisterNewImuPreintegratedFactor(
-      const ros::Time &t_now,
+      const ros::Time& t_now,
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
-      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr);
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
+        fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
 
   /**
    * @brief Updates current graph copy
@@ -139,12 +141,12 @@ public:
   /**
    * @brief Estimates inertial parameters given an initial path and imu messages
    */
-  static void
-  EstimateParameters(const bs_common::InitializedPathMsg &path,
-                     const std::queue<sensor_msgs::Imu> &imu_buffer,
-                     const bs_models::ImuPreintegration::Params &params,
-                     Eigen::Vector3d &gravity, Eigen::Vector3d &bg,
-                     Eigen::Vector3d &ba, double &scale);
+  static void EstimateParameters(
+      const bs_common::InitializedPathMsg& path,
+      const std::queue<sensor_msgs::Imu>& imu_buffer,
+      const bs_models::ImuPreintegration::Params& params,
+      Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
+      std::vector<Eigen::Vector3d>& velocities, double& scale);
 
 private:
   /**
@@ -160,7 +162,7 @@ private:
   /**
    * @brief Calls Preintegrator reset() and clears stored imu data
    */
-  void ResetPreintegrator(const ros::Time &t_now);
+  void ResetPreintegrator(const ros::Time& t_now);
 
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames

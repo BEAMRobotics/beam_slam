@@ -63,7 +63,7 @@ void InertialOdometry::processInitPath(
 
   // Estimate imu biases and gravity using the initial path
   bs_models::ImuPreintegration::EstimateParameters(
-      *msg, imu_buffer_, imu_params_, gravity_, bg_, ba_, scale_);
+      *msg, imu_buffer_, imu_params_, gravity_, bg_, ba_, velocities_, scale_);
   imu_preint_ =
       std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 

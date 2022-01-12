@@ -350,7 +350,7 @@ void VisualInertialOdometry::ExtendMap(
       if (T_cam_world_v.size() >= 2) {
         beam::opt<Eigen::Vector3d> point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                     pixels, 5.0);
+                                                     pixels);
         if (point.has_value()) {
           keyframes_.back().AddLandmark(id);
           visual_map_->AddLandmark(point.value(), id, transaction);

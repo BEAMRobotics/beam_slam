@@ -7,16 +7,15 @@
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
-#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_common/bs_msgs.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/active_submap.h>
 #include <bs_models/imu_preintegration.h>
 #include <bs_models/vision/visual_map.h>
 
 using namespace bs_common;
 
-namespace bs_models {
-namespace vision {
+namespace bs_models { namespace vision {
 
 struct Frame {
   ros::Time t;
@@ -36,24 +35,24 @@ public:
    */
   VIOInitialization(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                     std::shared_ptr<beam_cv::Tracker> tracker,
-                    const std::string &path_topic,
-                    const std::string &imu_intrinsics_path,
+                    const std::string& path_topic,
+                    const std::string& imu_intrinsics_path,
                     bool use_scale_estimate = false,
                     double max_optimization_time = 1.0,
-                    const std::string &output_directory = "");
+                    const std::string& output_directory = "");
 
   /**
    * @brief Attempt initialization at image at given time stamp
    * @param cur_time timestamp of image
    * @return success flag
    */
-  bool AddImage(const ros::Time &cur_time);
+  bool AddImage(const ros::Time& cur_time);
 
   /**
    * @brief Adds an imu measurement to the initializer
    * @param msg imu message to add
    */
-  void AddIMU(const sensor_msgs::Imu &msg);
+  void AddIMU(const sensor_msgs::Imu& msg);
 
   /**
    * @brief Returns the current state
@@ -65,7 +64,7 @@ public:
    * @brief Returns a read only version of the current local graph
    * @return read-only graph
    */
-  const fuse_core::Graph::SharedPtr &GetGraph();
+  const fuse_core::Graph::SharedPtr& GetGraph();
 
   /**
    * @brief Returns a pointer to the imu preintegration object used
@@ -78,7 +77,7 @@ public:
    * initialization
    * @param[in] msg - The path to process
    */
-  void ProcessInitPath(const InitializedPathMsg::ConstPtr &msg);
+  void ProcessInitPath(const InitializedPathMsg::ConstPtr& msg);
 
 private:
   /**
@@ -92,10 +91,10 @@ private:
    * @brief Adds all poses of given frames to the graph and te inertial
    * constraints between them
    * @param frames input frames
-   * @param set_start when true will set the first frames pose as the prior
+   * @param is_valid flag to notify if the frames are valid (have poses and velocities)
    */
-  void AddPosesAndInertialConstraints(const std::vector<Frame> &frames,
-                                      bool set_start);
+  void AddPosesAndInertialConstraints(const std::vector<Frame>& frames,
+                                      bool is_valid);
 
   /**
    * @brief Adds visual constraints to input frames, will triangulate landmarks
@@ -103,14 +102,14 @@ private:
    * @param frames input frames
    * @return number of landmarks that have been added
    */
-  size_t AddVisualConstraints(const std::vector<Frame> &frames);
+  size_t AddVisualConstraints(const std::vector<Frame>& frames);
 
   /**
    * @brief Localizes a given frame using the tracker and the current visual map
    * @param img_time time of image to localize
    * @return T_WORLD_BASELINK
    */
-  Eigen::Matrix4d LocalizeFrame(const ros::Time &img_time);
+  Eigen::Matrix4d LocalizeFrame(const ros::Time& img_time);
 
   /**
    * @brief Optimizes the current local graph
@@ -161,11 +160,12 @@ protected:
   Eigen::Vector3d gravity_{0, 0, 0};
   Eigen::Vector3d bg_{0, 0, 0};
   Eigen::Vector3d ba_{0, 0, 0};
+  std::vector<Eigen::Vector3d> velocities_;
   double scale_{1};
 
   // extrinsic info
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookupOnline &extrinsics_ =
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // initialization path
@@ -174,5 +174,4 @@ protected:
   // directory to optionally output the initialization results
   std::string output_directory_;
 };
-} // namespace vision
-} // namespace bs_models
+}} // namespace bs_models::vision

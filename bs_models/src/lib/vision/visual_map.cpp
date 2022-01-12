@@ -313,8 +313,7 @@ void VisualMap::AddConstraint(const ros::Time& stamp, uint64_t lm_id,
   fuse_variables::Position3DStamped::SharedPtr position = GetPosition(stamp);
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
       GetOrientation(stamp);
-  if (PoseExists(stamp) &&
-      (LandmarkExists(lm_id) || FixedLandmarkExists(lm_id))) {
+  if (position && orientation) {
     try {
       if (lm) {
         // add normal visual constraint
@@ -447,6 +446,7 @@ fuse_core::UUID VisualMap::GetOrientationUUID(const ros::Time& stamp) {
 }
 
 bool VisualMap::PoseExists(const ros::Time& stamp) {
+  if (!graph_) { return false; }
   if (graph_->variableExists(GetOrientationUUID(stamp)) &&
       graph_->variableExists(GetPositionUUID(stamp))) {
     return true;
@@ -455,11 +455,13 @@ bool VisualMap::PoseExists(const ros::Time& stamp) {
 }
 
 bool VisualMap::LandmarkExists(uint64_t landmark_id) {
+  if (!graph_) { return false; }
   if (graph_->variableExists(GetLandmarkUUID(landmark_id))) { return true; }
   return false;
 }
 
 bool VisualMap::FixedLandmarkExists(uint64_t landmark_id) {
+  if (!graph_) { return false; }
   if (graph_->variableExists(GetFixedLandmarkUUID(landmark_id))) {
     return true;
   }
