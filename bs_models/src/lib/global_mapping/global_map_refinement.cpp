@@ -4,7 +4,7 @@
 #include <fuse_graphs/hash_graph.h>
 
 #include <bs_common/utils.h>
-#include <bs_models/scan_pose.h>
+#include <bs_models/lidar/scan_pose.h>
 #include <bs_models/reloc/reloc_methods.h>
 
 namespace bs_models {

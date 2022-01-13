@@ -17,7 +17,7 @@
 #include <beam_utils/pointclouds.h>
 
 #include <bs_common/utils.h>
-#include <bs_models/scan_pose.h>
+#include <bs_models/lidar/scan_pose.h>
 
 using namespace bs_models;
 

@@ -67,36 +67,44 @@ catkin_package(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
+  ## sensor models
   src/imu_3d.cpp
-
   src/lidar_aggregation.cpp
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
   src/visual_inertial_odometry.cpp
   src/inertial_odometry.cpp
   src/global_mapper.cpp
+  ## vision helpers
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp
   src/lib/vision/vio_initialization.cpp
+  ## imu helpers
+  src/lib/imu/imu_preintegration.cpp
+  ## lidar helpers
+  src/lib/lidar/lidar_aggregator.cpp
+  src/lib/lidar/scan_pose.cpp
+  ## global mapping
   src/lib/global_mapping/global_map.cpp
   src/lib/global_mapping/submap.cpp
   src/lib/global_mapping/global_map_refinement.cpp
+  src/lib/global_mapping/active_submap.cpp
+  ## relocalization
   src/lib/reloc/reloc_candidate_search_eucdist.cpp
   src/lib/reloc/reloc_refinement_loam_registration.cpp
+  ## scan registration
   src/lib/scan_registration/scan_registration_base.cpp
   src/lib/scan_registration/multi_scan_registration.cpp
   src/lib/scan_registration/scan_to_map_registration.cpp
   src/lib/scan_registration/registration_map.cpp
+  ## frame initializers
   src/lib/frame_initializers/frame_initializer_base.cpp
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
+  ## slam path initializers
   src/lib/slam_initializers/lo_initializer.cpp
   src/lib/slam_initializers/vo_initializer.cpp
   src/lib/slam_initializers/gt_initializer.cpp
-  src/lib/lidar_aggregator.cpp
-  src/lib/scan_pose.cpp
-  src/lib/active_submap.cpp
-  src/lib/imu_preintegration.cpp
 )
 
 include_directories(

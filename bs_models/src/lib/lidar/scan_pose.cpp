@@ -1,4 +1,4 @@
-#include <bs_models/scan_pose.h>
+#include <bs_models/lidar/scan_pose.h>
 
 #include <boost/filesystem.hpp>
 #include <pcl/common/transforms.h>

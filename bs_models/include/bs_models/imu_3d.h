@@ -7,7 +7,7 @@
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_constraints/relative_pose/relative_pose_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_models/imu_preintegration.h>
+#include <bs_models/imu/imu_preintegration.h>
 #include <bs_parameters/models/imu_3d_params.h>
 #include <bs_parameters/models/calibration_params.h>
 

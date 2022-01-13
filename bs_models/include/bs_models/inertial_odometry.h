@@ -8,7 +8,7 @@
 #include <sensor_msgs/Imu.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/imu_preintegration.h>
+#include <bs_models/imu/imu_preintegration.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/inertial_odometry_params.h>
 

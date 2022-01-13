@@ -1,4 +1,4 @@
-#include <bs_models/active_submap.h>
+#include <bs_models/global_mapping/active_submap.h>
 
 #include <beam_cv/descriptors/Descriptor.h>
 

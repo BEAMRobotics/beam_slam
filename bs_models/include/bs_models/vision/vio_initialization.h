@@ -9,8 +9,8 @@
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/active_submap.h>
-#include <bs_models/imu_preintegration.h>
+#include <bs_models/global_mapping/active_submap.h>
+#include <bs_models/imu/imu_preintegration.h>
 #include <bs_models/vision/visual_map.h>
 
 using namespace bs_common;

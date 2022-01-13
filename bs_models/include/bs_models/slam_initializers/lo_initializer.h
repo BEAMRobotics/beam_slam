@@ -15,7 +15,7 @@
 #include <bs_parameters/models/lo_initializer_params.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/scan_pose.h>
+#include <bs_models/lidar/scan_pose.h>
 
 namespace bs_models {
 

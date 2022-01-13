@@ -9,7 +9,7 @@
 
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/scan_registration/scan_registration_base.h>
-#include <bs_models/scan_pose.h>
+#include <bs_models/lidar/scan_pose.h>
 
 static bool _tmp_bool{true};
 

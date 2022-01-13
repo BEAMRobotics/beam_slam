@@ -1,4 +1,4 @@
-#include <bs_models/imu_preintegration.h>
+#include <bs_models/imu/imu_preintegration.h>
 
 #include <fuse_core/transaction.h>
 

@@ -13,8 +13,8 @@
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/active_submap.h>
-#include <bs_models/imu_preintegration.h>
+#include <bs_models/global_mapping/active_submap.h>
+#include <bs_models/imu/imu_preintegration.h>
 #include <bs_models/vision/keyframe.h>
 #include <bs_models/vision/vio_initialization.h>
 #include <bs_models/vision/visual_map.h>
