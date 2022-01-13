@@ -48,41 +48,52 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
   frame_times_.push_back(cur_time.toNSec());
   if (init_path_) {
     ROS_INFO("Attempting VIO Initialization.");
+
     // prune poses in path that come before any imu messages
     while (init_path_->poses[0].header.stamp <
            imu_buffer_.front().header.stamp) {
       init_path_->poses.erase(init_path_->poses.begin());
     }
+
     // Estimate imu biases and gravity using the initial path
     bs_models::ImuPreintegration::EstimateParameters(*init_path_, imu_buffer_,
                                                      imu_params_, gravity_, bg_,
                                                      ba_, velocities_, scale_);
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
+
     // Build frame vectors
     BuildFrameVectors();
+
     // Align poses to world gravity
     AlignPosesToGravity();
+
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames_, true);
+
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames_);
+
     // optimize valid frames
     OptimizeGraph();
     if (invalid_frames_.size() > 0) {
-      // TODO: localize and triangulate gradually
-      // Localize invalid frames and add to the graph
-      AddPosesAndInertialConstraints(invalid_frames_, false);
-      // add landmarks and visual constraints for the invalid frames
-      init_lms += AddVisualConstraints(invalid_frames_);
+      for (auto& f : invalid_frames_) {
+        std::vector<Frame> fv{f};
+        // Localize frame and add to graph
+        AddPosesAndInertialConstraints(fv, false);
+        // add landmarks and visual constraints for the invalid frames
+        init_lms += AddVisualConstraints(fv);
+      }
       // optimize with invalid frames
       OptimizeGraph();
     }
+
     // output results
     OutputResults();
+
     // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
-    is_initialized_ = true;
+
     // memory clean up
     visual_map_->Clear();
     std::queue<sensor_msgs::Imu> empty;
@@ -90,6 +101,8 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
     frame_times_.clear();
     valid_frames_.clear();
     invalid_frames_.clear();
+    
+    is_initialized_ = true;
   }
   return is_initialized_;
 }
