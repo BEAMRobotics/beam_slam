@@ -69,15 +69,12 @@ protected:
   bool initialization_complete_{false};
   std::vector<Eigen::Matrix4d> trajectory_;
   std::deque<ros::Time> times_;
-  ros::Time current_pose_time_ = ros::Time(0);
-  uint32_t max_poses_;
+  std::deque<ros::Time> output_times_;
 
   // computer vision objects
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
-  beam_cv::DescriptorType descriptor_type_;
-  uint8_t descriptor_type_int_;
 
   // optimization stuff
   std::shared_ptr<vision::VisualMap> visual_map_;

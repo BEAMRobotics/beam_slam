@@ -25,9 +25,7 @@ public:
     getParam<std::string>(nh, "image_topic", image_topic, "");
 
     /** vision configs */
-    getParam<std::string>(nh, "descriptor", descriptor, "ORB");
     getParam<std::string>(nh, "detector", detector, "FAST");
-    getParam<std::string>(nh, "descriptor_config", descriptor_config, "");
     getParam<std::string>(nh, "detector_config", detector_config, "");
     getParam<std::string>(nh, "tracker_config", tracker_config, "");
 
@@ -40,8 +38,6 @@ public:
   }
 
   std::string image_topic{};
-  std::string descriptor{};
-  std::string descriptor_config{};
   std::string detector{};
   std::string detector_config{};
   std::string tracker_config{};

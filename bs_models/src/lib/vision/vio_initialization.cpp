@@ -70,6 +70,7 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
     // optimize valid frames
     OptimizeGraph();
     if (invalid_frames_.size() > 0) {
+      // TODO: localize and triangulate gradually
       // Localize invalid frames and add to the graph
       AddPosesAndInertialConstraints(invalid_frames_, false);
       // add landmarks and visual constraints for the invalid frames
@@ -82,6 +83,13 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
     // log initialization statistics
     ROS_INFO("Initialized Map Points: %zu", init_lms);
     is_initialized_ = true;
+    // memory clean up
+    visual_map_->Clear();
+    std::queue<sensor_msgs::Imu> empty;
+    std::swap(imu_buffer_, empty);
+    frame_times_.clear();
+    valid_frames_.clear();
+    invalid_frames_.clear();
   }
   return is_initialized_;
 }

@@ -1,3 +1,10 @@
+##############################
+#    optimizer parameters    #
+##############################
+optimization_period: 0.5
+lag_duration: 5
+num_states: 15
+
 ###################################
 #    sensor model declarations    #
 ###################################
@@ -29,13 +36,6 @@ motion_models:
 #     type: 'bs_publishers::Odometry3DPublisher'
 #   - name: 'path_pub'
 #     type: 'bs_publishers::Path3DPublisher'
-
-##############################
-#    optimizer parameters    #
-##############################
-optimization_period: 0.5
-lag_duration: 5
-num_states: 15
 
 ###########################
 #    solver parameters    #
@@ -131,9 +131,7 @@ lo_initializer:
 
 vo_initializer:
   image_topic: '/F1/image_mono/downscaled'
-  descriptor: 'BEBLID'
   detector: 'FAST'
-  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
   parallax: 40.0

@@ -541,4 +541,12 @@ void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
   UpdateOrientations();
 }
 
+void VisualMap::Clear() {
+  orientations_.clear();
+  positions_.clear();
+  landmark_positions_.clear();
+  fixed_landmark_positions_.clear();
+  if (graph_) { graph_->clear(); }
+}
+
 }} // namespace bs_models::vision

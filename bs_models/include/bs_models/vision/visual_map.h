@@ -52,7 +52,6 @@ public:
 
   /**
    * @brief Helper function to add a pose at time t to a transaction or graph
-   * The pose being added will be a camera pose, transform it to baselink
    * @param T_WORLD_CAMERA pose of camera to add to graph or transaction
    * @param stamp timestamp of pose
    * @param transaction to add to
@@ -62,8 +61,7 @@ public:
                      fuse_core::Transaction::SharedPtr transaction);
   /**
    * @brief Helper function to add a pose at time t to a transaction or graph
-   * The pose being added will be a camera pose, transform it to baselink
-   * @param T_WORLD_CAMERA pose of camera to add to graph or transaction
+   * @param T_WORLD_BASELINK pose of baselink to add to graph or transaction
    * @param stamp timestamp of pose
    * @param transaction to add to
    */
@@ -250,6 +248,11 @@ public:
    * @param graph_msg graph to update with
    */
   void UpdateGraph(fuse_core::Graph::SharedPtr graph_msg);
+
+  /**
+   * @brief Resets map to empty state
+   */
+  void Clear();
 
 private:
   /**
