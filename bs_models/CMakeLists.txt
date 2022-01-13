@@ -68,9 +68,7 @@ catkin_package(
 add_library(
   ${PROJECT_NAME}
   src/imu_3d.cpp
-  src/lo_initializer.cpp
-  src/vo_initializer.cpp
-  src/gt_initializer.cpp
+
   src/lidar_aggregation.cpp
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
@@ -92,6 +90,9 @@ add_library(
   src/lib/frame_initializers/frame_initializer_base.cpp
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
+  src/lib/slam_initializers/lo_initializer.cpp
+  src/lib/slam_initializers/vo_initializer.cpp
+  src/lib/slam_initializers/gt_initializer.cpp
   src/lib/lidar_aggregator.cpp
   src/lib/scan_pose.cpp
   src/lib/active_submap.cpp
