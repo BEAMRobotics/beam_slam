@@ -1,4 +1,4 @@
-#include <bs_models/vo_initializer.h>
+#include <bs_models/slam_initializers/vo_initializer.h>
 
 #include <pluginlib/class_list_macros.h>
 

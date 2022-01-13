@@ -1,4 +1,4 @@
-#include <bs_models/lo_initializer.h>
+#include <bs_models/slam_initializers/lo_initializer.h>
 
 #include <boost/filesystem.hpp>
 #include <pcl/common/transforms.h>

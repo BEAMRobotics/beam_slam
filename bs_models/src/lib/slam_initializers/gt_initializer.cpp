@@ -1,9 +1,8 @@
-#include <bs_models/gt_initializer.h>
+#include <bs_models/slam_initializers/gt_initializer.h>
 
 #include <pluginlib/class_list_macros.h>
 
 #include <beam_utils/math.h>
-
 #include <bs_common/bs_msgs.h>
 
 // Register this sensor model with ROS as a plugin.
