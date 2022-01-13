@@ -5,7 +5,6 @@
 #include <sensor_msgs/Image.h>
 
 #include <beam_calibration/CameraModel.h>
-#include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/bs_msgs.h>
@@ -72,7 +71,6 @@ protected:
   std::deque<ros::Time> output_times_;
 
   // computer vision objects
-  std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_cv::Tracker> tracker_;
 

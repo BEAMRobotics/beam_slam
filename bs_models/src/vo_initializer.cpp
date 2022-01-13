@@ -31,9 +31,6 @@ void VOInitializer::onInit() {
       private_node_handle_.subscribe(vo_initializer_params_.image_topic, 100,
                                      &VOInitializer::processImage, this);
 
-  // initialize pose refiner object with params
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2, true, 1.0);
-
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
