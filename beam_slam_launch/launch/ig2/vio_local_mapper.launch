@@ -9,7 +9,7 @@
 
   <!-- Launch initializer -->
   <node pkg="fuse_optimizers" type="fixed_size_smoother_node" name="local_mapper" output="screen">
-    <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/lvio.yaml"/>
+    <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/vio.yaml"/>
   </node>
 
 </launch>

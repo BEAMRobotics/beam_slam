@@ -36,6 +36,11 @@
       Class for initializing a SLAM process using a ground truth trajectory
     </description>
   </class>
+  <class type="bs_models::VOInitializer" base_class_type="fuse_core::SensorModel">
+    <description>
+      Class for initializing a SLAM process using pure visual odometry
+    </description>
+  </class>
   <class type="bs_models::VisualInertialOdometry" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces camera rate odometry

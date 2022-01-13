@@ -69,8 +69,9 @@ add_library(
   ${PROJECT_NAME}
   src/imu_3d.cpp
   src/lo_initializer.cpp
-  src/lidar_aggregation.cpp
+  src/vo_initializer.cpp
   src/gt_initializer.cpp
+  src/lidar_aggregation.cpp
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
   src/visual_inertial_odometry.cpp
