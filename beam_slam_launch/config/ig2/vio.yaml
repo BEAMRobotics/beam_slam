@@ -79,7 +79,7 @@ visual_inertial_odometry:
   keyframe_parallax: 10.0
   # initialization params
   init_max_optimization_time_in_seconds: 0.5
-  init_map_output_directory: '/userhome' 
+  init_map_output_directory: '' 
   init_use_scale_estimate: true
 
 ##############################
