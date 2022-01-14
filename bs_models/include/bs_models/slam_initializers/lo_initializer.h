@@ -2,20 +2,21 @@
 
 #include <list>
 
-#include <sensor_msgs/PointCloud2.h>
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_graphs/hash_graph.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <std_msgs/Bool.h>
 
-#include <beam_utils/pointclouds.h>
 #include <beam_filtering/Utils.h>
 #include <beam_matching/Matchers.h>
-#include <beam_matching/loam/LoamPointCloud.h>
 #include <beam_matching/loam/LoamFeatureExtractor.h>
+#include <beam_matching/loam/LoamPointCloud.h>
+#include <beam_utils/pointclouds.h>
 
-#include <bs_parameters/models/lo_initializer_params.h>
-#include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/lidar/scan_pose.h>
+#include <bs_models/scan_registration/scan_to_map_registration.h>
+#include <bs_parameters/models/lo_initializer_params.h>
 
 namespace bs_models {
 
@@ -33,7 +34,7 @@ namespace bs_models {
  * initializer neesd to be de-coupled from the graph used by the main SLAM.
  */
 class LoInitializer : public fuse_core::AsyncSensorModel {
- public:
+public:
   SMART_PTR_DEFINITIONS(LoInitializer);
 
   LoInitializer();
@@ -47,7 +48,14 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
    */
   void processLidar(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
- protected:
+  /**
+   * @brief Callback for a reset request, which will start the initialization
+   * over again
+   * @param[in] msg
+   */
+  void processReset(const std_msgs::Bool::ConstPtr& msg);
+
+protected:
   /**
    * @brief loads all params and sets up scan registration and feature extractor
    */
@@ -100,6 +108,7 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
 
   // subscribers & publishers
   ros::Subscriber lidar_subscriber_;
+  ros::Subscriber reset_subscriber_;
   ros::Publisher results_publisher_;
 
   // main parameters
@@ -132,4 +141,4 @@ class LoInitializer : public fuse_core::AsyncSensorModel {
   bool initialization_complete_{false};
 };
 
-}  // namespace bs_models
+} // namespace bs_models

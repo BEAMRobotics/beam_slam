@@ -26,10 +26,14 @@ void VOInitializer::onInit() {
   results_publisher_ =
       private_node_handle_.advertise<bs_common::InitializedPathMsg>("result",
                                                                     10);
-  // subscribe to imu topic
+  // subscribe to image topic
   image_subscriber_ =
       private_node_handle_.subscribe(vo_initializer_params_.image_topic, 100,
                                      &VOInitializer::processImage, this);
+
+  // subscribe to reset topic
+  reset_subscriber_ = private_node_handle_.subscribe(
+      "/slam_reset", 1, &VOInitializer::processReset, this);
 
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
@@ -52,6 +56,18 @@ void VOInitializer::onInit() {
   tracker_ = std::make_shared<beam_cv::KLTracker>(
       tracker_params, detector, nullptr,
       vo_initializer_params_.tracker_window_size);
+}
+
+void VOInitializer::processReset(const std_msgs::Bool::ConstPtr& msg) {
+  // if a reset request is called then we set initialization to be incomplete
+  // and we wipe memory
+  if (msg->data == true) {
+    initialization_complete_ = false;
+    visual_map_->Clear();
+    trajectory_.clear();
+    times_.clear();
+    output_times_.clear();
+  }
 }
 
 void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
@@ -147,9 +163,9 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       }
       float inlier_ratio = (float)inliers / p1_v.size();
       if (inlier_ratio > 0.8) {
-        ROS_INFO(
-            "Valid image pair. Parallax: %f, Inlier Ratio: %f. Attempting VO Initialization.",
-            parallax, inlier_ratio);
+        ROS_INFO("Valid image pair. Parallax: %f, Inlier Ratio: %f. Attempting "
+                 "VO Initialization.",
+                 parallax, inlier_ratio);
         auto transaction = fuse_core::Transaction::make_shared();
         transaction->stamp(times_.front());
 
@@ -235,11 +251,12 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         // publish result
         visual_map_->UpdateGraph(local_graph_);
         for (size_t i = 0; i < output_times_.size(); i++) {
-          trajectory_.push_back(visual_map_->GetBaselinkPose(output_times_[i]).value());
+          trajectory_.push_back(
+              visual_map_->GetBaselinkPose(output_times_[i]).value());
         }
         ROS_INFO("VO initializer complete, publishing result.");
         PublishResults();
-        
+
         // clean up memory
         visual_map_->Clear();
         trajectory_.clear();

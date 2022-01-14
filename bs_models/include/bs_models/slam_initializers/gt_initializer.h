@@ -2,6 +2,7 @@
 
 #include <fuse_core/async_sensor_model.h>
 #include <sensor_msgs/Imu.h>
+#include <std_msgs/Bool.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
@@ -9,7 +10,7 @@
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/gt_initializer_params.h>
 
-namespace bs_models { 
+namespace bs_models {
 
 class GTInitializer : public fuse_core::AsyncSensorModel {
 public:
@@ -20,11 +21,18 @@ public:
   ~GTInitializer() override = default;
 
   /**
-   * @brief Callback for lidar points processing, this callback has most of the
+   * @brief Callback for imu processing, this callback has most of the
    * intializer implementation
    * @param[in] msg - The lidar message to process
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
+
+  /**
+   * @brief Callback for a reset request, which will start the initialization
+   * over again
+   * @param[in] msg
+   */
+  void processReset(const std_msgs::Bool::ConstPtr& msg);
 
 protected:
   /**
@@ -53,6 +61,7 @@ protected:
 
   // subscribers
   ros::Subscriber imu_subscriber_;
+  ros::Subscriber reset_subscriber_;
   ros::Publisher results_publisher_;
 
   // get access to extrinsics singleton
@@ -69,4 +78,4 @@ protected:
   ros::Time current_pose_time_ = ros::Time(0);
   uint32_t max_poses_;
 };
-} // namespace bs_models::frame_to_frame
+} // namespace bs_models

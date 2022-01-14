@@ -1,19 +1,20 @@
 #pragma once
 
-#include <fuse_graphs/hash_graph.h>
 #include <fuse_core/async_sensor_model.h>
+#include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/Image.h>
+#include <std_msgs/Bool.h>
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
+#include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/vo_initializer_params.h>
-#include <bs_models/vision/visual_map.h>
 
-namespace bs_models { 
+namespace bs_models {
 
 class VOInitializer : public fuse_core::AsyncSensorModel {
 public:
@@ -28,7 +29,14 @@ public:
    * constraints and triangulate new landmarks when required
    * @param[in] msg - The image to process
    */
-  void processImage(const sensor_msgs::Image::ConstPtr &msg);
+  void processImage(const sensor_msgs::Image::ConstPtr& msg);
+
+  /**
+   * @brief Callback for a reset request, which will start the initialization
+   * over again
+   * @param[in] msg
+   */
+  void processReset(const std_msgs::Bool::ConstPtr& msg);
 
 protected:
   /**
@@ -57,11 +65,12 @@ protected:
 
   // subscribers
   ros::Subscriber image_subscriber_;
+  ros::Subscriber reset_subscriber_;
   ros::Publisher results_publisher_;
 
   // get access to extrinsics singleton
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookupOnline &extrinsics_ =
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // bool for tracking if initialization has completed
@@ -78,4 +87,4 @@ protected:
   std::shared_ptr<vision::VisualMap> visual_map_;
   fuse_core::Graph::SharedPtr local_graph_;
 };
-} // namespace bs_models::frame_to_frame
+} // namespace bs_models
