@@ -35,11 +35,12 @@ public:
         T_cam_baselink_(T_cam_baselink) {
     // get pixel in the unit sphere
     Eigen::Vector2i pixel_i = pixel_measurement.cast<int>();
-    cam_model_->BackProject(pixel_i, unit_sphere_pixel_);
+    in_domain_ = cam_model_->BackProject(pixel_i, unit_sphere_pixel_);
+    unit_sphere_pixel_ = unit_sphere_pixel_.normalized();
 
     // compute tanget base of the measurement
     Eigen::Vector3d b1, b2;
-    Eigen::Vector3d a = unit_sphere_pixel_.normalized();
+    Eigen::Vector3d a = unit_sphere_pixel_;
     Eigen::Vector3d tmp(0, 0, 1);
     if (a == tmp) tmp << 1, 0, 0;
     b1 = (tmp - a * (a.transpose() * tmp)).normalized();
@@ -57,6 +58,8 @@ public:
   bool operator()(const T* const R_WORLD_BASELINK,
                   const T* const t_WORLD_BASELINK, const T* const P_WORLD,
                   T* residual) const {
+    if (!in_domain_) { return false; }
+
     // transform point from world frame into camera frame
     Eigen::Matrix<T, 4, 4> T_CAM_BASELINK = T_cam_baselink_.cast<T>();
 
@@ -95,7 +98,7 @@ public:
     // compute the residual on the unit sphere
     Eigen::Matrix<T, 2, 1> result =
         tangent_base_.cast<T>() *
-        (P_CAM.normalized() - unit_sphere_pixel_.cast<T>().normalized());
+        (P_CAM.normalized() - unit_sphere_pixel_.cast<T>());
 
     // apply sqrt information matrix
     result = sqrt_info_.cast<T>() * result;
