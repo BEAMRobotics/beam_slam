@@ -61,6 +61,12 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
                                                      ba_, velocities_, scale_);
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
+    ROS_INFO_STREAM("Estimated IMU Parameters: \n"
+                    << "Accel Bias:\n"
+                    << ba_ << "\nGyro Bias:\n"
+                    << bg_ << "\nGravity:\n"
+                    << gravity_ << "\nScale:\n"
+                    << scale_);
 
     // Build frame vectors
     BuildFrameVectors();
@@ -74,19 +80,17 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
     // Add landmarks and visual constraints to graph
     size_t init_lms = AddVisualConstraints(valid_frames_);
 
-    // optimize valid frames
-    OptimizeGraph();
     if (invalid_frames_.size() > 0) {
       for (auto& f : invalid_frames_) {
-        std::vector<Frame> fv{f};
         // Localize frame and add to graph
-        AddPosesAndInertialConstraints(fv, false);
+        AddPosesAndInertialConstraints({f}, false);
         // add landmarks and visual constraints for the invalid frames
-        init_lms += AddVisualConstraints(fv);
+        init_lms += AddVisualConstraints({f});
       }
-      // optimize with invalid frames
-      OptimizeGraph();
     }
+    
+    // optimize graph
+    OptimizeGraph();
 
     // output results
     OutputResults();
@@ -101,7 +105,7 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
     frame_times_.clear();
     valid_frames_.clear();
     invalid_frames_.clear();
-    
+
     is_initialized_ = true;
   }
   return is_initialized_;
@@ -386,28 +390,27 @@ void VIOInitialization::AlignPosesToGravity() {
 }
 
 void VIOInitialization::OutputResults() {
+  // print results to stdout
+  for (auto& f : valid_frames_) {
+    beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+    if (T.has_value()) {
+      ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
+      ROS_INFO("%s", beam::TransformationMatrixToString(T.value()).c_str());
+    }
+  }
+  for (auto& f : invalid_frames_) {
+    beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
+    if (T.has_value()) {
+      ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
+      ROS_INFO("%s", beam::TransformationMatrixToString(T.value()).c_str());
+    }
+  }
   // output results to point cloud in specified path
   if (!boost::filesystem::exists(output_directory_) ||
       output_directory_.empty()) {
     ROS_WARN("Output directory does not exist or is empty, not outputting VIO "
              "Initializer results.");
   } else {
-    // print results to stdout
-    for (auto& f : valid_frames_) {
-      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
-      if (T.has_value()) {
-        ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
-        ROS_INFO("%s", beam::TransformationMatrixToString(T.value()).c_str());
-      }
-    }
-    for (auto& f : invalid_frames_) {
-      beam::opt<Eigen::Matrix4d> T = visual_map_->GetBaselinkPose(f.t);
-      if (T.has_value()) {
-        ROS_INFO("Initialization Keyframe Time: %f", f.t.toSec());
-        ROS_INFO("%s", beam::TransformationMatrixToString(T.value()).c_str());
-      }
-    }
-
     // add frame poses to cloud and save
     pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
     for (auto& f : valid_frames_) {

@@ -63,7 +63,7 @@ unicycle_3d:
 ##############################
 visual_inertial_odometry:
   # topics to subscribe to
-  image_topic: '/F1/image_mono/downscaled2'
+  image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
   init_path_topic: '/local_mapper/vo_initializer/result'
   # feature tracking configs

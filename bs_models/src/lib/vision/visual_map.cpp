@@ -533,7 +533,7 @@ void VisualMap::UpdateOrientations() {
 }
 
 void VisualMap::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
-  graph_ = std::move(graph_msg);
+  graph_ = graph_msg->clone();
   // update local copies of variables with the new graph
   UpdateLandmarks();
   UpdateFixedLandmarks();
@@ -546,7 +546,7 @@ void VisualMap::Clear() {
   positions_.clear();
   landmark_positions_.clear();
   fixed_landmark_positions_.clear();
-  if (graph_) { graph_->clear(); }
+  if (graph_) { graph_ = nullptr; }
 }
 
 }} // namespace bs_models::vision

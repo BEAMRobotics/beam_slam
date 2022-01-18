@@ -319,6 +319,7 @@ void VisualInertialOdometry::ExtendMap(
   // add visual constraints
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInImage(cur_kf_time);
+  // TODO: filter landmark id's by finding outliers using previous keyframe
   for (auto& id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
@@ -440,6 +441,8 @@ void VisualInertialOdometry::NotifyNewKeyframe(
   new_keyframe_publisher_.publish(keyframe_header);
 
   // make and publish reloc request
+  // TODO: redo this to only be published at a specified rate
+  // TODO: refactor reloc message to take an image and camera measurements
   bs_common::RelocRequestMsg reloc_msg;
   reloc_msg.image = keyframes_.back().Image();
   std::vector<double> pose;
