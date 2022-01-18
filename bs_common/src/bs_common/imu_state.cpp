@@ -49,7 +49,7 @@ ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
   SetAccelBias(accelbias);
 }
 
-bool ImuState::Update(const fuse_core::Graph::ConstSharedPtr &graph_msg) {
+bool ImuState::Update(const fuse_core::Graph::SharedPtr &graph_msg) {
   if (graph_msg->variableExists(orientation_->uuid()) &&
       graph_msg->variableExists(position_->uuid()) &&
       graph_msg->variableExists(velocity_->uuid()) &&

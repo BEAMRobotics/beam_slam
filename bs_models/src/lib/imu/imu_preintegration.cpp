@@ -290,7 +290,7 @@ fuse_core::Transaction::SharedPtr
   return transaction.GetTransaction();
 }
 
-void ImuPreintegration::UpdateGraph(fuse_core::Graph::SharedPtr graph_msg) {
+void ImuPreintegration::UpdateGraph(const fuse_core::Graph::SharedPtr& graph_msg) {
   // if update was successful then also reset buffer and state k
   if (imu_state_i_.Update(graph_msg)) {
     // reset kj integrator and add all the current windows messages to it

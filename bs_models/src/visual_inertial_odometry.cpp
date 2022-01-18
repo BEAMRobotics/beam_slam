@@ -206,8 +206,8 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
 void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
-  // make deep copy to make updating graph easier
-  fuse_core::Graph::SharedPtr copy = std::move(graph->clone());
+  // make a copy to make updating graph easier
+  fuse_core::Graph::SharedPtr copy = graph->clone();
 
   // publish marginalized slam chunks
   while (!keyframes_.empty() &&

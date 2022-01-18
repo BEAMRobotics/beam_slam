@@ -68,7 +68,7 @@ public:
    * variable uuids that are stored herein
    * @return true update was successful (i.e., uuids were in the graph message)
    */
-  bool Update(const fuse_core::Graph::ConstSharedPtr &graph_msg);
+  bool Update(const fuse_core::Graph::SharedPtr &graph_msg);
 
   /**
    * @brief get the number of times this ImuState has its variables updated by
