@@ -59,14 +59,26 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
     bs_models::ImuPreintegration::EstimateParameters(*init_path_, imu_buffer_,
                                                      imu_params_, gravity_, bg_,
                                                      ba_, velocities_, scale_);
+
+    // if the scale estimate isnt valid then retry
+    if (use_scale_estimate_ && (scale_ < 0.02 || scale_ > 1.0)) {
+      // TODO: publish reset request to reinitialize
+      ROS_FATAL_STREAM("Invalid scale estimate: " << scale_
+                                                  << ", reinitializing.");
+      std::queue<sensor_msgs::Imu> empty;
+      std::swap(imu_buffer_, empty);
+      frame_times_.clear();
+      return false;
+    }
+    
+    // initialize preintegration
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
-    ROS_INFO_STREAM("Estimated IMU Parameters: \n"
-                    << "Accel Bias:\n"
-                    << ba_ << "\nGyro Bias:\n"
-                    << bg_ << "\nGravity:\n"
-                    << gravity_ << "\nScale:\n"
-                    << scale_);
+    ROS_DEBUG_STREAM("Estimated IMU Parameters: \n"
+                     << "Accel Bias:\n"
+                     << ba_ << "\nGyro Bias:\n"
+                     << bg_ << "\nGravity:\n"
+                     << gravity_ << "\nScale:" << scale_);
 
     // Build frame vectors
     BuildFrameVectors();
@@ -88,7 +100,7 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
         init_lms += AddVisualConstraints({f});
       }
     }
-    
+
     // optimize graph
     OptimizeGraph();
 

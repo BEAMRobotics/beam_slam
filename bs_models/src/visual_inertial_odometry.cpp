@@ -153,13 +153,18 @@ void VisualInertialOdometry::processImage(
       // localize frame
       Eigen::Matrix4d T_WORLD_BASELINK = LocalizeFrame(img_time);
 
+      // detect if odometry has failed
+      if (FailureDetection(img_time, T_WORLD_BASELINK)) {
+        ROS_FATAL_STREAM("VIO Failure, reintializing.");
+        ros::requestShutdown();
+        // TODO: publish reset request to reinitialize
+      }
+
       // publish pose to odom topic
       PublishInitialOdometry(img_time, T_WORLD_BASELINK);
 
       // process keyframe
       if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
-        std::string keyframe_file = "/userhome/data/keyframes/" + std::to_string(img_time.toNSec()) + ".png";
-        cv::imwrite(keyframe_file, image);
         // log keyframe info
         ROS_INFO("Keyframe time: %f", img_time.toSec());
         ROS_INFO("%s",
@@ -270,44 +275,65 @@ bool VisualInertialOdometry::IsKeyframe(
   // get timestamp of last keyframe
   ros::Time kf_time = keyframes_.back().Stamp();
 
-  // compute relative rotation from this frame to last keyframe
-  beam::opt<Eigen::Matrix4d> kf_pose = visual_map_->GetBaselinkPose(kf_time);
-  Eigen::Matrix3d R_kf_cf =
-      (kf_pose.value().inverse() * T_WORLD_BASELINK).block<3, 3>(0, 0);
+  // get pose of last keyframe
+  Eigen::Matrix4d kf_pose = visual_map_->GetBaselinkPose(kf_time).value();
 
-  // compute avg parallax
-  double total_parallax = 0;
-  double num_correspondences = 0;
-  // get pixel correspondences in this frame and last frame
-  std::vector<uint64_t> cf_landmarks =
-      tracker_->GetLandmarkIDsInImage(img_time);
-  for (auto& id : cf_landmarks) {
+  double avg_parallax = tracker_->ComputeParallax(kf_time, img_time, true);
+  ROS_INFO("Computed parallax to last keyframe: %f", avg_parallax);
+  if (avg_parallax > vio_params_.keyframe_parallax &&
+      beam::PassedMotionThreshold(T_WORLD_BASELINK, kf_pose, 0.0, 0.05, true,
+                                  true)) {
+    return true;
+  } else if (added_since_kf_ > vio_params_.tracker_window_size - 10) {
+    return true;
+  }
+  return false;
+}
+
+bool VisualInertialOdometry::FailureDetection(
+    const ros::Time& img_time, const Eigen::Matrix4d& T_WORLD_BASELINK) {
+  // check current number of visible tracks
+  ros::Time kf_time = keyframes_.back().Stamp();
+  std::vector<uint64_t> ids = tracker_->GetLandmarkIDsInImage(img_time);
+  int num_tracks = 0;
+  for (auto& id : ids) {
     try {
-      // get pixels from each frame
-      Eigen::Vector2d cf_pixel = tracker_->Get(img_time, id);
-      Eigen::Vector2d kf_pixel = tracker_->Get(kf_time, id);
-      // back project pixel in cf
-      Eigen::Vector3d cf_ray;
-      if (!cam_model_->BackProject(cf_pixel.cast<int>(), cf_ray)) { break; }
-      // rotate ray to be in kf
-      Eigen::Vector3d cf_ray_inkf = R_kf_cf * cf_ray;
-      // project ray to get pixel in kf
-      Eigen::Vector2d cf_pixel_inkf;
-      if (!cam_model_->ProjectPoint(cf_ray_inkf, cf_pixel_inkf)) { break; }
-      // accumulate
-      total_parallax += beam::distance(kf_pixel, cf_pixel_inkf);
-      num_correspondences += 1.0;
+      tracker_->Get(kf_time, id).cast<int>();
+      tracker_->Get(img_time, id).cast<int>();
+      num_tracks++;
     } catch (const std::out_of_range& oor) {}
   }
-  // decide if this frame is a keyframe
-  double avg_parallax = total_parallax / num_correspondences;
-  ROS_DEBUG("Computed parallax to last keyframe: %f", avg_parallax);
-  if (avg_parallax > vio_params_.keyframe_parallax) {
+  if (num_tracks < 30) {
+    ROS_FATAL_STREAM("Too few visual tracks: " << num_tracks);
     return true;
-  } else {
-    if (added_since_kf_ > vio_params_.tracker_window_size - 10) { return true; }
-    return false;
   }
+
+  // check imu biases
+  if (imu_preint_->GetImuState().AccelBiasVec().norm() > 2.5) {
+    ROS_FATAL_STREAM("Too large of accel bias: "
+                     << imu_preint_->GetImuState().AccelBiasVec().norm());
+    return true;
+  }
+  if (imu_preint_->GetImuState().GyroBiasVec().norm() > 1.0) {
+    ROS_FATAL_STREAM("Too large of gryo bias: "
+                     << imu_preint_->GetImuState().GyroBiasVec().norm());
+    return true;
+  }
+
+  // check change in pose from last keyframe
+  Eigen::Matrix4d kf_pose = visual_map_->GetBaselinkPose(kf_time).value();
+  if (beam::PassedMotionThreshold(T_WORLD_BASELINK, kf_pose, 50.0, 5.0, true,
+                                  false)) {
+    ROS_FATAL_STREAM("Too large of a pose change.");
+    return true;
+  }
+
+  // check change in z
+  if (std::abs(T_WORLD_BASELINK(2, 3) - kf_pose(2, 3)) > 1) {
+    ROS_FATAL_STREAM("Too large of a translation in z.");
+    return true;
+  }
+  return false;
 }
 
 void VisualInertialOdometry::ExtendMap(
@@ -444,7 +470,7 @@ void VisualInertialOdometry::NotifyNewKeyframe(
 
   // make and publish reloc request
   // TODO: redo this to only be published at a specified rate
-  // TODO: refactor reloc message to take an image and camera measurements
+  // TODO: refactor reloc message to take a camera measurement
   bs_common::RelocRequestMsg reloc_msg;
   reloc_msg.image = keyframes_.back().Image();
   std::vector<double> pose;

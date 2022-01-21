@@ -67,16 +67,16 @@ visual_inertial_odometry:
   imu_topic: '/imu/data'
   init_path_topic: '/local_mapper/vo_initializer/result'
   # feature tracking configs
-  descriptor: 'BEBLID'
+  descriptor: 'ORB'
   detector: 'FAST'
-  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/descriptor.json'
+  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
   # keyframe decision params and memory management params
   tracker_window_size: 300 
   num_features_to_track: 100 
   keyframe_window_size: 20 
-  keyframe_parallax: 10.0
+  keyframe_parallax: 15.0
   # initialization params
   init_max_optimization_time_in_seconds: 0.5
   init_map_output_directory: '' 
