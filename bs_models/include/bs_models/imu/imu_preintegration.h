@@ -136,7 +136,7 @@ public:
    * @brief Updates current graph copy
    * @param graph_msg graph to update with
    */
-  void UpdateGraph(fuse_core::Graph::SharedPtr graph_msg);
+  void UpdateGraph(const fuse_core::Graph::SharedPtr& graph_msg);
 
   /**
    * @brief Estimates inertial parameters given an initial path and imu messages

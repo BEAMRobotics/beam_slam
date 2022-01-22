@@ -46,16 +46,14 @@ private:
    * constraints and triangulate new landmarks when required
    * @param[in] msg - The image to process
    */
-  void processImage(const sensor_msgs::Image::ConstPtr &msg);
+  void processImage(const sensor_msgs::Image::ConstPtr& msg);
 
   /**
    * @brief Callback for imu processing, this will make sure the imu messages
    * are added to the buffer at the correct time
    * @param[in] msg - The imu msg to process
    */
-  void processIMU(const sensor_msgs::Imu::ConstPtr &msg);
-
-  fuse_core::UUID device_id_; //!< The UUID of this device
+  void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
   /**
    * @brief Perform any required initialization for the sensor model
@@ -89,7 +87,7 @@ private:
    * @param img_time time of image to localize
    * @return T_WORLD_BASELINK
    */
-  Eigen::Matrix4d LocalizeFrame(const ros::Time &img_time);
+  Eigen::Matrix4d LocalizeFrame(const ros::Time& img_time);
 
   /**
    * @brief Determines if a frame is a keyframe
@@ -97,15 +95,23 @@ private:
    * @param T_WORLD_BASELINK initial odometry estimate
    * @return true or false decision
    */
-  bool IsKeyframe(const ros::Time &img_time,
-                  const Eigen::Matrix4d &T_WORLD_BASELINK);
+  bool IsKeyframe(const ros::Time& img_time,
+                  const Eigen::Matrix4d& T_WORLD_BASELINK);
 
+  /**
+   * @brief Determines if odometry has failed
+   * @param img_time time of current image
+   * @param T_WORLD_BASELINK initial odometry estimate
+   * @return true if failure detected
+   */
+  bool FailureDetection(const ros::Time& img_time,
+                        const Eigen::Matrix4d& T_WORLD_BASELINK);
   /**
    * @brief Extends the map at the current keyframe time and adds the visual
    * constraints
    * @param T_WORLD_BASELINK initial odometry estimate
    */
-  void ExtendMap(const Eigen::Matrix4d &T_WORLD_BASELINK);
+  void ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief creates inertial cosntraint for the current keyframe and merges with
@@ -116,26 +122,26 @@ private:
   void AddInertialConstraint(fuse_core::Transaction::SharedPtr transaction);
 
   /**
- * @brief Copies all variables and constraints in the init graph and sends to
- * fuse optimizer
- * @param init_graph the graph obtained from the initializer
- */
-  void SendInitializationGraph(const fuse_core::Graph::SharedPtr &init_graph);
+   * @brief Copies all variables and constraints in the init graph and sends to
+   * fuse optimizer
+   * @param init_graph the graph obtained from the initializer
+   */
+  void SendInitializationGraph(const fuse_core::Graph::SharedPtr& init_graph);
 
   /**
    * @brief Adds the keyframe pose to the graph and publishes keyframe header to
    * notify any lsiteners
    * @param T_WORLD_CAMERA pose of the keyframe to add
    */
-  void NotifyNewKeyframe(const Eigen::Matrix4d &T_WORLD_BASELINK);
+  void NotifyNewKeyframe(const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief Publishes the initial odometry estimate of frame
    * @param time time of pose
    * @param T_WORLD_BASELINK initial odometry estimate
    */
-  void PublishInitialOdometry(const ros::Time &time,
-                              const Eigen::Matrix4d &T_WORLD_BASELINK);
+  void PublishInitialOdometry(const ros::Time& time,
+                              const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief Publishes the oldest keyframe that is stored as a slam chunk message
@@ -146,8 +152,9 @@ private:
    * @brief Publishes landmark ids
    * @param ids list of landmark ids
    */
-  void PublishLandmarkIDs(const std::vector<uint64_t> &ids);
+  void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
 
+  fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
   bs_parameters::models::VioParams vio_params_;
 
@@ -197,11 +204,11 @@ private:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookupOnline &extrinsics_ =
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // current active submap index
-  ActiveSubmap &active_submap_ = ActiveSubmap::GetInstance();
+  ActiveSubmap& active_submap_ = ActiveSubmap::GetInstance();
 };
 
 } // namespace bs_models
