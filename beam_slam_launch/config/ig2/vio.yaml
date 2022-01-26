@@ -69,7 +69,7 @@ visual_inertial_odometry:
   frame_initializer_type: '' 
   frame_initializer_info: ''
   frame_initializer_sensor_frame_id: ''
-  frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
+  frame_initializer_prior_noise_diagonal: [] 
   # feature tracking configs
   descriptor: 'ORB'
   detector: 'FAST'
