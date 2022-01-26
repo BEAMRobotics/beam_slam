@@ -1,6 +1,7 @@
 #include <bs_models/visual_inertial_odometry.h>
 
 #include <fuse_core/transaction.h>
+#include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <pluginlib/class_list_macros.h>
 #include <std_msgs/UInt64MultiArray.h>
 
@@ -33,8 +34,20 @@ void VisualInertialOdometry::onInit() {
   vio_params_.loadFromROS(private_node_handle_);
   calibration_params_.loadFromROS();
 
+  // init frame initializer if desired
+  if (vio_params_.frame_initializer_type == "ODOMETRY") {
+    frame_initializer_ =
+        std::make_unique<frame_initializers::OdometryFrameInitializer>(
+            vio_params_.frame_initializer_info, 100, 30,
+            vio_params_.frame_initializer_sensor_frame_id);
+  } else if (vio_params_.frame_initializer_type == "POSEFILE") {
+    frame_initializer_ =
+        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
+            vio_params_.frame_initializer_info);
+  }
+
   // initialize pose refiner object with params
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(5e-2, true, 1.0);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2, true, 1.0);
 
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
@@ -108,12 +121,6 @@ void VisualInertialOdometry::onStart() {
  ************************************************************/
 void VisualInertialOdometry::processImage(
     const sensor_msgs::Image::ConstPtr& msg) {
-  // get most recent extrinsics, if failure then process frame later
-  if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
-    ROS_ERROR("Unable to get camera to baselink transform.");
-    return;
-  }
-
   // push image onto buffer
   image_buffer_.push(*msg);
 
@@ -121,12 +128,30 @@ void VisualInertialOdometry::processImage(
   ros::Time imu_time = imu_buffer_.front().header.stamp;
   ros::Time img_time = image_buffer_.front().header.stamp;
 
+  // get most recent extrinsics, if failure then process frame later
+  if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
+    ROS_ERROR("Unable to get camera to baselink transform.");
+    return;
+  }
+
+  // get pose if we are using frame initializer, if its a failure we wait
+  // until we can by buffering the frame
+  Eigen::Matrix4d T_WORLD_BASELINK = Eigen::Matrix4d::Identity();
+  if (frame_initializer_) {
+    if (!frame_initializer_->GetEstimatedPose(
+            T_WORLD_BASELINK, img_time, extrinsics_.GetBaselinkFrameId())) {
+      ROS_WARN("Unable to estimate pose from frame initializer, returning "
+               "buffering frame.");
+      return;
+    }
+  }
+
   // add image to map or initializer
   if (imu_time >= img_time && !imu_buffer_.empty()) {
-    cv::Mat image =
-        beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front());
     // add image to tracker
-    tracker_->AddImage(image, img_time);
+    tracker_->AddImage(
+        beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
+        img_time);
 
     // process in initialization mode
     if (!initialization_->Initialized()) {
@@ -150,12 +175,12 @@ void VisualInertialOdometry::processImage(
       // process in odometry mode
       beam::HighResolutionTimer frame_timer;
 
-      // localize frame
-      Eigen::Matrix4d T_WORLD_BASELINK = LocalizeFrame(img_time);
+      // localize frame if not using a frame initializer
+      if (!frame_initializer_) { T_WORLD_BASELINK = LocalizeFrame(img_time); }
 
       // detect if odometry has failed
       if (FailureDetection(img_time, T_WORLD_BASELINK)) {
-        ROS_FATAL_STREAM("VIO Failure, reintializing.");
+        ROS_FATAL_STREAM("VIO Failure, reintializing at " << img_time);
         ros::requestShutdown();
         // TODO: publish reset request to reinitialize
       }
@@ -165,16 +190,21 @@ void VisualInertialOdometry::processImage(
 
       // process keyframe
       if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
+        // push new keyframe to list
+        Keyframe kf(img_time, image_buffer_.front());
+        keyframes_.push_back(kf);
+        added_since_kf_ = 0;
+
         // log keyframe info
         ROS_INFO("Keyframe time: %f", img_time.toSec());
         ROS_INFO("%s",
                  beam::TransformationMatrixToString(T_WORLD_BASELINK).c_str());
+
         // update map with keyframe
-        Keyframe kf(img_time, image_buffer_.front());
-        keyframes_.push_back(kf);
-        added_since_kf_ = 0;
-        NotifyNewKeyframe(T_WORLD_BASELINK);
         ExtendMap(T_WORLD_BASELINK);
+
+        // notify system of new keyframe
+        NotifyNewKeyframe(T_WORLD_BASELINK);
       } else {
         // compute relative pose to most recent kf
         Eigen::Matrix4d T_WORLD_BASELINK_curkf =
@@ -185,7 +215,7 @@ void VisualInertialOdometry::processImage(
         keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
         added_since_kf_++;
       }
-      ROS_DEBUG("Total time to process frame: %.5f", frame_timer.elapsed());
+      ROS_INFO("Total time to process frame: %.5f", frame_timer.elapsed());
     }
     image_buffer_.pop();
   }
@@ -234,6 +264,9 @@ void VisualInertialOdometry::onGraphUpdate(
  ************************************************************/
 Eigen::Matrix4d
     VisualInertialOdometry::LocalizeFrame(const ros::Time& img_time) {
+  // output pose
+  Eigen::Matrix4d T_WORLD_BASELINK;
+
   // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
@@ -249,25 +282,24 @@ Eigen::Matrix4d
     }
   }
 
-  // get pose estimate
-  Eigen::Matrix4d T_WORLD_BASELINK_inertial;
+  // get pose estimate using imu
   std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance =
       std::make_shared<Eigen::Matrix<double, 6, 6>>();
-  imu_preint_->GetPose(T_WORLD_BASELINK_inertial, img_time, covariance);
+  imu_preint_->GetPose(T_WORLD_BASELINK, img_time, covariance);
 
-  // refine with visual info
+  // refine with visual info if possible
   if (pixels.size() >= 15) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
-        (T_WORLD_BASELINK_inertial * T_cam_baselink_.inverse()).inverse();
+        (T_WORLD_BASELINK * T_cam_baselink_.inverse()).inverse();
     Eigen::Matrix4d T_WORLD_CAMERA =
         pose_refiner_
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points,
                          covariance)
             .inverse();
-    Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
-    return T_WORLD_BASELINK;
+    T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
   }
-  return T_WORLD_BASELINK_inertial;
+  // return estimate
+  return T_WORLD_BASELINK;
 }
 
 bool VisualInertialOdometry::IsKeyframe(
@@ -279,7 +311,7 @@ bool VisualInertialOdometry::IsKeyframe(
   Eigen::Matrix4d kf_pose = visual_map_->GetBaselinkPose(kf_time).value();
 
   double avg_parallax = tracker_->ComputeParallax(kf_time, img_time, true);
-  ROS_INFO("Computed parallax to last keyframe: %f", avg_parallax);
+  ROS_DEBUG("Computed parallax to last keyframe: %f", avg_parallax);
   if (avg_parallax > vio_params_.keyframe_parallax &&
       beam::PassedMotionThreshold(T_WORLD_BASELINK, kf_pose, 0.0, 0.05, true,
                                   true)) {
@@ -338,12 +370,30 @@ bool VisualInertialOdometry::FailureDetection(
 
 void VisualInertialOdometry::ExtendMap(
     const Eigen::Matrix4d& T_WORLD_BASELINK) {
-  // get current and previous keyframe timestamps
+  // get current and previous keyframe timestamp
+  ros::Time prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
   ros::Time cur_kf_time = keyframes_.back().Stamp();
+
+  // create transaction for this keyframe
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(cur_kf_time);
+
   // add pose to map
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, cur_kf_time, transaction);
+
+  // add prior if using a frame initializer
+  if (frame_initializer_) {
+    auto p = visual_map_->GetPosition(cur_kf_time);
+    auto o = visual_map_->GetOrientation(cur_kf_time);
+    fuse_core::Vector7d mean;
+    mean << p->x(), p->y(), p->z(), o->w(), o->x(), o->y(), o->z();
+    auto prior =
+        std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+            "FRAMEINITIALIZERPRIOR", *p, *o, mean,
+            vio_params_.prior_covariance);
+    transaction->addConstraint(prior);
+  }
+
   // add visual constraints
   std::vector<uint64_t> landmarks =
       tracker_->GetLandmarkIDsInImage(cur_kf_time);
@@ -356,38 +406,28 @@ void VisualInertialOdometry::ExtendMap(
       visual_map_->AddConstraint(cur_kf_time, id,
                                  tracker_->Get(cur_kf_time, id), transaction);
     } else {
-      // otherwise then triangulate and add the constraints
-      std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
-      std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
-      std::vector<ros::Time> observation_stamps;
-      // get measurements of landmark for triangulation
-      for (auto& kf : keyframes_) {
-        try {
-          Eigen::Vector2d pixel = tracker_->Get(kf.Stamp(), id);
-          beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(kf.Stamp());
-          if (T.has_value()) {
-            pixels.push_back(pixel.cast<int>());
-            T_cam_world_v.push_back(T.value().inverse());
-            observation_stamps.push_back(kf.Stamp());
-          }
-        } catch (const std::out_of_range& oor) {}
-      }
-
-      // triangulate new points
-      if (T_cam_world_v.size() >= 2) {
+      // triangulate using last keyframe
+      try {
+        // get pixel correspondence
+        Eigen::Vector2i p1 = tracker_->Get(prev_kf_time, id).cast<int>();
+        Eigen::Vector2i p2 = tracker_->Get(cur_kf_time, id).cast<int>();
+        // get camera poses
+        Eigen::Matrix4d T_cam1_world =
+            visual_map_->GetCameraPose(prev_kf_time).value();
+        Eigen::Matrix4d T_cam2_world =
+            visual_map_->GetCameraPose(cur_kf_time).value();
+        // triangulate
         beam::opt<Eigen::Vector3d> point =
-            beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                     pixels);
+            beam_cv::Triangulation::TriangulatePoint(
+                cam_model_, cam_model_, T_cam1_world, T_cam2_world, p1, p2);
+
         if (point.has_value()) {
           keyframes_.back().AddLandmark(id);
           visual_map_->AddLandmark(point.value(), id, transaction);
-          for (int i = 0; i < observation_stamps.size(); i++) {
-            visual_map_->AddConstraint(observation_stamps[i], id,
-                                       tracker_->Get(observation_stamps[i], id),
-                                       transaction);
-          }
+          visual_map_->AddConstraint(
+              cur_kf_time, id, tracker_->Get(cur_kf_time, id), transaction);
         }
-      }
+      } catch (const std::out_of_range& oor) {}
     }
   }
   ROS_INFO("Added %zu new landmarks.", keyframes_.back().Landmarks().size());

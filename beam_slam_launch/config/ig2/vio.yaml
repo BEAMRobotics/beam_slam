@@ -28,9 +28,9 @@ motion_models:
 ##############################
 #    optimizer parameters    #
 ##############################
-optimization_period: 0.5
+optimization_period: 1.0
 lag_duration: 5
-num_states: 15
+num_states: 10
 
 ###########################
 #    solver parameters    #
@@ -66,6 +66,10 @@ visual_inertial_odometry:
   image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
   init_path_topic: '/local_mapper/vo_initializer/result'
+  frame_initializer_type: '' 
+  frame_initializer_info: ''
+  frame_initializer_sensor_frame_id: ''
+  frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
   # feature tracking configs
   descriptor: 'ORB'
   detector: 'FAST'
