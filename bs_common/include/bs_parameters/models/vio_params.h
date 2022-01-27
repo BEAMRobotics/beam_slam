@@ -84,11 +84,9 @@ public:
              prior_diagonal);
     if (prior_diagonal.size() != 6) {
       ROS_ERROR("Invalid gm_noise_diagonal params, required 6 params, "
-                "given: %d. Using default (0.00000000001 for all)",
+                "given: %d. Using default (1e-9).",
                 prior_diagonal.size());
-      prior_diagonal =
-          std::vector<double>{0.00000000001, 0.00000000001, 0.00000000001,
-                              0.00000000001, 0.00000000001, 0.00000000001};
+      prior_diagonal = std::vector<double>{1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9};
     }
     if (std::accumulate(prior_diagonal.begin(), prior_diagonal.end(), 0.0) ==
         0.0) {
@@ -109,6 +107,7 @@ public:
   std::string frame_initializer_sensor_frame_id{};
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};
+  bool use_pose_priors{true};
 
   // vision configs
   std::string descriptor{};

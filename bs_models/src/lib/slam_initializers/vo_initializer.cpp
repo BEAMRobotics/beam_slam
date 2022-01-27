@@ -112,7 +112,7 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       beam::opt<Eigen::Matrix4d> T_c2_c1 =
           beam_cv::RelativePoseEstimator::RANSACEstimator(
               cam_model_, cam_model_, p1_v, p2_v,
-              beam_cv::EstimatorMethod::SEVENPOINT, 50);
+              beam_cv::EstimatorMethod::SEVENPOINT, 10);
 
       // compute world poses
       if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
@@ -132,14 +132,11 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
       int inliers = 0;
       for (size_t i = 0; i < points.size(); i++) {
         if (points[i].has_value()) {
+          Eigen::Vector3d p = points[i].value();
           // transform points into each camera frame
-          Eigen::Vector4d pt_h;
-          pt_h << points[i].value()[0], points[i].value()[1],
-              points[i].value()[2], 1;
-          Eigen::Vector4d pt_h_1 = T_world_c1.inverse() * pt_h,
-                          pt_h_2 = T_world_c2.inverse() * pt_h;
-          Eigen::Vector3d pt1 = pt_h_1.head(3) / pt_h_1(3);
-          Eigen::Vector3d pt2 = pt_h_2.head(3) / pt_h_2(3);
+          Eigen::Vector3d
+              pt1 = (T_world_c1.inverse() * p.homogeneous()).hnormalized(),
+              pt2 = (T_world_c2.inverse() * p.homogeneous()).hnormalized();
           // reproject triangulated points into each frame
           bool in_image1 = false, in_image2 = false;
           Eigen::Vector2d p1_rep, p2_rep;
@@ -150,8 +147,8 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
             continue;
           }
           // compute distance to actual pixel
-          Eigen::Vector2d p1_d{p1_v[i][0], p1_v[i][1]};
-          Eigen::Vector2d p2_d{p2_v[i][0], p2_v[i][1]};
+          Eigen::Vector2d p1_d = p1_v[i].cast<double>();
+          Eigen::Vector2d p2_d = p2_v[i].cast<double>();
           if (beam::distance(p1_rep, p1_d) > 5.0 &&
               beam::distance(p2_rep, p2_d) > 5.0) {
             // set outlier to have no value in the vector
@@ -161,6 +158,7 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
           }
         }
       }
+      // initialize sfm if we have enough inliers
       float inlier_ratio = (float)inliers / p1_v.size();
       if (inlier_ratio > 0.8) {
         ROS_INFO("Valid image pair. Parallax: %f, Inlier Ratio: %f. Attempting "

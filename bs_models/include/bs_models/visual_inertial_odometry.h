@@ -107,13 +107,14 @@ private:
    */
   bool FailureDetection(const ros::Time& img_time,
                         const Eigen::Matrix4d& T_WORLD_BASELINK);
+
   /**
    * @brief Extends the map at the current keyframe time and adds the visual
    * constraints
    * @param T_WORLD_BASELINK initial odometry estimate
    */
   void ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK);
-
+  
   /**
    * @brief creates inertial cosntraint for the current keyframe and merges with
    * the input transaction
