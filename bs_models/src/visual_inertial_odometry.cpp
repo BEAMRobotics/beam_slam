@@ -516,25 +516,31 @@ void VisualInertialOdometry::SendInitializationGraph(
  ************************************************************/
 void VisualInertialOdometry::NotifyNewKeyframe(
     const Eigen::Matrix4d& T_WORLD_BASELINK) {
+  ros::Time kf_time = keyframes_.back().Stamp();
   // build header message and publish for lidar slam
   std_msgs::Header keyframe_header;
-  keyframe_header.stamp = keyframes_.back().Stamp();
+  keyframe_header.stamp = kf_time;
   keyframe_header.frame_id = calibration_params_.baselink_frame;
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
 
-  // make and publish reloc request
-  // TODO: redo this to only be published at a specified rate
-  // TODO: refactor reloc message to take a camera measurement
-  bs_common::RelocRequestMsg reloc_msg;
-  reloc_msg.image = keyframes_.back().Image();
-  std::vector<double> pose;
-  for (uint8_t i = 0; i < 3; i++) {
-    for (uint8_t j = 0; j < 4; j++) { pose.push_back(T_WORLD_BASELINK(i, j)); }
+  // make and publish reloc request at specified rate
+  if (kf_time.toSec() - previous_reloc_request_.toSec() >
+      vio_params_.reloc_request_period) {
+    ROS_INFO_STREAM("Publishing reloc request at: " << kf_time);
+    previous_reloc_request_ = kf_time;
+    bs_common::RelocRequestMsg reloc_msg;
+    reloc_msg.image = keyframes_.back().Image();
+    std::vector<double> pose;
+    for (uint8_t i = 0; i < 3; i++) {
+      for (uint8_t j = 0; j < 4; j++) {
+        pose.push_back(T_WORLD_BASELINK(i, j));
+      }
+    }
+    reloc_msg.T_WORLD_BASELINK = pose;
+    reloc_msg.stamp = keyframes_.back().Stamp();
+    reloc_publisher_.publish(reloc_msg);
   }
-  reloc_msg.T_WORLD_BASELINK = pose;
-  reloc_msg.stamp = keyframes_.back().Stamp();
-  reloc_publisher_.publish(reloc_msg);
 }
 
 void VisualInertialOdometry::PublishInitialOdometry(

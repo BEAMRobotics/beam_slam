@@ -114,7 +114,7 @@ private:
    * @param T_WORLD_BASELINK initial odometry estimate
    */
   void ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK);
-  
+
   /**
    * @brief creates inertial cosntraint for the current keyframe and merges with
    * the input transaction
@@ -206,6 +206,8 @@ private:
   // keyframe information
   std::deque<Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
+
+  ros::Time previous_reloc_request_{ros::Time(0)};
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
