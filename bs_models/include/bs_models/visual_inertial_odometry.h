@@ -147,6 +147,7 @@ private:
 
   /**
    * @brief Publishes the oldest keyframe that is stored as a slam chunk message
+   * @param keyframe to publish slam chunk for
    */
   void PublishSlamChunk(Keyframe keyframe);
 
@@ -155,6 +156,12 @@ private:
    * @param ids list of landmark ids
    */
   void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
+
+  /**
+   * @brief Builds a camera measurement message for a keyframe
+   * @param keyframe to build camera measurement for
+   */
+  CameraMeasurementMsg BuildCameraMeasurement(Keyframe keyframe);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters

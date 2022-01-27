@@ -216,7 +216,8 @@ void VisualInertialOdometry::processImage(
         keyframes_.front().AddPose(img_time, T_curframe_curkeyframe);
         added_since_kf_++;
       }
-      ROS_INFO_STREAM("Total time to process frame: " << frame_timer.elapsed());
+      ROS_DEBUG_STREAM(
+          "Total time to process frame: " << frame_timer.elapsed());
     }
     image_buffer_.pop();
   }
@@ -415,6 +416,7 @@ void VisualInertialOdometry::ExtendMap(
       std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
       // get measurements of landmark for triangulation
+      // TODO: iterate backwards through keyframes and stop after N matches
       for (auto& kf : keyframes_) {
         try {
           Eigen::Vector2d pixel = tracker_->Get(kf.Stamp(), id);
@@ -530,13 +532,13 @@ void VisualInertialOdometry::NotifyNewKeyframe(
     ROS_INFO_STREAM("Publishing reloc request at: " << kf_time);
     previous_reloc_request_ = kf_time;
     bs_common::RelocRequestMsg reloc_msg;
-    reloc_msg.image = keyframes_.back().Image();
     std::vector<double> pose;
     for (uint8_t i = 0; i < 3; i++) {
       for (uint8_t j = 0; j < 4; j++) {
         pose.push_back(T_WORLD_BASELINK(i, j));
       }
     }
+    reloc_msg.camera_measurement = BuildCameraMeasurement(keyframes_.back());
     reloc_msg.T_WORLD_BASELINK = pose;
     reloc_msg.stamp = keyframes_.back().Stamp();
     reloc_publisher_.publish(reloc_msg);
@@ -597,6 +599,25 @@ void VisualInertialOdometry::PublishSlamChunk(Keyframe keyframe) {
     for (auto& x : pose) { trajectory.poses.push_back(x); }
   }
 
+  // add msgs to slam chunk
+  slam_chunk.stamp = keyframe_time;
+  slam_chunk.trajectory_measurement = trajectory;
+  slam_chunk.camera_measurement = BuildCameraMeasurement(keyframe);
+
+  slam_chunk_publisher_.publish(slam_chunk);
+}
+
+void VisualInertialOdometry::PublishLandmarkIDs(
+    const std::vector<uint64_t>& ids) {
+  std_msgs::UInt64MultiArray landmark_msg;
+  for (auto& id : ids) { landmark_msg.data.push_back(id); }
+  landmark_publisher_.publish(landmark_msg);
+}
+
+CameraMeasurementMsg
+    VisualInertialOdometry::BuildCameraMeasurement(Keyframe keyframe) {
+  // get timestamp of keyframe
+  ros::Time keyframe_time = keyframe.Stamp();
   // build landmark measurements msg
   std::vector<LandmarkMeasurementMsg> landmarks;
   std::vector<uint64_t> landmark_ids =
@@ -613,7 +634,6 @@ void VisualInertialOdometry::PublishSlamChunk(Keyframe keyframe) {
     lm.pixel_v = pixel[1];
     landmarks.push_back(lm);
   }
-
   // build camera measurement msg
   CameraMeasurementMsg camera_measurement;
   camera_measurement.descriptor_type = descriptor_type_int_;
@@ -621,20 +641,8 @@ void VisualInertialOdometry::PublishSlamChunk(Keyframe keyframe) {
   camera_measurement.measurement_id = keyframe.SequenceNumber();
   camera_measurement.image = keyframe.Image();
   camera_measurement.landmarks = landmarks;
-
-  // add msgs to slam chunk
-  slam_chunk.stamp = keyframe_time;
-  slam_chunk.trajectory_measurement = trajectory;
-  slam_chunk.camera_measurement = camera_measurement;
-
-  slam_chunk_publisher_.publish(slam_chunk);
-}
-
-void VisualInertialOdometry::PublishLandmarkIDs(
-    const std::vector<uint64_t>& ids) {
-  std_msgs::UInt64MultiArray landmark_msg;
-  for (auto& id : ids) { landmark_msg.data.push_back(id); }
-  landmark_publisher_.publish(landmark_msg);
+  // return message
+  return camera_measurement;
 }
 
 } // namespace bs_models

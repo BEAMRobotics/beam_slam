@@ -6,21 +6,20 @@
 #include <boost/filesystem.hpp>
 #include <pcl/conversions.h>
 
-#include <beam_utils/log.h>
-#include <beam_utils/time.h>
-#include <beam_utils/filesystem.h>
-#include <beam_utils/pointclouds.h>
-#include <beam_utils/pcl_conversions.h>
-#include <beam_mapping/Poses.h>
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/descriptors/Descriptor.h>
+#include <beam_mapping/Poses.h>
+#include <beam_utils/filesystem.h>
+#include <beam_utils/log.h>
+#include <beam_utils/pcl_conversions.h>
+#include <beam_utils/pointclouds.h>
+#include <beam_utils/time.h>
 
-#include <bs_models/reloc/reloc_methods.h>
-#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_common/utils.h>
+#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
+#include <bs_models/reloc/reloc_methods.h>
 
-namespace bs_models {
-namespace global_mapping {
+namespace bs_models { namespace global_mapping {
 
 using namespace reloc;
 
@@ -85,9 +84,8 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
 
   std::vector<double> vec2 = J["reloc_covariance_diag"];
   if (vec2.size() != 6) {
-    BEAM_ERROR(
-        "Invalid reloc covariance diagonal (6 values required). Using "
-        "default.");
+    BEAM_ERROR("Invalid reloc covariance diagonal (6 values required). Using "
+               "default.");
   } else {
     Eigen::VectorXd vec_eig = Eigen::VectorXd(6);
     vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
@@ -157,7 +155,9 @@ GlobalMap::GlobalMap(const std::string& data_root_directory) {
   }
 }
 
-std::vector<SubmapPtr> GlobalMap::GetOnlineSubmaps() { return online_submaps_; }
+std::vector<SubmapPtr> GlobalMap::GetOnlineSubmaps() {
+  return online_submaps_;
+}
 
 std::vector<SubmapPtr> GlobalMap::GetOfflineSubmaps() {
   return offline_submaps_;
@@ -211,10 +211,9 @@ void GlobalMap::Setup() {
     reloc_candidate_search_ = std::make_unique<RelocCandidateSearchEucDist>(
         params_.reloc_candidate_search_config);
   } else {
-    BEAM_ERROR(
-        "Invalid reloc candidate search type. Using default: EUCDIST. "
-        "Input: {}",
-        params_.reloc_candidate_search_type);
+    BEAM_ERROR("Invalid reloc candidate search type. Using default: EUCDIST. "
+               "Input: {}",
+               params_.reloc_candidate_search_type);
     reloc_candidate_search_ = std::make_unique<RelocCandidateSearchEucDist>(
         params_.reloc_candidate_search_config);
   }
@@ -239,11 +238,12 @@ void GlobalMap::Setup() {
   }
 }
 
-fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
-    const CameraMeasurementMsg& cam_measurement,
-    const LidarMeasurementMsg& lid_measurement,
-    const TrajectoryMeasurementMsg& traj_measurement,
-    const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp) {
+fuse_core::Transaction::SharedPtr
+    GlobalMap::AddMeasurement(const CameraMeasurementMsg& cam_measurement,
+                              const LidarMeasurementMsg& lid_measurement,
+                              const TrajectoryMeasurementMsg& traj_measurement,
+                              const Eigen::Matrix4d& T_WORLD_BASELINK,
+                              const ros::Time& stamp) {
   fuse_core::Transaction::SharedPtr new_transaction = nullptr;
 
   int submap_id = GetSubmapId(T_WORLD_BASELINK);
@@ -294,9 +294,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
     cloud = beam::ROSVectorToPCL(lid_measurement.lidar_points);
 
     // add ros msg if applicable
-    if (store_new_scans_) {
-      AddNewRosScan(cloud, T_WORLD_BASELINK, stamp);
-    }
+    if (store_new_scans_) { AddNewRosScan(cloud, T_WORLD_BASELINK, stamp); }
 
     online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
                                                        stamp, 0);
@@ -330,10 +328,9 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
     // check dimensions of inputs first
     if (poses_vec.size() % 12 != 0) {
-      BEAM_ERROR(
-          "Invalid size of poses vector, number of elements must be "
-          "divisible "
-          "by 12. Not adding trajectory measurement.");
+      BEAM_ERROR("Invalid size of poses vector, number of elements must be "
+                 "divisible "
+                 "by 12. Not adding trajectory measurement.");
     } else if (num_poses != traj_measurement.stamps.size()) {
       BEAM_ERROR(
           "Number of poses is not equal to number of time stamps. Not adding "
@@ -351,10 +348,9 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
         std::string matrix_check_summary;
         if (!beam::IsTransformationMatrix(T_KEYFRAME_FRAME,
                                           matrix_check_summary)) {
-          ROS_ERROR(
-              "transformation matrix invalid, not adding trajectory "
-              "measurement to global map. Reason: %s. Input:",
-              matrix_check_summary.c_str());
+          ROS_ERROR("transformation matrix invalid, not adding trajectory "
+                    "measurement to global map. Reason: %s. Input:",
+                    matrix_check_summary.c_str());
           std::cout << "T_KEYFRAME_FRAME\n" << T_KEYFRAME_FRAME << "\n";
         }
         poses.push_back(T_KEYFRAME_FRAME);
@@ -371,9 +367,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::TriggerLoopClosure() {
-  if (online_submaps_.size() < 2) {
-    return nullptr;
-  }
+  if (online_submaps_.size() < 2) { return nullptr; }
 
   return RunLoopClosure(online_submaps_.size() - 1);
 }
@@ -384,9 +378,7 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // isn't coming in in order (e.g., lidar data may come in slower)
 
   // first check if submaps is empty
-  if (online_submaps_.empty()) {
-    return 0;
-  }
+  if (online_submaps_.empty()) { return 0; }
 
   Eigen::Vector3d t_WORLD_FRAME = T_WORLD_BASELINK.block(0, 3, 3, 1);
 
@@ -459,9 +451,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
 
 fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   // if first submap, don't look for relocs
-  if (online_submaps_.size() == 1) {
-    return nullptr;
-  }
+  if (online_submaps_.size() == 1) { return nullptr; }
 
   ROS_DEBUG("Searching for loop closure candidates");
 
@@ -476,18 +466,14 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   // remove candidate if it is equal to the query submap, or one before
   std::vector<int> matched_indices_filtered;
   for (int i : matched_indices) {
-    if (i == query_index || i == query_index - 1) {
-      continue;
-    }
+    if (i == query_index || i == query_index - 1) { continue; }
     matched_indices_filtered.push_back(i);
   }
 
   ROS_DEBUG("Found %d loop closure candidates.",
             matched_indices_filtered.size());
 
-  if (matched_indices_filtered.size() == 0) {
-    return nullptr;
-  }
+  if (matched_indices_filtered.size() == 0) { return nullptr; }
 
   ROS_DEBUG(
       "Matched index[0]: %d, Query Index: %d, No. or submaps: %d. Running loop "
@@ -507,9 +493,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
         reloc_refinement_->GenerateTransaction(
             online_submaps_.at(matched_indices_filtered[i]),
             online_submaps_.at(query_index), Ts_MATCH_QUERY[i]);
-    if (new_transaction != nullptr) {
-      transaction->merge(*new_transaction);
-    }
+    if (new_transaction != nullptr) { transaction->merge(*new_transaction); }
   }
 
   int num_constraints = bs_common::GetNumberOfConstraints(transaction);
@@ -517,9 +501,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
 
   // if we are returning loop closure constraints, we will set the active submap
   // to none to make sure next reloc takes the most updates active submap
-  if (num_constraints > 0) {
-    active_submap_type_ = SubmapType::NONE;
-  }
+  if (num_constraints > 0) { active_submap_type_ = SubmapType::NONE; }
 
   return transaction;
 }
@@ -568,8 +550,9 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
 
   // load image
   cv::Mat image;
-  if (!reloc_request_msg.image.data.empty()) {
-    image = beam_cv::OpenCVConversions::RosImgToMat(reloc_request_msg.image);
+  if (!reloc_request_msg.camera_measurement.image.data.empty()) {
+    image = beam_cv::OpenCVConversions::RosImgToMat(
+        reloc_request_msg.camera_measurement.image);
   }
 
   std::vector<int> matched_indices;
@@ -593,9 +576,8 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
 
       if (active_submap_id_ == submap_index &&
           active_submap_type_ == SubmapType::OFFLINE) {
-        ROS_DEBUG(
-            "Active submap is the same as returned submap, not updating "
-            "submap.");
+        ROS_DEBUG("Active submap is the same as returned submap, not updating "
+                  "submap.");
         return false;
       }
 
@@ -686,9 +668,8 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
 
       if (active_submap_id_ == submap_index &&
           active_submap_type_ == SubmapType::ONLINE) {
-        ROS_DEBUG(
-            "Active submap is the same as returned submap, not updating "
-            "submap.");
+        ROS_DEBUG("Active submap is the same as returned submap, not updating "
+                  "submap.");
         return false;
       }
 
@@ -762,9 +743,7 @@ void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg,
     online_submaps_.at(i)->UpdatePose(graph_msg);
   }
 
-  if (store_updated_global_map_) {
-    AddRosGlobalMap();
-  }
+  if (store_updated_global_map_) { AddRosGlobalMap(); }
 
   global_map_updates_++;
 }
@@ -834,9 +813,7 @@ bool GlobalMap::Load(const std::string& root_directory) {
   while (true) {
     std::string submap_dir =
         root_directory + "submap" + std::to_string(submap_num) + "/";
-    if (!boost::filesystem::exists(submap_dir)) {
-      break;
-    }
+    if (!boost::filesystem::exists(submap_dir)) { break; }
 
     SubmapPtr current_submap = std::make_shared<Submap>(
         ros::Time(0), Eigen::Matrix4d::Identity(), camera_model_, extrinsics_);
@@ -873,9 +850,7 @@ void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
                                                     max_output_map_size_);
   }
 
-  if (!save_initial) {
-    return;
-  }
+  if (!save_initial) { return; }
 
   // save initial submap
   std::string submaps_path_initial = output_path + "lidar_submaps_initial/";
@@ -905,9 +880,7 @@ void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
     online_submaps_.at(i)->SaveKeypointsMapInWorldFrame(submap_name);
   }
 
-  if (!save_initial) {
-    return;
-  }
+  if (!save_initial) { return; }
 
   // save initial submaps
   std::string submaps_path_initial = output_path + "keypoint_submaps_initial/";
@@ -951,9 +924,7 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
       output_path + "global_map_trajectory_optimized.json";
   poses.WriteToJSON(output_file);
 
-  if (!save_initial) {
-    return;
-  }
+  if (!save_initial) { return; }
 
   // Get trajectory
   beam_mapping::Poses poses_initial;
@@ -1014,9 +985,7 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
     BEAM_ERROR("Unable to save trajectory cloud. Reason: {}", error_message);
   }
 
-  if (!save_initial) {
-    return;
-  }
+  if (!save_initial) { return; }
 
   // get trajectory initial
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_initial;
@@ -1072,9 +1041,7 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
     BEAM_ERROR("Unable to save trajectory cloud. Reason: {}", error_message);
   }
 
-  if (!save_initial) {
-    return;
-  }
+  if (!save_initial) { return; }
 
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_initial;
   for (uint16_t i = 0; i < online_submaps_.size(); i++) {
@@ -1135,9 +1102,7 @@ void GlobalMap::AddRosSubmap(int submap_id) {
   }
 
   // clear submaps if there are too many in the queue;
-  while (ros_submaps_.size() > max_num_ros_submaps_) {
-    ros_submaps_.pop();
-  }
+  while (ros_submaps_.size() > max_num_ros_submaps_) { ros_submaps_.pop(); }
 }
 
 void GlobalMap::AddRosGlobalMap() {
@@ -1219,9 +1184,7 @@ void GlobalMap::AddNewRosScan(const PointCloud& cloud,
   ros_new_scans_.push(std::make_shared<RosMap>(new_ros_map));
 
   // clear maps if there are too many in the queue;
-  while (ros_new_scans_.size() > max_num_new_scans_) {
-    ros_new_scans_.pop();
-  }
+  while (ros_new_scans_.size() > max_num_new_scans_) { ros_new_scans_.pop(); }
 }
 
 void GlobalMap::FillSubmapMsg(
@@ -1312,15 +1275,11 @@ void GlobalMap::FillSubmapMsg(
   for (const std::vector<float>& descriptor : descriptors) {
     bs_common::DescriptorMsg descriptor_msg;
     descriptor_msg.descriptor_type = descriptor_type;
-    for (float v : descriptor) {
-      descriptor_msg.data.push_back(v);
-    }
+    for (float v : descriptor) { descriptor_msg.data.push_back(v); }
     descriptor_msgs.push_back(descriptor_msg);
   }
   submap_msg.visual_map_descriptors = descriptor_msgs;
   submap_msg.descriptor_type = descriptor_type;
 }
 
-}  // namespace global_mapping
-
-}  // namespace bs_models
+}} // namespace bs_models::global_mapping
