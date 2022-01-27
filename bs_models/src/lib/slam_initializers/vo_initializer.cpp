@@ -31,10 +31,6 @@ void VOInitializer::onInit() {
       private_node_handle_.subscribe(vo_initializer_params_.image_topic, 100,
                                      &VOInitializer::processImage, this);
 
-  // subscribe to reset topic
-  reset_subscriber_ = private_node_handle_.subscribe(
-      "/slam_reset", 1, &VOInitializer::processReset, this);
-
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
@@ -57,19 +53,6 @@ void VOInitializer::onInit() {
       tracker_params, detector, nullptr,
       vo_initializer_params_.tracker_window_size);
 }
-
-void VOInitializer::processReset(const std_msgs::Bool::ConstPtr& msg) {
-  // if a reset request is called then we set initialization to be incomplete
-  // and we wipe memory
-  if (msg->data == true) {
-    initialization_complete_ = false;
-    visual_map_->Clear();
-    trajectory_.clear();
-    times_.clear();
-    output_times_.clear();
-  }
-}
-
 void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
   if (initialization_complete_) return;
 

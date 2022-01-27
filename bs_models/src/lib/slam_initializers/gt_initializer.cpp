@@ -26,27 +26,12 @@ void GTInitializer::onInit() {
   imu_subscriber_ = private_node_handle_.subscribe(
       gt_initializer_params_.imu_topic, 100, &GTInitializer::processIMU, this);
 
-  // subscribe to reset topic
-  reset_subscriber_ = private_node_handle_.subscribe(
-      "/slam_reset", 1, &GTInitializer::processReset, this);
-
   // make pose file frame initializer
   frame_initializer_ =
       std::make_unique<frame_initializers::PoseFileFrameInitializer>(
           gt_initializer_params_.pose_file_path);
   // compute the max # of poses to keep given they are added at ~10hz
   max_poses_ = gt_initializer_params_.trajectory_time_window.toSec() / 0.1;
-}
-
-void GTInitializer::processReset(const std_msgs::Bool::ConstPtr& msg) {
-  // if a reset request is called then we set initialization to be incomplete
-  // and we wipe memory
-  if (msg->data == true) {
-    initialization_complete_ = false;
-    trajectory_.clear();
-    times_.clear();
-    current_pose_time_ = ros::Time(0);
-  }
 }
 
 void GTInitializer::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {

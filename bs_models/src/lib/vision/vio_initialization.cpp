@@ -63,15 +63,11 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
 
     // if the scale estimate isnt valid then retry
     if (use_scale_estimate_ && (scale_ < 0.02 || scale_ > 1.0)) {
-      // TODO: publish reset request to reinitialize
       ROS_FATAL_STREAM("Invalid scale estimate: " << scale_
-                                                  << ", reinitializing.");
-      std::queue<sensor_msgs::Imu> empty;
-      std::swap(imu_buffer_, empty);
-      frame_times_.clear();
-      return false;
+                                                  << ", shutting down.");
+      ros::requestShutdown();
     }
-    
+
     // initialize preintegration
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);

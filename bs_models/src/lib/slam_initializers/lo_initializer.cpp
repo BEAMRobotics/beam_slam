@@ -33,10 +33,6 @@ void LoInitializer::onInit() {
       private_node_handle_.advertise<bs_common::InitializedPathMsg>("result",
                                                                     1000);
 
-  // subscribe to reset topic
-  reset_subscriber_ = private_node_handle_.subscribe(
-      "/slam_reset", 1, &LoInitializer::processReset, this);
-
   // init scan registration
   std::shared_ptr<LoamParams> matcher_params =
       std::make_shared<LoamParams>(params_.matcher_params_path);
@@ -87,34 +83,6 @@ void LoInitializer::onInit() {
       input_filter_params_ = beam_filtering::LoadFilterParamsVector(J_filters);
       ROS_INFO("Loaded %d input filters", input_filter_params_.size());
     }
-  }
-}
-
-void LoInitializer::processReset(const std_msgs::Bool::ConstPtr& msg) {
-  // if a reset request is called then we set initialization to be incomplete
-  // and we wipe memory
-  if (msg->data == true) {
-    initialization_complete_ = false;
-    keyframes_.clear();
-    keyframe_scan_counter_ = 0;
-    keyframe_start_time_ = ros::Time(0);
-    prev_stamp_ = ros::Time(0);
-    keyframe_cloud_.clear();
-    T_WORLD_KEYFRAME_ = Eigen::Matrix4d::Identity();
-    scan_registration_->GetMapMutable().Clear();
-    // reinitialize scan registration
-    std::shared_ptr<LoamParams> matcher_params =
-        std::make_shared<LoamParams>(params_.matcher_params_path);
-    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
-        std::make_unique<LoamMatcher>(*matcher_params);
-    scan_registration::ScanToMapLoamRegistration::Params reg_params;
-    reg_params.LoadFromJson(params_.registration_config_path);
-    reg_params.store_full_cloud = false;
-    scan_registration_ =
-        std::make_unique<scan_registration::ScanToMapLoamRegistration>(
-            std::move(matcher), reg_params.GetBaseParams(), reg_params.map_size,
-            reg_params.store_full_cloud);
-    scan_registration_->SetFixedCovariance(0.000001);
   }
 }
 

@@ -182,9 +182,8 @@ void VisualInertialOdometry::processImage(
 
       // detect if odometry has failed
       if (FailureDetection(img_time, T_WORLD_BASELINK)) {
-        ROS_FATAL_STREAM("VIO Failure, reintializing at " << img_time);
+        ROS_FATAL_STREAM("VIO Failure, shutting down.");
         ros::requestShutdown();
-        // TODO: publish reset request to reinitialize
       }
 
       // publish pose to odom topic

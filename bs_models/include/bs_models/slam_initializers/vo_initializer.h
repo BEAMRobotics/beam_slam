@@ -3,7 +3,6 @@
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/Image.h>
-#include <std_msgs/Bool.h>
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/trackers/Trackers.h>
@@ -30,13 +29,6 @@ public:
    * @param[in] msg - The image to process
    */
   void processImage(const sensor_msgs::Image::ConstPtr& msg);
-
-  /**
-   * @brief Callback for a reset request, which will start the initialization
-   * over again
-   * @param[in] msg
-   */
-  void processReset(const std_msgs::Bool::ConstPtr& msg);
 
 protected:
   /**
@@ -65,7 +57,6 @@ protected:
 
   // subscribers
   ros::Subscriber image_subscriber_;
-  ros::Subscriber reset_subscriber_;
   ros::Publisher results_publisher_;
 
   // get access to extrinsics singleton

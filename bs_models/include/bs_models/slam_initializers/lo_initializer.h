@@ -5,7 +5,6 @@
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <std_msgs/Bool.h>
 
 #include <beam_filtering/Utils.h>
 #include <beam_matching/Matchers.h>
@@ -47,13 +46,6 @@ public:
    * @param[in] msg - The lidar message to process
    */
   void processLidar(const sensor_msgs::PointCloud2::ConstPtr& msg);
-
-  /**
-   * @brief Callback for a reset request, which will start the initialization
-   * over again
-   * @param[in] msg
-   */
-  void processReset(const std_msgs::Bool::ConstPtr& msg);
 
 protected:
   /**
@@ -108,7 +100,6 @@ protected:
 
   // subscribers & publishers
   ros::Subscriber lidar_subscriber_;
-  ros::Subscriber reset_subscriber_;
   ros::Publisher results_publisher_;
 
   // main parameters

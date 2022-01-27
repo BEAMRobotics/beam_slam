@@ -2,7 +2,6 @@
 
 #include <fuse_core/async_sensor_model.h>
 #include <sensor_msgs/Imu.h>
-#include <std_msgs/Bool.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
@@ -26,13 +25,6 @@ public:
    * @param[in] msg - The lidar message to process
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
-
-  /**
-   * @brief Callback for a reset request, which will start the initialization
-   * over again
-   * @param[in] msg
-   */
-  void processReset(const std_msgs::Bool::ConstPtr& msg);
 
 protected:
   /**
@@ -61,7 +53,6 @@ protected:
 
   // subscribers
   ros::Subscriber imu_subscriber_;
-  ros::Subscriber reset_subscriber_;
   ros::Publisher results_publisher_;
 
   // get access to extrinsics singleton
