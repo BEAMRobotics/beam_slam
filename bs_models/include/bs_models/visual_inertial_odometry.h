@@ -13,6 +13,7 @@
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
+#include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/global_mapping/active_submap.h>
 #include <bs_models/imu/imu_preintegration.h>
 #include <bs_models/vision/keyframe.h>
@@ -160,6 +161,9 @@ private:
 
   // calibration parameters
   bs_parameters::models::CalibrationParams calibration_params_;
+
+  // Used to get initial pose estimates
+  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
 
   // subscribers
   ros::Subscriber image_subscriber_;
