@@ -25,6 +25,7 @@ VIOInitialization::VIOInitialization(
   // set imu preintegration params
   nlohmann::json J;
   beam::ReadJson(imu_intrinsics_path, J);
+  imu_params_.cov_prior_noise = J["cov_prior_noise"];
   imu_params_.cov_gyro_noise =
       Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
   imu_params_.cov_accel_noise =

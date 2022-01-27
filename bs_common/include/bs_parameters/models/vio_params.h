@@ -67,6 +67,8 @@ public:
     getParam<bool>(nh, "init_use_scale_estimate", init_use_scale_estimate,
                    false);
 
+    getParam<double>(nh, "reloc_request_period", reloc_request_period, 3.0);
+
     // Options: ODOMETRY, POSEFILE
     getParam<std::string>(nh, "frame_initializer_type", frame_initializer_type,
                           "");
@@ -120,6 +122,7 @@ public:
   int tracker_window_size{};
   int keyframe_window_size{};
   int num_features_to_track{};
+  double reloc_request_period{3.0};
 
   // keyframe decision parameters
   double keyframe_parallax{10.0};

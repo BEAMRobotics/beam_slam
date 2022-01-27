@@ -114,7 +114,7 @@ private:
    * @param T_WORLD_BASELINK initial odometry estimate
    */
   void ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK);
-  
+
   /**
    * @brief creates inertial cosntraint for the current keyframe and merges with
    * the input transaction
@@ -147,6 +147,7 @@ private:
 
   /**
    * @brief Publishes the oldest keyframe that is stored as a slam chunk message
+   * @param keyframe to publish slam chunk for
    */
   void PublishSlamChunk(Keyframe keyframe);
 
@@ -155,6 +156,12 @@ private:
    * @param ids list of landmark ids
    */
   void PublishLandmarkIDs(const std::vector<uint64_t>& ids);
+
+  /**
+   * @brief Builds a camera measurement message for a keyframe
+   * @param keyframe to build camera measurement for
+   */
+  CameraMeasurementMsg BuildCameraMeasurement(Keyframe keyframe);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
@@ -206,6 +213,8 @@ private:
   // keyframe information
   std::deque<Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
+
+  ros::Time previous_reloc_request_{ros::Time(0)};
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
