@@ -109,6 +109,7 @@ public:
   std::string frame_initializer_sensor_frame_id{};
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};
+  bool use_pose_priors{true};
 
   // vision configs
   std::string descriptor{};
