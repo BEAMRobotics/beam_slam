@@ -137,7 +137,7 @@ void VisualInertialOdometry::processImage(
 
   // get pose if we are using frame initializer, if its a failure we wait
   // until we can by buffering the frame
-  Eigen::Matrix4d T_WORLD_BASELINK = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d T_WORLD_BASELINK = Eigen::Matrix4d::Zero();
   if (frame_initializer_) {
     if (!frame_initializer_->GetEstimatedPose(
             T_WORLD_BASELINK, img_time, extrinsics_.GetBaselinkFrameId())) {
@@ -320,8 +320,6 @@ bool VisualInertialOdometry::IsKeyframe(
   } else if (added_since_kf_ > vio_params_.tracker_window_size - 10) {
     return true;
   }
-  // TODO: add check for total # of tracks, if it falls below threshold then
-  // make keyframe
   return false;
 }
 
@@ -359,13 +357,17 @@ bool VisualInertialOdometry::FailureDetection(
   Eigen::Matrix4d kf_pose = visual_map_->GetBaselinkPose(kf_time).value();
   if (beam::PassedMotionThreshold(T_WORLD_BASELINK, kf_pose, 50.0, 5.0, true,
                                   false)) {
-    ROS_FATAL_STREAM("Too large of a pose change.");
+    ROS_FATAL_STREAM("Too large of a pose change. \nCurrent pose:\n"
+                     << T_WORLD_BASELINK << "Previous pose: \n"
+                     << kf_pose);
     return true;
   }
 
   // check change in z
   if (std::abs(T_WORLD_BASELINK(2, 3) - kf_pose(2, 3)) > 1) {
-    ROS_FATAL_STREAM("Too large of a translation in z.");
+    ROS_FATAL_STREAM("Too large of a translation in z. \nCurrent pose:\n"
+                     << T_WORLD_BASELINK << "Previous pose: \n"
+                     << kf_pose);
     return true;
   }
   return false;
@@ -408,28 +410,38 @@ void VisualInertialOdometry::ExtendMap(
       visual_map_->AddConstraint(cur_kf_time, id,
                                  tracker_->Get(cur_kf_time, id), transaction);
     } else {
-      // triangulate using last keyframe
-      try {
-        // get pixel correspondence
-        Eigen::Vector2i p1 = tracker_->Get(prev_kf_time, id).cast<int>();
-        Eigen::Vector2i p2 = tracker_->Get(cur_kf_time, id).cast<int>();
-        // get camera poses
-        Eigen::Matrix4d T_cam1_world =
-            visual_map_->GetCameraPose(prev_kf_time).value();
-        Eigen::Matrix4d T_cam2_world =
-            visual_map_->GetCameraPose(cur_kf_time).value();
-        // triangulate
-        beam::opt<Eigen::Vector3d> point =
-            beam_cv::Triangulation::TriangulatePoint(
-                cam_model_, cam_model_, T_cam1_world, T_cam2_world, p1, p2);
+      // otherwise then triangulate and add the constraints
+      std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
+      std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+      std::vector<ros::Time> observation_stamps;
+      // get measurements of landmark for triangulation
+      for (auto& kf : keyframes_) {
+        try {
+          Eigen::Vector2d pixel = tracker_->Get(kf.Stamp(), id);
+          beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(kf.Stamp());
+          if (T.has_value()) {
+            pixels.push_back(pixel.cast<int>());
+            T_cam_world_v.push_back(T.value().inverse());
+            observation_stamps.push_back(kf.Stamp());
+          }
+        } catch (const std::out_of_range& oor) {}
+      }
 
+      // triangulate new points
+      if (T_cam_world_v.size() >= 3) {
+        beam::opt<Eigen::Vector3d> point =
+            beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+                                                     pixels);
         if (point.has_value()) {
           keyframes_.back().AddLandmark(id);
           visual_map_->AddLandmark(point.value(), id, transaction);
-          visual_map_->AddConstraint(
-              cur_kf_time, id, tracker_->Get(cur_kf_time, id), transaction);
+          for (int i = 0; i < observation_stamps.size(); i++) {
+            visual_map_->AddConstraint(observation_stamps[i], id,
+                                       tracker_->Get(observation_stamps[i], id),
+                                       transaction);
+          }
         }
-      } catch (const std::out_of_range& oor) {}
+      }
     }
   }
   ROS_INFO_STREAM("Added " << keyframes_.back().Landmarks().size()
