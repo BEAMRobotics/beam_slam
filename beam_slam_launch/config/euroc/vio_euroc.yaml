@@ -60,9 +60,11 @@ vio:
   init_map_output_directory: '' 
   init_use_scale_estimate: false 
 
-gt_initializer:
+  gt_initializer:
   imu_topic: "/imu0"
-  pose_file_path: "/home/jake/data/VIO/euroc/V1_01_poses.ply"
+  frame_initializer_type: 'PSOEFILE' 
+  frame_initializer_info: '/home/jake/data/VIO/euroc/V1_01_poses.ply'
+  frame_initializer_sensor_frame_id: 'imu0'
   trajectory_time_window: 5.0
   min_trajectory_length: 0.5 # trajectory length to accept (in metres)
 

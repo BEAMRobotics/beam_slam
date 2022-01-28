@@ -88,7 +88,10 @@ void LoInitializer::onInit() {
 
 void LoInitializer::processLidar(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
-  if (initialization_complete_) { return; }
+  if (initialization_complete_) {
+    lidar_subscriber_.shutdown();
+    return;
+  }
 
   if ((msg->header.stamp - prev_stamp_).toSec() <
       (1.0 / params_.max_frequency)) {

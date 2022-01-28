@@ -26,16 +26,32 @@ void GTInitializer::onInit() {
   imu_subscriber_ = private_node_handle_.subscribe(
       gt_initializer_params_.imu_topic, 100, &GTInitializer::processIMU, this);
 
-  // make pose file frame initializer
-  frame_initializer_ =
-      std::make_unique<frame_initializers::PoseFileFrameInitializer>(
-          gt_initializer_params_.pose_file_path);
+  // init frame initializer
+  if (gt_initializer_params_.frame_initializer_type == "ODOMETRY") {
+    frame_initializer_ =
+        std::make_unique<frame_initializers::OdometryFrameInitializer>(
+            gt_initializer_params_.frame_initializer_info, 100, 30,
+            gt_initializer_params_.frame_initializer_sensor_frame_id);
+  } else if (gt_initializer_params_.frame_initializer_type == "POSEFILE") {
+    frame_initializer_ =
+        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
+            gt_initializer_params_.frame_initializer_info);
+  } else {
+    const std::string error =
+        "frame_initializer_type invalid. Options: ODOMETRY, POSEFILE";
+    ROS_FATAL_STREAM(error);
+    throw std::runtime_error(error);
+  }
+
   // compute the max # of poses to keep given they are added at ~10hz
   max_poses_ = gt_initializer_params_.trajectory_time_window.toSec() / 0.1;
 }
 
 void GTInitializer::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
-  if (initialization_complete_) return;
+  if (initialization_complete_) {
+    imu_subscriber_.shutdown();
+    return;
+  }
   Eigen::Matrix4d T_WORLD_SENSOR;
   bool success = frame_initializer_->GetEstimatedPose(
       T_WORLD_SENSOR, msg->header.stamp, extrinsics_.GetBaselinkFrameId());

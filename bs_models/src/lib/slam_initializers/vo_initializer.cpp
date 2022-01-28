@@ -54,7 +54,10 @@ void VOInitializer::onInit() {
       vo_initializer_params_.tracker_window_size);
 }
 void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
-  if (initialization_complete_) return;
+  if (initialization_complete_) {
+    image_subscriber_.shutdown();
+    return;
+  }
 
   ros::Time cur_time = msg->header.stamp;
   // push image time into queue
