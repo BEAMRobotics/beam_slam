@@ -20,15 +20,15 @@ public:
     // imu topic
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
 
-    // Options: ODOMETRY, POSEFILE
+    /** Options: TRANSFORM, ODOMETRY, POSEFILE */
     getParam<std::string>(nh, "frame_initializer_type", frame_initializer_type,
-                          "");
+                          frame_initializer_type);
 
-    // for ODOMETRY: topic, for POSEFILE: path
+    /** for TRANSFORM: topic, for ODOMETRY: topic, for POSEFILE: path */
     getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
-                          "");
+                          frame_initializer_info);
 
-    // for ODOMETRY: topic, for POSEFILE: path
+    /** Optional For Odometry frame initializer */
     getParam<std::string>(nh, "frame_initializer_sensor_frame_id",
                           frame_initializer_sensor_frame_id, "");
 
@@ -42,8 +42,8 @@ public:
     trajectory_time_window = ros::Duration(trajectory_time_window_double);
   }
 
-  std::string frame_initializer_type{};
-  std::string frame_initializer_info{};
+  std::string frame_initializer_type{"ODOMETRY"};
+  std::string frame_initializer_info{""};
   std::string frame_initializer_sensor_frame_id{};
   std::string imu_topic;
   double min_trajectory_length;

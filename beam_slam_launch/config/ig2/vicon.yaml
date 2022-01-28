@@ -66,8 +66,8 @@ visual_inertial_odometry:
   image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
   init_path_topic: '/local_mapper/gt_initializer/result'
-  frame_initializer_type: '' 
-  frame_initializer_info: ''
+  frame_initializer_type: 'TRANSFORM' 
+  frame_initializer_info: '/vicon/SDICIG2/SDICIG2 '
   frame_initializer_sensor_frame_id: ''
   frame_initializer_prior_noise_diagonal: [] 
   reloc_request_period: 2.0
@@ -92,8 +92,8 @@ visual_inertial_odometry:
 ##############################
 gt_initializer:
   imu_topic: "/imu0"
-  frame_initializer_type: 'ODOMETRY' 
-  frame_initializer_info: ''
+  frame_initializer_type: 'TRANSFORM' 
+  frame_initializer_info: '/vicon/SDICIG2/SDICIG2 '
   frame_initializer_sensor_frame_id: ''
   trajectory_time_window: 5.0
   min_trajectory_length: 0.5 # trajectory length to accept (in metres)

@@ -100,6 +100,7 @@ add_library(
   ## frame initializers
   src/lib/frame_initializers/frame_initializer_base.cpp
   src/lib/frame_initializers/odometry_frame_initializer.cpp
+  src/lib/frame_initializers/transform_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
   ## slam path initializers
   src/lib/slam_initializers/lo_initializer.cpp

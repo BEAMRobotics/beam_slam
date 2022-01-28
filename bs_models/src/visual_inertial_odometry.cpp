@@ -45,6 +45,11 @@ void VisualInertialOdometry::onInit() {
     frame_initializer_ =
         std::make_unique<frame_initializers::PoseFileFrameInitializer>(
             vio_params_.frame_initializer_info);
+  } else if (vio_params_.frame_initializer_type == "TRANSFORM") {
+    frame_initializer_ =
+        std::make_unique<frame_initializers::TransformFrameInitializer>(
+            vio_params_.frame_initializer_info, 100, 30,
+            vio_params_.frame_initializer_sensor_frame_id);
   }
 
   // initialize pose refiner object with params

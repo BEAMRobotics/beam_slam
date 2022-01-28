@@ -36,6 +36,11 @@ void GTInitializer::onInit() {
     frame_initializer_ =
         std::make_unique<frame_initializers::PoseFileFrameInitializer>(
             gt_initializer_params_.frame_initializer_info);
+  } else if (gt_initializer_params_.frame_initializer_type == "TRANSFORM") {
+    frame_initializer_ =
+        std::make_unique<frame_initializers::TransformFrameInitializer>(
+            gt_initializer_params_.frame_initializer_info, 100, 30,
+            gt_initializer_params_.frame_initializer_sensor_frame_id);
   } else {
     const std::string error =
         "frame_initializer_type invalid. Options: ODOMETRY, POSEFILE";

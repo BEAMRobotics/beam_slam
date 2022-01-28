@@ -109,11 +109,11 @@ public:
     getParam<std::string>(nh, "input_filters_config_path",
                           input_filters_config_path, input_filters_config_path);
 
-    /** Options: ODOMETRY, POSEFILE */
+    /** Options: TRANSFORM, ODOMETRY, POSEFILE */
     getParam<std::string>(nh, "frame_initializer_type", frame_initializer_type,
                           frame_initializer_type);
 
-    /** for ODOMETRY: topic, for POSEFILE: path */
+    /** for TRANSFORM: topic, for ODOMETRY: topic, for POSEFILE: path */
     getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
                           frame_initializer_info);
 
