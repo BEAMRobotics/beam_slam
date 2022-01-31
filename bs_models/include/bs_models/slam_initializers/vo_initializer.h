@@ -1,6 +1,6 @@
 #pragma once
 
-#include <fuse_core/async_sensor_model.h>
+#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/Image.h>
 
@@ -15,11 +15,11 @@
 
 namespace bs_models {
 
-class VOInitializer : public fuse_core::AsyncSensorModel {
+class VOInitializer : public SLAMInitializerBase {
 public:
   SMART_PTR_DEFINITIONS(VOInitializer);
 
-  VOInitializer();
+  VOInitializer() : SLAMInitializerBase() {}
 
   ~VOInitializer() override = default;
 
@@ -36,39 +36,15 @@ protected:
    */
   void onInit() override;
 
-  /**
-   * @brief todo
-   */
-  void onStart() override {}
-
-  /**
-   * @brief todo
-   */
-  void onStop() override {}
-
-  /**
-   * @brief publish results of initialization to a InitializedPathMsg
-   */
-  void PublishResults();
-
   // parameters
   bs_parameters::models::VOInitializerParams vo_initializer_params_;
   bs_parameters::models::CalibrationParams calibration_params_;
 
   // subscribers
   ros::Subscriber image_subscriber_;
-  ros::Publisher results_publisher_;
-
-  // get access to extrinsics singleton
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
-      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
-  // bool for tracking if initialization has completed
-  bool initialization_complete_{false};
-  std::vector<Eigen::Matrix4d> trajectory_;
-  std::deque<ros::Time> times_;
-  std::deque<ros::Time> output_times_;
+  std::deque<ros::Time> kf_times_;
 
   // computer vision objects
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;

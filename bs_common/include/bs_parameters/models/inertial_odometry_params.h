@@ -19,7 +19,6 @@ public:
   void loadFromROS(const ros::NodeHandle &nh) final {
     // Required
     fuse_core::getParamRequired(nh, "input_topic", input_topic);
-    fuse_core::getParamRequired(nh, "init_path_topic", init_path_topic);
     getParam<bool>(nh, "init_use_scale_estimate", init_use_scale_estimate,
                    false);
     getParam<double>(nh, "keyframe_rate", keyframe_rate, 0.1);
@@ -28,7 +27,6 @@ public:
 
   int msg_queue_size{};
   std::string input_topic{};
-  std::string init_path_topic{};
   bool init_use_scale_estimate{};
   double keyframe_rate{0.1};
 };

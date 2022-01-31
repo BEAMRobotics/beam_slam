@@ -18,8 +18,6 @@ namespace bs_models {
 
 using namespace beam_matching;
 
-LoInitializer::LoInitializer() : fuse_core::AsyncSensorModel(1) {}
-
 void LoInitializer::onInit() {
   // Read settings from the parameter sever
   params_.loadFromROS(private_node_handle_);
@@ -27,11 +25,6 @@ void LoInitializer::onInit() {
   // subscribe to lidar topic
   lidar_subscriber_ = private_node_handle_.subscribe(
       params_.lidar_topic, 100, &LoInitializer::processLidar, this);
-
-  // init publisher
-  results_publisher_ =
-      private_node_handle_.advertise<bs_common::InitializedPathMsg>("result",
-                                                                    1000);
 
   // init scan registration
   std::shared_ptr<LoamParams> matcher_params =
@@ -189,6 +182,10 @@ void LoInitializer::ProcessCurrentKeyframe(const ros::Time& time) {
     // if so, then optimize
     ROS_INFO("LO trajectory is long enough.");
     SetTrajectoryStart();
+    for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
+      trajectory_.push_back(iter->T_REFFRAME_BASELINK());
+      times_.push_back(iter->Stamp());
+    }
     PublishResults();
     OutputResults();
     initialization_complete_ = true;
@@ -242,24 +239,6 @@ void LoInitializer::OutputResults() {
     iter->SaveCloud(save_path, true, true);
     iter->SaveLoamCloud(save_path, true, true);
   }
-}
-
-void LoInitializer::PublishResults() {
-  bs_common::InitializedPathMsg msg;
-
-  // get pose variables and add them to the msg
-  std::string baselink_frame_id = extrinsics_.GetImuFrameId();
-  int counter = 0;
-  for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
-    geometry_msgs::PoseStamped pose;
-    bs_common::EigenTransformToPoseStamped(iter->T_REFFRAME_BASELINK(),
-                                           iter->Stamp(), counter,
-                                           baselink_frame_id, pose);
-    msg.poses.push_back(pose);
-
-    counter++;
-  }
-  results_publisher_.publish(msg);
 }
 
 double LoInitializer::CalculateTrajectoryLength(
