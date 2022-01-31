@@ -40,7 +40,7 @@
     <description>
       Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate
     </description>
-  </class
+  </class>
   <class type="bs_models::VOInitializer" base_class_type="fuse_core::SensorModel">
     <description>
       Class for initializing a SLAM process using pure visual odometry
