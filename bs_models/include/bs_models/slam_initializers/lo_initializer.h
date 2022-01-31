@@ -2,7 +2,7 @@
 
 #include <list>
 
-#include <fuse_core/async_sensor_model.h>
+#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/PointCloud2.h>
 
@@ -32,11 +32,11 @@ namespace bs_models {
  * it does not access the fuse graph in any way since the estimation done in the
  * initializer neesd to be de-coupled from the graph used by the main SLAM.
  */
-class LoInitializer : public fuse_core::AsyncSensorModel {
+class LoInitializer : public SLAMInitializerBase{
 public:
   SMART_PTR_DEFINITIONS(LoInitializer);
 
-  LoInitializer();
+  LoInitializer(): SLAMInitializerBase() {}
 
   ~LoInitializer() override = default;
 
@@ -86,11 +86,6 @@ protected:
   void OutputResults();
 
   /**
-   * @brief publish results of initialization to a InitializedPathMsg
-   */
-  void PublishResults();
-
-  /**
    * @brief iterates through all keypoints in the list and add up the change in
    * position between each keyframe.
    * @param keyframes list of scan poses that makeup the trajectory of keyframes
@@ -100,14 +95,10 @@ protected:
 
   // subscribers & publishers
   ros::Subscriber lidar_subscriber_;
-  ros::Publisher results_publisher_;
 
   // main parameters
   bs_parameters::models::LoInitializerParams params_;
 
-  // get access to extrinsics singleton
-  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
-      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // scan registration objects
   std::unique_ptr<scan_registration::ScanToMapLoamRegistration>
@@ -127,9 +118,6 @@ protected:
   ros::Time prev_stamp_{0};
   PointCloud keyframe_cloud_;
   Eigen::Matrix4d T_WORLD_KEYFRAME_{Eigen::Matrix4d::Identity()};
-
-  // bool for tracking if initialization has completed
-  bool initialization_complete_{false};
 };
 
 } // namespace bs_models

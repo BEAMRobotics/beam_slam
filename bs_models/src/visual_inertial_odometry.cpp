@@ -85,8 +85,7 @@ void VisualInertialOdometry::onInit() {
 
   // Create initializer object
   initialization_ = std::make_shared<vision::VIOInitialization>(
-      cam_model_, tracker_, vio_params_.init_path_topic,
-      calibration_params_.imu_intrinsics_path,
+      cam_model_, tracker_, calibration_params_.imu_intrinsics_path,
       vio_params_.init_use_scale_estimate,
       vio_params_.init_max_optimization_time_in_seconds,
       vio_params_.init_map_output_directory);
@@ -300,7 +299,7 @@ Eigen::Matrix4d
     Eigen::Matrix4d T_WORLD_CAMERA =
         pose_refiner_
             ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points,
-                         covariance)
+                         covariance, nullptr)
             .inverse();
     T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
   }

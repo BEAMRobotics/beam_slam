@@ -23,7 +23,6 @@ public:
   void loadFromROS(const ros::NodeHandle& nh) final {
     /** subscribing topics */
     getParam<std::string>(nh, "image_topic", image_topic, "");
-    getParam<std::string>(nh, "init_path_topic", init_path_topic, "");
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
 
     /** vision configs */
@@ -100,7 +99,6 @@ public:
 
   // subscribing topics
   std::string image_topic{};
-  std::string init_path_topic{};
   std::string imu_topic{};
 
   // frame initializer

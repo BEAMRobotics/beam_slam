@@ -65,7 +65,6 @@ visual_inertial_odometry:
   # topics to subscribe to
   image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
-  init_path_topic: '/local_mapper/vo_initializer/result'
   frame_initializer_type: '' 
   frame_initializer_info: ''
   frame_initializer_sensor_frame_id: ''

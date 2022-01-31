@@ -34,7 +34,7 @@ void InertialOdometry::onStart() {
       inertial_params_.msg_queue_size, &ThrottledIMUCallback::callback,
       &throttled_imu_callback_, ros::TransportHints().tcpNoDelay(false));
   path_subscriber_ =
-      private_node_handle_.subscribe(inertial_params_.init_path_topic, 10,
+      private_node_handle_.subscribe("/local_mapper/slam_init/result", 10,
                                      &InertialOdometry::processInitPath, this);
   // Advertise publishers
   init_odom_publisher_ =

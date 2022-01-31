@@ -15,17 +15,11 @@ PLUGINLIB_EXPORT_CLASS(bs_models::VOInitializer, fuse_core::SensorModel)
 
 namespace bs_models {
 
-VOInitializer::VOInitializer() : fuse_core::AsyncSensorModel(1) {}
-
 void VOInitializer::onInit() {
   // load parameters from ros
   calibration_params_.loadFromROS();
   vo_initializer_params_.loadFromROS(private_node_handle_);
 
-  // advertise init path publisher
-  results_publisher_ =
-      private_node_handle_.advertise<bs_common::InitializedPathMsg>("result",
-                                                                    10);
   // subscribe to image topic
   image_subscriber_ =
       private_node_handle_.subscribe(vo_initializer_params_.image_topic, 100,
@@ -61,16 +55,16 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
 
   ros::Time cur_time = msg->header.stamp;
   // push image time into queue
-  times_.push_back(cur_time);
-  if (times_.size() > vo_initializer_params_.tracker_window_size) {
-    times_.pop_front();
+  kf_times_.push_back(cur_time);
+  if (kf_times_.size() > vo_initializer_params_.tracker_window_size) {
+    kf_times_.pop_front();
   }
 
   // add image to tracker
   tracker_->AddImage(beam_cv::OpenCVConversions::RosImgToMat(*msg), cur_time);
 
   // try to initialize
-  if (times_.size() >= 10) {
+  if (kf_times_.size() >= 10) {
     // Get matches between first and last image in the window
     std::vector<Eigen::Vector2i, beam::AlignVec2i> p1_v;
     std::vector<Eigen::Vector2i, beam::AlignVec2i> p2_v;
@@ -80,7 +74,7 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
     std::vector<uint64_t> matched_ids;
     for (auto& id : ids) {
       try {
-        Eigen::Vector2i p1 = tracker_->Get(times_.front(), id).cast<int>();
+        Eigen::Vector2i p1 = tracker_->Get(kf_times_.front(), id).cast<int>();
         Eigen::Vector2i p2 = tracker_->Get(cur_time, id).cast<int>();
         p1_v.push_back(p1);
         p2_v.push_back(p2);
@@ -151,10 +145,10 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
                  "VO Initialization.",
                  parallax, inlier_ratio);
         auto transaction = fuse_core::Transaction::make_shared();
-        transaction->stamp(times_.front());
+        transaction->stamp(kf_times_.front());
 
         // add poses to map
-        visual_map_->AddCameraPose(T_world_c1, times_.front(), transaction);
+        visual_map_->AddCameraPose(T_world_c1, kf_times_.front(), transaction);
         visual_map_->AddCameraPose(T_world_c2, cur_time, transaction);
 
         // add landmarks to map
@@ -167,18 +161,19 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
 
         // add visual constraints to map
         for (auto& id : matched_ids) {
-          visual_map_->AddConstraint(times_.front(), id,
-                                     tracker_->Get(times_.front(), id),
+          visual_map_->AddConstraint(kf_times_.front(), id,
+                                     tracker_->Get(kf_times_.front(), id),
                                      transaction);
           visual_map_->AddConstraint(cur_time, id, tracker_->Get(cur_time, id),
                                      transaction);
         }
 
-        output_times_.push_back(times_.front());
+        times_.push_back(kf_times_.front());
         // localize frames in between
-        for (size_t i = 0; i < times_.size(); i += 5) {
-          if (times_[i] == times_.front() || times_[i] == cur_time) continue;
-          output_times_.push_back(times_[i]);
+        for (size_t i = 0; i < kf_times_.size(); i += 5) {
+          if (kf_times_[i] == kf_times_.front() || kf_times_[i] == cur_time)
+            continue;
+          times_.push_back(kf_times_[i]);
           // get 2d-3d correspondences
           std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
           std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
@@ -193,7 +188,7 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
               try {
                 Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
                 Eigen::Vector2i pixeli =
-                    tracker_->Get(times_[i], id).cast<int>();
+                    tracker_->Get(kf_times_[i], id).cast<int>();
                 pixels.push_back(pixeli);
                 points.push_back(point);
                 ids_in_frame.push_back(id);
@@ -206,16 +201,16 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
                   cam_model_, pixels, points, 30);
 
           // add pose to graph
-          visual_map_->AddCameraPose(T_CAMERA_WORLD_est.inverse(), times_[i],
+          visual_map_->AddCameraPose(T_CAMERA_WORLD_est.inverse(), kf_times_[i],
                                      transaction);
 
           // add visual constraints to
           for (auto& id : ids_in_frame) {
             visual_map_->AddConstraint(
-                times_[i], id, tracker_->Get(times_[i], id), transaction);
+                kf_times_[i], id, tracker_->Get(kf_times_[i], id), transaction);
           }
         }
-        output_times_.push_back(cur_time);
+        times_.push_back(cur_time);
 
         // modify graph with these additions
         local_graph_->update(*transaction);
@@ -234,9 +229,9 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
 
         // publish result
         visual_map_->UpdateGraph(local_graph_);
-        for (size_t i = 0; i < output_times_.size(); i++) {
+        for (size_t i = 0; i < times_.size(); i++) {
           trajectory_.push_back(
-              visual_map_->GetBaselinkPose(output_times_[i]).value());
+              visual_map_->GetBaselinkPose(times_[i]).value());
         }
         ROS_INFO("VO initializer complete, publishing result.");
         PublishResults();
@@ -244,46 +239,11 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
         // clean up memory
         visual_map_->Clear();
         trajectory_.clear();
+        kf_times_.clear();
         times_.clear();
-        output_times_.clear();
         initialization_complete_ = true;
       }
     }
   }
 }
-
-void VOInitializer::PublishResults() {
-  bs_common::InitializedPathMsg msg;
-
-  for (uint32_t i = 0; i < trajectory_.size(); i++) {
-    Eigen::Matrix4d T = trajectory_[i];
-
-    std_msgs::Header header;
-    header.frame_id = extrinsics_.GetBaselinkFrameId();
-    header.seq = i;
-    header.stamp = output_times_[i];
-
-    geometry_msgs::Point position;
-    position.x = T(0, 3);
-    position.y = T(1, 3);
-    position.z = T(2, 3);
-
-    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
-    Eigen::Quaterniond q(R);
-
-    geometry_msgs::Quaternion orientation;
-    orientation.x = q.x();
-    orientation.y = q.y();
-    orientation.z = q.z();
-    orientation.w = q.w();
-
-    geometry_msgs::PoseStamped pose;
-    pose.header = header;
-    pose.pose.position = position;
-    pose.pose.orientation = orientation;
-    msg.poses.push_back(pose);
-  }
-  results_publisher_.publish(msg);
-}
-
 } // namespace bs_models

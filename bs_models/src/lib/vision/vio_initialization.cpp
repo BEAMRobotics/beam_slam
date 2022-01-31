@@ -14,7 +14,7 @@ namespace bs_models { namespace vision {
 
 VIOInitialization::VIOInitialization(
     std::shared_ptr<beam_calibration::CameraModel> cam_model,
-    std::shared_ptr<beam_cv::Tracker> tracker, const std::string& path_topic,
+    std::shared_ptr<beam_cv::Tracker> tracker,
     const std::string& imu_intrinsics_path, bool use_scale_estimate,
     double max_optimization_time, const std::string& output_directory)
     : cam_model_(cam_model),
@@ -41,8 +41,8 @@ VIOInitialization::VIOInitialization(
   pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2);
   // make subscriber for init path
   ros::NodeHandle n;
-  path_subscriber_ =
-      n.subscribe(path_topic, 10, &VIOInitialization::ProcessInitPath, this);
+  path_subscriber_ = n.subscribe("/local_mapper/slam_init/result", 10,
+                                 &VIOInitialization::ProcessInitPath, this);
 }
 
 bool VIOInitialization::AddImage(const ros::Time& cur_time) {
@@ -345,7 +345,7 @@ Eigen::Matrix4d VIOInitialization::LocalizeFrame(const ros::Time& img_time) {
   Eigen::Matrix4d T_WORLD_CAMERA =
       pose_refiner_
           ->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels, points,
-                       covariance)
+                       covariance, nullptr)
           .inverse();
   Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
   return T_WORLD_BASELINK;

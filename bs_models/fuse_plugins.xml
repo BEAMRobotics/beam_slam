@@ -26,14 +26,19 @@
       A sensor model for aggregating and motion compensating lidar data
     </description>
   </class>
-  <class type="bs_models::LoInitializer" base_class_type="fuse_core::SensorModel">
+  <class type="bs_models::SLAMInitializerBase" base_class_type="fuse_core::SensorModel">
     <description>
-      Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate
+      Base Class for initializing a SLAM process
     </description>
   </class>
   <class type="bs_models::GTInitializer" base_class_type="fuse_core::SensorModel">
     <description>
       Class for initializing a SLAM process using a ground truth trajectory
+    </description>
+  </class>
+  <class type="bs_models::LoInitializer" base_class_type="fuse_core::SensorModel">
+    <description>
+      Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate
     </description>
   </class>
   <class type="bs_models::VOInitializer" base_class_type="fuse_core::SensorModel">

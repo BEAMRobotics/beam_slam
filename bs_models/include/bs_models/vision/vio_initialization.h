@@ -35,7 +35,6 @@ public:
    */
   VIOInitialization(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                     std::shared_ptr<beam_cv::Tracker> tracker,
-                    const std::string& path_topic,
                     const std::string& imu_intrinsics_path,
                     bool use_scale_estimate = false,
                     double max_optimization_time = 1.0,

@@ -103,6 +103,7 @@ add_library(
   src/lib/frame_initializers/transform_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
   ## slam path initializers
+  src/lib/slam_initializers/slam_initializer_base.cpp
   src/lib/slam_initializers/lo_initializer.cpp
   src/lib/slam_initializers/vo_initializer.cpp
   src/lib/slam_initializers/gt_initializer.cpp
