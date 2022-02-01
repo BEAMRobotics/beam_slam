@@ -58,6 +58,7 @@ void VisualInertialOdometry::onInit() {
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
+  cam_model_->InitUndistortMap();
   visual_map_ =
       std::make_shared<VisualMap>(cam_model_, vio_params_.num_features_to_track,
                                   vio_params_.keyframe_window_size);
@@ -411,8 +412,10 @@ void VisualInertialOdometry::ExtendMap(
         visual_map_->GetLandmark(id);
     // add constraints to triangulated ids
     if (lm) {
-      visual_map_->AddConstraint(cur_kf_time, id,
-                                 tracker_->Get(cur_kf_time, id), transaction);
+      Eigen::Vector2d pixel = tracker_->Get(cur_kf_time, id);
+      if (!cam_model_->Undistortable(pixel.cast<int>())) continue;
+      // add constraint if its valid
+      visual_map_->AddConstraint(cur_kf_time, id, pixel, transaction);
     } else {
       // otherwise then triangulate and add the constraints
       std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
@@ -423,6 +426,7 @@ void VisualInertialOdometry::ExtendMap(
       for (auto& kf : keyframes_) {
         try {
           Eigen::Vector2d pixel = tracker_->Get(kf.Stamp(), id);
+          if (!cam_model_->Undistortable(pixel.cast<int>())) continue;
           beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(kf.Stamp());
           if (T.has_value()) {
             pixels.push_back(pixel.cast<int>());

@@ -6,6 +6,7 @@
 #include <fuse_core/util.h>
 
 #include <beam_calibration/CameraModel.h>
+#include <beam_cv/Utils.h>
 #include <beam_optimization/CamPoseReprojectionCost.h>
 #include <beam_utils/math.h>
 
@@ -33,11 +34,37 @@ public:
       : pixel_measurement_(pixel_measurement),
         cam_model_(cam_model),
         T_cam_baselink_(T_cam_baselink) {
+    // undistort pixel measurement
+    Eigen::Vector2i p = pixel_measurement_.cast<int>();
+    undistorted_pixel_measurement_ =
+        cam_model_->UndistortPixel(p).cast<double>();
+
+    // if its an invalid undistortion we cannot use this factor
+    if (undistorted_pixel_measurement_[0] == -1 ||
+        undistorted_pixel_measurement_[1] == -1) {
+      throw std::runtime_error{"Invalid pixel measurement for visual factor, "
+                               "undistorted pixel is not in image space."};
+    }
+
+    // get undistorted ellipse around pixel for its covariances
+    std::vector<Eigen::Vector2i> circle = beam_cv::GetCircle(p, 5);
+    std::vector<Eigen::Vector2d> circle_d;
+    for (auto& p : circle) {
+      p = cam_model_->UndistortPixel(p);
+      circle_d.push_back(p.cast<double>());
+    }
+
+    Eigen::Matrix2d covariance = beam_cv::FitEllipse(circle_d);
+    A_ =
+        Eigen::LLT<Eigen::Matrix2d>(covariance.inverse()).matrixL().transpose();
+
+    // rectified projection functor
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
         new ceres::NumericDiffCostFunction<
             beam_optimization::CameraProjectionFunctor, ceres::CENTRAL, 2, 3>(
             new beam_optimization::CameraProjectionFunctor(
-                cam_model_, pixel_measurement_))));
+                cam_model_->GetRectifiedModel(),
+                undistorted_pixel_measurement_))));
   }
 
   template <typename T>
@@ -89,13 +116,25 @@ public:
     T pixel_projected[2];
     (*compute_projection)(P_CAMERA_const, &(pixel_projected[0]));
 
-    // compute pixel distance
-    residual[0] = (pixel_measurement_.cast<T>()[0] - pixel_projected[0]);
-    residual[1] = (pixel_measurement_.cast<T>()[1] - pixel_projected[1]);
+    // compute the reprojection residual
+    Eigen::Matrix<T, 2, 1> result;
+    result[0] =
+        (undistorted_pixel_measurement_.cast<T>()[0] - pixel_projected[0]);
+    result[1] =
+        (undistorted_pixel_measurement_.cast<T>()[1] - pixel_projected[1]);
+
+    // apply sqrt information matrix
+    result = A_.cast<T>() * result;
+
+    // fill residual
+    residual[0] = result[0];
+    residual[1] = result[1];
     return true;
   }
 
 private:
+  Eigen::Matrix2d A_;
+  Eigen::Vector2d undistorted_pixel_measurement_;
   Eigen::Vector2d pixel_measurement_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::unique_ptr<ceres::CostFunctionToFunctor<2, 3>> compute_projection;
