@@ -281,7 +281,7 @@ size_t
       std::vector<ros::Time> observation_stamps;
       beam_cv::FeatureTrack track = tracker_->GetTrack(id);
       for (auto& m : track) {
-        if (!cam_model_->Undistortable(m.value.cast<int>()) continue;
+        if (!cam_model_->Undistortable(m.value.cast<int>())) continue;
         beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
         // check if the pose is in the graph (keyframe)
         if (T.has_value()) {
