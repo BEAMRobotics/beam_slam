@@ -161,11 +161,15 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
 
         // add visual constraints to map
         for (auto& id : matched_ids) {
-          visual_map_->AddConstraint(kf_times_.front(), id,
-                                     tracker_->Get(kf_times_.front(), id),
+          Eigen::Vector2d cur_pixel = tracker_->Get(cur_time, id);
+          Eigen::Vector2d first_pixel = tracker_->Get(kf_times_.front();
+          if (!cam_model_->Undistortable(first_pixel.cast<int>()) || 
+              !cam_model_->Undistortable(cur_pixel.cast<int>())){
+            continue;
+          }
+          visual_map_->AddConstraint(kf_times_.front(), id, first_pixel, 
                                      transaction);
-          visual_map_->AddConstraint(cur_time, id, tracker_->Get(cur_time, id),
-                                     transaction);
+          visual_map_->AddConstraint(cur_time, id, cur_pixel, transaction);
         }
 
         times_.push_back(kf_times_.front());
