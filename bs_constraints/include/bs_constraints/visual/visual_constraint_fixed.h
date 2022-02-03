@@ -38,14 +38,15 @@ public:
    *
    */
   VisualConstraintFixed(
-      const std::string &source,
-      const fuse_variables::Orientation3DStamped &R_WORLD_BASELINK,
-      const fuse_variables::Position3DStamped &t_WORLD_BASELINK,
-      const fuse_variables::Point3DFixedLandmark &P_WORLD,
-      const Eigen::Vector2d &pixel_measurement,
-      const Eigen::Matrix4d &T_cam_baselink,
+      const std::string& source,
+      const fuse_variables::Orientation3DStamped& R_WORLD_BASELINK,
+      const fuse_variables::Position3DStamped& t_WORLD_BASELINK,
+      const fuse_variables::Point3DFixedLandmark& P_WORLD,
+      const Eigen::Vector2d& pixel_measurement,
+      const Eigen::Matrix4d& T_cam_baselink,
       const std::shared_ptr<beam_calibration::CameraModel> cam_model,
-      const std::string &loss_type = "TRIVIAL");
+      const std::string& loss_type = "TRIVIAL",
+      const std::string& reproj_type = "VANILLA");
 
   /**
    * @brief Destructor
@@ -56,7 +57,7 @@ public:
    * @brief Read-only access to the measured pixel value
    *
    */
-  const Eigen::Vector2d &pixel() const { return pixel_; }
+  const Eigen::Vector2d& pixel() const { return pixel_; }
 
   /**
    * @brief Print a human-readable description of the constraint to the provided
@@ -64,7 +65,7 @@ public:
    *
    * @param[out] stream The stream to write to. Defaults to stdout.
    */
-  void print(std::ostream &stream = std::cout) const override;
+  void print(std::ostream& stream = std::cout) const override;
 
   /**
    * @brief Construct an instance of this constraint's cost function
@@ -77,12 +78,13 @@ public:
    *
    * @return A base pointer to an instance of a derived CostFunction.
    */
-  ceres::CostFunction *costFunction() const override;
+  ceres::CostFunction* costFunction() const override;
 
 protected:
   Eigen::Vector2d pixel_;
   Eigen::Matrix4d T_cam_baselink_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
+  std::string reprojection_type_{"VANILLA"};
 
 private:
   // Allow Boost Serialization access to private methods
@@ -98,9 +100,9 @@ private:
    * Generally unused.
    */
   template <class Archive>
-  void serialize(Archive &archive, const unsigned int /* version */) {
-    archive &boost::serialization::base_object<fuse_core::Constraint>(*this);
-    archive &pixel_;
+  void serialize(Archive& archive, const unsigned int /* version */) {
+    archive& boost::serialization::base_object<fuse_core::Constraint>(*this);
+    archive& pixel_;
   }
 };
 

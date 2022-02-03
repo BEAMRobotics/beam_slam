@@ -1,5 +1,6 @@
 #include <bs_constraints/visual/reprojection_functor.h>
 #include <bs_constraints/visual/unit_sphere_reprojection_functor.h>
+#include <bs_constraints/visual/vilens_reprojection_functor.h>
 #include <bs_constraints/visual/visual_constraint_fixed.h>
 #include <fuse_loss/cauchy_loss.h>
 #include <fuse_loss/huber_loss.h>
@@ -24,12 +25,22 @@ VisualConstraintFixed::VisualConstraintFixed(
     const Eigen::Vector2d& pixel_measurement,
     const Eigen::Matrix4d& T_cam_baselink,
     const std::shared_ptr<beam_calibration::CameraModel> cam_model,
-    const std::string& loss_type)
+    const std::string& loss_type, const std::string& reproj_type)
     : fuse_core::Constraint(source, {R_WORLD_BASELINK.uuid(),
                                      t_WORLD_BASELINK.uuid(), P_WORLD.uuid()}) {
   pixel_ = pixel_measurement;
   cam_model_ = cam_model;
   T_cam_baselink_ = T_cam_baselink;
+
+  if (reproj_type == "VANILLA" || reproj_type == "VILENS" ||
+      reproj_type == "UNITSPHERE") {
+    reprojection_type_ = reproj_type;
+  } else {
+    reprojection_type_ = "VANILLA";
+    ROS_WARN_STREAM("Invalid reprojection type "
+                    << reproj_type
+                    << " using VANILLA. Options: VANILLA, VILENS, UNITSPHERE");
+  }
 
   if (loss_type == "HUBER") {
     fuse_loss::HuberLoss::SharedPtr l =
@@ -59,8 +70,18 @@ void VisualConstraintFixed::print(std::ostream& stream) const {
 }
 
 ceres::CostFunction* VisualConstraintFixed::costFunction() const {
-  return new ceres::AutoDiffCostFunction<ReprojectionFunctor, 2, 4, 3, 3>(
-      new ReprojectionFunctor(pixel_, cam_model_, T_cam_baselink_));
+  if (reprojection_type_ == "VANILLA") {
+    return new ceres::AutoDiffCostFunction<ReprojectionFunctor, 2, 4, 3, 3>(
+        new ReprojectionFunctor(pixel_, cam_model_, T_cam_baselink_));
+  } else if (reprojection_type_ == "VILENS") {
+    return new ceres::AutoDiffCostFunction<VilensReprojectionFunctor, 2, 4, 3,
+                                           3>(
+        new VilensReprojectionFunctor(pixel_, cam_model_, T_cam_baselink_));
+  } else if (reprojection_type_ == "UNITSPHERE") {
+    return new ceres::AutoDiffCostFunction<UnitSphereReprojectionFunctor, 2, 4,
+                                           3, 3>(
+        new UnitSphereReprojectionFunctor(pixel_, cam_model_, T_cam_baselink_));
+  }
 }
 
 } // namespace fuse_constraints

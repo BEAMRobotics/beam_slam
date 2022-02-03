@@ -1,5 +1,5 @@
-#ifndef FUSE_MODELS_VISUAL_COST_FUNCTOR_H
-#define FUSE_MODELS_VISUAL_COST_FUNCTOR_H
+#ifndef FUSE_MODELS_VILENS_VISUAL_COST_FUNCTOR_H
+#define FUSE_MODELS_VILENS_VISUAL_COST_FUNCTOR_H
 
 #include <fuse_core/eigen.h>
 #include <fuse_core/macros.h>
@@ -17,7 +17,7 @@
 
 namespace fuse_constraints {
 
-class ReprojectionFunctor {
+class VilensReprojectionFunctor {
 public:
   FUSE_MAKE_ALIGNED_OPERATOR_NEW();
 
@@ -27,17 +27,38 @@ public:
    * @param[in] pixel_measurement The pixel location of feature in the image
    * @param[in] cam_model The camera intrinsics for projection
    */
-  ReprojectionFunctor(
+  VilensReprojectionFunctor(
       const Eigen::Vector2d& pixel_measurement,
       const std::shared_ptr<beam_calibration::CameraModel> cam_model,
       const Eigen::Matrix4d& T_cam_baselink)
       : pixel_measurement_(pixel_measurement),
         cam_model_(cam_model),
         T_cam_baselink_(T_cam_baselink) {
-    // matrix to normalize reprojection errors
-    A_ = Eigen::Matrix2d::Identity();
-    A_(0,0) = std::pow(1.0/cam_model_->GetIntrinsics()[0], 2);
-    A_(1,1) = std::pow(1.0/cam_model_->GetIntrinsics()[1], 2);
+    /*
+    The logic behind this covariance is introduced here:
+    https://arxiv.org/abs/2107.07243.
+    However we do not undistort feature locations in our reprojection error
+    */
+    // undistort pixel measurement
+    Eigen::Vector2i pixel_i = pixel_measurement_.cast<int>();
+    if (!cam_model_->Undistortable(pixel_i)) {
+      ROS_FATAL_STREAM("Invalid pixel measurement for visual factor, "
+                       "undistorted pixel is in not image domain.");
+      throw std::runtime_error{"Invalid pixel measurement for visual factor, "
+                               "undistorted pixel is in not image domain."};
+    }
+
+    // get circle around pixel in distorted image
+    std::vector<Eigen::Vector2i> circle = beam_cv::GetCircle(pixel_i, 4);
+
+    // undistort circle to get a covariance estimate
+    std::vector<Eigen::Vector2d> circle_d;
+    for (auto& p : circle) {
+      if (cam_model_->Undistortable(p)) {
+        circle_d.push_back(cam_model_->UndistortPixel(p).cast<double>());
+      }
+    }
+    A_ = beam_cv::FitEllipse(circle_d);
 
     // projection functor
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
@@ -120,4 +141,4 @@ private:
 
 } // namespace fuse_constraints
 
-#endif // FUSE_MODELS_VISUAL_COST_FUNCTOR_H
+#endif // FUSE_MODELS_VILENS_VISUAL_COST_FUNCTOR_H
