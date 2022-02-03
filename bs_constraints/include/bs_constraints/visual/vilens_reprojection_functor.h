@@ -58,7 +58,15 @@ public:
         circle_d.push_back(cam_model_->UndistortPixel(p).cast<double>());
       }
     }
-    A_ = beam_cv::FitEllipse(circle_d);
+    
+    // if not enough points to fit ellipse, then just normalize it
+    try {
+      A_ = beam_cv::FitEllipse(circle_d);
+    } catch (const std::runtime_error& re) {
+      A_ = Eigen::Matrix2d::Identity();
+      A_(0, 0) = std::pow(1.0 / cam_model_->GetIntrinsics()[0], 2);
+      A_(1, 1) = std::pow(1.0 / cam_model_->GetIntrinsics()[1], 2);
+    }
 
     // projection functor
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
