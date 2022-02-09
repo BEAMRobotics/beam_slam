@@ -35,9 +35,8 @@ public:
         cam_model_(cam_model),
         T_cam_baselink_(T_cam_baselink) {
     /*
-    The logic behind this covariance is introduced here:
+    The logic behind this covariance is in VILENS:
     https://arxiv.org/abs/2107.07243.
-    However we do not undistort feature locations in our reprojection error
     */
     // undistort pixel measurement
     Eigen::Vector2i pixel_i = pixel_measurement_.cast<int>();
@@ -47,9 +46,13 @@ public:
       throw std::runtime_error{"Invalid pixel measurement for visual factor, "
                                "undistorted pixel is in not image domain."};
     }
+    undistorted_pixel_measurement_ =
+        cam_model_->UndistortPixel(pixel_i).cast<double>();
 
+    float sigma = 2;
     // get circle around pixel in distorted image
-    std::vector<Eigen::Vector2i> circle = beam_cv::GetCircle(pixel_i, 4);
+    std::vector<Eigen::Vector2i> circle =
+        beam_cv::GetCircle(pixel_i, int(sigma));
 
     // undistort circle to get a covariance estimate
     std::vector<Eigen::Vector2d> circle_d;
@@ -58,14 +61,15 @@ public:
         circle_d.push_back(cam_model_->UndistortPixel(p).cast<double>());
       }
     }
-    
-    // if not enough points to fit ellipse, then just normalize it
+
+    // if not enough points to fit ellipse, then we use a very large covariance
+    // to to the assumption that its very close to the edge
     try {
       A_ = beam_cv::FitEllipse(circle_d);
     } catch (const std::runtime_error& re) {
       A_ = Eigen::Matrix2d::Identity();
-      A_(0, 0) = std::pow(1.0 / cam_model_->GetIntrinsics()[0], 2);
-      A_(1, 1) = std::pow(1.0 / cam_model_->GetIntrinsics()[1], 2);
+      A_(0, 0) = std::pow(3 * sigma, 2);
+      A_(1, 1) = std::pow(3 * sigma, 2);
     }
 
     // projection functor
@@ -142,6 +146,7 @@ public:
 private:
   Eigen::Matrix2d A_;
   Eigen::Vector2d pixel_measurement_;
+  Eigen::Vector2d undistorted_pixel_measurement_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::unique_ptr<ceres::CostFunctionToFunctor<2, 3>> compute_projection;
   Eigen::Matrix4d T_cam_baselink_;
