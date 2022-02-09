@@ -28,6 +28,7 @@ void VOInitializer::onInit() {
   // Load camera model and Create Map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
+  cam_model_->InitUndistortMap();
 
   // create optimzation graph
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
@@ -161,19 +162,21 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
 
         // add visual constraints to map
         for (auto& id : matched_ids) {
-          visual_map_->AddConstraint(kf_times_.front(), id,
-                                     tracker_->Get(kf_times_.front(), id),
-                                     transaction);
-          visual_map_->AddConstraint(cur_time, id, tracker_->Get(cur_time, id),
-                                     transaction);
+          Eigen::Vector2d cur_pixel = tracker_->Get(cur_time, id);
+          Eigen::Vector2d first_pixel = tracker_->Get(kf_times_.front(), id);
+          if (cam_model_->Undistortable(first_pixel.cast<int>()) &&
+              cam_model_->Undistortable(cur_pixel.cast<int>())) {
+            visual_map_->AddConstraint(kf_times_.front(), id, first_pixel,
+                                       transaction);
+            visual_map_->AddConstraint(cur_time, id, cur_pixel, transaction);
+          }
         }
 
-        times_.push_back(kf_times_.front());
         // localize frames in between
         for (size_t i = 0; i < kf_times_.size(); i += 5) {
-          if (kf_times_[i] == kf_times_.front() || kf_times_[i] == cur_time)
-            continue;
-          times_.push_back(kf_times_[i]);
+          ros::Time kf_time = kf_times_[i];
+          times_.push_back(kf_time);
+          if (kf_time == kf_times_.front() || kf_time == cur_time) continue;
           // get 2d-3d correspondences
           std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
           std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
@@ -187,8 +190,7 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
               // tracker works, all matched ids will be in these frames
               try {
                 Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-                Eigen::Vector2i pixeli =
-                    tracker_->Get(kf_times_[i], id).cast<int>();
+                Eigen::Vector2i pixeli = tracker_->Get(kf_time, id).cast<int>();
                 pixels.push_back(pixeli);
                 points.push_back(point);
                 ids_in_frame.push_back(id);
@@ -201,16 +203,17 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
                   cam_model_, pixels, points, 30);
 
           // add pose to graph
-          visual_map_->AddCameraPose(T_CAMERA_WORLD_est.inverse(), kf_times_[i],
+          visual_map_->AddCameraPose(T_CAMERA_WORLD_est.inverse(), kf_time,
                                      transaction);
 
           // add visual constraints to
           for (auto& id : ids_in_frame) {
-            visual_map_->AddConstraint(
-                kf_times_[i], id, tracker_->Get(kf_times_[i], id), transaction);
+            Eigen::Vector2d measurement = tracker_->Get(kf_time, id);
+            if (cam_model_->Undistortable(measurement.cast<int>())) {
+              visual_map_->AddConstraint(kf_time, id, measurement, transaction);
+            }
           }
         }
-        times_.push_back(cur_time);
 
         // modify graph with these additions
         local_graph_->update(*transaction);
