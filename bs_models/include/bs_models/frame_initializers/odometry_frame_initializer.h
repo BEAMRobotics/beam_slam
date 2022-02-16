@@ -21,10 +21,13 @@ public:
    * interpolation
    * @param sensor_frame_id frame ID attached to the sensor. If this is set, it
    * will override the sensor_frame in the odometry message
+   * @param T_ORIGINAL_OVERRIDE transform from the original frame in the
+   * transform message to the overidden frame id
    */
-  OdometryFrameInitializer(const std::string& topic, int queue_size,
-                           int64_t poses_buffer_time,
-                           const std::string& sensor_frame_id_override = "");
+  OdometryFrameInitializer(
+      const std::string& topic, int queue_size, int64_t poses_buffer_time,
+      const std::string& sensor_frame_id_override = "",
+      const Eigen::Matrix4d& T_ORIGINAL_OVERRIDE = Eigen::Matrix4d::Identity());
 
   /**
    * @brief Converts incoming odometry messages to tf poses and stores them in a
@@ -44,6 +47,8 @@ private:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   std::shared_ptr<tf2::BufferCore> poses_;
+
+  Eigen::Matrix4d T_ORIGINAL_OVERRIDE_{};
 
   ros::Subscriber odometry_subscriber_;
   bool check_world_baselink_frames_{true};

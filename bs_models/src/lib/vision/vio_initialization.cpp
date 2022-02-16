@@ -71,17 +71,17 @@ bool VIOInitialization::AddImage(const ros::Time& cur_time) {
     // initialize preintegration
     imu_preint_ =
         std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
-    ROS_DEBUG_STREAM("Estimated IMU Parameters: \n"
-                     << "Accel Bias:\n"
-                     << ba_ << "\nGyro Bias:\n"
-                     << bg_ << "\nGravity:\n"
-                     << gravity_ << "\nScale:" << scale_);
+    ROS_INFO_STREAM("Estimated IMU Parameters: \n"
+                    << "Accel Bias:\n"
+                    << ba_ << "\nGyro Bias:\n"
+                    << bg_ << "\nGravity:\n"
+                    << gravity_ << "\nScale:" << scale_);
 
     // Build frame vectors
     BuildFrameVectors();
 
     // Align poses to world gravity
-    AlignPosesToGravity();
+    if (max_optimization_time_ != 0) { AlignPosesToGravity(); }
 
     // Add poses from path and imu constraints to graph
     AddPosesAndInertialConstraints(valid_frames_, true);
@@ -352,16 +352,18 @@ Eigen::Matrix4d VIOInitialization::LocalizeFrame(const ros::Time& img_time) {
 }
 
 void VIOInitialization::OptimizeGraph() {
-  ceres::Solver::Options options;
-  options.minimizer_progress_to_stdout = true;
-  options.num_threads = 6;
-  options.num_linear_solver_threads = 6;
-  options.minimizer_type = ceres::TRUST_REGION;
-  options.linear_solver_type = ceres::SPARSE_SCHUR;
-  options.preconditioner_type = ceres::SCHUR_JACOBI;
-  options.max_solver_time_in_seconds = max_optimization_time_;
-  options.max_num_iterations = 100;
-  local_graph_->optimize(options);
+  if (max_optimization_time_ != 0) {
+    ceres::Solver::Options options;
+    options.minimizer_progress_to_stdout = true;
+    options.num_threads = 6;
+    options.num_linear_solver_threads = 6;
+    options.minimizer_type = ceres::TRUST_REGION;
+    options.linear_solver_type = ceres::SPARSE_SCHUR;
+    options.preconditioner_type = ceres::SCHUR_JACOBI;
+    options.max_solver_time_in_seconds = max_optimization_time_;
+    options.max_num_iterations = 100;
+    local_graph_->optimize(options);
+  }
 }
 
 void VIOInitialization::AlignPosesToGravity() {

@@ -40,7 +40,8 @@ void VisualInertialOdometry::onInit() {
     frame_initializer_ =
         std::make_unique<frame_initializers::OdometryFrameInitializer>(
             vio_params_.frame_initializer_info, 100, 30,
-            vio_params_.frame_initializer_sensor_frame_id);
+            vio_params_.sensor_frame_id_override,
+            vio_params_.T_ORIGINAL_OVERRIDE);
   } else if (vio_params_.frame_initializer_type == "POSEFILE") {
     frame_initializer_ =
         std::make_unique<frame_initializers::PoseFileFrameInitializer>(
@@ -49,7 +50,8 @@ void VisualInertialOdometry::onInit() {
     frame_initializer_ =
         std::make_unique<frame_initializers::TransformFrameInitializer>(
             vio_params_.frame_initializer_info, 100, 30,
-            vio_params_.frame_initializer_sensor_frame_id);
+            vio_params_.sensor_frame_id_override,
+            vio_params_.T_ORIGINAL_OVERRIDE);
   }
 
   // initialize pose refiner object with params
@@ -143,7 +145,7 @@ void VisualInertialOdometry::processImage(
   // get pose if we are using frame initializer, if its a failure we wait
   // until we can by buffering the frame
   Eigen::Matrix4d T_WORLD_BASELINK = Eigen::Matrix4d::Zero();
-  if (frame_initializer_) {
+  if (frame_initializer_ && initialization_->Initialized()) {
     if (!frame_initializer_->GetEstimatedPose(
             T_WORLD_BASELINK, img_time, extrinsics_.GetBaselinkFrameId())) {
       ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "

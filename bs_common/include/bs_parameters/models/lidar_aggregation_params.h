@@ -56,6 +56,18 @@ public:
     getParam<std::string>(nh, "sensor_frame_id_override",
                           sensor_frame_id_override, sensor_frame_id_override);
 
+    /** Optional For Odometry or Transform frame initializer */
+    std::vector<double> frame_override_tf;
+    nh.param("T_ORIGINAL_OVERRIDE", frame_override_tf, frame_override_tf);
+    if (frame_override_tf.size() != 16) {
+      ROS_ERROR("Invalid T_ORIGINAL_OVERRIDE params, required 16 params, "
+                "given: %d. Using default identity transform",
+                frame_override_tf.size());
+      T_ORIGINAL_OVERRIDE = Eigen::Matrix4d::Identity();
+    } else {
+      T_ORIGINAL_OVERRIDE = Eigen::Matrix4d(frame_override_tf.data());
+    }
+
     /** Maximum time to collect points per output scan. Default: 0.1 */
     getParam<double>(nh, "max_aggregation_time_seconds",
                      max_aggregation_time_seconds,
@@ -70,6 +82,7 @@ public:
   std::string odometry_topic;
   std::string pointcloud_topic;
   std::string sensor_frame_id_override;
+  Eigen::Matrix4d T_ORIGINAL_OVERRIDE;
   LidarType lidar_type{LidarType::VELODYNE};
   double max_aggregation_time_seconds{0.1};
   bool use_trigger{true};

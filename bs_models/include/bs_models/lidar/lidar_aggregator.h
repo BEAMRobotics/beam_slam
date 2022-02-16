@@ -54,11 +54,14 @@ public:
   LidarAggregator(
       const std::string& topic, int queue_size, int64_t poses_buffer_time,
       const ros::Duration& max_aggregate_duration = ros::Duration(0.1),
-      const std::string& sensor_frame_id_override = "") {
+      const std::string& sensor_frame_id_override = "",
+      const Eigen::Matrix4d& T_ORIGINAL_OVERRIDE =
+          Eigen::Matrix4d::Identity()) {
     max_aggregate_duration_ = max_aggregate_duration;
     frame_intializer_ =
         std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            topic, queue_size, poses_buffer_time, sensor_frame_id_override);
+            topic, queue_size, poses_buffer_time, sensor_frame_id_override,
+            T_ORIGINAL_OVERRIDE);
   }
 
   /**

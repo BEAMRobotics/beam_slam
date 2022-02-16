@@ -3,14 +3,13 @@
 #include <fuse_core/parameter.h>
 #include <ros/param.h>
 
-namespace bs_parameters {
-namespace models {
+namespace bs_parameters { namespace models {
 
 /**
  * @brief Defines the set of parameters required by the Imu3D class
  */
 struct Imu3DParams : public ParameterBase {
- public:
+public:
   /**
    * @brief Method for loading parameter values from ROS.
    *
@@ -33,6 +32,17 @@ struct Imu3DParams : public ParameterBase {
     nh.getParam("frame_initializer_type", frame_initializer_type);
     nh.getParam("frame_initializer_info", frame_initializer_info);
     nh.getParam("sensor_frame_id_override", sensor_frame_id_override);
+
+    std::vector<double> frame_override_tf;
+    nh.param("T_ORIGINAL_OVERRIDE", frame_override_tf, frame_override_tf);
+    if (frame_override_tf.size() != 16) {
+      ROS_ERROR("Invalid T_ORIGINAL_OVERRIDE params, required 16 params, "
+                "given: %d. Using default identity transform",
+                frame_override_tf.size());
+      T_ORIGINAL_OVERRIDE = Eigen::Matrix4d::Identity();
+    } else {
+      T_ORIGINAL_OVERRIDE = Eigen::Matrix4d(frame_override_tf.data());
+    }
   }
 
   std::string input_topic;
@@ -49,7 +59,7 @@ struct Imu3DParams : public ParameterBase {
   std::string frame_initializer_type{"ODOMETRY"};
   std::string frame_initializer_info{""};
   std::string sensor_frame_id_override{""};
+  Eigen::Matrix4d T_ORIGINAL_OVERRIDE;
 };
 
-}  // namespace models
-}  // namespace bs_parameters
+}} // namespace bs_parameters::models

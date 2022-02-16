@@ -1,11 +1,9 @@
 #pragma once
 
-#include <bs_models/slam_initializers/slam_initializer_base.h>
-
+#include <queue>
 #include <sensor_msgs/Imu.h>
-
+#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
-
 #include <bs_parameters/models/gt_initializer_params.h>
 
 namespace bs_models {
@@ -36,6 +34,7 @@ protected:
 
   // subscribers
   ros::Subscriber imu_subscriber_;
+  std::queue<sensor_msgs::Imu> imu_buffer_;
 
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   ros::Time current_pose_time_ = ros::Time(0);

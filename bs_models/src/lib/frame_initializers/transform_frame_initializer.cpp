@@ -10,10 +10,12 @@ namespace bs_models { namespace frame_initializers {
 
 TransformFrameInitializer::TransformFrameInitializer(
     const std::string& topic, int queue_size, int64_t poses_buffer_time,
-    const std::string& sensor_frame_id_override) {
+    const std::string& sensor_frame_id_override,
+    const Eigen::Matrix4d& T_ORIGINAL_OVERRIDE) {
   authority_ = "Transform";
   poses_ = std::make_shared<tf2::BufferCore>(ros::Duration(poses_buffer_time));
   pose_lookup_ = std::make_shared<bs_common::PoseLookup>(poses_);
+  T_ORIGINAL_OVERRIDE_ = T_ORIGINAL_OVERRIDE;
 
   ros::NodeHandle n;
   transform_subscriber_ = n.subscribe<geometry_msgs::TransformStamped>(
@@ -87,8 +89,10 @@ void TransformFrameInitializer::TransformCallback(
   Eigen::Matrix4d T_SENSOR_BASELINK;
   if (extrinsics_.GetT_SENSOR_BASELINK(T_SENSOR_BASELINK, sensor_frame_id_,
                                        message->header.stamp)) {
-    Eigen::Matrix4d T_WORLD_SENSOR;
-    bs_common::TransformStampedMsgToEigenTransform(*message, T_WORLD_SENSOR);
+    Eigen::Matrix4d T_WORLD_ORIGINAL;
+    bs_common::TransformStampedMsgToEigenTransform(*message, T_WORLD_ORIGINAL);
+
+    Eigen::Matrix4d T_WORLD_SENSOR = T_WORLD_ORIGINAL * T_ORIGINAL_OVERRIDE_;
 
     Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_SENSOR * T_SENSOR_BASELINK;
 
