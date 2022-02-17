@@ -79,6 +79,7 @@ visual_inertial_odometry:
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
+  save_keyframes_folder: ''
   # keyframe decision params and memory management params
   tracker_window_size: 300 
   num_features_to_track: 100 

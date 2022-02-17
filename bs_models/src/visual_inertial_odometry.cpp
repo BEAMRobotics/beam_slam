@@ -157,10 +157,10 @@ void VisualInertialOdometry::processImage(
 
   // add image to map or initializer
   if (imu_time >= img_time && !imu_buffer_.empty()) {
+    cv::Mat image =
+        beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front());
     // add image to tracker
-    tracker_->AddImage(
-        beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
-        img_time);
+    tracker_->AddImage(image, img_time);
 
     // process in initialization mode
     if (!initialization_->Initialized()) {
@@ -198,6 +198,13 @@ void VisualInertialOdometry::processImage(
 
       // process keyframe
       if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
+        // save keyframe to folder if desired
+        if (boost::filesystem::exists(vio_params_.save_keyframes_folder) &&
+            !vio_params_.save_keyframes_folder.empty()) {
+          std::string image_file = std::to_string(img_time.toNSec()) + ".png";
+          cv::imwrite(vio_params_.save_keyframes_folder + image_file, image);
+        }
+
         // push new keyframe to list
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);

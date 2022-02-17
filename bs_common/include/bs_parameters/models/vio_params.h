@@ -44,6 +44,8 @@ public:
     // match whats in detector config)
     getParam<int>(nh, "num_features_to_track", num_features_to_track, 300);
 
+    // Set to true if using sfm initializer
+    getParam<std::string>(nh, "save_keyframes_folder", save_keyframes_folder, "");
     /** keyframe decision parameters*/
 
     // if avg parallax to the previous keyframe exceeds this then set keyframe
@@ -128,6 +130,7 @@ public:
   std::string detector{};
   std::string detector_config{};
   std::string tracker_config{};
+  std::string save_keyframes_folder{};
 
   // memory management params
   int tracker_window_size{};
