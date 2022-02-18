@@ -45,7 +45,8 @@ public:
     getParam<int>(nh, "num_features_to_track", num_features_to_track, 300);
 
     // Set to true if using sfm initializer
-    getParam<std::string>(nh, "save_keyframes_folder", save_keyframes_folder, "");
+    getParam<std::string>(nh, "save_keyframes_folder", save_keyframes_folder,
+                          "");
     /** keyframe decision parameters*/
 
     // if avg parallax to the previous keyframe exceeds this then set keyframe
@@ -71,28 +72,8 @@ public:
     getParam<double>(nh, "reloc_request_period", reloc_request_period, 3.0);
 
     /** Options: TRANSFORM, ODOMETRY, POSEFILE */
-    getParam<std::string>(nh, "frame_initializer_type", frame_initializer_type,
-                          frame_initializer_type);
-
-    /** for TRANSFORM: topic, for ODOMETRY: topic, for POSEFILE: path */
-    getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
-                          frame_initializer_info);
-
-    /** Optional For Odometry or Transform frame initializer */
-    getParam<std::string>(nh, "sensor_frame_id_override",
-                          sensor_frame_id_override, "");
-
-    /** Optional For Odometry or Transform frame initializer */
-    std::vector<double> frame_override_tf;
-    nh.param("T_ORIGINAL_OVERRIDE", frame_override_tf, frame_override_tf);
-    if (frame_override_tf.size() != 16) {
-      ROS_ERROR("Invalid T_ORIGINAL_OVERRIDE params, required 16 params, "
-                "given: %d. Using default identity transform",
-                frame_override_tf.size());
-      T_ORIGINAL_OVERRIDE = Eigen::Matrix4d::Identity();
-    } else {
-      T_ORIGINAL_OVERRIDE = Eigen::Matrix4d(frame_override_tf.data());
-    }
+    getParam<std::string>(nh, "frame_initializer_config",
+                          frame_initializer_config, frame_initializer_config);
 
     std::vector<double> prior_diagonal;
     nh.param("frame_initializer_prior_noise_diagonal", prior_diagonal,
@@ -116,10 +97,7 @@ public:
   std::string imu_topic{};
 
   // frame initializer
-  std::string frame_initializer_type{""};
-  std::string frame_initializer_info{""};
-  std::string sensor_frame_id_override{};
-  Eigen::Matrix4d T_ORIGINAL_OVERRIDE;
+  std::string frame_initializer_config{""};
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};
   bool use_pose_priors{true};

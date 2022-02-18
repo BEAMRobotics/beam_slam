@@ -20,16 +20,13 @@ void LidarAggregation::onInit() {
   ROS_DEBUG("Loaded params");
   if (params_.lidar_type == LidarType::VELODYNE) {
     velodyne_lidar_aggregator_ = std::make_unique<LidarAggregator<PointXYZIRT>>(
-        params_.odometry_topic, odometry_subscriber_queue_size_,
-        poses_buffer_time_, ros::Duration(params_.max_aggregation_time_seconds),
-        params_.sensor_frame_id_override, params_.T_ORIGINAL_OVERRIDE);
+        params_.frame_initializer_config,
+        ros::Duration(params_.max_aggregation_time_seconds));
   } else if (params_.lidar_type == LidarType::OUSTER) {
     ouster_lidar_aggregator_ =
         std::make_unique<LidarAggregator<PointXYZITRRNR>>(
-            params_.odometry_topic, odometry_subscriber_queue_size_,
-            poses_buffer_time_,
-            ros::Duration(params_.max_aggregation_time_seconds),
-            params_.sensor_frame_id_override, params_.T_ORIGINAL_OVERRIDE);
+            params_.frame_initializer_config,
+            ros::Duration(params_.max_aggregation_time_seconds));
   } else {
     BEAM_ERROR(
         "Invalid lidar type param. Lidar type may not be implemented yet.");

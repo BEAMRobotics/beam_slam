@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fuse_core/parameter.h>
+#include <numeric>
 #include <ros/param.h>
 
 namespace bs_parameters { namespace models {
@@ -29,20 +30,23 @@ public:
     nh.getParam("key_frame_rate", key_frame_rate);
     nh.getParam("lag_duration", lag_duration);
     nh.getParam("cov_prior_noise", cov_prior_noise);
-    nh.getParam("frame_initializer_type", frame_initializer_type);
-    nh.getParam("frame_initializer_info", frame_initializer_info);
-    nh.getParam("sensor_frame_id_override", sensor_frame_id_override);
+    nh.getParam("frame_initializer_config", frame_initializer_config);
 
-    std::vector<double> frame_override_tf;
-    nh.param("T_ORIGINAL_OVERRIDE", frame_override_tf, frame_override_tf);
-    if (frame_override_tf.size() != 16) {
-      ROS_ERROR("Invalid T_ORIGINAL_OVERRIDE params, required 16 params, "
-                "given: %d. Using default identity transform",
-                frame_override_tf.size());
-      T_ORIGINAL_OVERRIDE = Eigen::Matrix4d::Identity();
-    } else {
-      T_ORIGINAL_OVERRIDE = Eigen::Matrix4d(frame_override_tf.data());
+    std::vector<double> prior_diagonal;
+    nh.param("frame_initializer_prior_noise_diagonal", prior_diagonal,
+             prior_diagonal);
+    if (prior_diagonal.size() != 6) {
+      ROS_ERROR("Invalid gm_noise_diagonal params, required 6 params, "
+                "given: %d. Using default (0.1 for all)",
+                prior_diagonal.size());
+      prior_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }
+    if (std::accumulate(prior_diagonal.begin(), prior_diagonal.end(), 0.0) ==
+        0.0) {
+      ROS_INFO("Prior diagonal set to zero, not adding priors");
+      use_pose_priors = false;
+    }
+    for (int i = 0; i < 6; i++) { prior_covariance(i, i) = prior_diagonal[i]; }
   }
 
   std::string input_topic;
@@ -56,10 +60,10 @@ public:
   double key_frame_rate{1.0};
   double lag_duration{1.0};
   double cov_prior_noise{1e-9};
-  std::string frame_initializer_type{"ODOMETRY"};
-  std::string frame_initializer_info{""};
-  std::string sensor_frame_id_override{""};
-  Eigen::Matrix4d T_ORIGINAL_OVERRIDE;
+  std::string frame_initializer_config{""};
+  Eigen::Matrix<double, 6, 6> prior_covariance{
+      Eigen::Matrix<double, 6, 6>::Identity()};
+  bool use_pose_priors{true};
 };
 
 }} // namespace bs_parameters::models

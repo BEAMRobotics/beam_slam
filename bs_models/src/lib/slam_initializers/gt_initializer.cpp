@@ -19,25 +19,12 @@ void GTInitializer::onInit() {
       gt_initializer_params_.imu_topic, 100, &GTInitializer::processIMU, this);
 
   // init frame initializer
-  if (gt_initializer_params_.frame_initializer_type == "ODOMETRY") {
+  if (!gt_initializer_params_.frame_initializer_config.empty()) {
     frame_initializer_ =
-        std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            gt_initializer_params_.frame_initializer_info, 100, 30,
-            gt_initializer_params_.sensor_frame_id_override,
-            gt_initializer_params_.T_ORIGINAL_OVERRIDE);
-  } else if (gt_initializer_params_.frame_initializer_type == "POSEFILE") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
-            gt_initializer_params_.frame_initializer_info);
-  } else if (gt_initializer_params_.frame_initializer_type == "TRANSFORM") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::TransformFrameInitializer>(
-            gt_initializer_params_.frame_initializer_info, 100, 30,
-            gt_initializer_params_.sensor_frame_id_override,
-            gt_initializer_params_.T_ORIGINAL_OVERRIDE);
+        bs_models::frame_initializers::FrameInitializerBase::Create(
+            gt_initializer_params_.frame_initializer_config);
   } else {
-    const std::string error = "frame_initializer_type invalid. Options: "
-                              "ODOMETRY, POSEFILE, TRANSFORM";
+    const std::string error = "GT initializer requires frame initializer.";
     ROS_FATAL_STREAM(error);
     throw std::runtime_error(error);
   }

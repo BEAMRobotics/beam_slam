@@ -38,6 +38,14 @@ public:
                                            time, error_msg);
   };
 
+  /**
+   * @brief Factory method for creating a Frame initializer from a json config
+   * @param config_path path to json config
+   * @return unique ptr to a frame initializer
+   */
+  static std::unique_ptr<frame_initializers::FrameInitializerBase>
+      Create(const std::string& config_path);
+
 protected:
   std::string authority_;
   std::shared_ptr<bs_common::PoseLookup> pose_lookup_;

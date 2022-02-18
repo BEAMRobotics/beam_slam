@@ -22,23 +22,12 @@ void Imu3D::onInit() {
   calibration_params_.loadFromROS();
 
   // init frame initializer
-  if (params_.frame_initializer_type == "ODOMETRY") {
+  if (!params_.frame_initializer_config.empty()) {
     frame_initializer_ =
-        std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            params_.frame_initializer_info, 100, 2 * params_.lag_duration,
-            params_.sensor_frame_id_override);
-  } else if (params_.frame_initializer_type == "POSEFILE") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
-            params_.frame_initializer_info);
-  } else if (params_.frame_initializer_type == "TRANSFORM") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::TransformFrameInitializer>(
-            params_.frame_initializer_info, 100, 30,
-            params_.sensor_frame_id_override, params_.T_ORIGINAL_OVERRIDE);
+        bs_models::frame_initializers::FrameInitializerBase::Create(
+            params_.frame_initializer_config);
   } else {
-    const std::string error = "frame_initializer_type invalid. Options: "
-                              "ODOMETRY, POSEFILE, TRNASFORM";
+    const std::string error = "Inertial odometry requires frame initializer.";
     ROS_FATAL_STREAM(error);
     throw std::runtime_error(error);
   }

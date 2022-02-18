@@ -36,22 +36,10 @@ void VisualInertialOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // init frame initializer if desired
-  if (vio_params_.frame_initializer_type == "ODOMETRY") {
+  if (!vio_params_.frame_initializer_config.empty()) {
     frame_initializer_ =
-        std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            vio_params_.frame_initializer_info, 100, 30,
-            vio_params_.sensor_frame_id_override,
-            vio_params_.T_ORIGINAL_OVERRIDE);
-  } else if (vio_params_.frame_initializer_type == "POSEFILE") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
-            vio_params_.frame_initializer_info);
-  } else if (vio_params_.frame_initializer_type == "TRANSFORM") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::TransformFrameInitializer>(
-            vio_params_.frame_initializer_info, 100, 30,
-            vio_params_.sensor_frame_id_override,
-            vio_params_.T_ORIGINAL_OVERRIDE);
+        bs_models::frame_initializers::FrameInitializerBase::Create(
+            vio_params_.frame_initializer_config);
   }
 
   // initialize pose refiner object with params
