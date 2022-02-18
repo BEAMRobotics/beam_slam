@@ -48,7 +48,7 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
   }
 
   try {
-    for (const auto& value : J["tf_override"]) {
+    for (const auto& value : J["T_ORIGINAL_OVERRIDE"]) {
       tf_override.push_back(value.get<double>());
     }
   } catch (...) {
