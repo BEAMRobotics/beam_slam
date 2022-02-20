@@ -67,8 +67,7 @@ lidar_odometry:
   publish_active_submap: true
   publish_local_map: true
   publish_registration_results: true
-  frame_initializer_type: 'ODOMETRY' 
-  frame_initializer_info: '/local_mapper/visual_inertial_odometry/odometry'
+  frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json' 
   frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
   reloc_request_period: 1
   scan_output_directory: ''
@@ -77,22 +76,26 @@ visual_inertial_odometry:
   # topics to subscribe to
   image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
-  init_path_topic: '/local_mapper/lo_initializer/result'
+  # optional frame initializer params
+  frame_initializer_config: '' 
+  frame_initializer_prior_noise_diagonal: [] 
+  # frequency to request reloc
+  reloc_request_period: 2.0
   # feature tracking configs
-  descriptor: 'BEBLID'
+  descriptor: 'ORB'
   detector: 'FAST'
-  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/descriptor.json'
+  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
   # keyframe decision params and memory management params
-  tracker_window_size: 100 
+  tracker_window_size: 300 
   num_features_to_track: 100 
-  keyframe_window_size: 20 
-  keyframe_parallax: 10.0
+  keyframe_window_size: 30
+  keyframe_parallax: 15.0
   # initialization params
   init_max_optimization_time_in_seconds: 0.5
-  init_map_output_directory: '/userhome' 
-  init_use_scale_estimate: false 
+  init_map_output_directory: '' 
+  init_use_scale_estimate: false
 
 lo_initializer:
   registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'

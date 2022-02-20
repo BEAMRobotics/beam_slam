@@ -41,7 +41,7 @@ solver_options:
   minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
-  max_num_iterations: 8
+  max_num_iterations: 0
   max_solver_time_in_seconds: 0.04
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
@@ -66,10 +66,10 @@ visual_inertial_odometry:
   image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
   init_path_topic: '/local_mapper/gt_initializer/result'
-  frame_initializer_type: 'TRANSFORM' 
-  frame_initializer_info: '/vicon/SDICIG2/SDICIG2 '
-  frame_initializer_sensor_frame_id: ''
+  # optional frame initializer params
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vicon.json'
   frame_initializer_prior_noise_diagonal: [] 
+  # frequency to request a reloc
   reloc_request_period: 2.0
   # feature tracking configs
   descriptor: 'ORB'
@@ -77,11 +77,12 @@ visual_inertial_odometry:
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
+  save_keyframes_folder: ''
   # keyframe decision params and memory management params
   tracker_window_size: 300 
   num_features_to_track: 100 
   keyframe_window_size: 30
-  keyframe_parallax: 15.0
+  keyframe_parallax: 30.0
   # initialization params
   init_max_optimization_time_in_seconds: 0.0
   init_map_output_directory: '' 
@@ -91,12 +92,10 @@ visual_inertial_odometry:
 #   initializer parameters   #
 ##############################
 gt_initializer:
-  imu_topic: "/imu0"
-  frame_initializer_type: 'TRANSFORM' 
-  frame_initializer_info: '/vicon/SDICIG2/SDICIG2 '
-  frame_initializer_sensor_frame_id: ''
+  imu_topic: "/imu/data"
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vicon.json'
   trajectory_time_window: 5.0
-  min_trajectory_length: 0.5 # trajectory length to accept (in metres)
+  min_trajectory_length: 0.2 # trajectory length to accept (in metres)
 
 ############################
 #   publisher parameters   #

@@ -29,9 +29,6 @@ public:
     /** Input lidar topic (distorted) */
     getParamRequired<std::string>(nh, "pointcloud_topic", pointcloud_topic);
 
-    /** Odometry topic to sample poses from. */
-    getParamRequired<std::string>(nh, "odometry_topic", odometry_topic);
-
     /**
      * type of lidar. Options: VELODYNE, OUSTER. This is needed so we know how
      * to convert the PointCloud2 msgs.
@@ -48,13 +45,8 @@ public:
       lidar_type = iter->second;
     }
 
-    /**
-     * frame ID attached to the sensor of the odometry message used for
-     * trajectory. If this is set, it will override the sensor_frame in the
-     * odometry message
-     */
-    getParam<std::string>(nh, "sensor_frame_id_override",
-                          sensor_frame_id_override, sensor_frame_id_override);
+    getParam<std::string>(nh, "frame_initializer_config",
+                          frame_initializer_config, frame_initializer_config);
 
     /** Maximum time to collect points per output scan. Default: 0.1 */
     getParam<double>(nh, "max_aggregation_time_seconds",
@@ -67,12 +59,12 @@ public:
   }
 
   std::string aggregation_time_topic;
-  std::string odometry_topic;
   std::string pointcloud_topic;
-  std::string sensor_frame_id_override;
   LidarType lidar_type{LidarType::VELODYNE};
   double max_aggregation_time_seconds{0.1};
   bool use_trigger{true};
+
+  std::string frame_initializer_config{""};
 };
 
 }} // namespace bs_parameters::models

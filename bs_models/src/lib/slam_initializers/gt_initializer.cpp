@@ -19,23 +19,12 @@ void GTInitializer::onInit() {
       gt_initializer_params_.imu_topic, 100, &GTInitializer::processIMU, this);
 
   // init frame initializer
-  if (gt_initializer_params_.frame_initializer_type == "ODOMETRY") {
+  if (!gt_initializer_params_.frame_initializer_config.empty()) {
     frame_initializer_ =
-        std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            gt_initializer_params_.frame_initializer_info, 100, 30,
-            gt_initializer_params_.frame_initializer_sensor_frame_id);
-  } else if (gt_initializer_params_.frame_initializer_type == "POSEFILE") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
-            gt_initializer_params_.frame_initializer_info);
-  } else if (gt_initializer_params_.frame_initializer_type == "TRANSFORM") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::TransformFrameInitializer>(
-            gt_initializer_params_.frame_initializer_info, 100, 30,
-            gt_initializer_params_.frame_initializer_sensor_frame_id);
+        bs_models::frame_initializers::FrameInitializerBase::Create(
+            gt_initializer_params_.frame_initializer_config);
   } else {
-    const std::string error =
-        "frame_initializer_type invalid. Options: ODOMETRY, POSEFILE, TRANSFORM";
+    const std::string error = "GT initializer requires frame initializer.";
     ROS_FATAL_STREAM(error);
     throw std::runtime_error(error);
   }
@@ -49,14 +38,19 @@ void GTInitializer::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
     imu_subscriber_.shutdown();
     return;
   }
+  imu_buffer_.push(*msg);
+
+  ros::Time cur_time = imu_buffer_.front().header.stamp;
   Eigen::Matrix4d T_WORLD_SENSOR;
   bool success = frame_initializer_->GetEstimatedPose(
-      T_WORLD_SENSOR, msg->header.stamp, extrinsics_.GetBaselinkFrameId());
+      T_WORLD_SENSOR, cur_time, extrinsics_.GetBaselinkFrameId());
+
+  if (success) { imu_buffer_.pop(); }
   // push poses to trajectory at ~10hz
-  if (success && (msg->header.stamp - current_pose_time_).toSec() >= 0.1) {
-    current_pose_time_ = msg->header.stamp;
+  if (success && (cur_time - current_pose_time_).toSec() >= 0.1) {
+    current_pose_time_ = cur_time;
     trajectory_.push_back(T_WORLD_SENSOR);
-    times_.push_back(msg->header.stamp);
+    times_.push_back(cur_time);
     if (beam::PassedMotionThreshold(
             trajectory_[0], T_WORLD_SENSOR, 0.0,
             gt_initializer_params_.min_trajectory_length, true, true, false)) {
@@ -68,6 +62,8 @@ void GTInitializer::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
       trajectory_.erase(trajectory_.begin());
       times_.erase(times_.begin());
     }
+  } else if (!success && (cur_time - current_pose_time_).toSec() >= 0.5) {
+    imu_buffer_.pop();
   }
 }
 

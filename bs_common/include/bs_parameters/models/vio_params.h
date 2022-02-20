@@ -44,6 +44,9 @@ public:
     // match whats in detector config)
     getParam<int>(nh, "num_features_to_track", num_features_to_track, 300);
 
+    // Set to true if using sfm initializer
+    getParam<std::string>(nh, "save_keyframes_folder", save_keyframes_folder,
+                          "");
     /** keyframe decision parameters*/
 
     // if avg parallax to the previous keyframe exceeds this then set keyframe
@@ -69,16 +72,8 @@ public:
     getParam<double>(nh, "reloc_request_period", reloc_request_period, 3.0);
 
     /** Options: TRANSFORM, ODOMETRY, POSEFILE */
-    getParam<std::string>(nh, "frame_initializer_type", frame_initializer_type,
-                          frame_initializer_type);
-
-    /** for TRANSFORM: topic, for ODOMETRY: topic, for POSEFILE: path */
-    getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
-                          frame_initializer_info);
-
-    /** Optional For Odometry frame initializer */
-    getParam<std::string>(nh, "frame_initializer_sensor_frame_id",
-                          frame_initializer_sensor_frame_id, "");
+    getParam<std::string>(nh, "frame_initializer_config",
+                          frame_initializer_config, frame_initializer_config);
 
     std::vector<double> prior_diagonal;
     nh.param("frame_initializer_prior_noise_diagonal", prior_diagonal,
@@ -102,9 +97,7 @@ public:
   std::string imu_topic{};
 
   // frame initializer
-  std::string frame_initializer_type{""};
-  std::string frame_initializer_info{""};
-  std::string frame_initializer_sensor_frame_id{};
+  std::string frame_initializer_config{""};
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};
   bool use_pose_priors{true};
@@ -115,6 +108,7 @@ public:
   std::string detector{};
   std::string detector_config{};
   std::string tracker_config{};
+  std::string save_keyframes_folder{};
 
   // memory management params
   int tracker_window_size{};

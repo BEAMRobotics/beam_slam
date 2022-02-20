@@ -65,10 +65,10 @@ visual_inertial_odometry:
   # topics to subscribe to
   image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
-  frame_initializer_type: '' 
-  frame_initializer_info: ''
-  frame_initializer_sensor_frame_id: ''
+  # optional frame initializer params
+  frame_initializer_config: ''
   frame_initializer_prior_noise_diagonal: [] 
+  # frequency to request reloc
   reloc_request_period: 2.0
   # feature tracking configs
   descriptor: 'ORB'
@@ -76,6 +76,7 @@ visual_inertial_odometry:
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
+  save_keyframes_folder: ''
   # keyframe decision params and memory management params
   tracker_window_size: 300 
   num_features_to_track: 100 

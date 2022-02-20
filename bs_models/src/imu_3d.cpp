@@ -12,7 +12,8 @@ PLUGINLIB_EXPORT_CLASS(bs_models::Imu3D, fuse_core::SensorModel)
 namespace bs_models {
 
 Imu3D::Imu3D()
-    : fuse_core::AsyncSensorModel(1), device_id_(fuse_core::uuid::NIL),
+    : fuse_core::AsyncSensorModel(1),
+      device_id_(fuse_core::uuid::NIL),
       throttled_callback_(
           std::bind(&Imu3D::process, this, std::placeholders::_1)) {}
 
@@ -21,18 +22,12 @@ void Imu3D::onInit() {
   calibration_params_.loadFromROS();
 
   // init frame initializer
-  if (params_.frame_initializer_type == "ODOMETRY") {
+  if (!params_.frame_initializer_config.empty()) {
     frame_initializer_ =
-        std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            params_.frame_initializer_info, 100, 2 * params_.lag_duration,
-            params_.sensor_frame_id_override);
-  } else if (params_.frame_initializer_type == "POSEFILE") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
-            params_.frame_initializer_info);
+        bs_models::frame_initializers::FrameInitializerBase::Create(
+            params_.frame_initializer_config);
   } else {
-    const std::string error =
-        "frame_initializer_type invalid. Options: ODOMETRY, POSEFILE";
+    const std::string error = "Inertial odometry requires frame initializer.";
     ROS_FATAL_STREAM(error);
     throw std::runtime_error(error);
   }
@@ -73,9 +68,11 @@ void Imu3D::onStart() {
       ros::TransportHints().tcpNoDelay(false));
 };
 
-void Imu3D::onStop() { subscriber_.shutdown(); }
+void Imu3D::onStop() {
+  subscriber_.shutdown();
+}
 
-void Imu3D::process(const sensor_msgs::Imu::ConstPtr &msg) {
+void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
   // add msg to preintegration buffers
   imu_preintegration_->AddToBuffer(*msg);
   ros::Time t_proc = msg->header.stamp;
@@ -127,7 +124,7 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr &msg) {
         ROS_INFO("Sending transaction.");
         try {
           sendTransaction(new_transaction);
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
           ROS_WARN("Cannot send transaction. Error: %s", e.what());
         }
       }
@@ -136,9 +133,9 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr &msg) {
 };
 
 bool Imu3D::GetEstimatedPose(
-    fuse_variables::Orientation3DStamped::SharedPtr &R_WORLD_IMU,
-    fuse_variables::Position3DStamped::SharedPtr &t_WORLD_IMU,
-    const ros::Time &time) {
+    fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
+    fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
+    const ros::Time& time) {
   Eigen::Matrix4d T_WORLD_IMU;
   if (!frame_initializer_->GetEstimatedPose(T_WORLD_IMU, time,
                                             extrinsics_.GetImuFrameId())) {

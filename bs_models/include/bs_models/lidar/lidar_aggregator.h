@@ -8,7 +8,7 @@
 #include <beam_utils/pointclouds.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/frame_initializers/odometry_frame_initializer.h>
+#include <bs_models/frame_initializers/frame_initializer_base.h>
 
 namespace bs_models {
 
@@ -42,23 +42,17 @@ class LidarAggregator {
 public:
   /**
    * @brief constructor
-   * @param topic odometry topic to subscribe to
-   * @param queue_size odometry subscriber queue size
-   * @param poses_buffer_time length of time (in seconds) to store poses for
-   * interpolation
-   * @param sensor_frame_id_override frame ID attached to the sensor. If this is
-   * set, it will override the sensor_frame in the odometry message
+   * @param frame_init_config path to frame initializer config
    * @param max_aggregate_duration maximum time duration to add points to a
    * single aggregate
    */
   LidarAggregator(
-      const std::string& topic, int queue_size, int64_t poses_buffer_time,
-      const ros::Duration& max_aggregate_duration = ros::Duration(0.1),
-      const std::string& sensor_frame_id_override = "") {
+      const std::string& frame_init_config,
+      const ros::Duration& max_aggregate_duration = ros::Duration(0.1)) {
     max_aggregate_duration_ = max_aggregate_duration;
-    frame_intializer_ =
-        std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            topic, queue_size, poses_buffer_time, sensor_frame_id_override);
+    frame_initializer_ =
+        bs_models::frame_initializers::FrameInitializerBase::Create(
+            frame_init_config);
   }
 
   /**
@@ -108,7 +102,7 @@ public:
       // get lidar pose at aggregation time
       Eigen::Matrix4d T_WORLD_LIDARAGG;
       std::string error_msg;
-      if (!frame_intializer_->GetEstimatedPose(
+      if (!frame_initializer_->GetEstimatedPose(
               T_WORLD_LIDARAGG, current_aggregate_time,
               extrinsics_.GetLidarFrameId(), error_msg)) {
         ROS_DEBUG("Cannot get lidar pose at requested aggregation time, "
@@ -128,7 +122,7 @@ public:
         // get lidar pose at current chunk time
         Eigen::Matrix4d T_WORLD_LIDARCHUNK;
         std::string error_msg;
-        if (!frame_intializer_->GetEstimatedPose(
+        if (!frame_initializer_->GetEstimatedPose(
                 T_WORLD_LIDARCHUNK, current_chunk->second.time,
                 extrinsics_.GetLidarFrameId(), error_msg)) {
           ROS_DEBUG(
@@ -155,8 +149,7 @@ public:
 private:
   std::map<uint64_t, LidarChunk<PointT>> lidar_chunks_; // t_nsec -> lidar chunk
   std::vector<LidarAggregate<PointT>> finalized_aggregates_;
-  std::unique_ptr<frame_initializers::OdometryFrameInitializer>
-      frame_intializer_;
+  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   std::queue<ros::Time> aggregation_times_;

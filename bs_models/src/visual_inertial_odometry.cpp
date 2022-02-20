@@ -36,20 +36,10 @@ void VisualInertialOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // init frame initializer if desired
-  if (vio_params_.frame_initializer_type == "ODOMETRY") {
+  if (!vio_params_.frame_initializer_config.empty()) {
     frame_initializer_ =
-        std::make_unique<frame_initializers::OdometryFrameInitializer>(
-            vio_params_.frame_initializer_info, 100, 30,
-            vio_params_.frame_initializer_sensor_frame_id);
-  } else if (vio_params_.frame_initializer_type == "POSEFILE") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::PoseFileFrameInitializer>(
-            vio_params_.frame_initializer_info);
-  } else if (vio_params_.frame_initializer_type == "TRANSFORM") {
-    frame_initializer_ =
-        std::make_unique<frame_initializers::TransformFrameInitializer>(
-            vio_params_.frame_initializer_info, 100, 30,
-            vio_params_.frame_initializer_sensor_frame_id);
+        bs_models::frame_initializers::FrameInitializerBase::Create(
+            vio_params_.frame_initializer_config);
   }
 
   // initialize pose refiner object with params
@@ -143,7 +133,7 @@ void VisualInertialOdometry::processImage(
   // get pose if we are using frame initializer, if its a failure we wait
   // until we can by buffering the frame
   Eigen::Matrix4d T_WORLD_BASELINK = Eigen::Matrix4d::Zero();
-  if (frame_initializer_) {
+  if (frame_initializer_ && initialization_->Initialized()) {
     if (!frame_initializer_->GetEstimatedPose(
             T_WORLD_BASELINK, img_time, extrinsics_.GetBaselinkFrameId())) {
       ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
@@ -155,10 +145,10 @@ void VisualInertialOdometry::processImage(
 
   // add image to map or initializer
   if (imu_time >= img_time && !imu_buffer_.empty()) {
+    cv::Mat image =
+        beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front());
     // add image to tracker
-    tracker_->AddImage(
-        beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front()),
-        img_time);
+    tracker_->AddImage(image, img_time);
 
     // process in initialization mode
     if (!initialization_->Initialized()) {
@@ -196,6 +186,13 @@ void VisualInertialOdometry::processImage(
 
       // process keyframe
       if (IsKeyframe(img_time, T_WORLD_BASELINK)) {
+        // save keyframe to folder if desired
+        if (boost::filesystem::exists(vio_params_.save_keyframes_folder) &&
+            !vio_params_.save_keyframes_folder.empty()) {
+          std::string image_file = std::to_string(img_time.toNSec()) + ".png";
+          cv::imwrite(vio_params_.save_keyframes_folder + image_file, image);
+        }
+
         // push new keyframe to list
         Keyframe kf(img_time, image_buffer_.front());
         keyframes_.push_back(kf);

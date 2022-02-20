@@ -110,12 +110,9 @@ public:
                           input_filters_config_path, input_filters_config_path);
 
     /** Options: TRANSFORM, ODOMETRY, POSEFILE */
-    getParam<std::string>(nh, "frame_initializer_type", frame_initializer_type,
-                          frame_initializer_type);
+    getParam<std::string>(nh, "frame_initializer_config", frame_initializer_config,
+                          frame_initializer_config);
 
-    /** for TRANSFORM: topic, for ODOMETRY: topic, for POSEFILE: path */
-    getParam<std::string>(nh, "frame_initializer_info", frame_initializer_info,
-                          frame_initializer_info);
 
     /** Minimum time between each reloc reequest. If set to zero, it will not
      * send any. Relocs are sent each time a scan pose receives its first graph
@@ -128,10 +125,6 @@ public:
      * request cannot be at a higher frequency than the optimizer. */
     getParam<double>(nh, "reloc_request_period", reloc_request_period,
                      reloc_request_period);
-
-    /** Optional For Odometry frame initializer */
-    getParam<std::string>(nh, "sensor_frame_id_override",
-                          sensor_frame_id_override, sensor_frame_id_override);
 
     /** Use this to specify local mapper covariance by diagonal. If all diagonal
      * elements are set to zero, global map registration will not be performed
@@ -215,8 +208,7 @@ public:
 
   // General params
   std::string input_topic;
-  std::string frame_initializer_type{"ODOMETRY"};
-  std::string frame_initializer_info{""};
+  std::string frame_initializer_config{""};
   std::string input_filters_config_path{""};
   std::string scan_output_directory{""};
 
@@ -233,9 +225,6 @@ public:
 
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};
-
-  // Optional For Odometry frame initializer
-  std::string sensor_frame_id_override;
 };
 
 }} // namespace bs_parameters::models
