@@ -23,6 +23,15 @@ public:
    * will override the sensor_frame in the odometry message
    * @param T_ORIGINAL_OVERRIDE transform from the original frame in the
    * transform message to the overidden frame id
+   * 
+   * The frame initializer takes transforms from an odometry message to build a
+   * trajectory that frame poses can be sampled from. Since our odometry message
+   * might have poses in some frame other than the SLAM baselink frame, we
+   * provide a way to convert the poses of the odometry message into the
+   * baselink pose. If the pose is in the IMU, Camera, or Lidar frame, then we
+   * can use the extrinsics to look up the baselink pose for each odometry
+   * message. If some other sensor frame is used, (e.g., vicon poses) then you
+   * can provide a transform from the SLAM baselink frame to the override frame.
    */
   OdometryFrameInitializer(
       const std::string& topic, int queue_size, int64_t poses_buffer_time,

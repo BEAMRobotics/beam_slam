@@ -77,10 +77,7 @@ visual_inertial_odometry:
   image_topic: '/F1/image_mono/downscaled'
   imu_topic: '/imu/data'
   # optional frame initializer params
-  frame_initializer_type: '' 
-  frame_initializer_info: ''
-  sensor_frame_id_override: ''
-  T_ORIGINAL_OVERRIDE: []
+  frame_initializer_config: '' 
   frame_initializer_prior_noise_diagonal: [] 
   # frequency to request reloc
   reloc_request_period: 2.0

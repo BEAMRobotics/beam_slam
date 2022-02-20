@@ -352,18 +352,17 @@ Eigen::Matrix4d VIOInitialization::LocalizeFrame(const ros::Time& img_time) {
 }
 
 void VIOInitialization::OptimizeGraph() {
-  if (max_optimization_time_ != 0) {
-    ceres::Solver::Options options;
-    options.minimizer_progress_to_stdout = true;
-    options.num_threads = 6;
-    options.num_linear_solver_threads = 6;
-    options.minimizer_type = ceres::TRUST_REGION;
-    options.linear_solver_type = ceres::SPARSE_SCHUR;
-    options.preconditioner_type = ceres::SCHUR_JACOBI;
-    options.max_solver_time_in_seconds = max_optimization_time_;
-    options.max_num_iterations = 100;
-    local_graph_->optimize(options);
-  }
+  if (max_optimization_time_ == 0) { return; }
+  ceres::Solver::Options options;
+  options.minimizer_progress_to_stdout = true;
+  options.num_threads = 6;
+  options.num_linear_solver_threads = 6;
+  options.minimizer_type = ceres::TRUST_REGION;
+  options.linear_solver_type = ceres::SPARSE_SCHUR;
+  options.preconditioner_type = ceres::SCHUR_JACOBI;
+  options.max_solver_time_in_seconds = max_optimization_time_;
+  options.max_num_iterations = 100;
+  local_graph_->optimize(options);
 }
 
 void VIOInitialization::AlignPosesToGravity() {

@@ -95,7 +95,7 @@ lidar_odometry:
   publish_active_submap: true
   publish_local_map: true
   publish_registration_results: true
-  frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json' 
+  frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json' 
   frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
   reloc_request_period: 1
   scan_output_directory: ''

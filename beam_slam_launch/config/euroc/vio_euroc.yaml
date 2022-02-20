@@ -62,9 +62,7 @@ vio:
 
   gt_initializer:
   imu_topic: "/imu0"
-  frame_initializer_type: 'PSOEFILE' 
-  frame_initializer_info: '/home/jake/data/VIO/euroc/V1_01_poses.ply'
-  sensor_frame_id_override: 'imu0'
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/euroc.json' 
   trajectory_time_window: 5.0
   min_trajectory_length: 0.5 # trajectory length to accept (in metres)
 
