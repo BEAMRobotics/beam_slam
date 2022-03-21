@@ -88,9 +88,9 @@ visual_inertial_odometry:
   init_map_output_directory: '' 
   init_use_scale_estimate: false
 
-##############################
-#   initializer parameters   #
-##############################
+###################################
+#   SLAM initializer parameters   #
+###################################
 gt_initializer:
   imu_topic: "/imu/data"
   frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vicon.json'
