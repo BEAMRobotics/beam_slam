@@ -410,7 +410,8 @@ void VisualInertialOdometry::ExtendMap(
     // add constraints to triangulated ids
     if (lm) {
       Eigen::Vector2d pixel = tracker_->Get(cur_kf_time, id);
-      if (!cam_model_->Undistortable(pixel.cast<int>())) continue;
+      Eigen::Vector2i tmp;
+      if (!cam_model_->UndistortPixel(pixel.cast<int>(), tmp)) continue;
       // add constraint if its valid
       visual_map_->AddConstraint(cur_kf_time, id, pixel, transaction);
     } else {
@@ -423,7 +424,8 @@ void VisualInertialOdometry::ExtendMap(
       for (auto& kf : keyframes_) {
         try {
           Eigen::Vector2d pixel = tracker_->Get(kf.Stamp(), id);
-          if (!cam_model_->Undistortable(pixel.cast<int>())) continue;
+          Eigen::Vector2i tmp;
+          if (!cam_model_->UndistortPixel(pixel.cast<int>(), tmp)) continue;
           beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(kf.Stamp());
           if (T.has_value()) {
             pixels.push_back(pixel.cast<int>());

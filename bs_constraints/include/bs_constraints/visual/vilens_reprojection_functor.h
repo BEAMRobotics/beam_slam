@@ -40,14 +40,14 @@ public:
     */
     // undistort pixel measurement
     Eigen::Vector2i pixel_i = pixel_measurement_.cast<int>();
-    if (!cam_model_->Undistortable(pixel_i)) {
+    Eigen::Vector2i und_pixel;
+    if (!cam_model_->UndistortPixel(pixel_i, und_pixel)) {
       ROS_FATAL_STREAM("Invalid pixel measurement for visual factor, "
                        "undistorted pixel is in not image domain.");
       throw std::runtime_error{"Invalid pixel measurement for visual factor, "
                                "undistorted pixel is in not image domain."};
     }
-    undistorted_pixel_measurement_ =
-        cam_model_->UndistortPixel(pixel_i).cast<double>();
+    undistorted_pixel_measurement_ = und_pixel.cast<double>();
 
     float sigma = 2;
     // get circle around pixel in distorted image
@@ -57,8 +57,9 @@ public:
     // undistort circle to get a covariance estimate
     std::vector<Eigen::Vector2d> circle_d;
     for (auto& p : circle) {
-      if (cam_model_->Undistortable(p)) {
-        circle_d.push_back(cam_model_->UndistortPixel(p).cast<double>());
+      Eigen::Vector2i und_p;
+      if (cam_model_->UndistortPixel(p, und_p)) {
+        circle_d.push_back(und_p.cast<double>());
       }
     }
 
