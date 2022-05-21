@@ -1,7 +1,10 @@
 #pragma once
 
 #include <queue>
+
 #include <sensor_msgs/Imu.h>
+#include <fuse_core/macros.h>
+
 #include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_parameters/models/gt_initializer_params.h>

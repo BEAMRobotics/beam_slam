@@ -1,12 +1,13 @@
 #pragma once
 
-#include <bs_models/slam_initializers/slam_initializer_base.h>
+#include <fuse_core/macros.h>
 #include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/Image.h>
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/trackers/Trackers.h>
 
+#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/vision/visual_map.h>

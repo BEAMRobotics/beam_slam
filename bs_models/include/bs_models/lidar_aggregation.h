@@ -2,6 +2,7 @@
 
 #include <std_msgs/Time.h>
 #include <fuse_core/async_sensor_model.h>
+#include <fuse_core/macros.h>
 #include <fuse_core/throttled_callback.h>
 
 #include <bs_models/lidar/lidar_aggregator.h>

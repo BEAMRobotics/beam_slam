@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fuse_core/async_sensor_model.h>
+#include <fuse_core/macros.h>
 #include <fuse_core/uuid.h>
 #include <fuse_core/throttled_callback.h>
 #include <fuse_graphs/hash_graph.h>

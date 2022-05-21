@@ -2,7 +2,7 @@
 
 #include <list>
 
-#include <bs_models/slam_initializers/slam_initializer_base.h>
+#include <fuse_core/macros.h>
 #include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/PointCloud2.h>
 
@@ -12,6 +12,7 @@
 #include <beam_matching/loam/LoamPointCloud.h>
 #include <beam_utils/pointclouds.h>
 
+#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>

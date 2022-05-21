@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <fuse_core/async_sensor_model.h>
+#include <fuse_core/macros.h>
 #include <ros/ros.h>
 
 #include <bs_common/extrinsics_lookup_online.h>

@@ -2,8 +2,8 @@
 
 #include <queue>
 
-#include <bs_common/bs_msgs.h>
 #include <fuse_core/async_sensor_model.h>
+#include <fuse_core/macros.h>
 #include <fuse_core/throttled_callback.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
@@ -12,6 +12,7 @@
 #include <beam_cv/geometry/PoseRefinement.h>
 #include <beam_cv/trackers/Trackers.h>
 
+#include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/global_mapping/active_submap.h>
