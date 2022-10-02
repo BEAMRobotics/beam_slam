@@ -287,6 +287,13 @@ fuse_core::Transaction::SharedPtr
 
     if (store_newly_completed_submaps_ && online_submaps_.size() > 1) {
       AddRosSubmap(online_submaps_.size() - 2);
+      // add submap images to database only once submap is done being built
+      const auto keyframes = online_submaps_.at(submap_id)->GetKeyframeMap();
+      for (const auto& [time, image] : keyframes) {
+        ros::Time stamp;
+        stamp.fromNSec(time);
+        online_image_database_->AddImage(image, stamp);
+      }
     }
   }
 
@@ -296,7 +303,6 @@ fuse_core::Transaction::SharedPtr
     cv::Mat image;
     if (!cam_measurement.image.data.empty()) {
       image = beam_cv::OpenCVConversions::RosImgToMat(cam_measurement.image);
-      online_image_database_->AddImage(image, stamp);
     }
     online_submaps_.at(submap_id)->AddCameraMeasurement(
         cam_measurement.landmarks, image, cam_measurement.descriptor_type,
@@ -487,7 +493,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
       online_submaps_.at(query_index)->T_WORLD_SUBMAP();
 
   std::vector<cv::Mat> query_images =
-      online_submaps_.at(query_index)->GetKeyframes();
+      online_submaps_.at(query_index)->GetKeyframeVector();
+  // TODO: subsample the query images to use
 
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;

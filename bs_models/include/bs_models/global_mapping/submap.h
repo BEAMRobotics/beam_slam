@@ -192,7 +192,12 @@ public:
   /**
    * @brief get a vector of the keyframe images
    */
-  std::vector<cv::Mat> GetKeyframes();
+  std::vector<cv::Mat> GetKeyframeVector();
+
+  /**
+   * @brief get the map of timestamps and keyframes
+   */
+  const std::map<uint64_t, cv::Mat>& GetKeyframeMap();
 
   /*--------------------------------/
               COMPARATORS

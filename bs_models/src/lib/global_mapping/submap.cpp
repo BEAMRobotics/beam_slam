@@ -117,12 +117,16 @@ beam_containers::LandmarkContainer<
   return landmarks_.end();
 }
 
-std::vector<cv::Mat> Submap::GetKeyframes() {
+std::vector<cv::Mat> Submap::GetKeyframeVector() {
   std::vector<cv::Mat> image_vector;
   std::transform(keyframe_images_.begin(), keyframe_images_.end(),
                  std::back_inserter(image_vector),
                  [&](const auto& pair) { return pair.second; });
   return image_vector;
+}
+
+const std::map<uint64_t, cv::Mat>& Submap::GetKeyframeMap() {
+  return keyframe_images_;
 }
 
 void Submap::AddCameraMeasurement(
