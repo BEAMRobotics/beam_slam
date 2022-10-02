@@ -8,9 +8,7 @@
 
 #include <bs_common/utils.h>
 
-namespace bs_models {
-
-namespace reloc {
+namespace bs_models { namespace reloc {
 
 RelocCandidateSearchEucDist::RelocCandidateSearchEucDist(
     const std::string& config_path) {
@@ -25,9 +23,7 @@ RelocCandidateSearchEucDist::RelocCandidateSearchEucDist(
 void RelocCandidateSearchEucDist::LoadConfig() {
   std::string read_path = config_path_;
 
-  if (read_path.empty()) {
-    return;
-  }
+  if (read_path.empty()) { return; }
 
   if (read_path == "DEFAULT_PATH") {
     read_path = bs_common::GetBeamSlamConfigPath() +
@@ -44,21 +40,18 @@ void RelocCandidateSearchEucDist::LoadConfig() {
   try {
     distance_threshold_m_ = J["distance_threshold_m"];
   } catch (...) {
-    BEAM_ERROR(
-        "Missing one or more parameter, using default reloc "
-        "candidate search params");
+    BEAM_ERROR("Missing one or more parameter, using default reloc "
+               "candidate search params");
   }
 }
 
 void RelocCandidateSearchEucDist::FindRelocCandidates(
     const std::vector<SubmapPtr>& submaps, const Eigen::Matrix4d& T_WORLD_QUERY,
-    std::vector<int>& matched_indices,
+    const std::vector<cv::Mat>& query_images, std::vector<int>& matched_indices,
     std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
     size_t ignore_last_n_submaps, bool use_initial_poses) {
-  if (submaps.size() <= ignore_last_n_submaps) {
-    return;
-  }
-  
+  if (submaps.size() <= ignore_last_n_submaps) { return; }
+
   // create a sorted map to store distances
   std::map<double, std::pair<int, Eigen::Matrix4d>> candidates_sorted;
   for (int i = 0; i < submaps.size() - ignore_last_n_submaps; i++) {
@@ -88,6 +81,4 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
   }
 }
 
-}  // namespace reloc
-
-}  // namespace bs_models
+}} // namespace bs_models::reloc

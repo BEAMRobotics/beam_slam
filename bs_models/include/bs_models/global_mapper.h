@@ -2,14 +2,14 @@
 
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/macros.h>
-#include <fuse_core/uuid.h>
 #include <fuse_core/throttled_callback.h>
+#include <fuse_core/uuid.h>
 #include <fuse_graphs/hash_graph.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_models/global_mapping/global_map.h>
-#include <bs_parameters/models/global_mapper_params.h>
 #include <bs_parameters/models/calibration_params.h>
+#include <bs_parameters/models/global_mapper_params.h>
 
 namespace bs_models {
 
@@ -20,7 +20,7 @@ namespace bs_models {
  * this plugin
  */
 class GlobalMapper : public fuse_core::AsyncSensorModel {
- public:
+public:
   SMART_PTR_DEFINITIONS(GlobalMapper);
 
   /**
@@ -61,7 +61,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
    */
   void ProcessRelocRequest(const bs_common::RelocRequestMsg::ConstPtr& msg);
 
- private:
+private:
   /**
    * @brief initi subscriber
    */
@@ -89,7 +89,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
    */
   void UpdateExtrinsics();
 
-  fuse_core::UUID device_id_;  //!< The UUID of this device
+  fuse_core::UUID device_id_; //!< The UUID of this device
   bs_parameters::models::GlobalMapperParams params_;
   bs_parameters::models::CalibrationParams calibration_params_;
 
@@ -108,6 +108,7 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   std::unique_ptr<global_mapping::GlobalMap> global_map_;
 
   std::vector<global_mapping::SubmapPtr> offline_submaps_;
+  std::shared_ptr<beam_cv::ImageDatabase> offline_image_database_;
 
   /** subscribe to slam chunk data */
   using ThrottledCallbackSlamChunk =
@@ -132,10 +133,10 @@ class GlobalMapper : public fuse_core::AsyncSensorModel {
   ros::Publisher new_scans_publisher_;
 
   // params that can only be set here:
-  int max_output_map_size_{3000000};  // limits output size of lidar maps
+  int max_output_map_size_{3000000}; // limits output size of lidar maps
 
   //   store a pointer to a graph for running the PGO
   std::shared_ptr<fuse_graphs::HashGraph> graph_;
 };
 
-}  // namespace bs_models
+} // namespace bs_models

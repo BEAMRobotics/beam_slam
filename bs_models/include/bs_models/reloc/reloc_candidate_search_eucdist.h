@@ -7,9 +7,7 @@
 #include <beam_utils/pointclouds.h>
 #include <bs_models/reloc/reloc_candidate_search_base.h>
 
-namespace bs_models {
-
-namespace reloc {
+namespace bs_models { namespace reloc {
 
 using namespace global_mapping;
 
@@ -21,7 +19,7 @@ using namespace global_mapping;
  * is return along with the relative pose between the two.
  */
 class RelocCandidateSearchEucDist : public RelocCandidateSearchBase {
- public:
+public:
   /**
    * @brief constructor that takes in config path
    * @param config_path full path to config json
@@ -56,12 +54,14 @@ class RelocCandidateSearchEucDist : public RelocCandidateSearchBase {
    */
   void FindRelocCandidates(
       const std::vector<SubmapPtr>& submaps,
-      const Eigen::Matrix4d& T_WORLD_QUERY, std::vector<int>& matched_indices,
+      const Eigen::Matrix4d& T_WORLD_QUERY,
+      const std::vector<cv::Mat>& query_images,
+      std::vector<int>& matched_indices,
       std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
       size_t ignore_last_n_submaps = 0,
       bool use_initial_poses = false) override;
 
- private:
+private:
   /**
    * @brief Method for loading a config json file.
    */
@@ -70,6 +70,4 @@ class RelocCandidateSearchEucDist : public RelocCandidateSearchBase {
   double distance_threshold_m_{5};
 };
 
-}  // namespace reloc
-
-}  // namespace bs_models
+}} // namespace bs_models::reloc

@@ -112,6 +112,7 @@ void GlobalMapper::onInit() {
     BEAM_INFO("Loading offline map from: {}", params_.offline_map_path);
     GlobalMap global_map_offline(params_.offline_map_path);
     offline_submaps_ = global_map_offline.GetOnlineSubmaps();
+    offline_image_database_ = global_map_offline.GetOnlineImageDatabase();
     BEAM_INFO("Done loading offline map.");
   }
 }
@@ -174,6 +175,7 @@ void GlobalMapper::onStart() {
     global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_);
   }
   global_map_->SetOfflineSubmaps(offline_submaps_);
+  global_map_->SetOfflineImageDatabase(offline_image_database_);
   global_map_->SetStoreNewSubmaps(params_.publish_new_submaps);
   global_map_->SetStoreUpdatedGlobalMap(params_.publish_updated_global_map);
   global_map_->SetStoreNewScans(params_.publish_new_scans);

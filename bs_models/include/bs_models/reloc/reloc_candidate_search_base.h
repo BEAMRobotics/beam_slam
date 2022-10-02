@@ -2,14 +2,13 @@
 
 #include <map>
 
+#include <opencv2/core/mat.hpp>
 #include <ros/time.h>
 
 #include <beam_utils/pointclouds.h>
 #include <bs_models/global_mapping/submap.h>
 
-namespace bs_models {
-
-namespace reloc {
+namespace bs_models { namespace reloc {
 
 using namespace global_mapping;
 
@@ -18,7 +17,7 @@ using namespace global_mapping;
  * and returns estimated relative poses
  */
 class RelocCandidateSearchBase {
- public:
+public:
   /**
    * @brief constructor with an optional path to a json config
    * @param config path to json config file. If empty, it will use default
@@ -53,11 +52,13 @@ class RelocCandidateSearchBase {
    */
   virtual void FindRelocCandidates(
       const std::vector<SubmapPtr>& submaps,
-      const Eigen::Matrix4d& T_WORLD_QUERY, std::vector<int>& matched_indices,
+      const Eigen::Matrix4d& T_WORLD_QUERY,
+      const std::vector<cv::Mat>& query_images,
+      std::vector<int>& matched_indices,
       std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
       size_t ignore_last_n_submaps = 0, bool use_initial_poses = false) = 0;
 
- protected:
+protected:
   /**
    * @brief pure virtual method for loading a config json file.
    */
@@ -66,6 +67,4 @@ class RelocCandidateSearchBase {
   std::string config_path_;
 };
 
-}  // namespace reloc
-
-}  // namespace bs_models
+}} // namespace bs_models::reloc
