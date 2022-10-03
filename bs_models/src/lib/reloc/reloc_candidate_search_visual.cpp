@@ -37,7 +37,7 @@ void RelocCandidateSearchVisual::FindRelocCandidates(
     const auto stamp = image_database_->GetImageTimestamp(res.Id);
     if (!stamp.has_value()) { continue; }
     // find which submap this stamp is in, and increment said submaps score
-    for (size_t i = 0; i < submaps.size(); i++) {
+    for (size_t i = 0; i < submaps.size() - ignore_last_n_submaps; i++) {
       if (submaps[i]->InSubmap(stamp.value())) {
         submap_score_map[i] += res.Score;
         break;
