@@ -1,33 +1,43 @@
-# optimization params
-optimization_period: 0.5
-lag_duration: 5
-num_states: 15
-
-## model plugins: declare all plugins to use and give a unique name
+###################################
+#    sensor model declarations    #
+###################################
 sensor_models:
   - name: 'visual_inertial_odometry'
     type: 'bs_models::VisualInertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
-  # - name: 'lidar_odometry'
-  #   type: 'bs_models::LidarOdometry'
-  #   motion_models: ['unicycle_3d']
-  - name: 'lo_initializer'
-    type: 'bs_models::LoInitializer'
+  - name: 'lidar_odometry'
+    type: 'bs_models::LidarOdometry'
+    motion_models: ['unicycle_3d']
+  - name: 'gt_initializer'
+    type: 'bs_models::GTInitializer'
   
-
+###################################
+#    motion model declarations    #
+###################################
 motion_models:
   - name: 'unicycle_3d'
     type: 'bs_models::Unicycle3D'
 
-# publishers:
+################################
+#    publisher declarations    #
+################################
 #   - name: 'odom_pub'
 #     type: 'bs_publishers::Odometry3DPublisher'
 #   - name: 'path_pub'
 #     type: 'bs_publishers::Path3DPublisher'
 
-## plugin params: specify all params for the plugins, using their unique name
 
+##############################
+#    optimizer parameters    #
+##############################
+optimization_period: 0.5
+lag_duration: 5
+num_states: 15
+
+###########################
+#    solver parameters    #
+###########################
 solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_SCHUR'
@@ -40,6 +50,9 @@ solver_options:
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
 
+##################################
+#     motion model parameters    #
+##################################
 unicycle_3d:
   process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
                            1.0e-2, 1.0e-2, 1.0e-2,
@@ -48,6 +61,9 @@ unicycle_3d:
                            1.0e-2, 1.0e-2, 1.0e-2]
   buffer_length: 100000
 
+####################################
+#     lidar odometry parameters    #
+####################################
 lidar_odometry:
   # Local scan registration
   local_registration_type: 'MAPLOAM' 
@@ -72,47 +88,53 @@ lidar_odometry:
   reloc_request_period: 1
   scan_output_directory: ''
 
+#####################################
+#     visual odometry parameters    #
+#####################################
 visual_inertial_odometry:
   # topics to subscribe to
-  image_topic: '/F1/image_mono/downscaled'
+  image_topic: '/F1/image_raw'
   imu_topic: '/imu/data'
+  init_path_topic: '/local_mapper/gt_initializer/result'
   # optional frame initializer params
-  frame_initializer_config: '' 
+  frame_initializer_config: '/home/jake/data/bags/2021_10_27_16_21_54_ConestogoBridge/path.json'
   frame_initializer_prior_noise_diagonal: [] 
-  # frequency to request reloc
+  # frequency to request a reloc
   reloc_request_period: 2.0
   # feature tracking configs
   descriptor: 'ORB'
-  detector: 'FAST'
+  detector: 'GFTT'
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
-  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
+  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/gftt_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
+  save_keyframes_folder: ''
   # keyframe decision params and memory management params
   tracker_window_size: 300 
   num_features_to_track: 100 
   keyframe_window_size: 30
-  keyframe_parallax: 15.0
+  keyframe_parallax: 30.0
   # initialization params
-  init_max_optimization_time_in_seconds: 0.5
+  init_max_optimization_time_in_seconds: 0.0
   init_map_output_directory: '' 
   init_use_scale_estimate: false
 
-lo_initializer:
-  registration_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/registration_config/lo_initializer_registration.json'
-  matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16_init.json' 
-  ceres_config_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/ceres_config.json'
-  lidar_topic: '/lidar_h/velodyne_points'
-  aggregation_time: 0.1
-  trajectory_time_window: 5
-  min_trajectory_distance: 1
-  scan_output_directory: '' 
-  max_frequency: 5 
+###################################
+#   SLAM initializer parameters   #
+###################################
+gt_initializer:
+  imu_topic: "/imu/data"
+  frame_initializer_config: '/home/jake/data/bags/2021_10_27_16_21_54_ConestogoBridge/path.json'
+  trajectory_time_window: 5.0
+  min_trajectory_length: 0.2 # trajectory length to accept (in metres)
 
+
+############################
+#   publisher parameters   #
+############################
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom
   path_topic: 'path' # Default: path
   pose_array_topic: 'pose_array' # Default: pose_array
-
 odom_pub:
   publish_tf: false # Default: true
   predict_to_current_time: false # Default: false
