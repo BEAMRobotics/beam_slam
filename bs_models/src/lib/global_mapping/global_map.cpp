@@ -233,6 +233,9 @@ void GlobalMap::Setup() {
   if (params_.reloc_candidate_search_type == "EUCDIST") {
     reloc_candidate_search_ = std::make_unique<RelocCandidateSearchEucDist>(
         params_.reloc_candidate_search_config);
+  } else if (params_.reloc_candidate_search_type == "VISUAL") {
+    reloc_candidate_search_ =
+        std::make_unique<RelocCandidateSearchVisual>(online_image_database_);
   } else {
     BEAM_ERROR("Invalid reloc candidate search type. Using default: EUCDIST. "
                "Input: {}",

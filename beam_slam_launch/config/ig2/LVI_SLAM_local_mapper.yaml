@@ -47,7 +47,7 @@ solver_options:
   num_threads: 4
   num_linear_solver_threads: 4
   max_num_iterations: 0
-  max_solver_time_in_seconds: 0.04
+  max_solver_time_in_seconds: 0.5
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
