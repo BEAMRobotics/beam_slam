@@ -190,7 +190,10 @@ void VisualInertialOdometry::processImage(
         if (boost::filesystem::exists(vio_params_.save_keyframes_folder) &&
             !vio_params_.save_keyframes_folder.empty()) {
           std::string image_file = std::to_string(img_time.toNSec()) + ".png";
-          cv::imwrite(vio_params_.save_keyframes_folder + image_file, image);
+          cv::Mat track_image =
+              tracker_->DrawTracks(tracker_->GetTracks(img_time), image);
+          cv::imwrite(vio_params_.save_keyframes_folder + image_file,
+                      track_image);
         }
 
         // push new keyframe to list

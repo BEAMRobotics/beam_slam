@@ -6,9 +6,9 @@ sensor_models:
     type: 'bs_models::VisualInertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
-  - name: 'lidar_odometry'
-    type: 'bs_models::LidarOdometry'
-    motion_models: ['unicycle_3d']
+  # - name: 'lidar_odometry'
+  #   type: 'bs_models::LidarOdometry'
+  #   motion_models: ['unicycle_3d']
   - name: 'gt_initializer'
     type: 'bs_models::GTInitializer'
   
@@ -41,10 +41,10 @@ num_states: 15
 solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_SCHUR'
-  minimizer_progress_to_stdout: false
-  num_threads: 6
-  num_linear_solver_threads: 6
-  max_num_iterations: 8
+  minimizer_progress_to_stdout: true
+  num_threads: 4
+  num_linear_solver_threads: 4
+  max_num_iterations: 0
   max_solver_time_in_seconds: 0.04
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
@@ -64,29 +64,29 @@ unicycle_3d:
 ####################################
 #     lidar odometry parameters    #
 ####################################
-lidar_odometry:
-  # Local scan registration
-  local_registration_type: 'MAPLOAM' 
-  local_registration_config_path: 'DEFAULT_PATH' 
-  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
-  local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
-  # global scan registration
-  global_registration_type: 'LOAM' 
-  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
-  global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
-  # general params
-  lidar_type: 'VELODYNE'
-  input_filters_config_path: 'DEFAULT_PATH' 
-  input_topic: '/lidar_h/velodyne_points'
-  output_loam_points: true 
-  output_lidar_points: true
-  publish_active_submap: true
-  publish_local_map: true
-  publish_registration_results: true
-  frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json' 
-  frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001] 
-  reloc_request_period: 1
-  scan_output_directory: ''
+# lidar_odometry:
+#   # Local scan registration
+#   local_registration_type: 'MAPLOAM' 
+#   local_registration_config_path: 'DEFAULT_PATH' 
+#   local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+#   local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+#   # global scan registration
+#   global_registration_type: 'LOAM' 
+#   global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+#   global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+#   # general params
+#   lidar_type: 'VELODYNE'
+#   input_filters_config_path: 'DEFAULT_PATH' 
+#   input_topic: '/lidar_h/velodyne_points'
+#   output_loam_points: true 
+#   output_lidar_points: true
+#   publish_active_submap: true
+#   publish_local_map: true
+#   publish_registration_results: true
+#   frame_initializer_config: '/home/jake/data/bags/2021_10_27_16_21_54_ConestogoBridge/path.json'
+#   frame_initializer_prior_noise_diagonal: [1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10] 
+#   reloc_request_period: 2
+#   scan_output_directory: ''
 
 #####################################
 #     visual odometry parameters    #
@@ -97,8 +97,8 @@ visual_inertial_odometry:
   imu_topic: '/imu/data'
   init_path_topic: '/local_mapper/gt_initializer/result'
   # optional frame initializer params
-  frame_initializer_config: '/home/jake/data/bags/2021_10_27_16_21_54_ConestogoBridge/path.json'
-  frame_initializer_prior_noise_diagonal: [] 
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/lvi_slam.json'
+  frame_initializer_prior_noise_diagonal: [1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10] 
   # frequency to request a reloc
   reloc_request_period: 2.0
   # feature tracking configs
@@ -123,7 +123,7 @@ visual_inertial_odometry:
 ###################################
 gt_initializer:
   imu_topic: "/imu/data"
-  frame_initializer_config: '/home/jake/data/bags/2021_10_27_16_21_54_ConestogoBridge/path.json'
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/lvi_slam.json'
   trajectory_time_window: 5.0
   min_trajectory_length: 0.2 # trajectory length to accept (in metres)
 
