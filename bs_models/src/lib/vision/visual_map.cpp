@@ -532,8 +532,8 @@ void VisualMap::UpdateOrientations() {
   }
 }
 
-void VisualMap::UpdateGraph(const fuse_core::Graph::SharedPtr& graph_msg) {
-  graph_ = graph_msg->clone();
+void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
+  graph_ = graph_msg;
   // update local copies of variables with the new graph
   UpdateLandmarks();
   UpdateFixedLandmarks();

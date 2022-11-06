@@ -247,22 +247,19 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
 void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
-  // make a copy to make updating graph easier
-  fuse_core::Graph::SharedPtr copy = graph->clone();
-
   // publish marginalized slam chunks
   while (!keyframes_.empty() &&
-         !copy->variableExists(
+         !graph->variableExists(
              visual_map_->GetPositionUUID(keyframes_.front().Stamp()))) {
     PublishSlamChunk(keyframes_.front());
     keyframes_.pop_front();
   }
 
   // Update graph object in visual map
-  visual_map_->UpdateGraph(copy);
+  visual_map_->UpdateGraph(graph);
 
   // Update imu preint info with new graph
-  imu_preint_->UpdateGraph(copy);
+  imu_preint_->UpdateGraph(graph);
 }
 
 /************************************************************

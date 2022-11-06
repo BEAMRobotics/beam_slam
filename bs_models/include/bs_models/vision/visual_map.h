@@ -19,8 +19,7 @@
 
 #include <bs_common/extrinsics_lookup_online.h>
 
-namespace bs_models {
-namespace vision {
+namespace bs_models { namespace vision {
 
 class VisualMap {
 public:
@@ -41,14 +40,14 @@ public:
    * @param stamp timestamp to get pose at
    * @return T_WORLD_CAMERA
    */
-  beam::opt<Eigen::Matrix4d> GetCameraPose(const ros::Time &stamp);
+  beam::opt<Eigen::Matrix4d> GetCameraPose(const ros::Time& stamp);
 
   /**
    * @brief Helper function to get T_WORLD_BASELINK at tiemstamp
    * @param stamp timestamp to get pose at
    * @return T_WORLD_CAMERA
    */
-  beam::opt<Eigen::Matrix4d> GetBaselinkPose(const ros::Time &stamp);
+  beam::opt<Eigen::Matrix4d> GetBaselinkPose(const ros::Time& stamp);
 
   /**
    * @brief Helper function to add a pose at time t to a transaction or graph
@@ -56,8 +55,8 @@ public:
    * @param stamp timestamp of pose
    * @param transaction to add to
    */
-  void AddCameraPose(const Eigen::Matrix4d &T_WORLD_CAMERA,
-                     const ros::Time &stamp,
+  void AddCameraPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
+                     const ros::Time& stamp,
                      fuse_core::Transaction::SharedPtr transaction);
   /**
    * @brief Helper function to add a pose at time t to a transaction or graph
@@ -65,8 +64,8 @@ public:
    * @param stamp timestamp of pose
    * @param transaction to add to
    */
-  void AddBaselinkPose(const Eigen::Matrix4d &T_WORLD_BASELINK,
-                       const ros::Time &stamp,
+  void AddBaselinkPose(const Eigen::Matrix4d& T_WORLD_BASELINK,
+                       const ros::Time& stamp,
                        fuse_core::Transaction::SharedPtr transaction);
 
   /**
@@ -76,7 +75,7 @@ public:
    * @param id of the landmark to add
    * @param transaction to add to
    */
-  void AddLandmark(const Eigen::Vector3d &position, uint64_t id,
+  void AddLandmark(const Eigen::Vector3d& position, uint64_t id,
                    fuse_core::Transaction::SharedPtr transaction);
 
   /**
@@ -95,7 +94,7 @@ public:
    * @param id of the landmark to add
    * @param transaction to add to
    */
-  void AddFixedLandmark(const Eigen::Vector3d &position, uint64_t id,
+  void AddFixedLandmark(const Eigen::Vector3d& position, uint64_t id,
                         fuse_core::Transaction::SharedPtr transaction);
 
   /**
@@ -105,8 +104,8 @@ public:
    * @param transaction to add to
    */
   void
-  AddFixedLandmark(fuse_variables::Point3DFixedLandmark::SharedPtr landmark,
-                   fuse_core::Transaction::SharedPtr transaction);
+      AddFixedLandmark(fuse_variables::Point3DFixedLandmark::SharedPtr landmark,
+                       fuse_core::Transaction::SharedPtr transaction);
 
   /**
    * @brief Helper function to add a constraint between a landmark and a pose
@@ -115,8 +114,8 @@ public:
    * @param pixel measured pixel of landmark in image at img_time
    * @param transaction to add to
    */
-  void AddConstraint(const ros::Time &stamp, uint64_t lm_id,
-                     const Eigen::Vector2d &pixel,
+  void AddConstraint(const ros::Time& stamp, uint64_t lm_id,
+                     const Eigen::Vector2d& pixel,
                      fuse_core::Transaction::SharedPtr transaction);
 
   /**
@@ -130,21 +129,21 @@ public:
    * @param landmark_id to retrieve
    */
   fuse_variables::Point3DFixedLandmark::SharedPtr
-  GetFixedLandmark(uint64_t landmark_id);
+      GetFixedLandmark(uint64_t landmark_id);
 
   /**
    * @brief Retrieves q_WORLD_BASELINK
    * @param stamp to retrieve orientation at
    */
   fuse_variables::Orientation3DStamped::SharedPtr
-  GetOrientation(const ros::Time &stamp);
+      GetOrientation(const ros::Time& stamp);
 
   /**
    * @brief Retrieves t_WORLD_BASELINK
    * @param stamp to retrieve position at
    */
   fuse_variables::Position3DStamped::SharedPtr
-  GetPosition(const ros::Time &stamp);
+      GetPosition(const ros::Time& stamp);
 
   /**
    * @brief Adds orientation in baselink frame
@@ -152,8 +151,8 @@ public:
    * @param q_WORLD_BASELINK quaternion representing orientation
    * @param transaciton to add to
    */
-  void AddOrientation(const Eigen::Quaterniond &q_WORLD_BASELINK,
-                      const ros::Time &stamp,
+  void AddOrientation(const Eigen::Quaterniond& q_WORLD_BASELINK,
+                      const ros::Time& stamp,
                       fuse_core::Transaction::SharedPtr transaction);
 
   /**
@@ -162,8 +161,8 @@ public:
    * @param q_WORLD_BASELINK vector representing position
    * @param transaciton to add to
    */
-  void AddPosition(const Eigen::Vector3d &p_WORLD_BASELINK,
-                   const ros::Time &stamp,
+  void AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK,
+                   const ros::Time& stamp,
                    fuse_core::Transaction::SharedPtr transaction);
 
   /**
@@ -172,9 +171,9 @@ public:
    * @param q_WORLD_BASELINK quaternion representing orientation
    * @param transaciton to add to
    */
-  void
-  AddOrientation(fuse_variables::Orientation3DStamped::SharedPtr orientation,
-                 fuse_core::Transaction::SharedPtr transaction);
+  void AddOrientation(
+      fuse_variables::Orientation3DStamped::SharedPtr orientation,
+      fuse_core::Transaction::SharedPtr transaction);
 
   /**
    * @brief Adds position in baselink frame
@@ -217,19 +216,19 @@ public:
    * @brief Gets fuse uuid of stamped position
    * @param stamp of position
    */
-  fuse_core::UUID GetPositionUUID(const ros::Time &stamp);
+  fuse_core::UUID GetPositionUUID(const ros::Time& stamp);
 
   /**
    * @brief Gets fuse uuid of stamped orientation
    * @param stamp of orientation
    */
-  fuse_core::UUID GetOrientationUUID(const ros::Time &stamp);
+  fuse_core::UUID GetOrientationUUID(const ros::Time& stamp);
 
   /**
    * @brief Checks if a given pose at a time is in the graph
    * @return bool
    */
-  bool PoseExists(const ros::Time &stamp);
+  bool PoseExists(const ros::Time& stamp);
 
   /**
    * @brief Checks if a given landmark is in the graph
@@ -247,7 +246,7 @@ public:
    * @brief Updates current graph copy
    * @param graph_msg graph to update with
    */
-  void UpdateGraph(const fuse_core::Graph::SharedPtr& graph_msg);
+  void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
   /**
    * @brief Resets map to empty state
@@ -294,19 +293,18 @@ protected:
   size_t window_size_{10};       // # of keyframe poses to retain in local maps
 
   // copy of the current graph
-  fuse_core::Graph::SharedPtr graph_;
+  fuse_core::Graph::ConstSharedPtr graph_;
 
   // pointer to camera model to use when adding constraints
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
-  bs_common::ExtrinsicsLookupOnline &extrinsics_ =
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // source for the odometry topic to use when publishing
   std::string source_{"VIO"};
 };
 
-} // namespace vision
-} // namespace bs_models
+}} // namespace bs_models::vision
