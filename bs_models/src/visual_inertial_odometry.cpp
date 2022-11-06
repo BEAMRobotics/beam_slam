@@ -100,12 +100,14 @@ void VisualInertialOdometry::onStart() {
 
   // Advertise publishers
   init_odom_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 10);
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
   new_keyframe_publisher_ =
-      private_node_handle_.advertise<std_msgs::Header>("keyframes", 10);
+      private_node_handle_.advertise<std_msgs::Header>("keyframes", 100);
+  keyframe_timestamp_publisher_ =
+      private_node_handle_.advertise<std_msgs::Time>("pose_stamps", 100);
   landmark_publisher_ =
       private_node_handle_.advertise<std_msgs::UInt64MultiArray>("landmarks",
-                                                                 10);
+                                                                 100);
   slam_chunk_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
       "/local_mapper/slam_results", 10);
   reloc_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
@@ -516,6 +518,12 @@ void VisualInertialOdometry::SendInitializationGraph(
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
 
+  // publish just the time of keyframe
+  std_msgs::Time time_msg;
+  time_msg.data = keyframe_header.stamp;
+  keyframe_timestamp_publisher_.publish(time_msg);
+
+  // publish landmark ids
   PublishLandmarkIDs(new_landmarks);
 }
 
@@ -531,6 +539,10 @@ void VisualInertialOdometry::NotifyNewKeyframe(
   keyframe_header.frame_id = calibration_params_.baselink_frame;
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
+  // publish just the time of keyframe
+  std_msgs::Time time_msg;
+  time_msg.data = keyframe_header.stamp;
+  keyframe_timestamp_publisher_.publish(time_msg);
 
   // make and publish reloc request at specified rate
   if (kf_time.toSec() - previous_reloc_request_.toSec() >

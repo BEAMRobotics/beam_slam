@@ -181,6 +181,7 @@ private:
   // publishers
   ros::Publisher init_odom_publisher_;
   ros::Publisher new_keyframe_publisher_;
+  ros::Publisher keyframe_timestamp_publisher_;
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher landmark_publisher_;
   ros::Publisher reloc_publisher_;

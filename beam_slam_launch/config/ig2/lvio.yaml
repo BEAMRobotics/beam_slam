@@ -2,13 +2,16 @@
 #    sensor model declarations    #
 ###################################
 sensor_models:
+  # - name: 'lidar_aggregation'
+  #   type: 'bs_models::LidarAggregation'  
+  #   motion_models: ['unicycle_3d']
+  # - name: 'lidar_odometry'
+  #   type: 'bs_models::LidarOdometry'
+  #   motion_models: ['unicycle_3d']
   - name: 'visual_inertial_odometry'
     type: 'bs_models::VisualInertialOdometry'
     motion_models: ['unicycle_3d']
     ignition: true
-  # - name: 'lidar_odometry'
-  #   type: 'bs_models::LidarOdometry'
-  #   motion_models: ['unicycle_3d']
   - name: 'gt_initializer'
     type: 'bs_models::GTInitializer'
   
@@ -26,7 +29,6 @@ motion_models:
 #     type: 'bs_publishers::Odometry3DPublisher'
 #   - name: 'path_pub'
 #     type: 'bs_publishers::Path3DPublisher'
-
 
 ##############################
 #    optimizer parameters    #
@@ -64,6 +66,16 @@ unicycle_3d:
 ####################################
 #     lidar odometry parameters    #
 ####################################
+# lidar_aggregation:
+#   aggregation_time_topic: '/local_mapper/visual_inertial_odometry/pose_stamps'
+#   odometry_topic: '/local_mapper/visual_inertial_odometry/odometry'
+#   use_trigger: true
+#   pointcloud_topic: '/lidar_h/velodyne_packets'
+#   max_aggregation_time_seconds: 0.1 
+
+####################################
+#     lidar odometry parameters    #
+####################################
 # lidar_odometry:
 #   # Local scan registration
 #   local_registration_type: 'MAPLOAM' 
@@ -77,13 +89,13 @@ unicycle_3d:
 #   # general params
 #   lidar_type: 'VELODYNE'
 #   input_filters_config_path: 'DEFAULT_PATH' 
-#   input_topic: '/lidar_h/velodyne_points'
+#   input_topic: '/local_mapper/lidar_aggregation/points_undistorted'
 #   output_loam_points: true 
 #   output_lidar_points: true
 #   publish_active_submap: true
 #   publish_local_map: true
 #   publish_registration_results: true
-#   frame_initializer_config: '/home/jake/data/bags/2021_10_27_16_21_54_ConestogoBridge/path.json'
+#   frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json' 
 #   frame_initializer_prior_noise_diagonal: [1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10] 
 #   reloc_request_period: 2
 #   scan_output_directory: ''
@@ -125,8 +137,7 @@ gt_initializer:
   imu_topic: "/imu/data"
   frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/lvi_slam.json'
   trajectory_time_window: 5.0
-  min_trajectory_length: 0.2 # trajectory length to accept (in metres)
-
+  min_trajectory_length: 1.0 # trajectory length to accept (in metres)
 
 ############################
 #   publisher parameters   #
@@ -135,6 +146,7 @@ path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom
   path_topic: 'path' # Default: path
   pose_array_topic: 'pose_array' # Default: pose_array
+
 odom_pub:
   publish_tf: false # Default: true
   predict_to_current_time: false # Default: false
