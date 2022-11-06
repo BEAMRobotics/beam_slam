@@ -63,7 +63,7 @@ unicycle_3d:
 ##############################
 visual_inertial_odometry:
   # topics to subscribe to
-  image_topic: '/F1/image_mono/downscaled'
+  image_topic: '/F1/image_raw'
   imu_topic: '/imu/data'
   # optional frame initializer params
   frame_initializer_config: ''
@@ -72,9 +72,9 @@ visual_inertial_odometry:
   reloc_request_period: 2.0
   # feature tracking configs
   descriptor: 'ORB'
-  detector: 'FAST'
+  detector: 'GFTT'
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
-  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
+  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/gftt_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
   save_keyframes_folder: ''
   # keyframe decision params and memory management params
@@ -91,9 +91,9 @@ visual_inertial_odometry:
 #   initializer parameters   #
 ##############################
 vo_initializer:
-  image_topic: '/F1/image_mono/downscaled'
-  detector: 'FAST'
-  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fast_detector.json'
+  image_topic: '/F1/image_raw'
+  detector: 'GFTT'
+  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/gftt_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
   parallax: 40.0
   tracker_window_size: 100

@@ -1,4 +1,4 @@
-#include <bs_models/reloc/reloc_candidate_search_eucdist.h>
+#include <bs_models/reloc/reloc_candidate_search_visual.h>
 
 #include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
@@ -10,7 +10,7 @@
 
 namespace bs_models { namespace reloc {
 
-RelocCandidateSearchVisual::RelocCandidateSearchEucDist(
+RelocCandidateSearchVisual::RelocCandidateSearchVisual(
     const std::shared_ptr<beam_cv::ImageDatabase>& image_database)
     : image_database_(image_database) {}
 
@@ -66,7 +66,7 @@ void RelocCandidateSearchVisual::FindRelocCandidates(
         beam::InvertTransform(T_WORLD_SUBMAPCANDIDATE) * T_WORLD_QUERY;
     return std::make_pair(index, T_SUBMAPCANDIDATE_QUERY);
   };
-  std::vector<std::pair<int, Eigen::Matrix4>> candidate_submap_poses;
+  std::vector<std::pair<int, Eigen::Matrix4d>> candidate_submap_poses;
   std::for_each(candidate_submap_scores.begin(), candidate_submap_scores.end(),
                 get_candidate_submap_pose);
 
@@ -78,6 +78,10 @@ void RelocCandidateSearchVisual::FindRelocCandidates(
                   matched_indices.push_back(pair.first);
                   estimated_poses.push_back(pair.second);
                 });
+}
+
+void RelocCandidateSearchVisual::LoadConfig() {
+  return;
 }
 
 }} // namespace bs_models::reloc

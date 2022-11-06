@@ -54,6 +54,11 @@ public:
       bool use_initial_poses = false) override;
 
 private:
+  /**
+   * @brief Method for loading a config json file.
+   */
+  void LoadConfig() override;
+  
   std::shared_ptr<beam_cv::ImageDatabase> image_database_;
 };
 

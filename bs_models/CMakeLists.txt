@@ -91,6 +91,7 @@ add_library(
   src/lib/global_mapping/active_submap.cpp
   ## relocalization
   src/lib/reloc/reloc_candidate_search_eucdist.cpp
+  src/lib/reloc/reloc_candidate_search_visual.cpp
   src/lib/reloc/reloc_refinement_loam_registration.cpp
   ## scan registration
   src/lib/scan_registration/scan_registration_base.cpp
