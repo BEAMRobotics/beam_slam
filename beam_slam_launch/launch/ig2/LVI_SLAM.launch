@@ -8,9 +8,9 @@
   <include file="$(find beam_slam_launch)/launch/ig2/calibration_publisher_ig2.launch" />
 
   <!-- Launch global mapper -->
-  <node pkg="fuse_optimizers" type="batch_optimizer_node" name="global_mapper" output="screen">
+  <!-- <node pkg="fuse_optimizers" type="batch_optimizer_node" name="global_mapper" output="screen">
     <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/LVI_SLAM_global_mapper.yaml"/>
-  </node>
+  </node> -->
 
   <!-- Launch local (odometry) -->
   <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="local_mapper" output="screen">
