@@ -2,9 +2,9 @@
 #    sensor model declarations    #
 ###################################
 sensor_models:
-  # - name: 'lidar_aggregation'
-  #   type: 'bs_models::LidarAggregation'  
-  #   motion_models: ['unicycle_3d']
+  - name: 'lidar_aggregation'
+    type: 'bs_models::LidarAggregation'  
+    motion_models: ['unicycle_3d']
   # - name: 'lidar_odometry'
   #   type: 'bs_models::LidarOdometry'
   #   motion_models: ['unicycle_3d']
@@ -63,15 +63,15 @@ unicycle_3d:
                            1.0e-2, 1.0e-2, 1.0e-2]
   buffer_length: 100000
 
-####################################
-#     lidar odometry parameters    #
-####################################
-# lidar_aggregation:
-#   aggregation_time_topic: '/local_mapper/visual_inertial_odometry/pose_stamps'
-#   odometry_topic: '/local_mapper/visual_inertial_odometry/odometry'
-#   use_trigger: true
-#   pointcloud_topic: '/lidar_h/velodyne_packets'
-#   max_aggregation_time_seconds: 0.1 
+#######################################
+#     lidar aggregation parameters    #
+#######################################
+lidar_aggregation:
+  aggregation_time_topic: '/local_mapper/visual_inertial_odometry/pose_stamps'
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json'
+  use_trigger: true
+  pointcloud_topic: '/velodyne_points'
+  max_aggregation_time_seconds: 0.1 
 
 ####################################
 #     lidar odometry parameters    #
@@ -115,9 +115,9 @@ visual_inertial_odometry:
   reloc_request_period: 2.0
   # feature tracking configs
   descriptor: 'ORB'
-  detector: 'GFTT'
+  detector: 'FASTSSC'
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
-  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/gftt_detector.json'
+  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fastssc_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
   save_keyframes_folder: ''
   # keyframe decision params and memory management params

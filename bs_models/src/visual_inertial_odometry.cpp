@@ -148,10 +148,13 @@ void VisualInertialOdometry::processImage(
 
   // add image to map or initializer
   if (imu_time >= img_time && !imu_buffer_.empty()) {
+    // process in odometry mode
+    beam::HighResolutionTimer tracker_timer;
     cv::Mat image =
         beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front());
     // add image to tracker
     tracker_->AddImage(image, img_time);
+    ROS_DEBUG_STREAM("Total time to track frame: " << tracker_timer.elapsed());
 
     // process in initialization mode
     if (!initialization_->Initialized()) {

@@ -497,7 +497,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
 
   std::vector<cv::Mat> query_images =
       online_submaps_.at(query_index)->GetKeyframeVector();
-  // TODO: subsample the query images to use
+  // TODO: subsample the query images to use from the submap (dont use all)
 
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
