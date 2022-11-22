@@ -296,9 +296,9 @@ void VisualMap::AddFixedLandmark(
   fixed_landmark_positions_[landmark->id()] = landmark;
 }
 
-void VisualMap::AddConstraint(const ros::Time& stamp, uint64_t lm_id,
-                              const Eigen::Vector2d& pixel,
-                              fuse_core::Transaction::SharedPtr transaction) {
+void VisualMap::AddVisualConstraint(
+    const ros::Time& stamp, uint64_t lm_id, const Eigen::Vector2d& pixel,
+    fuse_core::Transaction::SharedPtr transaction) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
     return;
@@ -368,8 +368,8 @@ void VisualMap::ReplaceFixedWithNonFixed(
       // 4. Add new fixed variable and the constraint to it
       Eigen::Vector3d lm_position(lm->data());
       AddFixedLandmark(lm_position, landmark_id, transaction);
-      AddConstraint(position->stamp(), landmark_id, vis_constraint->pixel(),
-                    transaction);
+      AddVisualConstraint(position->stamp(), landmark_id,
+                          vis_constraint->pixel(), transaction);
     }
   }
 }
@@ -409,8 +409,8 @@ void VisualMap::ReplaceNonFixedWithFixed(
       // 4. Add new fixed variable and the constraint to it
       Eigen::Vector3d lm_position(lm->data());
       AddLandmark(lm_position, landmark_id, transaction);
-      AddConstraint(position->stamp(), landmark_id, vis_constraint->pixel(),
-                    transaction);
+      AddVisualConstraint(position->stamp(), landmark_id,
+                          vis_constraint->pixel(), transaction);
     }
   }
 }

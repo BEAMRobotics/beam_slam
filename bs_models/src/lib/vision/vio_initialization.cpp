@@ -270,8 +270,8 @@ size_t
       // if the landmark already exists then add constraint
       for (auto& f : frames) {
         try {
-          visual_map_->AddConstraint(f.t, id, tracker_->Get(f.t, id),
-                                     landmark_transaction);
+          visual_map_->AddVisualConstraint(f.t, id, tracker_->Get(f.t, id),
+                                           landmark_transaction);
         } catch (const std::out_of_range& oor) {}
       }
     } else {
@@ -300,9 +300,9 @@ size_t
           num_landmarks++;
           visual_map_->AddLandmark(point.value(), id, landmark_transaction);
           for (int i = 0; i < observation_stamps.size(); i++) {
-            visual_map_->AddConstraint(observation_stamps[i], id,
-                                       tracker_->Get(observation_stamps[i], id),
-                                       landmark_transaction);
+            visual_map_->AddVisualConstraint(
+                observation_stamps[i], id,
+                tracker_->Get(observation_stamps[i], id), landmark_transaction);
           }
         }
       }

@@ -323,9 +323,13 @@ bool VisualInertialOdometry::IsKeyframe(
 
   double avg_parallax = tracker_->ComputeParallax(kf_time, img_time, true);
   ROS_DEBUG_STREAM("Computed parallax to last keyframe: " << avg_parallax);
-  if (avg_parallax > vio_params_.keyframe_parallax &&
-      beam::PassedMotionThreshold(T_WORLD_BASELINK, kf_pose, 0.0, 0.05, true,
-                                  true)) {
+  const auto passed_motion = beam::PassedMotionThreshold(
+      T_WORLD_BASELINK, kf_pose, vio_params_.keyframe_rotation_deg,
+      vio_params_.keyframe_translation_m, true);
+  const auto passed_min_translation = beam::PassedMotionThreshold(
+      T_WORLD_BASELINK, kf_pose, 0.0, 0.10, true, true);
+  if (avg_parallax > vio_params_.keyframe_parallax && passed_min_translation &&
+      passed_motion) {
     return true;
   } else if (added_since_kf_ > vio_params_.tracker_window_size - 10) {
     return true;
@@ -421,7 +425,7 @@ void VisualInertialOdometry::ExtendMap(
       Eigen::Vector2i tmp;
       if (!cam_model_->UndistortPixel(pixel.cast<int>(), tmp)) continue;
       // add constraint if its valid
-      visual_map_->AddConstraint(cur_kf_time, id, pixel, transaction);
+      visual_map_->AddVisualConstraint(cur_kf_time, id, pixel, transaction);
     } else {
       // otherwise then triangulate and add the constraints
       std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
@@ -452,9 +456,9 @@ void VisualInertialOdometry::ExtendMap(
           keyframes_.back().AddLandmark(id);
           visual_map_->AddLandmark(point.value(), id, transaction);
           for (int i = 0; i < observation_stamps.size(); i++) {
-            visual_map_->AddConstraint(observation_stamps[i], id,
-                                       tracker_->Get(observation_stamps[i], id),
-                                       transaction);
+            visual_map_->AddVisualConstraint(
+                observation_stamps[i], id,
+                tracker_->Get(observation_stamps[i], id), transaction);
           }
         }
       }

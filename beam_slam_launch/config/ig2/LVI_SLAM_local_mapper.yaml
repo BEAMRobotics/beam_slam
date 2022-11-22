@@ -5,9 +5,9 @@ sensor_models:
   - name: 'lidar_aggregation'
     type: 'bs_models::LidarAggregation'  
     motion_models: ['unicycle_3d']
-  # - name: 'lidar_odometry'
-  #   type: 'bs_models::LidarOdometry'
-  #   motion_models: ['unicycle_3d']
+  - name: 'lidar_odometry'
+    type: 'bs_models::LidarOdometry'
+    motion_models: ['unicycle_3d']
   - name: 'visual_inertial_odometry'
     type: 'bs_models::VisualInertialOdometry'
     motion_models: ['unicycle_3d']
@@ -76,29 +76,29 @@ lidar_aggregation:
 ####################################
 #     lidar odometry parameters    #
 ####################################
-# lidar_odometry:
-#   # Local scan registration
-#   local_registration_type: 'MAPLOAM' 
-#   local_registration_config_path: 'DEFAULT_PATH' 
-#   local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
-#   local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
-#   # global scan registration
-#   global_registration_type: 'LOAM' 
-#   global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
-#   global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
-#   # general params
-#   lidar_type: 'VELODYNE'
-#   input_filters_config_path: 'DEFAULT_PATH' 
-#   input_topic: '/local_mapper/lidar_aggregation/points_undistorted'
-#   output_loam_points: true 
-#   output_lidar_points: true
-#   publish_active_submap: true
-#   publish_local_map: true
-#   publish_registration_results: true
-#   frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json' 
-#   frame_initializer_prior_noise_diagonal: [1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10] 
-#   reloc_request_period: 2
-#   scan_output_directory: ''
+lidar_odometry:
+  # Local scan registration
+  local_registration_type: 'MAPLOAM' 
+  local_registration_config_path: 'DEFAULT_PATH' 
+  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+  # global scan registration
+  global_registration_type: 'LOAM' 
+  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+  # general params
+  lidar_type: 'VELODYNE'
+  input_filters_config_path: 'DEFAULT_PATH' 
+  input_topic: '/local_mapper/lidar_aggregation/points_undistorted'
+  output_loam_points: true 
+  output_lidar_points: true
+  publish_active_submap: true
+  publish_local_map: true
+  publish_registration_results: true
+  frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json' 
+  frame_initializer_prior_noise_diagonal: [1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10] 
+  reloc_request_period: 2.0
+  scan_output_directory: ''
 
 #####################################
 #     visual odometry parameters    #
@@ -124,7 +124,9 @@ visual_inertial_odometry:
   tracker_window_size: 300 
   num_features_to_track: 100 
   keyframe_window_size: 30
-  keyframe_parallax: 30.0
+  keyframe_parallax: 0.0
+  keyframe_translation_m: 2.0
+  keyframe_rotation_deg: 20.0
   # initialization params
   init_max_optimization_time_in_seconds: 0.0
   init_map_output_directory: '' 

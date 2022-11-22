@@ -167,9 +167,10 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
           Eigen::Vector2i tmp;
           if (cam_model_->UndistortPixel(first_pixel.cast<int>(), tmp) &&
               cam_model_->UndistortPixel(cur_pixel.cast<int>(), tmp)) {
-            visual_map_->AddConstraint(kf_times_.front(), id, first_pixel,
-                                       transaction);
-            visual_map_->AddConstraint(cur_time, id, cur_pixel, transaction);
+            visual_map_->AddVisualConstraint(kf_times_.front(), id, first_pixel,
+                                             transaction);
+            visual_map_->AddVisualConstraint(cur_time, id, cur_pixel,
+                                             transaction);
           }
         }
 
@@ -212,7 +213,8 @@ void VOInitializer::processImage(const sensor_msgs::Image::ConstPtr& msg) {
             Eigen::Vector2d measurement = tracker_->Get(kf_time, id);
             Eigen::Vector2i tmp;
             if (cam_model_->UndistortPixel(measurement.cast<int>(), tmp)) {
-              visual_map_->AddConstraint(kf_time, id, measurement, transaction);
+              visual_map_->AddVisualConstraint(kf_time, id, measurement,
+                                               transaction);
             }
           }
         }

@@ -114,9 +114,9 @@ public:
    * @param pixel measured pixel of landmark in image at img_time
    * @param transaction to add to
    */
-  void AddConstraint(const ros::Time& stamp, uint64_t lm_id,
-                     const Eigen::Vector2d& pixel,
-                     fuse_core::Transaction::SharedPtr transaction);
+  void AddVisualConstraint(const ros::Time& stamp, uint64_t lm_id,
+                           const Eigen::Vector2d& pixel,
+                           fuse_core::Transaction::SharedPtr transaction);
 
   /**
    * @brief Helper function to get a landmark by id
