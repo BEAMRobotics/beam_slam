@@ -7,6 +7,7 @@
 #include <std_msgs/UInt64MultiArray.h>
 
 #include <beam_cv/OpenCVConversions.h>
+#include <beam_cv/Utils.h>
 #include <beam_cv/descriptors/Descriptors.h>
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
@@ -152,6 +153,7 @@ void VisualInertialOdometry::processImage(
     beam::HighResolutionTimer tracker_timer;
     cv::Mat image =
         beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front());
+    image = beam_cv::AdaptiveHistogram(image);
     // add image to tracker
     tracker_->AddImage(image, img_time);
     ROS_DEBUG_STREAM("Total time to track frame: " << tracker_timer.elapsed());
@@ -529,6 +531,11 @@ void VisualInertialOdometry::SendInitializationGraph(
 
   // publish landmark ids
   PublishLandmarkIDs(new_landmarks);
+
+  // publish first keyframes odometry
+  PublishInitialOdometry(
+      keyframe_header.stamp,
+      visual_map_->GetBaselinkPose(keyframe_header.stamp).value());
 }
 
 /************************************************************

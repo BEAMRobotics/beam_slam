@@ -70,8 +70,8 @@ lidar_aggregation:
   aggregation_time_topic: '/local_mapper/visual_inertial_odometry/pose_stamps'
   frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json'
   use_trigger: true
-  pointcloud_topic: '/velodyne_points'
-  max_aggregation_time_seconds: 0.1 
+  pointcloud_topic: '/lidar_h/velodyne_points'
+  max_aggregation_time_seconds: 5.0 
 
 ####################################
 #     lidar odometry parameters    #
@@ -119,7 +119,7 @@ visual_inertial_odometry:
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fastssc_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
-  save_keyframes_folder: ''
+  save_keyframes_folder: '/userhome/results/beam_slam/vo_keyframes/'
   # keyframe decision params and memory management params
   tracker_window_size: 300 
   num_features_to_track: 100 

@@ -45,7 +45,7 @@ public:
   /**
    * @brief Helper function to get T_WORLD_BASELINK at tiemstamp
    * @param stamp timestamp to get pose at
-   * @return T_WORLD_CAMERA
+   * @return T_WORLD_BASELINK
    */
   beam::opt<Eigen::Matrix4d> GetBaselinkPose(const ros::Time& stamp);
 
