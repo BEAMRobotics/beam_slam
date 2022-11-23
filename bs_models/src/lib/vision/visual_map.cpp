@@ -320,14 +320,14 @@ void VisualMap::AddVisualConstraint(
         fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
             fuse_constraints::VisualConstraint::make_shared(
                 source_, *orientation, *position, *lm, pixel, T_cam_baselink_,
-                cam_model_, "HUBER", "VILENS");
+                cam_model_, "HUBER", "VANILLA");
         transaction->addConstraint(vis_constraint);
       } else if (lm_fixed) {
         // add fixed visual constraint
         fuse_constraints::VisualConstraintFixed::SharedPtr vis_constraint =
             fuse_constraints::VisualConstraintFixed::make_shared(
                 source_, *orientation, *position, *lm_fixed, pixel,
-                T_cam_baselink_, cam_model_, "HUBER", "VILENS");
+                T_cam_baselink_, cam_model_, "HUBER", "VANILLA");
         transaction->addConstraint(vis_constraint);
       }
     } catch (const std::logic_error& le) {}

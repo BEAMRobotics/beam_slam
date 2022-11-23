@@ -2,12 +2,12 @@
 #    sensor model declarations    #
 ###################################
 sensor_models:
-  - name: 'lidar_aggregation'
-    type: 'bs_models::LidarAggregation'  
-    motion_models: ['unicycle_3d']
-  - name: 'lidar_odometry'
-    type: 'bs_models::LidarOdometry'
-    motion_models: ['unicycle_3d']
+  # - name: 'lidar_aggregation'
+  #   type: 'bs_models::LidarAggregation'  
+  #   motion_models: ['unicycle_3d']
+  # - name: 'lidar_odometry'
+  #   type: 'bs_models::LidarOdometry'
+  #   motion_models: ['unicycle_3d']
   - name: 'visual_inertial_odometry'
     type: 'bs_models::VisualInertialOdometry'
     motion_models: ['unicycle_3d']
@@ -33,9 +33,8 @@ motion_models:
 ##############################
 #    optimizer parameters    #
 ##############################
-optimization_period: 0.5
-lag_duration: 5
-num_states: 15
+optimization_period: 2
+lag_duration: 10
 
 ###########################
 #    solver parameters    #
@@ -44,9 +43,9 @@ solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_SCHUR'
   minimizer_progress_to_stdout: true
-  num_threads: 4
-  num_linear_solver_threads: 4
-  max_num_iterations: 0
+  num_threads: 6
+  num_linear_solver_threads: 6
+  max_num_iterations: 8
   max_solver_time_in_seconds: 0.5
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
@@ -78,13 +77,13 @@ lidar_aggregation:
 ####################################
 lidar_odometry:
   # Local scan registration
-  local_registration_type: 'MAPLOAM' 
+  local_registration_type: 'MULTIICP' 
   local_registration_config_path: 'DEFAULT_PATH' 
-  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/icp.json' 
   local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
   # global scan registration
-  global_registration_type: 'LOAM' 
-  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  global_registration_type: 'ICP' 
+  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/icp.json' 
   global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
   # general params
   lidar_type: 'VELODYNE'
@@ -95,7 +94,7 @@ lidar_odometry:
   publish_active_submap: true
   publish_local_map: true
   publish_registration_results: true
-  frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json' 
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/vio.json' 
   frame_initializer_prior_noise_diagonal: [1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10] 
   reloc_request_period: 2.0
   scan_output_directory: ''
@@ -110,7 +109,7 @@ visual_inertial_odometry:
   init_path_topic: '/local_mapper/gt_initializer/result'
   # optional frame initializer params
   frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/lvi_slam.json'
-  frame_initializer_prior_noise_diagonal: [1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10, 1.0e-10] 
+  frame_initializer_prior_noise_diagonal: [1.0e-4, 1.0e-4, 1.0e-4, 1.0e-4, 1.0e-4, 1.0e-4] 
   # frequency to request a reloc
   reloc_request_period: 2.0
   # feature tracking configs
@@ -128,7 +127,7 @@ visual_inertial_odometry:
   keyframe_translation_m: 2.0
   keyframe_rotation_deg: 20.0
   # initialization params
-  init_max_optimization_time_in_seconds: 0.0
+  init_max_optimization_time_in_seconds: 1.0
   init_map_output_directory: '' 
   init_use_scale_estimate: false
 

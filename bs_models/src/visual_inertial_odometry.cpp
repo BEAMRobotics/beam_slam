@@ -134,29 +134,13 @@ void VisualInertialOdometry::processImage(
     return;
   }
 
-  // get pose if we are using frame initializer, if its a failure we wait
-  // until we can by buffering the frame
-  Eigen::Matrix4d T_WORLD_BASELINK = Eigen::Matrix4d::Zero();
-  if (frame_initializer_ && initialization_->Initialized()) {
-    if (!frame_initializer_->GetEstimatedPose(
-            T_WORLD_BASELINK, img_time, extrinsics_.GetBaselinkFrameId())) {
-      ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
-                      "buffering frame: "
-                      << img_time);
-      return;
-    }
-  }
-
   // add image to map or initializer
   if (imu_time >= img_time && !imu_buffer_.empty()) {
-    // process in odometry mode
-    beam::HighResolutionTimer tracker_timer;
+    // track features in image
     cv::Mat image =
         beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front());
     image = beam_cv::AdaptiveHistogram(image);
-    // add image to tracker
     tracker_->AddImage(image, img_time);
-    ROS_DEBUG_STREAM("Total time to track frame: " << tracker_timer.elapsed());
 
     // process in initialization mode
     if (!initialization_->Initialized()) {
@@ -180,14 +164,24 @@ void VisualInertialOdometry::processImage(
       // process in odometry mode
       beam::HighResolutionTimer frame_timer;
 
-      // localize frame if not using a frame initializer
-      if (!frame_initializer_) { T_WORLD_BASELINK = LocalizeFrame(img_time); }
-
-      // detect if odometry has failed
-      if (FailureDetection(img_time, T_WORLD_BASELINK)) {
-        ROS_FATAL_STREAM("VIO Failure, shutting down.");
-        ros::requestShutdown();
+      Eigen::Matrix4d T_WORLD_BASELINK;
+      if (frame_initializer_) { // get pose if we are using frame initializer
+        if (!frame_initializer_->GetEstimatedPose(
+                T_WORLD_BASELINK, img_time, extrinsics_.GetBaselinkFrameId())) {
+          ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
+                          "buffering frame: "
+                          << img_time);
+          return;
+        }
+      } else { // localize frame if not using a frame initializer
+        T_WORLD_BASELINK = LocalizeFrame(img_time);
       }
+
+      // // detect if odometry has failed
+      // if (FailureDetection(img_time, T_WORLD_BASELINK)) {
+      //   ROS_FATAL_STREAM("VIO Failure, shutting down.");
+      //   ros::requestShutdown();
+      // }
 
       // publish pose to odom topic
       PublishInitialOdometry(img_time, T_WORLD_BASELINK);
@@ -297,7 +291,7 @@ Eigen::Matrix4d
   std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance =
       std::make_shared<Eigen::Matrix<double, 6, 6>>();
   imu_preint_->GetPose(T_WORLD_BASELINK, img_time, covariance);
-
+  // TODO: GetPose gets T_WORLD_IMU, not T_WORLD_BASELINK, account for this
   // refine with visual info if possible
   if (pixels.size() >= 15) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
