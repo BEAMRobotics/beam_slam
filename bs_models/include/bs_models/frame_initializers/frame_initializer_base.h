@@ -3,6 +3,7 @@
 #include <Eigen/Dense>
 #include <ros/ros.h>
 #include <tf2/buffer_core.h>
+#include <nav_msgs/Path.h>
 
 #include <bs_common/pose_lookup.h>
 
@@ -31,12 +32,10 @@ public:
    * @param sensor_frame sensor frame id.
    * @return true if pose lookup was successful
    */
-  bool GetEstimatedPose(Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
-                        const std::string& sensor_frame_id,
-                        std::string& error_msg = frame_initializer_error_msg) {
-    return pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id,
-                                           time, error_msg);
-  };
+  virtual bool GetEstimatedPose(
+      Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
+      const std::string& sensor_frame_id,
+      std::string& error_msg = frame_initializer_error_msg) = 0;
 
   /**
    * @brief Factory method for creating a Frame initializer from a json config
@@ -46,9 +45,28 @@ public:
   static std::unique_ptr<frame_initializers::FrameInitializerBase>
       Create(const std::string& config_path);
 
+  /**
+   * @brief Sets the path callback with specified path topic and window size
+   * @param path_topic ros topic path is published on
+   * @param path_window_size size of path to retain
+   */
+  void SetPathCallback(const std::string& path_topic, const int path_window_size);
+
+  /**
+   * @brief Converts incoming path message into a queue of poses
+   * @param message path message
+   */
+  void PathCallback(const nav_msgs::PathConstPtr message);
+
 protected:
   std::string authority_;
   std::shared_ptr<bs_common::PoseLookup> pose_lookup_;
+  std::map<uint64_t, Eigen::Matrix4d> path_poses_;
+  ros::Subscriber path_subscriber_;
+  int path_window_size_;
+  ros::Time path_recieved_{0.0};
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
 }} // namespace bs_models::frame_initializers
