@@ -1,10 +1,10 @@
 {
   "num_features": 150,
   "quality_level": 0.01,
-  "min_distance": 1,
+  "min_distance": 10,
   "block_size": 3,
   "use_harris_detector": false,
   "k": 0.04,
-  "grid_cols": 3,
-  "grid_rows": 2
+  "grid_cols": 1,
+  "grid_rows": 1
 }

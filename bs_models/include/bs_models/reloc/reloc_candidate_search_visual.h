@@ -2,38 +2,32 @@
 
 #include <map>
 
-#include <opencv2/core/mat.hpp>
 #include <ros/time.h>
 
-#include <beam_utils/pointclouds.h>
-#include <bs_models/global_mapping/submap.h>
+#include <beam_cv/ImageDatabase.h>
+#include <bs_models/reloc/reloc_candidate_search_base.h>
 
 namespace bs_models { namespace reloc {
 
 using namespace global_mapping;
 
 /**
- * @brief Reloc candidate search finds candidate relocs within submaps
- * and returns estimated relative poses
+ * @brief This class implements a reloc candidate search class. To
+ * look for candidate relocs, this class queries an image database and returns
+ * the matching submaps
  */
-class RelocCandidateSearchBase {
+class RelocCandidateSearchVisual : public RelocCandidateSearchBase {
 public:
   /**
-   * @brief constructor with an optional path to a json config
-   * @param config path to json config file. If empty, it will use default
-   * parameters
+   * @brief constructor that takes in a poitner to the image database to use
+   * @param image_database
    */
-  RelocCandidateSearchBase(const std::string& config = "")
-      : config_path_(config) {}
+  RelocCandidateSearchVisual(
+      const std::shared_ptr<beam_cv::ImageDatabase>& image_database);
 
   /**
-   * @brief default destructor
-   */
-  ~RelocCandidateSearchBase() = default;
-
-  /**
-   * @brief Pure virtual function that takes in a vector of submaps, a query
-   * pose and finds candidate relocs with an estimated relative pose. The
+   * @brief Overrides the virtual function that takes in a vector of submaps, a
+   * query pose and finds candidate relocs with an estimated relative pose. The
    * candidates should be ordered based on the most likely candidate.
    * @param submaps vector of pointers to submaps
    * @param T_WORLD_QUERY we look for submaps that contains this pose (note
@@ -50,21 +44,22 @@ public:
    * optimized, but the initial query pose estimate is in the original world
    * frame
    */
-  virtual void FindRelocCandidates(
+  void FindRelocCandidates(
       const std::vector<SubmapPtr>& submaps,
       const Eigen::Matrix4d& T_WORLD_QUERY,
       const std::vector<cv::Mat>& query_images,
       std::vector<int>& matched_indices,
       std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
-      size_t ignore_last_n_submaps = 0, bool use_initial_poses = false) = 0;
+      size_t ignore_last_n_submaps = 0,
+      bool use_initial_poses = false) override;
 
-protected:
+private:
   /**
-   * @brief pure virtual method for loading a config json file.
+   * @brief Method for loading a config json file.
    */
-  virtual void LoadConfig() = 0;
-
-  std::string config_path_;
+  void LoadConfig() override;
+  
+  std::shared_ptr<beam_cv::ImageDatabase> image_database_;
 };
 
 }} // namespace bs_models::reloc

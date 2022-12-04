@@ -1,17 +1,16 @@
 #include <bs_models/global_mapping/submap.h>
 
-#include <pcl/io/pcd_io.h>
-#include <pcl/common/transforms.h>
 #include <nlohmann/json.hpp>
+#include <pcl/common/transforms.h>
+#include <pcl/io/pcd_io.h>
 
-#include <beam_utils/filesystem.h>
-#include <beam_cv/geometry/Triangulation.h>
 #include <beam_cv/descriptors/Descriptor.h>
+#include <beam_cv/geometry/Triangulation.h>
+#include <beam_utils/filesystem.h>
 
 #include <bs_common/utils.h>
 
-namespace bs_models {
-namespace global_mapping {
+namespace bs_models { namespace global_mapping {
 
 Submap::Submap(
     const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_SUBMAP,
@@ -52,23 +51,33 @@ Submap::Submap(
   T_SUBMAP_WORLD_initial_ = beam::InvertTransform(T_WORLD_SUBMAP);
 }
 
-fuse_variables::Position3DStamped Submap::Position() const { return position_; }
+fuse_variables::Position3DStamped Submap::Position() const {
+  return position_;
+}
 
 fuse_variables::Orientation3DStamped Submap::Orientation() const {
   return orientation_;
 }
 
-Eigen::Matrix4d Submap::T_WORLD_SUBMAP() const { return T_WORLD_SUBMAP_; }
+Eigen::Matrix4d Submap::T_WORLD_SUBMAP() const {
+  return T_WORLD_SUBMAP_;
+}
 
 Eigen::Matrix4d Submap::T_WORLD_SUBMAP_INIT() const {
   return T_WORLD_SUBMAP_initial_;
 }
 
-int Submap::Updates() const { return graph_updates_; }
+int Submap::Updates() const {
+  return graph_updates_;
+}
 
-ros::Time Submap::Stamp() const { return stamp_; }
+ros::Time Submap::Stamp() const {
+  return stamp_;
+}
 
-uint8_t Submap::DescriptorType() const { return descriptor_type_; }
+uint8_t Submap::DescriptorType() const {
+  return descriptor_type_;
+}
 
 std::map<uint64_t, ScanPose>::iterator Submap::LidarKeyframesBegin() {
   return lidar_keyframe_poses_.begin();
@@ -87,29 +96,41 @@ std::map<uint64_t, Eigen::Matrix4d>::iterator Submap::CameraKeyframesEnd() {
 }
 
 std::map<uint64_t, std::vector<Submap::PoseStamped>>::iterator
-Submap::SubframesBegin() {
+    Submap::SubframesBegin() {
   return subframe_poses_.begin();
 }
 
 std::map<uint64_t, std::vector<Submap::PoseStamped>>::iterator
-Submap::SubframesEnd() {
+    Submap::SubframesEnd() {
   return subframe_poses_.end();
 }
 
 beam_containers::LandmarkContainer<
     beam_containers::LandmarkMeasurement>::iterator
-Submap::LandmarksBegin() {
+    Submap::LandmarksBegin() {
   return landmarks_.begin();
 }
 
 beam_containers::LandmarkContainer<
     beam_containers::LandmarkMeasurement>::iterator
-Submap::LandmarksEnd() {
+    Submap::LandmarksEnd() {
   return landmarks_.end();
 }
 
+std::vector<cv::Mat> Submap::GetKeyframeVector() {
+  std::vector<cv::Mat> image_vector;
+  std::transform(keyframe_images_.begin(), keyframe_images_.end(),
+                 std::back_inserter(image_vector),
+                 [&](const auto& pair) { return pair.second; });
+  return image_vector;
+}
+
+const std::map<uint64_t, cv::Mat>& Submap::GetKeyframeMap() {
+  return keyframe_images_;
+}
+
 void Submap::AddCameraMeasurement(
-    const std::vector<LandmarkMeasurementMsg>& landmarks,
+    const std::vector<LandmarkMeasurementMsg>& landmarks, const cv::Mat& image,
     uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLDLM_BASELINK,
     const ros::Time& stamp, int sensor_id, int measurement_id) {
   Eigen::Matrix4d T_SUBMAP_BASELINK =
@@ -117,22 +138,22 @@ void Submap::AddCameraMeasurement(
 
   camera_keyframe_poses_.emplace(stamp.toNSec(), T_SUBMAP_BASELINK);
 
+  keyframe_images_.emplace(stamp.toNSec(), image);
+
   for (const LandmarkMeasurementMsg& landmark_msg : landmarks) {
     Eigen::Vector2d value(landmark_msg.pixel_u, landmark_msg.pixel_v);
     auto descriptor_type =
         beam_cv::DescriptorTypeIntMap.find(descriptor_type_int);
     if (descriptor_type == beam_cv::DescriptorTypeIntMap.end()) {
-      BEAM_ERROR(
-          "Invalid descriptor type in LandMarkMeasurementMsg. Skipping "
-          "measurement.");
+      BEAM_ERROR("Invalid descriptor type in LandMarkMeasurementMsg. Skipping "
+                 "measurement.");
       continue;
     }
 
     if (descriptor_type_int != descriptor_type_ && descriptor_type_ != 255) {
-      BEAM_WARN(
-          "Current camera measurement has a different descriptor type. "
-          "Changing "
-          "type in submap.");
+      BEAM_WARN("Current camera measurement has a different descriptor type. "
+                "Changing "
+                "type in submap.");
     }
     descriptor_type_ = descriptor_type_int;
 
@@ -211,6 +232,14 @@ bool Submap::UpdatePose(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
 bool Submap::Near(const ros::Time& time, const double tolerance) const {
   return (std::abs(stamp_.toSec() - time.toSec()) <= tolerance);
+}
+
+bool Submap::InSubmap(const ros::Time& time) const {
+  const auto start = (*camera_keyframe_poses_.begin()).first;
+  const auto end = (*camera_keyframe_poses_.rbegin()).first;
+  const auto query = time.toNSec();
+  if (query >= start && query <= end) { return true; }
+  return false;
 }
 
 bool Submap::operator<(const Submap& rhs) const {
@@ -301,8 +330,9 @@ PointCloud Submap::GetKeypointsInWorldFrame(bool use_initials) {
   return cloud;
 }
 
-std::vector<PointCloud> Submap::GetLidarPointsInWorldFrame(
-    int max_output_map_size, bool use_initials) const {
+std::vector<PointCloud>
+    Submap::GetLidarPointsInWorldFrame(int max_output_map_size,
+                                       bool use_initials) const {
   std::vector<PointCloud> map;
   PointCloud map_current;
   for (auto it = lidar_keyframe_poses_.begin();
@@ -360,8 +390,8 @@ PointCloud Submap::GetLidarPointsInWorldFrameCombined(bool use_initials) const {
   return map;
 }
 
-beam_matching::LoamPointCloud Submap::GetLidarLoamPointsInWorldFrame(
-    bool use_initials) const {
+beam_matching::LoamPointCloud
+    Submap::GetLidarLoamPointsInWorldFrame(bool use_initials) const {
   beam_matching::LoamPointCloud map;
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
@@ -430,7 +460,7 @@ std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {
     }
   }
 
-  std::vector<Submap::PoseStamped> poses_stamped_vec;  // {t, T_SUBMAP_FRAME}
+  std::vector<Submap::PoseStamped> poses_stamped_vec; // {t, T_SUBMAP_FRAME}
   for (auto it = poses_stamped_map.begin(); it != poses_stamped_map.end();
        it++) {
     ros::Time new_stamp;
@@ -477,9 +507,7 @@ bool Submap::LoadData(const std::string& input_dir,
 
   // load submap.json
   nlohmann::json J_submap;
-  if (!beam::ReadJson(input_dir + "submap.json", J_submap)) {
-    return false;
-  }
+  if (!beam::ReadJson(input_dir + "submap.json", J_submap)) { return false; }
 
   // parse json
   try {
@@ -589,9 +617,7 @@ bool Submap::LoadData(const std::string& input_dir,
   while (true) {
     std::string lidar_keyframe_dir = lidar_keyframes_root + "keyframe" +
                                      std::to_string(lidar_keyframe_num) + "/";
-    if (!boost::filesystem::exists(lidar_keyframe_dir)) {
-      break;
-    }
+    if (!boost::filesystem::exists(lidar_keyframe_dir)) { break; }
     ScanPose scan_pose(ros::Time(0), Eigen::Matrix4d::Identity());
     try {
       scan_pose.LoadData(lidar_keyframe_dir);
@@ -617,9 +643,7 @@ bool Submap::LoadData(const std::string& input_dir,
     // check if subframe exists
     std::string subframe_filename =
         subframes_root + "subframe" + std::to_string(subframe_num) + "/";
-    if (!boost::filesystem::exists(subframe_filename)) {
-      break;
-    }
+    if (!boost::filesystem::exists(subframe_filename)) { break; }
 
     // load subframe json
     nlohmann::json J_subframe;
@@ -731,6 +755,14 @@ void Submap::SaveData(const std::string& output_dir) {
   std::ofstream camera_keyframe_file(camera_keyframes_filename);
   camera_keyframe_file << std::setw(4) << J_camera_keyframes << std::endl;
 
+  // save keyframe images
+  std::string keyframe_dir = output_dir + "image_keyframes/";
+  for (const auto& [time, image] : keyframe_images_) {
+    std::string keyframe_filename =
+        keyframe_dir + std::to_string(time) + ".png";
+    cv::imwrite(keyframe_filename, image);
+  }
+
   // save subframes
   std::string subframe_dir = output_dir + "subframes/";
   boost::filesystem::create_directory(subframe_dir);
@@ -758,9 +790,7 @@ void Submap::SaveData(const std::string& output_dir) {
 }
 
 void Submap::TriangulateKeypoints(bool override_points) {
-  if (landmark_positions_.size() != 0 && !override_points) {
-    return;
-  }
+  if (landmark_positions_.size() != 0 && !override_points) { return; }
 
   // get the sensor id for the first landmark measurement.
   // Note: this will only work for one camera
@@ -775,9 +805,7 @@ void Submap::TriangulateKeypoints(bool override_points) {
     // get track
     auto track = landmarks_.GetTrackInWindow(sensor_id, landmark_id,
                                              ros::TIME_MIN, ros::TIME_MAX);
-    if (track.size() < 2) {
-      continue;
-    }
+    if (track.size() < 2) { continue; }
 
     // precompute inverse submap pose
     Eigen::Matrix4d T_SUBMAP_WORLD = beam::InvertTransform(T_WORLD_SUBMAP_);
@@ -789,9 +817,7 @@ void Submap::TriangulateKeypoints(bool override_points) {
       // find keyframe from measurement stamp
       std::map<uint64_t, Eigen::Matrix4d>::const_iterator keyframe_pose =
           camera_keyframe_poses_.find(measurement.time_point.toNSec());
-      if (keyframe_pose == camera_keyframe_poses_.end()) {
-        continue;
-      }
+      if (keyframe_pose == camera_keyframe_poses_.end()) { continue; }
 
       // get transform from world to camera to project points
       const Eigen::Matrix4d& T_SUBMAP_BASELINK = keyframe_pose->second;
@@ -838,13 +864,10 @@ bool Submap::FindT_SUBMAP_KEYFRAME(uint64_t time,
   }
 
   else {
-    BEAM_ERROR(
-        "Trajectory measurement stamp does not match with any lidar or "
-        "camera keyframe.");
+    BEAM_ERROR("Trajectory measurement stamp does not match with any lidar or "
+               "camera keyframe.");
     return false;
   }
 }
 
-}  // namespace global_mapping
-
-}  // namespace bs_models
+}} // namespace bs_models::global_mapping

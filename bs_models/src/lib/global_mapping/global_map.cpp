@@ -36,11 +36,11 @@ GlobalMap::Params::Params() {
                              0, 0, 0, 0, 0, local_map_cov_diag;
 
   reloc_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
-                             0, loop_cov_diag, 0, 0, 0, 0,
-                             0, 0, loop_cov_diag, 0, 0, 0,
-                             0, 0, 0, loop_cov_diag, 0, 0,
-                             0, 0, 0, 0, loop_cov_diag, 0,
-                             0, 0, 0, 0, 0, loop_cov_diag;
+                      0, loop_cov_diag, 0, 0, 0, 0,
+                      0, 0, loop_cov_diag, 0, 0, 0,
+                      0, 0, 0, loop_cov_diag, 0, 0,
+                      0, 0, 0, 0, loop_cov_diag, 0,
+                      0, 0, 0, 0, 0, loop_cov_diag;
   // clang-format on
 }
 
@@ -127,6 +127,7 @@ GlobalMap::GlobalMap(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics)
     : camera_model_(camera_model), extrinsics_(extrinsics) {
+  online_image_database_ = std::make_shared<beam_cv::ImageDatabase>();
   Setup();
 }
 
@@ -135,6 +136,7 @@ GlobalMap::GlobalMap(
     const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics,
     const Params& params)
     : camera_model_(camera_model), params_(params), extrinsics_(extrinsics) {
+  online_image_database_ = std::make_shared<beam_cv::ImageDatabase>();
   Setup();
 }
 
@@ -143,6 +145,7 @@ GlobalMap::GlobalMap(
     const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics,
     const std::string& config_path)
     : camera_model_(camera_model), extrinsics_(extrinsics) {
+  online_image_database_ = std::make_shared<beam_cv::ImageDatabase>();
   params_.LoadJson(config_path);
   Setup();
 }
@@ -163,12 +166,32 @@ std::vector<SubmapPtr> GlobalMap::GetOfflineSubmaps() {
   return offline_submaps_;
 }
 
+const std::shared_ptr<beam_cv::ImageDatabase>&
+    GlobalMap::GetOnlineImageDatabase() {
+  return online_image_database_;
+}
+
+const std::shared_ptr<beam_cv::ImageDatabase>&
+    GlobalMap::GetOfflineImageDatabase() {
+  return offline_image_database_;
+}
+
 void GlobalMap::SetOnlineSubmaps(std::vector<SubmapPtr>& submaps) {
   online_submaps_ = submaps;
 }
 
 void GlobalMap::SetOfflineSubmaps(std::vector<SubmapPtr>& submaps) {
   offline_submaps_ = submaps;
+}
+
+void GlobalMap::SetOnlineImageDatabase(
+    std::shared_ptr<beam_cv::ImageDatabase> image_db) {
+  online_image_database_ = image_db;
+}
+
+void GlobalMap::SetOfflineImageDatabase(
+    std::shared_ptr<beam_cv::ImageDatabase> image_db) {
+  offline_image_database_ = image_db;
 }
 
 void GlobalMap::SetStoreNewSubmaps(bool store_new_submaps) {
@@ -210,6 +233,9 @@ void GlobalMap::Setup() {
   if (params_.reloc_candidate_search_type == "EUCDIST") {
     reloc_candidate_search_ = std::make_unique<RelocCandidateSearchEucDist>(
         params_.reloc_candidate_search_config);
+  } else if (params_.reloc_candidate_search_type == "VISUAL") {
+    reloc_candidate_search_ =
+        std::make_unique<RelocCandidateSearchVisual>(online_image_database_);
   } else {
     BEAM_ERROR("Invalid reloc candidate search type. Using default: EUCDIST. "
                "Input: {}",
@@ -264,14 +290,25 @@ fuse_core::Transaction::SharedPtr
 
     if (store_newly_completed_submaps_ && online_submaps_.size() > 1) {
       AddRosSubmap(online_submaps_.size() - 2);
+      // add submap images to database only once submap is done being built
+      const auto keyframes = online_submaps_.at(submap_id)->GetKeyframeMap();
+      for (const auto& [time, image] : keyframes) {
+        ros::Time stamp;
+        stamp.fromNSec(time);
+        online_image_database_->AddImage(image, stamp);
+      }
     }
   }
 
   // add camera measurement if not empty
   if (!cam_measurement.landmarks.empty()) {
     ROS_DEBUG("Adding camera measurement to global map.");
+    cv::Mat image;
+    if (!cam_measurement.image.data.empty()) {
+      image = beam_cv::OpenCVConversions::RosImgToMat(cam_measurement.image);
+    }
     online_submaps_.at(submap_id)->AddCameraMeasurement(
-        cam_measurement.landmarks, cam_measurement.descriptor_type,
+        cam_measurement.landmarks, image, cam_measurement.descriptor_type,
         T_WORLD_BASELINK, stamp, cam_measurement.sensor_id,
         cam_measurement.measurement_id);
   }
@@ -458,10 +495,15 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   const Eigen::Matrix4d& T_WORLD_QUERY =
       online_submaps_.at(query_index)->T_WORLD_SUBMAP();
 
+  std::vector<cv::Mat> query_images =
+      online_submaps_.at(query_index)->GetKeyframeVector();
+  // TODO: subsample the query images to use from the submap (dont use all)
+
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
   reloc_candidate_search_->FindRelocCandidates(online_submaps_, T_WORLD_QUERY,
-                                               matched_indices, Ts_MATCH_QUERY);
+                                               query_images, matched_indices,
+                                               Ts_MATCH_QUERY);
 
   // remove candidate if it is equal to the query submap, or one before
   std::vector<int> matched_indices_filtered;
@@ -549,9 +591,9 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
   }
 
   // load image
-  cv::Mat image;
+  cv::Mat query_image;
   if (!reloc_request_msg.camera_measurement.image.data.empty()) {
-    image = beam_cv::OpenCVConversions::RosImgToMat(
+    query_image = beam_cv::OpenCVConversions::RosImgToMat(
         reloc_request_msg.camera_measurement.image);
   }
 
@@ -565,7 +607,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
         beam::InvertTransform(T_WORLDLM_WORLDOFF_) * T_WORLDLM_QUERY;
     ROS_DEBUG("Looking for reloc submap candidates in offline maps.");
     reloc_candidate_search_->FindRelocCandidates(
-        offline_submaps_, T_WORLDOFF_QUERY, matched_indices,
+        offline_submaps_, T_WORLDOFF_QUERY, {query_image}, matched_indices,
         Ts_SUBMAPCANDIDATE_QUERY);
     ROS_DEBUG("Found %d submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
 
@@ -588,7 +630,8 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
       if (reloc_refinement_->GetRefinedPose(
               T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
-              lidar_cloud_in_query_frame, loam_cloud_in_query_frame, image)) {
+              lidar_cloud_in_query_frame, loam_cloud_in_query_frame,
+              query_image)) {
         ROS_DEBUG("Found refined reloc pose.");
         // calculate transform from offline map world frame to the local mapper
         // world frame if not already calculated
@@ -609,6 +652,15 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
             submap->GetLidarLoamPointsInWorldFrame(false);
         PointCloud keypoints_in_woff_frame =
             submap->GetKeypointsInWorldFrame(false);
+
+        // get descriptors
+        // TODO: for each landmark id, get all its measurements and compute its
+        // word from the vocab fill the word as the sole descriptor in the
+        // descriptors vector, make sure theyre in the same order as the 3d
+        // points
+        //
+        // if the descriptor type of the submap is not orb, then we cannot fill
+        // the submap message because it has to match the image database
         std::vector<std::vector<float>> descriptors;
         beam_cv::DescriptorType descriptor_type;
         auto desc_type_iter =
@@ -654,7 +706,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
     // search for candidate relocs
     ROS_DEBUG("Looking for reloc submap candidates in online maps.");
     reloc_candidate_search_->FindRelocCandidates(
-        online_submaps_, T_WORLDLM_QUERY, matched_indices,
+        online_submaps_, T_WORLDLM_QUERY, {query_image}, matched_indices,
         Ts_SUBMAPCANDIDATE_QUERY, 2, true);
     ROS_DEBUG("Found %d submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
 
@@ -681,7 +733,8 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
       if (reloc_refinement_->GetRefinedPose(
               T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
-              lidar_cloud_in_query_frame, loam_cloud_in_query_frame, image)) {
+              lidar_cloud_in_query_frame, loam_cloud_in_query_frame,
+              query_image)) {
         ROS_DEBUG("Found refined reloc pose.");
 
         // get all required submap data
@@ -759,6 +812,9 @@ void GlobalMap::SaveData(const std::string& output_path) {
   BEAM_INFO("Saving full global map to: {}", output_path);
   params_.SaveJson(output_path + "params.json");
   camera_model_->WriteJSON(output_path + "camera_model.json");
+  online_image_database_->SaveDatabase(output_path + "image_database.dbow3",
+                                       output_path +
+                                           "image_db_timestamps.json");
   extrinsics_->SaveExtrinsicsToJson(output_path + "extrinsics.json");
   extrinsics_->SaveFrameIdsToJson(output_path + "frame_ids.json");
   for (uint16_t i = 0; i < online_submaps_.size(); i++) {
@@ -792,7 +848,7 @@ bool GlobalMap::Load(const std::string& root_directory) {
   // load camera model
   if (!boost::filesystem::exists(root_directory + "camera_model.json")) {
     BEAM_ERROR(
-        "camera_model.json not foudn in root directory, not loading GlobalMap. "
+        "camera_model.json not found in root directory, not loading GlobalMap. "
         "Input root directory: {}",
         root_directory);
     return false;
@@ -805,6 +861,16 @@ bool GlobalMap::Load(const std::string& root_directory) {
   // load extrinsics
   extrinsics_ = std::make_shared<bs_common::ExtrinsicsLookupBase>(
       root_directory + "frame_ids.json", root_directory + "extrinsics.json");
+
+  // load image database
+  if (!boost::filesystem::exists(root_directory + "image_database.dbow3") ||
+      !boost::filesystem::exists(root_directory + "image_db_timestamps.json")) {
+    online_image_database_ = std::make_shared<beam_cv::ImageDatabase>();
+  } else {
+    online_image_database_ = std::make_shared<beam_cv::ImageDatabase>(
+        root_directory + "image_database.dbow3",
+        root_directory + "image_db_timestamps.json");
+  }
 
   // setup general stuff
   Setup();

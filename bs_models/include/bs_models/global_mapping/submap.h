@@ -2,25 +2,24 @@
 
 #include <map>
 
-#include <pcl/kdtree/kdtree_flann.h>
 #include <boost/filesystem.hpp>
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
+#include <opencv2/core/mat.hpp>
+#include <pcl/kdtree/kdtree_flann.h>
 #include <ros/time.h>
 
-#include <beam_utils/pointclouds.h>
+#include <beam_calibration/CameraModel.h>
 #include <beam_containers/LandmarkContainer.h>
 #include <beam_containers/LandmarkMeasurement.h>
-#include <beam_calibration/CameraModel.h>
 #include <beam_matching/loam/LoamPointCloud.h>
+#include <beam_utils/pointclouds.h>
 #include <bs_common/bs_msgs.h>
-#include <bs_models/lidar/scan_pose.h>
 #include <bs_common/extrinsics_lookup_online.h>
+#include <bs_models/lidar/scan_pose.h>
 
-namespace bs_models {
-
-namespace global_mapping {
+namespace bs_models { namespace global_mapping {
 
 using namespace bs_common;
 
@@ -53,10 +52,10 @@ using namespace bs_common;
  * tracked by the local mapper)
  */
 class Submap {
- public:
+public:
   struct PoseStamped {
     ros::Time stamp;
-    Eigen::Matrix4d pose;  // Either T_KEYFRAME_FRAME, or T_SUBMAP_FRAME
+    Eigen::Matrix4d pose; // Either T_KEYFRAME_FRAME, or T_SUBMAP_FRAME
   };
 
   /*--------------------------------/
@@ -181,14 +180,24 @@ class Submap {
    */
   beam_containers::LandmarkContainer<
       beam_containers::LandmarkMeasurement>::iterator
-  LandmarksBegin();
+      LandmarksBegin();
 
   /**
    * @brief get an iterator to the end of the landmarks measurement container
    */
   beam_containers::LandmarkContainer<
       beam_containers::LandmarkMeasurement>::iterator
-  LandmarksEnd();
+      LandmarksEnd();
+
+  /**
+   * @brief get a vector of the keyframe images
+   */
+  std::vector<cv::Mat> GetKeyframeVector();
+
+  /**
+   * @brief get the map of timestamps and keyframes
+   */
+  const std::map<uint64_t, cv::Mat>& GetKeyframeMap();
 
   /*--------------------------------/
               COMPARATORS
@@ -201,6 +210,13 @@ class Submap {
    * @return true if query time difference is within some tolorance
    */
   bool Near(const ros::Time& time, const double tolerance) const;
+
+  /**
+   * @brief check if the query time is in this submap
+   * @param time query time
+   * @return true if query time is in this submap
+   */
+  bool InSubmap(const ros::Time& time) const;
 
   /**
    * @brief check if the submap was generated before or after some other submap
@@ -226,10 +242,12 @@ class Submap {
    * currently only use one camera
    * @param measurement_id id of this specific measurement (image)
    */
-  void AddCameraMeasurement(
-      const std::vector<LandmarkMeasurementMsg>& landmarks,
-      uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLD_BASELINK,
-      const ros::Time& stamp, int sensor_id, int measurement_id);
+  void
+      AddCameraMeasurement(const std::vector<LandmarkMeasurementMsg>& landmarks,
+                           const cv::Mat& image, uint8_t descriptor_type_int,
+                           const Eigen::Matrix4d& T_WORLD_BASELINK,
+                           const ros::Time& stamp, int sensor_id,
+                           int measurement_id);
 
   /**
    * @brief add a set of lidar measurements associated with one scan
@@ -333,8 +351,9 @@ class Submap {
    * from the local mapper, before global optimization
    * @param return vector of clouds
    */
-  std::vector<PointCloud> GetLidarPointsInWorldFrame(
-      int max_output_map_size, bool use_initials = false) const;
+  std::vector<PointCloud>
+      GetLidarPointsInWorldFrame(int max_output_map_size,
+                                 bool use_initials = false) const;
 
   /**
    * @brief output all lidar points to a single pointcloud map. Points will
@@ -343,8 +362,8 @@ class Submap {
    * from the local mapper, before global optimization
    * @param return cloud
    */
-  PointCloud GetLidarPointsInWorldFrameCombined(
-      bool use_initials = false) const;
+  PointCloud
+      GetLidarPointsInWorldFrameCombined(bool use_initials = false) const;
 
   /**
    * @brief output all lidar LOAM points to a single pointcloud map. Points will
@@ -353,8 +372,8 @@ class Submap {
    * from the local mapper, before global optimization
    * @param return cloud
    */
-  beam_matching::LoamPointCloud GetLidarLoamPointsInWorldFrame(
-      bool use_initials = false) const;
+  beam_matching::LoamPointCloud
+      GetLidarLoamPointsInWorldFrame(bool use_initials = false) const;
 
   /**
    * @brief return a vector of stamped poses for all keyframes and their
@@ -397,6 +416,11 @@ class Submap {
    *        subframe1.json
    *        ...
    *        subframeN.json
+   *    /image_keyframes/
+   *        timestamp0.png
+   *        timestamp1.png
+   *        ...
+   *        timestampN.png
    *
    *    where lidar keyframe formats can be found in bs_common/ScanPose.h (see
    * SaveData function), camera_keyframes.json is a map from stamp (nsecs) to
@@ -423,7 +447,7 @@ class Submap {
   bool LoadData(const std::string& input_dir,
                 bool override_camera_model_pointer);
 
- private:
+private:
   /**
    * @brief Get 3D positions of each landmark given current tracks and
    * camera poses. This fills in landmark_positions_
@@ -446,23 +470,24 @@ class Submap {
   // general submap data
   ros::Time stamp_;
   int graph_updates_{0};
-  fuse_variables::Position3DStamped position_;        // t_WORLD_SUBMAP
-  fuse_variables::Orientation3DStamped orientation_;  // R_WORLD_SUBMAP
+  fuse_variables::Position3DStamped position_;       // t_WORLD_SUBMAP
+  fuse_variables::Orientation3DStamped orientation_; // R_WORLD_SUBMAP
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
-  Eigen::Matrix4d T_WORLD_SUBMAP_;  // this get recomputed when fuse vars change
-  Eigen::Matrix4d T_WORLD_SUBMAP_initial_;  // = T_WORLDLM_SUBMAP
-  Eigen::Matrix4d T_SUBMAP_WORLD_initial_;  // = T_SUBMAP_WORLDLM
+  Eigen::Matrix4d T_WORLD_SUBMAP_; // this get recomputed when fuse vars change
+  Eigen::Matrix4d T_WORLD_SUBMAP_initial_; // = T_WORLDLM_SUBMAP
+  Eigen::Matrix4d T_SUBMAP_WORLD_initial_; // = T_SUBMAP_WORLDLM
 
   // lidar data
-  std::map<uint64_t, ScanPose> lidar_keyframe_poses_;  // <time,ScanPose>
+  std::map<uint64_t, ScanPose> lidar_keyframe_poses_; // <time,ScanPose>
 
   // camera data
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
-  std::map<uint64_t, Eigen::Matrix4d> camera_keyframe_poses_;  // <time, pose>
-  std::map<uint64_t, Eigen::Vector3d> landmark_positions_;     // <id, position>
+  std::map<uint64_t, Eigen::Matrix4d> camera_keyframe_poses_; // <time, pose>
+  std::map<uint64_t, Eigen::Vector3d> landmark_positions_;    // <id, position>
+  std::map<uint64_t, cv::Mat> keyframe_images_;               // <time, image>
   beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement>
       landmarks_;
-  uint8_t descriptor_type_{255};  // see beam_cv/descriptors/Descriptor.h
+  uint8_t descriptor_type_{255}; // see beam_cv/descriptors/Descriptor.h
 
   // subframe trajectory measurements, where poses are T_KEYFRAME_FRAME
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;
@@ -472,6 +497,4 @@ class Submap {
 
 using SubmapPtr = std::shared_ptr<Submap>;
 
-}  // namespace global_mapping
-
-}  // namespace bs_models
+}} // namespace bs_models::global_mapping

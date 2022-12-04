@@ -3,9 +3,11 @@
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
+#include <std_msgs/Time.h>
 #include <std_msgs/UInt64MultiArray.h>
 
 #include <beam_cv/OpenCVConversions.h>
+#include <beam_cv/Utils.h>
 #include <beam_cv/descriptors/Descriptors.h>
 #include <beam_cv/detectors/Detectors.h>
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
@@ -100,12 +102,14 @@ void VisualInertialOdometry::onStart() {
 
   // Advertise publishers
   init_odom_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 10);
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
   new_keyframe_publisher_ =
-      private_node_handle_.advertise<std_msgs::Header>("keyframes", 10);
+      private_node_handle_.advertise<std_msgs::Header>("keyframes", 100);
+  keyframe_timestamp_publisher_ =
+      private_node_handle_.advertise<std_msgs::Time>("pose_stamps", 100);
   landmark_publisher_ =
       private_node_handle_.advertise<std_msgs::UInt64MultiArray>("landmarks",
-                                                                 10);
+                                                                 100);
   slam_chunk_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
       "/local_mapper/slam_results", 10);
   reloc_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
@@ -130,24 +134,12 @@ void VisualInertialOdometry::processImage(
     return;
   }
 
-  // get pose if we are using frame initializer, if its a failure we wait
-  // until we can by buffering the frame
-  Eigen::Matrix4d T_WORLD_BASELINK = Eigen::Matrix4d::Zero();
-  if (frame_initializer_ && initialization_->Initialized()) {
-    if (!frame_initializer_->GetEstimatedPose(
-            T_WORLD_BASELINK, img_time, extrinsics_.GetBaselinkFrameId())) {
-      ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
-                      "buffering frame: "
-                      << img_time);
-      return;
-    }
-  }
-
   // add image to map or initializer
   if (imu_time >= img_time && !imu_buffer_.empty()) {
+    // track features in image
     cv::Mat image =
         beam_cv::OpenCVConversions::RosImgToMat(image_buffer_.front());
-    // add image to tracker
+    image = beam_cv::AdaptiveHistogram(image);
     tracker_->AddImage(image, img_time);
 
     // process in initialization mode
@@ -172,14 +164,24 @@ void VisualInertialOdometry::processImage(
       // process in odometry mode
       beam::HighResolutionTimer frame_timer;
 
-      // localize frame if not using a frame initializer
-      if (!frame_initializer_) { T_WORLD_BASELINK = LocalizeFrame(img_time); }
-
-      // detect if odometry has failed
-      if (FailureDetection(img_time, T_WORLD_BASELINK)) {
-        ROS_FATAL_STREAM("VIO Failure, shutting down.");
-        ros::requestShutdown();
+      Eigen::Matrix4d T_WORLD_BASELINK;
+      if (frame_initializer_) { // get pose if we are using frame initializer
+        if (!frame_initializer_->GetEstimatedPose(
+                T_WORLD_BASELINK, img_time, extrinsics_.GetBaselinkFrameId())) {
+          ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
+                          "buffering frame: "
+                          << img_time);
+          return;
+        }
+      } else { // localize frame if not using a frame initializer
+        T_WORLD_BASELINK = LocalizeFrame(img_time);
       }
+
+      // // detect if odometry has failed
+      // if (FailureDetection(img_time, T_WORLD_BASELINK)) {
+      //   ROS_FATAL_STREAM("VIO Failure, shutting down.");
+      //   ros::requestShutdown();
+      // }
 
       // publish pose to odom topic
       PublishInitialOdometry(img_time, T_WORLD_BASELINK);
@@ -190,7 +192,10 @@ void VisualInertialOdometry::processImage(
         if (boost::filesystem::exists(vio_params_.save_keyframes_folder) &&
             !vio_params_.save_keyframes_folder.empty()) {
           std::string image_file = std::to_string(img_time.toNSec()) + ".png";
-          cv::imwrite(vio_params_.save_keyframes_folder + image_file, image);
+          cv::Mat track_image =
+              tracker_->DrawTracks(tracker_->GetTracks(img_time), image);
+          cv::imwrite(vio_params_.save_keyframes_folder + image_file,
+                      track_image);
         }
 
         // push new keyframe to list
@@ -244,22 +249,19 @@ void VisualInertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
 void VisualInertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph) {
-  // make a copy to make updating graph easier
-  fuse_core::Graph::SharedPtr copy = graph->clone();
-
   // publish marginalized slam chunks
   while (!keyframes_.empty() &&
-         !copy->variableExists(
+         !graph->variableExists(
              visual_map_->GetPositionUUID(keyframes_.front().Stamp()))) {
     PublishSlamChunk(keyframes_.front());
     keyframes_.pop_front();
   }
 
   // Update graph object in visual map
-  visual_map_->UpdateGraph(copy);
+  visual_map_->UpdateGraph(graph);
 
   // Update imu preint info with new graph
-  imu_preint_->UpdateGraph(copy);
+  imu_preint_->UpdateGraph(graph);
 }
 
 /************************************************************
@@ -289,7 +291,7 @@ Eigen::Matrix4d
   std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance =
       std::make_shared<Eigen::Matrix<double, 6, 6>>();
   imu_preint_->GetPose(T_WORLD_BASELINK, img_time, covariance);
-
+  // TODO: GetPose gets T_WORLD_IMU, not T_WORLD_BASELINK, account for this
   // refine with visual info if possible
   if (pixels.size() >= 15) {
     Eigen::Matrix4d T_CAMERA_WORLD_est =
@@ -315,9 +317,13 @@ bool VisualInertialOdometry::IsKeyframe(
 
   double avg_parallax = tracker_->ComputeParallax(kf_time, img_time, true);
   ROS_DEBUG_STREAM("Computed parallax to last keyframe: " << avg_parallax);
-  if (avg_parallax > vio_params_.keyframe_parallax &&
-      beam::PassedMotionThreshold(T_WORLD_BASELINK, kf_pose, 0.0, 0.05, true,
-                                  true)) {
+  const auto passed_motion = beam::PassedMotionThreshold(
+      T_WORLD_BASELINK, kf_pose, vio_params_.keyframe_rotation_deg,
+      vio_params_.keyframe_translation_m, true);
+  const auto passed_min_translation = beam::PassedMotionThreshold(
+      T_WORLD_BASELINK, kf_pose, 0.0, 0.10, true, true);
+  if (avg_parallax > vio_params_.keyframe_parallax && passed_min_translation &&
+      passed_motion) {
     return true;
   } else if (added_since_kf_ > vio_params_.tracker_window_size - 10) {
     return true;
@@ -413,7 +419,7 @@ void VisualInertialOdometry::ExtendMap(
       Eigen::Vector2i tmp;
       if (!cam_model_->UndistortPixel(pixel.cast<int>(), tmp)) continue;
       // add constraint if its valid
-      visual_map_->AddConstraint(cur_kf_time, id, pixel, transaction);
+      visual_map_->AddVisualConstraint(cur_kf_time, id, pixel, transaction);
     } else {
       // otherwise then triangulate and add the constraints
       std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
@@ -444,9 +450,9 @@ void VisualInertialOdometry::ExtendMap(
           keyframes_.back().AddLandmark(id);
           visual_map_->AddLandmark(point.value(), id, transaction);
           for (int i = 0; i < observation_stamps.size(); i++) {
-            visual_map_->AddConstraint(observation_stamps[i], id,
-                                       tracker_->Get(observation_stamps[i], id),
-                                       transaction);
+            visual_map_->AddVisualConstraint(
+                observation_stamps[i], id,
+                tracker_->Get(observation_stamps[i], id), transaction);
           }
         }
       }
@@ -516,7 +522,18 @@ void VisualInertialOdometry::SendInitializationGraph(
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
 
+  // publish just the time of keyframe
+  std_msgs::Time time_msg;
+  time_msg.data = keyframe_header.stamp;
+  keyframe_timestamp_publisher_.publish(time_msg);
+
+  // publish landmark ids
   PublishLandmarkIDs(new_landmarks);
+
+  // publish first keyframes odometry
+  PublishInitialOdometry(
+      keyframe_header.stamp,
+      visual_map_->GetBaselinkPose(keyframe_header.stamp).value());
 }
 
 /************************************************************
@@ -531,6 +548,10 @@ void VisualInertialOdometry::NotifyNewKeyframe(
   keyframe_header.frame_id = calibration_params_.baselink_frame;
   keyframe_header.seq = keyframes_.back().SequenceNumber();
   new_keyframe_publisher_.publish(keyframe_header);
+  // publish just the time of keyframe
+  std_msgs::Time time_msg;
+  time_msg.data = keyframe_header.stamp;
+  keyframe_timestamp_publisher_.publish(time_msg);
 
   // make and publish reloc request at specified rate
   if (kf_time.toSec() - previous_reloc_request_.toSec() >

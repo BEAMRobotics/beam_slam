@@ -47,13 +47,17 @@ public:
     // Set to true if using sfm initializer
     getParam<std::string>(nh, "save_keyframes_folder", save_keyframes_folder,
                           "");
-    /** keyframe decision parameters*/
 
-    // if avg parallax to the previous keyframe exceeds this then set keyframe
-    // (NOT USED) getParam<int>(nh, "keyframe_parallax", keyframe_parallax, 20);
+    /** keyframe decision parameters*/
 
     // minimum amount of time between keyframes
     getParam<double>(nh, "keyframe_parallax", keyframe_parallax, 10.0);
+
+    // minimum amount of translation between keyframes
+    getParam<double>(nh, "keyframe_translation_m", keyframe_translation_m, 2.0);
+
+    // minimum amount of rotation between keyframes
+    getParam<double>(nh, "keyframe_rotation_deg", keyframe_rotation_deg, 20.0);
 
     /** vio initialization params */
 
@@ -118,6 +122,8 @@ public:
 
   // keyframe decision parameters
   double keyframe_parallax{10.0};
+  double keyframe_translation_m{2.0};
+  double keyframe_rotation_deg{20.0};
 
   // vio initialization params
   std::string init_map_output_directory{};

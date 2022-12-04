@@ -1,12 +1,20 @@
 #pragma once
 
+/**
+ * \note: if kdtree_flann isnt included before opencv.hpp the following occurs:
+ * ‘class std::unordered_map<...>’ has no member named ‘serialize’
+ * We include this up here to fix but ideally we figure out a method to automate
+ * this
+ */
+//#include <pcl/kdtree/kdtree_flann.h>
 #include <queue>
 
 #include <fuse_core/transaction.h>
 #include <sensor_msgs/PointCloud2.h>
 
-#include <beam_utils/pointclouds.h>
+#include <beam_cv/ImageDatabase.h>
 #include <beam_filtering/Utils.h>
+#include <beam_utils/pointclouds.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
@@ -14,9 +22,7 @@
 #include <bs_models/reloc/reloc_candidate_search_base.h>
 #include <bs_models/reloc/reloc_refinement_base.h>
 
-namespace bs_models {
-
-namespace global_mapping {
+namespace bs_models { namespace global_mapping {
 
 /**
  * @brief Enum class for the different types of ROS maps to be published
@@ -46,7 +52,7 @@ enum class SubmapType {
  * reloc on the submaps to refine the final map.
  */
 class GlobalMap {
- public:
+public:
   /**
    * @brief struct to store all parameters needed for the global map, with
    * specified defaults and a method to override defaults with a json config
@@ -168,6 +174,18 @@ class GlobalMap {
   std::vector<SubmapPtr> GetOfflineSubmaps();
 
   /**
+   * @brief get access online image database
+   * @return pointer to the image database
+   */
+  const std::shared_ptr<beam_cv::ImageDatabase>& GetOnlineImageDatabase();
+
+  /**
+   * @brief get access offline image database
+   * @return pointer to the image database
+   */
+  const std::shared_ptr<beam_cv::ImageDatabase>& GetOfflineImageDatabase();
+
+  /**
    * @brief set online the submaps vector
    * @param submaps vector of pointers to submaps to be stored in this global
    * map
@@ -180,6 +198,19 @@ class GlobalMap {
    * map
    */
   void SetOfflineSubmaps(std::vector<SubmapPtr>& submaps);
+
+  /**
+   * @brief set online image database
+   * @param image_db pointer to image database object
+   */
+  void SetOnlineImageDatabase(std::shared_ptr<beam_cv::ImageDatabase> image_db);
+
+  /**
+   * @brief set offline image database
+   * @param image_db pointer to image database object
+   */
+  void
+      SetOfflineImageDatabase(std::shared_ptr<beam_cv::ImageDatabase> image_db);
 
   /**
    * @brief Sets store_newly_completed_submaps_ param. See description below for
@@ -231,11 +262,12 @@ class GlobalMap {
    * NOTE: All data should
    * be in baselink_frame_ already
    */
-  fuse_core::Transaction::SharedPtr AddMeasurement(
-      const CameraMeasurementMsg& cam_measurement,
-      const LidarMeasurementMsg& lid_measurement,
-      const TrajectoryMeasurementMsg& traj_measurement,
-      const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp);
+  fuse_core::Transaction::SharedPtr
+      AddMeasurement(const CameraMeasurementMsg& cam_measurement,
+                     const LidarMeasurementMsg& lid_measurement,
+                     const TrajectoryMeasurementMsg& traj_measurement,
+                     const Eigen::Matrix4d& T_WORLD_BASELINK,
+                     const ros::Time& stamp);
 
   /**
    * @brief This function takes a reloc request message and tries to determine
@@ -290,6 +322,8 @@ class GlobalMap {
    * mapping sessions. Format will be as follows:
    *
    *  /output_path/
+   *    image_database.dbow3
+   *    image_db_timestamps.json
    *    params.json
    *    camera_model.json
    *    /submap0/
@@ -365,7 +399,7 @@ class GlobalMap {
   void SaveSubmapFrames(const std::string& output_path,
                         bool save_initial = true);
 
- private:
+private:
   /**
    * @brief setup general things needed when class is instatiated, such as
    * initiating the reloc pointer
@@ -482,6 +516,18 @@ class GlobalMap {
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 
+  /** The online image database is either loaded from a previous session to
+   * continue when a global mpa is loaded in the constructor, or is initialized
+   * as an empty one
+   */
+  std::shared_ptr<beam_cv::ImageDatabase> online_image_database_;
+
+  /** The offline image database can only be pre loaded using
+   * SetOfflineImageDatabase(). It is an image database from a previous map that
+   * will only be used for RelocRequests and no new images will be added to it.
+   */
+  std::shared_ptr<beam_cv::ImageDatabase> offline_image_database_;
+
   /** online submaps are the submaps that are being build when AddMeasurement is
    * called, or when a previous global map is loaded in the constructor. It also
    * has the set and get functions: SetOnlineSubmaps(), GetOnlineSubmaps()
@@ -536,6 +582,4 @@ class GlobalMap {
   ros::Time last_update_time_;
 };
 
-}  // namespace global_mapping
-
-}  // namespace bs_models
+}} // namespace bs_models::global_mapping

@@ -2,7 +2,7 @@
 
 namespace bs_common {
 
-ImuState::ImuState(const ros::Time &time) : stamp_(time) {
+ImuState::ImuState(const ros::Time& time) : stamp_(time) {
   InstantiateVariables();
   SetOrientation(1, 0, 0, 0);
   SetPosition(0, 0, 0);
@@ -11,9 +11,9 @@ ImuState::ImuState(const ros::Time &time) : stamp_(time) {
   SetAccelBias(0, 0, 0);
 }
 
-ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
-                   const Eigen::Vector3d &position,
-                   const Eigen::Vector3d &velocity)
+ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
+                   const Eigen::Vector3d& position,
+                   const Eigen::Vector3d& velocity)
     : stamp_(time) {
   InstantiateVariables();
   SetOrientation(orientation);
@@ -23,9 +23,10 @@ ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
   SetAccelBias(0, 0, 0);
 }
 
-ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
-         const Eigen::Vector3d &position,
-         const bs_common::PreIntegrator &preint): stamp_(time) {
+ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
+                   const Eigen::Vector3d& position,
+                   const bs_common::PreIntegrator& preint)
+    : stamp_(time) {
   InstantiateVariables();
   SetOrientation(orientation);
   SetPosition(position);
@@ -35,11 +36,11 @@ ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
   SetAccelBias(0, 0, 0);
 }
 
-ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
-                   const Eigen::Vector3d &position,
-                   const Eigen::Vector3d &velocity,
-                   const Eigen::Vector3d &gyrobias,
-                   const Eigen::Vector3d &accelbias)
+ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
+                   const Eigen::Vector3d& position,
+                   const Eigen::Vector3d& velocity,
+                   const Eigen::Vector3d& gyrobias,
+                   const Eigen::Vector3d& accelbias)
     : stamp_(time) {
   InstantiateVariables();
   SetOrientation(orientation);
@@ -49,21 +50,21 @@ ImuState::ImuState(const ros::Time &time, const Eigen::Quaterniond &orientation,
   SetAccelBias(accelbias);
 }
 
-bool ImuState::Update(const fuse_core::Graph::SharedPtr &graph_msg) {
+bool ImuState::Update(fuse_core::Graph::ConstSharedPtr graph_msg) {
   if (graph_msg->variableExists(orientation_->uuid()) &&
       graph_msg->variableExists(position_->uuid()) &&
       graph_msg->variableExists(velocity_->uuid()) &&
       graph_msg->variableExists(gyrobias_->uuid()) &&
       graph_msg->variableExists(accelbias_->uuid())) {
-    *orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped &>(
+    *orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
         graph_msg->getVariable(orientation_->uuid()));
-    *position_ = dynamic_cast<const fuse_variables::Position3DStamped &>(
+    *position_ = dynamic_cast<const fuse_variables::Position3DStamped&>(
         graph_msg->getVariable(position_->uuid()));
-    *velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped &>(
+    *velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
         graph_msg->getVariable(velocity_->uuid()));
-    *gyrobias_ = dynamic_cast<const bs_variables::GyroscopeBias3DStamped &>(
+    *gyrobias_ = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
         graph_msg->getVariable(gyrobias_->uuid()));
-    *accelbias_ = dynamic_cast<const bs_variables::AccelerationBias3DStamped &>(
+    *accelbias_ = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
         graph_msg->getVariable(accelbias_->uuid()));
     updates_++;
     return true;
@@ -71,9 +72,13 @@ bool ImuState::Update(const fuse_core::Graph::SharedPtr &graph_msg) {
   return false;
 }
 
-int ImuState::Updates() const { return updates_; }
+int ImuState::Updates() const {
+  return updates_;
+}
 
-ros::Time ImuState::Stamp() const { return stamp_; }
+ros::Time ImuState::Stamp() const {
+  return stamp_;
+}
 
 fuse_variables::Orientation3DStamped ImuState::Orientation() const {
   return *orientation_;
@@ -130,105 +135,105 @@ std::shared_ptr<bs_common::PreIntegrator> ImuState::GetPreintegrator() {
   return preint_;
 }
 
-void ImuState::SetPreintegrator(const bs_common::PreIntegrator &preint) {
+void ImuState::SetPreintegrator(const bs_common::PreIntegrator& preint) {
   *preint_ = preint;
 }
 
-void ImuState::SetOrientation(const double &w, const double &x, const double &y,
-                              const double &z) {
+void ImuState::SetOrientation(const double& w, const double& x, const double& y,
+                              const double& z) {
   orientation_->w() = w;
   orientation_->x() = x;
   orientation_->y() = y;
   orientation_->z() = z;
 }
 
-void ImuState::SetOrientation(const Eigen::Quaterniond &orientation) {
+void ImuState::SetOrientation(const Eigen::Quaterniond& orientation) {
   orientation_->w() = orientation.w();
   orientation_->x() = orientation.x();
   orientation_->y() = orientation.y();
   orientation_->z() = orientation.z();
 }
 
-void ImuState::SetOrientation(const double *orientation) {
+void ImuState::SetOrientation(const double* orientation) {
   orientation_->w() = orientation[0];
   orientation_->x() = orientation[1];
   orientation_->y() = orientation[2];
   orientation_->z() = orientation[3];
 }
 
-void ImuState::SetPosition(const double &x, const double &y, const double &z) {
+void ImuState::SetPosition(const double& x, const double& y, const double& z) {
   position_->x() = x;
   position_->y() = y;
   position_->z() = z;
 }
 
-void ImuState::SetPosition(const Eigen::Vector3d &position) {
+void ImuState::SetPosition(const Eigen::Vector3d& position) {
   position_->x() = position[0];
   position_->y() = position[1];
   position_->z() = position[2];
 }
 
-void ImuState::SetPosition(const double *position) {
+void ImuState::SetPosition(const double* position) {
   position_->x() = position[0];
   position_->y() = position[1];
   position_->z() = position[2];
 }
 
-void ImuState::SetVelocity(const double &x, const double &y, const double &z) {
+void ImuState::SetVelocity(const double& x, const double& y, const double& z) {
   velocity_->x() = x;
   velocity_->y() = y;
   velocity_->z() = z;
 }
 
-void ImuState::SetVelocity(const Eigen::Vector3d &velocity) {
+void ImuState::SetVelocity(const Eigen::Vector3d& velocity) {
   velocity_->x() = velocity[0];
   velocity_->y() = velocity[1];
   velocity_->z() = velocity[2];
 }
 
-void ImuState::SetVelocity(const double *velocity) {
+void ImuState::SetVelocity(const double* velocity) {
   velocity_->x() = velocity[0];
   velocity_->y() = velocity[1];
   velocity_->z() = velocity[2];
 }
 
-void ImuState::SetGyroBias(const double &x, const double &y, const double &z) {
+void ImuState::SetGyroBias(const double& x, const double& y, const double& z) {
   gyrobias_->x() = x;
   gyrobias_->y() = y;
   gyrobias_->z() = z;
 }
 
-void ImuState::SetGyroBias(const Eigen::Vector3d &gyrobias) {
+void ImuState::SetGyroBias(const Eigen::Vector3d& gyrobias) {
   gyrobias_->x() = gyrobias[0];
   gyrobias_->y() = gyrobias[1];
   gyrobias_->z() = gyrobias[2];
 }
 
-void ImuState::SetGyroBias(const double *gyrobias) {
+void ImuState::SetGyroBias(const double* gyrobias) {
   gyrobias_->x() = gyrobias[0];
   gyrobias_->y() = gyrobias[1];
   gyrobias_->z() = gyrobias[2];
 }
 
-void ImuState::SetAccelBias(const double &x, const double &y, const double &z) {
+void ImuState::SetAccelBias(const double& x, const double& y, const double& z) {
   accelbias_->x() = x;
   accelbias_->y() = y;
   accelbias_->z() = z;
 }
 
-void ImuState::SetAccelBias(const Eigen::Vector3d &accelbias) {
+void ImuState::SetAccelBias(const Eigen::Vector3d& accelbias) {
   accelbias_->x() = accelbias[0];
   accelbias_->y() = accelbias[1];
   accelbias_->z() = accelbias[2];
 }
 
-void ImuState::SetAccelBias(const double *accelbias) {
+void ImuState::SetAccelBias(const double* accelbias) {
   accelbias_->x() = accelbias[0];
   accelbias_->y() = accelbias[1];
   accelbias_->z() = accelbias[2];
 }
 
-void ImuState::Print(std::ostream &stream) const {
+void ImuState::Print(std::ostream& stream) const {
   stream << "  Stamp: " << stamp_ << "\n"
          << "  Number of Updates: " << updates_ << "\n"
          << "  Orientation:\n"

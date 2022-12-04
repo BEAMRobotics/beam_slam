@@ -130,13 +130,13 @@ public:
       const ros::Time& t_now,
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
-        fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
+      fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
 
   /**
    * @brief Updates current graph copy
    * @param graph_msg graph to update with
    */
-  void UpdateGraph(const fuse_core::Graph::SharedPtr& graph_msg);
+  void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
   /**
    * @brief Estimates inertial parameters given an initial path and imu messages
