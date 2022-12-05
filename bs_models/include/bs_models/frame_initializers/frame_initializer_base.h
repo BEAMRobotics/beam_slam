@@ -1,9 +1,9 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <nav_msgs/Path.h>
 #include <ros/ros.h>
 #include <tf2/buffer_core.h>
-#include <nav_msgs/Path.h>
 
 #include <bs_common/pose_lookup.h>
 
@@ -27,6 +27,11 @@ public:
   /**
    * @brief Gets estimated pose of sensor frame wrt world frame using
    * Poselookup.
+   * @todo Change this back to non-virtual, if a request is within the current
+   * path, interpolate with that, if its beyond the path, then extrapolate with
+   * the source input (odom, path, transform etc)
+   * Automatically choose the interpolation method (linear vs cubic) depending
+   * on the frequency of the path
    * @param T_WORLD_SENSOR reference to result
    * @param time stamp of the frame being initialized
    * @param sensor_frame sensor frame id.
@@ -46,19 +51,20 @@ public:
       Create(const std::string& config_path);
 
   /**
-   * @brief Sets the path callback with specified path topic and window size
-   * @param path_topic ros topic path is published on
-   * @param path_window_size size of path to retain
-   */
-  void SetPathCallback(const std::string& path_topic, const int path_window_size);
-
-  /**
    * @brief Converts incoming path message into a queue of poses
    * @param message path message
    */
   void PathCallback(const nav_msgs::PathConstPtr message);
 
-protected:
+private:
+  /**
+   * @brief Sets the path callback with specified path topic and window size
+   * @param path_topic ros topic path is published on
+   * @param path_window_size size of path to retain
+   */
+  void SetPathCallback(const std::string& path_topic,
+                       const int path_window_size);
+
   std::string authority_;
   std::shared_ptr<bs_common::PoseLookup> pose_lookup_;
   std::map<uint64_t, Eigen::Matrix4d> path_poses_;
