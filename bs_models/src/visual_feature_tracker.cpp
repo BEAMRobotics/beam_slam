@@ -69,11 +69,16 @@ void VisualFeatureTracker::processImage(
   const auto measurement_msg = BuildCameraMeasurement(msg->header.stamp, *msg);
   measurement_publisher_.publish(measurement_msg);
 
-  // temp: visualize tracks
-  std::string image_file = std::to_string(msg->header.stamp.toNSec()) + ".png";
-  cv::Mat track_image =
-      tracker_->DrawTracks(tracker_->GetTracks(msg->header.stamp), image);
-  cv::imwrite("/userhome/data/tracks/" + image_file, track_image);
+  if (boost::filesystem::exists(
+          visual_feature_tracker_params_.save_tracks_folder) &&
+      !visual_feature_tracker_params_.save_tracks_folder.empty()) {
+    std::string image_file =
+        std::to_string(msg->header.stamp.toNSec()) + ".png";
+    cv::Mat track_image =
+        tracker_->DrawTracks(tracker_->GetTracks(msg->header.stamp), image);
+    cv::imwrite(visual_feature_tracker_params_.save_tracks_folder + image_file,
+                track_image);
+  }
 }
 
 CameraMeasurementMsg VisualFeatureTracker::BuildCameraMeasurement(

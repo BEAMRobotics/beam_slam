@@ -27,6 +27,7 @@ public:
     getParam<std::string>(nh, "descriptor_config", descriptor_config, "");
     getParam<std::string>(nh, "detector_config", detector_config, "");
     getParam<std::string>(nh, "tracker_config", tracker_config, "");
+    getParam<std::string>(nh, "save_tracks_folder", save_tracks_folder, "");
   }
 
   // subscribing topics
@@ -36,5 +37,6 @@ public:
   std::string descriptor_config{};
   std::string detector_config{};
   std::string tracker_config{};
+  std::string save_tracks_folder{};
 };
 }} // namespace bs_parameters::models
