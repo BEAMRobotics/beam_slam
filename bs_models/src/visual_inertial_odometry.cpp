@@ -51,9 +51,7 @@ void VisualInertialOdometry::onInit() {
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
   cam_model_->InitUndistortMap();
-  visual_map_ =
-      std::make_shared<VisualMap>(cam_model_, vio_params_.num_features_to_track,
-                                  vio_params_.keyframe_window_size);
+  visual_map_ = std::make_shared<VisualMap>(cam_model_);
 
   // Get descriptor type
   descriptor_type_ = beam_cv::DescriptorTypeStringMap[vio_params_.descriptor];
@@ -495,15 +493,15 @@ void VisualInertialOdometry::SendInitializationGraph(
         fuse_variables::Orientation3DStamped::make_shared();
     if (var.type() == landmark->type()) {
       *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(var);
-      visual_map_->AddLandmark(landmark, transaction);
+      transaction->addVariable(landmark);
       new_landmarks.push_back(landmark->id());
     } else if (var.type() == orientation->type()) {
       *orientation =
           dynamic_cast<const fuse_variables::Orientation3DStamped&>(var);
-      visual_map_->AddOrientation(orientation, transaction);
+      transaction->addVariable(orientation);
     } else if (var.type() == position->type()) {
       *position = dynamic_cast<const fuse_variables::Position3DStamped&>(var);
-      visual_map_->AddPosition(position, transaction);
+      transaction->addVariable(position);
     } else {
       transaction->addVariable(std::move(var.clone()));
     }

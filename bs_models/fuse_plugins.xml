@@ -61,4 +61,9 @@
       A plugin for managing the global map, implemented as a sensor model but subscribes to SLAM messages as opposed to sensor messages.
     </description>
   </class>
+  <class type="bs_models::VisualFeatureTracker" base_class_type="fuse_core::SensorModel">
+    <description>
+      Tracks visual features and published for the rest of the system to use.
+    </description>
+  </class>
 </library>

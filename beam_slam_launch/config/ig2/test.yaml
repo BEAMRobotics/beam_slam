@@ -1,0 +1,38 @@
+###################################
+#    sensor model declarations    #
+###################################
+sensor_models:
+  - name: 'visual_feature_tracker'
+    type: 'bs_models::VisualFeatureTracker'
+
+
+##############################
+#    optimizer parameters    #
+##############################
+optimization_period: 2
+lag_duration: 10
+
+###########################
+#    solver parameters    #
+###########################
+solver_options:
+  minimizer_type: 'TRUST_REGION'
+  linear_solver_type: 'SPARSE_SCHUR'
+  minimizer_progress_to_stdout: true
+  num_threads: 6
+  num_linear_solver_threads: 6
+  max_num_iterations: 8
+  max_solver_time_in_seconds: 0.5
+  gradient_tolerance: 0.00000015
+  parameter_tolerance: 0.00000015
+  function_tolerance: 0.00000015
+
+
+#####################################
+#     visual odometry parameters    #
+#####################################
+visual_feature_tracker:
+  image_topic: '/F1/image_raw'
+  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
+  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fastssc_detector.json'
+  tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
