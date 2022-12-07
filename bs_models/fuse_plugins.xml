@@ -66,4 +66,9 @@
       Tracks visual features and published for the rest of the system to use.
     </description>
   </class>
+  <class type="bs_models::SLAMInitialization" base_class_type="fuse_core::SensorModel">
+    <description>
+      Initialized slam using all available sensor information
+    </description>
+  </class>
 </library>
