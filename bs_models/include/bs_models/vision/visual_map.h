@@ -27,8 +27,7 @@ public:
    * @brief Custom cosntrcutor, use when working with transactions
    * @param cam_model camera model being used
    */
-  VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-            const size_t tracked_features = 100, const size_t window_size = 10);
+  VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model);
 
   /**
    * @brief Default destructor
@@ -81,31 +80,12 @@ public:
   /**
    * @brief Helper function to add a new landmark variable to a transaction or
    * graph
-   * @param landmark to add
-   * @param transaction to add to
-   */
-  void AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
-                   fuse_core::Transaction::SharedPtr transaction);
-
-  /**
-   * @brief Helper function to add a new landmark variable to a transaction or
-   * graph
    * @param position of the landmark to add
    * @param id of the landmark to add
    * @param transaction to add to
    */
   void AddFixedLandmark(const Eigen::Vector3d& position, uint64_t id,
                         fuse_core::Transaction::SharedPtr transaction);
-
-  /**
-   * @brief Helper function to add a new landmark variable to a transaction or
-   * graph
-   * @param landmark to add
-   * @param transaction to add to
-   */
-  void
-      AddFixedLandmark(fuse_variables::Point3DFixedLandmark::SharedPtr landmark,
-                       fuse_core::Transaction::SharedPtr transaction);
 
   /**
    * @brief Helper function to add a constraint between a landmark and a pose
@@ -166,41 +146,6 @@ public:
                    fuse_core::Transaction::SharedPtr transaction);
 
   /**
-   * @brief Adds orientation in baselink frame
-   * @param stamp associated to orientation
-   * @param q_WORLD_BASELINK quaternion representing orientation
-   * @param transaciton to add to
-   */
-  void AddOrientation(
-      fuse_variables::Orientation3DStamped::SharedPtr orientation,
-      fuse_core::Transaction::SharedPtr transaction);
-
-  /**
-   * @brief Adds position in baselink frame
-   * @param stamp associated to position
-   * @param q_WORLD_BASELINK vector representing position
-   * @param transaciton to add to
-   */
-  void AddPosition(fuse_variables::Position3DStamped::SharedPtr position,
-                   fuse_core::Transaction::SharedPtr transaction);
-
-  /**
-   * @brief Replaces a given fixed landmark with a non-fixed one
-   * @param landmark_id if of landmark to replace
-   * @param transaction to edit
-   */
-  void ReplaceFixedWithNonFixed(uint64_t landmark_id,
-                                fuse_core::Transaction::SharedPtr transaction);
-
-  /**
-   * @brief Replaces a given non-fixed landmark with a fixed one
-   * @param landmark_id if of landmark to replace
-   * @param transaction to edit
-   */
-  void ReplaceNonFixedWithFixed(uint64_t landmark_id,
-                                fuse_core::Transaction::SharedPtr transaction);
-
-  /**
    * @brief Gets fuse uuid of landmark
    * @param landmark_id of landmark
    */
@@ -254,44 +199,6 @@ public:
   void Clear();
 
 private:
-  /**
-   * @brief Updates local copies of variables with the values in the current
-   * graph
-   */
-  void UpdateLandmarks();
-
-  /**
-   * @brief Updates local copies of variables with the values in the current
-   * graph
-   */
-  void UpdateFixedLandmarks();
-
-  /**
-   * @brief Updates local copies of variables with the values in the current
-   * graph
-   */
-  void UpdatePositions();
-
-  /**
-   * @brief Updates local copies of variables with the values in the current
-   * graph
-   */
-  void UpdateOrientations();
-
-protected:
-  // temp maps for in between optimization cycles
-  std::map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
-      orientations_;
-  std::map<uint64_t, fuse_variables::Position3DStamped::SharedPtr> positions_;
-  std::map<uint64_t, fuse_variables::Point3DLandmark::SharedPtr>
-      landmark_positions_;
-  std::map<uint64_t, fuse_variables::Point3DFixedLandmark::SharedPtr>
-      fixed_landmark_positions_;
-
-  // memory management variables
-  size_t tracked_features_{100}; // # of features tracked per frame
-  size_t window_size_{10};       // # of keyframe poses to retain in local maps
-
   // copy of the current graph
   fuse_core::Graph::ConstSharedPtr graph_;
 
