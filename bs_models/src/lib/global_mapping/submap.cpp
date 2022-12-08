@@ -788,10 +788,6 @@ void Submap::SaveData(const std::string& output_dir) {
 void Submap::TriangulateKeypoints(bool override_points) {
   if (landmark_positions_.size() != 0 && !override_points) { return; }
 
-  // get the sensor id for the first landmark measurement.
-  // Note: this will only work for one camera
-  auto sensor_id = landmarks_.begin()->sensor_id;
-
   // get all landmark ids
   std::vector<uint64_t> landmark_ids = landmarks_.GetLandmarkIDs();
 

@@ -102,7 +102,7 @@ CameraMeasurementMsg VisualFeatureTracker::BuildCameraMeasurement(
   // build camera measurement msg
   CameraMeasurementMsg camera_measurement;
   camera_measurement.descriptor_type = descriptor_type_int_;
-  camera_measurement.sensor_id = 0;
+  camera_measurement.sensor_id = visual_feature_tracker_params_.sensor_id;
   camera_measurement.image = image;
   camera_measurement.measurement_id = measurement_id++;
   camera_measurement.landmarks = landmarks;
