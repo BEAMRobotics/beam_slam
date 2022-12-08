@@ -16,6 +16,7 @@ BinPackParameters: 'true'
 BreakBeforeBraces: Attach
 BreakBeforeInheritanceComma: 'false'
 BreakConstructorInitializers: BeforeColon
+ColumnLimit: 100
 CompactNamespaces: 'true'
 ConstructorInitializerAllOnOneLineOrOnePerLine: 'true'
 DerivePointerAlignment: 'false'

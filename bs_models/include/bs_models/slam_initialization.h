@@ -84,11 +84,12 @@ private:
   void onStop() override {}
 
   /**
-   * @brief Computes the average parallax between two frames
-   * @param t1 first timestamp
-   * @param t2 second timestamp
+   * @brief Attempts initialization using the available imu, lidar, and visual
+   * data. Will create and send an initial graph to the fuse optimizer to
+   * bootstrap odometry.
+   * @return pass or fail
    */
-  double computeParallax(const ros::Time& t1, const ros::Time& t2);
+  bool initialize();
 
   fuse_core::UUID device_id_; //!< The UUID of this device
 
@@ -96,7 +97,7 @@ private:
   bs_parameters::models::CalibrationParams calibration_params_;
 
   // loadable parameters
-  bs_parameters::models::SLAMInitializationParams slam_initialization_params_;
+  bs_parameters::models::SLAMInitializationParams params_;
 
   // subscribers
   ros::Subscriber visual_measurement_subscriber_;
@@ -106,37 +107,33 @@ private:
   // method for estimating initial path
   InitMode mode_ = InitMode::VISUAL;
 
+  // initial path estimate for performing initialization
   std::map<uint64_t, Eigen::Matrix4d> init_path_;
 
-  // message queues for proper synchronization
+  // data storage
   std::queue<sensor_msgs::Imu> imu_buffer_;
   std::queue<sensor_msgs::PointCloud2> lidar_buffer_;
+  std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
 
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
-  std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::shared_ptr<VisualMap> visual_map_;
   std::shared_ptr<ImuPreintegration> imu_preint_;
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   fuse_core::Graph::SharedPtr local_graph_;
-  std::deque<ros::Time> img_times_;
-
-  // callbacks for messages
-  using ThrottledMeasurementCallback =
-      fuse_core::ThrottledMessageCallback<CameraMeasurementMsg>;
-  ThrottledMeasuremenCallback throttled_measurement_callback_;
-  using ThrottledIMUCallback =
-      fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
-  ThrottledIMUCallback throttled_imu_callback_;
-  using ThrottledLidarCallback =
-      fuse_core::ThrottledMessageCallback<sensor_msgs::PointCloud2>;
-  ThrottledLidarCallback throttled_callback_;
 
   // extrinsics
   Eigen::Matrix4d T_cam_baselink_;
   Eigen::Matrix4d T_lidar_baselink_;
   Eigen::Matrix4d T_imu_baselink_;
-  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
-      bs_common::ExtrinsicsLookupOnline::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ = bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  // throttled callbacks for messages
+  using ThrottledMeasurementCallback = fuse_core::ThrottledMessageCallback<CameraMeasurementMsg>;
+  ThrottledMeasuremenCallback throttled_measurement_callback_;
+  using ThrottledIMUCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
+  ThrottledIMUCallback throttled_imu_callback_;
+  using ThrottledLidarCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::PointCloud2>;
+  ThrottledLidarCallback throttled_callback_;
 };
 
 } // namespace bs_models
