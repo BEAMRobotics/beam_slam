@@ -5,6 +5,7 @@
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/macros.h>
 #include <fuse_core/throttled_callback.h>
+#include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
 
@@ -12,6 +13,8 @@
 #include <beam_containers/LandmarkContainer.h>
 
 #include <bs_common/bs_msgs.h>
+#include <bs_common/extrinsics_lookup_online.h>
+#include <bs_models/imu/imu_preintegration.h>
 #include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/slam_initialization_params.h>
@@ -20,6 +23,8 @@ namespace bs_models {
 
 using namespace bs_common;
 using namespace vision;
+
+enum class InitMode { VISUAL = 0, LIDAR, FRAMEINIT };
 
 class SLAMInitialization : public fuse_core::AsyncSensorModel {
 public:
@@ -78,6 +83,13 @@ private:
    */
   void onStop() override {}
 
+  /**
+   * @brief Computes the average parallax between two frames
+   * @param t1 first timestamp
+   * @param t2 second timestamp
+   */
+  double computeParallax(const ros::Time& t1, const ros::Time& t2);
+
   fuse_core::UUID device_id_; //!< The UUID of this device
 
   // calibration parameters
@@ -91,8 +103,12 @@ private:
   ros::Subscriber imu_subscriber_;
   ros::Subscriber lidar_subscriber_;
 
+  // method for estimating initial path
+  InitMode mode_ = InitMode::VISUAL;
+
+  std::map<uint64_t, Eigen::Matrix4d> init_path_;
+
   // message queues for proper synchronization
-  std::queue<CameraMeasurementMsg> image_buffer_;
   std::queue<sensor_msgs::Imu> imu_buffer_;
   std::queue<sensor_msgs::PointCloud2> lidar_buffer_;
 
@@ -101,6 +117,8 @@ private:
   std::shared_ptr<VisualMap> visual_map_;
   std::shared_ptr<ImuPreintegration> imu_preint_;
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
+  fuse_core::Graph::SharedPtr local_graph_;
+  std::deque<ros::Time> img_times_;
 
   // callbacks for messages
   using ThrottledMeasurementCallback =

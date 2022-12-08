@@ -28,6 +28,10 @@ public:
     getParam<std::string>(nh, "detector_config", detector_config, "");
     getParam<std::string>(nh, "tracker_config", tracker_config, "");
     getParam<std::string>(nh, "save_tracks_folder", save_tracks_folder, "");
+
+    /* camera sensor id, 0 is default, if moving to more than one camera, then
+     * we need to make sure that each tracker has a different id */
+    getParam<int>(nh, "sensor_id", sensor_id, 0);
   }
 
   // subscribing topics
@@ -38,5 +42,7 @@ public:
   std::string detector_config{};
   std::string tracker_config{};
   std::string save_tracks_folder{};
+
+  int sensor_id{0};
 };
 }} // namespace bs_parameters::models
