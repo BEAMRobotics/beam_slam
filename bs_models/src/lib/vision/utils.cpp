@@ -9,12 +9,18 @@
 namespace bs_models { namespace vision {
 
 std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
+    const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::shared_ptr<beam_containers::LandmarkContainer>& landmark_container,
-    const Eigen::Matrix4d& T_camera_baselink, const std::deque<ros::Time>& img_times) {
-  const auto img_times = landmark_container_.GetMeasurementTimes();
-  ros::Time first_time(0, *img_times.begin());
-  ros::Time last_time(0, *img_times.rbegin());
+    const Eigen::Matrix4d& T_camera_baselink, double max_optimization_time, int images_to_skip) {
+  const auto img_times_set = landmark_container->GetMeasurementTimes();
+  std::vector<uint64_t> img_times;
+  std::transform(img_times_set.begin(), img_times_set.end(), img_times.begin(),
+                 [&](const auto& time) { return time; });
+  const int num_images = img_times.size();
+  if (num_images < 2) { return {}; }
   // Get matches between first and last image in the window
+  ros::Time first_time(0, img_times[0]);
+  ros::Time last_time(0, img_times[img_times.size() - 1]);
   std::vector<Eigen::Vector2i, beam::AlignVec2i> p1_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> p2_v;
   std::vector<uint64_t> ids = landmark_container->GetLandmarkIDsInImage(last_time);
@@ -28,18 +34,18 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
   }
   // compute relative pose
   beam::opt<Eigen::Matrix4d> T_c2_c1 = beam_cv::RelativePoseEstimator::RANSACEstimator(
-      camera_model_, camera_model_, p1_v, p2_v, beam_cv::EstimatorMethod::SEVENPOINT, 100);
+      camera_model, camera_model, p1_v, p2_v, beam_cv::EstimatorMethod::SEVENPOINT, 100);
   if (!T_c2_c1.has_value()) { return {}; }
 
   auto visual_graph = std::make_shared<fuse_graphs::HashGraph>();
-  auto visual_map = std::make_shared<vision::VisualMap>(camera_model_);
+  auto visual_map = std::make_shared<vision::VisualMap>(camera_model);
 
-  Eigen::Matrix4d T_world_c1 = T_cam_baselink_.inverse();
+  Eigen::Matrix4d T_world_c1 = T_camera_baselink.inverse();
   Eigen::Matrix4d T_world_c2 = T_world_c1 * T_c2_c1.value().inverse();
 
   // triangulate points
   std::vector<beam::opt<Eigen::Vector3d>> points = beam_cv::Triangulation::TriangulatePoints(
-      camera_model_, camera_model_, T_world_c1.inverse(), T_world_c2.inverse(), p1_v, p2_v);
+      camera_model, camera_model, T_world_c1.inverse(), T_world_c2.inverse(), p1_v, p2_v);
 
   // determine inliers
   int inliers = 0;
@@ -52,8 +58,8 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
       // reproject triangulated points into each frame
       bool in_image1 = false, in_image2 = false;
       Eigen::Vector2d p1_rep, p2_rep;
-      if (!camera_model_->ProjectPoint(pt1, p1_rep, in_image1) ||
-          !camera_model_->ProjectPoint(pt2, p2_rep, in_image2)) {
+      if (!camera_model->ProjectPoint(pt1, p1_rep, in_image1) ||
+          !camera_model->ProjectPoint(pt2, p2_rep, in_image2)) {
         continue;
       } else if (!in_image1 || !in_image2) {
         continue;
@@ -72,9 +78,7 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
   // initialize sfm if we have enough inliers
   float inlier_ratio = (float)inliers / p1_v.size();
   if (inlier_ratio > 0.8) {
-    ROS_INFO("Valid image pair. Parallax: %f, Inlier Ratio: %f. Attempting "
-             "VO Initialization.",
-             parallax, inlier_ratio);
+    ROS_INFO("Valid image pair. Inlier Ratio: %f. Attempting VO Path Estimation.", inlier_ratio);
     auto transaction = fuse_core::Transaction::make_shared();
     transaction->stamp(first_time);
 
@@ -94,8 +98,8 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
       Eigen::Vector2d cur_pixel = landmark_container->GetValue(last_time, id);
       Eigen::Vector2d first_pixel = landmark_container->GetValue(first_time, id);
       Eigen::Vector2i tmp;
-      if (camera_model_->UndistortPixel(first_pixel.cast<int>(), tmp) &&
-          camera_model_->UndistortPixel(cur_pixel.cast<int>(), tmp)) {
+      if (camera_model->UndistortPixel(first_pixel.cast<int>(), tmp) &&
+          camera_model->UndistortPixel(cur_pixel.cast<int>(), tmp)) {
         visual_map->AddVisualConstraint(first_time, id, first_pixel, transaction);
         visual_map->AddVisualConstraint(last_time, id, cur_pixel, transaction);
       }
@@ -103,8 +107,8 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
 
     // localize frames in between
     std::vector<ros::Time> kf_times;
-    for (auto it = img_times.begin(); it != img_times.end(); it += 5) {
-      ros::Time kf_time(0, *it);
+    for (int i = 0; i < num_images; i += images_to_skip) {
+      ros::Time kf_time(0, img_times[i]);
       kf_times.push_back(kf_time);
       if (kf_time == first_time || kf_time == last_time) continue;
       // get 2d-3d correspondences
@@ -128,7 +132,7 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
       }
       // localize with correspondences
       Eigen::Matrix4d T_CAMERA_WORLD_est =
-          beam_cv::AbsolutePoseEstimator::RANSACEstimator(camera_model_, pixels, points, 30);
+          beam_cv::AbsolutePoseEstimator::RANSACEstimator(camera_model, pixels, points, 30);
 
       // add pose to graph
       visual_map->AddCameraPose(T_CAMERA_WORLD_est.inverse(), kf_time, transaction);
@@ -137,7 +141,7 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
       for (auto& id : ids_in_frame) {
         Eigen::Vector2d measurement = landmark_container->GetValue(kf_time, id);
         Eigen::Vector2i tmp;
-        if (camera_model_->UndistortPixel(measurement.cast<int>(), tmp)) {
+        if (camera_model->UndistortPixel(measurement.cast<int>(), tmp)) {
           visual_map->AddVisualConstraint(kf_time, id, measurement, transaction);
         }
       }
@@ -154,7 +158,7 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
     options.minimizer_type = ceres::TRUST_REGION;
     options.linear_solver_type = ceres::SPARSE_SCHUR;
     options.preconditioner_type = ceres::SCHUR_JACOBI;
-    options.max_solver_time_in_seconds = 0.5;
+    options.max_solver_time_in_seconds = max_optimization_time;
     options.max_num_iterations = 100;
     visual_graph->optimize(options);
     visual_map->UpdateGraph(visual_graph);
@@ -166,26 +170,6 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
     }
     return init_path;
   }
-}
-
-double
-    computeParallax(const std::shared_ptr<beam_containers::LandmarkContainer>& landmark_container,
-                    const ros::Time& t1, const ros::Time& t2) {
-  // check if parallax is large enough
-  std::vector<uint64_t> frame1_ids = landmark_container_.GetLandmarkIDsInImage(t1);
-  double total_parallax = 0.0;
-  double num_correspondences = 0.0;
-  for (const auto& id : frame1_ids) {
-    try {
-      Eigen::Vector2d p1 = landmark_container_.Get(t1, id);
-      Eigen::Vector2d p2 = landmark_container_.Get(t2, id);
-      double d = beam::distance(p1, p2);
-      total_parallax += d;
-      num_correspondences += 1.0;
-    } catch (const std::out_of_range& oor) {}
-  }
-
-  return total_parallax / num_correspondences;
 }
 
 }} // namespace bs_models::vision

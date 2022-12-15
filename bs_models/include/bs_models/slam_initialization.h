@@ -11,9 +11,11 @@
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_containers/LandmarkContainer.h>
+#include <beam_cv/descriptors/Descriptors.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
+#include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/imu/imu_preintegration.h>
 #include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
@@ -115,6 +117,12 @@ private:
   std::queue<sensor_msgs::PointCloud2> lidar_buffer_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
 
+  // measurement buffer sizes
+  int max_landmark_container_size_;
+  int imu_buffer_size_;
+  int lidar_buffer_size_;
+
+  // objects for intializing
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<VisualMap> visual_map_;
   std::shared_ptr<ImuPreintegration> imu_preint_;
@@ -130,11 +138,11 @@ private:
 
   // throttled callbacks for messages
   using ThrottledMeasurementCallback = fuse_core::ThrottledMessageCallback<CameraMeasurementMsg>;
-  ThrottledMeasuremenCallback throttled_measurement_callback_;
+  ThrottledMeasurementCallback throttled_measurement_callback_;
   using ThrottledIMUCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
   ThrottledIMUCallback throttled_imu_callback_;
   using ThrottledLidarCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::PointCloud2>;
-  ThrottledLidarCallback throttled_callback_;
+  ThrottledLidarCallback throttled_lidar_callback_;
 };
 
 } // namespace bs_models
