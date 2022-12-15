@@ -19,10 +19,9 @@ void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
   o.w() = q.w();
 }
 
-void EigenTransformToFusePose(
-    const Eigen::Matrix4d& T_WORLD_SENSOR,
-    fuse_variables::Position3DStamped::SharedPtr& p,
-    fuse_variables::Orientation3DStamped::SharedPtr& o) {
+void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
+                              fuse_variables::Position3DStamped::SharedPtr& p,
+                              fuse_variables::Orientation3DStamped::SharedPtr& o) {
   fuse_variables::Position3DStamped p_tmp;
   fuse_variables::Orientation3DStamped o_tmp;
   EigenTransformToFusePose(T_WORLD_SENSOR, p_tmp, o_tmp);
@@ -39,9 +38,8 @@ void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
   T_WORLD_SENSOR.block(0, 0, 3, 3) = q.toRotationMatrix();
 }
 
-Eigen::Matrix4d FusePoseToEigenTransform(
-    const fuse_variables::Position3DStamped& p,
-    const fuse_variables::Orientation3DStamped& o) {
+Eigen::Matrix4d FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
+                                         const fuse_variables::Orientation3DStamped& o) {
   Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
 
   // add position
@@ -67,8 +65,7 @@ void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
   orientation.x() = pose.pose.orientation.x;
   orientation.y() = pose.pose.orientation.y;
   orientation.z() = pose.pose.orientation.z;
-  beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
-                                                  T_WORLD_SENSOR);
+  beam::QuaternionAndTranslationToTransformMatrix(orientation, position, T_WORLD_SENSOR);
 }
 
 void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
@@ -86,9 +83,8 @@ void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
   T_WORLD_SENSOR.block(0, 0, 3, 3) = R;
 }
 
-void EstimateVelocityFromPath(
-    const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
-    Eigen::Vector3d& velocity) {
+void EstimateVelocityFromPath(const std::vector<geometry_msgs::PoseStamped>& poses,
+                              const ros::Time& time, Eigen::Vector3d& velocity) {
   // estimate poses using the init path at
   Eigen::Matrix4d T_WORLD_BASELINK;
   InterpolateTransformFromPath(poses, time, T_WORLD_BASELINK);
@@ -96,16 +92,13 @@ void EstimateVelocityFromPath(
   Eigen::Matrix4d T_WORLD_BASELINK_plus;
   InterpolateTransformFromPath(poses, stamp_plus_delta, T_WORLD_BASELINK_plus);
   // get positions of each pose
-  Eigen::Vector3d position_plus =
-      T_WORLD_BASELINK_plus.block<3, 1>(0, 3).transpose();
+  Eigen::Vector3d position_plus = T_WORLD_BASELINK_plus.block<3, 1>(0, 3).transpose();
   Eigen::Vector3d position = T_WORLD_BASELINK.block<3, 1>(0, 3).transpose();
   // compute velocity
-  velocity =
-      (position_plus - position) / (stamp_plus_delta.toSec() - time.toSec());
+  velocity = (position_plus - position) / (stamp_plus_delta.toSec() - time.toSec());
 }
 
-void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS,
-                                         Eigen::Matrix4d& T) {
+void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS, Eigen::Matrix4d& T) {
   Eigen::Matrix4f T_float{Eigen::Matrix4f::Identity()};
   T_float(0, 3) = TROS.getOrigin().getX();
   T_float(1, 3) = TROS.getOrigin().getY();
@@ -119,8 +112,8 @@ void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS,
   T = T_float.cast<double>();
 }
 
-void TransformStampedMsgToEigenTransform(
-    const geometry_msgs::TransformStamped& TROS, Eigen::Matrix4d& T) {
+void TransformStampedMsgToEigenTransform(const geometry_msgs::TransformStamped& TROS,
+                                         Eigen::Matrix4d& T) {
   Eigen::Matrix4f T_float{Eigen::Matrix4f::Identity()};
   T_float(0, 3) = TROS.transform.translation.x;
   T_float(1, 3) = TROS.transform.translation.y;
@@ -134,10 +127,10 @@ void TransformStampedMsgToEigenTransform(
   T = T_float.cast<double>();
 }
 
-void EigenTransformToTransformStampedMsg(
-    const Eigen::Matrix4d& T, const ros::Time& stamp, int seq,
-    const std::string& parent_frame_id, const std::string& child_frame_id,
-    geometry_msgs::TransformStamped& tf_stamped) {
+void EigenTransformToTransformStampedMsg(const Eigen::Matrix4d& T, const ros::Time& stamp, int seq,
+                                         const std::string& parent_frame_id,
+                                         const std::string& child_frame_id,
+                                         geometry_msgs::TransformStamped& tf_stamped) {
   tf_stamped.header.stamp = stamp;
   tf_stamped.header.seq = seq;
   tf_stamped.header.frame_id = parent_frame_id;
@@ -153,8 +146,7 @@ void EigenTransformToTransformStampedMsg(
   tf_stamped.transform.rotation.w = q.w();
 }
 
-void EigenTransformToPoseStamped(const Eigen::Matrix4d& T,
-                                 const ros::Time& stamp, int seq,
+void EigenTransformToPoseStamped(const Eigen::Matrix4d& T, const ros::Time& stamp, int seq,
                                  const std::string& frame_id,
                                  geometry_msgs::PoseStamped& pose_stamped) {
   std_msgs::Header header;
@@ -181,10 +173,10 @@ void EigenTransformToPoseStamped(const Eigen::Matrix4d& T,
   pose_stamped.pose.orientation = orientation;
 }
 
-void OdometryMsgToTransformedStamped(
-    const nav_msgs::Odometry& message, const ros::Time& stamp, int seq,
-    const std::string& parent_frame_id, const std::string& child_frame_id,
-    geometry_msgs::TransformStamped& tf_stamped) {
+void OdometryMsgToTransformedStamped(const nav_msgs::Odometry& message, const ros::Time& stamp,
+                                     int seq, const std::string& parent_frame_id,
+                                     const std::string& child_frame_id,
+                                     geometry_msgs::TransformStamped& tf_stamped) {
   tf_stamped.header.stamp = stamp;
   tf_stamped.header.seq = seq;
   tf_stamped.header.frame_id = parent_frame_id;
@@ -195,13 +187,11 @@ void OdometryMsgToTransformedStamped(
   tf_stamped.transform.rotation = message.pose.pose.orientation;
 }
 
-void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
-                                   const ros::Time& stamp,
+void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& stamp,
                                    geometry_msgs::PoseStamped& pose) {
   Eigen::Vector3d position;
   Eigen::Quaterniond orientation;
-  beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_SENSOR, orientation,
-                                                  position);
+  beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_SENSOR, orientation, position);
   pose.header.stamp = stamp;
   pose.pose.position.x = position[0];
   pose.pose.position.y = position[1];
@@ -212,9 +202,8 @@ void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
   pose.pose.orientation.z = orientation.z();
 }
 
-void InterpolateTransformFromPath(
-    const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
-    Eigen::Matrix4d& T_WORLD_SENSOR) {
+void InterpolateTransformFromPath(const std::vector<geometry_msgs::PoseStamped>& poses,
+                                  const ros::Time& time, Eigen::Matrix4d& T_WORLD_SENSOR) {
   for (int i = 0; i < poses.size(); i++) {
     if (time < poses[i + 1].header.stamp && time >= poses[i].header.stamp) {
       Eigen::Matrix4d pose1, pose2;
@@ -222,8 +211,7 @@ void InterpolateTransformFromPath(
       PoseMsgToTransformationMatrix(poses[i + 1], pose2);
       T_WORLD_SENSOR = beam::InterpolateTransform(
           pose1, beam::RosTimeToChrono(poses[i].header.stamp), pose2,
-          beam::RosTimeToChrono(poses[i + 1].header.stamp),
-          beam::RosTimeToChrono(time));
+          beam::RosTimeToChrono(poses[i + 1].header.stamp), beam::RosTimeToChrono(time));
     }
   }
 }
@@ -231,9 +219,8 @@ void InterpolateTransformFromPath(
 std::string GetBeamSlamConfigPath() {
   std::string current_path_from_beam_slam = "bs_common/src/bs_common/utils.cpp";
   std::string config_root_location = __FILE__;
-  config_root_location.erase(
-      config_root_location.end() - current_path_from_beam_slam.length(),
-      config_root_location.end());
+  config_root_location.erase(config_root_location.end() - current_path_from_beam_slam.length(),
+                             config_root_location.end());
   config_root_location += "beam_slam_launch/config/";
   if (!boost::filesystem::exists(config_root_location)) {
     BEAM_ERROR("Cannot locate beam slam config folder. Expected to be at: {}",
@@ -242,32 +229,23 @@ std::string GetBeamSlamConfigPath() {
   return config_root_location;
 }
 
-int GetNumberOfConstraints(
-    const fuse_core::Transaction::SharedPtr& transaction) {
-  if (transaction == nullptr) {
-    return 0;
-  }
+int GetNumberOfConstraints(const fuse_core::Transaction::SharedPtr& transaction) {
+  if (transaction == nullptr) { return 0; }
 
   int counter = 0;
   auto added_constraints = transaction->addedConstraints();
-  for (auto iter = added_constraints.begin(); iter != added_constraints.end();
-       iter++) {
+  for (auto iter = added_constraints.begin(); iter != added_constraints.end(); iter++) {
     counter++;
   }
   return counter;
 }
 
 int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction) {
-  if (transaction == nullptr) {
-    return 0;
-  }
+  if (transaction == nullptr) { return 0; }
 
   int counter = 0;
   auto added_variables = transaction->addedVariables();
-  for (auto iter = added_variables.begin(); iter != added_variables.end();
-       iter++) {
-    counter++;
-  }
+  for (auto iter = added_variables.begin(); iter != added_variables.end(); iter++) { counter++; }
 }
 
-}  // namespace bs_common
+} // namespace bs_common
