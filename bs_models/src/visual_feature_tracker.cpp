@@ -14,86 +14,79 @@ namespace bs_models {
 VisualFeatureTracker::VisualFeatureTracker()
     : fuse_core::AsyncSensorModel(1),
       device_id_(fuse_core::uuid::NIL),
-      throttled_image_callback_(std::bind(&VisualFeatureTracker::processImage,
-                                          this, std::placeholders::_1)) {}
+      throttled_image_callback_(
+          std::bind(&VisualFeatureTracker::processImage, this, std::placeholders::_1)) {}
 
 void VisualFeatureTracker::onInit() {
   // Read settings from the parameter sever
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
-  visual_feature_tracker_params_.loadFromROS(private_node_handle_);
+  params_.loadFromROS(private_node_handle_);
 
   // Initialize descriptor
   beam_cv::ORBDescriptor::Params descriptor_params;
-  descriptor_params.LoadFromJson(
-      visual_feature_tracker_params_.descriptor_config);
-  std::shared_ptr<beam_cv::Descriptor> descriptor =
-      std::make_shared<beam_cv::ORBDescriptor>(descriptor_params);
-  descriptor_type_ = beam_cv::DescriptorType::ORB;
-  descriptor_type_int_ = 0;
+  descriptor_params.LoadFromJson(params_.descriptor_config);
+  descriptor_ = std::make_shared<beam_cv::ORBDescriptor>(descriptor_params);
 
   // Initialize detector
   beam_cv::FASTSSCDetector::Params detector_params;
-  detector_params.LoadFromJson(visual_feature_tracker_params_.detector_config);
+  detector_params.LoadFromJson(params_.detector_config);
   std::shared_ptr<beam_cv::Detector> detector =
       std::make_shared<beam_cv::FASTSSCDetector>(detector_params);
 
   // Initialize tracker
   beam_cv::KLTracker::Params tracker_params;
-  tracker_params.LoadFromJson(visual_feature_tracker_params_.tracker_config);
-  tracker_ = std::make_shared<beam_cv::KLTracker>(tracker_params, detector,
-                                                  descriptor, 100);
+  tracker_params.LoadFromJson(params_.tracker_config);
+  tracker_ = std::make_shared<beam_cv::KLTracker>(tracker_params, detector, descriptor_, 100);
 }
 
 void VisualFeatureTracker::onStart() {
   // subscribe to image topic
   image_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Image>(
-      ros::names::resolve(visual_feature_tracker_params_.image_topic), 1000,
-      &ThrottledImageCallback::callback, &throttled_image_callback_,
-      ros::TransportHints().tcpNoDelay(false));
+      ros::names::resolve(params_.image_topic), 1000, &ThrottledImageCallback::callback,
+      &throttled_image_callback_, ros::TransportHints().tcpNoDelay(false));
 
-  measurement_publisher_ = private_node_handle_.advertise<CameraMeasurementMsg>(
-      "visual_measurements", 100);
+  measurement_publisher_ =
+      private_node_handle_.advertise<CameraMeasurementMsg>("visual_measurements", 100);
 }
 
 /************************************************************
  *                          Callbacks                       *
  ************************************************************/
-void VisualFeatureTracker::processImage(
-    const sensor_msgs::Image::ConstPtr& msg) {
+void VisualFeatureTracker::processImage(const sensor_msgs::Image::ConstPtr& msg) {
   // track features in image
   cv::Mat image = beam_cv::OpenCVConversions::RosImgToMat(*msg);
   image = beam_cv::AdaptiveHistogram(image);
   tracker_->AddImage(image, msg->header.stamp);
 
-  // build measurement message and publish
-  const auto measurement_msg = BuildCameraMeasurement(msg->header.stamp, *msg);
+  // delay publishing by one image to ensure that the tracks are actually published
+  if (prev_time_ == ros::Time(0)) {
+    prev_time_ = msg->header.stamp;
+    return;
+  }
+  const auto measurement_msg = BuildCameraMeasurement(prev_time_, *msg);
   measurement_publisher_.publish(measurement_msg);
 
-  if (boost::filesystem::exists(
-          visual_feature_tracker_params_.save_tracks_folder) &&
-      !visual_feature_tracker_params_.save_tracks_folder.empty()) {
-    std::string image_file =
-        std::to_string(msg->header.stamp.toNSec()) + ".png";
-    cv::Mat track_image =
-        tracker_->DrawTracks(tracker_->GetTracks(msg->header.stamp), image);
-    cv::imwrite(visual_feature_tracker_params_.save_tracks_folder + image_file,
-                track_image);
+  if (boost::filesystem::exists(params_.save_tracks_folder) &&
+      !params_.save_tracks_folder.empty()) {
+    std::string image_file = std::to_string(prev_time_.toNSec()) + ".png";
+    cv::Mat track_image = tracker_->DrawTracks(tracker_->GetTracks(prev_time_), image);
+    cv::imwrite(params_.save_tracks_folder + image_file, track_image);
   }
+  prev_time_ = msg->header.stamp;
 }
 
-CameraMeasurementMsg VisualFeatureTracker::BuildCameraMeasurement(
-    const ros::Time& timestamp, const sensor_msgs::Image& image) {
+CameraMeasurementMsg VisualFeatureTracker::BuildCameraMeasurement(const ros::Time& timestamp,
+                                                                  const sensor_msgs::Image& image) {
   static uint64_t measurement_id = 0;
   // build landmark measurements msg
   std::vector<LandmarkMeasurementMsg> landmarks;
-  std::vector<uint64_t> landmark_ids =
-      tracker_->GetLandmarkIDsInImage(timestamp);
+  std::vector<uint64_t> landmark_ids = tracker_->GetLandmarkIDsInImage(timestamp);
   for (auto& id : landmark_ids) {
     LandmarkMeasurementMsg lm;
     lm.landmark_id = id;
     cv::Mat descriptor = tracker_->GetDescriptor(timestamp, id);
-    lm.descriptor =
-        beam_cv::Descriptor::ConvertDescriptor(descriptor, descriptor_type_);
+    lm.descriptor.descriptor_type = descriptor_->GetTypeString();
+    lm.descriptor.data = beam_cv::Descriptor::ConvertDescriptor(descriptor, descriptor_->GetType());
     Eigen::Vector2d pixel = tracker_->Get(timestamp, id);
     lm.pixel_u = pixel[0];
     lm.pixel_v = pixel[1];
@@ -101,10 +94,13 @@ CameraMeasurementMsg VisualFeatureTracker::BuildCameraMeasurement(
   }
   // build camera measurement msg
   CameraMeasurementMsg camera_measurement;
-  camera_measurement.descriptor_type = descriptor_type_int_;
-  camera_measurement.sensor_id = visual_feature_tracker_params_.sensor_id;
+  camera_measurement.header.seq = measurement_id++;
+  camera_measurement.header.stamp = timestamp;
+  camera_measurement.header.frame_id = extrinsics_.GetCameraFrameId();
+
+  camera_measurement.descriptor_type = descriptor_->GetTypeString();
+  camera_measurement.sensor_id = params_.sensor_id;
   camera_measurement.image = image;
-  camera_measurement.measurement_id = measurement_id++;
   camera_measurement.landmarks = landmarks;
   // return message
   return camera_measurement;

@@ -10,6 +10,7 @@
 #include <beam_cv/trackers/Trackers.h>
 
 #include <bs_common/bs_msgs.h>
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_parameters/models/visual_feature_tracker_params.h>
 
 namespace bs_models {
@@ -70,8 +71,7 @@ private:
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
-  bs_parameters::models::VisualFeatureTrackerParams
-      visual_feature_tracker_params_;
+  bs_parameters::models::VisualFeatureTrackerParams params_;
 
   // subscribers
   ros::Subscriber image_subscriber_;
@@ -79,15 +79,16 @@ private:
   // publishers
   ros::Publisher measurement_publisher_;
 
+  // extrinsics object
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ = bs_common::ExtrinsicsLookupOnline::GetInstance();
+
   // callbacks for messages
-  using ThrottledImageCallback =
-      fuse_core::ThrottledMessageCallback<sensor_msgs::Image>;
+  using ThrottledImageCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::Image>;
   ThrottledImageCallback throttled_image_callback_;
 
   std::shared_ptr<beam_cv::Tracker> tracker_;
-
-  beam_cv::DescriptorType descriptor_type_;
-  int descriptor_type_int_;
+  std::shared_ptr<beam_cv::Descriptor> descriptor_;
+  ros::Time prev_time_{0};
 };
 
 } // namespace bs_models

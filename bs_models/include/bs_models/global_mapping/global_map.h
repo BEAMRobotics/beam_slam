@@ -204,8 +204,7 @@ public:
    * @brief set offline image database
    * @param image_db pointer to image database object
    */
-  void
-      SetOfflineImageDatabase(std::shared_ptr<beam_cv::ImageDatabase> image_db);
+  void SetOfflineImageDatabase(std::shared_ptr<beam_cv::ImageDatabase> image_db);
 
   /**
    * @brief Sets store_newly_completed_submaps_ param. See description below for
@@ -257,12 +256,11 @@ public:
    * NOTE: All data should
    * be in baselink_frame_ already
    */
-  fuse_core::Transaction::SharedPtr
-      AddMeasurement(const CameraMeasurementMsg& cam_measurement,
-                     const LidarMeasurementMsg& lid_measurement,
-                     const TrajectoryMeasurementMsg& traj_measurement,
-                     const Eigen::Matrix4d& T_WORLD_BASELINK,
-                     const ros::Time& stamp);
+  fuse_core::Transaction::SharedPtr AddMeasurement(const CameraMeasurementMsg& cam_measurement,
+                                                   const LidarMeasurementMsg& lid_measurement,
+                                                   const TrajectoryMeasurementMsg& traj_measurement,
+                                                   const Eigen::Matrix4d& T_WORLD_BASELINK,
+                                                   const ros::Time& stamp);
 
   /**
    * @brief This function takes a reloc request message and tries to determine
@@ -353,8 +351,7 @@ public:
    * @param save_initial set to true to save the initial map from the
    * local mapper, before global optimization
    */
-  void SaveLidarSubmaps(const std::string& output_path,
-                        bool save_initial = false);
+  void SaveLidarSubmaps(const std::string& output_path, bool save_initial = false);
 
   /**
    * @brief Save each keypoint submap to pcd files. A keypoint submap contains
@@ -364,8 +361,7 @@ public:
    * @param save_initial set to true to save the initial map from the
    * local mapper, before global optimization
    */
-  void SaveKeypointSubmaps(const std::string& output_path,
-                           bool save_initial = false);
+  void SaveKeypointSubmaps(const std::string& output_path, bool save_initial = false);
 
   /**
    * @brief saves the trajectory as a posefile
@@ -373,8 +369,7 @@ public:
    * @param save_initial set to true to save the initial trajectory from the
    * local mapper, before global optimization
    */
-  void SaveTrajectoryFile(const std::string& output_path,
-                          bool save_initial = true);
+  void SaveTrajectoryFile(const std::string& output_path, bool save_initial = true);
 
   /**
    * @brief saves the trajectory as a pointcloud
@@ -382,8 +377,7 @@ public:
    * @param save_initial set to true to save the initial trajectory from the
    * local mapper, before global optimization
    */
-  void SaveTrajectoryClouds(const std::string& output_path,
-                            bool save_initial = true);
+  void SaveTrajectoryClouds(const std::string& output_path, bool save_initial = true);
 
   /**
    * @brief saves the pose of each submap as a pointcloud with RGB frames
@@ -391,8 +385,7 @@ public:
    * @param save_initial set to true to save the initial trajectory from the
    * local mapper, before global optimization
    */
-  void SaveSubmapFrames(const std::string& output_path,
-                        bool save_initial = true);
+  void SaveSubmapFrames(const std::string& output_path, bool save_initial = true);
 
 private:
   /**
@@ -457,8 +450,7 @@ private:
    * @param T_WORLD_BASELINK pose of scan
    * @param stamp
    */
-  void AddNewRosScan(const PointCloud& cloud,
-                     const Eigen::Matrix4d& T_WORLD_BASELINK,
+  void AddNewRosScan(const PointCloud& cloud, const Eigen::Matrix4d& T_WORLD_BASELINK,
                      const ros::Time& stamp);
 
   /**
@@ -467,17 +459,17 @@ private:
    * @param lidar_points lidar points to add (in any frame)
    * @param loam_points loam pointcloud to add (in any frame)
    * @param keypoints 3D keypoint locations (in any frame) to add
-   * @param descriptors vector of descriptors to add, these must be the same
-   * order as their corresponding keypoints
-   * @param descriptor_type
+   * @param words visual words for each visual keypoint
+   * @param word_ids id of the corresponding visual words
+   * @param descriptor_type string representation of descriptor type
    * @param T transform to apply to all points (lidar_points, loam_points,
    * keypoints) to get them into the local mapper's world frame
    */
   void FillSubmapMsg(SubmapMsg& submap_msg, const PointCloud& lidar_points,
-                     const beam_matching::LoamPointCloud& loam_points,
-                     const PointCloud& keypoints,
-                     const std::vector<std::vector<float>>& descriptors,
-                     uint8_t descriptor_type, const Eigen::Matrix4d& T) const;
+                     const beam_matching::LoamPointCloud& loam_points, const PointCloud& keypoints,
+                     const std::vector<std::vector<float>>& words,
+                     const std::vector<uint32_t> word_ids, const std::string& descriptor_type,
+                     const Eigen::Matrix4d& T) const;
 
   Params params_;
 

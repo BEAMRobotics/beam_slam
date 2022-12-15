@@ -35,7 +35,7 @@ namespace bs_models {
  *
  */
 class ActiveSubmap {
- public:
+public:
   /**
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
@@ -83,8 +83,7 @@ class ActiveSubmap {
    * @return vector of 3d points (Eigen Vector3d)
    */
   std::vector<Eigen::Vector3d> GetVisualMapVectorInCameraFrame(
-      const Eigen::Matrix4d& T_WORLD_CAMERA =
-          Eigen::Matrix4d::Identity()) const;
+      const Eigen::Matrix4d& T_WORLD_CAMERA = Eigen::Matrix4d::Identity()) const;
 
   /**
    * @brief Gets a visual map points. If a transform from camera to world is
@@ -95,8 +94,7 @@ class ActiveSubmap {
    * @return pointcloud
    */
   PointCloud GetVisualMapCloudInCameraFrame(
-      const Eigen::Matrix4d& T_WORLD_CAMERA =
-          Eigen::Matrix4d::Identity()) const;
+      const Eigen::Matrix4d& T_WORLD_CAMERA = Eigen::Matrix4d::Identity()) const;
 
   /**
    * @brief Get a const pointer to the visual map points in the world frame
@@ -128,7 +126,7 @@ class ActiveSubmap {
    */
   void RemoveVisualMapPoint(size_t index);
 
- private:
+private:
   /**
    * @brief Private constructor
    */
@@ -144,7 +142,8 @@ class ActiveSubmap {
   PointCloudPtr lidar_map_points_;
   beam_matching::LoamPointCloudPtr loam_cloud_;
   PointCloudPtr visual_map_points_;
-  std::vector<cv::Mat> descriptors_;
+  std::vector<cv::Mat> visual_words_;
+  std::vector<uint32_t> word_ids_;
   ros::Subscriber submap_subscriber_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_online_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
@@ -161,4 +160,4 @@ class ActiveSubmap {
   ros::Publisher loam_surfaces_weak_publisher_;
 };
 
-}  // namespace bs_models
+} // namespace bs_models

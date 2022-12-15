@@ -1,4 +1,5 @@
 #include <bs_models/imu/imu_preintegration.h>
+#include <geometry_msgs/PoseStamped.h>
 
 #include <fuse_core/transaction.h>
 
@@ -443,18 +444,21 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
   for (size_t i = 0; i < imu_frames.size(); ++i) { velocities[i] = x2.segment<3>(3 + i * 3); }
 }
 
-static void ImuPreintegration::EstimateParameters(
-    const std::map<uint64_t, Eigen::Matrix4d>& path, const std::queue<sensor_msgs::Imu>& imu_buffer,
-    const bs_models::ImuPreintegration::Params& params, Eigen::Vector3d& gravity,
-    Eigen::Vector3d& bg, Eigen::Vector3d& ba, std::vector<Eigen::Vector3d>& velocities,
-    double& scale) {
+void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
+                                           const std::queue<sensor_msgs::Imu>& imu_buffer,
+                                           const bs_models::ImuPreintegration::Params& params,
+                                           Eigen::Vector3d& gravity, Eigen::Vector3d& bg,
+                                           Eigen::Vector3d& ba,
+                                           std::vector<Eigen::Vector3d>& velocities,
+                                           double& scale) {
   bs_common::InitializedPathMsg path_msg;
   for (const auto& [stamp, T_world_baselink] : path) {
-    geometry_msgs::Pose pose;
-    bs_common::TransformationMatrixToPoseMsg(T_world_baselink, pose);
+    ros::Time timestamp(0.0, stamp);
+    geometry_msgs::PoseStamped pose;
+    bs_common::TransformationMatrixToPoseMsg(T_world_baselink, timestamp, pose);
     path_msg.poses.push_back(pose);
   }
-  EstimateParameters(path_msg, imu_buffer, params, gravity, bg, ba, velocities);
+  EstimateParameters(path_msg, imu_buffer, params, gravity, bg, ba, velocities, scale);
 }
 
 } // namespace bs_models
