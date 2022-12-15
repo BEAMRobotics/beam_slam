@@ -118,6 +118,7 @@ private:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<VisualMap> visual_map_;
   std::shared_ptr<ImuPreintegration> imu_preint_;
+  bs_models::ImuPreintegration::Params imu_params_;
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   fuse_core::Graph::SharedPtr local_graph_;
 

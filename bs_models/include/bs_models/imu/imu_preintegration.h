@@ -82,11 +82,10 @@ public:
    * @param t_WORLD_IMU position of initial IMU state (if null set to zero)
    * @param velocity velocity of initial IMU state (if null set to zero)
    */
-  void SetStart(
-      const ros::Time& t_start,
-      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
-      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
-      fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
+  void SetStart(const ros::Time& t_start,
+                fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
+                fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
+                fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
 
   /**
    * @brief Predicts new IMU state from imu preintegration
@@ -96,10 +95,9 @@ public:
    * @param t_now time at which to stamp new IMU state if specified
    * @return ImuState
    */
-  bs_common::ImuState
-      PredictState(const bs_common::PreIntegrator& pre_integrator,
-                   const bs_common::ImuState& imu_state_curr,
-                   const ros::Time& t_now = ros::Time(0));
+  bs_common::ImuState PredictState(const bs_common::PreIntegrator& pre_integrator,
+                                   const bs_common::ImuState& imu_state_curr,
+                                   const ros::Time& t_now = ros::Time(0));
 
   /**
    * @brief Gets current IMU state, which is the last registered key frame
@@ -113,9 +111,8 @@ public:
    * @param T_WORLD_IMU reference to pose matrix to fill in
    * @return true if successful
    */
-  bool GetPose(
-      Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now,
-      std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance = nullptr);
+  bool GetPose(Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now,
+               std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance = nullptr);
 
   /**
    * @brief Registers new transaction between key frames
@@ -127,8 +124,7 @@ public:
    * @return transaction if successful. If not, nullptr is returned
    */
   fuse_core::Transaction::SharedPtr RegisterNewImuPreintegratedFactor(
-      const ros::Time& t_now,
-      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
+      const ros::Time& t_now, fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
       fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
 
@@ -141,12 +137,17 @@ public:
   /**
    * @brief Estimates inertial parameters given an initial path and imu messages
    */
-  static void EstimateParameters(
-      const bs_common::InitializedPathMsg& path,
-      const std::queue<sensor_msgs::Imu>& imu_buffer,
-      const bs_models::ImuPreintegration::Params& params,
-      Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
-      std::vector<Eigen::Vector3d>& velocities, double& scale);
+  static void EstimateParameters(const bs_common::InitializedPathMsg& path,
+                                 const std::queue<sensor_msgs::Imu>& imu_buffer,
+                                 const bs_models::ImuPreintegration::Params& params,
+                                 Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
+                                 std::vector<Eigen::Vector3d>& velocities, double& scale);
+
+  static void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
+                                 const std::queue<sensor_msgs::Imu>& imu_buffer,
+                                 const bs_models::ImuPreintegration::Params& params,
+                                 Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
+                                 std::vector<Eigen::Vector3d>& velocities, double& scale);
 
 private:
   /**
@@ -167,11 +168,10 @@ private:
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
 
-  bs_common::ImuState imu_state_i_;           // current key frame
-  bs_common::ImuState imu_state_k_;           // intermediate frame
-  bs_common::PreIntegrator pre_integrator_ij; // preintegrate between key frames
-  bs_common::PreIntegrator
-      pre_integrator_kj; // preintegrate from intermediate frame
+  bs_common::ImuState imu_state_i_;             // current key frame
+  bs_common::ImuState imu_state_k_;             // intermediate frame
+  bs_common::PreIntegrator pre_integrator_ij;   // preintegrate between key frames
+  bs_common::PreIntegrator pre_integrator_kj;   // preintegrate from intermediate frame
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero acceleration bias
 };

@@ -22,9 +22,8 @@ public:
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
     /** subscribing topics */
-    getParam<std::string>(
-        nh, "visual_measurement_topic", visual_measurement_topic,
-        "/local_mapper/visual_feature_tracker/visual_measurements");
+    getParam<std::string>(nh, "visual_measurement_topic", visual_measurement_topic,
+                          "/local_mapper/visual_feature_tracker/visual_measurements");
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
     getParam<std::string>(nh, "lidar_topic", lidar_topic, "");
 
@@ -32,8 +31,9 @@ public:
     getParam<std::string>(nh, "output_directory", output_directory, "");
 
     // config for an optional frame initializer
-    getParam<std::string>(nh, "frame_initializer_config",
-                          frame_initializer_config, frame_initializer_config);
+    getParam<std::string>(nh, "frame_initializer_config", frame_initializer_config,
+                          frame_initializer_config);
+    getParam<std::string>(nh, "imu_intrinsics_path", imu_intrinsics_path, imu_intrinsics_path);
 
     // number of images to store landmark information in container before
     // quelling
@@ -49,11 +49,11 @@ public:
     getParam<double>(nh, "max_optimization_s", max_optimization_s, 1.0);
   }
 
-  std::string visual_measurement_topic{
-      "/local_mapper/visual_feature_tracker/visual_measurements"};
+  std::string visual_measurement_topic{"/local_mapper/visual_feature_tracker/visual_measurements"};
   std::string imu_topic{};
   std::string lidar_topic{};
   std::string frame_initializer_config{""};
+  std::string imu_intrinsics_path{};
 
   std::string output_directory{};
   double max_optimization_s{1.0};
