@@ -10,23 +10,20 @@
 
 namespace bs_models { namespace reloc {
 
-RelocCandidateSearchVisual::RelocCandidateSearchVisual(
-    const std::shared_ptr<beam_cv::ImageDatabase>& image_database)
-    : image_database_(image_database) {}
-
 void RelocCandidateSearchVisual::FindRelocCandidates(
     const std::vector<SubmapPtr>& submaps, const Eigen::Matrix4d& T_WORLD_QUERY,
-    const std::vector<cv::Mat>& query_images, std::vector<int>& matched_indices,
-    std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
-    size_t ignore_last_n_submaps, bool use_initial_poses) {
+    const std::vector<cv::Mat>& query_images,
+    const std::shared_ptr<beam_cv::ImageDatabase>& image_database,
+    std::vector<int>& matched_indices,
+    std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses, size_t ignore_last_n_submaps,
+    bool use_initial_poses) {
   if (submaps.size() <= ignore_last_n_submaps) { return; }
 
   // get all matches from the database for each query image passed
   std::vector<DBoW3::Result> all_database_results;
   auto query_database = [&](const auto& query_image) {
-    auto cur_database_results = image_database_->QueryDatabase(query_image, 10);
-    all_database_results.insert(all_database_results.end(),
-                                cur_database_results.begin(),
+    auto cur_database_results = image_database->QueryDatabase(query_image, 10);
+    all_database_results.insert(all_database_results.end(), cur_database_results.begin(),
                                 cur_database_results.end());
   };
   std::for_each(query_images.begin(), query_images.end(), query_database);
@@ -34,7 +31,7 @@ void RelocCandidateSearchVisual::FindRelocCandidates(
   // for each result find its associated submap and its total score
   std::unordered_map<int, double> submap_score_map;
   for (const auto& res : all_database_results) {
-    const auto stamp = image_database_->GetImageTimestamp(res.Id);
+    const auto stamp = image_database->GetImageTimestamp(res.Id);
     if (!stamp.has_value()) { continue; }
     // find which submap this stamp is in, and increment said submaps score
     for (size_t i = 0; i < submaps.size() - ignore_last_n_submaps; i++) {
@@ -48,8 +45,7 @@ void RelocCandidateSearchVisual::FindRelocCandidates(
   // sort candidates in decreasing order of score
   std::vector<std::pair<int, double>> candidate_submap_scores;
   std::transform(submap_score_map.begin(), submap_score_map.end(),
-                 std::back_inserter(candidate_submap_scores),
-                 [&](const auto& p) { return p; });
+                 std::back_inserter(candidate_submap_scores), [&](const auto& p) { return p; });
   std::sort(candidate_submap_scores.begin(), candidate_submap_scores.end(),
             [](auto& left, auto& right) { return left.second > right.second; });
 

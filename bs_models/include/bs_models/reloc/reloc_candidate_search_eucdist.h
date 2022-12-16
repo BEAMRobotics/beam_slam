@@ -40,6 +40,8 @@ public:
    * @param submaps vector of pointers to submaps
    * @param T_WORLD_QUERY we look for submaps that contains this pose (note
    * query pose is the pose of the baselink)
+   * @param query_images images to query in database
+   * @param image_database image database to use for querying
    * @param matched_indices reference to vector of indices which represent the
    * candidate reloc submap indices
    * @param estimated_poses reference to vector of transforms from query pose
@@ -52,14 +54,14 @@ public:
    * optimized, but the initial query pose estimate is in the original world
    * frame
    */
-  void FindRelocCandidates(
-      const std::vector<SubmapPtr>& submaps,
-      const Eigen::Matrix4d& T_WORLD_QUERY,
-      const std::vector<cv::Mat>& query_images,
-      std::vector<int>& matched_indices,
-      std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
-      size_t ignore_last_n_submaps = 0,
-      bool use_initial_poses = false) override;
+  void FindRelocCandidates(const std::vector<SubmapPtr>& submaps,
+                           const Eigen::Matrix4d& T_WORLD_QUERY,
+                           const std::vector<cv::Mat>& query_images,
+                           const std::shared_ptr<beam_cv::ImageDatabase>& image_database,
+                           std::vector<int>& matched_indices,
+                           std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
+                           size_t ignore_last_n_submaps = 0,
+                           bool use_initial_poses = false) override;
 
 private:
   /**

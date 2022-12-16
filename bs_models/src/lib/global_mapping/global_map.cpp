@@ -220,7 +220,7 @@ void GlobalMap::Setup() {
     reloc_candidate_search_ =
         std::make_unique<RelocCandidateSearchEucDist>(params_.reloc_candidate_search_config);
   } else if (params_.reloc_candidate_search_type == "VISUAL") {
-    reloc_candidate_search_ = std::make_unique<RelocCandidateSearchVisual>(online_image_database_);
+    reloc_candidate_search_ = std::make_unique<RelocCandidateSearchVisual>();
   } else {
     BEAM_ERROR("Invalid reloc candidate search type. Using default: EUCDIST. "
                "Input: {}",
@@ -451,7 +451,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
   reloc_candidate_search_->FindRelocCandidates(online_submaps_, T_WORLD_QUERY, query_images,
-                                               matched_indices, Ts_MATCH_QUERY);
+                                               online_image_database_, matched_indices,
+                                               Ts_MATCH_QUERY);
 
   // remove candidate if it is equal to the query submap, or one before
   std::vector<int> matched_indices_filtered;
@@ -539,8 +540,13 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
 
   auto process_submaps = [&](const auto& submaps, const auto& T_WORLD_QUERY,
                              const auto& submap_type) -> bool {
-    ROS_DEBUG("Looking for reloc submap candidates in offline maps.");
-    reloc_candidate_search_->FindRelocCandidates(submaps, T_WORLD_QUERY, {query_image},
+    std::shared_ptr<beam_cv::ImageDatabase> db;
+    if (submap_type == SubmapType::OFFLINE) {
+      db = offline_image_database_;
+    } else {
+      db = online_image_database_;
+    }
+    reloc_candidate_search_->FindRelocCandidates(submaps, T_WORLD_QUERY, {query_image}, db,
                                                  matched_indices, Ts_SUBMAPCANDIDATE_QUERY);
     ROS_DEBUG("Found %d submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
 
@@ -607,13 +613,15 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
 
   // first, search through offline maps
   if (!offline_submaps_.empty()) {
+    ROS_DEBUG("Looking for reloc submap candidates in offline maps.");
     Eigen::Matrix4d T_WORLDOFF_QUERY = beam::InvertTransform(T_WORLDLM_WORLDOFF_) * T_WORLDLM_QUERY;
     process_submaps(offline_submaps_, T_WORLDOFF_QUERY, SubmapType::OFFLINE);
   }
 
   // next, search through online maps
   if (!online_submaps_.empty()) {
-    process_submaps(offline_submaps_, T_WORLDLM_QUERY, SubmapType::ONLINE);
+    ROS_DEBUG("Looking for reloc submap candidates in online maps.");
+    process_submaps(online_submaps_, T_WORLDLM_QUERY, SubmapType::ONLINE);
   }
 
   // if we get to here, we were not successful
@@ -691,6 +699,7 @@ bool GlobalMap::Load(const std::string& root_directory) {
   // load image database
   if (!boost::filesystem::exists(root_directory + "image_database.dbow3") ||
       !boost::filesystem::exists(root_directory + "image_db_timestamps.json")) {
+    // create with default detector and descriptor params
     online_image_database_ = std::make_shared<beam_cv::ImageDatabase>();
   } else {
     online_image_database_ = std::make_shared<beam_cv::ImageDatabase>(
