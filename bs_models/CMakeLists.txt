@@ -68,14 +68,10 @@ catkin_package(
 add_library(
   ${PROJECT_NAME}
   ## sensor models
-  src/imu_3d.cpp
   src/lidar_aggregation.cpp
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
-  #src/visual_inertial_odometry.cpp
-  src/inertial_odometry.cpp
   src/global_mapper.cpp
-  
   ### new stuff
   src/slam_initialization.cpp
   src/visual_feature_tracker.cpp
@@ -83,7 +79,6 @@ add_library(
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp
   src/lib/vision/utils.cpp
-  #src/lib/vision/vio_initialization.cpp
   ## imu helpers
   src/lib/imu/imu_preintegration.cpp
   ## lidar helpers
@@ -108,11 +103,6 @@ add_library(
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/transform_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
-  ## slam path initializers
-  src/lib/slam_initializers/slam_initializer_base.cpp
-  src/lib/slam_initializers/lo_initializer.cpp
-  src/lib/slam_initializers/vo_initializer.cpp
-  src/lib/slam_initializers/gt_initializer.cpp
 )
 
 include_directories(

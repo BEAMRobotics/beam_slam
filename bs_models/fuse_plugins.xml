@@ -5,17 +5,6 @@
       another node
     </description>
   </class>  
-  <class type="bs_models::Unicycle3DIgnition" base_class_type="fuse_core::SensorModel">
-    <description>
-      An adapter-type sensor that produces absolute or relative pose constraints from information published by
-      another node
-    </description>
-  </class>
-  <class type="bs_models::Imu3D" base_class_type="fuse_core::SensorModel">
-    <description>
-      An adapter-type sensor that produces relative constraints between IMU states
-    </description>
-  </class>
   <class type="bs_models::LidarOdometry" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints
@@ -24,36 +13,6 @@
   <class type="bs_models::LidarAggregation" base_class_type="fuse_core::SensorModel">
     <description>
       A sensor model for aggregating and motion compensating lidar data
-    </description>
-  </class>
-  <class type="bs_models::SLAMInitializerBase" base_class_type="fuse_core::SensorModel">
-    <description>
-      Base Class for initializing a SLAM process
-    </description>
-  </class>
-  <class type="bs_models::GTInitializer" base_class_type="fuse_core::SensorModel">
-    <description>
-      Class for initializing a SLAM process using a ground truth trajectory
-    </description>
-  </class>
-  <class type="bs_models::LoInitializer" base_class_type="fuse_core::SensorModel">
-    <description>
-      Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate
-    </description>
-  </class>
-  <class type="bs_models::VOInitializer" base_class_type="fuse_core::SensorModel">
-    <description>
-      Class for initializing a SLAM process using pure visual odometry
-    </description>
-  </class>
-  <class type="bs_models::VisualInertialOdometry" base_class_type="fuse_core::SensorModel">
-    <description>
-      An adapter-type sensor that produces camera rate odometry
-    </description>
-  </class>
-    <class type="bs_models::InertialOdometry" base_class_type="fuse_core::SensorModel">
-    <description>
-      An adapter-type sensor that produces high-rate odometry estimates from IMU data
     </description>
   </class>
   <class type="bs_models::GlobalMapper" base_class_type="fuse_core::SensorModel">

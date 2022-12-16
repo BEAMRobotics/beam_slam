@@ -40,8 +40,7 @@ public:
    * @param timestamp of pose to add
    * @param T_frame_keyframe relative pose from current keyframe to this frame
    */
-  void AddPose(const ros::Time& timestamp,
-               const Eigen::Matrix4d& T_frame_keyframe);
+  void AddPose(const ros::Time& timestamp, const Eigen::Matrix4d& T_frame_keyframe);
 
   /**
    * @brief Adds a landmark to this keyframes list
@@ -57,7 +56,7 @@ public:
 protected:
   ros::Time timestamp_;
   sensor_msgs::Image image_;
-  uint64_t sequence_numer_;
+  uint64_t sequence_number_;
   std::map<uint64_t, Eigen::Matrix4d> trajectory_;
   std::vector<uint64_t> added_landmarks;
 };
