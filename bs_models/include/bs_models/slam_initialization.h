@@ -81,7 +81,7 @@ private:
   void onStart() override;
 
   /**
-   * @brief Unsubscribe to the input topic
+   * @brief Unsubscribe to the input topics
    */
   void onStop() override {}
 
