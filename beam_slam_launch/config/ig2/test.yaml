@@ -39,6 +39,7 @@ visual_feature_tracker:
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fastssc_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
+  save_tracks_folder: "/userhome/tracks/"
 
 slam_initialization:
   visual_measurement_topic: "/local_mapper/visual_feature_tracker/visual_measurements"
@@ -48,6 +49,6 @@ slam_initialization:
   init_mode: "VISUAL"
   max_optimization_s: 1.0
   max_container_size: 100
-  min_parallax: 20.0
+  min_parallax: 80.0
   min_trajectory_length_m: 2.0
   frame_init_frequency: 0.1
