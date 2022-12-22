@@ -123,6 +123,7 @@ void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPt
     return;
   }
 
+  ROS_INFO_STREAM("Attempting visual path estimation.");
   init_path_ =
       bs_models::vision::computePathWithVision(cam_model_, landmark_container_, T_cam_baselink_);
 
@@ -204,6 +205,9 @@ bool SLAMInitialization::initialize() {
   bs_models::ImuPreintegration::Params imu_params_;
   ImuPreintegration::EstimateParameters(init_path_, imu_buffer_, imu_params_, gravity, bg, ba,
                                         velocities, scale);
+  std::cout << "initialized" << std::endl;
+  std::cout << scale << std::endl;
+  std::cout << "gravity: \n" << gravity << std::endl;
 
   if (mode_ == InitMode::VISUAL && (scale < 0.02 || scale > 1.0)) {
     ROS_FATAL_STREAM("Invalid scale estimate: " << scale << ", shutting down.");
@@ -252,8 +256,7 @@ bool SLAMInitialization::initialize() {
 //     Eigen::Vector3d pos;
 //     beam::TransformMatrixToQuaternionAndTranslation(T, ori, pos);
 //     ori = q * ori;
-//     pos = q * pos;
-//     pos = scale * pos;
+//     pos = scale * (q * pos);
 //     beam::QuaternionAndTranslationToTransformMatrix(ori, pos, T);
 //     bs_common::TransformationMatrixToPoseMsg(T, stamp, pose);
 //   }
