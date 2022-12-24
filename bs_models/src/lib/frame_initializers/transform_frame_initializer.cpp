@@ -38,6 +38,13 @@ TransformFrameInitializer::TransformFrameInitializer(
   }
 }
 
+bool TransformFrameInitializer::GetEstimatedPose(
+    Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
+    const std::string& sensor_frame_id, std::string& error_msg) {
+  return pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id, time,
+                                         error_msg);
+}
+
 void TransformFrameInitializer::CheckTransformFrameIDs(
     const geometry_msgs::TransformStampedConstPtr message) {
   check_world_baselink_frames_ = false;
