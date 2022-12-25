@@ -7,8 +7,7 @@
 
 #include <bs_common/utils.h>
 
-namespace bs_models {
-namespace frame_initializers {
+namespace bs_models { namespace frame_initializers {
 
 PoseFileFrameInitializer::PoseFileFrameInitializer(
     const std::string& file_path) {
@@ -20,7 +19,7 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   }
 
   beam_mapping::Poses poses_reader;
-  if(!poses_reader.LoadFromFile(file_path)){
+  if (!poses_reader.LoadFromFile(file_path)) {
     BEAM_ERROR(
         "Invalid file extension for pose file. Options: .json, .txt, .ply");
     throw std::invalid_argument{"Invalid extensions type."};
@@ -65,11 +64,10 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   // between the min and max timestamps. Also include a minimum
   int64_t cache_time =
       1.2 * (timestamps[timestamps.size() - 1].toSec() - timestamps[0].toSec());
-  if (cache_time < 10) {
-    cache_time = 10;
-  }
+  if (cache_time < 10) { cache_time = 10; }
 
-  std::shared_ptr<tf2::BufferCore> poses = std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
+  std::shared_ptr<tf2::BufferCore> poses =
+      std::make_shared<tf2::BufferCore>(ros::Duration(cache_time));
 
   for (int i = 0; i < transforms.size(); i++) {
     const Eigen::Matrix4d& T_WORLD_MOVINGFRAME = transforms[i];
@@ -85,5 +83,56 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
   pose_lookup_ = std::make_shared<bs_common::PoseLookup>(poses);
 }
 
-}  // namespace frame_initializers
-}  // namespace bs_models
+bool PoseFileFrameInitializer::GetEstimatedPose(
+    Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
+    const std::string& sensor_frame_id, std::string& error_msg) {
+  // get extrinsic
+  Eigen::Matrix4d T_SENSOR_BASELINK;
+  extrinsics_.GetT_SENSOR_BASELINK(T_SENSOR_BASELINK, sensor_frame_id);
+
+  // get pose from pose lookup
+  Eigen::Matrix4d T_WORLD_BASELINKcur;
+  const auto success1 =
+      pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKcur, time, error_msg);
+  if (!success1) { return false; }
+
+  // use normal pose lookup if path is empty or request is before the path
+  const auto time_nsec = time.toNSec();
+  if (path_poses_.empty() ||
+      (!path_poses_.empty() && time_nsec < path_poses_.begin()->first)) {
+    T_WORLD_SENSOR = T_WORLD_BASELINKcur * T_SENSOR_BASELINK.inverse();
+    return true;
+  }
+
+  // get pose before or equal to the query in path
+  const auto [time_path, T_WORLD_BASELINKpath] =
+      *(std::prev(path_poses_.upper_bound(time.toNSec())));
+
+  // if its an exact match, return the pose from the path
+  if (time_path == time.toNSec()) {
+    T_WORLD_SENSOR = T_WORLD_BASELINKpath * T_SENSOR_BASELINK.inverse();
+    return true;
+  }
+
+  // get associated pose from the pose lookup
+  ros::Time time_prev;
+  time_prev.fromNSec(time_path);
+  Eigen::Matrix4d T_WORLD_BASELINKprev;
+  const auto success2 = pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKprev,
+                                                          time_prev, error_msg);
+  if (!success2) { return false; }
+
+  // get relative transform using the pose lookup poses
+  const auto T_BASELINKprev_BASELINKcur =
+      T_WORLD_BASELINKprev.inverse() * T_WORLD_BASELINKcur;
+
+  // apply relative pose to the pose from the path pose
+  const auto T_WORLD_BASELINK =
+      T_WORLD_BASELINKpath * T_BASELINKprev_BASELINKcur;
+
+  // return result
+  T_WORLD_SENSOR = T_WORLD_BASELINK * T_SENSOR_BASELINK.inverse();
+  return true;
+}
+
+}} // namespace bs_models::frame_initializers
