@@ -178,16 +178,12 @@ public:
    * @brief get an iterator to the begining of the landmarks measurement
    * container
    */
-  beam_containers::LandmarkContainer<
-      beam_containers::LandmarkMeasurement>::iterator
-      LandmarksBegin();
+  beam_containers::landmark_container_iterator LandmarksBegin();
 
   /**
    * @brief get an iterator to the end of the landmarks measurement container
    */
-  beam_containers::LandmarkContainer<
-      beam_containers::LandmarkMeasurement>::iterator
-      LandmarksEnd();
+  beam_containers::landmark_container_iterator LandmarksEnd();
 
   /**
    * @brief get a vector of the keyframe images
@@ -485,8 +481,7 @@ private:
   std::map<uint64_t, Eigen::Matrix4d> camera_keyframe_poses_; // <time, pose>
   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;    // <id, position>
   std::map<uint64_t, cv::Mat> keyframe_images_;               // <time, image>
-  beam_containers::LandmarkContainer<beam_containers::LandmarkMeasurement>
-      landmarks_;
+  beam_containers::LandmarkContainer landmarks_;
   uint8_t descriptor_type_{255}; // see beam_cv/descriptors/Descriptor.h
 
   // subframe trajectory measurements, where poses are T_KEYFRAME_FRAME

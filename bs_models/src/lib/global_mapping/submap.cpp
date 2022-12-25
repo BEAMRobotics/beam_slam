@@ -105,15 +105,11 @@ std::map<uint64_t, std::vector<Submap::PoseStamped>>::iterator
   return subframe_poses_.end();
 }
 
-beam_containers::LandmarkContainer<
-    beam_containers::LandmarkMeasurement>::iterator
-    Submap::LandmarksBegin() {
+beam_containers::landmark_container_iterator Submap::LandmarksBegin() {
   return landmarks_.begin();
 }
 
-beam_containers::LandmarkContainer<
-    beam_containers::LandmarkMeasurement>::iterator
-    Submap::LandmarksEnd() {
+beam_containers::landmark_container_iterator Submap::LandmarksEnd() {
   return landmarks_.end();
 }
 
@@ -797,14 +793,12 @@ void Submap::TriangulateKeypoints(bool override_points) {
   auto sensor_id = landmarks_.begin()->sensor_id;
 
   // get all landmark ids
-  std::vector<uint64_t> landmark_ids =
-      landmarks_.GetLandmarkIDsInWindow(ros::TIME_MIN, ros::TIME_MAX);
+  std::vector<uint64_t> landmark_ids = landmarks_.GetLandmarkIDs();
 
   // iterate through all landmarks and triangulate point based on track
   for (auto landmark_id : landmark_ids) {
     // get track
-    auto track = landmarks_.GetTrackInWindow(sensor_id, landmark_id,
-                                             ros::TIME_MIN, ros::TIME_MAX);
+    auto track = landmarks_.GetTrack(landmark_id);
     if (track.size() < 2) { continue; }
 
     // precompute inverse submap pose
