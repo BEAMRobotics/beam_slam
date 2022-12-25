@@ -56,7 +56,7 @@ public:
    */
   void PathCallback(const nav_msgs::PathConstPtr message);
 
-private:
+protected:
   /**
    * @brief Sets the path callback with specified path topic and window size
    * @param path_topic ros topic path is published on
