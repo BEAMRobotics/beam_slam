@@ -86,7 +86,7 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
     ROS_WARN("Missing or misspelt parameter: 'path_window_size'. Using "
              "default: 100.");
     path_window_size = 100;
-  } else {
+  } else if(J.contains("path_window_size")) {
     path_window_size = J["path_window_size"];
   }
 
