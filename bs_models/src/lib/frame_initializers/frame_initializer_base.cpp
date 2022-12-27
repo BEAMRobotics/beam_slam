@@ -75,19 +75,19 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
         "Missing or misspelt parameter: 'poses_buffer_time'"};
   }
 
-  try {
+  if (J.contains("path_topic")) {
     path_topic = J["path_topic"];
-  } catch (...) {
-    ROS_ERROR("Missing or misspelt parameter: 'path_topic'");
-    throw std::runtime_error{"Missing or misspelt parameter: 'path_topic'"};
+  } else {
+    ROS_WARN("Missing or misspelt parameter: 'path_topic'. Path will not be "
+             "used in frame initializer.");
   }
 
-  try {
-    path_topic = J["path_window_size"];
-  } catch (...) {
-    ROS_ERROR("Missing or misspelt parameter: 'path_window_size'");
-    throw std::runtime_error{
-        "Missing or misspelt parameter: 'path_window_size'"};
+  if (J.contains("path_topic") && !J.contains("path_window_size")) {
+    ROS_WARN("Missing or misspelt parameter: 'path_window_size'. Using "
+             "default: 100.");
+    path_window_size = 100;
+  } else {
+    path_window_size = J["path_window_size"];
   }
 
   if (type == "POSEFILE") {
@@ -120,7 +120,10 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
       throw std::runtime_error{"Invalid frame initializer type."};
     }
   }
-  frame_initializer->SetPathCallback(path_topic, path_window_size);
+
+  if (!path_topic.empty()) {
+    frame_initializer->SetPathCallback(path_topic, path_window_size);
+  }
 
   return std::move(frame_initializer);
 }
