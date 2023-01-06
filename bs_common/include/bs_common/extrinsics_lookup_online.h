@@ -253,11 +253,15 @@ private:
    * @param to_frame 'to frame' of transformation
    * @param from_frame 'from frame' of transformation
    * @param time extrinsics time if extrinsics are not static
+   * @param max_iterations maximum times we should try to lookup transform
+   * @param sleep_time how long to sleep in between iterations (pose lookups)
    * @return true if lookup was successful
    */
   bool LookupTransform(Eigen::Matrix4d& T, const std::string& to_frame,
                        const std::string& from_frame,
-                       const ros::Time& time = ros::Time(0));
+                       const ros::Time& time = ros::Time(0),
+                       int max_iterations = 5,
+                       const ros::Duration& sleep_time = ros::Duration(0.5));
 
   bs_parameters::models::CalibrationParams calibration_params_;
 

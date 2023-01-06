@@ -4,5 +4,7 @@
   "sensor_frame_id_override": "",
   "T_ORIGINAL_OVERRIDE": [],
   "queue_size": 100,
-  "poses_buffer_time": 30
+  "poses_buffer_time": 30,
+  "path_topic": "",
+  "path_window_size": 100
 }

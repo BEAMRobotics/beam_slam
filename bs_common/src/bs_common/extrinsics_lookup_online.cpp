@@ -1,8 +1,8 @@
 #include <bs_common/extrinsics_lookup_online.h>
 
-#include <bs_common/utils.h>
 #include <beam_utils/log.h>
 #include <beam_utils/math.h>
+#include <bs_common/utils.h>
 
 namespace bs_common {
 
@@ -19,7 +19,7 @@ ExtrinsicsLookupOnline::ExtrinsicsLookupOnline() {
       .camera = calibration_params_.camera_frame,
       .lidar = calibration_params_.lidar_frame,
       .world = calibration_params_.world_frame,
-      .baselink = calibration_params_.baselink_frame};  
+      .baselink = calibration_params_.baselink_frame};
 
   extrinsics_ = std::make_shared<ExtrinsicsLookupBase>(frame_ids);
 }
@@ -45,22 +45,16 @@ bool ExtrinsicsLookupOnline::GetTransform(Eigen::Matrix4d& T,
   // if dynamic extrinsics, then we want to lookup the extrinsics now and
   // replace the most recent estimate in ExtrinsicsLookupBase
   if (!static_extrinsics_) {
-    if (!LookupTransform(T, to_frame, from_frame, time)) {
-      return false;
-    }
+    if (!LookupTransform(T, to_frame, from_frame, time)) { return false; }
     extrinsics_->SetTransform(T, to_frame, from_frame);
     return true;
   }
 
   // else try to lookup in ExtrinsicsLookupBase
-  if (extrinsics_->GetTransform(T, to_frame, from_frame)) {
-    return true;
-  }
+  if (extrinsics_->GetTransform(T, to_frame, from_frame)) { return true; }
 
   // if that failed, then the transform isn't set, so lets look it up and set it
-  if (!LookupTransform(T, to_frame, from_frame)) {
-    return false;
-  }
+  if (!LookupTransform(T, to_frame, from_frame)) { return false; }
   extrinsics_->SetTransform(T, to_frame, from_frame);
   return true;
 }
@@ -209,7 +203,9 @@ std::string ExtrinsicsLookupOnline::GetBaselinkFrameId() const {
   return extrinsics_->GetBaselinkFrameId();
 }
 
-bool ExtrinsicsLookupOnline::IsStatic() const { return static_extrinsics_; }
+bool ExtrinsicsLookupOnline::IsStatic() const {
+  return static_extrinsics_;
+}
 
 bool ExtrinsicsLookupOnline::IsSensorFrameIdValid(
     const std::string& sensor_frame) {
@@ -219,20 +215,35 @@ bool ExtrinsicsLookupOnline::IsSensorFrameIdValid(
 bool ExtrinsicsLookupOnline::LookupTransform(Eigen::Matrix4d& T,
                                              const std::string& to_frame,
                                              const std::string& from_frame,
-                                             const ros::Time& time) {
+                                             const ros::Time& time,
+                                             int max_iterations,
+                                             const ros::Duration& sleep_time) {
   tf::StampedTransform TROS;
-  try {
-    tf_listener_.lookupTransform(to_frame, from_frame, time, TROS);
-  } catch (tf::TransformException& ex) {
-    if (static_extrinsics_) {
-      BEAM_WARN("Cannot lookup static extrinsics between frames: {} , {}. Reason: {}",
-                to_frame, from_frame, ex.what());
-    } else {
-      BEAM_WARN(
-          "Cannot lookup dynamic extrinsics between {} and {} for t = %.10f. Reason: {}",
-          to_frame, from_frame, time.toSec(), ex.what());
+  int count = 0;
+  while (true) {
+    try {
+      tf_listener_.lookupTransform(to_frame, from_frame, time, TROS);
+    } catch (tf::TransformException& ex) {
+      if (static_extrinsics_) {
+        BEAM_WARN("Cannot lookup static extrinsics between frames: {} , {}. "
+                  "Reason: {}.",
+                  to_frame, from_frame, ex.what());
+      } else {
+        BEAM_WARN("Cannot lookup dynamic extrinsics between {} and {} for t = "
+                  "%.10f. Reason: {}",
+                  to_frame, from_frame, time.toSec(), ex.what());
+      }
+      if (count < max_iterations) {
+        BEAM_WARN("trying transform lookup again in 1s");
+        sleep_time.sleep();
+        count++;
+        continue;
+      } else {
+        BEAM_WARN("Hit maximum iterations, returning...");
+        return false;
+      }
     }
-    return false;
+    break;
   }
 
   ROSStampedTransformToEigenTransform(TROS, T);
@@ -240,9 +251,8 @@ bool ExtrinsicsLookupOnline::LookupTransform(Eigen::Matrix4d& T,
   return true;
 }
 
-std::string ExtrinsicsLookupOnline::GetFrameIdsString(){
+std::string ExtrinsicsLookupOnline::GetFrameIdsString() {
   return extrinsics_->GetFrameIdsString();
 }
 
-
-}  // namespace bs_common
+} // namespace bs_common

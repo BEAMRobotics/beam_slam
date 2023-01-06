@@ -22,6 +22,7 @@ motion_models:
 ################################
 #    publisher declarations    #
 ################################
+# publishers:
 #   - name: 'odom_pub'
 #     type: 'bs_publishers::Odometry3DPublisher'
 #   - name: 'path_pub'
