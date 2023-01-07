@@ -141,13 +141,16 @@ public:
                                  const std::queue<sensor_msgs::Imu>& imu_buffer,
                                  const bs_models::ImuPreintegration::Params& params,
                                  Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
-                                 std::vector<Eigen::Vector3d>& velocities, double& scale);
+                                 std::map<uint64_t, Eigen::Vector3d>& velocities, double& scale);
 
+  /**
+   * @brief Estimates inertial parameters given an initial path and imu messages
+   */
   static void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
                                  const std::queue<sensor_msgs::Imu>& imu_buffer,
                                  const bs_models::ImuPreintegration::Params& params,
                                  Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
-                                 std::vector<Eigen::Vector3d>& velocities, double& scale);
+                                 std::map<uint64_t, Eigen::Vector3d>& velocities, double& scale);
 
 private:
   /**

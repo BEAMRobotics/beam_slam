@@ -49,6 +49,6 @@ slam_initialization:
   init_mode: "VISUAL"
   max_optimization_s: 1.0
   max_container_size: 100
-  min_parallax: 80.0
+  min_parallax: 100.0
   min_trajectory_length_m: 2.0
   frame_init_frequency: 0.1
