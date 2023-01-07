@@ -124,15 +124,7 @@ void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPt
   init_path_ =
       bs_models::vision::computePathWithVision(cam_model_, landmark_container_, T_cam_baselink_);
 
-  pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
-  for (auto& [stamp, T] : init_path_) {
-    frame_cloud = beam::AddFrameToCloud(frame_cloud, T, 0.001);
-  }
-  if (!beam::SavePointCloud<pcl::PointXYZRGB>("/userhome/frames.pcd", frame_cloud,
-                                              beam::PointCloudFileType::PCDBINARY)) {
-    BEAM_ERROR("Unable to save cloud.");
-  }
-
+  // if we initialize successfully, stop this sensor model
   if (initialize()) { stop(); }
 }
 
@@ -156,9 +148,11 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   last_frame_init_stamp = msg->header.stamp;
 
   Eigen::Matrix4d T_WORLD_BASELINK;
-  bool success = frame_initializer_->GetEstimatedPose(T_WORLD_BASELINK, msg->header.stamp,
-                                                      extrinsics_.GetBaselinkFrameId());
-  init_path_[msg->header.stamp.toNSec()] = T_WORLD_BASELINK;
+  if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINK, msg->header.stamp,
+                                            extrinsics_.GetBaselinkFrameId())) {
+    ROS_WARN("Error getting pose from frame initializer.");
+  }
+  init_path_[msg->header.stamp.toNSec()] = T_WORLD_BASELINK.inverse();
 
   const auto [first_time, first_pose] = *init_path_.begin();
   const auto [current_time, current_pose] = *init_path_.rbegin();
@@ -179,7 +173,6 @@ void SLAMInitialization::processLidar(const sensor_msgs::PointCloud2::ConstPtr& 
     ROS_ERROR("LIDAR initialization not yet implemented, exiting.");
     throw std::invalid_argument{"LIDAR initialization not yet implemented."};
   }
-
   // TODO: compute path/add to it
 
   const auto [first_time, first_pose] = *init_path_.begin();
@@ -212,9 +205,7 @@ bool SLAMInitialization::initialize() {
 
   imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(imu_params, bg_, ba_);
 
-  bool apply_scale = (mode_ == InitMode::VISUAL);
-
-  AlignPathAndVelocities(apply_scale);
+  AlignPathAndVelocities(mode_ == InitMode::VISUAL);
 
   AddPosesAndInertialConstraints();
 
