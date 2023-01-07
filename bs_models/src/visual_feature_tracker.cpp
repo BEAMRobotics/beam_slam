@@ -55,7 +55,6 @@ void VisualFeatureTracker::onStart() {
 void VisualFeatureTracker::processImage(const sensor_msgs::Image::ConstPtr& msg) {
   // track features in image
   cv::Mat image = beam_cv::OpenCVConversions::RosImgToMat(*msg);
-  image = beam_cv::AdaptiveHistogram(image);
   tracker_->AddImage(image, msg->header.stamp);
 
   // delay publishing by one image to ensure that the tracks are actually published

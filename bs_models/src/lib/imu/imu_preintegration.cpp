@@ -289,13 +289,15 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
                                            const bs_models::ImuPreintegration::Params& params,
                                            Eigen::Vector3d& gravity, Eigen::Vector3d& bg,
                                            Eigen::Vector3d& ba,
-                                           std::vector<Eigen::Vector3d>& velocities,
+                                           std::map<uint64_t, Eigen::Vector3d>& velocities,
                                            double& scale) {
   // set parameter estimates to 0
   gravity = Eigen::Vector3d::Zero();
   bg = Eigen::Vector3d::Zero();
   ba = Eigen::Vector3d::Zero();
   scale = 1.0;
+  velocities.clear();
+  std::vector<std::pair<uint64_t, Eigen::Vector3d>> velocities_vec;
 
   /***************************
    * Build list of imu frames *
@@ -337,7 +339,11 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
   }
 
   int N = (int)imu_frames.size();
-  velocities.resize(imu_frames.size(), Eigen::Vector3d::Zero());
+  // initialize velocities as 0 and reserve memory
+  velocities_vec.resize(N, {0, Eigen::Vector3d::Zero()});
+  for (int i = 0; i < N; ++i) {
+    velocities_vec[i] = {imu_frames[i].Stamp().toNSec(), Eigen::Vector3d::Zero()};
+  }
 
   // lambda to integrate each frame to its time
   auto integrate = [&](auto& imu_frame) {
@@ -379,7 +385,7 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
     A.setZero();
     b.setZero();
 
-    for (size_t j = 1; j < imu_frames.size(); ++j) {
+    for (size_t j = 1; j < N; ++j) {
       const size_t i = j - 1;
 
       const bs_common::Delta& delta_ij = imu_frames[j].GetPreintegrator()->delta;
@@ -399,47 +405,84 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
     Eigen::VectorXd x = A.fullPivHouseholderQr().solve(b);
     gravity = x.segment<3>(0).normalized() * GRAVITY_NOMINAL;
     scale = x(3);
-    for (size_t i = 0; i < imu_frames.size(); ++i) { velocities[i] = x.segment<3>(4 + i * 3); }
+    for (size_t i = 0; i < N; ++i) { velocities_vec[i].second = x.segment<3>(4 + i * 3); }
   }
 
-  /***********************************
-   *      Solve ba given gravity     *
-   ***********************************/
+  /**********************************
+   *    Refine scale and velocity   *
+   **********************************/
   std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
+  {
+    static const double damp = 0.1;
+    Eigen::MatrixXd A;
+    Eigen::VectorXd b;
+    Eigen::VectorXd x;
+    A.resize((N - 1) * 6, 2 + 1 + 3 * N);
+    b.resize((N - 1) * 6);
+    x.resize(2 + 1 + 3 * N);
+
+    for (size_t iter = 0; iter < 3; ++iter) {
+      A.setZero();
+      b.setZero();
+      Eigen::Matrix<double, 3, 2> Tg = beam::S2TangentialBasis(gravity);
+
+      for (size_t j = 1; j < N; ++j) {
+        const size_t i = j - 1;
+
+        const bs_common::Delta& delta = imu_frames[j].GetPreintegrator()->delta;
+
+        A.block<3, 2>(i * 6, 0) = -0.5 * delta.t.toSec() * delta.t.toSec() * Tg;
+        A.block<3, 1>(i * 6, 2) = imu_frames[j].PositionVec() - imu_frames[i].PositionVec();
+        A.block<3, 3>(i * 6, 3 + i * 3) = -delta.t.toSec() * Eigen::Matrix3d::Identity();
+        b.segment<3>(i * 6) = 0.5 * delta.t.toSec() * delta.t.toSec() * gravity +
+                              imu_frames[i].OrientationQuat() * delta.p;
+
+        A.block<3, 2>(i * 6 + 3, 0) = -delta.t.toSec() * Tg;
+        A.block<3, 3>(i * 6 + 3, 3 + i * 3) = -Eigen::Matrix3d::Identity();
+        A.block<3, 3>(i * 6 + 3, 3 + j * 3) = Eigen::Matrix3d::Identity();
+        b.segment<3>(i * 6 + 3) =
+            delta.t.toSec() * gravity + imu_frames[i].OrientationQuat() * delta.v;
+      }
+
+      x = A.fullPivHouseholderQr().solve(b);
+      Eigen::Vector2d dg = x.segment<2>(0);
+      gravity = (gravity + damp * Tg * dg).normalized() * GRAVITY_NOMINAL;
+    }
+    scale = x(2);
+    for (size_t i = 0; i < N; ++i) { velocities_vec[i].second = x.segment<3>(3 + i * 3); }
+  }
+
+  /**********************************
+   *          Solve for ba          *
+   **********************************/
   {
     Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
     Eigen::Vector4d b = Eigen::Vector4d::Zero();
 
-    for (size_t j = 1; j + 1 < imu_frames.size(); ++j) {
+    for (size_t j = 1; j + 1 < N; ++j) {
       const size_t i = j - 1;
       const size_t k = j + 1;
 
       const bs_common::Delta& delta_ij = imu_frames[j].GetPreintegrator()->delta;
       const bs_common::Delta& delta_jk = imu_frames[k].GetPreintegrator()->delta;
-
       const bs_common::Jacobian& jacobian_ij = imu_frames[j].GetPreintegrator()->jacobian;
       const bs_common::Jacobian& jacobian_jk = imu_frames[k].GetPreintegrator()->jacobian;
 
-      const auto pose_i_q = imu_frames[i].OrientationQuat();
-      const auto pose_j_q = imu_frames[j].OrientationQuat();
-      const auto pose_k_q = imu_frames[k].OrientationQuat();
-
-      const auto pose_i_p = imu_frames[i].PositionVec();
-      const auto pose_j_p = imu_frames[j].PositionVec();
-      const auto pose_k_p = imu_frames[k].PositionVec();
-
       Eigen::Matrix<double, 3, 4> C;
       C.block<3, 1>(0, 0) =
-          delta_ij.t.toSec() * (pose_k_p - pose_j_p) - delta_jk.t.toSec() * (pose_j_p - pose_i_p);
+          delta_ij.t.toSec() * (imu_frames[k].PositionVec() - imu_frames[j].PositionVec()) -
+          delta_jk.t.toSec() * (imu_frames[j].PositionVec() - imu_frames[i].PositionVec());
       C.block<3, 3>(0, 1) =
-          -(pose_j_q * jacobian_jk.dp_dba * delta_ij.t.toSec() +
-            pose_i_q * jacobian_ij.dv_dba * delta_ij.t.toSec() * delta_jk.t.toSec() -
-            pose_i_q * jacobian_ij.dp_dba * delta_jk.t.toSec());
-      Eigen::Vector3d d = 0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
-                              (delta_ij.t.toSec() + delta_jk.t.toSec()) * gravity +
-                          delta_ij.t.toSec() * (pose_j_q * delta_jk.p) +
-                          delta_ij.t.toSec() * delta_jk.t.toSec() * (pose_i_q * delta_ij.v) -
-                          delta_jk.t.toSec() * (pose_i_q * delta_ij.p);
+          -(imu_frames[j].OrientationQuat() * jacobian_jk.dp_dba * delta_ij.t.toSec() +
+            imu_frames[i].OrientationQuat() * jacobian_ij.dv_dba * delta_ij.t.toSec() *
+                delta_jk.t.toSec() -
+            imu_frames[i].OrientationQuat() * jacobian_ij.dp_dba * delta_jk.t.toSec());
+      Eigen::Vector3d d =
+          0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
+              (delta_ij.t.toSec() + delta_jk.t.toSec()) * gravity +
+          delta_ij.t.toSec() * (imu_frames[j].OrientationQuat() * delta_jk.p) +
+          delta_ij.t.toSec() * delta_jk.t.toSec() * (imu_frames[i].OrientationQuat() * delta_ij.v) -
+          delta_jk.t.toSec() * (imu_frames[i].OrientationQuat() * delta_ij.p);
       A += C.transpose() * C;
       b += C.transpose() * d;
     }
@@ -448,6 +491,12 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
     Eigen::Vector4d x = svd.solve(b);
     ba = x.segment<3>(1);
   }
+
+  // convert velocities to map
+  std::for_each(velocities_vec.begin(), velocities_vec.end(),
+                [&](const auto& pair) { velocities[pair.first] = pair.second; });
+
+  // TODO: output estimtates values
 }
 
 void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
@@ -455,7 +504,7 @@ void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matri
                                            const bs_models::ImuPreintegration::Params& params,
                                            Eigen::Vector3d& gravity, Eigen::Vector3d& bg,
                                            Eigen::Vector3d& ba,
-                                           std::vector<Eigen::Vector3d>& velocities,
+                                           std::map<uint64_t, Eigen::Vector3d>& velocities,
                                            double& scale) {
   bs_common::InitializedPathMsg path_msg;
   for (const auto& [stamp, T_world_baselink] : path) {

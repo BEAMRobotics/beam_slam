@@ -15,24 +15,22 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::shared_ptr<beam_containers::LandmarkContainer>& landmark_container,
     const Eigen::Matrix4d& T_camera_baselink, double max_optimization_time) {
-  const auto img_times_set = landmark_container->GetMeasurementTimes();
-  std::vector<uint64_t> img_times;
-  std::for_each(img_times_set.begin(), img_times_set.end(),
-                [&](const uint64_t& time) { img_times.push_back(time); });
-  const int num_images = img_times.size();
-  if (num_images < 2) { return {}; }
+  // check for minimum number of images to initialize
+  if (landmark_container->NumImages() < 10) { return {}; }
 
   // Get matches between first and last image in the window
-  ros::Time first_time = beam::NSecToRos(*img_times.begin());
-  ros::Time last_time = beam::NSecToRos(*img_times.rbegin());
+  const auto first_time = landmark_container->FrontTimestamp();
+  const auto last_time = landmark_container->BackTimestamp();
   std::vector<Eigen::Vector2i, beam::AlignVec2i> first_landmarks;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> last_landmarks;
   std::vector<uint64_t> ids = landmark_container->GetLandmarkIDsInImage(last_time);
   std::vector<uint64_t> matched_ids;
   for (auto& id : ids) {
     try {
-      first_landmarks.push_back(landmark_container->GetValue(first_time, id).cast<int>());
-      last_landmarks.push_back(landmark_container->GetValue(last_time, id).cast<int>());
+      const Eigen::Vector2i first_pixel = landmark_container->GetValue(first_time, id).cast<int>();
+      const Eigen::Vector2i last_pixel = landmark_container->GetValue(last_time, id).cast<int>();
+      first_landmarks.push_back(first_pixel);
+      last_landmarks.push_back(last_pixel);
       matched_ids.push_back(id);
     } catch (const std::out_of_range& oor) {}
   }
@@ -40,8 +38,13 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
   // Compute relative pose between first and last
   beam::opt<Eigen::Matrix4d> T_last_first = beam_cv::RelativePoseEstimator::RANSACEstimator(
       camera_model, camera_model, first_landmarks, last_landmarks,
-      beam_cv::EstimatorMethod::SEVENPOINT, 100);
+      beam_cv::EstimatorMethod::SEVENPOINT, 20);
   if (!T_last_first.has_value()) { return {}; }
+
+  std::cout << first_time << std::endl;
+  std::cout << last_time << std::endl;
+  std::cout << T_last_first.value() << std::endl;
+  std::cout << "\n";
 
   Eigen::Matrix4d T_world_first_frame = T_camera_baselink.inverse();
   Eigen::Matrix4d T_world_last_frame = T_world_first_frame * T_last_first.value().inverse();
@@ -55,23 +58,26 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
   int inliers = 0;
   for (size_t i = 0; i < points.size(); i++) {
     if (points[i].has_value()) {
-      Eigen::Vector3d p = points[i].value();
+      Eigen::Vector3d t_world = points[i].value();
       // transform points into each camera frame
-      Eigen::Vector3d pt1 = (T_world_first_frame.inverse() * p.homogeneous()).hnormalized(),
-                      pt2 = (T_world_last_frame.inverse() * p.homogeneous()).hnormalized();
+      Eigen::Vector3d t_first_frame =
+          (T_world_first_frame.inverse() * t_world.homogeneous()).hnormalized();
+      Eigen::Vector3d t_last_frame =
+          (T_world_last_frame.inverse() * t_world.homogeneous()).hnormalized();
       // reproject triangulated points into each frame
       bool in_image1 = false, in_image2 = false;
-      Eigen::Vector2d p1_rep, p2_rep;
-      if (!camera_model->ProjectPoint(pt1, p1_rep, in_image1) ||
-          !camera_model->ProjectPoint(pt2, p2_rep, in_image2)) {
+      Eigen::Vector2d t_first_rep, t_last_rep;
+      if (!camera_model->ProjectPoint(t_first_frame, t_first_rep, in_image1) ||
+          !camera_model->ProjectPoint(t_last_frame, t_last_rep, in_image2)) {
         continue;
       } else if (!in_image1 || !in_image2) {
         continue;
       }
       // compute distance to actual pixel
-      Eigen::Vector2d p1_d = first_landmarks[i].cast<double>();
-      Eigen::Vector2d p2_d = last_landmarks[i].cast<double>();
-      if (beam::distance(p1_rep, p1_d) > 5.0 && beam::distance(p2_rep, p2_d) > 5.0) {
+      Eigen::Vector2d t_first_meas = first_landmarks[i].cast<double>();
+      Eigen::Vector2d t_last_meas = last_landmarks[i].cast<double>();
+      if (beam::distance(t_first_rep, t_first_meas) > 5.0 &&
+          beam::distance(t_last_rep, t_last_meas) > 5.0) {
         // set outlier to have no value in the vector
         points[i].reset();
       } else {
@@ -83,7 +89,6 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
   // If not enough inliers, return
   float inlier_ratio = (float)inliers / first_landmarks.size();
   if (inlier_ratio < 0.8) { return {}; }
-
   ROS_INFO("Valid image pair. Inlier Ratio: %f. Attempting VO Path Estimation.", inlier_ratio);
 
   // Perform SFM
@@ -114,8 +119,9 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
   visual_map->UpdateGraph(visual_graph);
 
   // Localize frames in between and add variables to graph
-  for (int i = 0; i < num_images; i++) {
-    ros::Time timestamp = beam::NSecToRos(img_times[i]);
+  const auto img_times = landmark_container->GetMeasurementTimesVector();
+  for (int i = 0; i < img_times.size(); i += 3) {
+    const auto timestamp = beam::NSecToRos(img_times[i]);
     if (timestamp == first_time || timestamp == last_time) continue;
 
     auto transaction = fuse_core::Transaction::make_shared();
@@ -156,31 +162,25 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
     visual_map->UpdateGraph(visual_graph);
   }
 
+  // hold first pose constant
+  visual_graph->holdVariable(visual_map->GetPositionUUID(first_time), true);
+  visual_graph->holdVariable(visual_map->GetOrientationUUID(first_time), true);
   // optimize graph
-  ceres::Solver::Options options;
-  std::cout << "Optimizing" << std::endl;
-  visual_graph->optimize();
+  ROS_INFO_STREAM("computePathWithVision: Optimizing trajectory.");
+  visual_graph->optimizeFor(ros::Duration(max_optimization_time));
   visual_map->UpdateGraph(visual_graph);
 
   // return result
-  pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
-
   std::map<uint64_t, Eigen::Matrix4d> init_path;
-  for (const auto& time : img_times) {
-    const auto ros_time = beam::NSecToRos(time);
-    const auto pose = visual_map->GetBaselinkPose(ros_time);
+  for (const auto& time : landmark_container->GetMeasurementTimes()) {
+    const auto timestamp = beam::NSecToRos(time);
+    const auto pose = visual_map->GetBaselinkPose(timestamp);
     if (pose.has_value()) {
       std::cout << "-----" << std::endl;
-      std::cout << ros_time << std::endl;
+      std::cout << timestamp << std::endl;
       std::cout << pose.value().inverse() << std::endl;
-      frame_cloud = beam::AddFrameToCloud(frame_cloud, pose.value().inverse(), 0.001);
       init_path[time] = pose.value().inverse();
     }
-  }
-
-  if (!beam::SavePointCloud<pcl::PointXYZRGB>("/userhome/frames.pcd", frame_cloud,
-                                              beam::PointCloudFileType::PCDBINARY)) {
-    BEAM_ERROR("Unable to save cloud.");
   }
   return init_path;
 }

@@ -93,6 +93,21 @@ private:
    */
   bool initialize();
 
+  /**
+   * @brief Scales and aligns the init path and velocities using gravity and scale estimates
+   */
+  void AlignPathAndVelocities(bool apply_scale);
+
+  /**
+   * @brief Adds poses from the init_path to the graph and adds the imu constraints between them
+   */
+  void AddPosesAndInertialConstraints();
+
+  /**
+   * @brief Sends the local graph to the fuse optimizer
+   */
+  void SendInitializationGraph();
+
   fuse_core::UUID device_id_; //!< The UUID of this device
 
   // calibration parameters
@@ -109,8 +124,13 @@ private:
   // method for estimating initial path
   InitMode mode_ = InitMode::VISUAL;
 
-  // initial path estimate for performing initialization
+  // initial path estimate for performing initialization, stored as T_BASELINK_WORLD
   std::map<uint64_t, Eigen::Matrix4d> init_path_;
+  std::map<uint64_t, Eigen::Vector3d> velocities_;
+  Eigen::Vector3d gravity_;
+  Eigen::Vector3d bg_;
+  Eigen::Vector3d ba_;
+  double scale_;
 
   // data storage
   std::queue<sensor_msgs::Imu> imu_buffer_;
