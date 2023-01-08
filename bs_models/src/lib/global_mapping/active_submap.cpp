@@ -51,7 +51,7 @@ void ActiveSubmap::ActiveSubmapCallback(const bs_common::SubmapMsg::ConstPtr& ms
     if (d.descriptor_type != msg->descriptor_type) {
       BEAM_WARN("Descriptor mismatch in submap message, using type defined in SubmapMsg.");
     }
-    cv::Mat desc = beam_cv::Descriptor::CreateDescriptor(d.data, msg->descriptor_type);
+    cv::Mat desc = beam_cv::Descriptor::VectorDescriptorToCvMat(d.data, msg->descriptor_type);
     visual_words_.push_back(desc);
   }
 

@@ -92,10 +92,8 @@ void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPt
   // put measurements into landmark container
   for (const auto& lm : msg->landmarks) {
     Eigen::Vector2d landmark(static_cast<double>(lm.pixel_u), static_cast<double>(lm.pixel_v));
-
     cv::Mat landmark_descriptor =
-        beam_cv::Descriptor::CreateDescriptor({lm.descriptor.data}, msg->descriptor_type);
-
+        beam_cv::Descriptor::VectorDescriptorToCvMat({lm.descriptor.data}, msg->descriptor_type);
     beam_containers::LandmarkMeasurement lm_measurement(msg->header.stamp, msg->sensor_id,
                                                         lm.landmark_id, msg->header.seq, landmark,
                                                         landmark_descriptor);
