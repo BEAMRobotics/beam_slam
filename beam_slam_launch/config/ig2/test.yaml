@@ -52,3 +52,4 @@ slam_initialization:
   min_parallax: 100.0
   min_trajectory_length_m: 2.0
   frame_init_frequency: 0.1
+  output_folder: "/userhome/results/vo_init_results"

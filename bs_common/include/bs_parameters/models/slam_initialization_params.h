@@ -34,6 +34,9 @@ public:
     getParam<std::string>(nh, "frame_initializer_config", frame_initializer_config,
                           frame_initializer_config);
 
+    // path to optional output folder
+    getParam<std::string>(nh, "output_folder", output_folder, output_folder);
+
     // mode for initializing, options: VISUAL, LIDAR, FRAMEINIT
     getParam<std::string>(nh, "init_mode", init_mode, init_mode);
     if (init_mode != "VISUAL" && init_mode != "LIDAR" && init_mode != "FRAMEINIT") {
@@ -58,10 +61,11 @@ public:
   }
 
   std::string visual_measurement_topic{"/local_mapper/visual_feature_tracker/visual_measurements"};
-  std::string imu_topic{};
-  std::string lidar_topic{};
+  std::string imu_topic{""};
+  std::string lidar_topic{""};
   std::string frame_initializer_config{};
   std::string init_mode{"FRAMEINIT"};
+  std::string output_folder{""};
 
   std::string output_directory{};
   double max_optimization_s{1.0};

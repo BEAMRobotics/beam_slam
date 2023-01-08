@@ -104,9 +104,19 @@ private:
   void AddPosesAndInertialConstraints();
 
   /**
+   * @brief Adds visual constraints to the graph
+   */
+  void AddVisualConstraints();
+
+  /**
    * @brief Sends the local graph to the fuse optimizer
    */
   void SendInitializationGraph();
+
+  /**
+   * @brief Outputs initialization results as a point cloud and as a pose file
+   */
+  void OutputResults();
 
   fuse_core::UUID device_id_; //!< The UUID of this device
 
@@ -126,6 +136,7 @@ private:
 
   // initial path estimate for performing initialization, stored as T_BASELINK_WORLD
   std::map<uint64_t, Eigen::Matrix4d> init_path_;
+  // initial imu estimates
   std::map<uint64_t, Eigen::Vector3d> velocities_;
   Eigen::Vector3d gravity_;
   Eigen::Vector3d bg_;
