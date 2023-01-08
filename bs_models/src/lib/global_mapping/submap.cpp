@@ -153,7 +153,7 @@ void Submap::AddCameraMeasurement(const CameraMeasurementMsg& camera_measurement
   const auto landmarks = camera_measurement.landmarks;
   std::for_each(landmarks.begin(), landmarks.end(), [&](const auto& lm_msg) {
     cv::Mat descriptor =
-        beam_cv::Descriptor::CreateDescriptor({lm_msg.descriptor.data}, descriptor_type_);
+        beam_cv::Descriptor::VectorDescriptorToCvMat({lm_msg.descriptor.data}, descriptor_type_);
     Eigen::Vector2d value(lm_msg.pixel_u, lm_msg.pixel_v);
 
     beam_containers::LandmarkMeasurement new_landmark{

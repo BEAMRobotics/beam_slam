@@ -62,6 +62,7 @@ void VisualFeatureTracker::processImage(const sensor_msgs::Image::ConstPtr& msg)
     prev_time_ = msg->header.stamp;
     return;
   }
+
   const auto measurement_msg = BuildCameraMeasurement(prev_time_, *msg);
   measurement_publisher_.publish(measurement_msg);
 
@@ -85,7 +86,8 @@ CameraMeasurementMsg VisualFeatureTracker::BuildCameraMeasurement(const ros::Tim
     lm.landmark_id = id;
     cv::Mat descriptor = tracker_->GetDescriptor(timestamp, id);
     lm.descriptor.descriptor_type = descriptor_->GetTypeString();
-    lm.descriptor.data = beam_cv::Descriptor::ConvertDescriptor(descriptor, descriptor_->GetType());
+    lm.descriptor.data =
+        beam_cv::Descriptor::CvMatDescriptorToVector(descriptor, descriptor_->GetType());
     Eigen::Vector2d pixel = tracker_->Get(timestamp, id);
     lm.pixel_u = pixel[0];
     lm.pixel_v = pixel[1];
