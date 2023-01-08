@@ -274,27 +274,28 @@ bool VisualMap::AddVisualConstraint(const ros::Time& stamp, uint64_t lm_id,
   // get robot pose
   fuse_variables::Position3DStamped::SharedPtr position = GetPosition(stamp);
   fuse_variables::Orientation3DStamped::SharedPtr orientation = GetOrientation(stamp);
-  if (position && orientation) {
-    try {
-      if (lm) {
-        // add normal visual constraint
-        fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
-            fuse_constraints::VisualConstraint::make_shared(source_, *orientation, *position, *lm,
-                                                            pixel, T_cam_baselink_, cam_model_,
-                                                            "HUBER", "VANILLA");
-        transaction->addConstraint(vis_constraint);
-        return true;
-      } else if (lm_fixed) {
-        // add fixed visual constraint
-        fuse_constraints::VisualConstraintFixed::SharedPtr vis_constraint =
-            fuse_constraints::VisualConstraintFixed::make_shared(source_, *orientation, *position,
-                                                                 *lm_fixed, pixel, T_cam_baselink_,
-                                                                 cam_model_, "HUBER", "VANILLA");
-        transaction->addConstraint(vis_constraint);
-        return true;
-      }
-    } catch (const std::logic_error& le) {}
-  }
+
+  if (!position || !orientation) { return false; }
+  try {
+    if (lm) {
+      // add normal visual constraint
+      fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
+          fuse_constraints::VisualConstraint::make_shared(source_, *orientation, *position, *lm,
+                                                          pixel, T_cam_baselink_, cam_model_,
+                                                          "HUBER", "VANILLA");
+      transaction->addConstraint(vis_constraint);
+      return true;
+    } else if (lm_fixed) {
+      // add fixed visual constraint
+      fuse_constraints::VisualConstraintFixed::SharedPtr vis_constraint =
+          fuse_constraints::VisualConstraintFixed::make_shared(source_, *orientation, *position,
+                                                               *lm_fixed, pixel, T_cam_baselink_,
+                                                               cam_model_, "HUBER", "VANILLA");
+      transaction->addConstraint(vis_constraint);
+      return true;
+    }
+  } catch (const std::logic_error& le) {}
+
   return false;
 }
 

@@ -303,16 +303,16 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
    * Build list of imu frames *
    ****************************/
   std::queue<sensor_msgs::Imu> imu_buffer_copy = imu_buffer;
-  ros::Time start = path.poses[0].header.stamp;
-  ros::Time end = path.poses[path.poses.size() - 1].header.stamp;
+  const auto start = path.poses[0].header.stamp;
+  const auto end = path.poses[path.poses.size() - 1].header.stamp;
   std::vector<bs_common::ImuState> imu_frames;
   for (auto& pose : path.poses) {
-    ros::Time stamp = pose.header.stamp;
+    const auto stamp = pose.header.stamp;
     if (stamp < imu_buffer_copy.front().header.stamp) {
-      ROS_ERROR("Pose in path is prior to imu measurements, cannot initialize "
-                "with this path.");
-      throw std::runtime_error{"Pose in path is prior to imu measurements, "
-                               "cannot initialize with this path."};
+      const std::string msg = std::string(__func__) + "Pose in path is prior to imu measurements, "
+                                                      "cannot initialize with this path.";
+      ROS_ERROR_STREAM(msg);
+      throw std::runtime_error{msg};
     }
 
     // add imu data to frames preintegrator
@@ -420,29 +420,26 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
     A.resize((N - 1) * 6, 2 + 1 + 3 * N);
     b.resize((N - 1) * 6);
     x.resize(2 + 1 + 3 * N);
+    A.setZero();
+    b.setZero();
+    Eigen::Matrix<double, 3, 2> Tg = beam::S2TangentialBasis(gravity);
 
-    for (size_t iter = 0; iter < 3; ++iter) {
-      A.setZero();
-      b.setZero();
-      Eigen::Matrix<double, 3, 2> Tg = beam::S2TangentialBasis(gravity);
+    for (size_t j = 1; j < N; ++j) {
+      const size_t i = j - 1;
 
-      for (size_t j = 1; j < N; ++j) {
-        const size_t i = j - 1;
+      const bs_common::Delta& delta = imu_frames[j].GetPreintegrator()->delta;
 
-        const bs_common::Delta& delta = imu_frames[j].GetPreintegrator()->delta;
+      A.block<3, 2>(i * 6, 0) = -0.5 * delta.t.toSec() * delta.t.toSec() * Tg;
+      A.block<3, 1>(i * 6, 2) = imu_frames[j].PositionVec() - imu_frames[i].PositionVec();
+      A.block<3, 3>(i * 6, 3 + i * 3) = -delta.t.toSec() * Eigen::Matrix3d::Identity();
+      b.segment<3>(i * 6) = 0.5 * delta.t.toSec() * delta.t.toSec() * gravity +
+                            imu_frames[i].OrientationQuat() * delta.p;
 
-        A.block<3, 2>(i * 6, 0) = -0.5 * delta.t.toSec() * delta.t.toSec() * Tg;
-        A.block<3, 1>(i * 6, 2) = imu_frames[j].PositionVec() - imu_frames[i].PositionVec();
-        A.block<3, 3>(i * 6, 3 + i * 3) = -delta.t.toSec() * Eigen::Matrix3d::Identity();
-        b.segment<3>(i * 6) = 0.5 * delta.t.toSec() * delta.t.toSec() * gravity +
-                              imu_frames[i].OrientationQuat() * delta.p;
-
-        A.block<3, 2>(i * 6 + 3, 0) = -delta.t.toSec() * Tg;
-        A.block<3, 3>(i * 6 + 3, 3 + i * 3) = -Eigen::Matrix3d::Identity();
-        A.block<3, 3>(i * 6 + 3, 3 + j * 3) = Eigen::Matrix3d::Identity();
-        b.segment<3>(i * 6 + 3) =
-            delta.t.toSec() * gravity + imu_frames[i].OrientationQuat() * delta.v;
-      }
+      A.block<3, 2>(i * 6 + 3, 0) = -delta.t.toSec() * Tg;
+      A.block<3, 3>(i * 6 + 3, 3 + i * 3) = -Eigen::Matrix3d::Identity();
+      A.block<3, 3>(i * 6 + 3, 3 + j * 3) = Eigen::Matrix3d::Identity();
+      b.segment<3>(i * 6 + 3) =
+          delta.t.toSec() * gravity + imu_frames[i].OrientationQuat() * delta.v;
 
       x = A.fullPivHouseholderQr().solve(b);
       Eigen::Vector2d dg = x.segment<2>(0);
@@ -496,7 +493,14 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
   std::for_each(velocities_vec.begin(), velocities_vec.end(),
                 [&](const auto& pair) { velocities[pair.first] = pair.second; });
 
-  // TODO: output estimtates values
+  // clang-format off
+  ROS_INFO_STREAM(
+       __func__ << ":"
+       "\n Scale: " << scale <<  
+       "\n Gravity: [" << gravity.x() << ", " << gravity.y() << ", " << gravity.z() << "]" 
+       "\n Gyro Bias: [" << bg.x() << ", " << bg.y() << ", " << bg.z() << "]" 
+       "\n Accel Bias: [" << ba.x() << ", " << ba.y() << ", " << ba.z() << "]" );
+  // clang-format on
 }
 
 void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,

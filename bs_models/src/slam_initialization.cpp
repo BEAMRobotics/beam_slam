@@ -1,5 +1,7 @@
 #include <bs_models/slam_initialization.h>
 
+#include <beam_cv/geometry/Triangulation.h>
+#include <beam_mapping/Poses.h>
 #include <beam_utils/utils.h>
 #include <bs_models/vision/utils.h>
 #include <pluginlib/class_list_macros.h>
@@ -86,7 +88,7 @@ void SLAMInitialization::onStart() {
 }
 
 void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPtr& msg) {
-  std::cout << "Recieved " << msg->header.stamp << std::endl;
+  ROS_INFO_STREAM_ONCE("SLAMInitialization received VISUAL measurements: " << msg->header.stamp);
   // put measurements into landmark container
   for (const auto& lm : msg->landmarks) {
     Eigen::Vector2d landmark(static_cast<double>(lm.pixel_u), static_cast<double>(lm.pixel_v));
@@ -120,15 +122,15 @@ void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPt
     return;
   }
 
-  ROS_INFO_STREAM("Attempting visual path estimation.");
   init_path_ =
-      bs_models::vision::computePathWithVision(cam_model_, landmark_container_, T_cam_baselink_);
+      bs_models::vision::ComputePathWithVision(cam_model_, landmark_container_, T_cam_baselink_);
 
   // if we initialize successfully, stop this sensor model
   if (initialize()) { stop(); }
 }
 
 void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
+  ROS_INFO_STREAM_ONCE("SLAMInitialization received IMU measurements: " << msg->header.stamp);
   static ros::Time last_frame_init_stamp = ros::Time(0.0);
 
   imu_buffer_.push(*msg);
@@ -163,6 +165,7 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 void SLAMInitialization::processLidar(const sensor_msgs::PointCloud2::ConstPtr& msg) {
+  ROS_INFO_STREAM_ONCE("SLAMInitialization received LIDAR measurements: " << msg->header.stamp);
   lidar_buffer_.push(*msg);
 
   if (lidar_buffer_.size() > lidar_buffer_size_) { lidar_buffer_.pop(); }
@@ -188,6 +191,7 @@ bool SLAMInitialization::initialize() {
     ROS_FATAL_STREAM("Initial path estimate too small.");
     return false;
   }
+
   // prune poses in path that come before any imu messages
   while ((*init_path_.begin()).first < imu_buffer_.front().header.stamp.toNSec()) {
     init_path_.erase((*init_path_.begin()).first);
@@ -199,7 +203,7 @@ bool SLAMInitialization::initialize() {
                                         velocities_, scale_);
 
   if (mode_ == InitMode::VISUAL && (scale_ < 0.02 || scale_ > 1.0)) {
-    ROS_WARN_STREAM("Invalid scale estimate: " << scale_);
+    ROS_WARN_STREAM(__func__ << ": Invalid scale estimate: " << scale_);
     return false;
   }
 
@@ -209,12 +213,19 @@ bool SLAMInitialization::initialize() {
 
   AddPosesAndInertialConstraints();
 
-  // AddVisualConstraints();
+  AddVisualConstraints();
 
-  // if (params_.max_optimization_s == 0) { return; }
-  // local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s));
+  if (params_.max_optimization_s != 0) {
+    ROS_INFO_STREAM(__func__ << ": Optimizing fused graph:");
+    ceres::Solver::Options options;
+    options.minimizer_progress_to_stdout = true;
+    local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s), options);
+    visual_map_->UpdateGraph(local_graph_);
+  }
 
   SendInitializationGraph();
+
+  if (!params_.output_folder.empty()) { OutputResults(); }
 
   return true;
 }
@@ -274,6 +285,7 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     if (!start_set) {
       imu_preint_->SetStart(timestamp, img_orientation, img_position, velocity);
       start_set = true;
+      return;
     }
     auto imu_transaction = imu_preint_->RegisterNewImuPreintegratedFactor(
         timestamp, img_orientation, img_position, velocity);
@@ -289,12 +301,12 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
       if (lb == init_path_.end() || ub == init_path_.end()) { continue; }
       lb = std::prev(lb);
 
-      // interpolate pose
+      // interpolate pose at image time
       init_path_[stamp] = beam::InterpolateTransform(
           init_path_.at(lb->first), beam::NSecToRos(lb->first).toSec(), init_path_.at(ub->first),
           beam::NSecToRos(ub->first).toSec(), beam::NSecToRos(stamp).toSec());
 
-      // interpolate velocity
+      // interpolate velocity at image time
       velocities_[stamp] = beam::InterpolateVector(
           velocities_.at(lb->first), beam::NSecToRos(lb->first).toSec(), velocities_.at(ub->first),
           beam::NSecToRos(ub->first).toSec(), beam::NSecToRos(stamp).toSec());
@@ -309,71 +321,63 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
   visual_map_->UpdateGraph(local_graph_);
 }
 
-// size_t SLAMInitialization::AddVisualConstraints() {
-//   auto img_times = landmark_container_.GetMeasurementTimes();
+void SLAMInitialization::AddVisualConstraints() {
+  const auto start = beam::NSecToRos((*init_path_.begin()).first);
+  const auto end = beam::NSecToRos((*init_path_.rbegin()).first);
 
-//   std::vector<std::pair<uint64_t, Eigen::Matrix4d>> path;
-//   std::transform(init_path_.begin(), init_path_.end(), path.begin(),
-//                  [&](const auto& pair) { return pair; });
+  size_t num_landmarks = 0;
 
-//   ros::Time start = path[0].first, end = path[path.size() - 1].first;
-//   size_t num_landmarks = 0;
-//   // make transaction
-//   auto landmark_transaction = fuse_core::Transaction::make_shared();
-//   landmark_transaction->stamp(end);
-//   // get all landmarks in the window
-//   std::vector<uint64_t> landmarks = landmakr_container_->GetLandmarkIDsInWindow(start, end);
-//   for (auto& id : landmarks) {
-//     fuse_variables::Point3DLandmark::SharedPtr lm = visual_map_->GetLandmark(id);
-//     if (lm) {
-//       // if the landmark already exists then add constraint
-//       for (auto& pose : path) {
-//         try {
-//           ros::Time stamp(0.0, pose.first);
-//           visual_map_->AddVisualConstraint(stamp, id, landmark_container_->GetValue(stamp, id),
-//                                            landmark_transaction);
-//         } catch (const std::out_of_range& oor) {}
-//       }
-//     } else {
-//       // otherwise then triangulate then add the constraints
-//       std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
-//       std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
-//       std::vector<ros::Time> observation_stamps;
-//       beam_cv::FeatureTrack track = landmark_container_->GetTrack(id);
-//       for (auto& m : track) {
-//         Eigen::Vector2i tmp;
-//         if (!cam_model_->UndistortPixel(m.value.cast<int>(), tmp)) continue;
-//         beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(m.time_point);
-//         // check if the pose is in the graph (keyframe)
-//         if (T.has_value()) {
-//           pixels.push_back(m.value.cast<int>());
-//           T_cam_world_v.push_back(T.value().inverse());
-//           observation_stamps.push_back(m.time_point);
-//         }
-//       }
+  auto landmark_transaction = fuse_core::Transaction::make_shared();
+  landmark_transaction->stamp(end);
 
-//       if (T_cam_world_v.size() >= 2) {
-//         beam::opt<Eigen::Vector3d> point =
-//             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v, pixels);
-//         if (point.has_value()) {
-//           num_landmarks++;
-//           visual_map_->AddLandmark(point.value(), id, landmark_transaction);
-//           for (int i = 0; i < observation_stamps.size(); i++) {
-//             visual_map_->AddVisualConstraint(observation_stamps[i], id,
-//                                              tracker_->Get(observation_stamps[i], id),
-//                                              landmark_transaction);
-//           }
-//         }
-//       }
-//     }
-//   }
-//   // send transaction to graph
-//   local_graph_->update(*landmark_transaction);
-//   // update visual map with updated graph
-//   visual_map_->UpdateGraph(local_graph_);
+  auto process_landmark = [&](const auto& lm_id) {
+    // if the landmark doesn't exist, then estimate it
+    if (!visual_map_->GetLandmark(lm_id)) {
+      std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
+      std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+      beam_containers::Track track = landmark_container_->GetTrack(lm_id);
+      for (auto& m : track) {
+        Eigen::Vector2i tmp;
+        if (!cam_model_->UndistortPixel(m.value.cast<int>(), tmp)) continue;
+        const auto T_world_camera = visual_map_->GetCameraPose(m.time_point);
+        // check if the pose is in the graph (keyframe)
+        if (T_world_camera.has_value()) {
+          pixels.push_back(m.value.cast<int>());
+          T_cam_world_v.push_back(T_world_camera.value().inverse());
+        }
+      }
+      if (T_cam_world_v.size() >= 2) {
+        const auto point =
+            beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v, pixels);
+        if (point.has_value()) {
+          visual_map_->AddLandmark(point.value(), lm_id, landmark_transaction);
+          num_landmarks++;
+        }
+      }
+    }
 
-//   return num_landmarks;
-// }
+    // add constraints to the landmark
+    for (auto& [stamp, T_baselink_world] : init_path_) {
+      const auto timestamp = beam::NSecToRos(stamp);
+      try {
+        visual_map_->AddVisualConstraint(timestamp, lm_id,
+                                         landmark_container_->GetValue(timestamp, lm_id),
+                                         landmark_transaction);
+      } catch (const std::out_of_range& oor) {}
+    }
+  };
+
+  // get all landmarks in the window and process
+  auto landmarks = landmark_container_->GetLandmarkIDsInWindow(start, end);
+  std::for_each(landmarks.begin(), landmarks.end(), process_landmark);
+
+  // send transaction to graph
+  local_graph_->update(*landmark_transaction);
+  // update visual map with updated graph
+  visual_map_->UpdateGraph(local_graph_);
+
+  ROS_INFO_STREAM(__func__ << ": Added " << num_landmarks << " visual landmarks to graph.");
+}
 
 void SLAMInitialization::SendInitializationGraph() {
   auto transaction = fuse_core::Transaction::make_shared();
@@ -390,4 +394,29 @@ void SLAMInitialization::SendInitializationGraph() {
   sendTransaction(transaction);
 }
 
+void SLAMInitialization::OutputResults() {
+  ROS_INFO_STREAM(__func__ << ": Outputting initialization results to '" << params_.output_folder
+                           << "'");
+  pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
+  beam_mapping::Poses poses;
+  for (const auto& [stamp, pose] : init_path_) {
+    auto timestamp = beam::NSecToRos(stamp);
+    auto T = visual_map_->GetBaselinkPose(timestamp);
+    if (T.has_value()) {
+      if (T.has_value()) { frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001); }
+      poses.AddSingleTimeStamp(timestamp);
+      poses.AddSinglePose(T.value());
+    }
+  }
+
+  poses.WriteToTXT(params_.output_folder + "/initialization_trajectory.txt",
+                   beam_mapping::format_type::Type2);
+
+  std::string error_message{};
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
+          params_.output_folder + "/initialization_trajectory.pcd", frame_cloud,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+}
 } // namespace bs_models

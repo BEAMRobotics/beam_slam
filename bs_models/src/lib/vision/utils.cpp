@@ -11,7 +11,7 @@
 
 namespace bs_models { namespace vision {
 
-std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
+std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::shared_ptr<beam_containers::LandmarkContainer>& landmark_container,
     const Eigen::Matrix4d& T_camera_baselink, double max_optimization_time) {
@@ -40,11 +40,6 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
       camera_model, camera_model, first_landmarks, last_landmarks,
       beam_cv::EstimatorMethod::SEVENPOINT, 20);
   if (!T_last_first.has_value()) { return {}; }
-
-  std::cout << first_time << std::endl;
-  std::cout << last_time << std::endl;
-  std::cout << T_last_first.value() << std::endl;
-  std::cout << "\n";
 
   Eigen::Matrix4d T_world_first_frame = T_camera_baselink.inverse();
   Eigen::Matrix4d T_world_last_frame = T_world_first_frame * T_last_first.value().inverse();
@@ -89,7 +84,8 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
   // If not enough inliers, return
   float inlier_ratio = (float)inliers / first_landmarks.size();
   if (inlier_ratio < 0.8) { return {}; }
-  ROS_INFO("Valid image pair. Inlier Ratio: %f. Attempting VO Path Estimation.", inlier_ratio);
+  ROS_INFO_STREAM(__func__ << ": Valid image pair. Inlier Ratio: " << inlier_ratio
+                           << ". Attempting Visual Path Estimation.");
 
   // Perform SFM
   auto visual_graph = std::make_shared<fuse_graphs::HashGraph>();
@@ -166,7 +162,7 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
   visual_graph->holdVariable(visual_map->GetPositionUUID(first_time), true);
   visual_graph->holdVariable(visual_map->GetOrientationUUID(first_time), true);
   // optimize graph
-  ROS_INFO_STREAM("computePathWithVision: Optimizing trajectory.");
+  ROS_INFO_STREAM(__func__ << ": Optimizing trajectory.");
   visual_graph->optimizeFor(ros::Duration(max_optimization_time));
   visual_map->UpdateGraph(visual_graph);
 
@@ -175,12 +171,7 @@ std::map<uint64_t, Eigen::Matrix4d> computePathWithVision(
   for (const auto& time : landmark_container->GetMeasurementTimes()) {
     const auto timestamp = beam::NSecToRos(time);
     const auto pose = visual_map->GetBaselinkPose(timestamp);
-    if (pose.has_value()) {
-      std::cout << "-----" << std::endl;
-      std::cout << timestamp << std::endl;
-      std::cout << pose.value().inverse() << std::endl;
-      init_path[time] = pose.value().inverse();
-    }
+    if (pose.has_value()) { init_path[time] = pose.value().inverse(); }
   }
   return init_path;
 }
