@@ -56,7 +56,7 @@ void LidarFeatureExtractor::onStop() {
 
 void LidarFeatureExtractor::ProcessPointcloud(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
-  LoamPointCloud loam_cloud;
+  beam_matching::LoamPointCloud loam_cloud;
   if (params_.lidar_type == LidarType::VELODYNE) {
     ROS_DEBUG("Processing Velodyne poincloud message");
     pcl::PointCloud<PointXYZIRT> cloud;
@@ -72,17 +72,19 @@ void LidarFeatureExtractor::ProcessPointcloud(
   PublishLoamCloud(loam_cloud, msg->header.stamp, msg->header.frame_id);
 }
 
-void LidarFeatureExtractor::PublishLoamCloud(const LoamPointCloud& cloud,
-                                             const ros::Time& time,
-                                             const std::string& frame_id) {
+void LidarFeatureExtractor::PublishLoamCloud(
+    const beam_matching::LoamPointCloud& cloud, const ros::Time& time,
+    const std::string& frame_id) {
   sensor_msgs::PointCloud2 cloud_msg =
-      beam::PCLToROS(cloud.edges.strong, time, frame_id, counter_);
+      beam::PCLToROS(cloud.edges.strong.cloud, time, frame_id, counter_);
   pub_edges_strong_.publish(cloud_msg);
-  cloud_msg = beam::PCLToROS(cloud.edges.weak, time, frame_id, counter_);
+  cloud_msg = beam::PCLToROS(cloud.edges.weak.cloud, time, frame_id, counter_);
   pub_edges_weak_.publish(cloud_msg);
-  cloud_msg = beam::PCLToROS(cloud.surfaces.strong, time, frame_id, counter_);
+  cloud_msg =
+      beam::PCLToROS(cloud.surfaces.strong.cloud, time, frame_id, counter_);
   pub_surfaces_strong_.publish(cloud_msg);
-  cloud_msg = beam::PCLToROS(cloud.surfaces.weak, time, frame_id, counter_);
+  cloud_msg =
+      beam::PCLToROS(cloud.surfaces.weak.cloud, time, frame_id, counter_);
   pub_surfaces_weak_.publish(cloud_msg);
   counter_++;
 }

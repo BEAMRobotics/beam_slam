@@ -13,7 +13,7 @@ namespace bs_models {
 
 class LidarFeatureExtractor : public fuse_core::AsyncSensorModel {
 public:
-  SMART_PTR_DEFINITIONS(LidarFeatureExtractor);
+  FUSE_SMART_PTR_DEFINITIONS(LidarFeatureExtractor);
 
   LidarFeatureExtractor();
 
@@ -28,7 +28,7 @@ private:
 
   void ProcessPointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
-  void PublishLoamCloud(const beam_maching::LoamPointCloud& cloud,
+  void PublishLoamCloud(const beam_matching::LoamPointCloud& cloud,
                         const ros::Time& time, const std::string& frame_id);
 
   /** subscribe to lidar data */
@@ -49,7 +49,7 @@ private:
   int subscriber_queue_size_{5};
   int publisher_queue_size_{10};
   std::unique_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
-  int counter_{0};
+  uint32_t counter_{0};
 };
 
 } // namespace bs_models
