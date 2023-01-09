@@ -1,8 +1,11 @@
 #pragma once
 
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
+
+#include <beam_matching/loam/LoamFeatureExtractor.h>
+#include <beam_matching/loam/LoamPointCloud.h>
 
 #include <bs_parameters/models/lidar_feature_extractor_params.h>
 
@@ -25,11 +28,17 @@ private:
 
   void ProcessPointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
+  void PublishLoamCloud(const beam_maching::LoamPointCloud& cloud,
+                        const ros::Time& time, const std::string& frame_id);
+
   /** subscribe to lidar data */
   ros::Subscriber pointcloud_subscriber_;
 
   /** Publishers */
-  ros::Publisher aggregate_publisher_;
+  ros::Publisher pub_edges_strong_;
+  ros::Publisher pub_edges_weak_;
+  ros::Publisher pub_surfaces_strong_;
+  ros::Publisher pub_surfaces_weak_;
 
   /** callbacks */
   using ThrottledCallbackPC =
@@ -39,6 +48,8 @@ private:
   bs_parameters::models::LidarFeatureExtractorParams params_;
   int subscriber_queue_size_{5};
   int publisher_queue_size_{10};
+  std::unique_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
+  int counter_{0};
 };
 
 } // namespace bs_models

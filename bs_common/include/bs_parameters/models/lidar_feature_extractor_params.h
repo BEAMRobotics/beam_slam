@@ -40,10 +40,14 @@ public:
     } else {
       lidar_type = iter->second;
     }
+
+    getParam<std::string>(nh, "loam_config", loam_config_file,
+                          loam_config_file);
   }
 
   std::string pointcloud_topic;
   LidarType lidar_type{LidarType::VELODYNE};
+  std::string loam_config_file{""};
 };
 
 }} // namespace bs_parameters::models
