@@ -4,20 +4,19 @@
 #include <string>
 #include <vector>
 
+#include <Eigen/Dense>
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/export.hpp>
-#include <Eigen/Dense>
 #include <fuse_core/constraint.h>
 #include <fuse_core/eigen.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/serialization.h>
 #include <fuse_core/uuid.h>
 
 #include <bs_common/imu_state.h>
 
-namespace bs_constraints {
-namespace global {
+namespace bs_constraints { namespace global {
 
 /**
  * @brief A constraint that represents either prior information about an IMU
@@ -29,7 +28,7 @@ namespace global {
  * uncertainty/covariance. Orientations are represented as quaternions.
  */
 class AbsoluteImuState3DStampedConstraint : public fuse_core::Constraint {
- public:
+public:
   FUSE_CONSTRAINT_DEFINITIONS_WITH_EIGEN(AbsoluteImuState3DStampedConstraint);
 
   /**
@@ -99,11 +98,11 @@ class AbsoluteImuState3DStampedConstraint : public fuse_core::Constraint {
    */
   ceres::CostFunction* costFunction() const override;
 
- protected:
+protected:
   Eigen::Matrix<double, 16, 1> mean_;
   Eigen::Matrix<double, 15, 15> sqrt_information_;
 
- private:
+private:
   // Allow Boost Serialization access to private methods
   friend class boost::serialization::access;
 
@@ -122,8 +121,7 @@ class AbsoluteImuState3DStampedConstraint : public fuse_core::Constraint {
   }
 };
 
-}  // namespace global
-}  // namespace bs_constraints
+}} // namespace bs_constraints::global
 
 BOOST_CLASS_EXPORT_KEY(
     bs_constraints::global::AbsoluteImuState3DStampedConstraint);

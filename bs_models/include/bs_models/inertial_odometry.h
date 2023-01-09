@@ -5,7 +5,7 @@
 #include <bs_common/bs_msgs.h>
 
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
 #include <sensor_msgs/Imu.h>
 
@@ -20,7 +20,7 @@ using namespace bs_common;
 
 class InertialOdometry : public fuse_core::AsyncSensorModel {
 public:
-  SMART_PTR_DEFINITIONS(InertialOdometry);
+  FUSE_SMART_PTR_DEFINITIONS(InertialOdometry);
 
   /**
    * @brief Default Constructor
@@ -38,14 +38,14 @@ private:
    * are added to the buffer at the correct time
    * @param[in] msg - The imu msg to process
    */
-  void processIMU(const sensor_msgs::Imu::ConstPtr &msg);
+  void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
   /**
    * @brief Callback for path processing, this path is provided by LIO for
    * initialization
    * @param[in] msg - The path to process
    */
-  void processInitPath(const InitializedPathMsg::ConstPtr &msg);
+  void processInitPath(const InitializedPathMsg::ConstPtr& msg);
 
   /**
    * @brief Perform any required initialization for the sensor model
@@ -74,7 +74,7 @@ private:
    * designated time has elapsed since previous state then register a
    * transaction and send to the graph
    */
-  void RegisterImuMessage(const sensor_msgs::Imu &msg);
+  void RegisterImuMessage(const sensor_msgs::Imu& msg);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
@@ -110,7 +110,7 @@ private:
   ros::Time previous_state;
 
   // robot extrinsics
-  bs_common::ExtrinsicsLookupOnline &extrinsics_ =
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 

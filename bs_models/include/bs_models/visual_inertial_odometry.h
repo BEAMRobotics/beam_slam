@@ -3,7 +3,7 @@
 #include <queue>
 
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
@@ -30,7 +30,7 @@ using namespace vision;
 
 class VisualInertialOdometry : public fuse_core::AsyncSensorModel {
 public:
-  SMART_PTR_DEFINITIONS(VisualInertialOdometry);
+  FUSE_SMART_PTR_DEFINITIONS(VisualInertialOdometry);
 
   /**
    * @brief Default Constructor

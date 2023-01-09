@@ -3,20 +3,20 @@
 #include <unordered_map>
 
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
 #include <fuse_core/uuid.h>
 
-#include <beam_utils/pointclouds.h>
 #include <beam_filtering/Utils.h>
 #include <beam_matching/Matchers.h>
+#include <beam_utils/pointclouds.h>
 
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_constraints/relative_pose/relative_pose_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_models/scan_registration/scan_registration_base.h>
-#include <bs_models/lidar/scan_pose.h>
 #include <bs_models/global_mapping/active_submap.h>
-#include <bs_common/extrinsics_lookup_online.h>
+#include <bs_models/lidar/scan_pose.h>
+#include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_parameters/models/lidar_odometry_params.h>
 
 namespace bs_models {
@@ -24,14 +24,14 @@ namespace bs_models {
 using namespace beam_matching;
 
 class LidarOdometry : public fuse_core::AsyncSensorModel {
- public:
-  SMART_PTR_DEFINITIONS(LidarOdometry);
+public:
+  FUSE_SMART_PTR_DEFINITIONS(LidarOdometry);
 
   LidarOdometry();
 
   ~LidarOdometry() override = default;
 
- private:
+private:
   void onStart() override;
 
   void onInit() override;
@@ -42,13 +42,13 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
 
   void process(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
-  fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const sensor_msgs::PointCloud2::ConstPtr& msg);
+  fuse_core::Transaction::SharedPtr
+      GenerateTransaction(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
   void SetupRegistration();
 
-  fuse_core::Transaction::SharedPtr RegisterScanToGlobalMap(
-      const ScanPose& scan_pose);
+  fuse_core::Transaction::SharedPtr
+      RegisterScanToGlobalMap(const ScanPose& scan_pose);
 
   void SendRelocRequest(const ScanPose& scan_pose);
 
@@ -63,8 +63,8 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   ros::Subscriber subscriber_;
 
   /** Publishers */
-  ros::Publisher results_publisher_;        // for global mapper
-  ros::Publisher reloc_request_publisher_;  // for global mapper
+  ros::Publisher results_publisher_;       // for global mapper
+  ros::Publisher reloc_request_publisher_; // for global mapper
   ros::Publisher registration_publisher_init_;
   ros::Publisher registration_publisher_aligned_lm_;
   ros::Publisher registration_publisher_aligned_gm_;
@@ -94,7 +94,7 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   std::unique_ptr<Matcher<PointCloudPtr>> global_matching_{nullptr};
   std::unique_ptr<Matcher<LoamPointCloudPtr>> global_loam_matching_{nullptr};
 
-  fuse_core::UUID device_id_;  //!< The UUID of this device
+  fuse_core::UUID device_id_; //!< The UUID of this device
 
   /** Used to get initial pose estimates */
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
@@ -117,4 +117,4 @@ class LidarOdometry : public fuse_core::AsyncSensorModel {
   bool update_local_map_on_graph_update_{true};
 };
 
-}  // namespace bs_models
+} // namespace bs_models

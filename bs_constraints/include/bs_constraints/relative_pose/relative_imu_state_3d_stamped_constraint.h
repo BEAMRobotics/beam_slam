@@ -4,21 +4,20 @@
 #include <string>
 #include <vector>
 
+#include <Eigen/Dense>
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/export.hpp>
-#include <Eigen/Dense>
 #include <fuse_core/constraint.h>
 #include <fuse_core/eigen.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/serialization.h>
 #include <fuse_core/uuid.h>
 
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
 
-namespace bs_constraints {
-namespace relative_pose {
+namespace bs_constraints { namespace relative_pose {
 
 /**
  * @brief A constraint that represents a measurement on the difference between
@@ -29,7 +28,7 @@ namespace relative_pose {
  * optimization
  */
 class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
- public:
+public:
   FUSE_CONSTRAINT_DEFINITIONS_WITH_EIGEN(RelativeImuState3DStampedConstraint);
 
   /**
@@ -76,12 +75,12 @@ class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
    */
   ceres::CostFunction* costFunction() const override;
 
- protected:
+protected:
   bs_common::ImuState imu_state_i_;
   bs_common::ImuState imu_state_j_;
   std::shared_ptr<bs_common::PreIntegrator> pre_integrator_;
 
- private:
+private:
   // Allow Boost Serialization access to private methods
   friend class boost::serialization::access;
 
@@ -98,8 +97,7 @@ class RelativeImuState3DStampedConstraint : public fuse_core::Constraint {
   }
 };
 
-}  // namespace relative_pose
-}  // namespace bs_constraints
+}} // namespace bs_constraints::relative_pose
 
 BOOST_CLASS_EXPORT_KEY(
     bs_constraints::relative_pose::RelativeImuState3DStampedConstraint);
