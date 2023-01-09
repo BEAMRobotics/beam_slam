@@ -6,9 +6,10 @@
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
-#include <opencv2/core/mat.hpp>
-#include <pcl/kdtree/kdtree_flann.h>
+// #include <pcl/kdtree/kdtree_flann.h>
 #include <ros/time.h>
+
+#include <opencv2/core/mat.hpp>
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_containers/LandmarkContainer.h>

@@ -2,7 +2,7 @@
 #define FUSE_MODELS_VISUAL_COST_FUNCTOR_H
 
 #include <fuse_core/eigen.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/util.h>
 
 #include <beam_calibration/CameraModel.h>
@@ -36,8 +36,8 @@ public:
         T_cam_baselink_(T_cam_baselink) {
     // matrix to normalize reprojection errors
     A_ = Eigen::Matrix2d::Identity();
-    A_(0,0) = std::pow(1.0/cam_model_->GetIntrinsics()[0], 2);
-    A_(1,1) = std::pow(1.0/cam_model_->GetIntrinsics()[1], 2);
+    A_(0, 0) = std::pow(1.0 / cam_model_->GetIntrinsics()[0], 2);
+    A_(1, 1) = std::pow(1.0 / cam_model_->GetIntrinsics()[1], 2);
 
     // projection functor
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(

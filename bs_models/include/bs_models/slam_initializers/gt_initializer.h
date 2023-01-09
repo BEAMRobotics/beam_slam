@@ -2,18 +2,18 @@
 
 #include <queue>
 
+#include <fuse_core/fuse_macros.h>
 #include <sensor_msgs/Imu.h>
-#include <fuse_core/macros.h>
 
-#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
+#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_parameters/models/gt_initializer_params.h>
 
 namespace bs_models {
 
 class GTInitializer : public SLAMInitializerBase {
 public:
-  SMART_PTR_DEFINITIONS(GTInitializer);
+  FUSE_SMART_PTR_DEFINITIONS(GTInitializer);
 
   GTInitializer() : SLAMInitializerBase() {}
 

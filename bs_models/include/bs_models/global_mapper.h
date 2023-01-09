@@ -1,7 +1,7 @@
 #pragma once
 
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
 #include <fuse_core/uuid.h>
 #include <fuse_graphs/hash_graph.h>
@@ -21,7 +21,7 @@ namespace bs_models {
  */
 class GlobalMapper : public fuse_core::AsyncSensorModel {
 public:
-  SMART_PTR_DEFINITIONS(GlobalMapper);
+  FUSE_SMART_PTR_DEFINITIONS(GlobalMapper);
 
   /**
    * @brief This initializes the AsyncSensorModel class, device id and ROS

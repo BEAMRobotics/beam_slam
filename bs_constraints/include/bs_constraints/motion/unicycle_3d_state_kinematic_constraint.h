@@ -5,7 +5,7 @@
 #include <boost/serialization/export.hpp>
 #include <fuse_core/constraint.h>
 #include <fuse_core/eigen.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/serialization.h>
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
 #include <fuse_variables/orientation_3d_stamped.h>
@@ -158,4 +158,5 @@ private:
 
 }} // namespace bs_constraints::motion
 
-BOOST_CLASS_EXPORT_KEY(bs_constraints::motion::Unicycle3DStateKinematicConstraint);
+BOOST_CLASS_EXPORT_KEY(
+    bs_constraints::motion::Unicycle3DStateKinematicConstraint);

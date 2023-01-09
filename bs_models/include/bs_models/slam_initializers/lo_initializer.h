@@ -2,7 +2,7 @@
 
 #include <list>
 
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/PointCloud2.h>
 
@@ -12,10 +12,10 @@
 #include <beam_matching/loam/LoamPointCloud.h>
 #include <beam_utils/pointclouds.h>
 
-#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
+#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_parameters/models/lo_initializer_params.h>
 
 namespace bs_models {
@@ -33,11 +33,11 @@ namespace bs_models {
  * it does not access the fuse graph in any way since the estimation done in the
  * initializer neesd to be de-coupled from the graph used by the main SLAM.
  */
-class LoInitializer : public SLAMInitializerBase{
+class LoInitializer : public SLAMInitializerBase {
 public:
-  SMART_PTR_DEFINITIONS(LoInitializer);
+  FUSE_SMART_PTR_DEFINITIONS(LoInitializer);
 
-  LoInitializer(): SLAMInitializerBase() {}
+  LoInitializer() : SLAMInitializerBase() {}
 
   ~LoInitializer() override = default;
 
@@ -99,7 +99,6 @@ protected:
 
   // main parameters
   bs_parameters::models::LoInitializerParams params_;
-
 
   // scan registration objects
   std::unique_ptr<scan_registration::ScanToMapLoamRegistration>

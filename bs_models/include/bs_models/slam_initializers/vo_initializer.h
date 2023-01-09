@@ -1,15 +1,15 @@
 #pragma once
 
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_graphs/hash_graph.h>
 #include <sensor_msgs/Image.h>
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/trackers/Trackers.h>
 
-#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
+#include <bs_models/slam_initializers/slam_initializer_base.h>
 #include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/vo_initializer_params.h>
@@ -18,7 +18,7 @@ namespace bs_models {
 
 class VOInitializer : public SLAMInitializerBase {
 public:
-  SMART_PTR_DEFINITIONS(VOInitializer);
+  FUSE_SMART_PTR_DEFINITIONS(VOInitializer);
 
   VOInitializer() : SLAMInitializerBase() {}
 

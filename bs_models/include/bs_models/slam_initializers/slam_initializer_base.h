@@ -2,7 +2,7 @@
 
 #include <Eigen/Dense>
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <ros/ros.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
@@ -17,7 +17,7 @@ namespace bs_models {
  */
 class SLAMInitializerBase : public fuse_core::AsyncSensorModel {
 public:
-  SMART_PTR_ALIASES_ONLY(SLAMInitializerBase);
+  FUSE_SMART_PTR_ALIASES_ONLY(SLAMInitializerBase);
 
   SLAMInitializerBase();
 
