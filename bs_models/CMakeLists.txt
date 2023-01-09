@@ -70,6 +70,7 @@ add_library(
   ## sensor models
   src/imu_3d.cpp
   src/lidar_aggregation.cpp
+  src/lidar_feature_extractor.cpp
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
   src/visual_inertial_odometry.cpp
