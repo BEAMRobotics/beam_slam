@@ -4,7 +4,7 @@
 #include <fuse_constraints/relative_pose_3d_stamped_constraint.h>
 #include <fuse_core/constraint.h>
 #include <fuse_core/eigen.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/transaction.h>
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
@@ -33,7 +33,8 @@ namespace bs_constraints { namespace relative_pose {
 template <typename ConstraintType, typename PriorType>
 class RelativePoseTransactionBase {
 public:
-  SMART_PTR_DEFINITIONS(RelativePoseTransactionBase<ConstraintType, PriorType>);
+  FUSE_SMART_PTR_DEFINITIONS(
+      RelativePoseTransactionBase<ConstraintType, PriorType>);
 
   RelativePoseTransactionBase(const ros::Time& transaction_stamp,
                               bool override_constraints = true,

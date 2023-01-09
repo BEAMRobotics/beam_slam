@@ -1,8 +1,8 @@
 #pragma once
 
 #include <fuse_core/async_publisher.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/graph.h>
-#include <fuse_core/macros.h>
 #include <fuse_core/transaction.h>
 #include <ros/ros.h>
 
@@ -21,7 +21,7 @@ namespace bs_publishers {
  */
 class Path3DPublisher : public fuse_core::AsyncPublisher {
 public:
-  SMART_PTR_DEFINITIONS(Path3DPublisher);
+  FUSE_SMART_PTR_DEFINITIONS(Path3DPublisher);
 
   /**
    * @brief Constructor

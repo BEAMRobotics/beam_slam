@@ -1,8 +1,8 @@
 #pragma once
 
 #include <fuse_core/async_publisher.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/graph.h>
-#include <fuse_core/macros.h>
 #include <fuse_core/transaction.h>
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
@@ -15,8 +15,8 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
-#include <bs_publishers/stamped_variable_synchronizer.h>
 #include <bs_parameters/publishers/odometry_3d_publisher_params.h>
+#include <bs_publishers/stamped_variable_synchronizer.h>
 
 namespace bs_publishers {
 
@@ -67,7 +67,7 @@ namespace bs_publishers {
  */
 class Odometry3DPublisher : public fuse_core::AsyncPublisher {
 public:
-  SMART_PTR_DEFINITIONS(Odometry3DPublisher);
+  FUSE_SMART_PTR_DEFINITIONS(Odometry3DPublisher);
   using ParameterType = bs_parameters::publishers::Odometry3DPublisherParams;
 
   /**

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
 #include <fuse_core/uuid.h>
 
@@ -9,14 +9,14 @@
 #include <bs_constraints/relative_pose/relative_pose_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/imu/imu_preintegration.h>
-#include <bs_parameters/models/imu_3d_params.h>
 #include <bs_parameters/models/calibration_params.h>
+#include <bs_parameters/models/imu_3d_params.h>
 
 namespace bs_models {
 
 class Imu3D : public fuse_core::AsyncSensorModel {
- public:
-  SMART_PTR_DEFINITIONS(Imu3D);
+public:
+  FUSE_SMART_PTR_DEFINITIONS(Imu3D);
 
   /**
    * @brief Default constructor
@@ -28,7 +28,7 @@ class Imu3D : public fuse_core::AsyncSensorModel {
    */
   virtual ~Imu3D() = default;
 
- private:
+private:
   /**
    * @brief Perform required initialization for the sensor model
    */
@@ -96,4 +96,4 @@ class Imu3D : public fuse_core::AsyncSensorModel {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 };
 
-}  // namespace bs_models
+} // namespace bs_models

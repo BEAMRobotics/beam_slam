@@ -1,9 +1,9 @@
 #pragma once
 
-#include <std_msgs/Time.h>
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
+#include <std_msgs/Time.h>
 
 #include <bs_models/lidar/lidar_aggregator.h>
 #include <bs_parameters/models/lidar_aggregation_params.h>
@@ -12,7 +12,7 @@ namespace bs_models {
 
 class LidarAggregation : public fuse_core::AsyncSensorModel {
 public:
-  SMART_PTR_DEFINITIONS(LidarAggregation);
+  FUSE_SMART_PTR_DEFINITIONS(LidarAggregation);
 
   LidarAggregation();
 

@@ -36,8 +36,8 @@
  */
 #pragma once
 
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/graph.h>
-#include <fuse_core/macros.h>
 #include <fuse_core/transaction.h>
 #include <fuse_core/uuid.h>
 #include <fuse_core/variable.h>
@@ -72,7 +72,7 @@ namespace bs_publishers {
 template <typename... Ts>
 class StampedVariableSynchronizer {
 public:
-  SMART_PTR_DEFINITIONS(StampedVariableSynchronizer);
+  FUSE_SMART_PTR_DEFINITIONS(StampedVariableSynchronizer);
   static const ros::Time TIME_ZERO; //!< Constant representing a zero timestamp
 
   /**

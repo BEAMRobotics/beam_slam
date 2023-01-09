@@ -4,8 +4,8 @@
 
 #include <fuse_core/async_motion_model.h>
 #include <fuse_core/constraint.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/graph.h>
-#include <fuse_core/macros.h>
 #include <fuse_core/timestamp_manager.h>
 #include <fuse_core/transaction.h>
 #include <fuse_core/uuid.h>
@@ -16,8 +16,8 @@
 namespace bs_models {
 
 class Unicycle3D : public fuse_core::AsyncMotionModel {
- public:
-  SMART_PTR_DEFINITIONS_WITH_EIGEN(Unicycle3D);
+public:
+  FUSE_SMART_PTR_DEFINITIONS_WITH_EIGEN(Unicycle3D);
 
   /**
    * @brief Default constructor
@@ -31,21 +31,21 @@ class Unicycle3D : public fuse_core::AsyncMotionModel {
    */
   ~Unicycle3D() = default;
 
- protected:
+protected:
   /**
    * @brief Structure used to maintain a history of "good" pose estimates
    */
   struct StateHistoryElement {
     fuse_core::UUID
-        position_uuid;  //!< The uuid of the associated position variable
+        position_uuid; //!< The uuid of the associated position variable
     fuse_core::UUID
-        orientation_uuid;  //!< The uuid of the associated orientation variable
+        orientation_uuid; //!< The uuid of the associated orientation variable
     fuse_core::UUID
-        vel_linear_uuid;  //!< The uuid of the associated orientation variable
+        vel_linear_uuid; //!< The uuid of the associated orientation variable
     fuse_core::UUID
-        vel_angular_uuid;  //!< The uuid of the associated orientation variable
+        vel_angular_uuid; //!< The uuid of the associated orientation variable
     fuse_core::UUID
-        acc_linear_uuid;  //!< The uuid of the associated orientation variable
+        acc_linear_uuid; //!< The uuid of the associated orientation variable
     tf2::Transform pose;
     tf2::Vector3 velocity_linear;
     tf2::Vector3 velocity_angular;
@@ -119,15 +119,15 @@ class Unicycle3D : public fuse_core::AsyncMotionModel {
                                           StateHistory& state_history,
                                           const ros::Duration& buffer_length);
 
-  ros::Duration buffer_length_;  //!< The length of the state history
-  fuse_core::UUID device_id_;    //!< The UUID of the device to be published
+  ros::Duration buffer_length_; //!< The length of the state history
+  fuse_core::UUID device_id_;   //!< The UUID of the device to be published
   fuse_core::TimestampManager
-      timestamp_manager_;  //!< Tracks timestamps and previously created motion
-                           //!< model segments
+      timestamp_manager_; //!< Tracks timestamps and previously created motion
+                          //!< model segments
   Eigen::Matrix<double, 15, 15, Eigen::RowMajor>
-      process_noise_covariance_;  //!< Process noise covariance matrix
+      process_noise_covariance_; //!< Process noise covariance matrix
 
-  StateHistory state_history_;  //!< History of optimized graph pose estimates
+  StateHistory state_history_; //!< History of optimized graph pose estimates
 };
 
-}  // namespace bs_models
+} // namespace bs_models

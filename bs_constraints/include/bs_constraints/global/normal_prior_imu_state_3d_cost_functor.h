@@ -1,10 +1,10 @@
 #pragma once
 
+#include <Eigen/Core>
 #include <fuse_constraints/normal_prior_orientation_3d_cost_functor.h>
 #include <fuse_core/eigen.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/util.h>
-#include <Eigen/Core>
 
 namespace bs_constraints { namespace global {
 
@@ -52,12 +52,10 @@ NormalPriorImuState3DCostFunctor::NormalPriorImuState3DCostFunctor(
       orientation_functor_(fuse_core::Matrix3d::Identity(), b_.head<4>()) {}
 
 template <typename T>
-bool NormalPriorImuState3DCostFunctor::operator()(const T* const orientation,
-                                                  const T* const position,
-                                                  const T* const velocity,
-                                                  const T* const gyrobias,
-                                                  const T* const accelbias,
-                                                  T* residual) const {
+bool NormalPriorImuState3DCostFunctor::
+    operator()(const T* const orientation, const T* const position,
+               const T* const velocity, const T* const gyrobias,
+               const T* const accelbias, T* residual) const {
   // Use the 3D orientation cost functor to compute the orientation delta
   orientation_functor_(orientation, &residual[0]);
 
@@ -89,4 +87,4 @@ bool NormalPriorImuState3DCostFunctor::operator()(const T* const orientation,
   return true;
 }
 
-}}  // namespace bs_constraints::global
+}} // namespace bs_constraints::global
