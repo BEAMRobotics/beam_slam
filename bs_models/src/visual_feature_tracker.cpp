@@ -4,6 +4,7 @@
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/descriptors/ORBDescriptor.h>
 #include <beam_cv/detectors/FASTSSCDetector.h>
+#include <beam_utils/filesystem.h>
 #include <bs_common/utils.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -37,6 +38,12 @@ void VisualFeatureTracker::onInit() {
   beam_cv::KLTracker::Params tracker_params;
   tracker_params.LoadFromJson(params_.tracker_config);
   tracker_ = std::make_shared<beam_cv::KLTracker>(tracker_params, detector, descriptor_, 100);
+
+  // create output directory if its not empty
+  if (!params_.save_tracks_folder.empty() &&
+      !boost::filesystem::exists(params_.save_tracks_folder)) {
+    boost::filesystem::create_directory(params_.save_tracks_folder);
+  }
 }
 
 void VisualFeatureTracker::onStart() {
@@ -66,11 +73,11 @@ void VisualFeatureTracker::processImage(const sensor_msgs::Image::ConstPtr& msg)
   const auto measurement_msg = BuildCameraMeasurement(prev_time_, *msg);
   measurement_publisher_.publish(measurement_msg);
 
-  if (boost::filesystem::exists(params_.save_tracks_folder) &&
-      !params_.save_tracks_folder.empty()) {
+  if (!params_.save_tracks_folder.empty()) {
     std::string image_file = std::to_string(prev_time_.toNSec()) + ".png";
+    std::string image_path = beam::CombinePaths({params_.save_tracks_folder, image_file});
     cv::Mat track_image = tracker_->DrawTracks(tracker_->GetTracks(prev_time_), image);
-    cv::imwrite(params_.save_tracks_folder + image_file, track_image);
+    cv::imwrite(image_path, track_image);
   }
   prev_time_ = msg->header.stamp;
 }

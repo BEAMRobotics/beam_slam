@@ -6,7 +6,7 @@ This repo contains beam's lidar-camera-inertial SLAM code. All other SLAM code i
 
 ## Dependencies:
 
-* fuse: https://github.com/locusrobotics/fuse (kinetic-devel branch for ROS Kinetic, devel branch for ROS Melodic)
+* fuse: https://github.com/jakemclaughlin6/fuse
 * tf2_2d: https://github.com/locusrobotics/tf2_2d.git
 * qwt: sudo apt-get install libqwt-dev (for Kinetic only)
 * calibration_publisher: https://github.com/BEAMRobotics/beam_robotics/tree/master/calibration/calibration_publisher

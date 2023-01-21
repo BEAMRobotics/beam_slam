@@ -352,50 +352,11 @@ bool VisualMap::FixedLandmarkExists(uint64_t landmark_id) {
 
 void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   graph_ = graph_msg;
-
-  // remove duplicate orientations
-  auto orientation_itr = orientations_.begin();
-  while (orientation_itr != orientations_.end()) {
-    auto uuid = GetOrientationUUID(beam::NSecToRos(orientation_itr->first));
-    if (graph_->variableExists(uuid)) {
-      orientations_.erase(orientation_itr++);
-    } else {
-      ++orientation_itr;
-    }
-  }
-
-  // remove duplicate positions
-  auto position_itr = positions_.begin();
-  while (position_itr != positions_.end()) {
-    auto uuid = GetPositionUUID(beam::NSecToRos(position_itr->first));
-    if (graph_->variableExists(uuid)) {
-      positions_.erase(position_itr++);
-    } else {
-      ++position_itr;
-    }
-  }
-
-  // remove duplicate landmarks
-  auto landmark_itr = landmark_positions_.begin();
-  while (landmark_itr != landmark_positions_.end()) {
-    auto uuid = GetLandmarkUUID(landmark_itr->first);
-    if (graph_->variableExists(uuid)) {
-      landmark_positions_.erase(landmark_itr++);
-    } else {
-      ++landmark_itr;
-    }
-  }
-
-  // remove duplicate landmarks
-  auto fixed_landmark_itr = fixed_landmark_positions_.begin();
-  while (fixed_landmark_itr != fixed_landmark_positions_.end()) {
-    auto uuid = GetFixedLandmarkUUID(fixed_landmark_itr->first);
-    if (graph_->variableExists(uuid)) {
-      fixed_landmark_positions_.erase(fixed_landmark_itr++);
-    } else {
-      ++fixed_landmark_itr;
-    }
-  }
+  // clear local storage
+  orientations_.clear();
+  positions_.clear();
+  landmark_positions_.clear();
+  fixed_landmark_positions_.clear();
 }
 
 void VisualMap::Clear() {

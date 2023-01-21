@@ -50,16 +50,6 @@ ImuPreintegration::ImuPreintegration(const Params& params, const Eigen::Vector3d
   SetPreintegrator();
 }
 
-void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
-  bs_common::IMUData imu_data(msg);
-  AddToBuffer(imu_data);
-}
-
-void ImuPreintegration::AddToBuffer(const bs_common::IMUData& imu_data) {
-  pre_integrator_ij.data.push_back(imu_data);
-  pre_integrator_kj.data.push_back(imu_data);
-}
-
 void ImuPreintegration::CheckParameters() {
   if (params_.cov_prior_noise <= 0) {
     BEAM_ERROR("Prior noise on IMU state must be positive");
@@ -68,27 +58,91 @@ void ImuPreintegration::CheckParameters() {
 }
 
 void ImuPreintegration::SetPreintegrator() {
-  pre_integrator_ij.cov_w = params_.cov_gyro_noise;
-  pre_integrator_ij.cov_a = params_.cov_accel_noise;
-  pre_integrator_ij.cov_bg = params_.cov_gyro_bias;
-  pre_integrator_ij.cov_ba = params_.cov_accel_bias;
-  pre_integrator_kj.cov_w = params_.cov_gyro_noise;
-  pre_integrator_kj.cov_a = params_.cov_accel_noise;
-  pre_integrator_kj.cov_bg = params_.cov_gyro_bias;
-  pre_integrator_kj.cov_ba = params_.cov_accel_bias;
+  pre_integrator_ij_.cov_w = params_.cov_gyro_noise;
+  pre_integrator_ij_.cov_a = params_.cov_accel_noise;
+  pre_integrator_ij_.cov_bg = params_.cov_gyro_bias;
+  pre_integrator_ij_.cov_ba = params_.cov_accel_bias;
+  pre_integrator_kj_ = pre_integrator_ij_;
+  pre_integrator_odom_ = pre_integrator_ij_;
 }
 
-void ImuPreintegration::ResetPreintegrator(const ros::Time& t_now) {
-  pre_integrator_ij.Reset();
-  pre_integrator_ij.data.erase(
-      std::remove_if(pre_integrator_ij.data.begin(), pre_integrator_ij.data.end(),
-                     [&](const bs_common::IMUData& d) { return d.t < t_now; }),
-      pre_integrator_ij.data.end());
-  pre_integrator_kj.Reset();
-  pre_integrator_kj.data.erase(
-      std::remove_if(pre_integrator_kj.data.begin(), pre_integrator_kj.data.end(),
-                     [&](const bs_common::IMUData& d) { return d.t < t_now; }),
-      pre_integrator_kj.data.end());
+void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
+  bs_common::IMUData imu_data(msg);
+  AddToBuffer(imu_data);
+}
+
+void ImuPreintegration::AddToBuffer(const bs_common::IMUData& imu_data) {
+  pre_integrator_ij_.data.push_back(imu_data);
+  pre_integrator_kj_.data.push_back(imu_data);
+  pre_integrator_odom_.data.push_back(imu_data);
+}
+
+beam::opt<PoseWithCovariance> ImuPreintegration::AddAndIncrement(const sensor_msgs::Imu& msg) {
+  bs_common::IMUData imu_data(msg);
+  return AddAndIncrement(imu_data);
+}
+
+beam::opt<PoseWithCovariance>
+    ImuPreintegration::AddAndIncrement(const bs_common::IMUData& imu_data) {
+  AddToBuffer(imu_data);
+  // get time difference from last call
+  const auto t_now = imu_data.t;
+  const auto t_prev = imu_state_odom_.Stamp();
+  const auto dt = t_now - t_prev;
+  if (dt <= ros::Duration(0.0)) { return {}; }
+
+  // increment preintegrator to time
+  pre_integrator_odom_.Increment(dt, imu_data, imu_state_odom_.GyroBiasVec(),
+                                 imu_state_odom_.AccelBiasVec(), false, true);
+
+  // predict state at end of window using integrated IMU measurements
+  imu_state_odom_ = PredictState(pre_integrator_odom_, imu_state_odom_, t_now);
+
+  // populate transformation matrix
+  Eigen::Matrix4d T_ODOM_IMU;
+  beam::QuaternionAndTranslationToTransformMatrix(imu_state_odom_.OrientationQuat(),
+                                                  imu_state_odom_.PositionVec(), T_ODOM_IMU);
+
+  // extract the computed covariance
+  Eigen::Matrix<double, 6, 6> covariance;
+  covariance = pre_integrator_odom_.delta.cov.block<6, 6>(0, 0);
+
+  // remove data in buffer that is before the new state k
+  pre_integrator_odom_.Clear(t_now);
+  pre_integrator_odom_.Reset();
+
+  return std::make_pair(T_ODOM_IMU, covariance);
+}
+
+bool ImuPreintegration::GetPose(const ros::Time& t_now, Eigen::Matrix4d& T_WORLD_IMU,
+                                Eigen::Matrix<double, 6, 6> covariance) {
+  // check requested time given an empty integrator
+  if (t_now < imu_state_k_.Stamp()) {
+    ROS_WARN("Requested time is before current imu state. Request a pose "
+             "at a timestamp >= the most recent imu measurement.");
+    return false;
+  }
+
+  // integrate between frames if there is data to integrate
+  if (!pre_integrator_kj_.data.empty()) {
+    pre_integrator_kj_.Integrate(t_now, imu_state_i_.GyroBiasVec(), imu_state_i_.AccelBiasVec(),
+                                 false, true);
+  }
+
+  // predict state at end of window using integrated IMU measurements
+  imu_state_k_ = PredictState(pre_integrator_kj_, imu_state_k_, t_now);
+
+  // populate transformation matrix
+  beam::QuaternionAndTranslationToTransformMatrix(imu_state_k_.OrientationQuat(),
+                                                  imu_state_k_.PositionVec(), T_WORLD_IMU);
+
+  // remove data in buffer that is before the new state k
+  pre_integrator_kj_.Clear(t_now);
+
+  // extract the computed covariance if requested
+  covariance = pre_integrator_kj_.delta.cov.block<6, 6>(0, 0);
+
+  return true;
 }
 
 void ImuPreintegration::SetStart(const ros::Time& t_start,
@@ -96,30 +150,25 @@ void ImuPreintegration::SetStart(const ros::Time& t_start,
                                  fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
                                  fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   // remove data in buffer that is before the start state
-  pre_integrator_ij.data.erase(
-      std::remove_if(pre_integrator_ij.data.begin(), pre_integrator_ij.data.end(),
-                     [&](const bs_common::IMUData& d) { return d.t < t_start; }),
-      pre_integrator_ij.data.end());
-  pre_integrator_kj.data.erase(
-      std::remove_if(pre_integrator_kj.data.begin(), pre_integrator_kj.data.end(),
-                     [&](const bs_common::IMUData& d) { return d.t < t_start; }),
-      pre_integrator_kj.data.end());
+  pre_integrator_ij_.Reset();
+  pre_integrator_ij_.Clear(t_start);
+  pre_integrator_kj_.Reset();
+  pre_integrator_kj_.Clear(t_start);
+  pre_integrator_odom_.Reset();
+  pre_integrator_odom_.Clear(t_start);
 
   // set IMU state
   bs_common::ImuState imu_state_i(t_start);
-
   if (R_WORLD_IMU) { imu_state_i.SetOrientation(R_WORLD_IMU->data()); }
-
   if (t_WORLD_IMU) { imu_state_i.SetPosition(t_WORLD_IMU->data()); }
-
   if (velocity) { imu_state_i.SetVelocity(velocity->data()); }
-
   imu_state_i.SetGyroBias(bg_);
   imu_state_i.SetAccelBias(ba_);
 
   imu_state_i_ = imu_state_i;
 
   // copy start IMU state to initialize kth frame between keyframes
+  imu_state_odom_ = imu_state_i_;
   imu_state_k_ = imu_state_i_;
 }
 
@@ -147,49 +196,6 @@ bs_common::ImuState ImuPreintegration::PredictState(const bs_common::PreIntegrat
   return imu_state_new;
 }
 
-bool ImuPreintegration::GetPose(Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now,
-                                std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance) {
-  // check requested time given a non empty integrator
-  if (!pre_integrator_kj.data.empty()) {
-    if (t_now < pre_integrator_kj.data.back().t) {
-      ROS_WARN("Requested time is before current imu measurement. Request a"
-               "pose at a timestamp >= the most recent imu measurement.");
-      return false;
-    }
-  }
-
-  // check requested time given an empty integrator
-  if (t_now < imu_state_k_.Stamp()) {
-    ROS_WARN("Requested time is before current imu state. Request a pose "
-             "at a timestamp >= the most recent imu measurement.");
-    return false;
-  }
-
-  // integrate between frames if there is data to integrate
-  if (!pre_integrator_kj.data.empty()) {
-    pre_integrator_kj.Integrate(t_now, imu_state_i_.GyroBiasVec(), imu_state_i_.AccelBiasVec(),
-                                false, true);
-  }
-
-  // predict state at end of window using integrated IMU measurements
-  imu_state_k_ = PredictState(pre_integrator_kj, imu_state_k_, t_now);
-
-  // populate transformation matrix
-  beam::QuaternionAndTranslationToTransformMatrix(imu_state_k_.OrientationQuat(),
-                                                  imu_state_k_.PositionVec(), T_WORLD_IMU);
-
-  // remove data in buffer that is before the new state k
-  pre_integrator_kj.data.erase(
-      std::remove_if(pre_integrator_kj.data.begin(), pre_integrator_kj.data.end(),
-                     [&](const bs_common::IMUData& d) { return d.t < t_now; }),
-      pre_integrator_kj.data.end());
-
-  // extract the computed covariance if requested
-  if (covariance) { *covariance = pre_integrator_kj.delta.cov.block<6, 6>(0, 0); }
-
-  return true;
-}
-
 fuse_core::Transaction::SharedPtr ImuPreintegration::RegisterNewImuPreintegratedFactor(
     const ros::Time& t_now, fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
@@ -197,14 +203,13 @@ fuse_core::Transaction::SharedPtr ImuPreintegration::RegisterNewImuPreintegrated
   bs_constraints::relative_pose::ImuState3DStampedTransaction transaction(t_now);
 
   // check requested time
-  if (pre_integrator_ij.data.empty()) {
+  if (pre_integrator_ij_.data.empty()) {
     ROS_WARN("Cannot register IMU factor, no imu data is available.");
     return nullptr;
   }
-  if (t_now < pre_integrator_ij.data.back().t) {
-    ROS_WARN("Cannot register IMU factor, requested time is prior to the end "
-             "of the window. Request a pose at a timestamp >= the most recent "
-             "imu measurement.");
+  if (t_now < pre_integrator_ij_.data.front().t) {
+    ROS_WARN("Cannot register IMU factor, requested time is prior to the front "
+             "of the window. Request a pose at a timestamp >= the previous call.");
     return nullptr;
   }
 
@@ -216,44 +221,27 @@ fuse_core::Transaction::SharedPtr ImuPreintegration::RegisterNewImuPreintegrated
     // Add relative constraints and variables for first key frame
     transaction.AddPriorImuStateConstraint(imu_state_i_, prior_covariance, "FIRST_IMU_STATE_PRIOR");
     transaction.AddImuStateVariables(imu_state_i_);
-
     first_window_ = false;
   }
 
   // integrate between key frames, incrementally calculating covariance and
   // jacobians
-  pre_integrator_ij.Integrate(t_now, imu_state_i_.GyroBiasVec(), imu_state_i_.AccelBiasVec(), true,
-                              true);
+  pre_integrator_ij_.Integrate(t_now, imu_state_i_.GyroBiasVec(), imu_state_i_.AccelBiasVec(), true,
+                               true);
 
   // predict state at end of window using integrated imu measurements
-  bs_common::ImuState imu_state_j = PredictState(pre_integrator_ij, imu_state_i_, t_now);
+  bs_common::ImuState imu_state_j = PredictState(pre_integrator_ij_, imu_state_i_, t_now);
 
   // Add relative constraints and variables between key frames
-  transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j, pre_integrator_ij);
+  transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j, pre_integrator_ij_);
   transaction.AddImuStateVariables(imu_state_j);
 
-  // update orientation and position of predicted imu state with arguments
-  if (R_WORLD_IMU && t_WORLD_IMU) {
-    // get old pose
-    Eigen::Matrix4d T_WORLD_IMUold;
-    beam::QuaternionAndTranslationToTransformMatrix(imu_state_j.OrientationQuat(),
-                                                    imu_state_j.PositionVec(), T_WORLD_IMUold);
+  // update orientation, position and velocity of predicted imu state with arguments
+  if (R_WORLD_IMU && t_WORLD_IMU && velocity) {
     // update with new estimate
     imu_state_j.SetOrientation(R_WORLD_IMU->data());
     imu_state_j.SetPosition(t_WORLD_IMU->data());
-    // get new pose
-    Eigen::Matrix4d T_WORLD_IMUnew;
-    beam::QuaternionAndTranslationToTransformMatrix(imu_state_j.OrientationQuat(),
-                                                    imu_state_j.PositionVec(), T_WORLD_IMUnew);
-    if (!velocity) {
-      // get relative change
-      Eigen::Matrix4d T_new_old = T_WORLD_IMUnew.inverse() * T_WORLD_IMUold;
-      // update the velocity estimate according to new pose
-      Eigen::Vector3d new_velocity = T_new_old.block<3, 3>(0, 0) * imu_state_j.VelocityVec();
-      imu_state_j.SetVelocity(new_velocity);
-    } else {
-      imu_state_j.SetVelocity(velocity->data());
-    }
+    imu_state_j.SetVelocity(velocity->data());
   }
 
   // move predicted state to previous state
@@ -261,27 +249,35 @@ fuse_core::Transaction::SharedPtr ImuPreintegration::RegisterNewImuPreintegrated
 
   // copy state i to kth frame
   imu_state_k_ = imu_state_i_;
-  ResetPreintegrator(t_now);
+
+  // clear and reset preintegrator
+  pre_integrator_ij_.Clear(t_now);
+  pre_integrator_ij_.Reset();
+  pre_integrator_kj_.Clear(t_now);
+  pre_integrator_kj_.Reset();
   return transaction.GetTransaction();
 }
 
 void ImuPreintegration::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  // if update was successful then also reset buffer and state k
+  // update state i with all info, reset state k to updated state i
   if (imu_state_i_.Update(graph_msg)) {
     // reset kj integrator and add all the current windows messages to it
-    pre_integrator_kj.data.clear();
-    pre_integrator_kj.Reset();
-    for (auto& d : pre_integrator_ij.data) { pre_integrator_kj.data.push_back(d); }
+    pre_integrator_kj_.data.clear();
+    pre_integrator_kj_.data = pre_integrator_ij_.data;
+    pre_integrator_kj_.Reset();
     // reset state k to state i
     imu_state_k_ = imu_state_i_;
   }
+
+  // update odom state with only relative info
+  imu_state_odom_.UpdateRelative(graph_msg);
 }
 
 void ImuPreintegration::Clear() {
-  pre_integrator_kj.data.clear();
-  pre_integrator_kj.Reset();
-  pre_integrator_ij.data.clear();
-  pre_integrator_ij.Reset();
+  pre_integrator_odom_.data.clear();
+  pre_integrator_odom_.Reset();
+  pre_integrator_ij_.data.clear();
+  pre_integrator_ij_.Reset();
 }
 
 void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& path,
@@ -350,7 +346,7 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
     imu_frame.GetPreintegrator()->Integrate(imu_frame.Stamp(), bg, ba, true, false);
   };
 
-  /***************************
+  /****************************
    *     Estimate Gyro Bias   *
    ****************************/
   std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
