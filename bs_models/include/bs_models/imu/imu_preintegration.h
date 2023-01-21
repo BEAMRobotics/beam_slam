@@ -2,6 +2,8 @@
 
 #include <queue>
 
+#include <beam_utils/optional.h>
+
 #include <bs_common/bs_msgs.h>
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
@@ -10,6 +12,7 @@
 
 namespace bs_models {
 
+using PoseWithCovariance = std::pair<Eigen::Matrix4d, Eigen::Matrix<double, 6, 6>>;
 /**
  * @brief This class can be used to estimate orientation, position, and
  * velocity of an IMU with respect to the world frame using the methods
@@ -76,9 +79,21 @@ public:
   void AddToBuffer(const bs_common::IMUData& imu_data);
 
   /**
+   * @brief Populate IMU buffer with IMU data, increment state and return pose
+   * @return [T_ODOM_IMU, covariance]
+   */
+  beam::opt<PoseWithCovariance> AddAndIncrement(const sensor_msgs::Imu& msg);
+
+  /**
+   * @brief Populate IMU buffer with IMU data, increment state and return pose
+   * @return [T_ODOM_IMU, covariance]
+   */
+  beam::opt<PoseWithCovariance> AddAndIncrement(const bs_common::IMUData& imu_data);
+
+  /**
    * @brief Sets the initial IMU state with respect to world frame
    * @param t_start time of initial IMU state
-   * @param R_WORLD_IMU orientation of initial IMU state (if null set to id.)
+   * @param R_WORLD_IMU orientation of initial IMU state (if null set to I)
    * @param t_WORLD_IMU position of initial IMU state (if null set to zero)
    * @param velocity velocity of initial IMU state (if null set to zero)
    */
@@ -86,6 +101,16 @@ public:
                 fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
                 fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
                 fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
+
+  /**
+   * @brief Gets the current pose estimate wrt the graph
+   * @param t_now to get pose estimate for
+   * @param T_WORLD_IMU [out] pose
+   * @param covariance [out] pose covariance
+   * @return success or not
+   */
+  bool GetPose(const ros::Time& t_now, Eigen::Matrix4d& T_WORLD_IMU,
+               Eigen::Matrix<double, 6, 6> covariance);
 
   /**
    * @brief Predicts new IMU state from imu preintegration
@@ -104,15 +129,6 @@ public:
    * @return ImuState
    */
   bs_common::ImuState GetImuState() const { return imu_state_i_; }
-
-  /**
-   * @brief Gets pose of IMU with respect to world frame
-   * @param t_now time at which to get pose
-   * @param T_WORLD_IMU reference to pose matrix to fill in
-   * @return true if successful
-   */
-  bool GetPose(Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now,
-               std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance = nullptr);
 
   /**
    * @brief Registers new transaction between key frames
@@ -179,20 +195,17 @@ private:
    */
   void SetPreintegrator();
 
-  /**
-   * @brief Calls Preintegrator reset() and clears stored imu data
-   */
-  void ResetPreintegrator(const ros::Time& t_now);
-
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
 
-  bs_common::ImuState imu_state_i_;             // current key frame
-  bs_common::ImuState imu_state_k_;             // intermediate frame
-  bs_common::PreIntegrator pre_integrator_ij;   // preintegrate between key frames
-  bs_common::PreIntegrator pre_integrator_kj;   // preintegrate from intermediate frame
-  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
-  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero acceleration bias
+  bs_common::ImuState imu_state_i_;              // current key frame (wrt world)
+  bs_common::ImuState imu_state_k_;              // intermediate frame  (wrt world)
+  bs_common::ImuState imu_state_odom_;           // current odom state
+  bs_common::PreIntegrator pre_integrator_ij_;   // preintegrate between key frames
+  bs_common::PreIntegrator pre_integrator_kj_;   // preintegrate from intermediate frame
+  bs_common::PreIntegrator pre_integrator_odom_; // odom preintegrator
+  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};  // zero gyroscope bias
+  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};  // zero acceleration bias
 };
 
 } // namespace bs_models

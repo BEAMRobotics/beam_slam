@@ -15,7 +15,7 @@ InertialOdometry::InertialOdometry()
       device_id_(fuse_core::uuid::NIL),
       throttled_imu_callback_(
           std::bind(&InertialOdometry::processIMU, this, std::placeholders::_1)),
-      throttled_odom_callback_(
+      throttled_callback_(
           std::bind(&InertialOdometry::processOdometry, this, std::placeholders::_1))) {}
 
 void InertialOdometry::onInit() {
@@ -44,18 +44,36 @@ void InertialOdometry::onStart() {
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE("InertialOdometry received IMU measurements: " << msg->header.stamp);
 
-  if (!initialized) { imu_buffer_.push(*msg); }
+  // push imu message onto buffer
+  imu_buffer_.push(*msg);
 
-  imu_preint_->AddToBuffer(*msg);
-  Eigen::Matrix4d T_WORLD_IMU;
-  imu_preint_->GetPose(T_WORLD_IMU, msg->header.stamp);
-  // TODO: publish pose
+  // return if its not initialized
+  if (!initialized) return;
 
-  // add constraints without poses passed in at fixed frequency if odom topic is empty
+  // process each imu message as it comes in
+  const auto odom = imu_preint_->AddAndIncrement(imu_buffer_.front());
+  if (odom.has_value()) {
+    const auto [T_ODOM_IMU, cov] = odom.value();
+    // TODO: publish pose in odom frame
+  }
+
+  Eigen::Matrix4d& T_WORLD_IMU;
+  Eigen::Matrix<double, 6, 6> cov;
+  const auto world = imu_preint_->GetPose(msg->header.stamp, T_WORLD_IMU, cov);
+  // TODO: publish pose in world frame
+
+  imu_buffer_.pop();
 }
 
 void InertialOdometry::processOdometry(const nav_msgs::Odometry::ConstPtr& msg) {
-  // add inertial constraint to this odometry message and sendtransaction
+  ROS_INFO_STREAM_ONCE("InertialOdometry received Odometry measurements: " << msg->header.stamp);
+
+  // return if its not initialized
+  if (!initialized) return;
+
+  // add constraint at time
+  auto transaction = imu_preint_->RegisterNewImuPreintegratedFactor(msg->header.stamp);
+  sendTransaction(transaction);
 }
 
 void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
@@ -119,10 +137,11 @@ void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg)
   // iterate through existing buffer, estimate poses and output
   while (!imu_buffer_.empty()) {
     auto imu_msg = imu_buffer_.front();
-    imu_preint_->AddToBuffer(imu_msg);
-    Eigen::Matrix4d T_WORLD_IMU;
-    imu_preint_->GetPose(T_WORLD_IMU, imu_msg.header.stamp);
-    // TODO: publish this
+    const auto pose_with_covariance = imu_preint_->AddAndIncrement(imu_buffer_.front());
+    if (pose_with_covariance.has_value()) {
+      const auto [T_InertialOdom_IMU, cov] = pose_with_covariance.value();
+      // TODO: publish pose
+    }
     imu_buffer_.pop();
   }
 }

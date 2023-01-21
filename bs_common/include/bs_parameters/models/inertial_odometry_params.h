@@ -26,21 +26,9 @@ public:
 
     // odometry topic for the poses to add constraints to
     getParam<std::string>(nh, "constraint_odom_topic", constraint_odom_topic, "");
-
-    // config for an optional frame initializer
-    getParam<std::string>(nh, "frame_initializer_config", frame_initializer_config,
-                          frame_initializer_config);
-
-    // if using a frame initializer, the frequency to add constraints
-    getParam<double>(nh, "frame_init_frequency", frame_init_frequency, 0.1);
   }
 
   std::string imu_topic{""};
   std::string constraint_odom_topic{""};
-  std::string frame_initializer_config{};
-
-  double frame_init_frequency{0.1};
-
-  int imu_hz{500};
 };
 }} // namespace bs_parameters::models

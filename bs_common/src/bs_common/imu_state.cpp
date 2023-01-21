@@ -12,8 +12,7 @@ ImuState::ImuState(const ros::Time& time) : stamp_(time) {
 }
 
 ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-                   const Eigen::Vector3d& position,
-                   const Eigen::Vector3d& velocity)
+                   const Eigen::Vector3d& position, const Eigen::Vector3d& velocity)
     : stamp_(time) {
   InstantiateVariables();
   SetOrientation(orientation);
@@ -24,8 +23,7 @@ ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
 }
 
 ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-                   const Eigen::Vector3d& position,
-                   const bs_common::PreIntegrator& preint)
+                   const Eigen::Vector3d& position, const bs_common::PreIntegrator& preint)
     : stamp_(time) {
   InstantiateVariables();
   SetOrientation(orientation);
@@ -37,10 +35,8 @@ ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
 }
 
 ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-                   const Eigen::Vector3d& position,
-                   const Eigen::Vector3d& velocity,
-                   const Eigen::Vector3d& gyrobias,
-                   const Eigen::Vector3d& accelbias)
+                   const Eigen::Vector3d& position, const Eigen::Vector3d& velocity,
+                   const Eigen::Vector3d& gyrobias, const Eigen::Vector3d& accelbias)
     : stamp_(time) {
   InstantiateVariables();
   SetOrientation(orientation);
@@ -72,6 +68,22 @@ bool ImuState::Update(fuse_core::Graph::ConstSharedPtr graph_msg) {
   return false;
 }
 
+bool ImuState::UpdateRelative(fuse_core::Graph::ConstSharedPtr graph_msg) {
+  if (graph_msg->variableExists(velocity_->uuid()) &&
+      graph_msg->variableExists(gyrobias_->uuid()) &&
+      graph_msg->variableExists(accelbias_->uuid())) {
+    *velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+        graph_msg->getVariable(velocity_->uuid()));
+    *gyrobias_ = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
+        graph_msg->getVariable(gyrobias_->uuid()));
+    *accelbias_ = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
+        graph_msg->getVariable(accelbias_->uuid()));
+    updates_++;
+    return true;
+  }
+  return false;
+}
+
 int ImuState::Updates() const {
   return updates_;
 }
@@ -85,8 +97,7 @@ fuse_variables::Orientation3DStamped ImuState::Orientation() const {
 }
 
 Eigen::Quaterniond ImuState::OrientationQuat() const {
-  Eigen::Quaterniond q(orientation_->w(), orientation_->x(), orientation_->y(),
-                       orientation_->z());
+  Eigen::Quaterniond q(orientation_->w(), orientation_->x(), orientation_->y(), orientation_->z());
   return q.normalized();
 }
 
@@ -139,8 +150,7 @@ void ImuState::SetPreintegrator(const bs_common::PreIntegrator& preint) {
   *preint_ = preint;
 }
 
-void ImuState::SetOrientation(const double& w, const double& x, const double& y,
-                              const double& z) {
+void ImuState::SetOrientation(const double& w, const double& x, const double& y, const double& z) {
   orientation_->w() = w;
   orientation_->x() = x;
   orientation_->y() = y;
@@ -260,16 +270,14 @@ void ImuState::Print(std::ostream& stream) const {
 }
 
 void ImuState::InstantiateVariables() {
-  orientation_ = std::make_shared<fuse_variables::Orientation3DStamped>(
-      stamp_, fuse_core::uuid::NIL);
-  position_ = std::make_shared<fuse_variables::Position3DStamped>(
-      stamp_, fuse_core::uuid::NIL);
-  velocity_ = std::make_shared<fuse_variables::VelocityLinear3DStamped>(
-      stamp_, fuse_core::uuid::NIL);
-  gyrobias_ = std::make_shared<bs_variables::GyroscopeBias3DStamped>(
-      stamp_, fuse_core::uuid::NIL);
-  accelbias_ = std::make_shared<bs_variables::AccelerationBias3DStamped>(
-      stamp_, fuse_core::uuid::NIL);
+  orientation_ =
+      std::make_shared<fuse_variables::Orientation3DStamped>(stamp_, fuse_core::uuid::NIL);
+  position_ = std::make_shared<fuse_variables::Position3DStamped>(stamp_, fuse_core::uuid::NIL);
+  velocity_ =
+      std::make_shared<fuse_variables::VelocityLinear3DStamped>(stamp_, fuse_core::uuid::NIL);
+  gyrobias_ = std::make_shared<bs_variables::GyroscopeBias3DStamped>(stamp_, fuse_core::uuid::NIL);
+  accelbias_ =
+      std::make_shared<bs_variables::AccelerationBias3DStamped>(stamp_, fuse_core::uuid::NIL);
   preint_ = std::make_shared<bs_common::PreIntegrator>();
 }
 

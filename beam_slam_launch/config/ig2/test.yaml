@@ -8,7 +8,6 @@ sensor_models:
   - name: 'visual_feature_tracker'
     type: 'bs_models::VisualFeatureTracker'
 
-
 ##############################
 #    optimizer parameters    #
 ##############################
@@ -39,7 +38,7 @@ visual_feature_tracker:
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fastssc_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
-  save_tracks_folder: "/userhome/tracks/"
+  save_tracks_folder: "/userhome/results/tracks"
 
 slam_initialization:
   visual_measurement_topic: "/local_mapper/visual_feature_tracker/visual_measurements"

@@ -407,13 +407,22 @@ void SLAMInitialization::OutputResults() {
     }
   }
 
-  poses.WriteToTXT(params_.output_folder + "/initialization_trajectory.txt",
-                   beam_mapping::format_type::Type2);
+  // create directory if it doesn't exist
+  if (!boost::filesystem::exists(params_.output_folder)) {
+    boost::filesystem::create_directory(params_.output_folder);
+  }
 
+  // output trajectory as a txt file (tx ty tz, qx qy qz qw)
+  std::string txt_path =
+      beam::CombinePaths({params_.output_folder, "initialization_trajectory.txt"});
+  poses.WriteToTXT(txt_path, beam_mapping::format_type::Type2);
+
+  // output trajectory as a point cloud
+  std::string pcd_path =
+      beam::CombinePaths({params_.output_folder, "initialization_trajectory.pcd"});
   std::string error_message{};
-  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-          params_.output_folder + "/initialization_trajectory.pcd", frame_cloud,
-          beam::PointCloudFileType::PCDBINARY, error_message)) {
+  if (!beam::SavePointCloud<pcl::PointXYZRGB>(pcd_path, frame_cloud,
+                                              beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 }
