@@ -60,6 +60,11 @@ void OdometryMsgToTransformedStamped(const nav_msgs::Odometry& message, const ro
                                      const std::string& child_frame_id,
                                      geometry_msgs::TransformStamped& tf_stamped);
 
+nav_msgs::Odometry TransformToOdometryMessage(const ros::Time& stamp, const int seq,
+                                              const std::string& parent_frame_id,
+                                              const std::string& child_frame_id,
+                                              const Eigen::Matrix4d T_PARENT_CHILD,
+                                              const Eigen::Matrix<double, 6, 6> covariance);
 /**
  * @brief Turns a pose message into an Eigen 4x4 matrix
  * @param pose pose message to turn into eigen matrix

@@ -79,18 +79,6 @@ public:
   void AddToBuffer(const bs_common::IMUData& imu_data);
 
   /**
-   * @brief Populate IMU buffer with IMU data, increment state and return pose
-   * @return [T_ODOM_IMU, covariance]
-   */
-  beam::opt<PoseWithCovariance> AddAndIncrement(const sensor_msgs::Imu& msg);
-
-  /**
-   * @brief Populate IMU buffer with IMU data, increment state and return pose
-   * @return [T_ODOM_IMU, covariance]
-   */
-  beam::opt<PoseWithCovariance> AddAndIncrement(const bs_common::IMUData& imu_data);
-
-  /**
    * @brief Sets the initial IMU state with respect to world frame
    * @param t_start time of initial IMU state
    * @param R_WORLD_IMU orientation of initial IMU state (if null set to I)
@@ -105,12 +93,17 @@ public:
   /**
    * @brief Gets the current pose estimate wrt the graph
    * @param t_now to get pose estimate for
-   * @param T_WORLD_IMU [out] pose
-   * @param covariance [out] pose covariance
-   * @return success or not
+   * @return [T_WORLD_IMU, cov]
    */
-  bool GetPose(const ros::Time& t_now, Eigen::Matrix4d& T_WORLD_IMU,
-               Eigen::Matrix<double, 6, 6> covariance);
+  beam::opt<PoseWithCovariance> GetPose(const ros::Time& t_now);
+
+  /**
+   * @brief Gets the relative motion between timestamps within the current window
+   * @param t1 first timestamp
+   * @param t2 second timestamp
+   * @return [T_IMUSTATE1_IMUSTATE2, cov]
+   */
+  beam::opt<PoseWithCovariance> GetRelativeMotion(const ros::Time& t1, const ros::Time& t2);
 
   /**
    * @brief Predicts new IMU state from imu preintegration
@@ -198,14 +191,12 @@ private:
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
 
-  bs_common::ImuState imu_state_i_;              // current key frame (wrt world)
-  bs_common::ImuState imu_state_k_;              // intermediate frame  (wrt world)
-  bs_common::ImuState imu_state_odom_;           // current odom state
-  bs_common::PreIntegrator pre_integrator_ij_;   // preintegrate between key frames
-  bs_common::PreIntegrator pre_integrator_kj_;   // preintegrate from intermediate frame
-  bs_common::PreIntegrator pre_integrator_odom_; // odom preintegrator
-  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};  // zero gyroscope bias
-  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};  // zero acceleration bias
+  bs_common::ImuState imu_state_i_;             // current key frame
+  bs_common::ImuState imu_state_k_;             // intermediate frame
+  bs_common::PreIntegrator pre_integrator_ij_;  // preintegrate between key frames
+  bs_common::PreIntegrator pre_integrator_kj_;  // preintegrate between every frame
+  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
+  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero acceleration bias
 };
 
 } // namespace bs_models

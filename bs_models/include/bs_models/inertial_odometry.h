@@ -78,7 +78,10 @@ private:
 
   fuse_core::UUID device_id_; //!< The UUID of this device
 
+  int odom_seq = 0;
   bool initialized{false};
+  ros::Time prev_stamp_;
+  Eigen::Matrix4d T_ODOM_IMUprev_{Eigen::Matrix4d::Identity()};
   // calibration parameters
   bs_parameters::models::CalibrationParams calibration_params_;
 
@@ -90,7 +93,8 @@ private:
   ros::Subscriber odom_subscriber_;
 
   // publishers
-  ros::Publisher odom_publisher_;
+  ros::Publisher relative_odom_publisher_;
+  ros::Publisher world_odom_publisher_;
 
   // data storage
   std::queue<sensor_msgs::Imu> imu_buffer_;
