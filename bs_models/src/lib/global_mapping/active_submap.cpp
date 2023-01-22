@@ -1,6 +1,9 @@
 #include <bs_models/global_mapping/active_submap.h>
 
+#include <pcl/common/transforms.h>
+
 #include <beam_cv/descriptors/Descriptor.h>
+#include <beam_utils/math.h>
 
 namespace bs_models {
 
@@ -103,9 +106,7 @@ void ActiveSubmap::ActiveSubmapCallback(
   loam_cloud_ = std::make_shared<beam_matching::LoamPointCloud>(
       edges_strong, surfaces_strong, edges_weak, surfaces_weak);
 
-  if (publish_updates_) {
-    Publish();
-  }
+  if (publish_updates_) { Publish(); }
 }
 
 void ActiveSubmap::SetPublishUpdates(bool publish_updates) {
@@ -127,9 +128,7 @@ std::vector<Eigen::Vector3d> ActiveSubmap::GetVisualMapVectorInCameraFrame(
 
 PointCloud ActiveSubmap::GetVisualMapCloudInCameraFrame(
     const Eigen::Matrix4d& T_WORLD_CAMERA) const {
-  if (T_WORLD_CAMERA.isIdentity()) {
-    return *visual_map_points_;
-  }
+  if (T_WORLD_CAMERA.isIdentity()) { return *visual_map_points_; }
 
   PointCloud cloud_in_cam_frame;
   pcl::transformPointCloud(*visual_map_points_, cloud_in_cam_frame,
@@ -202,4 +201,4 @@ void ActiveSubmap::Publish() const {
   }
 }
 
-}  // namespace bs_models
+} // namespace bs_models

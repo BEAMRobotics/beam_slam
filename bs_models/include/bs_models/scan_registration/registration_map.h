@@ -1,11 +1,12 @@
 #pragma once
 
-#include <beam_utils/pointclouds.h>
-#include <beam_matching/loam/LoamPointCloud.h>
 #include <fuse_core/uuid.h>
+#include <ros/publisher.h>
 
-namespace bs_models {
-namespace scan_registration {
+#include <beam_matching/loam/LoamPointCloud.h>
+#include <beam_utils/pointclouds.h>
+
+namespace bs_models { namespace scan_registration {
 
 using namespace beam_matching;
 
@@ -20,7 +21,7 @@ using namespace beam_matching;
  * can use the map we are already generating with the scan to map registration.
  */
 class RegistrationMap {
- public:
+public:
   /**
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
@@ -188,7 +189,7 @@ class RegistrationMap {
    */
   void operator=(RegistrationMap const&) = delete;
 
- private:
+private:
   /**
    * @brief constructor. Uses default member variables
    */
@@ -223,5 +224,4 @@ class RegistrationMap {
   std::unordered_map<fuse_core::UUID, uint64_t> uuid_map_;
 };
 
-}  // namespace scan_registration
-}  // namespace bs_models
+}} // namespace bs_models::scan_registration

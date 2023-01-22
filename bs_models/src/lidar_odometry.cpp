@@ -466,7 +466,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   boost::filesystem::create_directory(curent_path);
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
-    iter->SaveCloud(curent_path);
+    (*iter)->SaveCloud(curent_path);
   }
 }
 

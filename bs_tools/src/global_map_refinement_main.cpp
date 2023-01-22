@@ -61,9 +61,7 @@ int main(int argc, char* argv[]) {
   std::string dateandtime =
       beam::ConvertTimeToDate(std::chrono::system_clock::now());
 
-  if (FLAGS_output_path.back() != '/') {
-    dateandtime = "/" + dateandtime;
-  }
+  if (FLAGS_output_path.back() != '/') { dateandtime = "/" + dateandtime; }
 
   if (FLAGS_output_results) {
     std::string save_path =

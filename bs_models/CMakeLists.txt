@@ -151,13 +151,25 @@ if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
 
   # scan pose tests
-  add_executable(${PROJECT_NAME}_scan_pose_tests 
-    tests/scan_pose_tests.cpp)
+  catkin_add_gtest(${PROJECT_NAME}_scan_pose_tests 
+    tests/scan_pose_tests.cpp
+  )
   target_link_libraries(${PROJECT_NAME}_scan_pose_tests 
     ${PROJECT_NAME}
-    gtest_main)
-  add_test(NAME ${PROJECT_NAME}_scan_pose_tests 
-        COMMAND ${PROJECT_NAME}_scan_pose_tests)
+  )
+  set_target_properties(${PROJECT_NAME}_scan_pose_tests 
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )  
+
+  # add_executable(${PROJECT_NAME}_scan_pose_tests 
+  #   tests/scan_pose_tests.cpp)
+  # target_link_libraries(${PROJECT_NAME}_scan_pose_tests 
+  #   ${PROJECT_NAME}
+  #   gtest_main)
+  # add_test(NAME ${PROJECT_NAME}_scan_pose_tests 
+  #       COMMAND ${PROJECT_NAME}_scan_pose_tests)
   
   # Scan to scan registration tests
   catkin_add_gtest(${PROJECT_NAME}_multi_scan_registration_tests 
@@ -224,13 +236,28 @@ if(CATKIN_ENABLE_TESTING)
   )
 
   # global map refinement tests
-  add_executable(${PROJECT_NAME}_global_map_refinement_tests 
-    tests/global_map_refinement_tests.cpp)
-  target_link_libraries(${PROJECT_NAME}_global_map_refinement_tests 
-    ${PROJECT_NAME}
-    gtest_main
+  catkin_add_gtest(${PROJECT_NAME}_global_map_refinement_tests
+    tests/global_map_refinement_tests.cpp
   )
-  add_test(NAME ${PROJECT_NAME}_global_map_refinement_tests 
-          COMMAND ${PROJECT_NAME}_global_map_refinement_tests)
+  target_link_libraries(${PROJECT_NAME}_global_map_refinement_tests
+    ${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+  )
+  set_target_properties(${PROJECT_NAME}_global_map_refinement_tests
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
+  
+  # add_executable(${PROJECT_NAME}_global_map_refinement_tests 
+  #   tests/global_map_refinement_tests.cpp)
+  # target_link_libraries(${PROJECT_NAME}_global_map_refinement_tests 
+  #   ${PROJECT_NAME}
+  #   # ${catkin_LIBRARIES}
+  #   ${PCL_LIBRARIES}
+  #   gtest_main
+  # )
+  # add_test(NAME ${PROJECT_NAME}_global_map_refinement_tests 
+  #         COMMAND ${PROJECT_NAME}_global_map_refinement_tests)
 
 endif()
