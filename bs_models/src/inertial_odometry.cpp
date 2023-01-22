@@ -39,6 +39,11 @@ void InertialOdometry::onStart() {
   imu_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Imu>(
       ros::names::resolve(params_.imu_topic), 1000, &ThrottledIMUCallback::callback,
       &throttled_imu_callback_, ros::TransportHints().tcpNoDelay(false));
+
+  // setup publishers
+  relative_odom_publisher_ =
+      private_node_handle_.advertise<CameraMeasurementMsg>("odom/relative", 100);
+  world_odom_publisher_ = private_node_handle_.advertise<CameraMeasurementMsg>("odom/world", 100);
 }
 
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -50,18 +55,34 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   // return if its not initialized
   if (!initialized) return;
 
+  const auto curr_msg = imu_buffer_.front();
+  const auto curr_stamp = curr_msg.header.stamp;
+
   // process each imu message as it comes in
-  const auto odom = imu_preint_->AddAndIncrement(imu_buffer_.front());
-  if (odom.has_value()) {
-    const auto [T_ODOM_IMU, cov] = odom.value();
-    // TODO: publish pose in odom frame
+  imu_preint_->AddToBuffer(curr_msg);
+
+  // get relative pose and publish
+  const auto relative_pose = imu_preint_->GetRelativeMotion(prev_stamp_, curr_stamp);
+  if (relative_pose.has_value()) {
+    const auto [T_IMUprev_IMUcurr, cov] = relative_pose.value();
+    T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
+    auto odom_msg = bs_common::TransformToOdometryMessage(
+        curr_stamp, odom_seq, "Odom", extrinsics_->GetImuFrameId(), T_ODOM_IMUprev_, cov);
+    relative_odom_publisher_.publish(odom_msg);
   }
 
-  Eigen::Matrix4d& T_WORLD_IMU;
-  Eigen::Matrix<double, 6, 6> cov;
-  const auto world = imu_preint_->GetPose(msg->header.stamp, T_WORLD_IMU, cov);
-  // TODO: publish pose in world frame
+  // get world pose and publish
+  const auto world = imu_preint_->GetPose(curr_stamp);
+  if (world_pose.has_value()) {
+    const auto [T_WORLD_IMU, cov] = world_pose.value();
+    auto odom_msg =
+        bs_common::TransformToOdometryMessage(curr_stamp, odom_seq, extrinsics_->GetWorldFrameId(),
+                                              extrinsics_->GetImuFrameId(), T_WORLD_IMU, cov);
+    world_odom_publisher_.publish(odom_msg);
+  }
 
+  odom_seq++;
+  prev_stamp_ = curr_stamp;
   imu_buffer_.pop();
 }
 
@@ -135,13 +156,34 @@ void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg)
   imu_preint_->SetStart(most_recent_stamp, orientation, position, velocity);
 
   // iterate through existing buffer, estimate poses and output
+  prev_stamp_ = most_recent_stamp;
   while (!imu_buffer_.empty()) {
     auto imu_msg = imu_buffer_.front();
-    const auto pose_with_covariance = imu_preint_->AddAndIncrement(imu_buffer_.front());
-    if (pose_with_covariance.has_value()) {
-      const auto [T_InertialOdom_IMU, cov] = pose_with_covariance.value();
-      // TODO: publish pose
+    imu_preint_->AddToBuffer(imu_msg);
+    const auto curr_stamp = imu_msg.header.stamp;
+
+    // get relative pose and publish
+    const auto relative_pose = imu_preint_->GetRelativeMotion(prev_stamp, curr_stamp);
+    if (relative_pose.has_value()) {
+      const auto [T_IMUprev_IMUcurr, cov] = relative_pose.value();
+      T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
+      auto odom_msg = bs_common::TransformToOdometryMessage(
+          curr_stamp, odom_seq, "Odom", extrinsics_->GetImuFrameId(), T_ODOM_IMUprev_, cov);
+      relative_odom_publisher_.publish(odom_msg);
     }
+
+    // get world pose and publish
+    const auto world = imu_preint_->GetPose(curr_stamp);
+    if (world_pose.has_value()) {
+      const auto [T_WORLD_IMU, cov] = world_pose.value();
+      auto odom_msg = bs_common::TransformToOdometryMessage(
+          curr_stamp, odom_seq, extrinsics_->GetWorldFrameId(), extrinsics_->GetImuFrameId(),
+          T_WORLD_IMU, cov);
+      world_odom_publisher_.publish(odom_msg);
+    }
+
+    odom_seq++;
+    prev_stamp_ = curr_stamp;
     imu_buffer_.pop();
   }
 }
