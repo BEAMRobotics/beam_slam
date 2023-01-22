@@ -56,20 +56,21 @@ void LidarFeatureExtractor::onStop() {
 
 void LidarFeatureExtractor::ProcessPointcloud(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
-  beam_matching::LoamPointCloud loam_cloud;
   if (params_.lidar_type == LidarType::VELODYNE) {
     ROS_DEBUG("Processing Velodyne poincloud message");
     pcl::PointCloud<PointXYZIRT> cloud;
     beam::ROSToPCL(cloud, *msg);
-    loam_cloud = feature_extractor_->ExtractFeatures(cloud);
+    beam_matching::LoamPointCloud loam_cloud =
+        feature_extractor_->ExtractFeatures(cloud);
+    PublishLoamCloud(loam_cloud, msg->header.stamp, msg->header.frame_id);
   } else if (params_.lidar_type == LidarType::OUSTER) {
     ROS_DEBUG("Processing Ouster poincloud message");
     pcl::PointCloud<PointXYZITRRNR> cloud;
     beam::ROSToPCL(cloud, *msg);
-    loam_cloud = feature_extractor_->ExtractFeatures(cloud);
+    beam_matching::LoamPointCloud loam_cloud =
+        feature_extractor_->ExtractFeatures(cloud);
+    PublishLoamCloud(loam_cloud, msg->header.stamp, msg->header.frame_id);
   }
-
-  PublishLoamCloud(loam_cloud, msg->header.stamp, msg->header.frame_id);
 }
 
 void LidarFeatureExtractor::PublishLoamCloud(

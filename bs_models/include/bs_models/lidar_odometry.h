@@ -50,9 +50,9 @@ private:
   fuse_core::Transaction::SharedPtr
       RegisterScanToGlobalMap(const ScanPose& scan_pose);
 
-  void SendRelocRequest(const ScanPose& scan_pose);
+  void SendRelocRequest(const std::shared_ptr<ScanPose>& scan_pose);
 
-  void PublishMarginalizedScanPose(const ScanPose& scan_pose);
+  void PublishMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
 
   void PublishScanRegistrationResults(
       const fuse_core::Transaction::SharedPtr& transaction_lm,
@@ -77,7 +77,7 @@ private:
 
   /** Needed for outputing the slam results or saving final clouds or graph
    * updates */
-  std::list<ScanPose> active_clouds_;
+  std::list<std::shared_ptr<ScanPose>> active_clouds_;
 
   /** Get access to the active submap being published by the global mapper if
    * running */
