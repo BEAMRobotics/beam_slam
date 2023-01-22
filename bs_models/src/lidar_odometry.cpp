@@ -135,7 +135,7 @@ void LidarOdometry::onStop() {
        iter++) {
     PublishMarginalizedScanPose(*iter);
     if (!params_.scan_output_directory.empty()) {
-      iter->SaveCloud(params_.scan_output_directory);
+      (*iter)->SaveCloud(params_.scan_output_directory);
     }
   }
 
@@ -230,7 +230,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
 
   PublishScanRegistrationResults(lm_transaction, gm_transaction,
                                  *current_scan_pose);
-  active_clouds_.push_back(*current_scan_pose);
+  active_clouds_.push_back(current_scan_pose);
 
   // combine to one transaction and return
   fuse_core::Transaction::SharedPtr transaction =
@@ -419,20 +419,22 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
   auto i = active_clouds_.begin();
   while (i != active_clouds_.end()) {
-    bool update_successful = i->UpdatePose(graph_msg);
+    std::shared_ptr<ScanPose>& scan_pose = *i;
+    bool update_successful = scan_pose->UpdatePose(graph_msg);
     if (update_successful) {
       // update map
       if (update_local_map_on_graph_update_) {
         local_scan_registration_->GetMapMutable().UpdateScan(
-            i->Stamp(), i->T_REFFRAME_LIDAR());
+            scan_pose->Stamp(), scan_pose->T_REFFRAME_LIDAR());
       }
 
       // send reloc request if it is the first time the scan pose is updated,
       // and if the time elapsed since the last reloc request is greater than
       // the min.
-      if (i->Updates() == 1 ||
-          i->Stamp() - last_reloc_request_time_ >= reloc_request_period_) {
-        SendRelocRequest(*i);
+      if (scan_pose->Updates() == 1 ||
+          scan_pose->Stamp() - last_reloc_request_time_ >=
+              reloc_request_period_) {
+        SendRelocRequest(scan_pose);
       }
 
       ++i;
@@ -441,7 +443,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
     // if scan has never been updated, then it is probably just not yet in the
     // window so do nothing
-    if (i->Updates() == 0) {
+    if (scan_pose->Updates() == 0) {
       ++i;
       continue;
     }
@@ -450,7 +452,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     // from active list
     PublishMarginalizedScanPose(*i);
     if (!params_.scan_output_directory.empty()) {
-      i->SaveCloud(params_.scan_output_directory);
+      scan_pose->SaveCloud(params_.scan_output_directory);
     }
     active_clouds_.erase(i++);
   }
@@ -464,7 +466,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   boost::filesystem::create_directory(curent_path);
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
-    iter->SaveCloud(curent_path);
+    (*iter)->SaveCloud(curent_path);
   }
 }
 
@@ -480,7 +482,8 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   }
 }
 
-void LidarOdometry::SendRelocRequest(const ScanPose& scan_pose) {
+void LidarOdometry::SendRelocRequest(
+    const std::shared_ptr<ScanPose>& scan_pose) {
   // Get extrinsics
   Eigen::Matrix4d T_BASELINK_LIDAR;
   if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR)) {
@@ -492,21 +495,21 @@ void LidarOdometry::SendRelocRequest(const ScanPose& scan_pose) {
 
   // get clouds in baselink frame
   PointCloud cloud_in_baselink_frame;
-  pcl::transformPointCloud(scan_pose.Cloud(), cloud_in_baselink_frame,
+  pcl::transformPointCloud(scan_pose->Cloud(), cloud_in_baselink_frame,
                            T_BASELINK_LIDAR);
   beam_matching::LoamPointCloud loam_cloud_in_baselink_frame =
-      scan_pose.LoamCloud();
+      scan_pose->LoamCloud();
   loam_cloud_in_baselink_frame.TransformPointCloud(T_BASELINK_LIDAR);
 
   // convert pose to vector
-  const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
+  const Eigen::Matrix4d& T = scan_pose->T_REFFRAME_BASELINK();
   std::vector<double> pose{T(0, 0), T(0, 1), T(0, 2), T(0, 3),
                            T(1, 0), T(1, 1), T(1, 2), T(1, 3),
                            T(2, 0), T(2, 1), T(2, 2), T(2, 3)};
 
   // create message and publish
   RelocRequestMsg msg;
-  msg.stamp = scan_pose.Stamp();
+  msg.stamp = scan_pose->Stamp();
   msg.T_WORLD_BASELINK = pose;
   msg.lidar_measurement.frame_id = extrinsics_.GetBaselinkFrameId();
   msg.lidar_measurement.lidar_points =
@@ -522,18 +525,19 @@ void LidarOdometry::SendRelocRequest(const ScanPose& scan_pose) {
 
   reloc_request_publisher_.publish(msg);
 
-  last_reloc_request_time_ = scan_pose.Stamp();
+  last_reloc_request_time_ = scan_pose->Stamp();
 }
 
-void LidarOdometry::PublishMarginalizedScanPose(const ScanPose& scan_pose) {
+void LidarOdometry::PublishMarginalizedScanPose(
+    const std::shared_ptr<ScanPose>& scan_pose) {
   if (!params_.output_loam_points && params_.output_lidar_points) { return; }
 
   // output to global mapper
   SlamChunkMsg slam_chunk_msg;
-  slam_chunk_msg.stamp = scan_pose.Stamp();
+  slam_chunk_msg.stamp = scan_pose->Stamp();
 
   std::vector<double> pose;
-  const Eigen::Matrix4d& T = scan_pose.T_REFFRAME_BASELINK();
+  const Eigen::Matrix4d& T = scan_pose->T_REFFRAME_BASELINK();
   for (uint8_t i = 0; i < 3; i++) {
     for (uint8_t j = 0; j < 4; j++) { pose.push_back(T(i, j)); }
   }
@@ -543,7 +547,7 @@ void LidarOdometry::PublishMarginalizedScanPose(const ScanPose& scan_pose) {
 
   if (params_.output_lidar_points) {
     // add regular points
-    const PointCloud& cloud = scan_pose.Cloud();
+    const PointCloud& cloud = scan_pose->Cloud();
     for (const auto& p : cloud) {
       geometry_msgs::Vector3 point;
       point.x = p.x;
@@ -554,7 +558,7 @@ void LidarOdometry::PublishMarginalizedScanPose(const ScanPose& scan_pose) {
   }
 
   // if loam cloud not to be outputted, or empty, publish current msg
-  const beam_matching::LoamPointCloud& loam_cloud = scan_pose.LoamCloud();
+  const beam_matching::LoamPointCloud& loam_cloud = scan_pose->LoamCloud();
   if (params_.output_loam_points) {
     // add strong edges
     for (const auto& p : loam_cloud.edges.strong.cloud) {

@@ -1,0 +1,12 @@
+<launch>
+  
+  <!-- Load calibration params for this dataset,  including intrinsics and extrinsics. 
+       Note: These are global params that need to be loaded for all launch files. -->
+  <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/calibration_params.yaml"/>
+
+  <!-- Launch local (odometry) -->
+  <node pkg="fuse_optimizers" type="fixed_lag_smoother_node" name="local_mapper" output="screen" >
+    <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/nick_tests_lidar_feature_extractor.yaml"/>
+  </node>
+
+</launch>

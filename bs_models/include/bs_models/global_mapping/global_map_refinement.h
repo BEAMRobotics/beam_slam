@@ -1,15 +1,16 @@
 #pragma once
 
+#include <pcl/kdtree/kdtree_flann.h>
+
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_models/reloc/reloc_candidate_search_base.h>
 #include <bs_models/reloc/reloc_refinement_base.h>
-#include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
+#include <bs_models/scan_registration/scan_to_map_registration.h>
 
 namespace sr = bs_models::scan_registration;
 
-namespace bs_models {
-namespace global_mapping {
+namespace bs_models { namespace global_mapping {
 
 /**
  * @brief This class is used to refine a global map's submaps.
@@ -36,7 +37,7 @@ namespace global_mapping {
  *
  */
 class GlobalMapRefinement {
- public:
+public:
   /**
    * @brief struct to store all parameters needed for the global map, with
    * specified defaults and a method to override defaults with a json config
@@ -174,7 +175,7 @@ class GlobalMapRefinement {
    */
   void SaveGlobalMapData(const std::string& output_path);
 
- private:
+private:
   /**
    * @brief Refines a single submap
    * @param submap reference to submap to be refined
@@ -193,12 +194,8 @@ class GlobalMapRefinement {
   std::vector<SubmapPtr> submaps_;
 
   // PGO:
-  std::unique_ptr<reloc::RelocCandidateSearchBase>
-      reloc_candidate_search_;
-  std::unique_ptr<reloc::RelocRefinementBase>
-      reloc_refinement_;
+  std::unique_ptr<reloc::RelocCandidateSearchBase> reloc_candidate_search_;
+  std::unique_ptr<reloc::RelocRefinementBase> reloc_refinement_;
 };
 
-}  // namespace global_mapping
-
-}  // namespace bs_models
+}} // namespace bs_models::global_mapping

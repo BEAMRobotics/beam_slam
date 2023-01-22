@@ -1,0 +1,53 @@
+###################################
+#    sensor model declarations    #
+###################################
+sensor_models:
+  - name: 'lidar_feature_extractor'
+    type: 'bs_models::LidarFeatureExtractor'
+    motion_models: ['unicycle_3d']
+  
+###################################
+#    motion model declarations    #
+###################################
+motion_models:
+  - name: 'unicycle_3d'
+    type: 'bs_models::Unicycle3D'
+
+##############################
+#    optimizer parameters    #
+##############################
+optimization_period: 2
+lag_duration: 10
+
+###########################
+#    solver parameters    #
+###########################
+solver_options:
+  minimizer_type: 'TRUST_REGION'
+  linear_solver_type: 'SPARSE_SCHUR'
+  minimizer_progress_to_stdout: true
+  num_threads: 6
+  num_linear_solver_threads: 6
+  max_num_iterations: 8
+  max_solver_time_in_seconds: 0.5
+  gradient_tolerance: 0.00000015
+  parameter_tolerance: 0.00000015
+  function_tolerance: 0.00000015
+
+##################################
+#     motion model parameters    #
+##################################
+unicycle_3d:
+  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2]
+  buffer_length: 100000
+
+#############################################
+#     lidar feature extractor parameters    #
+#############################################
+lidar_feature_extractor:
+  lidar_type: 'VELODYNE'
+  input_topic: '/lidar_h/velodyne_packets_unpacked'
