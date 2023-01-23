@@ -71,7 +71,7 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
     const auto [T_IMUprev_IMUcurr, cov] = relative_pose.value();
     T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
     auto odom_msg = bs_common::TransformToOdometryMessage(
-        curr_stamp, odom_seq, "Odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov);
+        curr_stamp, odom_seq, "odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov);
     relative_odom_publisher_.publish(odom_msg);
   }
 
@@ -88,6 +88,14 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   odom_seq++;
   prev_stamp_ = curr_stamp;
   imu_buffer_.pop();
+
+  // if no odom is being used, then add constraints at fixed rate
+  if (!params_.constraint_odom_topic.empty() &&
+      (curr_stamp - prev_constraint_time_).toSec() >= params_.constraint_frequency) {
+    auto transaction = imu_preint_->RegisterNewImuPreintegratedFactor(curr_stamp);
+    sendTransaction(transaction);
+    prev_constraint_time_ = curr_stamp;
+  }
 }
 
 void InertialOdometry::processOdometry(const nav_msgs::Odometry::ConstPtr& msg) {

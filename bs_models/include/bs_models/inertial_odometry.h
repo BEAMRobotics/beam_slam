@@ -82,7 +82,8 @@ private:
 
   int odom_seq = 0;
   bool initialized{false};
-  ros::Time prev_stamp_;
+  ros::Time prev_stamp_{0.0};
+  ros::Time prev_constraint_time_{0.0};
   Eigen::Matrix4d T_ODOM_IMUprev_{Eigen::Matrix4d::Identity()};
   // calibration parameters
   bs_parameters::models::CalibrationParams calibration_params_;

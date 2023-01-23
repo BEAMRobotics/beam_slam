@@ -26,9 +26,13 @@ public:
 
     // odometry topic for the poses to add constraints to
     getParam<std::string>(nh, "constraint_odom_topic", constraint_odom_topic, "");
+
+    // odometry topic for the poses to add constraints to
+    getParam<double>(nh, "constraint_frequency", constraint_frequency, 0.5);
   }
 
   std::string imu_topic{""};
   std::string constraint_odom_topic{""};
+  double constraint_frequency{0.5};
 };
 }} // namespace bs_parameters::models

@@ -121,13 +121,8 @@ std::vector<Eigen::Vector3d>
   return vector_in_cam_frame;
 }
 
-<<<<<<< HEAD
-PointCloud ActiveSubmap::GetVisualMapCloudInCameraFrame(
-    const Eigen::Matrix4d& T_WORLD_CAMERA) const {
-=======
 PointCloud
     ActiveSubmap::GetVisualMapCloudInCameraFrame(const Eigen::Matrix4d& T_WORLD_CAMERA) const {
->>>>>>> Update messages and get code compiled
   if (T_WORLD_CAMERA.isIdentity()) { return *visual_map_points_; }
 
   PointCloud cloud_in_cam_frame;
