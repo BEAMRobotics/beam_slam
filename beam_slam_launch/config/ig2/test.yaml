@@ -7,6 +7,8 @@ sensor_models:
     ignition: true
   - name: 'visual_feature_tracker'
     type: 'bs_models::VisualFeatureTracker'
+  - name: 'inertial_odometry'
+    type: 'bs_models::InertialOdometry'
 
 ##############################
 #    optimizer parameters    #
@@ -52,3 +54,7 @@ slam_initialization:
   min_trajectory_length_m: 1.0
   frame_init_frequency: 0.2
   output_folder: "/userhome/results/vo_init_results"
+
+inertial_odometry:
+  imu_topic: "/imu/data"
+  constraint_odom_topic: ""

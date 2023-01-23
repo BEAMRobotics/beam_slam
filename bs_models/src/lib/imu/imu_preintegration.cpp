@@ -270,7 +270,7 @@ void ImuPreintegration::Clear() {
   pre_integrator_ij_.Reset();
 }
 
-void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& path,
+void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
                                            const std::queue<sensor_msgs::Imu>& imu_buffer,
                                            const bs_models::ImuPreintegration::Params& params,
                                            Eigen::Vector3d& gravity, Eigen::Vector3d& bg,
@@ -289,11 +289,10 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
    * Build list of imu frames *
    ****************************/
   std::queue<sensor_msgs::Imu> imu_buffer_copy = imu_buffer;
-  const auto start = path.poses[0].header.stamp;
-  const auto end = path.poses[path.poses.size() - 1].header.stamp;
+
   std::vector<bs_common::ImuState> imu_frames;
-  for (auto& pose : path.poses) {
-    const auto stamp = pose.header.stamp;
+  for (auto& [time_nsec, T_WORLD_BASELINK] : path) {
+    const auto stamp = beam::NSecToRos(time_nsec);
     if (stamp < imu_buffer_copy.front().header.stamp) {
       const std::string msg = std::string(__func__) + "Pose in path is prior to imu measurements, "
                                                       "cannot initialize with this path.";
@@ -312,8 +311,6 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
       preintegrator.data.push_back(imu_data);
       imu_buffer_copy.pop();
     }
-    Eigen::Matrix4d T_WORLD_BASELINK;
-    bs_common::PoseMsgToTransformationMatrix(pose, T_WORLD_BASELINK);
     Eigen::Vector3d p_WORLD_BASELINK;
     Eigen::Quaterniond q_WORLD_BASELINK;
     beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, q_WORLD_BASELINK,
@@ -487,23 +484,6 @@ void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& 
        "\n Gyro Bias: [" << bg.x() << ", " << bg.y() << ", " << bg.z() << "]" 
        "\n Accel Bias: [" << ba.x() << ", " << ba.y() << ", " << ba.z() << "]" );
   // clang-format on
-}
-
-void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
-                                           const std::queue<sensor_msgs::Imu>& imu_buffer,
-                                           const bs_models::ImuPreintegration::Params& params,
-                                           Eigen::Vector3d& gravity, Eigen::Vector3d& bg,
-                                           Eigen::Vector3d& ba,
-                                           std::map<uint64_t, Eigen::Vector3d>& velocities,
-                                           double& scale) {
-  bs_common::InitializedPathMsg path_msg;
-  for (const auto& [stamp, T_world_baselink] : path) {
-    ros::Time timestamp = beam::NSecToRos(stamp);
-    geometry_msgs::PoseStamped pose;
-    bs_common::TransformationMatrixToPoseMsg(T_world_baselink, timestamp, pose);
-    path_msg.poses.push_back(pose);
-  }
-  EstimateParameters(path_msg, imu_buffer, params, gravity, bg, ba, velocities, scale);
 }
 
 } // namespace bs_models

@@ -36,7 +36,6 @@ add_message_files(
   DIRECTORY
     msg
   FILES
-    InitializedPathMsg.msg
     LandmarkMeasurementMsg.msg
     CameraMeasurementMsg.msg    
     LidarMeasurementMsg.msg

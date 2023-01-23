@@ -68,14 +68,18 @@ catkin_package(
 add_library(
   ${PROJECT_NAME}
   ## sensor models
+<<<<<<< HEAD
   src/lidar_aggregation.cpp
   src/lidar_feature_extractor.cpp
+=======
+>>>>>>> remove intialized path msg
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
+  src/inertial_odometry.cpp
   src/global_mapper.cpp
-  ### new stuff
   src/slam_initialization.cpp
   src/visual_feature_tracker.cpp
+  src/lidar_aggregation.cpp
   ## vision helpers
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp

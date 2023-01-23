@@ -68,4 +68,9 @@
       Initialized slam using all available sensor information
     </description>
   </class>
+  <class type="bs_models::InertialOdometry" base_class_type="fuse_core::SensorModel">
+    <description>
+      Inertial odometry sensor model
+    </description>
+  </class>
 </library>

@@ -145,24 +145,7 @@ public:
 
   /**
    * @brief Estimates inertial parameters given an initial path and imu messages
-   * @param path initial path estimate of robot (T_baselink_world)
-   * @param imu_buffer buffer of imu messages
-   * @param params initial noise parameters of imu
-   * @param gravity [out] output resulting gravity estimate
-   * @param bg [out] output resulting  gyroscope bias
-   * @param ba [out] output resulting accelerometer bias
-   * @param velocities [out] map of velocities at each pose in the path
-   * @param scale [out] scale estimate wrt the imu messages
-   */
-  static void EstimateParameters(const bs_common::InitializedPathMsg& path,
-                                 const std::queue<sensor_msgs::Imu>& imu_buffer,
-                                 const bs_models::ImuPreintegration::Params& params,
-                                 Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
-                                 std::map<uint64_t, Eigen::Vector3d>& velocities, double& scale);
-
-  /**
-   * @brief Estimates inertial parameters given an initial path and imu messages
-   * @param path initial path estimate of robot (T_baselink_world)
+   * @param path initial path estimate of robot (T_world_baselink)
    * @param imu_buffer buffer of imu messages
    * @param params initial noise parameters of imu
    * @param gravity [out] output resulting gravity estimate

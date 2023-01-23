@@ -4,7 +4,6 @@
        Note: These are global params that need to be loaded for all launch files. -->
   <rosparam command="load" file="$(find beam_slam_launch)/config/ig2/calibration_params.yaml"/>
 
-
   <arg name="extrinsics_file_path" value="/userhome/catkin_ws/src/beam_robotics/calibration/results/inspector_gadget2/current/extrinsics/extrinsics.json"/>
   <node name="calibration_publisher" pkg="calibration_publisher" type="calibration_publisher_main">
     <param name="robot_name" value=""/>
