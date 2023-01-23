@@ -270,7 +270,11 @@ void ImuPreintegration::Clear() {
   pre_integrator_ij_.Reset();
 }
 
+<<<<<<< HEAD
 void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
+=======
+void ImuPreintegration::EstimateParameters(const bs_common::InitializedPathMsg& path,
+>>>>>>> 78e473c6f41dff56b2f0f86e685fce0cb9065de5
                                            const std::queue<sensor_msgs::Imu>& imu_buffer,
                                            const bs_models::ImuPreintegration::Params& params,
                                            Eigen::Vector3d& gravity, Eigen::Vector3d& bg,
@@ -289,10 +293,18 @@ void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matri
    * Build list of imu frames *
    ****************************/
   std::queue<sensor_msgs::Imu> imu_buffer_copy = imu_buffer;
+<<<<<<< HEAD
 
   std::vector<bs_common::ImuState> imu_frames;
   for (auto& [time_nsec, T_WORLD_BASELINK] : path) {
     const auto stamp = beam::NSecToRos(time_nsec);
+=======
+  const auto start = path.poses[0].header.stamp;
+  const auto end = path.poses[path.poses.size() - 1].header.stamp;
+  std::vector<bs_common::ImuState> imu_frames;
+  for (auto& pose : path.poses) {
+    const auto stamp = pose.header.stamp;
+>>>>>>> 78e473c6f41dff56b2f0f86e685fce0cb9065de5
     if (stamp < imu_buffer_copy.front().header.stamp) {
       const std::string msg = std::string(__func__) + "Pose in path is prior to imu measurements, "
                                                       "cannot initialize with this path.";
@@ -378,6 +390,7 @@ void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matri
       A.block<3, 1>(i * 6, 3) = imu_frames[j].PositionVec() - imu_frames[i].PositionVec();
       A.block<3, 3>(i * 6, 4 + i * 3) = -delta_ij.t.toSec() * Eigen::Matrix3d::Identity();
       b.segment<3>(i * 6) = imu_frames[i].OrientationQuat() * delta_ij.p;
+<<<<<<< HEAD
 
       A.block<3, 3>(i * 6 + 3, 0) = -delta_ij.t.toSec() * Eigen::Matrix3d::Identity();
       A.block<3, 3>(i * 6 + 3, 4 + i * 3) = -Eigen::Matrix3d::Identity();
@@ -385,6 +398,15 @@ void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matri
       b.segment<3>(i * 6 + 3) = imu_frames[i].OrientationQuat() * delta_ij.v;
     }
 
+=======
+
+      A.block<3, 3>(i * 6 + 3, 0) = -delta_ij.t.toSec() * Eigen::Matrix3d::Identity();
+      A.block<3, 3>(i * 6 + 3, 4 + i * 3) = -Eigen::Matrix3d::Identity();
+      A.block<3, 3>(i * 6 + 3, 4 + j * 3) = Eigen::Matrix3d::Identity();
+      b.segment<3>(i * 6 + 3) = imu_frames[i].OrientationQuat() * delta_ij.v;
+    }
+
+>>>>>>> 78e473c6f41dff56b2f0f86e685fce0cb9065de5
     Eigen::VectorXd x = A.fullPivHouseholderQr().solve(b);
     gravity = x.segment<3>(0).normalized() * GRAVITY_NOMINAL;
     scale = x(3);
@@ -423,6 +445,7 @@ void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matri
       A.block<3, 3>(i * 6 + 3, 3 + j * 3) = Eigen::Matrix3d::Identity();
       b.segment<3>(i * 6 + 3) =
           delta.t.toSec() * gravity + imu_frames[i].OrientationQuat() * delta.v;
+<<<<<<< HEAD
 
       x = A.fullPivHouseholderQr().solve(b);
       Eigen::Vector2d dg = x.segment<2>(0);
@@ -484,6 +507,86 @@ void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matri
        "\n Gyro Bias: [" << bg.x() << ", " << bg.y() << ", " << bg.z() << "]" 
        "\n Accel Bias: [" << ba.x() << ", " << ba.y() << ", " << ba.z() << "]" );
   // clang-format on
+=======
+
+      x = A.fullPivHouseholderQr().solve(b);
+      Eigen::Vector2d dg = x.segment<2>(0);
+      gravity = (gravity + damp * Tg * dg).normalized() * GRAVITY_NOMINAL;
+    }
+    scale = x(2);
+    for (size_t i = 0; i < N; ++i) { velocities_vec[i].second = x.segment<3>(3 + i * 3); }
+  }
+
+  /**********************************
+   *          Solve for ba          *
+   **********************************/
+  {
+    Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
+    Eigen::Vector4d b = Eigen::Vector4d::Zero();
+
+    for (size_t j = 1; j + 1 < N; ++j) {
+      const size_t i = j - 1;
+      const size_t k = j + 1;
+
+      const bs_common::Delta& delta_ij = imu_frames[j].GetPreintegrator()->delta;
+      const bs_common::Delta& delta_jk = imu_frames[k].GetPreintegrator()->delta;
+      const bs_common::Jacobian& jacobian_ij = imu_frames[j].GetPreintegrator()->jacobian;
+      const bs_common::Jacobian& jacobian_jk = imu_frames[k].GetPreintegrator()->jacobian;
+
+      Eigen::Matrix<double, 3, 4> C;
+      C.block<3, 1>(0, 0) =
+          delta_ij.t.toSec() * (imu_frames[k].PositionVec() - imu_frames[j].PositionVec()) -
+          delta_jk.t.toSec() * (imu_frames[j].PositionVec() - imu_frames[i].PositionVec());
+      C.block<3, 3>(0, 1) =
+          -(imu_frames[j].OrientationQuat() * jacobian_jk.dp_dba * delta_ij.t.toSec() +
+            imu_frames[i].OrientationQuat() * jacobian_ij.dv_dba * delta_ij.t.toSec() *
+                delta_jk.t.toSec() -
+            imu_frames[i].OrientationQuat() * jacobian_ij.dp_dba * delta_jk.t.toSec());
+      Eigen::Vector3d d =
+          0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
+              (delta_ij.t.toSec() + delta_jk.t.toSec()) * gravity +
+          delta_ij.t.toSec() * (imu_frames[j].OrientationQuat() * delta_jk.p) +
+          delta_ij.t.toSec() * delta_jk.t.toSec() * (imu_frames[i].OrientationQuat() * delta_ij.v) -
+          delta_jk.t.toSec() * (imu_frames[i].OrientationQuat() * delta_ij.p);
+      A += C.transpose() * C;
+      b += C.transpose() * d;
+    }
+
+    Eigen::JacobiSVD<Eigen::Matrix4d> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Vector4d x = svd.solve(b);
+    ba = x.segment<3>(1);
+  }
+
+  // convert velocities to map
+  std::for_each(velocities_vec.begin(), velocities_vec.end(),
+                [&](const auto& pair) { velocities[pair.first] = pair.second; });
+
+  // clang-format off
+  ROS_INFO_STREAM(
+       __func__ << ":"
+       "\n Scale: " << scale <<  
+       "\n Gravity: [" << gravity.x() << ", " << gravity.y() << ", " << gravity.z() << "]" 
+       "\n Gyro Bias: [" << bg.x() << ", " << bg.y() << ", " << bg.z() << "]" 
+       "\n Accel Bias: [" << ba.x() << ", " << ba.y() << ", " << ba.z() << "]" );
+  // clang-format on
+}
+
+void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
+                                           const std::queue<sensor_msgs::Imu>& imu_buffer,
+                                           const bs_models::ImuPreintegration::Params& params,
+                                           Eigen::Vector3d& gravity, Eigen::Vector3d& bg,
+                                           Eigen::Vector3d& ba,
+                                           std::map<uint64_t, Eigen::Vector3d>& velocities,
+                                           double& scale) {
+  bs_common::InitializedPathMsg path_msg;
+  for (const auto& [stamp, T_world_baselink] : path) {
+    ros::Time timestamp = beam::NSecToRos(stamp);
+    geometry_msgs::PoseStamped pose;
+    bs_common::TransformationMatrixToPoseMsg(T_world_baselink, timestamp, pose);
+    path_msg.poses.push_back(pose);
+  }
+  EstimateParameters(path_msg, imu_buffer, params, gravity, bg, ba, velocities, scale);
+>>>>>>> 78e473c6f41dff56b2f0f86e685fce0cb9065de5
 }
 
 } // namespace bs_models

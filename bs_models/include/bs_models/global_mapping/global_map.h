@@ -1,8 +1,13 @@
 #pragma once
 
-#include <queue>
-
+/**
+ * \note: if kdtree_flann isnt included before opencv.hpp the following occurs:
+ * ‘class std::unordered_map<...>’ has no member named ‘serialize’
+ * We include this up here to fix but ideally we figure out a method to automate
+ * this
+ */
 #include <pcl/kdtree/kdtree_flann.h>
+#include <queue>
 
 #include <fuse_core/transaction.h>
 #include <sensor_msgs/PointCloud2.h>

@@ -10,6 +10,16 @@
       An adapter-type sensor that produces relative pose constraints
     </description>
   </class>
+  <class type="bs_models::InertialOdometry" base_class_type="fuse_core::SensorModel">
+    <description>
+      Inertial odometry sensor model
+    </description>
+  </class>
+  <class type="bs_models::GlobalMapper" base_class_type="fuse_core::SensorModel">
+    <description>
+      A plugin for managing the global map, implemented as a sensor model but subscribes to SLAM messages as opposed to sensor messages.
+    </description>
+  </class>
   <class type="bs_models::LidarAggregation" base_class_type="fuse_core::SensorModel">
     <description>
       A sensor model for aggregating and motion compensating lidar data
@@ -20,11 +30,6 @@
       A sensor model for extracting LOAM features from lidar scans
     </description>
   </class>
-  <class type="bs_models::GlobalMapper" base_class_type="fuse_core::SensorModel">
-    <description>
-      A plugin for managing the global map, implemented as a sensor model but subscribes to SLAM messages as opposed to sensor messages.
-    </description>
-  </class>
   <class type="bs_models::VisualFeatureTracker" base_class_type="fuse_core::SensorModel">
     <description>
       Tracks visual features and published for the rest of the system to use.
@@ -33,11 +38,6 @@
   <class type="bs_models::SLAMInitialization" base_class_type="fuse_core::SensorModel">
     <description>
       Initialized slam using all available sensor information
-    </description>
-  </class>
-  <class type="bs_models::InertialOdometry" base_class_type="fuse_core::SensorModel">
-    <description>
-      Inertial odometry sensor model
     </description>
   </class>
 </library>

@@ -171,7 +171,11 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   for (const auto& time : landmark_container->GetMeasurementTimes()) {
     const auto timestamp = beam::NSecToRos(time);
     const auto pose = visual_map->GetBaselinkPose(timestamp);
+<<<<<<< HEAD
     if (pose.has_value()) { init_path[time] = pose.value(); }
+=======
+    if (pose.has_value()) { init_path[time] = pose.value().inverse(); }
+>>>>>>> 78e473c6f41dff56b2f0f86e685fce0cb9065de5
   }
   return init_path;
 }

@@ -43,8 +43,11 @@ private:
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
   /**
+<<<<<<< HEAD
    * @brief Perform any required initialization for the sensor model
    * (Load parameters from yaml files and read in imu intrinsics)
+=======
+>>>>>>> 78e473c6f41dff56b2f0f86e685fce0cb9065de5
    * @brief Callback for processing odometry messages, these messages are meant to be poses in which
    * we add constraints to
    * @param[in] msg - The odom msg to process

@@ -76,7 +76,6 @@ add_library(
   src/global_mapper.cpp
   src/slam_initialization.cpp
   src/visual_feature_tracker.cpp
-  src/lidar_aggregation.cpp
   ## vision helpers
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp
