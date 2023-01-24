@@ -172,6 +172,7 @@ void ImuPreintegration::SetStart(const ros::Time& t_start,
 bs_common::ImuState ImuPreintegration::PredictState(const bs_common::PreIntegrator& pre_integrator,
                                                     const bs_common::ImuState& imu_state_curr,
                                                     const ros::Time& t_now) {
+  // TODO: does the imu preint use T_WORLD_IMU or T_IMU_WORLD?
   // get commonly used variables
   const double& dt = pre_integrator.delta.t.toSec();
   const Eigen::Matrix3d& q_curr = imu_state_curr.OrientationMat();

@@ -3,7 +3,7 @@
 #include <queue>
 
 #include <fuse_core/async_sensor_model.h>
-#include <fuse_core/macros.h>
+#include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
 #include <fuse_graphs/hash_graph.h>
 #include <nav_msgs/Odometry.h>

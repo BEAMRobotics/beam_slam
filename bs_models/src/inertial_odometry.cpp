@@ -8,8 +8,6 @@ PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel);
 
 namespace bs_models {
 
-using namespace vision;
-
 InertialOdometry::InertialOdometry()
     : fuse_core::AsyncSensorModel(1),
       device_id_(fuse_core::uuid::NIL),
@@ -180,7 +178,7 @@ void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg)
       const auto [T_IMUprev_IMUcurr, cov] = relative_pose.value();
       T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
       auto odom_msg = bs_common::TransformToOdometryMessage(
-          curr_stamp, odom_seq, "Odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov);
+          curr_stamp, odom_seq, "odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov);
       relative_odom_publisher_.publish(odom_msg);
     }
 
@@ -198,4 +196,6 @@ void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg)
     prev_stamp_ = curr_stamp;
     imu_buffer_.pop();
   }
+}
+
 }

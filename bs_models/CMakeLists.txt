@@ -88,7 +88,7 @@ add_library(
   ## global mapping
   src/lib/global_mapping/global_map.cpp
   src/lib/global_mapping/submap.cpp
-  src/lib/global_mapping/global_map_refinement.cpp
+  #src/lib/global_mapping/global_map_refinement.cpp
   src/lib/global_mapping/active_submap.cpp
   ## relocalization
   src/lib/reloc/reloc_candidate_search_eucdist.cpp
