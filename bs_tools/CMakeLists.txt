@@ -50,8 +50,6 @@ target_link_libraries(
 )
 
 ## Add executables
-#[[
-# TODO: fix linking issues in this executable
 add_executable(${PROJECT_NAME}_global_map_refinement_main
 	src/global_map_refinement_main.cpp
 )
@@ -64,4 +62,4 @@ target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
   ${catkin_LIBRARIES}
   beam::utils
 )
-]]
+
