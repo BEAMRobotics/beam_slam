@@ -120,6 +120,7 @@ void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPt
     return;
   }
 
+  // compute visual path
   init_path_ =
       bs_models::vision::ComputePathWithVision(cam_model_, landmark_container_, T_cam_baselink_);
 
@@ -152,7 +153,7 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
                                             extrinsics_.GetBaselinkFrameId())) {
     ROS_WARN("Error getting pose from frame initializer.");
   }
-  init_path_[msg->header.stamp.toNSec()] = T_WORLD_BASELINK.inverse();
+  init_path_[msg->header.stamp.toNSec()] = T_WORLD_BASELINK;
 
   const auto [first_time, first_pose] = *init_path_.begin();
   const auto [current_time, current_pose] = *init_path_.rbegin();
@@ -214,7 +215,7 @@ bool SLAMInitialization::initialize() {
   AddVisualConstraints();
 
   if (params_.max_optimization_s != 0) {
-    ROS_INFO_STREAM(__func__ << ": Optimizing fused graph:");
+    ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
     ceres::Solver::Options options;
     options.minimizer_progress_to_stdout = true;
     local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s), options);
@@ -229,22 +230,20 @@ bool SLAMInitialization::initialize() {
 }
 
 void SLAMInitialization::AlignPathAndVelocities(bool apply_scale) {
-  if (gravity_.isZero(1e-9)) {
-    ROS_WARN("Can't align poses to gravity as it has not been estimated yet.");
-    return;
-  }
+  static_assert(!gravity_.isZero(1e-9),
+                "Can't align poses to gravity as it has not been estimated yet.");
   // estimate rotation from estimated gravity to world gravity
   Eigen::Quaterniond q = Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
 
   // apply rotation to initial path
-  for (auto& [stamp, pose] : init_path_) {
+  for (auto& [stamp, T_WORLD_BASELINK] : init_path_) {
     Eigen::Quaterniond ori;
     Eigen::Vector3d pos;
-    beam::TransformMatrixToQuaternionAndTranslation(pose, ori, pos);
+    beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, ori, pos);
     ori = q * ori;
     pos = q * pos;
     if (apply_scale) { pos = scale_ * pos; }
-    beam::QuaternionAndTranslationToTransformMatrix(ori, pos, pose);
+    beam::QuaternionAndTranslationToTransformMatrix(ori, pos, T_WORLD_BASELINK);
   }
 
   // apply rotation to velocities
@@ -252,9 +251,31 @@ void SLAMInitialization::AlignPathAndVelocities(bool apply_scale) {
 }
 
 void SLAMInitialization::AddPosesAndInertialConstraints() {
+  // if there are existing image measurements, but the init mode isnt visual, then we need to
+  // estimate poses and velocities for img times
+  if (mode_ != InitMode::VISUAL && landmark_container_->NumImages() > 0) {
+    for (const auto& stamp : landmark_container_->GetMeasurementTimes()) {
+      auto lb = init_path_.lower_bound(stamp);
+      auto ub = init_path_.upper_bound(stamp);
+      if (lb == init_path_.end() || ub == init_path_.end()) { continue; }
+      lb = std::prev(lb);
+
+      // interpolate pose at image time
+      init_path_[stamp] = beam::InterpolateTransform(
+          init_path_.at(lb->first), beam::NSecToRos(lb->first).toSec(), init_path_.at(ub->first),
+          beam::NSecToRos(ub->first).toSec(), beam::NSecToRos(stamp).toSec());
+
+      // interpolate velocity at image time
+      velocities_[stamp] = beam::InterpolateVector(
+          velocities_.at(lb->first), beam::NSecToRos(lb->first).toSec(), velocities_.at(ub->first),
+          beam::NSecToRos(ub->first).toSec(), beam::NSecToRos(stamp).toSec());
+    }
+  }
+  // TODO: if mode != LIDAR but we have lidar frames, interpolate as well
+
   bool start_set = false;
   auto process_frame = [&](const auto& pair) {
-    auto [stamp, T_baselink_world] = pair;
+    auto [stamp, T_WORLD_BASELINK] = pair;
     // add imu data to preint for this frame
     const auto timestamp = beam::NSecToRos(stamp);
     while (imu_buffer_.front().header.stamp <= timestamp && !imu_buffer_.empty()) {
@@ -265,7 +286,7 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     // add pose to graph
     auto pose_transaction = fuse_core::Transaction::make_shared();
     pose_transaction->stamp(timestamp);
-    visual_map_->AddBaselinkPose(T_baselink_world.inverse(), timestamp, pose_transaction);
+    visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, pose_transaction);
     local_graph_->update(*pose_transaction);
 
     // get velocity at the given time
@@ -289,28 +310,6 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
         timestamp, img_orientation, img_position, velocity);
     local_graph_->update(*imu_transaction);
   };
-
-  // if there are existing image measurements, but the init mode isnt visual, then we need to
-  // estimate poses and velocities for img times
-  if (mode_ != InitMode::VISUAL && landmark_container_->NumImages() > 0) {
-    for (const auto& stamp : landmark_container_->GetMeasurementTimes()) {
-      auto lb = init_path_.lower_bound(stamp);
-      auto ub = init_path_.upper_bound(stamp);
-      if (lb == init_path_.end() || ub == init_path_.end()) { continue; }
-      lb = std::prev(lb);
-
-      // interpolate pose at image time
-      init_path_[stamp] = beam::InterpolateTransform(
-          init_path_.at(lb->first), beam::NSecToRos(lb->first).toSec(), init_path_.at(ub->first),
-          beam::NSecToRos(ub->first).toSec(), beam::NSecToRos(stamp).toSec());
-
-      // interpolate velocity at image time
-      velocities_[stamp] = beam::InterpolateVector(
-          velocities_.at(lb->first), beam::NSecToRos(lb->first).toSec(), velocities_.at(ub->first),
-          beam::NSecToRos(ub->first).toSec(), beam::NSecToRos(stamp).toSec());
-    }
-  }
-  // TODO: if mode != LIDAR but we have lidar frames, interpolate as well
 
   // process each frame in the path
   for (const auto& pair : init_path_) { process_frame(pair); }
@@ -355,7 +354,7 @@ void SLAMInitialization::AddVisualConstraints() {
     }
 
     // add constraints to the landmark
-    for (auto& [stamp, T_baselink_world] : init_path_) {
+    for (auto& [stamp, T_WORLD_BASELINK] : init_path_) {
       const auto timestamp = beam::NSecToRos(stamp);
       try {
         visual_map_->AddVisualConstraint(timestamp, lm_id,
@@ -374,7 +373,8 @@ void SLAMInitialization::AddVisualConstraints() {
   // update visual map with updated graph
   visual_map_->UpdateGraph(local_graph_);
 
-  ROS_INFO_STREAM(__func__ << ": Added " << num_landmarks << " visual landmarks to graph.");
+  ROS_INFO_STREAM(__func__ << ": Added " << num_landmarks
+                           << " visual landmarks to initialization graph.");
 }
 
 void SLAMInitialization::SendInitializationGraph() {
@@ -400,11 +400,10 @@ void SLAMInitialization::OutputResults() {
   for (const auto& [stamp, pose] : init_path_) {
     auto timestamp = beam::NSecToRos(stamp);
     auto T = visual_map_->GetBaselinkPose(timestamp);
-    if (T.has_value()) {
-      if (T.has_value()) { frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001); }
-      poses.AddSingleTimeStamp(timestamp);
-      poses.AddSinglePose(T.value());
-    }
+    if (!T.has_value()) { continue; }
+    frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
+    poses.AddSingleTimeStamp(timestamp);
+    poses.AddSinglePose(T.value());
   }
 
   // create directory if it doesn't exist

@@ -134,7 +134,7 @@ private:
   // method for estimating initial path
   InitMode mode_ = InitMode::VISUAL;
 
-  // initial path estimate for performing initialization, stored as T_BASELINK_WORLD
+  // initial path estimate for performing initialization, stored as T_WORLD_BASELINK
   std::map<uint64_t, Eigen::Matrix4d> init_path_;
   // initial imu estimates
   std::map<uint64_t, Eigen::Vector3d> velocities_;
