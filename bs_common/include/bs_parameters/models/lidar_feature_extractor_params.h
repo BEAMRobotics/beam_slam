@@ -23,7 +23,7 @@ public:
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
     /** Input lidar topic (distorted) */
-    getParamRequired<std::string>(nh, "pointcloud_topic", pointcloud_topic);
+    getParamRequired<std::string>(nh, "input_topic", pointcloud_topic);
 
     /**
      * type of lidar. Options: VELODYNE, OUSTER. This is needed so we know how
