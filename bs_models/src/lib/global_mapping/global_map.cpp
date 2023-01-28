@@ -335,27 +335,24 @@ fuse_core::Transaction::SharedPtr
     if (store_new_scans_) { AddNewRosScan(cloud, T_WORLD_BASELINK, stamp); }
 
     online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
-                                                       stamp, 0);
+                                                       stamp);
   }
-  if (!lid_measurement.lidar_edges_strong.empty()) {
-    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_edges_strong);
-    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
-                                                       stamp, 1);
-  }
-  if (!lid_measurement.lidar_surfaces_strong.empty()) {
-    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_surfaces_strong);
-    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
-                                                       stamp, 2);
-  }
-  if (!lid_measurement.lidar_edges_weak.empty()) {
-    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_edges_weak);
-    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
-                                                       stamp, 3);
-  }
-  if (!lid_measurement.lidar_surfaces_weak.empty()) {
-    cloud = beam::ROSVectorToPCL(lid_measurement.lidar_surfaces_weak);
-    online_submaps_.at(submap_id)->AddLidarMeasurement(cloud, T_WORLD_BASELINK,
-                                                       stamp, 4);
+  if (lid_measurement.lidar_edges_strong.size() +
+          lid_measurement.lidar_edges_strong.size() +
+          lid_measurement.lidar_surfaces_strong.size() +
+          lid_measurement.lidar_surfaces_weak.size() >
+      0) {
+    beam_matching::LoamPointCloud loamCloud;
+    loamCloud.edges.strong.cloud =
+        beam::ROSVectorToPCLIRT(lid_measurement.lidar_edges_strong);
+    loamCloud.edges.weak.cloud =
+        beam::ROSVectorToPCLIRT(lid_measurement.lidar_edges_weak);
+    loamCloud.surfaces.strong.cloud =
+        beam::ROSVectorToPCLIRT(lid_measurement.lidar_surfaces_strong);
+    loamCloud.surfaces.weak.cloud =
+        beam::ROSVectorToPCLIRT(lid_measurement.lidar_surfaces_weak);
+    online_submaps_.at(submap_id)->AddLidarMeasurement(loamCloud,
+                                                       T_WORLD_BASELINK, stamp);
   }
 
   // add trajectory measurement if not empty
@@ -571,13 +568,13 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
   // load loam cloud
   beam_matching::LoamPointCloudPtr loam_cloud_in_query_frame =
       std::make_shared<beam_matching::LoamPointCloud>(
-          beam::ROSVectorToPCL(
+          beam::ROSVectorToPCLIRT(
               reloc_request_msg.lidar_measurement.lidar_edges_strong),
-          beam::ROSVectorToPCL(
+          beam::ROSVectorToPCLIRT(
               reloc_request_msg.lidar_measurement.lidar_surfaces_strong),
-          beam::ROSVectorToPCL(
+          beam::ROSVectorToPCLIRT(
               reloc_request_msg.lidar_measurement.lidar_edges_weak),
-          beam::ROSVectorToPCL(
+          beam::ROSVectorToPCLIRT(
               reloc_request_msg.lidar_measurement.lidar_surfaces_weak));
 
   // if either lidar clouds have points, check the frame id

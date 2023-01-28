@@ -251,11 +251,22 @@ public:
    * Note this is relative to the original world estimate that is tracked by the
    * local mapper, not the optimized location from the PGO.
    * @param stamp stamp associated with the lidar scan
-   * @param type type of lidar points. See description in LidarMeasurement.msg
    */
   void AddLidarMeasurement(const PointCloud& cloud,
                            const Eigen::Matrix4d& T_WORLDLM_BASELINK,
-                           const ros::Time& stamp, int type);
+                           const ros::Time& stamp);
+
+  /**
+   * @brief add a set of loam lidar measurements associated with one scan
+   * @param cloud pointcloud in the lidar frame
+   * @param T_WORLDLM_BASELINK pose of the baselink at this lidar scan time.
+   * Note this is relative to the original world estimate that is tracked by the
+   * local mapper, not the optimized location from the PGO.
+   * @param stamp stamp associated with the lidar scan
+   */
+  void AddLidarMeasurement(const beam_matching::LoamPointCloud& cloud,
+                           const Eigen::Matrix4d& T_WORLDLM_BASELINK,
+                           const ros::Time& stamp);
 
   /**
    * @brief add a set of trajectory measurements associated with some lidar or

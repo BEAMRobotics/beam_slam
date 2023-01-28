@@ -4,8 +4,8 @@
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 
-#include <beam_utils/pointclouds.h>
 #include <beam_matching/loam/LoamFeatureExtractor.h>
+#include <beam_utils/pointclouds.h>
 
 namespace bs_models {
 
@@ -19,7 +19,7 @@ namespace bs_models {
  * variables in the graph will always be relative to the baselink
  */
 class ScanPose {
- public:
+public:
   /**
    * @brief constructor for when inputting a regular pointcloud (not loam cloud)
    * @param cloud input pointcloud of type pcl::PointCloud<pcl::PointXYZ>> (this
@@ -75,8 +75,8 @@ class ScanPose {
    * constructor will extract loam features and store it in this class
    */
   ScanPose(
-      const pcl::PointCloud<PointXYZITRRNR>& cloud,
-      const ros::Time& stamp, const Eigen::Matrix4d& T_REFFRAME_BASELINK,
+      const pcl::PointCloud<PointXYZITRRNR>& cloud, const ros::Time& stamp,
+      const Eigen::Matrix4d& T_REFFRAME_BASELINK,
       const Eigen::Matrix4d& T_BASELINK_LIDAR = Eigen::Matrix4d::Identity(),
       const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
           feature_extractor = nullptr);
@@ -113,18 +113,6 @@ class ScanPose {
    * will add to the cloud.
    */
   void AddPointCloud(const beam_matching::LoamPointCloud& cloud,
-                     bool override_cloud = false);
-
-  /**
-   * @brief add pointcloud based on type
-   * @param cloud input pointcloud where points are
-   * expressed in lidar frame
-   * @param type 0: regular points, 1: edge points strong, 2: surface points
-   * strong, 3: edge points weak, 4: surface points weak
-   * @param override_cloud whether or not to override the cloud, otherwise it
-   * will add to the cloud.
-   */
-  void AddPointCloud(const PointCloud& cloud, int type,
                      bool override_cloud = false);
 
   /**
@@ -309,7 +297,7 @@ class ScanPose {
    */
   bool LoadData(const std::string& root_dir);
 
- protected:
+protected:
   // pose data
   ros::Time stamp_;
   int updates_{0};
@@ -328,4 +316,4 @@ class ScanPose {
   std::string cloud_type_{"PCLPOINTCLOUD"};
 };
 
-}  // namespace bs_models
+} // namespace bs_models

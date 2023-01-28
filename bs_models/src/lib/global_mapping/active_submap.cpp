@@ -4,6 +4,7 @@
 
 #include <beam_cv/descriptors/Descriptor.h>
 #include <beam_utils/math.h>
+#include <beam_utils/pointclouds.h>
 
 namespace bs_models {
 
@@ -82,27 +83,14 @@ void ActiveSubmap::ActiveSubmapCallback(
   }
 
   // add loam pointcloud
-  PointCloud edges_strong;
-  PointCloud edges_weak;
-  PointCloud surfaces_strong;
-  PointCloud surfaces_weak;
-  for (geometry_msgs::Vector3 point_vec : msg->lidar_map.lidar_edges_strong) {
-    pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
-    edges_strong.push_back(point);
-  }
-  for (geometry_msgs::Vector3 point_vec : msg->lidar_map.lidar_edges_weak) {
-    pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
-    edges_weak.push_back(point);
-  }
-  for (geometry_msgs::Vector3 point_vec :
-       msg->lidar_map.lidar_surfaces_strong) {
-    pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
-    surfaces_strong.push_back(point);
-  }
-  for (geometry_msgs::Vector3 point_vec : msg->lidar_map.lidar_surfaces_weak) {
-    pcl::PointXYZ point(point_vec.x, point_vec.y, point_vec.z);
-    surfaces_weak.push_back(point);
-  }
+  PointCloudIRT edges_strong =
+      beam::ROSVectorToPCLIRT(msg->lidar_map.lidar_edges_strong);
+  PointCloudIRT edges_weak =
+      beam::ROSVectorToPCLIRT(msg->lidar_map.lidar_edges_weak);
+  PointCloudIRT surfaces_strong =
+      beam::ROSVectorToPCLIRT(msg->lidar_map.lidar_surfaces_strong);
+  PointCloudIRT surfaces_weak =
+      beam::ROSVectorToPCLIRT(msg->lidar_map.lidar_surfaces_weak);
   loam_cloud_ = std::make_shared<beam_matching::LoamPointCloud>(
       edges_strong, surfaces_strong, edges_weak, surfaces_weak);
 

@@ -168,7 +168,7 @@ void Submap::AddCameraMeasurement(
 
 void Submap::AddLidarMeasurement(const PointCloud& cloud,
                                  const Eigen::Matrix4d& T_WORLDLM_BASELINK,
-                                 const ros::Time& stamp, int type) {
+                                 const ros::Time& stamp) {
   Eigen::Matrix4d T_SUBMAP_BASELINK =
       T_SUBMAP_WORLD_initial_ * T_WORLDLM_BASELINK;
   Eigen::Matrix4d T_BASELINK_LIDAR;
@@ -182,11 +182,37 @@ void Submap::AddLidarMeasurement(const PointCloud& cloud,
   auto iter = lidar_keyframe_poses_.find(stamp.toNSec());
   if (iter != lidar_keyframe_poses_.end()) {
     // Stamp exists: add cloud to the corresponding scan pose
-    iter->second.AddPointCloud(cloud, type, false);
+    iter->second.AddPointCloud(cloud, false);
   } else {
     // Stamp does not exist: add new scanpose to map
     ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, T_BASELINK_LIDAR);
-    new_scan_pose.AddPointCloud(cloud, type, false);
+    new_scan_pose.AddPointCloud(cloud, false);
+    lidar_keyframe_poses_.insert(
+        std::pair<uint64_t, ScanPose>(stamp.toNSec(), new_scan_pose));
+  }
+}
+
+void Submap::AddLidarMeasurement(const beam_matching::LoamPointCloud& cloud,
+                                 const Eigen::Matrix4d& T_WORLDLM_BASELINK,
+                                 const ros::Time& stamp) {
+  Eigen::Matrix4d T_SUBMAP_BASELINK =
+      T_SUBMAP_WORLD_initial_ * T_WORLDLM_BASELINK;
+  Eigen::Matrix4d T_BASELINK_LIDAR;
+  if (!extrinsics_->GetT_BASELINK_LIDAR(T_BASELINK_LIDAR)) {
+    BEAM_ERROR(
+        "Cannot get extrinsics, not adding lidar measurement to submap.");
+    return;
+  }
+
+  // Check if stamp already exists (we may be adding partial scans)
+  auto iter = lidar_keyframe_poses_.find(stamp.toNSec());
+  if (iter != lidar_keyframe_poses_.end()) {
+    // Stamp exists: add cloud to the corresponding scan pose
+    iter->second.AddPointCloud(cloud, false);
+  } else {
+    // Stamp does not exist: add new scanpose to map
+    ScanPose new_scan_pose(stamp, T_SUBMAP_BASELINK, T_BASELINK_LIDAR);
+    new_scan_pose.AddPointCloud(cloud, false);
     lidar_keyframe_poses_.insert(
         std::pair<uint64_t, ScanPose>(stamp.toNSec(), new_scan_pose));
   }

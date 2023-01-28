@@ -1,12 +1,12 @@
 #include <bs_models/lidar/scan_pose.h>
 
 #include <boost/filesystem.hpp>
+#include <nlohmann/json.hpp>
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
-#include <nlohmann/json.hpp>
 
-#include <beam_utils/math.h>
 #include <beam_utils/filesystem.h>
+#include <beam_utils/math.h>
 
 #include <bs_common/utils.h>
 
@@ -36,7 +36,8 @@ ScanPose::ScanPose(const PointCloud& cloud, const ros::Time& stamp,
   }
 }
 
-ScanPose::ScanPose(const pcl::PointCloud<PointXYZIRT>& cloud, const ros::Time& stamp,
+ScanPose::ScanPose(const pcl::PointCloud<PointXYZIRT>& cloud,
+                   const ros::Time& stamp,
                    const Eigen::Matrix4d& T_REFFRAME_BASELINK,
                    const Eigen::Matrix4d& T_BASELINK_LIDAR,
                    const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
@@ -45,7 +46,7 @@ ScanPose::ScanPose(const pcl::PointCloud<PointXYZIRT>& cloud, const ros::Time& s
       T_REFFRAME_BASELINK_initial_(T_REFFRAME_BASELINK),
       T_BASELINK_LIDAR_(T_BASELINK_LIDAR) {
   // convert to regular pointcloud
-  for (const auto& p : cloud){
+  for (const auto& p : cloud) {
     pointcloud_.push_back(pcl::PointXYZ(p.x, p.y, p.z));
   }
 
@@ -64,7 +65,8 @@ ScanPose::ScanPose(const pcl::PointCloud<PointXYZIRT>& cloud, const ros::Time& s
   }
 }
 
-ScanPose::ScanPose(const pcl::PointCloud<PointXYZITRRNR>& cloud, const ros::Time& stamp,
+ScanPose::ScanPose(const pcl::PointCloud<PointXYZITRRNR>& cloud,
+                   const ros::Time& stamp,
                    const Eigen::Matrix4d& T_REFFRAME_BASELINK,
                    const Eigen::Matrix4d& T_BASELINK_LIDAR,
                    const std::shared_ptr<beam_matching::LoamFeatureExtractor>&
@@ -73,10 +75,10 @@ ScanPose::ScanPose(const pcl::PointCloud<PointXYZITRRNR>& cloud, const ros::Time
       T_REFFRAME_BASELINK_initial_(T_REFFRAME_BASELINK),
       T_BASELINK_LIDAR_(T_BASELINK_LIDAR) {
   // convert to regular pointcloud
-  for (const auto& p : cloud){
+  for (const auto& p : cloud) {
     pointcloud_.push_back(pcl::PointXYZ(p.x, p.y, p.z));
   }
-  
+
   // create fuse variables
   position_ = fuse_variables::Position3DStamped(stamp, fuse_core::uuid::NIL);
   orientation_ =
@@ -126,33 +128,6 @@ void ScanPose::AddPointCloud(const beam_matching::LoamPointCloud& cloud,
   cloud_type_ = "LOAMPOINTCLOUD";
 }
 
-void ScanPose::AddPointCloud(const PointCloud& cloud, int type,
-                             bool override_cloud) {
-  if (type == 0) {
-    AddPointCloud(cloud, false);
-    return;
-  }
-
-  beam_matching::LoamPointCloud new_loam_cloud;
-  if (type == 1) {
-    new_loam_cloud.AddEdgeFeaturesStrong(cloud);
-  } else if (type == 2) {
-    new_loam_cloud.AddSurfaceFeaturesStrong(cloud);
-  } else if (type == 3) {
-    new_loam_cloud.AddEdgeFeaturesWeak(cloud);
-  } else if (type == 4) {
-    new_loam_cloud.AddSurfaceFeaturesWeak(cloud);
-  } else {
-    BEAM_ERROR(
-        "Invalid pointcloud type, not adding to submap. Input: {}, Options: "
-        "0, 1, 2, 3, 4. See LidarMeasurement.msg for more information,",
-        type);
-    return;
-  }
-  AddPointCloud(new_loam_cloud, override_cloud);
-  cloud_type_ = "LOAMPOINTCLOUD";
-}
-
 bool ScanPose::UpdatePose(const fuse_core::Graph::ConstSharedPtr& graph_msg) {
   if (graph_msg->variableExists(position_.uuid()) &&
       graph_msg->variableExists(orientation_.uuid())) {
@@ -177,7 +152,9 @@ bool ScanPose::Near(const ros::Time& time, const double tolerance) const {
   return (std::abs(stamp_.toSec() - time.toSec()) <= tolerance);
 }
 
-int ScanPose::Updates() const { return updates_; }
+int ScanPose::Updates() const {
+  return updates_;
+}
 
 bool ScanPose::operator<(const ScanPose& rhs) const {
   return (stamp_ < rhs.stamp_);
@@ -213,23 +190,33 @@ Eigen::Matrix4d ScanPose::T_REFFRAME_LIDAR_INIT() const {
   return T_REFFRAME_BASELINK_INIT() * T_BASELINK_LIDAR_;
 }
 
-Eigen::Matrix4d ScanPose::T_BASELINK_LIDAR() const { return T_BASELINK_LIDAR_; }
+Eigen::Matrix4d ScanPose::T_BASELINK_LIDAR() const {
+  return T_BASELINK_LIDAR_;
+}
 
 Eigen::Matrix4d ScanPose::T_LIDAR_BASELINK() const {
   return beam::InvertTransform(T_BASELINK_LIDAR_);
 }
 
-PointCloud ScanPose::Cloud() const { return pointcloud_; }
+PointCloud ScanPose::Cloud() const {
+  return pointcloud_;
+}
 
 beam_matching::LoamPointCloud ScanPose::LoamCloud() const {
   return loampointcloud_;
 }
 
-ros::Time ScanPose::Stamp() const { return stamp_; }
+ros::Time ScanPose::Stamp() const {
+  return stamp_;
+}
 
-std::string ScanPose::Type() const { return cloud_type_; }
+std::string ScanPose::Type() const {
+  return cloud_type_;
+}
 
-void ScanPose::SetCloudTypeToLoam() { cloud_type_ = "LOAMPOINTCLOUD"; }
+void ScanPose::SetCloudTypeToLoam() {
+  cloud_type_ = "LOAMPOINTCLOUD";
+}
 
 void ScanPose::Print(std::ostream& stream) const {
   stream << "  Stamp: " << stamp_ << "\n"
@@ -283,28 +270,12 @@ void ScanPose::SaveData(const std::string& output_dir) const {
           beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
-  if (!beam::SavePointCloud<pcl::PointXYZ>(output_dir + "loam_edges_strong.pcd",
-                                           loampointcloud_.edges.strong.cloud,
-                                           beam::PointCloudFileType::PCDBINARY,
-                                           error_message)) {
-    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
-  }
-  if (!beam::SavePointCloud<pcl::PointXYZ>(
-          output_dir + "loam_edges_weak.pcd", loampointcloud_.edges.weak.cloud,
-          beam::PointCloudFileType::PCDBINARY, error_message)) {
-    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
-  }
-  if (!beam::SavePointCloud<pcl::PointXYZ>(
-          output_dir + "loam_surfaces_strong.pcd",
-          loampointcloud_.surfaces.strong.cloud,
-          beam::PointCloudFileType::PCDBINARY, error_message)) {
-    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
-  }
-  if (!beam::SavePointCloud<pcl::PointXYZ>(
-          output_dir + "loam_surfaces_weak.pcd",
-          loampointcloud_.surfaces.weak.cloud,
-          beam::PointCloudFileType::PCDBINARY, error_message)) {
-    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+
+  beam_matching::LoamPointCloudCombined c = loampointcloud_.GetCombinedCloud();
+  if (!beam::SavePointCloud<PointLoam>(output_dir + "loam_cloud.pcd", c,
+                                       beam::PointCloudFileType::PCDBINARY,
+                                       error_message)) {
+    BEAM_ERROR("Unable to save loam cloud. Reason: {}", error_message);
   }
 }
 
@@ -364,36 +335,14 @@ bool ScanPose::LoadData(const std::string& root_dir) {
     }
   }
 
-  pointcloud_filename = root_dir + "loam_edges_strong.pcd";
+  pointcloud_filename = root_dir + "loam_cloud.pcd";
   if (boost::filesystem::exists(pointcloud_filename)) {
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(
-            pointcloud_filename, loampointcloud_.edges.strong.cloud) == -1) {
+    beam_matching::LoamPointCloudCombined loam_combined;
+    if (pcl::io::loadPCDFile<PointLoam>(pointcloud_filename, loam_combined) ==
+        -1) {
       BEAM_ERROR("Couldn't read pointcloud file: {}", pointcloud_filename);
     }
-  }
-
-  pointcloud_filename = root_dir + "loam_edges_weak.pcd";
-  if (boost::filesystem::exists(pointcloud_filename)) {
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(
-            pointcloud_filename, loampointcloud_.edges.weak.cloud) == -1) {
-      BEAM_ERROR("Couldn't read pointcloud file: {}", pointcloud_filename);
-    }
-  }
-
-  pointcloud_filename = root_dir + "loam_surfaces_strong.pcd";
-  if (boost::filesystem::exists(pointcloud_filename)) {
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(
-            pointcloud_filename, loampointcloud_.surfaces.strong.cloud) == -1) {
-      BEAM_ERROR("Couldn't read pointcloud file: {}", pointcloud_filename);
-    }
-  }
-
-  pointcloud_filename = root_dir + "loam_surfaces_weak.pcd";
-  if (boost::filesystem::exists(pointcloud_filename)) {
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(
-            pointcloud_filename, loampointcloud_.surfaces.weak.cloud) == -1) {
-      BEAM_ERROR("Couldn't read pointcloud file: {}", pointcloud_filename);
-    }
+    loampointcloud_.LoadFromCombined(loam_combined);
   }
 
   if (loampointcloud_.edges.strong.cloud.size() > 0 ||
@@ -490,4 +439,4 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
   loam_cloud_transformed.Save(cloud_dir, true);
 }
 
-}  // namespace bs_models
+} // namespace bs_models
