@@ -234,7 +234,7 @@ bool ExtrinsicsLookupOnline::LookupTransform(Eigen::Matrix4d& T,
                   to_frame, from_frame, time.toSec(), ex.what());
       }
       if (count < max_iterations) {
-        BEAM_WARN("trying transform lookup again in 1s");
+        BEAM_WARN("Trying transform lookup again in {}s", sleep_time.toSec());
         sleep_time.sleep();
         count++;
         continue;

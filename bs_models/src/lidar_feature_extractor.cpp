@@ -38,7 +38,7 @@ void LidarFeatureExtractor::onStart() {
   ROS_DEBUG("Starting publisher");
 
   pub_cloud_ = private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-      "lidar_features/combined", publisher_queue_size_);
+      "combined", publisher_queue_size_);
   ROS_DEBUG("Done start routine");
 }
 
