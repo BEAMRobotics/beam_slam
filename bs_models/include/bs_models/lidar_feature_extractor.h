@@ -35,10 +35,7 @@ private:
   ros::Subscriber pointcloud_subscriber_;
 
   /** Publishers */
-  ros::Publisher pub_edges_strong_;
-  ros::Publisher pub_edges_weak_;
-  ros::Publisher pub_surfaces_strong_;
-  ros::Publisher pub_surfaces_weak_;
+  ros::Publisher pub_cloud_;
 
   /** callbacks */
   using ThrottledCallbackPC =

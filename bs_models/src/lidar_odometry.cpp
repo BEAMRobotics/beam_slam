@@ -703,7 +703,7 @@ void LidarOdometry::PublishScanRegistrationResults(
   PointCloud scan_in_world_init_frame;
   pcl::transformPointCloud(scan_in_lidar_frame, scan_in_world_init_frame,
                            T_WORLD_LIDARINIT);
-  sensor_msgs::PointCloud2 msg_init = beam::PCLToROS(
+  sensor_msgs::PointCloud2 msg_init = beam::PCLToROS<pcl::PointXYZ>(
       scan_in_world_init_frame, scan_pose.Stamp(),
       extrinsics_.GetWorldFrameId(), published_registration_results_);
   registration_publisher_init_.publish(msg_init);
@@ -713,7 +713,7 @@ void LidarOdometry::PublishScanRegistrationResults(
 
     pcl::transformPointCloud(scan_in_lidar_frame, scan_in_world_lm_frame,
                              T_WORLD_LIDARREFLM);
-    sensor_msgs::PointCloud2 msg_align_lm = beam::PCLToROS(
+    sensor_msgs::PointCloud2 msg_align_lm = beam::PCLToROS<pcl::PointXYZ>(
         scan_in_world_lm_frame, scan_pose.Stamp(),
         extrinsics_.GetWorldFrameId(), published_registration_results_);
 
@@ -723,7 +723,7 @@ void LidarOdometry::PublishScanRegistrationResults(
     PointCloud scan_in_world_gm_frame;
     pcl::transformPointCloud(scan_in_lidar_frame, scan_in_world_gm_frame,
                              T_WORLD_LIDARREFGM);
-    sensor_msgs::PointCloud2 msg_align_gm = beam::PCLToROS(
+    sensor_msgs::PointCloud2 msg_align_gm = beam::PCLToROS<pcl::PointXYZ>(
         scan_in_world_gm_frame, scan_pose.Stamp(),
         extrinsics_.GetWorldFrameId(), published_registration_results_);
     registration_publisher_aligned_gm_.publish(msg_align_gm);

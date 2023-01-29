@@ -1142,9 +1142,9 @@ void GlobalMap::AddRosSubmap(int submap_id) {
         new_submap_pcl_cloud, params_.ros_submap_filter_params);
 
     // convert to PointCloud2
-    pointcloud2_msg =
-        beam::PCLToROS(new_submap_pcl_cloud, submap_ptr->Stamp(),
-                       extrinsics_->GetWorldFrameId(), submap_id + 1);
+    pointcloud2_msg = beam::PCLToROS<pcl::PointXYZ>(
+        new_submap_pcl_cloud, submap_ptr->Stamp(),
+        extrinsics_->GetWorldFrameId(), submap_id + 1);
 
     // set cloud
     RosMap new_ros_map_lidar(RosMapType::LIDARSUBMAP, pointcloud2_msg);
@@ -1156,9 +1156,9 @@ void GlobalMap::AddRosSubmap(int submap_id) {
 
   if (new_submap_pcl_cloud.size() > 0) {
     // convert to PointCloud2
-    pointcloud2_msg =
-        beam::PCLToROS(new_submap_pcl_cloud, submap_ptr->Stamp(),
-                       extrinsics_->GetWorldFrameId(), submap_id + 1);
+    pointcloud2_msg = beam::PCLToROS<pcl::PointXYZ>(
+        new_submap_pcl_cloud, submap_ptr->Stamp(),
+        extrinsics_->GetWorldFrameId(), submap_id + 1);
 
     // set cloud
     RosMap new_ros_map_keypoints(RosMapType::VISUALSUBMAP, pointcloud2_msg);
@@ -1202,9 +1202,9 @@ void GlobalMap::AddRosGlobalMap() {
         global_lidar_map, params_.ros_globalmap_filter_params);
 
     // convert lidar map to PointCloud2
-    sensor_msgs::PointCloud2 pointcloud2_msg =
-        beam::PCLToROS(global_lidar_map, last_update_time_,
-                       extrinsics_->GetWorldFrameId(), global_map_updates_);
+    sensor_msgs::PointCloud2 pointcloud2_msg = beam::PCLToROS<pcl::PointXYZ>(
+        global_lidar_map, last_update_time_, extrinsics_->GetWorldFrameId(),
+        global_map_updates_);
 
     // set cloud
     RosMap new_ros_map_lidar(RosMapType::LIDARGLOBALMAP, pointcloud2_msg);
@@ -1213,9 +1213,9 @@ void GlobalMap::AddRosGlobalMap() {
 
   if (global_keypoints_map.size() > 0) {
     // convert lidar map to PointCloud2
-    sensor_msgs::PointCloud2 pointcloud2_msg =
-        beam::PCLToROS(global_keypoints_map, last_update_time_,
-                       extrinsics_->GetWorldFrameId(), global_map_updates_);
+    sensor_msgs::PointCloud2 pointcloud2_msg = beam::PCLToROS<pcl::PointXYZ>(
+        global_keypoints_map, last_update_time_, extrinsics_->GetWorldFrameId(),
+        global_map_updates_);
 
     // set cloud
     RosMap new_ros_map_keypoints(RosMapType::VISUALGLOBALMAP, pointcloud2_msg);
@@ -1238,9 +1238,9 @@ void GlobalMap::AddNewRosScan(const PointCloud& cloud,
   pcl::transformPointCloud(cloud, cloud_in_world_frame, T_WORLD_LIDAR);
 
   // convert to PointCloud2
-  sensor_msgs::PointCloud2 pointcloud2_msg =
-      beam::PCLToROS(cloud_in_world_frame, stamp,
-                     extrinsics_->GetWorldFrameId(), new_scans_counter_);
+  sensor_msgs::PointCloud2 pointcloud2_msg = beam::PCLToROS<pcl::PointXYZ>(
+      cloud_in_world_frame, stamp, extrinsics_->GetWorldFrameId(),
+      new_scans_counter_);
   new_scans_counter_++;
 
   // set cloud

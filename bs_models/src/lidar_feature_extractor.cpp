@@ -36,15 +36,9 @@ void LidarFeatureExtractor::onStart() {
           ros::TransportHints().tcpNoDelay(false));
 
   ROS_DEBUG("Starting publisher");
-  pub_edges_strong_ = private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-      "lidar_features/edges/strong", publisher_queue_size_);
-  pub_edges_weak_ = private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-      "lidar_features/edges/weak", publisher_queue_size_);
-  pub_surfaces_strong_ =
-      private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-          "lidar_features/surfaces/strong", publisher_queue_size_);
-  pub_surfaces_weak_ = private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-      "lidar_features/surfaces/weak", publisher_queue_size_);
+
+  pub_cloud_ = private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+      "lidar_features/combined", publisher_queue_size_);
   ROS_DEBUG("Done start routine");
 }
 
@@ -76,17 +70,9 @@ void LidarFeatureExtractor::ProcessPointcloud(
 void LidarFeatureExtractor::PublishLoamCloud(
     const beam_matching::LoamPointCloud& cloud, const ros::Time& time,
     const std::string& frame_id) {
-  sensor_msgs::PointCloud2 cloud_msg =
-      beam::PCLToROS(cloud.edges.strong.cloud, time, frame_id, counter_);
-  pub_edges_strong_.publish(cloud_msg);
-  cloud_msg = beam::PCLToROS(cloud.edges.weak.cloud, time, frame_id, counter_);
-  pub_edges_weak_.publish(cloud_msg);
-  cloud_msg =
-      beam::PCLToROS(cloud.surfaces.strong.cloud, time, frame_id, counter_);
-  pub_surfaces_strong_.publish(cloud_msg);
-  cloud_msg =
-      beam::PCLToROS(cloud.surfaces.weak.cloud, time, frame_id, counter_);
-  pub_surfaces_weak_.publish(cloud_msg);
+  sensor_msgs::PointCloud2 cloud_msg = beam::PCLToROS<PointLoam>(
+      cloud.GetCombinedCloud(), time, frame_id, counter_);
+  pub_cloud_.publish(cloud_msg);
   counter_++;
 }
 

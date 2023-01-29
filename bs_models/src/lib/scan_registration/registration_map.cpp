@@ -304,32 +304,32 @@ void RegistrationMap::Publish() {
   LoamPointCloud loam_map = GetLoamCloudMap();
 
   if (!lidar_map.empty()) {
-    sensor_msgs::PointCloud2 pc_msg =
-        beam::PCLToROS(lidar_map, update_time, frame_id_, updates_counter_);
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<pcl::PointXYZ>(
+        lidar_map, update_time, frame_id_, updates_counter_);
     lidar_map_publisher_.publish(pc_msg);
   }
 
   if (!loam_map.edges.strong.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS(
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointXYZIRT>(
         loam_map.edges.strong.cloud, update_time, frame_id_, updates_counter_);
     loam_edges_strong_publisher_.publish(pc_msg);
   }
 
   if (!loam_map.edges.weak.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS(
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointXYZIRT>(
         loam_map.edges.weak.cloud, update_time, frame_id_, updates_counter_);
     loam_edges_weak_publisher_.publish(pc_msg);
   }
 
   if (!loam_map.surfaces.strong.cloud.empty()) {
     sensor_msgs::PointCloud2 pc_msg =
-        beam::PCLToROS(loam_map.surfaces.strong.cloud, update_time, frame_id_,
-                       updates_counter_);
+        beam::PCLToROS<PointXYZIRT>(loam_map.surfaces.strong.cloud, update_time,
+                                    frame_id_, updates_counter_);
     loam_surfaces_strong_publisher_.publish(pc_msg);
   }
 
   if (!loam_map.surfaces.weak.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS(
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointXYZIRT>(
         loam_map.surfaces.weak.cloud, update_time, frame_id_, updates_counter_);
     loam_surfaces_weak_publisher_.publish(pc_msg);
   }

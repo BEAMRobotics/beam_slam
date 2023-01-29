@@ -103,8 +103,8 @@ void LidarAggregation::ProcessTimeTrigger(const std_msgs::Time::ConstPtr& msg) {
         velodyne_lidar_aggregator_->Get();
     for (const auto& aggregate : aggregates) {
       sensor_msgs::PointCloud2 cloud_msg =
-          beam::PCLToROS(aggregate.cloud, aggregate.time,
-                         extrinsics_.GetLidarFrameId(), counter_);
+          beam::PCLToROS<PointXYZIRT>(aggregate.cloud, aggregate.time,
+                                      extrinsics_.GetLidarFrameId(), counter_);
       ROS_DEBUG("Publishing result");
       aggregate_publisher_.publish(cloud_msg);
     }
@@ -113,9 +113,9 @@ void LidarAggregation::ProcessTimeTrigger(const std_msgs::Time::ConstPtr& msg) {
     std::vector<LidarAggregate<PointXYZITRRNR>> aggregates =
         ouster_lidar_aggregator_->Get();
     for (const auto& aggregate : aggregates) {
-      sensor_msgs::PointCloud2 cloud_msg =
-          beam::PCLToROS(aggregate.cloud, aggregate.time,
-                         extrinsics_.GetLidarFrameId(), counter_);
+      sensor_msgs::PointCloud2 cloud_msg = beam::PCLToROS<PointXYZITRRNR>(
+          aggregate.cloud, aggregate.time, extrinsics_.GetLidarFrameId(),
+          counter_);
       ROS_DEBUG("Publishing result");
       aggregate_publisher_.publish(cloud_msg);
     }
