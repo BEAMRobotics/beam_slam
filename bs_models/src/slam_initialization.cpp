@@ -3,6 +3,7 @@
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_mapping/Poses.h>
 #include <beam_utils/utils.h>
+#include <bs_models/imu/inertial_alignment.h>
 #include <bs_models/vision/utils.h>
 #include <pluginlib/class_list_macros.h>
 
@@ -187,7 +188,7 @@ void SLAMInitialization::processLidar(const sensor_msgs::PointCloud2::ConstPtr& 
 
 bool SLAMInitialization::initialize() {
   if (init_path_.size() < 3) {
-    ROS_FATAL_STREAM("Initial path estimate too small.");
+    ROS_WARN_STREAM("Initial path estimate too small.");
     return false;
   }
 
@@ -197,16 +198,15 @@ bool SLAMInitialization::initialize() {
   }
 
   // Estimate imu biases and gravity using the initial path
-  bs_models::ImuPreintegration::Params imu_params;
-  ImuPreintegration::EstimateParameters(init_path_, imu_buffer_, imu_params_, gravity_, bg_, ba_,
-                                        velocities_, scale_);
+  bs_models::imu::EstimateParameters(init_path_, imu_buffer_, imu_params_, gravity_, bg_, ba_,
+                                     velocities_, scale_);
 
   if (mode_ == InitMode::VISUAL && (scale_ < 0.02 || scale_ > 1.0)) {
     ROS_WARN_STREAM(__func__ << ": Invalid scale estimate: " << scale_);
     return false;
   }
 
-  imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(imu_params, bg_, ba_);
+  imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 
   AlignPathAndVelocities(mode_ == InitMode::VISUAL);
 
@@ -214,7 +214,7 @@ bool SLAMInitialization::initialize() {
 
   AddVisualConstraints();
 
-  if (params_.max_optimization_s != 0) {
+  if (params_.max_optimization_s > 0.0) {
     ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
     ceres::Solver::Options options;
     options.minimizer_progress_to_stdout = true;
@@ -230,8 +230,6 @@ bool SLAMInitialization::initialize() {
 }
 
 void SLAMInitialization::AlignPathAndVelocities(bool apply_scale) {
-  static_assert(!gravity_.isZero(1e-9),
-                "Can't align poses to gravity as it has not been estimated yet.");
   // estimate rotation from estimated gravity to world gravity
   Eigen::Quaterniond q = Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
 

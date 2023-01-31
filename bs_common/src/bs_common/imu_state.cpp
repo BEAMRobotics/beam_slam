@@ -146,6 +146,10 @@ std::shared_ptr<bs_common::PreIntegrator> ImuState::GetPreintegrator() {
   return preint_;
 }
 
+const bs_common::PreIntegrator ImuState::GetConstPreintegrator() const {
+  return *preint_;
+}
+
 void ImuState::SetPreintegrator(const bs_common::PreIntegrator& preint) {
   *preint_ = preint;
 }

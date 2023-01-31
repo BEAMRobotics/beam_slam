@@ -82,6 +82,7 @@ add_library(
   src/lib/vision/utils.cpp
   ## imu helpers
   src/lib/imu/imu_preintegration.cpp
+  src/lib/imu/inertial_alignment.cpp
   ## lidar helpers
   src/lib/lidar/lidar_aggregator.cpp
   src/lib/lidar/scan_pose.cpp

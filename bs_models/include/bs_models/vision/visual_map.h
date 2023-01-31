@@ -24,7 +24,7 @@ namespace bs_models { namespace vision {
 class VisualMap {
 public:
   /**
-   * @brief Custom cosntrcutor, use when working with transactions
+   * @brief Custom constructor
    * @param cam_model camera model being used
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model);

@@ -166,6 +166,11 @@ public:
   std::shared_ptr<bs_common::PreIntegrator> GetPreintegrator();
 
   /**
+   * @brief get the preintegrator (const reference)
+   */
+  const bs_common::PreIntegrator GetConstPreintegrator() const;
+
+  /**
    * @brief set the preintegrator
    */
   void SetPreintegrator(const bs_common::PreIntegrator& preint);

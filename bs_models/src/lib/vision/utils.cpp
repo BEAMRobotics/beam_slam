@@ -36,43 +36,43 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   }
 
   // Compute relative pose between first and last
-  beam::opt<Eigen::Matrix4d> T_last_first = beam_cv::RelativePoseEstimator::RANSACEstimator(
+  beam::opt<Eigen::Matrix4d> T_cameraN_camera0 = beam_cv::RelativePoseEstimator::RANSACEstimator(
       camera_model, camera_model, first_landmarks, last_landmarks,
       beam_cv::EstimatorMethod::SEVENPOINT, 20);
-  if (!T_last_first.has_value()) { return {}; }
+  if (!T_cameraN_camera0.has_value()) { return {}; }
 
-  Eigen::Matrix4d T_world_first_frame = T_camera_baselink.inverse();
-  Eigen::Matrix4d T_world_last_frame = T_world_first_frame * T_last_first.value().inverse();
+  Eigen::Matrix4d T_camera0_cameraN = T_cameraN_camera0.value().inverse();
+  Eigen::Matrix4d T_world_camera0 = T_camera_baselink.inverse();
+  Eigen::Matrix4d T_world_cameraN = T_world_camera0 * T_camera0_cameraN;
 
   // Triangulate points
   std::vector<beam::opt<Eigen::Vector3d>> points = beam_cv::Triangulation::TriangulatePoints(
-      camera_model, camera_model, T_world_first_frame.inverse(), T_world_last_frame.inverse(),
+      camera_model, camera_model, T_world_camera0.inverse(), T_world_cameraN.inverse(),
       first_landmarks, last_landmarks);
 
   // Determine inliers of triangulated points
   int inliers = 0;
   for (size_t i = 0; i < points.size(); i++) {
     if (points[i].has_value()) {
-      Eigen::Vector3d t_world = points[i].value();
+      Eigen::Vector3d t_point_world = points[i].value();
       // transform points into each camera frame
-      Eigen::Vector3d t_first_frame =
-          (T_world_first_frame.inverse() * t_world.homogeneous()).hnormalized();
-      Eigen::Vector3d t_last_frame =
-          (T_world_last_frame.inverse() * t_world.homogeneous()).hnormalized();
+      Eigen::Vector3d t_point_camera0 =
+          (T_world_camera0.inverse() * t_point_world.homogeneous()).hnormalized();
+      Eigen::Vector3d t_point_cameraN =
+          (T_world_cameraN.inverse() * t_point_world.homogeneous()).hnormalized();
       // reproject triangulated points into each frame
       bool in_image1 = false, in_image2 = false;
-      Eigen::Vector2d t_first_rep, t_last_rep;
-      if (!camera_model->ProjectPoint(t_first_frame, t_first_rep, in_image1) ||
-          !camera_model->ProjectPoint(t_last_frame, t_last_rep, in_image2)) {
+      Eigen::Vector2d t_rep0, t_repN;
+      if (!camera_model->ProjectPoint(t_point_camera0, t_rep0, in_image1) ||
+          !camera_model->ProjectPoint(t_point_cameraN, t_repN, in_image2)) {
         continue;
       } else if (!in_image1 || !in_image2) {
         continue;
       }
       // compute distance to actual pixel
-      Eigen::Vector2d t_first_meas = first_landmarks[i].cast<double>();
-      Eigen::Vector2d t_last_meas = last_landmarks[i].cast<double>();
-      if (beam::distance(t_first_rep, t_first_meas) > 5.0 &&
-          beam::distance(t_last_rep, t_last_meas) > 5.0) {
+      Eigen::Vector2d pixel0 = first_landmarks[i].cast<double>();
+      Eigen::Vector2d pixelN = last_landmarks[i].cast<double>();
+      if (beam::distance(t_rep0, pixel0) > 5.0 && beam::distance(t_repN, pixelN) > 5.0) {
         // set outlier to have no value in the vector
         points[i].reset();
       } else {
@@ -94,8 +94,8 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   // Add initial poses, landmarks and constraints to graph
   auto initial_transaction = fuse_core::Transaction::make_shared();
   initial_transaction->stamp(first_time);
-  visual_map->AddCameraPose(T_world_first_frame, first_time, initial_transaction);
-  visual_map->AddCameraPose(T_world_last_frame, last_time, initial_transaction);
+  visual_map->AddCameraPose(T_world_camera0, first_time, initial_transaction);
+  visual_map->AddCameraPose(T_world_cameraN, last_time, initial_transaction);
 
   for (size_t i = 0; i < points.size(); i++) {
     if (!points[i].has_value()) { continue; }
@@ -116,7 +116,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
 
   // Localize frames in between and add variables to graph
   const auto img_times = landmark_container->GetMeasurementTimesVector();
-  for (int i = 0; i < img_times.size(); i += 3) {
+  for (int i = 0; i < img_times.size(); i++) {
     const auto timestamp = beam::NSecToRos(img_times[i]);
     if (timestamp == first_time || timestamp == last_time) continue;
 
@@ -163,7 +163,9 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   visual_graph->holdVariable(visual_map->GetOrientationUUID(first_time), true);
   // optimize graph
   ROS_INFO_STREAM(__func__ << ": Optimizing trajectory.");
-  visual_graph->optimizeFor(ros::Duration(max_optimization_time));
+  ceres::Solver::Options options;
+  options.minimizer_progress_to_stdout = true;
+  visual_graph->optimizeFor(ros::Duration(max_optimization_time), options);
   visual_map->UpdateGraph(visual_graph);
 
   // return result

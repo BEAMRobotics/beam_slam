@@ -127,12 +127,13 @@ beam::opt<PoseWithCovariance> ImuPreintegration::GetRelativeMotion(const ros::Ti
   pre_integrator.Reset();
 
   // set initial state to identity
-  bs_common::ImuState imu_state_1 = imu_state_i_;
+  bs_common::ImuState imu_state_1(t1);
   imu_state_1.SetPosition(Eigen::Vector3d::Zero());
   imu_state_1.SetOrientation(Eigen::Quaterniond(Eigen::Matrix3d::Identity()));
 
-  // integrate to t2
-  pre_integrator.Integrate(t2, imu_state_1.GyroBiasVec(), imu_state_1.AccelBiasVec(), false, true);
+  // integrate to t2 using recent bias estimate
+  pre_integrator.Integrate(t2, imu_state_i_.GyroBiasVec(), imu_state_i_.AccelBiasVec(), false,
+                           true);
 
   // predict state
   bs_common::ImuState imu_state_2 = PredictState(pre_integrator, imu_state_1, t2);
@@ -172,13 +173,13 @@ void ImuPreintegration::SetStart(const ros::Time& t_start,
 bs_common::ImuState ImuPreintegration::PredictState(const bs_common::PreIntegrator& pre_integrator,
                                                     const bs_common::ImuState& imu_state_curr,
                                                     const ros::Time& t_now) {
-  // TODO: does the imu preint use T_WORLD_IMU or T_IMU_WORLD?
   // get commonly used variables
   const double& dt = pre_integrator.delta.t.toSec();
   const Eigen::Matrix3d& q_curr = imu_state_curr.OrientationMat();
 
   // predict new states
   Eigen::Quaterniond q_new(q_curr * pre_integrator.delta.q.matrix());
+  // TODO: do we subtract gravity now? (it is 0, 0, 9.8)
   Eigen::Vector3d v_new =
       imu_state_curr.VelocityVec() + GRAVITY_WORLD * dt + q_curr * pre_integrator.delta.v;
   Eigen::Vector3d p_new = imu_state_curr.PositionVec() + imu_state_curr.VelocityVec() * dt +
@@ -269,222 +270,6 @@ void ImuPreintegration::Clear() {
   pre_integrator_kj_.Reset();
   pre_integrator_ij_.data.clear();
   pre_integrator_ij_.Reset();
-}
-
-void ImuPreintegration::EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
-                                           const std::queue<sensor_msgs::Imu>& imu_buffer,
-                                           const bs_models::ImuPreintegration::Params& params,
-                                           Eigen::Vector3d& gravity, Eigen::Vector3d& bg,
-                                           Eigen::Vector3d& ba,
-                                           std::map<uint64_t, Eigen::Vector3d>& velocities,
-                                           double& scale) {
-  // set parameter estimates to 0
-  gravity = Eigen::Vector3d::Zero();
-  bg = Eigen::Vector3d::Zero();
-  ba = Eigen::Vector3d::Zero();
-  scale = 1.0;
-  velocities.clear();
-  std::vector<std::pair<uint64_t, Eigen::Vector3d>> velocities_vec;
-
-  /***************************
-   * Build list of imu frames *
-   ****************************/
-  std::queue<sensor_msgs::Imu> imu_buffer_copy = imu_buffer;
-
-  std::vector<bs_common::ImuState> imu_frames;
-  for (auto& [time_nsec, T_WORLD_BASELINK] : path) {
-    const auto stamp = beam::NSecToRos(time_nsec);
-    if (stamp < imu_buffer_copy.front().header.stamp) {
-      const std::string msg = std::string(__func__) + "Pose in path is prior to imu measurements, "
-                                                      "cannot initialize with this path.";
-      ROS_ERROR_STREAM(msg);
-      throw std::runtime_error{msg};
-    }
-
-    // add imu data to frames preintegrator
-    bs_common::PreIntegrator preintegrator;
-    preintegrator.cov_w = params.cov_gyro_noise;
-    preintegrator.cov_a = params.cov_accel_noise;
-    preintegrator.cov_bg = params.cov_gyro_bias;
-    preintegrator.cov_ba = params.cov_accel_bias;
-    while (imu_buffer_copy.front().header.stamp <= stamp && !imu_buffer_copy.empty()) {
-      bs_common::IMUData imu_data(imu_buffer_copy.front());
-      preintegrator.data.push_back(imu_data);
-      imu_buffer_copy.pop();
-    }
-    Eigen::Vector3d p_WORLD_BASELINK;
-    Eigen::Quaterniond q_WORLD_BASELINK;
-    beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, q_WORLD_BASELINK,
-                                                    p_WORLD_BASELINK);
-
-    // create frame and add to valid frame vector
-    bs_common::ImuState new_frame(stamp, q_WORLD_BASELINK, p_WORLD_BASELINK, preintegrator);
-    imu_frames.push_back(new_frame);
-  }
-
-  int N = (int)imu_frames.size();
-  // initialize velocities as 0 and reserve memory
-  velocities_vec.resize(N, {0, Eigen::Vector3d::Zero()});
-  for (int i = 0; i < N; ++i) {
-    velocities_vec[i] = {imu_frames[i].Stamp().toNSec(), Eigen::Vector3d::Zero()};
-  }
-
-  // lambda to integrate each frame to its time
-  auto integrate = [&](auto& imu_frame) {
-    imu_frame.GetPreintegrator()->Integrate(imu_frame.Stamp(), bg, ba, true, false);
-  };
-
-  /****************************
-   *     Estimate Gyro Bias   *
-   ****************************/
-  std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
-  {
-    Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
-    Eigen::Vector3d b = Eigen::Vector3d::Zero();
-    for (size_t j = 1; j < imu_frames.size(); ++j) {
-      const size_t i = j - 1;
-      const Eigen::Quaterniond& dq = imu_frames[j].GetPreintegrator()->delta.q;
-      const Eigen::Matrix3d& dq_dbg = imu_frames[j].GetPreintegrator()->jacobian.dq_dbg;
-      A += dq_dbg.transpose() * dq_dbg;
-
-      Eigen::Quaterniond tmp =
-          (imu_frames[i].OrientationQuat() * dq).conjugate() * imu_frames[j].OrientationQuat();
-      Eigen::Matrix3d tmp_R = tmp.normalized().toRotationMatrix();
-
-      b += dq_dbg.transpose() * beam::RToLieAlgebra(tmp_R);
-    }
-    Eigen::JacobiSVD<Eigen::Matrix3d> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    bg = svd.solve(b);
-  }
-
-  /****************************************
-   * Estimate gravity, scale and velocity *
-   ****************************************/
-  std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
-  {
-    Eigen::MatrixXd A;
-    Eigen::VectorXd b;
-    A.resize((N - 1) * 6, 3 + 1 + 3 * N);
-    b.resize((N - 1) * 6);
-    A.setZero();
-    b.setZero();
-
-    for (size_t j = 1; j < N; ++j) {
-      const size_t i = j - 1;
-
-      const bs_common::Delta& delta_ij = imu_frames[j].GetPreintegrator()->delta;
-
-      A.block<3, 3>(i * 6, 0) =
-          -0.5 * delta_ij.t.toSec() * delta_ij.t.toSec() * Eigen::Matrix3d::Identity();
-      A.block<3, 1>(i * 6, 3) = imu_frames[j].PositionVec() - imu_frames[i].PositionVec();
-      A.block<3, 3>(i * 6, 4 + i * 3) = -delta_ij.t.toSec() * Eigen::Matrix3d::Identity();
-      b.segment<3>(i * 6) = imu_frames[i].OrientationQuat() * delta_ij.p;
-
-      A.block<3, 3>(i * 6 + 3, 0) = -delta_ij.t.toSec() * Eigen::Matrix3d::Identity();
-      A.block<3, 3>(i * 6 + 3, 4 + i * 3) = -Eigen::Matrix3d::Identity();
-      A.block<3, 3>(i * 6 + 3, 4 + j * 3) = Eigen::Matrix3d::Identity();
-      b.segment<3>(i * 6 + 3) = imu_frames[i].OrientationQuat() * delta_ij.v;
-    }
-
-    Eigen::VectorXd x = A.fullPivHouseholderQr().solve(b);
-    gravity = x.segment<3>(0).normalized() * GRAVITY_NOMINAL;
-    scale = x(3);
-    for (size_t i = 0; i < N; ++i) { velocities_vec[i].second = x.segment<3>(4 + i * 3); }
-  }
-
-  /**********************************
-   *    Refine scale and velocity   *
-   **********************************/
-  std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
-  {
-    static const double damp = 0.1;
-    Eigen::MatrixXd A;
-    Eigen::VectorXd b;
-    Eigen::VectorXd x;
-    A.resize((N - 1) * 6, 2 + 1 + 3 * N);
-    b.resize((N - 1) * 6);
-    x.resize(2 + 1 + 3 * N);
-    A.setZero();
-    b.setZero();
-    Eigen::Matrix<double, 3, 2> Tg = beam::S2TangentialBasis(gravity);
-
-    for (size_t j = 1; j < N; ++j) {
-      const size_t i = j - 1;
-
-      const bs_common::Delta& delta = imu_frames[j].GetPreintegrator()->delta;
-
-      A.block<3, 2>(i * 6, 0) = -0.5 * delta.t.toSec() * delta.t.toSec() * Tg;
-      A.block<3, 1>(i * 6, 2) = imu_frames[j].PositionVec() - imu_frames[i].PositionVec();
-      A.block<3, 3>(i * 6, 3 + i * 3) = -delta.t.toSec() * Eigen::Matrix3d::Identity();
-      b.segment<3>(i * 6) = 0.5 * delta.t.toSec() * delta.t.toSec() * gravity +
-                            imu_frames[i].OrientationQuat() * delta.p;
-
-      A.block<3, 2>(i * 6 + 3, 0) = -delta.t.toSec() * Tg;
-      A.block<3, 3>(i * 6 + 3, 3 + i * 3) = -Eigen::Matrix3d::Identity();
-      A.block<3, 3>(i * 6 + 3, 3 + j * 3) = Eigen::Matrix3d::Identity();
-      b.segment<3>(i * 6 + 3) =
-          delta.t.toSec() * gravity + imu_frames[i].OrientationQuat() * delta.v;
-
-      x = A.fullPivHouseholderQr().solve(b);
-      Eigen::Vector2d dg = x.segment<2>(0);
-      gravity = (gravity + damp * Tg * dg).normalized() * GRAVITY_NOMINAL;
-    }
-    scale = x(2);
-    for (size_t i = 0; i < N; ++i) { velocities_vec[i].second = x.segment<3>(3 + i * 3); }
-  }
-
-  /**********************************
-   *          Solve for ba          *
-   **********************************/
-  {
-    Eigen::Matrix4d A = Eigen::Matrix4d::Zero();
-    Eigen::Vector4d b = Eigen::Vector4d::Zero();
-
-    for (size_t j = 1; j + 1 < N; ++j) {
-      const size_t i = j - 1;
-      const size_t k = j + 1;
-
-      const bs_common::Delta& delta_ij = imu_frames[j].GetPreintegrator()->delta;
-      const bs_common::Delta& delta_jk = imu_frames[k].GetPreintegrator()->delta;
-      const bs_common::Jacobian& jacobian_ij = imu_frames[j].GetPreintegrator()->jacobian;
-      const bs_common::Jacobian& jacobian_jk = imu_frames[k].GetPreintegrator()->jacobian;
-
-      Eigen::Matrix<double, 3, 4> C;
-      C.block<3, 1>(0, 0) =
-          delta_ij.t.toSec() * (imu_frames[k].PositionVec() - imu_frames[j].PositionVec()) -
-          delta_jk.t.toSec() * (imu_frames[j].PositionVec() - imu_frames[i].PositionVec());
-      C.block<3, 3>(0, 1) =
-          -(imu_frames[j].OrientationQuat() * jacobian_jk.dp_dba * delta_ij.t.toSec() +
-            imu_frames[i].OrientationQuat() * jacobian_ij.dv_dba * delta_ij.t.toSec() *
-                delta_jk.t.toSec() -
-            imu_frames[i].OrientationQuat() * jacobian_ij.dp_dba * delta_jk.t.toSec());
-      Eigen::Vector3d d =
-          0.5 * delta_ij.t.toSec() * delta_jk.t.toSec() *
-              (delta_ij.t.toSec() + delta_jk.t.toSec()) * gravity +
-          delta_ij.t.toSec() * (imu_frames[j].OrientationQuat() * delta_jk.p) +
-          delta_ij.t.toSec() * delta_jk.t.toSec() * (imu_frames[i].OrientationQuat() * delta_ij.v) -
-          delta_jk.t.toSec() * (imu_frames[i].OrientationQuat() * delta_ij.p);
-      A += C.transpose() * C;
-      b += C.transpose() * d;
-    }
-
-    Eigen::JacobiSVD<Eigen::Matrix4d> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    Eigen::Vector4d x = svd.solve(b);
-    ba = x.segment<3>(1);
-  }
-
-  // convert velocities to map
-  std::for_each(velocities_vec.begin(), velocities_vec.end(),
-                [&](const auto& pair) { velocities[pair.first] = pair.second; });
-
-  // clang-format off
-  ROS_INFO_STREAM(
-       __func__ << ":"
-       "\n Scale: " << scale <<  
-       "\n Gravity: [" << gravity.x() << ", " << gravity.y() << ", " << gravity.z() << "]" 
-       "\n Gyro Bias: [" << bg.x() << ", " << bg.y() << ", " << bg.z() << "]" 
-       "\n Accel Bias: [" << ba.x() << ", " << ba.y() << ", " << ba.z() << "]" );
-  // clang-format on
 }
 
 } // namespace bs_models
