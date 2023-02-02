@@ -133,9 +133,9 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE("SLAMInitialization received IMU measurements: " << msg->header.stamp);
   static ros::Time last_frame_init_stamp = ros::Time(0.0);
 
-  imu_buffer_.push(*msg);
+  imu_buffer_.push_back(*msg);
 
-  if (imu_buffer_.size() > imu_buffer_size_) { imu_buffer_.pop(); }
+  if (imu_buffer_.size() > imu_buffer_size_) { imu_buffer_.pop_front(); }
 
   if (mode_ != InitMode::FRAMEINIT) { return; }
 
@@ -166,9 +166,9 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
 void SLAMInitialization::processLidar(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE("SLAMInitialization received LIDAR measurements: " << msg->header.stamp);
-  lidar_buffer_.push(*msg);
+  lidar_buffer_.push_back(*msg);
 
-  if (lidar_buffer_.size() > lidar_buffer_size_) { lidar_buffer_.pop(); }
+  if (lidar_buffer_.size() > lidar_buffer_size_) { lidar_buffer_.pop_front(); }
 
   if (mode_ != InitMode::LIDAR) {
     return;
@@ -192,9 +192,17 @@ bool SLAMInitialization::initialize() {
     return false;
   }
 
-  // prune poses in path that come before any imu messages
-  while ((*init_path_.begin()).first < imu_buffer_.front().header.stamp.toNSec()) {
-    init_path_.erase((*init_path_.begin()).first);
+  // prune poses in path that don't have at least two messages before it
+  auto second_imu_msg = std::next(imu_buffer_.begin());
+  while (init_path_.begin()->first < second_imu_msg->header.stamp.toNSec()) {
+    init_path_.erase(init_path_.begin()->first);
+  }
+
+  // remove any visual measurements that are outside of the init path
+  auto visual_measurements = landmark_container_->GetMeasurementTimes();
+  for (const auto& time : visual_measurements) {
+    const auto stamp = beam::NSecToRos(time);
+    if (time < init_path_.begin()->first) { landmark_container_->RemoveMeasurementsAtTime(stamp); }
   }
 
   // Estimate imu biases and gravity using the initial path
@@ -213,6 +221,8 @@ bool SLAMInitialization::initialize() {
   AddPosesAndInertialConstraints();
 
   AddVisualConstraints();
+
+  // TODO: AddLidarConstraints();
 
   if (params_.max_optimization_s > 0.0) {
     ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
@@ -249,13 +259,16 @@ void SLAMInitialization::AlignPathAndVelocities(bool apply_scale) {
 }
 
 void SLAMInitialization::AddPosesAndInertialConstraints() {
+  // TODO: if mode != LIDAR but we have lidar frames, interpolate as well
+
   // if there are existing image measurements, but the init mode isnt visual, then we need to
   // estimate poses and velocities for img times
+  auto visual_measurements = landmark_container_->GetMeasurementTimes();
   if (mode_ != InitMode::VISUAL && landmark_container_->NumImages() > 0) {
-    for (const auto& stamp : landmark_container_->GetMeasurementTimes()) {
+    for (const auto& stamp : visual_measurements) {
       auto lb = init_path_.lower_bound(stamp);
       auto ub = init_path_.upper_bound(stamp);
-      if (lb == init_path_.end() || ub == init_path_.end()) { continue; }
+      if (lb == init_path_.end() || ub == init_path_.end() || lb->first == stamp) { continue; }
       lb = std::prev(lb);
 
       // interpolate pose at image time
@@ -269,8 +282,8 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
           beam::NSecToRos(ub->first).toSec(), beam::NSecToRos(stamp).toSec());
     }
   }
-  // TODO: if mode != LIDAR but we have lidar frames, interpolate as well
 
+  // add imu constraints between all poses in the path
   bool start_set = false;
   auto process_frame = [&](const auto& pair) {
     auto [stamp, T_WORLD_BASELINK] = pair;
@@ -278,8 +291,11 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     const auto timestamp = beam::NSecToRos(stamp);
     while (imu_buffer_.front().header.stamp <= timestamp && !imu_buffer_.empty()) {
       imu_preint_->AddToBuffer(imu_buffer_.front());
-      imu_buffer_.pop();
+      imu_buffer_.pop_front();
     }
+
+    imu_preint_->PrintBuffer();
+    std::cout << "\n\n Pose time: " << timestamp << "\n\n" << std::endl;
 
     // add pose to graph
     auto pose_transaction = fuse_core::Transaction::make_shared();
@@ -310,14 +326,14 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
   };
 
   // process each frame in the path
-  for (const auto& pair : init_path_) { process_frame(pair); }
+  std::for_each(init_path_.begin(), init_path_.end(), process_frame);
 
   // update visual map with updated graph
   visual_map_->UpdateGraph(local_graph_);
 }
 
 void SLAMInitialization::AddVisualConstraints() {
-  const auto start = beam::NSecToRos((*init_path_.begin()).first);
+  const auto start = beam::NSecToRos(init_path_.begin()->first);
   const auto end = beam::NSecToRos((*init_path_.rbegin()).first);
 
   size_t num_landmarks = 0;
@@ -423,4 +439,5 @@ void SLAMInitialization::OutputResults() {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 }
+
 } // namespace bs_models

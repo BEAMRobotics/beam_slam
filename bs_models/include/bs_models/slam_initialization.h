@@ -145,8 +145,8 @@ private:
   double scale_;
 
   // data storage
-  std::queue<sensor_msgs::Imu> imu_buffer_;
-  std::queue<sensor_msgs::PointCloud2> lidar_buffer_;
+  std::deque<sensor_msgs::Imu> imu_buffer_;
+  std::deque<sensor_msgs::PointCloud2> lidar_buffer_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
 
   // measurement buffer sizes

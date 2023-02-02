@@ -143,6 +143,13 @@ public:
    */
   void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
+  void PrintBuffer(){
+    for(const auto& d: pre_integrator_ij_.data){
+      std::cout << "IMU time: " << d.t << std::endl;
+    }
+    return;
+  }
+
 private:
   /**
    * @brief Checks parameters

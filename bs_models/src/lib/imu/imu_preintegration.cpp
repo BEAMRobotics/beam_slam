@@ -179,7 +179,6 @@ bs_common::ImuState ImuPreintegration::PredictState(const bs_common::PreIntegrat
 
   // predict new states
   Eigen::Quaterniond q_new(q_curr * pre_integrator.delta.q.matrix());
-  // TODO: do we subtract gravity now? (it is 0, 0, 9.8)
   Eigen::Vector3d v_new =
       imu_state_curr.VelocityVec() + GRAVITY_WORLD * dt + q_curr * pre_integrator.delta.v;
   Eigen::Vector3d p_new = imu_state_curr.PositionVec() + imu_state_curr.VelocityVec() * dt +

@@ -15,7 +15,7 @@ namespace bs_models { namespace imu {
  * @param scale [out] scale estimate wrt the imu messages
  */
 void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
-                        const std::queue<sensor_msgs::Imu>& imu_buffer,
+                        const std::deque<sensor_msgs::Imu>& imu_buffer,
                         const bs_models::ImuPreintegration::Params& params,
                         Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
                         std::map<uint64_t, Eigen::Vector3d>& velocities, double& scale);
