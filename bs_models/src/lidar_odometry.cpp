@@ -36,11 +36,7 @@ void LidarOdometry::onInit() {
     frame_initializer_ =
         bs_models::frame_initializers::FrameInitializerBase::Create(
             params_.frame_initializer_config);
-  } else {
-    const std::string error = "Lidar odometry requires frame initializer.";
-    ROS_FATAL_STREAM(error);
-    throw std::runtime_error(error);
-  }
+  } 
 
   // init scan registration
   SetupRegistration();
@@ -148,9 +144,11 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   ROS_DEBUG("Received incoming scan");
 
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
-  if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,
-                                            msg->header.stamp,
-                                            extrinsics_.GetBaselinkFrameId())) {
+  if (frame_initializer_ == nullptr) {
+    T_WORLD_BASELINKCURRENT = T_WORLD_BASELINKLAST_;
+  } else if (!frame_initializer_->GetEstimatedPose(
+                 T_WORLD_BASELINKCURRENT, msg->header.stamp,
+                 extrinsics_.GetBaselinkFrameId())) {
     ROS_DEBUG("Skipping scan");
     return nullptr;
   }
@@ -190,7 +188,8 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
 
   fuse_core::Transaction::SharedPtr gm_transaction;
   if (params_.register_to_gm) {
-    gm_transaction = RegisterScanToGlobalMap(*current_scan_pose);
+    gm_transaction =
+        RegisterScanToGlobalMap(*current_scan_pose, T_WORLD_BASELINKLAST_);
   }
 
   fuse_core::Transaction::SharedPtr lm_transaction;
@@ -198,6 +197,10 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     lm_transaction =
         local_scan_registration_->RegisterNewScan(*current_scan_pose)
             .GetTransaction();
+    Eigen::Matrix4d T_WORLD_LIDAR;
+    local_scan_registration_->GetMap().GetScanPose(current_scan_pose->Stamp(),
+                                             T_WORLD_LIDAR);
+    T_WORLD_BASELINKLAST_ = T_WORLD_LIDAR * T_BASELINK_LIDAR;
   }
 
   // add priors from initializer
@@ -337,7 +340,8 @@ void LidarOdometry::SetupRegistration() {
 }
 
 fuse_core::Transaction::SharedPtr
-    LidarOdometry::RegisterScanToGlobalMap(const ScanPose& scan_pose) {
+    LidarOdometry::RegisterScanToGlobalMap(const ScanPose& scan_pose,
+                                           Eigen::Matrix4d& T_MAP_BASELINK) {
   Eigen::Matrix4d T_MAPEST_SCAN = scan_pose.T_REFFRAME_LIDAR();
   Eigen::Matrix4d T_MAPEST_MAP;
 
@@ -388,7 +392,7 @@ fuse_core::Transaction::SharedPtr
   }
 
   // get absolute pose
-  Eigen::Matrix4d T_MAP_BASELINK =
+  T_MAP_BASELINK =
       beam::InvertTransform(T_MAPEST_MAP) * T_MAPEST_SCAN * T_LIDAR_BASELINK;
   Eigen::Matrix3d R = T_MAP_BASELINK.block(0, 0, 3, 3);
   Eigen::Quaterniond q(R);

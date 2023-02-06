@@ -48,7 +48,8 @@ private:
   void SetupRegistration();
 
   fuse_core::Transaction::SharedPtr
-      RegisterScanToGlobalMap(const ScanPose& scan_pose);
+      RegisterScanToGlobalMap(const ScanPose& scan_pose,
+                              Eigen::Matrix4d& T_WORLD_BASELINK);
 
   void SendRelocRequest(const std::shared_ptr<ScanPose>& scan_pose);
 
@@ -97,7 +98,8 @@ private:
   fuse_core::UUID device_id_; //!< The UUID of this device
 
   /** Used to get initial pose estimates */
-  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
+  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_{
+      nullptr};
 
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
@@ -109,6 +111,7 @@ private:
   int updates_{0};
   ros::Duration reloc_request_period_;
   ros::Time last_reloc_request_time_{ros::Time(0)};
+  Eigen::Matrix4d T_WORLD_BASELINKLAST_{Eigen::Matrix4d::Identity()};
 
   /** Params that can only be updated here: */
   bool output_graph_updates_{false};

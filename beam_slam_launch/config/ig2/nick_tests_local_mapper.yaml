@@ -1,0 +1,150 @@
+###################################
+#    sensor model declarations    #
+###################################
+sensor_models:
+  # - name: 'lidar_odometry'
+  #   type: 'bs_models::LidarOdometry'
+  #   motion_models: ['unicycle_3d']
+  - name: 'visual_inertial_odometry'
+    type: 'bs_models::VisualInertialOdometry'
+    motion_models: ['unicycle_3d']
+    ignition: true
+  - name: 'gt_initializer'
+    type: 'bs_models::GTInitializer'
+  
+###################################
+#    motion model declarations    #
+###################################
+motion_models:
+  - name: 'unicycle_3d'
+    type: 'bs_models::Unicycle3D'
+
+################################
+#    publisher declarations    #
+################################
+#   - name: 'odom_pub'
+#     type: 'bs_publishers::Odometry3DPublisher'
+#   - name: 'path_pub'
+#     type: 'bs_publishers::Path3DPublisher'
+
+##############################
+#    optimizer parameters    #
+##############################
+optimization_period: 2
+lag_duration: 10
+
+###########################
+#    solver parameters    #
+###########################
+solver_options:
+  minimizer_type: 'TRUST_REGION'
+  linear_solver_type: 'SPARSE_SCHUR'
+  minimizer_progress_to_stdout: true
+  num_threads: 6
+  num_linear_solver_threads: 6
+  max_num_iterations: 8
+  max_solver_time_in_seconds: 0.5
+  gradient_tolerance: 0.00000015
+  parameter_tolerance: 0.00000015
+  function_tolerance: 0.00000015
+
+##################################
+#     motion model parameters    #
+##################################
+unicycle_3d:
+  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2,
+                           1.0e-2, 1.0e-2, 1.0e-2]
+  buffer_length: 100000
+
+####################################
+#     lidar odometry parameters    #
+####################################
+lidar_odometry:
+  # local scan registration
+  local_registration_type: 'MAPLOAM' 
+  local_registration_config_path: 'DEFAULT_PATH' 
+  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+  # global scan registration
+  global_registration_type: 'LOAM' 
+  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matcher_config/loam_vlp16.json' 
+  global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1] 
+  # general params
+  lidar_type: 'VELODYNE'
+  input_filters_config_path: 'DEFAULT_PATH' 
+  input_topic: '/lidar_h/velodyne_points'
+  output_loam_points: true 
+  output_lidar_points: true
+  publish_active_submap: true
+  publish_local_map: true
+  publish_registration_results: true
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/lvi_slam.json'
+  frame_initializer_prior_noise_diagonal: [1.0e-5, 1.0e-5, 1.0e-5, 1.0e-5, 1.0e-5, 1.0e-5] 
+  reloc_request_period: 2.0
+  scan_output_directory: ''
+
+#####################################
+#     visual odometry parameters    #
+#####################################
+visual_inertial_odometry:
+  # topics to subscribe to
+  image_topic: '/F1/image_raw'
+  imu_topic: '/imu/data'
+  init_path_topic: '/local_mapper/gt_initializer/result'
+  # optional frame initializer params
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/lvi_slam.json'
+  frame_initializer_prior_noise_diagonal: [1.0e-5, 1.0e-5, 1.0e-5, 1.0e-5, 1.0e-5, 1.0e-5] 
+  # frequency to request a reloc
+  reloc_request_period: 2.0
+  # feature tracking configs
+  descriptor: 'ORB'
+  detector: 'FASTSSC'
+  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/orb_descriptor.json'
+  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/fastssc_detector.json'
+  tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vio_config/tracker.json'
+  save_keyframes_folder: '/userhome/results/beam_slam/vo_keyframes/'
+  # keyframe decision params and memory management params
+  tracker_window_size: 300 
+  num_features_to_track: 100 
+  keyframe_window_size: 30
+  keyframe_parallax: 0.0
+  keyframe_translation_m: 1.0
+  keyframe_rotation_deg: 20.0
+  # initialization params
+  init_max_optimization_time_in_seconds: 1.0
+  init_map_output_directory: '' 
+  init_use_scale_estimate: false
+
+###################################
+#   SLAM initializer parameters   #
+###################################
+gt_initializer:
+  imu_topic: "/imu/data"
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/lvi_slam.json'
+  trajectory_time_window: 5.0
+  min_trajectory_length: 1.0 # trajectory length to accept (in metres)
+
+############################
+#   publisher parameters   #
+############################
+path_pub:
+  frame_id: 'world' # Stored in pose header. Default: odom
+  path_topic: 'path' # Default: path
+  pose_array_topic: 'pose_array' # Default: pose_array
+
+odom_pub:
+  publish_tf: false # Default: true
+  predict_to_current_time: false # Default: false
+  tf_publish_frequency: 10 # Default: 10
+  tf_cache_time: 10 # Default: 10
+  tf_timeout: 0.1 # Default: 0.1
+  queue_size: 1 # Publisher queue size. Default: 1
+  map_frame_id: 'map' # Default: map
+  odom_frame_id: 'world' # Default: odom
+  base_link_frame_id: 'imu' # Default: base_link
+  base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
+  world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
+  topic: '/local_mapper/optimized_odometry' # Output odometry topic
