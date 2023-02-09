@@ -27,9 +27,6 @@ public:
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
     getParam<std::string>(nh, "lidar_topic", lidar_topic, "");
 
-    // where tou save the initialization result
-    getParam<std::string>(nh, "output_directory", output_directory, "");
-
     // config for an optional frame initializer
     getParam<std::string>(nh, "frame_initializer_config", frame_initializer_config,
                           frame_initializer_config);
@@ -37,10 +34,10 @@ public:
     // path to optional output folder
     getParam<std::string>(nh, "output_folder", output_folder, output_folder);
 
-    // mode for initializing, options: VISUAL, LIDAR, FRAMEINIT
+    // mode for initializing, options: VISUAL, LIDAR
     getParam<std::string>(nh, "init_mode", init_mode, init_mode);
-    if (init_mode != "VISUAL" && init_mode != "LIDAR" && init_mode != "FRAMEINIT") {
-      ROS_ERROR("Invalid init mode type, options: 'VISUAL', 'LIDAR', 'FRAMEINIT'.");
+    if (init_mode != "VISUAL" && init_mode != "LIDAR") {
+      ROS_ERROR("Invalid init mode type, options: 'VISUAL', 'LIDAR'.");
     }
     // maximum optimizaiton time in seconds
     getParam<double>(nh, "max_optimization_s", max_optimization_s, 1.0);
@@ -48,7 +45,7 @@ public:
     // minimum parallax to intialize (if using VISUAL)
     getParam<double>(nh, "min_parallax", min_parallax, 20.0);
 
-    // minimum acceptable trajectory length to intialize (if using FRAMEINIT or LIDAR)
+    // minimum acceptable trajectory length to intialize (if using frame init is given or using LIDAR)
     getParam<double>(nh, "min_trajectory_length_m", min_trajectory_length_m, 2.0);
 
     // size of init window in seconds
@@ -67,7 +64,6 @@ public:
   std::string init_mode{"FRAMEINIT"};
   std::string output_folder{""};
 
-  std::string output_directory{};
   double max_optimization_s{1.0};
   double min_parallax{20.0};
   double min_trajectory_length_m{2.0};

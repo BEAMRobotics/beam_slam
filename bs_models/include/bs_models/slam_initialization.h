@@ -26,7 +26,7 @@ namespace bs_models {
 using namespace bs_common;
 using namespace vision;
 
-enum class InitMode { VISUAL = 0, LIDAR, FRAMEINIT };
+enum class InitMode { VISUAL = 0, LIDAR };
 
 class SLAMInitialization : public fuse_core::AsyncSensorModel {
 public:
@@ -64,6 +64,12 @@ private:
   void processLidar(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
   /**
+   * @brief Process using a frame initializer if desired
+   * @param[in] timestamp time of the current request
+   */
+  void processFrameInit(const ros::Time& timestamp);
+
+  /**
    * @brief Perform any required initialization for the sensor model
    *
    * This could include things like reading from the parameter server or
@@ -91,7 +97,7 @@ private:
    * bootstrap odometry.
    * @return pass or fail
    */
-  bool initialize();
+  bool Initialize();
 
   /**
    * @brief Scales and aligns the init path and velocities using gravity and scale estimates
@@ -148,6 +154,7 @@ private:
   std::deque<sensor_msgs::Imu> imu_buffer_;
   std::deque<sensor_msgs::PointCloud2> lidar_buffer_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
+  std::deque<ros::Time> frame_init_buffer_;
 
   // measurement buffer sizes
   int max_landmark_container_size_;

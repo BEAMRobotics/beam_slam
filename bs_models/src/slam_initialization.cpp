@@ -88,6 +88,34 @@ void SLAMInitialization::onStart() {
       &throttled_lidar_callback_, ros::TransportHints().tcpNoDelay(false));
 }
 
+void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
+  assert(frame_initializer_ && "No frame initializer, cannot initialize. Exiting.");
+
+  frame_init_buffer_.push_back(timestamp);
+
+  auto front_timestamp = frame_init_buffer_.front();
+
+  Eigen::Matrix4d T_WORLD_BASELINK;
+  if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINK, front_timestamp,
+                                            extrinsics_.GetBaselinkFrameId())) {
+    ROS_WARN("Error getting pose from frame initializer.");
+    return;
+  }
+  init_path_[front_timestamp.toNSec()] = T_WORLD_BASELINK;
+  frame_init_buffer_.pop_front();
+
+  // check if path is long enough
+  const auto [first_time, first_pose] = *init_path_.begin();
+  const auto [current_time, current_pose] = *init_path_.rbegin();
+  if (!beam::PassedMotionThreshold(first_pose, current_pose, 0.0, params_.min_trajectory_length_m,
+                                   true, true, false)) {
+    return;
+  }
+
+  // if we initialize successfully, stop this sensor model
+  if (Initialize()) { stop(); }
+}
+
 void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE("SLAMInitialization received VISUAL measurements: " << msg->header.stamp);
   // put measurements into landmark container
@@ -106,6 +134,12 @@ void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPt
     landmark_container_->PopFront();
   }
 
+  // attempt initialization via frame initializer if its available
+  if (frame_initializer_) {
+    processFrameInit(msg->header.stamp);
+    return;
+  }
+
   if (mode_ != InitMode::VISUAL) { return; }
 
   if (landmark_container_->NumImages() < 10) { return; }
@@ -121,47 +155,12 @@ void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPt
     return;
   }
 
-  // compute visual path
+  // compute visual path if no frame initializer is present
   init_path_ =
       bs_models::vision::ComputePathWithVision(cam_model_, landmark_container_, T_cam_baselink_);
 
   // if we initialize successfully, stop this sensor model
-  if (initialize()) { stop(); }
-}
-
-void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
-  ROS_INFO_STREAM_ONCE("SLAMInitialization received IMU measurements: " << msg->header.stamp);
-  static ros::Time last_frame_init_stamp = ros::Time(0.0);
-
-  imu_buffer_.push_back(*msg);
-
-  if (imu_buffer_.size() > imu_buffer_size_) { imu_buffer_.pop_front(); }
-
-  if (mode_ != InitMode::FRAMEINIT) { return; }
-
-  if (!frame_initializer_) {
-    ROS_ERROR("No frame initializer, cannot initialize. Exiting.");
-    throw std::invalid_argument{"No frame initializer, cannot initialize."};
-  }
-
-  if ((msg->header.stamp - last_frame_init_stamp).toSec() < params_.frame_init_frequency) {
-    return;
-  }
-  last_frame_init_stamp = msg->header.stamp;
-
-  Eigen::Matrix4d T_WORLD_BASELINK;
-  if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINK, msg->header.stamp,
-                                            extrinsics_.GetBaselinkFrameId())) {
-    ROS_WARN("Error getting pose from frame initializer.");
-  }
-  init_path_[msg->header.stamp.toNSec()] = T_WORLD_BASELINK;
-
-  const auto [first_time, first_pose] = *init_path_.begin();
-  const auto [current_time, current_pose] = *init_path_.rbegin();
-  if (beam::PassedMotionThreshold(first_pose, current_pose, 0.0, params_.min_trajectory_length_m,
-                                  true, true, false)) {
-    if (initialize()) { stop(); }
-  }
+  if (Initialize()) { stop(); }
 }
 
 void SLAMInitialization::processLidar(const sensor_msgs::PointCloud2::ConstPtr& msg) {
@@ -176,29 +175,43 @@ void SLAMInitialization::processLidar(const sensor_msgs::PointCloud2::ConstPtr& 
     ROS_ERROR("LIDAR initialization not yet implemented, exiting.");
     throw std::invalid_argument{"LIDAR initialization not yet implemented."};
   }
-  // TODO: compute path/add to it
+
+  // attempt initialization via frame initializer if its available
+  if (frame_initializer_) {
+    processFrameInit(msg->header.stamp);
+    return;
+  }
+
+  // TODO: compute path/add to it via lidar
 
   const auto [first_time, first_pose] = *init_path_.begin();
   const auto [current_time, current_pose] = *init_path_.rbegin();
-  if (beam::PassedMotionThreshold(first_pose, current_pose, 0.0, params_.min_trajectory_length_m,
-                                  true, true, false)) {
-    if (initialize()) { stop(); }
+  if (!beam::PassedMotionThreshold(first_pose, current_pose, 0.0, params_.min_trajectory_length_m,
+                                   true, true, false)) {
+    return;
   }
+  if (Initialize()) { stop(); }
 }
 
-bool SLAMInitialization::initialize() {
+void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
+  ROS_INFO_STREAM_ONCE("SLAMInitialization received IMU measurements: " << msg->header.stamp);
+  imu_buffer_.push_back(*msg);
+  if (imu_buffer_.size() > imu_buffer_size_) { imu_buffer_.pop_front(); }
+}
+
+bool SLAMInitialization::Initialize() {
   if (init_path_.size() < 3) {
     ROS_WARN_STREAM("Initial path estimate too small.");
     return false;
   }
 
-  // prune poses in path that don't have at least two messages before it
+  // prune poses in path that don't have at least two imu messages before it
   auto second_imu_msg = std::next(imu_buffer_.begin());
   while (init_path_.begin()->first < second_imu_msg->header.stamp.toNSec()) {
     init_path_.erase(init_path_.begin()->first);
   }
 
-  // remove any visual measurements that are outside of the init path
+  // remove any visual measurements that are outside of the init path (todo: Same for lidar)
   auto visual_measurements = landmark_container_->GetMeasurementTimes();
   for (const auto& time : visual_measurements) {
     const auto stamp = beam::NSecToRos(time);
@@ -216,7 +229,7 @@ bool SLAMInitialization::initialize() {
 
   imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 
-  AlignPathAndVelocities(mode_ == InitMode::VISUAL);
+  AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
 
   AddPosesAndInertialConstraints();
 
@@ -259,10 +272,7 @@ void SLAMInitialization::AlignPathAndVelocities(bool apply_scale) {
 }
 
 void SLAMInitialization::AddPosesAndInertialConstraints() {
-  // TODO: if mode != LIDAR but we have lidar frames, interpolate as well
-
-  // if there are existing image measurements, but the init mode isnt visual, then we need to
-  // estimate poses and velocities for img times
+  // interpolate for exisitng measurements if they aren't in the path (TODO: for lidar as well)
   auto visual_measurements = landmark_container_->GetMeasurementTimes();
   if (mode_ != InitMode::VISUAL && landmark_container_->NumImages() > 0) {
     for (const auto& stamp : visual_measurements) {

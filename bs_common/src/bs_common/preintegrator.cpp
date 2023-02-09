@@ -85,7 +85,7 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data, const Eigen
 
 bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
                               bool compute_jacobian, bool compute_covariance) {
-  if (data.size() < 2) return false;
+  if (data.size() < 1) return false;
   Reset();
 
   // increment over window such that it is less or equal to the requested time
