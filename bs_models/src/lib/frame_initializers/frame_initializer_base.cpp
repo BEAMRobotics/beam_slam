@@ -21,11 +21,9 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
 
   std::string type;
   std::string info;
-  std::string path_topic;
   std::string sensor_frame_id_override;
   std::vector<double> tf_override;
   int queue_size;
-  int path_window_size;
   int64_t poses_buffer_time;
 
   try {
@@ -75,21 +73,6 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
         "Missing or misspelt parameter: 'poses_buffer_time'"};
   }
 
-  if (J.contains("path_topic")) {
-    path_topic = J["path_topic"];
-  } else {
-    ROS_WARN("Missing or misspelt parameter: 'path_topic'. Path will not be "
-             "used in frame initializer.");
-  }
-
-  if (J.contains("path_topic") && !J.contains("path_window_size")) {
-    ROS_WARN("Missing or misspelt parameter: 'path_window_size'. Using "
-             "default: 100.");
-    path_window_size = 100;
-  } else if(J.contains("path_window_size")) {
-    path_window_size = J["path_window_size"];
-  }
-
   if (type == "POSEFILE") {
     frame_initializer =
         std::make_unique<frame_initializers::PoseFileFrameInitializer>(info);
@@ -119,35 +102,36 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
       ROS_ERROR("Invalid frame initializer type.");
       throw std::runtime_error{"Invalid frame initializer type."};
     }
-  }
 
-  if (!path_topic.empty()) {
-    frame_initializer->SetPathCallback(path_topic, path_window_size);
-  }
-
-  return std::move(frame_initializer);
-}
-
-void FrameInitializerBase::SetPathCallback(const std::string& path_topic,
-                                           const int path_window_size) {
-  path_poses_.clear();
-  path_window_size_ = path_window_size;
-  ros::NodeHandle n;
-  path_subscriber_ = n.subscribe<nav_msgs::Path>(
-      path_topic, 10,
-      boost::bind(&FrameInitializerBase::PathCallback, this, _1));
-}
-
-void FrameInitializerBase::PathCallback(const nav_msgs::PathConstPtr message) {
-  path_recieved_ = ros::Time::now();
-  for (const auto& pose : message->poses) {
-    const auto stamp = pose.header.stamp;
-    Eigen::Matrix4d T_WORLD_BASELINK;
-    bs_common::PoseMsgToTransformationMatrix(pose, T_WORLD_BASELINK);
-    path_poses_[stamp.toNSec()] = T_WORLD_BASELINK;
-  }
-  if (path_poses_.size() > path_window_size_) {
-    path_poses_.erase(path_poses_.begin());
+    return std::move(frame_initializer);
   }
 }
+
+bool FrameInitializerBase::GetEstimatedPose(Eigen::Matrix4d& T_WORLD_SENSOR,
+                                            const ros::Time& time,
+                                            const std::string& sensor_frame_id,
+                                            std::string& error_msg) {
+  return pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id, time,
+                                         error_msg);
+}
+
+bool FrameInitializerBase::GetRelativePose(Eigen::Matrix4d& T_A_B,
+                                           const ros::Time& tA,
+                                           const ros::Time& tB,
+                                           std::string& error_msg) {
+  // get pose at time a
+  Eigen::Matrix4d T_WORLD_BASELINKA;
+  const auto A_success =
+      pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKA, tA, error_msg);
+  // get pose at time b
+  Eigen::Matrix4d T_WORLD_BASELINKB;
+  const auto B_success =
+      pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKB, tB, error_msg);
+
+  if (!A_success || !B_success) { return false; }
+
+  T_A_B = T_WORLD_BASELINKA.inverse() * T_WORLD_BASELINKB;
+  return true;
+}
+
 }} // namespace bs_models::frame_initializers
