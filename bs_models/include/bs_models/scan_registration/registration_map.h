@@ -203,11 +203,8 @@ private:
 
   // publisher
   ros::Publisher lidar_map_publisher_;
-  ros::Publisher loam_edges_strong_publisher_;
-  ros::Publisher loam_edges_weak_publisher_;
-  ros::Publisher loam_surfaces_strong_publisher_;
-  ros::Publisher loam_surfaces_weak_publisher_;
-
+  ros::Publisher loam_map_publisher_;
+  
   int map_size_{10};
   bool map_params_set_{false};
   int updates_counter_{0};

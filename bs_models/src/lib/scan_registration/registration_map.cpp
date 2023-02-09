@@ -22,14 +22,8 @@ RegistrationMap::RegistrationMap() {
   // setup publishers
   lidar_map_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
       "/local_mapper/local_map/lidar_map", 10);
-  loam_edges_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/local_mapper/local_map/loam_map/edges_strong", 10);
-  loam_edges_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/local_mapper/local_map/loam_map/edges_weak", 10);
-  loam_surfaces_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/local_mapper/local_map/loam_map/surfaces_strong", 10);
-  loam_surfaces_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/local_mapper/local_map/loam_map/surfaces_weak", 10);
+  loam_map_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/local_mapper/local_map/loam_map", 10);
 }
 
 RegistrationMap& RegistrationMap::GetInstance() {
@@ -309,29 +303,11 @@ void RegistrationMap::Publish() {
     lidar_map_publisher_.publish(pc_msg);
   }
 
-  if (!loam_map.edges.strong.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointXYZIRT>(
-        loam_map.edges.strong.cloud, update_time, frame_id_, updates_counter_);
-    loam_edges_strong_publisher_.publish(pc_msg);
-  }
-
-  if (!loam_map.edges.weak.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointXYZIRT>(
-        loam_map.edges.weak.cloud, update_time, frame_id_, updates_counter_);
-    loam_edges_weak_publisher_.publish(pc_msg);
-  }
-
-  if (!loam_map.surfaces.strong.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg =
-        beam::PCLToROS<PointXYZIRT>(loam_map.surfaces.strong.cloud, update_time,
-                                    frame_id_, updates_counter_);
-    loam_surfaces_strong_publisher_.publish(pc_msg);
-  }
-
-  if (!loam_map.surfaces.weak.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointXYZIRT>(
-        loam_map.surfaces.weak.cloud, update_time, frame_id_, updates_counter_);
-    loam_surfaces_weak_publisher_.publish(pc_msg);
+  if (!loam_map.Empty()) {
+    LoamPointCloudCombined loam_combined = loam_map.GetCombinedCloud();
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointLoam>(
+        loam_combined, update_time, frame_id_, updates_counter_);
+    loam_map_publisher_.publish(pc_msg);
   }
 
   updates_counter_++;
