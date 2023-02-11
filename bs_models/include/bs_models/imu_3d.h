@@ -59,7 +59,7 @@ private:
    * @param t_now stamp of requested pose
    * @return true if pose lookup was successful
    */
-  bool GetEstimatedPose(
+  bool GetPose(
       fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
       fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
       const ros::Time& time);

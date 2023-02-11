@@ -42,7 +42,7 @@ void GTInitializer::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
   ros::Time cur_time = imu_buffer_.front().header.stamp;
   Eigen::Matrix4d T_WORLD_SENSOR;
-  bool success = frame_initializer_->GetEstimatedPose(
+  bool success = frame_initializer_->GetPose(
       T_WORLD_SENSOR, cur_time, extrinsics_.GetBaselinkFrameId());
 
   if (success) { imu_buffer_.pop(); }

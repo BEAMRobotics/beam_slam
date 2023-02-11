@@ -148,7 +148,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   ROS_DEBUG("Received incoming scan");
 
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
-  if (!frame_initializer_->GetEstimatedPose(T_WORLD_BASELINKCURRENT,
+  if (!frame_initializer_->GetPose(T_WORLD_BASELINKCURRENT,
                                             msg->header.stamp,
                                             extrinsics_.GetBaselinkFrameId())) {
     ROS_DEBUG("Skipping scan");

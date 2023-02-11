@@ -31,7 +31,7 @@ public:
    * @param sensor_frame sensor frame id.
    * @return true if pose lookup was successful
    */
-  bool GetEstimatedPose(Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
+  bool GetPose(Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
                         const std::string& sensor_frame_id,
                         std::string& error_msg = frame_initializer_error_msg);
 

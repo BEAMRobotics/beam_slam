@@ -107,7 +107,7 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
   }
 }
 
-bool FrameInitializerBase::GetEstimatedPose(Eigen::Matrix4d& T_WORLD_SENSOR,
+bool FrameInitializerBase::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
                                             const ros::Time& time,
                                             const std::string& sensor_frame_id,
                                             std::string& error_msg) {
@@ -123,14 +123,23 @@ bool FrameInitializerBase::GetRelativePose(Eigen::Matrix4d& T_A_B,
   Eigen::Matrix4d T_WORLD_BASELINKA;
   const auto A_success =
       pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKA, tA, error_msg);
+  Eigen::Matrix3d R_WORLD_BASELINKA = T_WORLD_BASELINKA.block<3, 3>(0, 0);
   // get pose at time b
   Eigen::Matrix4d T_WORLD_BASELINKB;
   const auto B_success =
       pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKB, tB, error_msg);
+  Eigen::Matrix3d R_WORLD_BASELINKB = T_WORLD_BASELINKB.block<3, 3>(0, 0);
 
   if (!A_success || !B_success) { return false; }
 
-  T_A_B = T_WORLD_BASELINKA.inverse() * T_WORLD_BASELINKB;
+  Eigen::Matrix3d R_BASELINKA_BASELINKB =
+      R_WORLD_BASELINKA.transpose() * R_WORLD_BASELINKB;
+  Eigen::Vector3d t_BASELINKA_BASELINKB =
+      T_WORLD_BASELINKA.block<3, 1>(0, 3).transpose() -
+      T_WORLD_BASELINKB.block<3, 1>(0, 3).transpose();
+
+  T_A_B.block<3, 3>(0, 0) = R_BASELINKA_BASELINKB;
+  T_A_B.block<3, 1>(0, 3) = t_BASELINKA_BASELINKB.transpose();
   return true;
 }
 
