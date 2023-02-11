@@ -91,7 +91,7 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
       // get pose from frame initializer
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU;
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU;
-      GetEstimatedPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
+      GetPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
 
       // set start of preintegration from estimated pose
       imu_preintegration_->SetStart(t_now, R_WORLD_IMU, t_WORLD_IMU,
@@ -113,7 +113,7 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
       // get pose from frame initializer
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU;
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU;
-      GetEstimatedPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
+      GetPose(R_WORLD_IMU, t_WORLD_IMU, t_now);
 
       // send transaction
       fuse_core::Transaction::SharedPtr new_transaction =
@@ -132,12 +132,12 @@ void Imu3D::process(const sensor_msgs::Imu::ConstPtr& msg) {
   }
 };
 
-bool Imu3D::GetEstimatedPose(
+bool Imu3D::GetPose(
     fuse_variables::Orientation3DStamped::SharedPtr& R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr& t_WORLD_IMU,
     const ros::Time& time) {
   Eigen::Matrix4d T_WORLD_IMU;
-  if (!frame_initializer_->GetEstimatedPose(T_WORLD_IMU, time,
+  if (!frame_initializer_->GetPose(T_WORLD_IMU, time,
                                             extrinsics_.GetImuFrameId())) {
     ROS_WARN(
         "Cannot get transform from imu to world for stamp: %.8f. Skipping key "
