@@ -166,7 +166,7 @@ void VisualInertialOdometry::processImage(
 
       Eigen::Matrix4d T_WORLD_BASELINK;
       if (frame_initializer_) { // get pose if we are using frame initializer
-        if (!frame_initializer_->GetEstimatedPose(
+        if (!frame_initializer_->GetPose(
                 T_WORLD_BASELINK, img_time, extrinsics_.GetBaselinkFrameId())) {
           ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
                           "buffering frame: "

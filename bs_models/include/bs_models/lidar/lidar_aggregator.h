@@ -102,7 +102,7 @@ public:
       // get lidar pose at aggregation time
       Eigen::Matrix4d T_WORLD_LIDARAGG;
       std::string error_msg;
-      if (!frame_initializer_->GetEstimatedPose(
+      if (!frame_initializer_->GetPose(
               T_WORLD_LIDARAGG, current_aggregate_time,
               extrinsics_.GetLidarFrameId(), error_msg)) {
         ROS_DEBUG("Cannot get lidar pose at requested aggregation time, "
@@ -122,7 +122,7 @@ public:
         // get lidar pose at current chunk time
         Eigen::Matrix4d T_WORLD_LIDARCHUNK;
         std::string error_msg;
-        if (!frame_initializer_->GetEstimatedPose(
+        if (!frame_initializer_->GetPose(
                 T_WORLD_LIDARCHUNK, current_chunk->second.time,
                 extrinsics_.GetLidarFrameId(), error_msg)) {
           ROS_DEBUG(

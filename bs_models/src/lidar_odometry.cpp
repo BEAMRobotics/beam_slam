@@ -36,7 +36,7 @@ void LidarOdometry::onInit() {
     frame_initializer_ =
         bs_models::frame_initializers::FrameInitializerBase::Create(
             params_.frame_initializer_config);
-  } 
+  }
 
   // init scan registration
   SetupRegistration();
@@ -146,9 +146,9 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
   if (frame_initializer_ == nullptr) {
     T_WORLD_BASELINKCURRENT = T_WORLD_BASELINKLAST_;
-  } else if (!frame_initializer_->GetEstimatedPose(
-                 T_WORLD_BASELINKCURRENT, msg->header.stamp,
-                 extrinsics_.GetBaselinkFrameId())) {
+  } else if (!frame_initializer_->GetPose(T_WORLD_BASELINKCURRENT,
+                                          msg->header.stamp,
+                                          extrinsics_.GetBaselinkFrameId())) {
     ROS_DEBUG("Skipping scan");
     return nullptr;
   }
@@ -199,7 +199,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
             .GetTransaction();
     Eigen::Matrix4d T_WORLD_LIDAR;
     local_scan_registration_->GetMap().GetScanPose(current_scan_pose->Stamp(),
-                                             T_WORLD_LIDAR);
+                                                   T_WORLD_LIDAR);
     T_WORLD_BASELINKLAST_ = T_WORLD_LIDAR * T_BASELINK_LIDAR;
   }
 

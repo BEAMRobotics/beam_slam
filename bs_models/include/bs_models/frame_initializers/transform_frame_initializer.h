@@ -28,19 +28,6 @@ public:
       const std::string& topic, int queue_size, int64_t poses_buffer_time,
       const std::string& sensor_frame_id_override = "",
       const Eigen::Matrix4d& T_ORIGINAL_OVERRIDE = Eigen::Matrix4d::Identity());
-
-  /**
-   * @brief Gets estimated pose of sensor frame wrt world frame using
-   * Poselookup.
-   * @param T_WORLD_SENSOR reference to result
-   * @param time stamp of the frame being initialized
-   * @param sensor_frame sensor frame id.
-   * @return true if pose lookup was successful
-   */
-  bool GetEstimatedPose(Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
-                        const std::string& sensor_frame_id,
-                        std::string& error_msg = frame_initializer_error_msg);
-
   /**
    * @brief Converts incoming odometry messages to tf poses and stores them in a
    * buffercore
