@@ -39,9 +39,9 @@ void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
   T_WORLD_SENSOR.block(0, 0, 3, 3) = q.toRotationMatrix();
 }
 
-Eigen::Matrix4d FusePoseToEigenTransform(
-    const fuse_variables::Position3DStamped& p,
-    const fuse_variables::Orientation3DStamped& o) {
+Eigen::Matrix4d
+    FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
+                             const fuse_variables::Orientation3DStamped& o) {
   Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
 
   // add position
@@ -153,6 +153,26 @@ void EigenTransformToTransformStampedMsg(
   tf_stamped.transform.rotation.w = q.w();
 }
 
+void EigenTransformToOdometryMsg(const Eigen::Matrix4d& T,
+                                 const ros::Time& stamp, int seq,
+                                 const std::string& parent_frame_id,
+                                 const std::string& child_frame_id,
+                                 nav_msgs::Odometry& odom_msg) {
+  odom_msg.header.seq = seq;
+  odom_msg.header.frame_id = parent_frame_id;
+  odom_msg.header.stamp = stamp;
+  odom_msg.child_frame_id = child_frame_id;
+  odom_msg.pose.pose.position.x = T(0, 3);
+  odom_msg.pose.pose.position.y = T(1, 3);
+  odom_msg.pose.pose.position.z = T(2, 3);
+  Eigen::Matrix3d R = T.block(0, 0, 3, 3);
+  Eigen::Quaterniond q(R);
+  odom_msg.pose.pose.orientation.x = q.x();
+  odom_msg.pose.pose.orientation.y = q.y();
+  odom_msg.pose.pose.orientation.z = q.z();
+  odom_msg.pose.pose.orientation.w = q.w();
+}
+
 void EigenTransformToPoseStamped(const Eigen::Matrix4d& T,
                                  const ros::Time& stamp, int seq,
                                  const std::string& frame_id,
@@ -231,9 +251,9 @@ void InterpolateTransformFromPath(
 std::string GetBeamSlamConfigPath() {
   std::string current_path_from_beam_slam = "bs_common/src/bs_common/utils.cpp";
   std::string config_root_location = __FILE__;
-  config_root_location.erase(
-      config_root_location.end() - current_path_from_beam_slam.length(),
-      config_root_location.end());
+  config_root_location.erase(config_root_location.end() -
+                                 current_path_from_beam_slam.length(),
+                             config_root_location.end());
   config_root_location += "beam_slam_launch/config/";
   if (!boost::filesystem::exists(config_root_location)) {
     BEAM_ERROR("Cannot locate beam slam config folder. Expected to be at: {}",
@@ -244,9 +264,7 @@ std::string GetBeamSlamConfigPath() {
 
 int GetNumberOfConstraints(
     const fuse_core::Transaction::SharedPtr& transaction) {
-  if (transaction == nullptr) {
-    return 0;
-  }
+  if (transaction == nullptr) { return 0; }
 
   int counter = 0;
   auto added_constraints = transaction->addedConstraints();
@@ -258,9 +276,7 @@ int GetNumberOfConstraints(
 }
 
 int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction) {
-  if (transaction == nullptr) {
-    return 0;
-  }
+  if (transaction == nullptr) { return 0; }
 
   int counter = 0;
   auto added_variables = transaction->addedVariables();
@@ -270,4 +286,4 @@ int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction) {
   }
 }
 
-}  // namespace bs_common
+} // namespace bs_common

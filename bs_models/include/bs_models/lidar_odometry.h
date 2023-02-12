@@ -6,6 +6,7 @@
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
 #include <fuse_core/uuid.h>
+#include <tf/transform_broadcaster.h>
 
 #include <beam_filtering/Utils.h>
 #include <beam_matching/Matchers.h>
@@ -60,6 +61,10 @@ private:
       const fuse_core::Transaction::SharedPtr& transaction_gm,
       const ScanPose& scan_pose);
 
+  void PublishTfTransform(const Eigen::Matrix4d& T_CHILD_PARENT,
+                        const std::string& child_frame,
+                        const std::string& parent_frame, const ros::Time& time);
+
   /** subscribe to lidar data */
   ros::Subscriber subscriber_;
 
@@ -69,6 +74,16 @@ private:
   ros::Publisher registration_publisher_init_;
   ros::Publisher registration_publisher_aligned_lm_;
   ros::Publisher registration_publisher_aligned_gm_;
+
+  ros::Publisher odom_publisher_smooth_;
+  int odom_publisher_smooth_counter_{0};
+  ros::Publisher odom_publisher_global_;
+  int odom_publisher_global_counter_{0};
+  ros::Publisher odom_publisher_marginalized_;
+  int odom_publisher_marginalized_counter_{0};
+
+  tf::TransformBroadcaster tf_broadcaster_;
+
   int published_registration_results_{0};
 
   /** callback for lidar data */
@@ -112,12 +127,14 @@ private:
   ros::Duration reloc_request_period_;
   ros::Time last_reloc_request_time_{ros::Time(0)};
   Eigen::Matrix4d T_WORLD_BASELINKLAST_{Eigen::Matrix4d::Identity()};
+  ros::Time last_scan_pose_time_{ros::Time(0)};
 
   /** Params that can only be updated here: */
   bool output_graph_updates_{false};
   std::string graph_updates_path_ =
       "/userhome/results/beam_slam/graph_updates/";
   bool update_local_map_on_graph_update_{true};
+  bool use_frame_init_relative_{true};
 };
 
 } // namespace bs_models

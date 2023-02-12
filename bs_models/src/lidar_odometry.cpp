@@ -122,6 +122,15 @@ void LidarOdometry::onStart() {
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
             "registration/aligned_gm", 10);
   }
+
+  // odometry publishers
+  odom_publisher_smooth_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odom/smooth", 100);
+  odom_publisher_global_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odom/gloabl", 100);
+  odom_publisher_marginalized_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odom/marginalized",
+                                                         100);
 }
 
 void LidarOdometry::onStop() {
@@ -143,13 +152,27 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
 
-  Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
+  Eigen::Matrix4d T_WORLD_BASELINKINIT;
+  bool init_successful{true};
+  std::string error_msg;
   if (frame_initializer_ == nullptr) {
-    T_WORLD_BASELINKCURRENT = T_WORLD_BASELINKLAST_;
-  } else if (!frame_initializer_->GetPose(T_WORLD_BASELINKCURRENT,
-                                          msg->header.stamp,
-                                          extrinsics_.GetBaselinkFrameId())) {
-    ROS_DEBUG("Skipping scan");
+    T_WORLD_BASELINKINIT = T_WORLD_BASELINKLAST_;
+  } else if (use_frame_init_relative_) {
+    Eigen::Matrix4d T_BASELINKLAST_BASELINKCURRENT;
+    init_successful = frame_initializer_->GetRelativePose(
+        T_BASELINKLAST_BASELINKCURRENT, last_scan_pose_time_, msg->header.stamp,
+        error_msg);
+    T_WORLD_BASELINKINIT =
+        T_WORLD_BASELINKLAST_ * T_BASELINKLAST_BASELINKCURRENT;
+  } else {
+    init_successful = frame_initializer_->GetPose(
+        T_WORLD_BASELINKINIT, msg->header.stamp,
+        extrinsics_.GetBaselinkFrameId(), error_msg);
+  }
+
+  if (!init_successful) {
+    ROS_DEBUG("Could not initialize frame, skipping scan. Reason: %s",
+              error_msg.c_str());
     return nullptr;
   }
 
@@ -170,7 +193,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
         beam_filtering::FilterPointCloud<PointXYZIRT>(cloud_current_unfiltered,
                                                       input_filter_params_);
     current_scan_pose = std::make_shared<ScanPose>(
-        cloud_filtered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
+        cloud_filtered, msg->header.stamp, T_WORLD_BASELINKINIT,
         T_BASELINK_LIDAR, feature_extractor_);
   } else if (params_.lidar_type == LidarType::OUSTER) {
     pcl::PointCloud<PointXYZITRRNR> cloud_current_unfiltered;
@@ -179,17 +202,18 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
         beam_filtering::FilterPointCloud(cloud_current_unfiltered,
                                          input_filter_params_);
     current_scan_pose = std::make_shared<ScanPose>(
-        cloud_filtered, msg->header.stamp, T_WORLD_BASELINKCURRENT,
+        cloud_filtered, msg->header.stamp, T_WORLD_BASELINKINIT,
         T_BASELINK_LIDAR, feature_extractor_);
   } else {
     BEAM_ERROR(
         "Invalid lidar type param. Lidar type may not be implemented yet.");
   }
 
+  Eigen::Matrix4d T_WORLD_BASELINKCURRENT;
   fuse_core::Transaction::SharedPtr gm_transaction;
   if (params_.register_to_gm) {
     gm_transaction =
-        RegisterScanToGlobalMap(*current_scan_pose, T_WORLD_BASELINKLAST_);
+        RegisterScanToGlobalMap(*current_scan_pose, T_WORLD_BASELINKCURRENT);
   }
 
   fuse_core::Transaction::SharedPtr lm_transaction;
@@ -200,8 +224,36 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     Eigen::Matrix4d T_WORLD_LIDAR;
     local_scan_registration_->GetMap().GetScanPose(current_scan_pose->Stamp(),
                                                    T_WORLD_LIDAR);
-    T_WORLD_BASELINKLAST_ = T_WORLD_LIDAR * T_BASELINK_LIDAR;
+    T_WORLD_BASELINKCURRENT = T_WORLD_LIDAR * T_BASELINK_LIDAR;
   }
+
+  // publish global odom
+  nav_msgs::Odometry odom_msg_global;
+  bs_common::EigenTransformToOdometryMsg(
+      T_WORLD_BASELINKCURRENT, current_scan_pose->Stamp(),
+      odom_publisher_global_counter_, extrinsics_.GetBaselinkFrameId(),
+      "lidar_world", odom_msg_global);
+  odom_publisher_global_.publish(odom_msg_global);
+  odom_publisher_global_counter_++;
+  PublishTfTransform(T_WORLD_BASELINKCURRENT, "lidar_world",
+                     extrinsics_.GetBaselinkFrameId(),
+                     current_scan_pose->Stamp());
+
+  // publish smooth odom
+  nav_msgs::Odometry odom_msg_smooth;
+  Eigen::Matrix4d T_BASELINKLAST_BASELINKCURRENT =
+      beam::RelativeTransform(T_WORLD_BASELINKLAST_, T_WORLD_BASELINKCURRENT);
+  Eigen::Matrix4d T_WORLD_BASELINKSMOOTH =
+      T_WORLD_BASELINKLAST_ * T_BASELINKLAST_BASELINKCURRENT;
+  bs_common::EigenTransformToOdometryMsg(
+      T_WORLD_BASELINKSMOOTH, current_scan_pose->Stamp(),
+      odom_publisher_smooth_counter_, extrinsics_.GetBaselinkFrameId(),
+      "lidar_world_smooth", odom_msg_smooth);
+  odom_publisher_smooth_.publish(odom_msg_smooth);
+  odom_publisher_smooth_counter_++;
+  PublishTfTransform(T_WORLD_BASELINKSMOOTH, "lidar_world_smooth",
+                     extrinsics_.GetBaselinkFrameId(),
+                     current_scan_pose->Stamp());
 
   // add priors from initializer
   fuse_core::Transaction::SharedPtr prior_transaction;
@@ -241,6 +293,10 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   if (lm_transaction != nullptr) { transaction->merge(*lm_transaction); }
   if (gm_transaction != nullptr) { transaction->merge(*gm_transaction); }
   if (prior_transaction != nullptr) { transaction->merge(*prior_transaction); }
+
+  // set current measurements to last
+  T_WORLD_BASELINKLAST_ = T_WORLD_BASELINKCURRENT;
+  last_scan_pose_time_ = current_scan_pose->Stamp();
 
   return transaction;
 }
@@ -534,6 +590,14 @@ void LidarOdometry::SendRelocRequest(
 
 void LidarOdometry::PublishMarginalizedScanPose(
     const std::shared_ptr<ScanPose>& scan_pose) {
+  nav_msgs::Odometry odom_msg;
+  bs_common::EigenTransformToOdometryMsg(
+      scan_pose->T_REFFRAME_BASELINK(), scan_pose->Stamp(),
+      odom_publisher_marginalized_counter_, extrinsics_.GetBaselinkFrameId(),
+      "lidar_world_marginalized", odom_msg);
+  odom_publisher_marginalized_.publish(odom_msg);
+  odom_publisher_marginalized_counter_++;
+
   if (!params_.output_loam_points && params_.output_lidar_points) { return; }
 
   // output to global mapper
@@ -734,6 +798,22 @@ void LidarOdometry::PublishScanRegistrationResults(
   }
 
   published_registration_results_++;
+}
+
+void LidarOdometry::PublishTfTransform(const Eigen::Matrix4d& T_CHILD_PARENT,
+                                       const std::string& child_frame,
+                                       const std::string& parent_frame,
+                                       const ros::Time& time) {
+  tf::Transform transform;
+  transform.setOrigin(tf::Vector3(T_CHILD_PARENT(0, 3), T_CHILD_PARENT(1, 3),
+                                  T_CHILD_PARENT(2, 3)));
+
+  Eigen::Matrix3d R = T_CHILD_PARENT.block(0, 0, 3, 3);
+  Eigen::Quaterniond q(R);
+  tf::Quaternion q_tf(q.x(), q.y(), q.z(), q.w());
+  transform.setRotation(q_tf);
+  tf_broadcaster_.sendTransform(
+      tf::StampedTransform(transform, time, parent_frame, child_frame));
 }
 
 } // namespace bs_models
