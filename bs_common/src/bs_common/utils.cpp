@@ -284,6 +284,7 @@ int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction) {
        iter++) {
     counter++;
   }
+  return counter;
 }
 
 } // namespace bs_common

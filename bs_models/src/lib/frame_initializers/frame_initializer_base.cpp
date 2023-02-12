@@ -81,7 +81,7 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
     Eigen::Matrix4d T_ORIGINAL_OVERRIDE;
     if (tf_override.size() != 16) {
       ROS_WARN("Invalid T_ORIGINAL_OVERRIDE params, required 16 params, "
-               "given: %d. Using default identity transform",
+               "given: %zu. Using default identity transform",
                tf_override.size());
       T_ORIGINAL_OVERRIDE = Eigen::Matrix4d::Identity();
     } else {
@@ -102,15 +102,15 @@ std::unique_ptr<frame_initializers::FrameInitializerBase>
       ROS_ERROR("Invalid frame initializer type.");
       throw std::runtime_error{"Invalid frame initializer type."};
     }
-
-    return std::move(frame_initializer);
   }
+
+  return std::move(frame_initializer);
 }
 
 bool FrameInitializerBase::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
-                                            const ros::Time& time,
-                                            const std::string& sensor_frame_id,
-                                            std::string& error_msg) {
+                                   const ros::Time& time,
+                                   const std::string& sensor_frame_id,
+                                   std::string& error_msg) {
   return pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id, time,
                                          error_msg);
 }

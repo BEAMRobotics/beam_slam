@@ -74,7 +74,7 @@ void LoInitializer::onInit() {
     }
     if (json_valid) {
       input_filter_params_ = beam_filtering::LoadFilterParamsVector(J_filters);
-      ROS_INFO("Loaded %d input filters", input_filter_params_.size());
+      ROS_INFO("Loaded %zu input filters", input_filter_params_.size());
     }
   }
 }
@@ -136,12 +136,12 @@ void LoInitializer::ProcessCurrentKeyframe(const ros::Time& time) {
   beam::HighResolutionTimer timer;
   if (keyframe_cloud_.size() == 0) { return; }
 
-  ROS_DEBUG("Processing keyframe containing %d scans and %d points.",
+  ROS_DEBUG("Processing keyframe containing %d scans and %zu points.",
             keyframe_scan_counter_, keyframe_cloud_.size());
 
   Eigen::Matrix4d T_BASELINK_LIDAR;
   if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, time)) {
-    ROS_WARN("Unable to get imu to lidar transform with time $.5f",
+    ROS_WARN("Unable to get imu to lidar transform with time %.5f",
              time.toSec());
     return;
   }
@@ -175,7 +175,7 @@ void LoInitializer::ProcessCurrentKeyframe(const ros::Time& time) {
 
   // check that trajectory is long enough
   double trajectory_length = CalculateTrajectoryLength(keyframes_);
-  ROS_DEBUG("Trajectory length of %.3f m was calculated, with %d keyframes.",
+  ROS_DEBUG("Trajectory length of %.3f m was calculated, with %zu keyframes.",
             trajectory_length, keyframes_.size());
 
   if (trajectory_length > params_.min_trajectory_distance) {

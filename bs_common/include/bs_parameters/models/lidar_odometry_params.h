@@ -135,7 +135,7 @@ public:
     if (lm_noise_diagonal.size() != 6) {
       ROS_ERROR(
           "Invalid local_mapper_noise_diagonal params, required 6 params, "
-          "given: %d. Using default (0.1 for all)",
+          "given: %zu. Using default (0.1 for all)",
           lm_noise_diagonal.size());
       lm_noise_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }
@@ -158,7 +158,7 @@ public:
     if (gm_noise_diagonal.size() != 6) {
       ROS_ERROR("Invalid global_registration_noise_diagonal params, required 6 "
                 "params, "
-                "given: %d. Using default (0.1 for all)",
+                "given: %zu. Using default (0.1 for all)",
                 gm_noise_diagonal.size());
       gm_noise_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }
@@ -179,7 +179,7 @@ public:
              prior_diagonal);
     if (prior_diagonal.size() != 6) {
       ROS_ERROR("Invalid gm_noise_diagonal params, required 6 params, "
-                "given: %d. Using default (0.1 for all)",
+                "given: %zu. Using default (0.1 for all)",
                 prior_diagonal.size());
       prior_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }

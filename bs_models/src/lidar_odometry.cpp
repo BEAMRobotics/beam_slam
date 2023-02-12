@@ -68,7 +68,7 @@ void LidarOdometry::onInit() {
       if (json_valid) {
         input_filter_params_ =
             beam_filtering::LoadFilterParamsVector(J_filters);
-        ROS_INFO("Loaded %d input filters", input_filter_params_.size());
+        ROS_INFO("Loaded %zu input filters", input_filter_params_.size());
       }
     }
   }
