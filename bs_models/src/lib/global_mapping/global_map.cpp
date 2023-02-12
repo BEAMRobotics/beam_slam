@@ -510,15 +510,16 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
     matched_indices_filtered.push_back(i);
   }
 
-  ROS_DEBUG("Found %d loop closure candidates.",
+  ROS_DEBUG("Found %zu loop closure candidates.",
             matched_indices_filtered.size());
 
   if (matched_indices_filtered.size() == 0) { return nullptr; }
 
-  ROS_DEBUG(
-      "Matched index[0]: %d, Query Index: %d, No. or submaps: %d. Running loop "
-      "closure refinement",
-      matched_indices_filtered.at(0), query_index, online_submaps_.size());
+  ROS_DEBUG("Matched index[0]: %d, Query Index: %d, No. or submaps: %zu. "
+            "Running loop "
+            "closure refinement",
+            matched_indices_filtered.at(0), query_index,
+            online_submaps_.size());
 
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
@@ -607,7 +608,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
     reloc_candidate_search_->FindRelocCandidates(
         offline_submaps_, T_WORLDOFF_QUERY, {query_image}, matched_indices,
         Ts_SUBMAPCANDIDATE_QUERY);
-    ROS_DEBUG("Found %d submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
+    ROS_DEBUG("Found %zu submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
 
     // go through candidates, and get first successful reloc refinement
     for (uint16_t i = 0; i < matched_indices.size(); i++) {
@@ -622,7 +623,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
       }
 
       // get refined pose
-      ROS_DEBUG("Looking for refined submap pose within submap index: ",
+      ROS_DEBUG("Looking for refined submap pose within submap index: %d",
                 submap_index);
       const auto& submap = offline_submaps_.at(submap_index);
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
@@ -706,7 +707,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
     reloc_candidate_search_->FindRelocCandidates(
         online_submaps_, T_WORLDLM_QUERY, {query_image}, matched_indices,
         Ts_SUBMAPCANDIDATE_QUERY, 2, true);
-    ROS_DEBUG("Found %d submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
+    ROS_DEBUG("Found %zu submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
 
     // go through candidates, and get first successful reloc refinement. Note:
     // based on our definition of RelocCandidateSearchBase::FindRelocCandidates,
@@ -726,7 +727,7 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
       const auto& submap = online_submaps_.at(submap_index);
 
       // get refined pose
-      ROS_DEBUG("Looking for refined submap pose within submap index: ",
+      ROS_DEBUG("Looking for refined submap pose within submap index: %d",
                 submap_index);
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
       if (reloc_refinement_->GetRefinedPose(

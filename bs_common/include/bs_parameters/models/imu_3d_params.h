@@ -37,7 +37,7 @@ public:
              prior_diagonal);
     if (prior_diagonal.size() != 6) {
       ROS_ERROR("Invalid gm_noise_diagonal params, required 6 params, "
-                "given: %d. Using default (0.1 for all)",
+                "given: %zu. Using default (0.1 for all)",
                 prior_diagonal.size());
       prior_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
     }

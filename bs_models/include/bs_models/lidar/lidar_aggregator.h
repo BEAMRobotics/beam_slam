@@ -126,7 +126,7 @@ public:
                 T_WORLD_LIDARCHUNK, current_chunk->second.time,
                 extrinsics_.GetLidarFrameId(), error_msg)) {
           ROS_DEBUG(
-              "Cannot get lidar pose at lidar chunk time, skipping. Reason: {}",
+              "Cannot get lidar pose at lidar chunk time, skipping. Reason: %s",
               error_msg.c_str());
           lidar_chunks_.erase(current_chunk->first);
           continue;

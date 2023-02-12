@@ -713,6 +713,7 @@ bool Submap::LoadData(const std::string& input_dir,
     subframe_poses_.emplace(subframe_stamp, subframe_poses_vec);
     subframe_num++;
   }
+  return true;
 }
 
 void Submap::SaveData(const std::string& output_dir) {
