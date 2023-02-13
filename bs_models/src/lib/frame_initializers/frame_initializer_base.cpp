@@ -130,7 +130,7 @@ bool FrameInitializerBase::GetRelativePose(Eigen::Matrix4d& T_A_B,
 
   if (!A_success || !B_success) { return false; }
 
-  T_A_B = beam::RelativeTransform(T_WORLD_BASELINKA, T_WORLD_BASELINKB);
+  T_A_B = beam::InvertTransform(T_WORLD_BASELINKA) * T_WORLD_BASELINKB;
   return true;
 }
 
