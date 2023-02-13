@@ -242,7 +242,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   // publish smooth odom
   nav_msgs::Odometry odom_msg_smooth;
   Eigen::Matrix4d T_BASELINKLAST_BASELINKCURRENT =
-      beam::RelativeTransform(T_WORLD_BASELINKLAST_, T_WORLD_BASELINKCURRENT);
+      beam::InvertTransform(T_WORLD_BASELINKLAST_) * T_WORLD_BASELINKCURRENT;
   Eigen::Matrix4d T_WORLD_BASELINKSMOOTH =
       T_WORLD_BASELINKLAST_ * T_BASELINKLAST_BASELINKCURRENT;
   bs_common::EigenTransformToOdometryMsg(
