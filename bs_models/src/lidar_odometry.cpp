@@ -227,7 +227,6 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     T_WORLD_BASELINKCURRENT = T_WORLD_LIDAR * T_BASELINK_LIDAR;
   }
 
-
   if (lm_transaction == nullptr && gm_transaction == nullptr) {
     ROS_WARN("No transaction generated, skipping scan.");
     return nullptr;
@@ -237,8 +236,8 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   nav_msgs::Odometry odom_msg_global;
   bs_common::EigenTransformToOdometryMsg(
       T_WORLD_BASELINKCURRENT, current_scan_pose->Stamp(),
-      odom_publisher_global_counter_, extrinsics_.GetBaselinkFrameId(),
-      "lidar_world", odom_msg_global);
+      odom_publisher_global_counter_, "lidar_world",
+      extrinsics_.GetBaselinkFrameId(), odom_msg_global);
   odom_publisher_global_.publish(odom_msg_global);
   odom_publisher_global_counter_++;
   PublishTfTransform(T_WORLD_BASELINKCURRENT, "lidar_world",
@@ -250,11 +249,11 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   Eigen::Matrix4d T_BASELINKLAST_BASELINKCURRENT =
       beam::InvertTransform(T_WORLD_BASELINKLAST_) * T_WORLD_BASELINKCURRENT;
   Eigen::Matrix4d T_WORLD_BASELINKSMOOTH =
-      T_WORLD_BASELINKLAST_ * T_BASELINKLAST_BASELINKCURRENT;  
+      T_WORLD_BASELINKLAST_ * T_BASELINKLAST_BASELINKCURRENT;
   bs_common::EigenTransformToOdometryMsg(
       T_WORLD_BASELINKSMOOTH, current_scan_pose->Stamp(),
-      odom_publisher_smooth_counter_, extrinsics_.GetBaselinkFrameId(),
-      "lidar_world_smooth", odom_msg_smooth);
+      odom_publisher_smooth_counter_, "lidar_world_smooth",
+      extrinsics_.GetBaselinkFrameId(), odom_msg_smooth);
   odom_publisher_smooth_.publish(odom_msg_smooth);
   odom_publisher_smooth_counter_++;
   PublishTfTransform(T_WORLD_BASELINKSMOOTH, "lidar_world_smooth",
@@ -593,8 +592,8 @@ void LidarOdometry::PublishMarginalizedScanPose(
   nav_msgs::Odometry odom_msg;
   bs_common::EigenTransformToOdometryMsg(
       scan_pose->T_REFFRAME_BASELINK(), scan_pose->Stamp(),
-      odom_publisher_marginalized_counter_, extrinsics_.GetBaselinkFrameId(),
-      "lidar_world_marginalized", odom_msg);
+      odom_publisher_marginalized_counter_, "lidar_world_marginalized",
+      extrinsics_.GetBaselinkFrameId(), odom_msg);
   odom_publisher_marginalized_.publish(odom_msg);
   odom_publisher_marginalized_counter_++;
 
