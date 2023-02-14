@@ -127,7 +127,7 @@ void LidarOdometry::onStart() {
   odom_publisher_smooth_ =
       private_node_handle_.advertise<nav_msgs::Odometry>("odom/smooth", 100);
   odom_publisher_global_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odom/gloabl", 100);
+      private_node_handle_.advertise<nav_msgs::Odometry>("odom/global", 100);
   odom_publisher_marginalized_ =
       private_node_handle_.advertise<nav_msgs::Odometry>("odom/marginalized",
                                                          100);
@@ -227,6 +227,12 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     T_WORLD_BASELINKCURRENT = T_WORLD_LIDAR * T_BASELINK_LIDAR;
   }
 
+
+  if (lm_transaction == nullptr && gm_transaction == nullptr) {
+    ROS_WARN("No transaction generated, skipping scan.");
+    return nullptr;
+  }
+
   // publish global odom
   nav_msgs::Odometry odom_msg_global;
   bs_common::EigenTransformToOdometryMsg(
@@ -244,7 +250,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   Eigen::Matrix4d T_BASELINKLAST_BASELINKCURRENT =
       beam::InvertTransform(T_WORLD_BASELINKLAST_) * T_WORLD_BASELINKCURRENT;
   Eigen::Matrix4d T_WORLD_BASELINKSMOOTH =
-      T_WORLD_BASELINKLAST_ * T_BASELINKLAST_BASELINKCURRENT;
+      T_WORLD_BASELINKLAST_ * T_BASELINKLAST_BASELINKCURRENT;  
   bs_common::EigenTransformToOdometryMsg(
       T_WORLD_BASELINKSMOOTH, current_scan_pose->Stamp(),
       odom_publisher_smooth_counter_, extrinsics_.GetBaselinkFrameId(),
@@ -275,12 +281,6 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
         std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
             "FRAMEINITIALIZERPRIOR", *p, *o, mean, params_.prior_covariance);
     prior_transaction->addConstraint(prior);
-  }
-
-  if (lm_transaction == nullptr && gm_transaction == nullptr &&
-      prior_transaction == nullptr) {
-    ROS_ERROR("No transaction generated, skipping scan.");
-    return nullptr;
   }
 
   PublishScanRegistrationResults(lm_transaction, gm_transaction,
