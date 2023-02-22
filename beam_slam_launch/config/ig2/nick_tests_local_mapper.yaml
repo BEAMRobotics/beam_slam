@@ -84,7 +84,9 @@ lidar_odometry:
   frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/lvi_slam.json'
   frame_initializer_prior_noise_diagonal: [1.0e-5, 1.0e-5, 1.0e-5, 1.0e-5, 1.0e-5, 1.0e-5]
   reloc_request_period: 2.0
-  scan_output_directory: ''
+  scan_output_directory: '/userhome/d/results/'
+  output_graph_updates: false
+  output_marginalized_scans: false
 
 #####################################
 #     visual odometry parameters    #

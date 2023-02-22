@@ -56,6 +56,8 @@ private:
 
   void PublishMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
 
+  void SaveMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
+
   void PublishScanRegistrationResults(
       const fuse_core::Transaction::SharedPtr& transaction_lm,
       const fuse_core::Transaction::SharedPtr& transaction_gm,
@@ -128,11 +130,10 @@ private:
   ros::Time last_reloc_request_time_{ros::Time(0)};
   Eigen::Matrix4d T_WORLD_BASELINKLAST_{Eigen::Matrix4d::Identity()};
   ros::Time last_scan_pose_time_{ros::Time(0)};
+  std::string graph_updates_path_;
+  std::string marginalized_scans_path_;
 
   /** Params that can only be updated here: */
-  bool output_graph_updates_{false};
-  std::string graph_updates_path_ =
-      "/userhome/results/beam_slam/graph_updates/";
   bool update_local_map_on_graph_update_{true};
   bool use_frame_init_relative_{true};
 };

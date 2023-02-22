@@ -73,20 +73,29 @@ void LidarOdometry::onInit() {
     }
   }
 
-  // if outputting scans, clear folder
+  // if outputting scans, clear folders
   if (!params_.scan_output_directory.empty()) {
     if (boost::filesystem::is_directory(params_.scan_output_directory)) {
       boost::filesystem::remove_all(params_.scan_output_directory);
     }
     boost::filesystem::create_directory(params_.scan_output_directory);
-  }
-
-  // if outputting graph update results, clear results folder:
-  if (output_graph_updates_) {
-    if (boost::filesystem::is_directory(graph_updates_path_)) {
-      boost::filesystem::remove_all(graph_updates_path_);
+    if (params_.save_graph_updates) {
+      graph_updates_path_ =
+          beam::CombinePaths(params_.scan_output_directory, "graph_updates");
+      if (boost::filesystem::is_directory(graph_updates_path_)) {
+        boost::filesystem::remove_all(graph_updates_path_);
+      }
+      boost::filesystem::create_directory(graph_updates_path_);
     }
-    boost::filesystem::create_directory(graph_updates_path_);
+
+    if (params_.save_marginalized_scans) {
+      marginalized_scans_path_ = beam::CombinePaths(
+          params_.scan_output_directory, "marginalized_scans");
+      if (boost::filesystem::is_directory(marginalized_scans_path_)) {
+        boost::filesystem::remove_all(marginalized_scans_path_);
+      }
+      boost::filesystem::create_directory(marginalized_scans_path_);
+    }
   }
 }
 
@@ -139,8 +148,8 @@ void LidarOdometry::onStop() {
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
     PublishMarginalizedScanPose(*iter);
-    if (!params_.scan_output_directory.empty()) {
-      (*iter)->SaveCloud(params_.scan_output_directory);
+    if (params_.save_marginalized_scans) {
+      (*iter)->SaveCloud(marginalized_scans_path_);
     }
   }
 
@@ -510,13 +519,13 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     // Othewise, it has probably been marginalized out, so output and remove
     // from active list
     PublishMarginalizedScanPose(*i);
-    if (!params_.scan_output_directory.empty()) {
-      scan_pose->SaveCloud(params_.scan_output_directory);
+    if (params_.save_marginalized_scans) {
+      (*i)->SaveCloud(marginalized_scans_path_);
     }
     active_clouds_.erase(i++);
   }
 
-  if (!output_graph_updates_) { return; }
+  if (!params_.save_graph_updates) { return; }
 
   std::string update_time =
       beam::ConvertTimeToDate(std::chrono::system_clock::now());
