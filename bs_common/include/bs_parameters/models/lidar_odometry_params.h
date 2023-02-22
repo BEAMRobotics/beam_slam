@@ -52,6 +52,12 @@ public:
     getParam<bool>(nh, "publish_registration_results",
                    publish_registration_results, publish_registration_results);
 
+    getParam<bool>(nh, "save_graph_updates", save_graph_updates,
+                   save_graph_updates);
+
+    getParam<bool>(nh, "save_marginalized_scans", save_marginalized_scans,
+                   save_marginalized_scans);               
+
     /**The first part is either MULTI (for multi scan registration) or MAP (for
      * scan to map registration), and the second part is the matcher type.
      * Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (
@@ -110,9 +116,8 @@ public:
                           input_filters_config_path, input_filters_config_path);
 
     /** Options: TRANSFORM, ODOMETRY, POSEFILE */
-    getParam<std::string>(nh, "frame_initializer_config", frame_initializer_config,
-                          frame_initializer_config);
-
+    getParam<std::string>(nh, "frame_initializer_config",
+                          frame_initializer_config, frame_initializer_config);
 
     /** Minimum time between each reloc reequest. If set to zero, it will not
      * send any. Relocs are sent each time a scan pose receives its first graph
@@ -220,6 +225,9 @@ public:
   bool publish_local_map{false};
   bool publish_registration_results{false};
   bool use_pose_priors{true};
+
+  bool save_graph_updates{false};
+  bool save_marginalized_scans{true};
 
   LidarType lidar_type{LidarType::VELODYNE};
 

@@ -6,6 +6,7 @@
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
 #include <fuse_core/uuid.h>
+#include <tf/transform_broadcaster.h>
 
 #include <beam_filtering/Utils.h>
 #include <beam_matching/Matchers.h>
@@ -48,16 +49,23 @@ private:
   void SetupRegistration();
 
   fuse_core::Transaction::SharedPtr
-      RegisterScanToGlobalMap(const ScanPose& scan_pose);
+      RegisterScanToGlobalMap(const ScanPose& scan_pose,
+                              Eigen::Matrix4d& T_WORLD_BASELINK);
 
   void SendRelocRequest(const std::shared_ptr<ScanPose>& scan_pose);
 
   void PublishMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
 
+  void SaveMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
+
   void PublishScanRegistrationResults(
       const fuse_core::Transaction::SharedPtr& transaction_lm,
       const fuse_core::Transaction::SharedPtr& transaction_gm,
       const ScanPose& scan_pose);
+
+  void PublishTfTransform(const Eigen::Matrix4d& T_CHILD_PARENT,
+                        const std::string& child_frame,
+                        const std::string& parent_frame, const ros::Time& time);
 
   /** subscribe to lidar data */
   ros::Subscriber subscriber_;
@@ -68,6 +76,16 @@ private:
   ros::Publisher registration_publisher_init_;
   ros::Publisher registration_publisher_aligned_lm_;
   ros::Publisher registration_publisher_aligned_gm_;
+
+  ros::Publisher odom_publisher_smooth_;
+  int odom_publisher_smooth_counter_{0};
+  ros::Publisher odom_publisher_global_;
+  int odom_publisher_global_counter_{0};
+  ros::Publisher odom_publisher_marginalized_;
+  int odom_publisher_marginalized_counter_{0};
+
+  tf::TransformBroadcaster tf_broadcaster_;
+
   int published_registration_results_{0};
 
   /** callback for lidar data */
@@ -97,7 +115,8 @@ private:
   fuse_core::UUID device_id_; //!< The UUID of this device
 
   /** Used to get initial pose estimates */
-  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
+  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_{
+      nullptr};
 
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
@@ -109,12 +128,14 @@ private:
   int updates_{0};
   ros::Duration reloc_request_period_;
   ros::Time last_reloc_request_time_{ros::Time(0)};
+  Eigen::Matrix4d T_WORLD_BASELINKLAST_{Eigen::Matrix4d::Identity()};
+  ros::Time last_scan_pose_time_{ros::Time(0)};
+  std::string graph_updates_path_;
+  std::string marginalized_scans_path_;
 
   /** Params that can only be updated here: */
-  bool output_graph_updates_{false};
-  std::string graph_updates_path_ =
-      "/userhome/results/beam_slam/graph_updates/";
   bool update_local_map_on_graph_update_{true};
+  bool use_frame_init_relative_{true};
 };
 
 } // namespace bs_models

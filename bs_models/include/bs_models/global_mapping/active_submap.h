@@ -65,10 +65,7 @@ class ActiveSubmap {
    *
    * - /active_submap/visual_map
    * - /active_submap/lidar_map
-   * - /active_submap/loam_map/edges_strong
-   * - /active_submap/loam_map/edges_weak
-   * - /active_submap/loam_map/surfaces_strong
-   * - /active_submap/loam_map/surfaces_weak
+   * - /active_submap/loam_map
    *
    * @param publish_updates
    */
@@ -155,10 +152,7 @@ class ActiveSubmap {
   ros::Time update_time_{0};
   ros::Publisher visual_map_publisher_;
   ros::Publisher lidar_map_publisher_;
-  ros::Publisher loam_edges_strong_publisher_;
-  ros::Publisher loam_edges_weak_publisher_;
-  ros::Publisher loam_surfaces_strong_publisher_;
-  ros::Publisher loam_surfaces_weak_publisher_;
+  ros::Publisher loam_map_publisher_;
 };
 
 }  // namespace bs_models

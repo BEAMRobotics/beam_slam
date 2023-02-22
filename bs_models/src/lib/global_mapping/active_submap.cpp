@@ -20,14 +20,8 @@ ActiveSubmap::ActiveSubmap() {
       n.advertise<sensor_msgs::PointCloud2>("/active_submap/visual_map", 10);
   lidar_map_publisher_ =
       n.advertise<sensor_msgs::PointCloud2>("/active_submap/lidar_map", 10);
-  loam_edges_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/active_submap/loam_map/edges_strong", 10);
-  loam_edges_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/active_submap/loam_map/edges_weak", 10);
-  loam_surfaces_strong_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/active_submap/loam_map/surfaces_strong", 10);
-  loam_surfaces_weak_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
-      "/active_submap/loam_map/surfaces_weak", 10);
+  loam_map_publisher_ =
+      n.advertise<sensor_msgs::PointCloud2>("/active_submap/loam_map", 10);
 
   // instantitate pointers
   visual_map_points_ = std::make_shared<PointCloud>();
@@ -160,33 +154,13 @@ void ActiveSubmap::Publish() const {
     lidar_map_publisher_.publish(pc_msg);
   }
 
-  if (!loam_cloud_->edges.strong.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg =
-        beam::PCLToROS<PointXYZIRT>(loam_cloud_->edges.strong.cloud,
-                                    update_time_, frame_id, updates_counter_);
-    loam_edges_strong_publisher_.publish(pc_msg);
+  if (!loam_cloud_->Empty()) {
+    beam_matching::LoamPointCloudCombined loam_combined = loam_cloud_->GetCombinedCloud();
+    sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointLoam>(
+        loam_combined, update_time_, frame_id, updates_counter_);
+    loam_map_publisher_.publish(pc_msg);
   }
 
-  if (!loam_cloud_->edges.weak.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg =
-        beam::PCLToROS<PointXYZIRT>(loam_cloud_->edges.weak.cloud, update_time_,
-                                    frame_id, updates_counter_);
-    loam_edges_weak_publisher_.publish(pc_msg);
-  }
-
-  if (!loam_cloud_->surfaces.strong.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg =
-        beam::PCLToROS<PointXYZIRT>(loam_cloud_->surfaces.strong.cloud,
-                                    update_time_, frame_id, updates_counter_);
-    loam_surfaces_strong_publisher_.publish(pc_msg);
-  }
-
-  if (!loam_cloud_->surfaces.weak.cloud.empty()) {
-    sensor_msgs::PointCloud2 pc_msg =
-        beam::PCLToROS<PointXYZIRT>(loam_cloud_->surfaces.weak.cloud,
-                                    update_time_, frame_id, updates_counter_);
-    loam_surfaces_weak_publisher_.publish(pc_msg);
-  }
 }
 
 } // namespace bs_models

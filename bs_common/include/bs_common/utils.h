@@ -1,10 +1,10 @@
 #pragma once
 
+#include <fuse_core/transaction.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
-#include <fuse_core/transaction.h>
-#include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <tf/transform_datatypes.h>
@@ -13,7 +13,7 @@
 #include <beam_utils/math.h>
 
 #ifndef GRAVITY_NOMINAL
-#define GRAVITY_NOMINAL 9.80665
+#  define GRAVITY_NOMINAL 9.80665
 #endif
 
 static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, -GRAVITY_NOMINAL};
@@ -33,9 +33,9 @@ void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                               const fuse_variables::Orientation3DStamped& o,
                               Eigen::Matrix4d& T_WORLD_SENSOR);
 
-Eigen::Matrix4d FusePoseToEigenTransform(
-    const fuse_variables::Position3DStamped& p,
-    const fuse_variables::Orientation3DStamped& o);
+Eigen::Matrix4d
+    FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
+                             const fuse_variables::Orientation3DStamped& o);
 
 void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
                                    Eigen::Matrix4d& T_WORLD_SENSOR);
@@ -53,6 +53,12 @@ void EigenTransformToTransformStampedMsg(
     const Eigen::Matrix4d& T, const ros::Time& stamp, int seq,
     const std::string& parent_frame_id, const std::string& child_frame_id,
     geometry_msgs::TransformStamped& tf_stamped);
+
+void EigenTransformToOdometryMsg(const Eigen::Matrix4d& T,
+                                 const ros::Time& stamp, int seq,
+                                 const std::string& parent_frame_id,
+                                 const std::string& child_frame_id,
+                                 nav_msgs::Odometry& odom_msg);
 
 void EigenTransformToPoseStamped(const Eigen::Matrix4d& T,
                                  const ros::Time& stamp, int seq,
@@ -115,4 +121,4 @@ int GetNumberOfConstraints(
  */
 int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction);
 
-}  // namespace bs_common
+} // namespace bs_common

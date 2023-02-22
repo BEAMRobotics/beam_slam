@@ -363,12 +363,13 @@ void ScanPose::SaveCloud(const std::string& save_path, bool to_reference_frame,
     return;
   }
 
-  std::string file_name_prefix = save_path + std::to_string(stamp_.toSec());
   if (!to_reference_frame) {
+    std::string filename = std::to_string(stamp_.toSec()) + ".pcd";
+    std::string save_path = beam::CombinePaths(save_path, filename);
     std::string error_message;
     if (!beam::SavePointCloud<pcl::PointXYZ>(
-            file_name_prefix + ".pcd", pointcloud_,
-            beam::PointCloudFileType::PCDBINARY, error_message)) {
+            save_path, pointcloud_, beam::PointCloudFileType::PCDBINARY,
+            error_message)) {
       BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
     }
     return;
@@ -396,15 +397,20 @@ void ScanPose::SaveCloud(const std::string& save_path, bool to_reference_frame,
         beam::AddFrameToCloud(cloud_final_col, T_REFFRAME_LIDAR_final);
   }
 
+  std::string filename = std::to_string(stamp_.toSec()) + ".pcd";
+  std::string save_path_init =
+      beam::CombinePaths(save_path, "initial_" + filename);
   std::string error_message{};
   if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-          file_name_prefix + "_initial.pcd", cloud_initial_col,
+          save_path_init, cloud_initial_col,
           beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
+  std::string save_path_final =
+      beam::CombinePaths(save_path, "final_" + filename);
   if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-          file_name_prefix + "_final.pcd", cloud_final_col,
-          beam::PointCloudFileType::PCDBINARY, error_message)) {
+          save_path_final, cloud_final_col, beam::PointCloudFileType::PCDBINARY,
+          error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
   if (error_message.empty()) {
@@ -425,7 +431,8 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
     return;
   }
 
-  std::string cloud_dir = save_path + std::to_string(stamp_.toSec()) + "/";
+  std::string cloud_dir =
+      beam::CombinePaths(save_path, std::to_string(stamp_.toSec()));
   boost::filesystem::create_directory(cloud_dir);
   if (!to_reference_frame) {
     loampointcloud_.Save(cloud_dir, true);
