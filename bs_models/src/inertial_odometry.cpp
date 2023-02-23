@@ -110,8 +110,11 @@ void InertialOdometry::processOdometry(const nav_msgs::Odometry::ConstPtr& msg) 
 }
 
 void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  if (initialized) { imu_preint_->UpdateGraph(graph_msg); }
-
+  if (initialized) {
+    imu_preint_->UpdateGraph(graph_msg);
+    return;
+  }
+  ROS_INFO_STREAM("Inertial Odometry recieved initial graph.");
   /*****Perform initial setup******/
   ros::Time most_recent_stamp(0.0);
   for (auto& var : graph_msg->getVariables()) {
@@ -158,7 +161,7 @@ void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg)
   imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg, ba);
 
   // remove measurements before the start
-  while (imu_buffer_.front().header.stamp <= most_recent_stamp && !imu_buffer_.empty()) {
+  while (imu_buffer_.front().header.stamp < most_recent_stamp && !imu_buffer_.empty()) {
     imu_buffer_.pop();
   }
 
@@ -168,21 +171,25 @@ void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg)
   // iterate through existing buffer, estimate poses and output
   prev_stamp_ = most_recent_stamp;
   while (!imu_buffer_.empty()) {
+    // TODO: reorganize so we add the previous imu msg to buffer, then get pose at the current stamp
     auto imu_msg = imu_buffer_.front();
     imu_preint_->AddToBuffer(imu_msg);
     const auto curr_stamp = imu_msg.header.stamp;
 
     // get relative pose and publish
-    const auto relative_pose = imu_preint_->GetRelativeMotion(prev_stamp_, curr_stamp);
-    if (relative_pose.has_value()) {
-      const auto [T_IMUprev_IMUcurr, cov] = relative_pose.value();
-      T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
-      auto odom_msg = bs_common::TransformToOdometryMessage(
-          curr_stamp, odom_seq, "odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov);
-      relative_odom_publisher_.publish(odom_msg);
-    }
+    std::cout << "\n" << curr_stamp << std::endl;
+    // const auto relative_pose = imu_preint_->GetRelativeMotion(prev_stamp_, curr_stamp);
+    // if (relative_pose.has_value()) {
+    //   const auto [T_IMUprev_IMUcurr, cov] = relative_pose.value();
+    //   T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
+    //   auto odom_msg = bs_common::TransformToOdometryMessage(
+    //       curr_stamp, odom_seq, "odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov);
+    //   relative_odom_publisher_.publish(odom_msg);
+    //   std::cout << T_ODOM_IMUprev_ << std::endl;
+    // }
 
     // get world pose and publish
+    std::cout << imu_preint_->PrintBuffer() << std::endl;
     const auto world_pose = imu_preint_->GetPose(curr_stamp);
     if (world_pose.has_value()) {
       const auto [T_WORLD_IMU, cov] = world_pose.value();
@@ -190,12 +197,15 @@ void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg)
           bs_common::TransformToOdometryMessage(curr_stamp, odom_seq, extrinsics_.GetWorldFrameId(),
                                                 extrinsics_.GetImuFrameId(), T_WORLD_IMU, cov);
       world_odom_publisher_.publish(odom_msg);
+      std::cout << "\n" << T_WORLD_IMU << std::endl;
     }
 
     odom_seq++;
     prev_stamp_ = curr_stamp;
     imu_buffer_.pop();
   }
+
+  initialized = true;
 }
 
-}
+} // namespace bs_models

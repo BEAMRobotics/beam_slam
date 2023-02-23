@@ -14,18 +14,22 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
   velocities.clear();
   std::vector<std::pair<uint64_t, Eigen::Vector3d>> velocities_vec;
 
-  // build list of imu frames and populate imu buffers
+  // make copy of imu buffer
   std::deque<sensor_msgs::Imu> imu_buffer_copy = imu_buffer;
+
+  // check for invalid input
+  auto second_imu_msg = std::next(imu_buffer_copy.begin());
+  if (path.begin()->first < second_imu_msg->header.stamp.toNSec()) {
+    const std::string msg =
+        std::string(__func__) + ": Pose in path has less than 2 messages prior to it.";
+    ROS_ERROR_STREAM(msg);
+    throw std::runtime_error{msg};
+  }
+
+  // build set of imu frames
   std::vector<bs_common::ImuState> imu_frames;
   for (auto& [time_nsec, T_WORLD_BASELINK] : path) {
     const auto stamp = beam::NSecToRos(time_nsec);
-    auto second_imu_msg = std::next(imu_buffer_copy.begin());
-    if (stamp < second_imu_msg->header.stamp) {
-      const std::string msg =
-          std::string(__func__) + "Pose in path has less than 2 messages prior to it.";
-      ROS_ERROR_STREAM(msg);
-      throw std::runtime_error{msg};
-    }
 
     // add imu data to frames preintegrator
     bs_common::PreIntegrator preintegrator;
@@ -33,9 +37,15 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
     preintegrator.cov_a = params.cov_accel_noise;
     preintegrator.cov_bg = params.cov_gyro_bias;
     preintegrator.cov_ba = params.cov_accel_bias;
-    while (imu_buffer_copy.front().header.stamp <= stamp && !imu_buffer_copy.empty()) {
+    while (imu_buffer_copy.front().header.stamp < stamp && !imu_buffer_copy.empty()) {
       preintegrator.data.push_back(imu_buffer_copy.front());
       imu_buffer_copy.pop_front();
+    }
+    if (preintegrator.data.empty()) {
+      const std::string msg =
+          std::string(__func__) + ": Empty preintegrator for pose in init path.";
+      ROS_ERROR_STREAM(msg);
+      throw std::runtime_error{msg};
     }
     Eigen::Vector3d p_WORLD_BASELINK;
     Eigen::Quaterniond q_WORLD_BASELINK;
@@ -63,7 +73,8 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
   std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
   const auto var = ImuObservability(imu_frames);
   if (var < 0.25) {
-    ROS_INFO_STREAM("IMU excitation not enough: " << var << " < 0.25. Cannot initialize.");
+    ROS_INFO_STREAM(__func__ << ": IMU excitation not enough: " << var
+                             << " < 0.25. Cannot initialize.");
     return;
   }
 
@@ -73,8 +84,8 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
   std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
   EstimateGravityScaleVelocities(imu_frames, gravity, scale, velocities_vec);
 
-  std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
-  RefineGravityScaleVelocities(imu_frames, gravity, scale, velocities_vec);
+  // std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
+  // RefineGravityScaleVelocities(imu_frames, gravity, scale, velocities_vec);
 
   // convert velocities to map
   std::for_each(velocities_vec.begin(), velocities_vec.end(),

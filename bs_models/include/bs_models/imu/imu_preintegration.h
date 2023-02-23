@@ -143,12 +143,10 @@ public:
    */
   void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
-  void PrintBuffer(){
-    for(const auto& d: pre_integrator_ij_.data){
-      std::cout << "IMU time: " << d.t << std::endl;
-    }
-    return;
-  }
+  /**
+   * @brief Creates a string representation of the data in the buffer
+   */
+  std::string PrintBuffer();
 
 private:
   /**

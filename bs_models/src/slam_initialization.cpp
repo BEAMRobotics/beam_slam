@@ -63,8 +63,6 @@ void SLAMInitialization::onInit() {
     mode_ = InitMode::VISUAL;
   } else if (params_.init_mode == "LIDAR") {
     mode_ = InitMode::LIDAR;
-  } else if (params_.init_mode == "FRAMEINIT") {
-    mode_ = InitMode::FRAMEINIT;
   }
 
   max_landmark_container_size_ = params_.initialization_window_s * params_.camera_hz;
@@ -113,7 +111,7 @@ void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
   }
 
   // if we initialize successfully, stop this sensor model
-  if (Initialize()) { stop(); }
+  if (Initialize()) { shutdown(); }
 }
 
 void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPtr& msg) {
@@ -160,7 +158,7 @@ void SLAMInitialization::processMeasurements(const CameraMeasurementMsg::ConstPt
       bs_models::vision::ComputePathWithVision(cam_model_, landmark_container_, T_cam_baselink_);
 
   // if we initialize successfully, stop this sensor model
-  if (Initialize()) { stop(); }
+  if (Initialize()) { shutdown(); }
 }
 
 void SLAMInitialization::processLidar(const sensor_msgs::PointCloud2::ConstPtr& msg) {
@@ -169,17 +167,17 @@ void SLAMInitialization::processLidar(const sensor_msgs::PointCloud2::ConstPtr& 
 
   if (lidar_buffer_.size() > lidar_buffer_size_) { lidar_buffer_.pop_front(); }
 
+  // attempt initialization via frame initializer if its available
+  if (frame_initializer_) {
+    processFrameInit(msg->header.stamp);
+    return;
+  }
+
   if (mode_ != InitMode::LIDAR) {
     return;
   } else {
     ROS_ERROR("LIDAR initialization not yet implemented, exiting.");
     throw std::invalid_argument{"LIDAR initialization not yet implemented."};
-  }
-
-  // attempt initialization via frame initializer if its available
-  if (frame_initializer_) {
-    processFrameInit(msg->header.stamp);
-    return;
   }
 
   // TODO: compute path/add to it via lidar
@@ -190,7 +188,7 @@ void SLAMInitialization::processLidar(const sensor_msgs::PointCloud2::ConstPtr& 
                                    true, true, false)) {
     return;
   }
-  if (Initialize()) { stop(); }
+  if (Initialize()) { shutdown(); }
 }
 
 void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -200,15 +198,15 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 bool SLAMInitialization::Initialize() {
-  if (init_path_.size() < 3) {
-    ROS_WARN_STREAM("Initial path estimate too small.");
-    return false;
-  }
-
   // prune poses in path that don't have at least two imu messages before it
   auto second_imu_msg = std::next(imu_buffer_.begin());
   while (init_path_.begin()->first < second_imu_msg->header.stamp.toNSec()) {
     init_path_.erase(init_path_.begin()->first);
+  }
+
+  if (init_path_.size() < 3) {
+    ROS_WARN_STREAM(__func__ << ": Initial path estimate too small.");
+    return false;
   }
 
   // remove any visual measurements that are outside of the init path (todo: Same for lidar)
@@ -222,7 +220,7 @@ bool SLAMInitialization::Initialize() {
   bs_models::imu::EstimateParameters(init_path_, imu_buffer_, imu_params_, gravity_, bg_, ba_,
                                      velocities_, scale_);
 
-  if (mode_ == InitMode::VISUAL && (scale_ < 0.02 || scale_ > 1.0)) {
+  if (!frame_initializer_ && mode_ == InitMode::VISUAL && (scale_ < 0.02 || scale_ > 1.0)) {
     ROS_WARN_STREAM(__func__ << ": Invalid scale estimate: " << scale_);
     return false;
   }
@@ -299,13 +297,10 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     auto [stamp, T_WORLD_BASELINK] = pair;
     // add imu data to preint for this frame
     const auto timestamp = beam::NSecToRos(stamp);
-    while (imu_buffer_.front().header.stamp <= timestamp && !imu_buffer_.empty()) {
+    while (imu_buffer_.front().header.stamp < timestamp && !imu_buffer_.empty()) {
       imu_preint_->AddToBuffer(imu_buffer_.front());
       imu_buffer_.pop_front();
     }
-
-    imu_preint_->PrintBuffer();
-    std::cout << "\n\n Pose time: " << timestamp << "\n\n" << std::endl;
 
     // add pose to graph
     auto pose_transaction = fuse_core::Transaction::make_shared();
@@ -343,6 +338,19 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
 }
 
 void SLAMInitialization::AddVisualConstraints() {
+  // determine subset of visual measurements to be keyframes
+  double keyframe_delta = 0.2; // 5hz keyframe rate
+  ros::Time prev_kf(0.0);
+  const auto visual_measurements = landmark_container_->GetMeasurementTimes();
+  std::set<uint64_t> keyframe_measurement_times;
+  for (const auto time : visual_measurements) {
+    const auto cur_time = beam::NSecToRos(time);
+    if ((cur_time - prev_kf).toSec() >= keyframe_delta) {
+      keyframe_measurement_times.insert(time);
+      prev_kf = cur_time;
+    }
+  }
+
   const auto start = beam::NSecToRos(init_path_.begin()->first);
   const auto end = beam::NSecToRos((*init_path_.rbegin()).first);
 
@@ -367,7 +375,7 @@ void SLAMInitialization::AddVisualConstraints() {
           T_cam_world_v.push_back(T_world_camera.value().inverse());
         }
       }
-      if (T_cam_world_v.size() >= 2) {
+      if (T_cam_world_v.size() >= 4) {
         const auto point =
             beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v, pixels);
         if (point.has_value()) {
@@ -379,6 +387,8 @@ void SLAMInitialization::AddVisualConstraints() {
 
     // add constraints to the landmark
     for (auto& [stamp, T_WORLD_BASELINK] : init_path_) {
+      // only add visual constraints to keyframes
+      if (keyframe_measurement_times.find(stamp) == keyframe_measurement_times.end()) { continue; }
       const auto timestamp = beam::NSecToRos(stamp);
       try {
         visual_map_->AddVisualConstraint(timestamp, lm_id,
@@ -402,16 +412,17 @@ void SLAMInitialization::AddVisualConstraints() {
 }
 
 void SLAMInitialization::SendInitializationGraph() {
+  const auto first_stamp = beam::NSecToRos(init_path_.begin()->first);
   auto transaction = fuse_core::Transaction::make_shared();
+  transaction->stamp(first_stamp);
+  // add each variable
   for (auto& var : local_graph_->getVariables()) {
     transaction->addVariable(std::move(var.clone()));
   }
-
   // add each constraint in the graph
   for (auto& constraint : local_graph_->getConstraints()) {
     transaction->addConstraint(std::move(constraint.clone()));
   }
-
   // send transaction to fuse optimizer
   sendTransaction(transaction);
 }

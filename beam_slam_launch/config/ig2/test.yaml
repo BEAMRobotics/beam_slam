@@ -5,7 +5,6 @@ sensor_models:
 # Initialization: 
   - name: 'slam_initialization'
     type: 'bs_models::SLAMInitialization'
-    ignition: true
 # Front end:
   - name: 'visual_feature_tracker'
     type: 'bs_models::VisualFeatureTracker'
@@ -51,12 +50,11 @@ slam_initialization:
   lidar_topic: "/lidar_h/velodyne_points"
   frame_initializer_config: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/lvi_slam.json"
   init_mode: "VISUAL"
-  max_optimization_s: 1.0
+  max_optimization_s: 0.0
   max_container_size: 100
   min_parallax: 50.0
   min_trajectory_length_m: 1.0
-  frame_init_frequency: 0.2
-  output_folder: "/userhome/data/results/vo_init_results"
+  output_folder: ""
 
 inertial_odometry:
   imu_topic: "/imu/data"

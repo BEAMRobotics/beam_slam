@@ -109,7 +109,7 @@ beam::opt<PoseWithCovariance> ImuPreintegration::GetPose(const ros::Time& t_now)
 
 beam::opt<PoseWithCovariance> ImuPreintegration::GetRelativeMotion(const ros::Time& t1,
                                                                    const ros::Time& t2) {
-  if (t1 < pre_integrator_ij_.data.front().t || t1 > pre_integrator_ij_.data.back().t) {
+  if (t1 > pre_integrator_ij_.data.back().t) {
     ROS_WARN_STREAM(
         __func__ << ": Requested start time is outside the current window of imu measurements.");
     return {};
@@ -269,6 +269,14 @@ void ImuPreintegration::Clear() {
   pre_integrator_kj_.Reset();
   pre_integrator_ij_.data.clear();
   pre_integrator_ij_.Reset();
+}
+
+std::string ImuPreintegration::PrintBuffer() {
+  std::string str;
+  for (const auto& d : pre_integrator_kj_.data) {
+    str += "IMU time: " + std::to_string(d.t.toSec()) + "\n";
+  }
+  return str;
 }
 
 } // namespace bs_models

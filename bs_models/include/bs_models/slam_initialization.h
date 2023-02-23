@@ -86,10 +86,21 @@ private:
    */
   void onStart() override;
 
-  /**
-   * @brief Unsubscribe to the input topics
+    /**
+   * @brief Clears all memory and shuts down subscribers
    */
-  void onStop() override {}
+  void shutdown() {
+    visual_measurement_subscriber_.shutdown();
+    imu_subscriber_.shutdown();
+    lidar_subscriber_.shutdown();
+    imu_buffer_.clear();
+    lidar_buffer_.clear();
+    frame_init_buffer_.clear();
+    local_graph_->clear();
+    frame_initializer_ = nullptr;
+    visual_map_ = nullptr;
+    imu_preint_ = nullptr;
+  }
 
   /**
    * @brief Attempts initialization using the available imu, lidar, and visual

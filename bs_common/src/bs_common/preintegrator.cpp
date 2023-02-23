@@ -29,7 +29,7 @@ void PreIntegrator::Clear(const ros::Time& t) {
 void PreIntegrator::Increment(ros::Duration dt, const IMUData& data, const Eigen::Vector3d& bg,
                               const Eigen::Vector3d& ba, bool compute_jacobian,
                               bool compute_covariance) {
-  assert(("dt must > 0") && (dt >= ros::Duration(0)));
+  assert(("dt must > 0") && (dt > ros::Duration(0)));
   double dtd = dt.toSec();
   Eigen::Vector3d w = data.w - bg;
   Eigen::Vector3d a = data.a - ba;
