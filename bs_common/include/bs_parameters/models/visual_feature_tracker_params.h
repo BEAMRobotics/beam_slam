@@ -21,13 +21,12 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-    getParam<std::string>(nh, "image_topic", image_topic, "");
+    getParamRequired<std::string>(nh, "image_topic", image_topic);
+    getParamRequired<std::string>(nh, "descriptor_config", descriptor_config);
+    getParamRequired<std::string>(nh, "detector_config", detector_config);
+    getParamRequired<std::string>(nh, "tracker_config", tracker_config);
 
-    getParam<std::string>(nh, "descriptor_config", descriptor_config, "");
-    getParam<std::string>(nh, "detector_config", detector_config, "");
-    getParam<std::string>(nh, "tracker_config", tracker_config, "");
     getParam<std::string>(nh, "save_tracks_folder", save_tracks_folder, "");
-
     getParam<int>(nh, "sensor_id", sensor_id, 0);
     getParam<int>(nh, "visual_window_size", visual_window_size, 10);
   }

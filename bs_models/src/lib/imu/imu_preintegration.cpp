@@ -52,7 +52,7 @@ ImuPreintegration::ImuPreintegration(const Params& params, const Eigen::Vector3d
 
 void ImuPreintegration::CheckParameters() {
   if (params_.cov_prior_noise <= 0) {
-    BEAM_ERROR("Prior noise on IMU state must be positive");
+    ROS_ERROR("Prior noise on IMU state must be positive");
     throw std::invalid_argument{"Inputs to ImuPreintegration invalid."};
   }
 }
@@ -75,13 +75,9 @@ void ImuPreintegration::AddToBuffer(const bs_common::IMUData& imu_data) {
   pre_integrator_kj_.data.push_back(imu_data);
 }
 
-beam::opt<PoseWithCovariance> ImuPreintegration::GetPose(const ros::Time& t_now) {
-  // check requested time given an empty integrator
-  if (t_now < imu_state_k_.Stamp()) {
-    ROS_WARN_STREAM(__func__ << ": Requested time is before current imu state. Request a pose "
-                                "at a timestamp >= the most recent imu measurement.");
-    return {};
-  }
+PoseWithCovariance ImuPreintegration::GetPose(const ros::Time& t_now) {
+  assert(t_now >= imu_state_k_.Stamp() && "Requested time is before current imu state. Request a "
+                                          "pose at a timestamp >= the most recent imu measurement");
 
   // integrate between frames if there is data to integrate
   if (!pre_integrator_kj_.data.empty()) {
@@ -107,41 +103,53 @@ beam::opt<PoseWithCovariance> ImuPreintegration::GetPose(const ros::Time& t_now)
   return std::make_pair(T_WORLD_IMU, covariance);
 }
 
-beam::opt<PoseWithCovariance> ImuPreintegration::GetRelativeMotion(const ros::Time& t1,
-                                                                   const ros::Time& t2) {
-  if (t1 > pre_integrator_ij_.data.back().t) {
-    ROS_WARN_STREAM(
-        __func__ << ": Requested start time is outside the current window of imu measurements.");
-    return {};
-  }
-  if (t2 < pre_integrator_ij_.data.front().t) {
-    ROS_WARN_STREAM(
-        __func__
-        << ": Requested end time is before the start of the current window of imu measurements.");
-    return {};
+PoseWithCovariance ImuPreintegration::GetRelativeMotion(const ros::Time& t1, const ros::Time& t2) {
+  assert(!pre_integrator_ij_.data.empty() &&
+         "No data in preintegrator, cannot retrieve relative motion.");
+  assert(t1 >= imu_state_i_.Stamp() && "Requested time is before current window of measurements.");
+  assert(t1 <= pre_integrator_ij_.data.back().t &&
+         "Requested start time is after the end of the current window of imu measurements.");
+  assert(t2 >= pre_integrator_ij_.data.front().t &&
+         "Requested end time is before the start of the current window of imu measurements.");
+  assert(t1 < t2 && "Start time of window must preceed end times.");
+
+  // get state at t1
+  bs_common::ImuState imu_state_1;
+  if (window_states_.find(t1.toNSec()) == window_states_.end()) {
+    pre_integrator_ij_.Integrate(t1, imu_state_i_.GyroBiasVec(), imu_state_i_.AccelBiasVec(), false,
+                                 true);
+    imu_state_1 = PredictState(pre_integrator_ij_, imu_state_i_, t1);
+  } else {
+    imu_state_1 = window_states_[t1.toNSec()];
   }
 
-  // copy preintegrator ij and remove messages before t1
+  // copy preintegrator ij
   bs_common::PreIntegrator pre_integrator = pre_integrator_ij_;
   pre_integrator.Clear(t1);
   pre_integrator.Reset();
 
-  // set initial state to identity
-  bs_common::ImuState imu_state_1(t1);
-  imu_state_1.SetPosition(Eigen::Vector3d::Zero());
-  imu_state_1.SetOrientation(Eigen::Quaterniond(Eigen::Matrix3d::Identity()));
-
-  // integrate to t2 using recent bias estimate
+  // integrate to t2
   pre_integrator.Integrate(t2, imu_state_i_.GyroBiasVec(), imu_state_i_.AccelBiasVec(), false,
                            true);
 
-  // predict state
+  // get state at t2
   bs_common::ImuState imu_state_2 = PredictState(pre_integrator, imu_state_1, t2);
 
-  // populate transformation matrix and return
-  Eigen::Matrix4d T_IMUSTATE1_IMUSTATE2;
+  // store for potential next t1
+  window_states_[t2.toNSec()] = imu_state_2;
+
+  // get poses at each state
+  Eigen::Matrix4d T_WORLD_IMUSTATE2;
   beam::QuaternionAndTranslationToTransformMatrix(imu_state_2.OrientationQuat(),
-                                                  imu_state_2.PositionVec(), T_IMUSTATE1_IMUSTATE2);
+                                                  imu_state_2.PositionVec(), T_WORLD_IMUSTATE2);
+  Eigen::Matrix4d T_WORLD_IMUSTATE1;
+  beam::QuaternionAndTranslationToTransformMatrix(imu_state_1.OrientationQuat(),
+                                                  imu_state_1.PositionVec(), T_WORLD_IMUSTATE1);
+
+  // compute relative motion between them
+  Eigen::Matrix4d T_IMUSTATE1_IMUSTATE2 =
+      beam::InvertTransform(T_WORLD_IMUSTATE1) * T_WORLD_IMUSTATE2;
+
   // get covariance
   Eigen::Matrix<double, 6, 6> covariance = pre_integrator.delta.cov.block<6, 6>(0, 0);
 
@@ -251,6 +259,10 @@ fuse_core::Transaction::SharedPtr ImuPreintegration::RegisterNewImuPreintegrated
   pre_integrator_ij_.Reset();
   pre_integrator_kj_.Clear(t_now);
   pre_integrator_kj_.Reset();
+
+  // clear state storage within the window
+  window_states_.clear();
+
   return transaction.GetTransaction();
 }
 
@@ -262,6 +274,8 @@ void ImuPreintegration::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) 
     // reset state k to state i
     imu_state_k_ = imu_state_i_;
   }
+  // clear state storage within the window
+  window_states_.clear();
 }
 
 void ImuPreintegration::Clear() {
@@ -273,7 +287,7 @@ void ImuPreintegration::Clear() {
 
 std::string ImuPreintegration::PrintBuffer() {
   std::string str;
-  for (const auto& d : pre_integrator_kj_.data) {
+  for (const auto& d : pre_integrator_ij_.data) {
     str += "IMU time: " + std::to_string(d.t.toSec()) + "\n";
   }
   return str;

@@ -58,4 +58,4 @@ slam_initialization:
 
 inertial_odometry:
   imu_topic: "/imu/data"
-  constraint_odom_topic: ""
+  constraint_odom_topic: "/local_mapper/visual_odometry/odom"

@@ -2,8 +2,6 @@
 
 #include <queue>
 
-#include <beam_utils/optional.h>
-
 #include <bs_common/bs_msgs.h>
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
@@ -95,7 +93,7 @@ public:
    * @param t_now to get pose estimate for
    * @return [T_WORLD_IMU, cov]
    */
-  beam::opt<PoseWithCovariance> GetPose(const ros::Time& t_now);
+  PoseWithCovariance GetPose(const ros::Time& t_now);
 
   /**
    * @brief Gets the relative motion between timestamps within the current window
@@ -103,7 +101,7 @@ public:
    * @param t2 second timestamp
    * @return [T_IMUSTATE1_IMUSTATE2, cov]
    */
-  beam::opt<PoseWithCovariance> GetRelativeMotion(const ros::Time& t1, const ros::Time& t2);
+  PoseWithCovariance GetRelativeMotion(const ros::Time& t1, const ros::Time& t2);
 
   /**
    * @brief Predicts new IMU state from imu preintegration
@@ -162,12 +160,13 @@ private:
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
 
-  bs_common::ImuState imu_state_i_;             // current key frame
-  bs_common::ImuState imu_state_k_;             // intermediate frame
-  bs_common::PreIntegrator pre_integrator_ij_;  // preintegrate between key frames
-  bs_common::PreIntegrator pre_integrator_kj_;  // preintegrate between every frame
-  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
-  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero acceleration bias
+  bs_common::ImuState imu_state_i_;                       // current key frame
+  bs_common::ImuState imu_state_k_;                       // intermediate frame
+  bs_common::PreIntegrator pre_integrator_ij_;            // preintegrate between key frames
+  bs_common::PreIntegrator pre_integrator_kj_;            // preintegrate between every frame
+  Eigen::Vector3d bg_{Eigen::Vector3d::Zero()};           // zero gyroscope bias
+  Eigen::Vector3d ba_{Eigen::Vector3d::Zero()};           // zero acceleration bias
+  std::map<uint64_t, bs_common::ImuState> window_states_; // state velocities in the window
 };
 
 } // namespace bs_models

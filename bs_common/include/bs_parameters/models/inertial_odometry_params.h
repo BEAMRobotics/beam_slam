@@ -22,17 +22,13 @@ public:
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
     // imu topic
-    getParam<std::string>(nh, "imu_topic", imu_topic, "");
+    getParamRequired<std::string>(nh, "imu_topic", imu_topic);
 
     // odometry topic for the poses to add constraints to
-    getParam<std::string>(nh, "constraint_odom_topic", constraint_odom_topic, "");
-
-    // odometry topic for the poses to add constraints to
-    getParam<double>(nh, "constraint_frequency", constraint_frequency, 0.5);
+    getParamRequired<std::string>(nh, "constraint_odom_topic", constraint_odom_topic);
   }
 
-  std::string imu_topic{""};
-  std::string constraint_odom_topic{""};
-  double constraint_frequency{0.5};
+  std::string imu_topic{};
+  std::string constraint_odom_topic{};
 };
 }} // namespace bs_parameters::models

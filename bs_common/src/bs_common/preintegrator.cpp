@@ -20,7 +20,7 @@ void PreIntegrator::Reset() {
 }
 
 void PreIntegrator::Clear(const ros::Time& t) {
-  auto leq_time = [&](const auto& d) { return d.t <= t; };
+  auto leq_time = [&](const auto& d) { return d.t < t; };
   auto it = std::remove_if(data.begin(), data.end(), leq_time);
   auto r = std::distance(it, data.end());
   data.erase(it, data.end());
@@ -85,7 +85,7 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data, const Eigen
 
 bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
                               bool compute_jacobian, bool compute_covariance) {
-  if (data.size() < 1) return false;
+  if (data.empty()) return false;
   Reset();
 
   // increment over window such that it is less or equal to the requested time

@@ -22,6 +22,13 @@ void InertialOdometry::onInit() {
   calibration_params_.loadFromROS();
   params_.loadFromROS(private_node_handle_);
 
+  // check for non empty odom topic
+  if (params_.constraint_odom_topic.empty()) {
+    ROS_ERROR("Constraint odom topic cannot be empty, must be a valid odometry topic.");
+    throw std::invalid_argument{
+        "Constraint odom topic cannot be empty, must be a valid odometry topic."};
+  }
+
   // read imu parameters
   nlohmann::json J;
   beam::ReadJson(calibration_params_.imu_intrinsics_path, J);
@@ -56,8 +63,8 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   // push imu message onto buffer
   imu_buffer_.push(*msg);
 
-  // return if its not initialized
-  if (!initialized) return;
+  // return if its not initialized_
+  if (!initialized_) return;
 
   const auto curr_msg = imu_buffer_.front();
   const auto curr_stamp = curr_msg.header.stamp;
@@ -66,43 +73,29 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   imu_preint_->AddToBuffer(curr_msg);
 
   // get relative pose and publish
-  const auto relative_pose = imu_preint_->GetRelativeMotion(prev_stamp_, curr_stamp);
-  if (relative_pose.has_value()) {
-    const auto [T_IMUprev_IMUcurr, cov] = relative_pose.value();
-    T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
-    auto odom_msg = bs_common::TransformToOdometryMessage(
-        curr_stamp, odom_seq, "odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov);
-    relative_odom_publisher_.publish(odom_msg);
-  }
+  const auto [T_IMUprev_IMUcurr, cov_rel] = imu_preint_->GetRelativeMotion(prev_stamp_, curr_stamp);
+  T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
+  auto odom_msg_rel = bs_common::TransformToOdometryMessage(
+      curr_stamp, odom_seq_, "odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov_rel);
+  relative_odom_publisher_.publish(odom_msg_rel);
 
   // get world pose and publish
-  const auto world_pose = imu_preint_->GetPose(curr_stamp);
-  if (world_pose.has_value()) {
-    const auto [T_WORLD_IMU, cov] = world_pose.value();
-    auto odom_msg =
-        bs_common::TransformToOdometryMessage(curr_stamp, odom_seq, extrinsics_.GetWorldFrameId(),
-                                              extrinsics_.GetImuFrameId(), T_WORLD_IMU, cov);
-    world_odom_publisher_.publish(odom_msg);
-  }
+  const auto [T_WORLD_IMU, cov_abs] = imu_preint_->GetPose(curr_stamp);
+  auto odom_msg_abs =
+      bs_common::TransformToOdometryMessage(curr_stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
+                                            extrinsics_.GetImuFrameId(), T_WORLD_IMU, cov_abs);
+  world_odom_publisher_.publish(odom_msg_abs);
 
-  odom_seq++;
+  odom_seq_++;
   prev_stamp_ = curr_stamp;
   imu_buffer_.pop();
-
-  // if no odom is being used, then add constraints at fixed rate
-  if (!params_.constraint_odom_topic.empty() &&
-      (curr_stamp - prev_constraint_time_).toSec() >= params_.constraint_frequency) {
-    auto transaction = imu_preint_->RegisterNewImuPreintegratedFactor(curr_stamp);
-    sendTransaction(transaction);
-    prev_constraint_time_ = curr_stamp;
-  }
 }
 
 void InertialOdometry::processOdometry(const nav_msgs::Odometry::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE("InertialOdometry received Odometry measurements: " << msg->header.stamp);
 
-  // return if its not initialized
-  if (!initialized) return;
+  // return if its not initialized_
+  if (!initialized_) return;
 
   // add constraint at time
   auto transaction = imu_preint_->RegisterNewImuPreintegratedFactor(msg->header.stamp);
@@ -110,7 +103,7 @@ void InertialOdometry::processOdometry(const nav_msgs::Odometry::ConstPtr& msg) 
 }
 
 void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  if (initialized) {
+  if (initialized_) {
     imu_preint_->UpdateGraph(graph_msg);
     return;
   }
@@ -171,41 +164,31 @@ void InertialOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg)
   // iterate through existing buffer, estimate poses and output
   prev_stamp_ = most_recent_stamp;
   while (!imu_buffer_.empty()) {
-    // TODO: reorganize so we add the previous imu msg to buffer, then get pose at the current stamp
     auto imu_msg = imu_buffer_.front();
     imu_preint_->AddToBuffer(imu_msg);
     const auto curr_stamp = imu_msg.header.stamp;
 
     // get relative pose and publish
-    std::cout << "\n" << curr_stamp << std::endl;
-    // const auto relative_pose = imu_preint_->GetRelativeMotion(prev_stamp_, curr_stamp);
-    // if (relative_pose.has_value()) {
-    //   const auto [T_IMUprev_IMUcurr, cov] = relative_pose.value();
-    //   T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
-    //   auto odom_msg = bs_common::TransformToOdometryMessage(
-    //       curr_stamp, odom_seq, "odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov);
-    //   relative_odom_publisher_.publish(odom_msg);
-    //   std::cout << T_ODOM_IMUprev_ << std::endl;
-    // }
+    const auto [T_IMUprev_IMUcurr, cov_rel] =
+        imu_preint_->GetRelativeMotion(prev_stamp_, curr_stamp);
+    T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
+    auto odom_msg_rel = bs_common::TransformToOdometryMessage(
+        curr_stamp, odom_seq_, "odom", extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov_rel);
+    relative_odom_publisher_.publish(odom_msg_rel);
 
     // get world pose and publish
-    std::cout << imu_preint_->PrintBuffer() << std::endl;
-    const auto world_pose = imu_preint_->GetPose(curr_stamp);
-    if (world_pose.has_value()) {
-      const auto [T_WORLD_IMU, cov] = world_pose.value();
-      auto odom_msg =
-          bs_common::TransformToOdometryMessage(curr_stamp, odom_seq, extrinsics_.GetWorldFrameId(),
-                                                extrinsics_.GetImuFrameId(), T_WORLD_IMU, cov);
-      world_odom_publisher_.publish(odom_msg);
-      std::cout << "\n" << T_WORLD_IMU << std::endl;
-    }
+    const auto [T_WORLD_IMU, cov_abs] = imu_preint_->GetPose(curr_stamp);
+    auto odom_msg_abs =
+        bs_common::TransformToOdometryMessage(curr_stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
+                                              extrinsics_.GetImuFrameId(), T_WORLD_IMU, cov_abs);
+    world_odom_publisher_.publish(odom_msg_abs);
 
-    odom_seq++;
+    odom_seq_++;
     prev_stamp_ = curr_stamp;
     imu_buffer_.pop();
   }
 
-  initialized = true;
+  initialized_ = true;
 }
 
 } // namespace bs_models
