@@ -665,7 +665,6 @@ CameraMeasurementMsg
   CameraMeasurementMsg camera_measurement;
   camera_measurement.descriptor_type = descriptor_type_int_;
   camera_measurement.sensor_id = 0;
-  camera_measurement.measurement_id = keyframe.SequenceNumber();
   camera_measurement.image = keyframe.Image();
   camera_measurement.landmarks = landmarks;
   // return message

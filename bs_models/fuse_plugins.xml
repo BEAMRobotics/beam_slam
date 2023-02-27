@@ -56,6 +56,11 @@
       An adapter-type sensor that produces camera rate odometry
     </description>
   </class>
+  <class type="bs_models::VisualFeatureTracker" base_class_type="fuse_core::SensorModel">
+    <description>
+      An adapter-type sensor that takes images as input and outputs visual track messages
+    </description>
+  </class>
     <class type="bs_models::InertialOdometry" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces high-rate odometry estimates from IMU data

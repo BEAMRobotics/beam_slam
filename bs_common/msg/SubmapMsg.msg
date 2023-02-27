@@ -5,10 +5,10 @@ LidarMeasurementMsg lidar_map
 geometry_msgs/Vector3[] visual_map_points
 
 # list of desriptors corresponding to the visual map points.
-DescriptorMsg[] visual_map_descriptors
+DescriptorMsg[] visual_map_words
 
-#list of word id's from the vocab corresponding to the descriptors
-uint32[] visual_map_words
+# list of word id's from the vocab corresponding to the descriptors
+uint32[] visual_map_word_ids
 
-# see DescriptorTypeIntMap in beam_cv/descriptors/Descriptor.h
-uint8 descriptor_type
+# see DescriptorTypeStringMap in beam_cv/descriptors/Descriptor.h
+string descriptor_type

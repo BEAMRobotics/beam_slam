@@ -2,7 +2,7 @@
 uint64 landmark_id
 
 # desriptor corresponding to this landmark measurement
-float32[] descriptor
+DescriptorMsg descriptor
 
 # pixel coordinates where landmark was detected
 float32 pixel_u

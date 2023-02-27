@@ -74,6 +74,7 @@ add_library(
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
   src/visual_inertial_odometry.cpp
+  src/visual_feature_tracker.cpp
   src/inertial_odometry.cpp
   src/global_mapper.cpp
   ## vision helpers
