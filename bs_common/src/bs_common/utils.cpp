@@ -86,6 +86,39 @@ void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
   T_WORLD_SENSOR.block(0, 0, 3, 3) = R;
 }
 
+nav_msgs::Odometry TransformToOdometryMessage(
+    const ros::Time& stamp, const int seq, const std::string& parent_frame_id,
+    const std::string& child_frame_id, const Eigen::Matrix4d T_PARENT_CHILD,
+    const Eigen::Matrix<double, 6, 6> covariance) {
+  nav_msgs::Odometry odom_msg;
+  odom_msg.header.stamp = stamp;
+  odom_msg.header.seq = seq;
+  odom_msg.header.frame_id = parent_frame_id;
+  odom_msg.child_frame_id = child_frame_id;
+  // handle position
+  geometry_msgs::Point position;
+  position.x = T_PARENT_CHILD(0, 3);
+  position.y = T_PARENT_CHILD(1, 3);
+  position.z = T_PARENT_CHILD(2, 3);
+  odom_msg.pose.pose.position = position;
+  // handle orientation
+  Eigen::Matrix3d R = T_PARENT_CHILD.block(0, 0, 3, 3);
+  Eigen::Quaterniond q(R);
+  geometry_msgs::Quaternion orientation;
+  orientation.x = q.x();
+  orientation.y = q.y();
+  orientation.z = q.z();
+  orientation.w = q.w();
+  odom_msg.pose.pose.orientation = orientation;
+  // handle covariance
+  std::vector<double> cov(covariance.data(),
+                          covariance.data() +
+                              covariance.rows() * covariance.cols());
+  for (int i = 0; i < cov.size(); i++) { odom_msg.pose.covariance[i] = cov[i]; }
+
+  return odom_msg;
+}
+
 void EstimateVelocityFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Vector3d& velocity) {
