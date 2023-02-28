@@ -9,14 +9,7 @@ namespace bs_common {
 /**
  * @brief Enum class representing order of states in covariance matrix
  */
-enum ErrorStateLocation {
-  ES_Q = 0,
-  ES_P = 3,
-  ES_V = 6,
-  ES_BG = 9,
-  ES_BA = 12,
-  ES_SIZE = 15
-};
+enum ErrorStateLocation { ES_Q = 0, ES_P = 3, ES_V = 6, ES_BG = 9, ES_BA = 12, ES_SIZE = 15 };
 
 /**
  * @brief Struct representing a single imu measurement
@@ -41,9 +34,9 @@ struct IMUData {
     a[2] = msg.linear_acceleration.z;
   }
 
-  ros::Time t;        // timestamp
-  Eigen::Vector3d w;  // gyro measurement
-  Eigen::Vector3d a;  // accelerometer measurement
+  ros::Time t;       // timestamp
+  Eigen::Vector3d w; // gyro measurement
+  Eigen::Vector3d a; // accelerometer measurement
 };
 
 /**
@@ -54,7 +47,7 @@ struct Delta {
   Eigen::Quaterniond q;
   Eigen::Vector3d p;
   Eigen::Vector3d v;
-  Eigen::Matrix<double, ES_SIZE, ES_SIZE> cov;  // ordered in q, p, v, bg, ba
+  Eigen::Matrix<double, ES_SIZE, ES_SIZE> cov; // ordered in q, p, v, bg, ba
   Eigen::Matrix<double, ES_SIZE, ES_SIZE> sqrt_inv_cov;
 };
 
@@ -74,7 +67,7 @@ struct Jacobian {
  * is used with ImuPreintegration for creating constraints and estimating states
  */
 class PreIntegrator {
- public:
+public:
   /**
    * @brief Default Constructor
    */
@@ -86,6 +79,12 @@ class PreIntegrator {
   void Reset();
 
   /**
+   * @brief Removes data in buffer before time t
+   * @param t time to remove data before
+   */
+  void Clear(const ros::Time& t);
+
+  /**
    * @brief Increments current state by the incoming imu data
    * @param dt time difference to increment forward to
    * @param data given imu data
@@ -94,9 +93,8 @@ class PreIntegrator {
    * @param compute_jacobian optionally compute the jacobian
    * @param compute_covariance optionally compute the covariance
    */
-  void Increment(ros::Duration dt, const IMUData& data,
-                 const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
-                 bool compute_jacobian, bool compute_covariance);
+  void Increment(ros::Duration dt, const IMUData& data, const Eigen::Vector3d& bg,
+                 const Eigen::Vector3d& ba, bool compute_jacobian, bool compute_covariance);
 
   /**
    * @brief IMU Integration Function, integrate current measurements to a
@@ -107,9 +105,8 @@ class PreIntegrator {
    * @param compute_jacobian optionally compute the jacobian
    * @param compute_covariance optionally compute the covariance
    */
-  bool Integrate(ros::Time t, const Eigen::Vector3d& bg,
-                 const Eigen::Vector3d& ba, bool compute_jacobian,
-                 bool compute_covariance);
+  bool Integrate(ros::Time t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
+                 bool compute_jacobian, bool compute_covariance);
 
   /**
    * @brief Computes the square-root information matrix from the covariance
@@ -117,16 +114,16 @@ class PreIntegrator {
    */
   void ComputeSqrtInvCov();
 
-  double cov_tol{1e-6};  // tolarance on zero covariance matrix
+  double cov_tol{1e-6}; // tolarance on zero covariance matrix
 
-  Eigen::Matrix3d cov_w;  // continuous noise covariance
+  Eigen::Matrix3d cov_w; // continuous noise covariance
   Eigen::Matrix3d cov_a;
-  Eigen::Matrix3d cov_bg;  // continuous random walk noise covariance
+  Eigen::Matrix3d cov_bg; // continuous random walk noise covariance
   Eigen::Matrix3d cov_ba;
 
   Delta delta;
   Jacobian jacobian;
-  std::vector<IMUData> data;  // vector of imu data (buffer)
+  std::vector<IMUData> data; // vector of imu data (buffer)
 };
 
-}  // namespace bs_common
+} // namespace bs_common

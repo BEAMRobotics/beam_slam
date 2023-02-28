@@ -24,11 +24,10 @@ namespace bs_models { namespace vision {
 class VisualMap {
 public:
   /**
-   * @brief Custom cosntrcutor, use when working with transactions
+   * @brief Custom constructor
    * @param cam_model camera model being used
    */
-  VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
-            const size_t tracked_features = 100, const size_t window_size = 10);
+  VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model);
 
   /**
    * @brief Default destructor
@@ -114,7 +113,7 @@ public:
    * @param pixel measured pixel of landmark in image at img_time
    * @param transaction to add to
    */
-  void AddVisualConstraint(const ros::Time& stamp, uint64_t lm_id,
+  bool AddVisualConstraint(const ros::Time& stamp, uint64_t lm_id,
                            const Eigen::Vector2d& pixel,
                            fuse_core::Transaction::SharedPtr transaction);
 
@@ -158,7 +157,7 @@ public:
   /**
    * @brief Adds position in baselink frame
    * @param stamp associated to position
-   * @param q_WORLD_BASELINK vector representing position
+   * @param p_WORLD_BASELINK vector representing position
    * @param transaciton to add to
    */
   void AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK,
@@ -167,8 +166,7 @@ public:
 
   /**
    * @brief Adds orientation in baselink frame
-   * @param stamp associated to orientation
-   * @param q_WORLD_BASELINK quaternion representing orientation
+   * @param orientation variable
    * @param transaciton to add to
    */
   void AddOrientation(
@@ -177,28 +175,11 @@ public:
 
   /**
    * @brief Adds position in baselink frame
-   * @param stamp associated to position
-   * @param q_WORLD_BASELINK vector representing position
+   * @param position variable
    * @param transaciton to add to
    */
   void AddPosition(fuse_variables::Position3DStamped::SharedPtr position,
                    fuse_core::Transaction::SharedPtr transaction);
-
-  /**
-   * @brief Replaces a given fixed landmark with a non-fixed one
-   * @param landmark_id if of landmark to replace
-   * @param transaction to edit
-   */
-  void ReplaceFixedWithNonFixed(uint64_t landmark_id,
-                                fuse_core::Transaction::SharedPtr transaction);
-
-  /**
-   * @brief Replaces a given non-fixed landmark with a fixed one
-   * @param landmark_id if of landmark to replace
-   * @param transaction to edit
-   */
-  void ReplaceNonFixedWithFixed(uint64_t landmark_id,
-                                fuse_core::Transaction::SharedPtr transaction);
 
   /**
    * @brief Gets fuse uuid of landmark
@@ -253,31 +234,6 @@ public:
    */
   void Clear();
 
-private:
-  /**
-   * @brief Updates local copies of variables with the values in the current
-   * graph
-   */
-  void UpdateLandmarks();
-
-  /**
-   * @brief Updates local copies of variables with the values in the current
-   * graph
-   */
-  void UpdateFixedLandmarks();
-
-  /**
-   * @brief Updates local copies of variables with the values in the current
-   * graph
-   */
-  void UpdatePositions();
-
-  /**
-   * @brief Updates local copies of variables with the values in the current
-   * graph
-   */
-  void UpdateOrientations();
-
 protected:
   // temp maps for in between optimization cycles
   std::map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
@@ -287,10 +243,6 @@ protected:
       landmark_positions_;
   std::map<uint64_t, fuse_variables::Point3DFixedLandmark::SharedPtr>
       fixed_landmark_positions_;
-
-  // memory management variables
-  size_t tracked_features_{100}; // # of features tracked per frame
-  size_t window_size_{10};       // # of keyframe poses to retain in local maps
 
   // copy of the current graph
   fuse_core::Graph::ConstSharedPtr graph_;

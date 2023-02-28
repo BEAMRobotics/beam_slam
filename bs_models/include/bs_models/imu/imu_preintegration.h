@@ -10,6 +10,8 @@
 
 namespace bs_models {
 
+using PoseWithCovariance =
+    std::pair<Eigen::Matrix4d, Eigen::Matrix<double, 6, 6>>;
 /**
  * @brief This class can be used to estimate orientation, position, and
  * velocity of an IMU with respect to the world frame using the methods
@@ -78,7 +80,7 @@ public:
   /**
    * @brief Sets the initial IMU state with respect to world frame
    * @param t_start time of initial IMU state
-   * @param R_WORLD_IMU orientation of initial IMU state (if null set to id.)
+   * @param R_WORLD_IMU orientation of initial IMU state (if null set to I)
    * @param t_WORLD_IMU position of initial IMU state (if null set to zero)
    * @param velocity velocity of initial IMU state (if null set to zero)
    */
@@ -87,6 +89,23 @@ public:
       fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU = nullptr,
       fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU = nullptr,
       fuse_variables::VelocityLinear3DStamped::SharedPtr velocity = nullptr);
+
+  /**
+   * @brief Gets the current pose estimate wrt the graph
+   * @param t_now to get pose estimate for
+   * @return [T_WORLD_IMU, cov]
+   */
+  PoseWithCovariance GetPose(const ros::Time& t_now);
+
+  /**
+   * @brief Gets the relative motion between timestamps within the current
+   * window
+   * @param t1 first timestamp
+   * @param t2 second timestamp
+   * @return [T_IMUSTATE1_IMUSTATE2, cov]
+   */
+  PoseWithCovariance GetRelativeMotion(const ros::Time& t1,
+                                       const ros::Time& t2);
 
   /**
    * @brief Predicts new IMU state from imu preintegration
@@ -106,16 +125,6 @@ public:
    * @return ImuState
    */
   bs_common::ImuState GetImuState() const { return imu_state_i_; }
-
-  /**
-   * @brief Gets pose of IMU with respect to world frame
-   * @param t_now time at which to get pose
-   * @param T_WORLD_IMU reference to pose matrix to fill in
-   * @return true if successful
-   */
-  bool GetPose(
-      Eigen::Matrix4d& T_WORLD_IMU, const ros::Time& t_now,
-      std::shared_ptr<Eigen::Matrix<double, 6, 6>> covariance = nullptr);
 
   /**
    * @brief Registers new transaction between key frames
@@ -139,14 +148,9 @@ public:
   void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
   /**
-   * @brief Estimates inertial parameters given an initial path and imu messages
+   * @brief Creates a string representation of the data in the buffer
    */
-  static void EstimateParameters(
-      const bs_common::InitializedPathMsg& path,
-      const std::queue<sensor_msgs::Imu>& imu_buffer,
-      const bs_models::ImuPreintegration::Params& params,
-      Eigen::Vector3d& gravity, Eigen::Vector3d& bg, Eigen::Vector3d& ba,
-      std::vector<Eigen::Vector3d>& velocities, double& scale);
+  std::string PrintBuffer();
 
 private:
   /**
@@ -159,21 +163,19 @@ private:
    */
   void SetPreintegrator();
 
-  /**
-   * @brief Calls Preintegrator reset() and clears stored imu data
-   */
-  void ResetPreintegrator(const ros::Time& t_now);
-
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
 
-  bs_common::ImuState imu_state_i_;           // current key frame
-  bs_common::ImuState imu_state_k_;           // intermediate frame
-  bs_common::PreIntegrator pre_integrator_ij; // preintegrate between key frames
+  bs_common::ImuState imu_state_i_; // current key frame
+  bs_common::ImuState imu_state_k_; // intermediate frame
   bs_common::PreIntegrator
-      pre_integrator_kj; // preintegrate from intermediate frame
+      pre_integrator_ij_; // preintegrate between key frames
+  bs_common::PreIntegrator
+      pre_integrator_kj_; // preintegrate between every frame
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero acceleration bias
+  std::map<uint64_t, bs_common::ImuState>
+      window_states_; // state velocities in the window
 };
 
 } // namespace bs_models

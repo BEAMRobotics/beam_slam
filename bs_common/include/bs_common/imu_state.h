@@ -46,8 +46,7 @@ public:
    * @param preint preintegrator for this state
    */
   ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-           const Eigen::Vector3d& position,
-           const bs_common::PreIntegrator& preint);
+           const Eigen::Vector3d& position, const bs_common::PreIntegrator& preint);
 
   /**
    * @brief constructor when inputting orientation, position, and velocity,
@@ -64,12 +63,22 @@ public:
            const Eigen::Vector3d& gyrobias, const Eigen::Vector3d& accelbias);
 
   /**
-   * @brief update the variables of this ImuState given some graph message
+   * @brief update the velocity, pose, gyro bias and accel bias variables of this ImuState given
+   * some graph message
    * @param graph_msg results from some optimizer which should contain the same
    * variable uuids that are stored herein
    * @return true update was successful (i.e., uuids were in the graph message)
    */
   bool Update(fuse_core::Graph::ConstSharedPtr graph_msg);
+
+  /**
+   * @brief update the velocity, gyro bias and accel bias variables of this ImuState given some
+   * graph message
+   * @param graph_msg results from some optimizer which should contain the same
+   * variable uuids that are stored herein
+   * @return true update was successful (i.e., uuids were in the graph message)
+   */
+  bool UpdateRelative(fuse_core::Graph::ConstSharedPtr graph_msg);
 
   /**
    * @brief get the number of times this ImuState has its variables updated by
@@ -157,6 +166,11 @@ public:
   std::shared_ptr<bs_common::PreIntegrator> GetPreintegrator();
 
   /**
+   * @brief get the preintegrator (const reference)
+   */
+  const bs_common::PreIntegrator GetConstPreintegrator() const;
+
+  /**
    * @brief set the preintegrator
    */
   void SetPreintegrator(const bs_common::PreIntegrator& preint);
@@ -164,8 +178,7 @@ public:
   /**
    * @brief set orientation using double data type
    */
-  void SetOrientation(const double& w, const double& x, const double& y,
-                      const double& z);
+  void SetOrientation(const double& w, const double& x, const double& y, const double& z);
 
   /**
    * @brief set orientation using Eigen::Quaterniond data type
