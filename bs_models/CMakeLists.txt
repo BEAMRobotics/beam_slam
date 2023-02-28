@@ -73,7 +73,7 @@ add_library(
   src/lidar_feature_extractor.cpp
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
-  src/visual_inertial_odometry.cpp
+  src/visual_feature_tracker.cpp
   src/inertial_odometry.cpp
   src/global_mapper.cpp
   ## vision helpers
@@ -104,11 +104,6 @@ add_library(
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/transform_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
-  ## slam path initializers
-  src/lib/slam_initializers/slam_initializer_base.cpp
-  src/lib/slam_initializers/lo_initializer.cpp
-  src/lib/slam_initializers/vo_initializer.cpp
-  src/lib/slam_initializers/gt_initializer.cpp
 )
 
 include_directories(

@@ -304,14 +304,8 @@ fuse_core::Transaction::SharedPtr
   // add camera measurement if not empty
   if (!cam_measurement.landmarks.empty()) {
     ROS_DEBUG("Adding camera measurement to global map.");
-    cv::Mat image;
-    if (!cam_measurement.image.data.empty()) {
-      image = beam_cv::OpenCVConversions::RosImgToMat(cam_measurement.image);
-    }
-    online_submaps_.at(submap_id)->AddCameraMeasurement(
-        cam_measurement.landmarks, image, cam_measurement.descriptor_type,
-        T_WORLD_BASELINK, stamp, cam_measurement.sensor_id,
-        cam_measurement.measurement_id);
+    online_submaps_.at(submap_id)->AddCameraMeasurement(cam_measurement,
+                                                        T_WORLD_BASELINK);
   }
 
   // if lidar measurement exists, check frame id
@@ -653,41 +647,20 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
             submap->GetKeypointsInWorldFrame(false);
 
         // get descriptors
-        // TODO: for each landmark id, get all its measurements and compute its
-        // word from the vocab fill the word as the sole descriptor in the
-        // descriptors vector, make sure theyre in the same order as the 3d
-        // points
-        //
-        // if the descriptor type of the submap is not orb, then we cannot fill
-        // the submap message because it has to match the image database
-        std::vector<std::vector<float>> descriptors;
-        beam_cv::DescriptorType descriptor_type;
-        auto desc_type_iter =
-            beam_cv::DescriptorTypeIntMap.find(submap->DescriptorType());
-        bool wrong_descriptor_type{false};
-        if (desc_type_iter == beam_cv::DescriptorTypeIntMap.end()) {
-          wrong_descriptor_type = true;
-          descriptor_type = beam_cv::DescriptorType::ORB;
-        } else {
-          descriptor_type = desc_type_iter->second;
-        }
-        for (auto landmarks_iter = submap->LandmarksBegin();
-             landmarks_iter != submap->LandmarksEnd(); landmarks_iter++) {
-          std::vector<float> descriptor =
-              beam_cv::Descriptor::ConvertDescriptor(landmarks_iter->descriptor,
-                                                     descriptor_type);
-          descriptors.push_back(descriptor);
-        }
-
-        if (wrong_descriptor_type && !descriptors.empty()) {
-          BEAM_WARN("Invalid descriptor type read. Using ORB.");
+        std::vector<std::vector<float>> words;
+        std::vector<uint32_t> word_ids;
+        if (submap->DescriptorType() == "ORB") {
+          // TODO: for each landmark id, get all its measurements and compute
+          // its word from the vocab fill the word as the sole descriptor in the
+          // descriptors vector, make sure theyre in the same order as the 3d
+          // points
+          // only possible for ORB
         }
 
         // add submap data to submap msg
         FillSubmapMsg(submap_msg, lidar_cloud_in_woff_frame,
-                      loam_cloud_in_woff_frame, keypoints_in_woff_frame,
-                      descriptors, submap->DescriptorType(),
-                      T_WORLDLM_WORLDOFF_);
+                      loam_cloud_in_woff_frame, keypoints_in_woff_frame, words,
+                      word_ids, submap->DescriptorType(), T_WORLDLM_WORLDOFF_);
 
         // set current submap
         active_submap_id_ = submap_index;
@@ -743,33 +716,22 @@ bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
             submap->GetLidarLoamPointsInWorldFrame(true);
         PointCloud keypoints_in_wlm_frame =
             submap->GetKeypointsInWorldFrame(true);
-        beam_cv::DescriptorType descriptor_type;
-        auto desc_type_iter =
-            beam_cv::DescriptorTypeIntMap.find(submap->DescriptorType());
-        bool wrong_descriptor_type{false};
-        if (desc_type_iter == beam_cv::DescriptorTypeIntMap.end()) {
-          wrong_descriptor_type = true;
-          descriptor_type = beam_cv::DescriptorType::ORB;
-        } else {
-          descriptor_type = desc_type_iter->second;
-        }
-        std::vector<std::vector<float>> descriptors;
-        for (auto landmarks_iter = submap->LandmarksBegin();
-             landmarks_iter != submap->LandmarksEnd(); landmarks_iter++) {
-          std::vector<float> descriptor =
-              beam_cv::Descriptor::ConvertDescriptor(landmarks_iter->descriptor,
-                                                     descriptor_type);
-          descriptors.push_back(descriptor);
-        }
 
-        if (wrong_descriptor_type && !descriptors.empty()) {
-          BEAM_WARN("Invalid descriptor type read. Using ORB.");
+        // get descriptors
+        std::vector<std::vector<float>> words;
+        std::vector<uint32_t> word_ids;
+        if (submap->DescriptorType() == "ORB") {
+          // TODO: for each landmark id, get all its measurements and compute
+          // its word from the vocab fill the word as the sole descriptor in the
+          // descriptors vector, make sure theyre in the same order as the 3d
+          // points
+          // only possible for ORB
         }
 
         // add submap data to submap msg
         FillSubmapMsg(submap_msg, lidar_cloud_in_wlm_frame,
-                      loam_cloud_in_wlm_frame, keypoints_in_wlm_frame,
-                      descriptors, submap->DescriptorType(),
+                      loam_cloud_in_wlm_frame, keypoints_in_wlm_frame, words,
+                      word_ids, submap->DescriptorType(),
                       Eigen::Matrix4d::Identity());
 
         // set current submap
@@ -1252,12 +1214,14 @@ void GlobalMap::AddNewRosScan(const PointCloud& cloud,
   while (ros_new_scans_.size() > max_num_new_scans_) { ros_new_scans_.pop(); }
 }
 
-void GlobalMap::FillSubmapMsg(
-    SubmapMsg& submap_msg, const PointCloud& lidar_points,
-    const beam_matching::LoamPointCloud& loam_points,
-    const PointCloud& keypoints,
-    const std::vector<std::vector<float>>& descriptors, uint8_t descriptor_type,
-    const Eigen::Matrix4d& T) const {
+void GlobalMap::FillSubmapMsg(SubmapMsg& submap_msg,
+                              const PointCloud& lidar_points,
+                              const beam_matching::LoamPointCloud& loam_points,
+                              const PointCloud& keypoints,
+                              const std::vector<std::vector<float>>& words,
+                              const std::vector<uint32_t> word_ids,
+                              const std::string& descriptor_type,
+                              const Eigen::Matrix4d& T) const {
   PointCloud lidar_points_in_wlm_frame = lidar_points;
   beam_matching::LoamPointCloud loam_points_in_wlm_frame = loam_points;
   PointCloud keypoints_in_wlm_frame = keypoints;
@@ -1337,13 +1301,14 @@ void GlobalMap::FillSubmapMsg(
 
   // add descriptors
   std::vector<bs_common::DescriptorMsg> descriptor_msgs;
-  for (const std::vector<float>& descriptor : descriptors) {
+  for (const auto& descriptor : words) {
     bs_common::DescriptorMsg descriptor_msg;
     descriptor_msg.descriptor_type = descriptor_type;
-    for (float v : descriptor) { descriptor_msg.data.push_back(v); }
+    descriptor_msg.data = descriptor;
     descriptor_msgs.push_back(descriptor_msg);
   }
-  submap_msg.visual_map_descriptors = descriptor_msgs;
+  submap_msg.visual_map_words = descriptor_msgs;
+  submap_msg.visual_map_word_ids = word_ids;
   submap_msg.descriptor_type = descriptor_type;
 }
 

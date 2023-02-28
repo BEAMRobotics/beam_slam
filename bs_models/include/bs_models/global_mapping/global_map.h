@@ -467,17 +467,19 @@ private:
    * @param lidar_points lidar points to add (in any frame)
    * @param loam_points loam pointcloud to add (in any frame)
    * @param keypoints 3D keypoint locations (in any frame) to add
-   * @param descriptors vector of descriptors to add, these must be the same
-   * order as their corresponding keypoints
-   * @param descriptor_type
+   * @param words visual words for each visual keypoint
+   * @param word_ids id of the corresponding visual words
+   * @param descriptor_type string representation of descriptor type
    * @param T transform to apply to all points (lidar_points, loam_points,
    * keypoints) to get them into the local mapper's world frame
    */
   void FillSubmapMsg(SubmapMsg& submap_msg, const PointCloud& lidar_points,
                      const beam_matching::LoamPointCloud& loam_points,
                      const PointCloud& keypoints,
-                     const std::vector<std::vector<float>>& descriptors,
-                     uint8_t descriptor_type, const Eigen::Matrix4d& T) const;
+                     const std::vector<std::vector<float>>& words,
+                     const std::vector<uint32_t> word_ids,
+                     const std::string& descriptor_type,
+                     const Eigen::Matrix4d& T) const;
 
   Params params_;
 

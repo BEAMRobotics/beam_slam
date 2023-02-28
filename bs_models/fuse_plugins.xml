@@ -31,29 +31,9 @@
       A sensor model for extracting LOAM features from lidar scans
     </description>
   </class>
-  <class type="bs_models::SLAMInitializerBase" base_class_type="fuse_core::SensorModel">
+  <class type="bs_models::VisualFeatureTracker" base_class_type="fuse_core::SensorModel">
     <description>
-      Base Class for initializing a SLAM process
-    </description>
-  </class>
-  <class type="bs_models::GTInitializer" base_class_type="fuse_core::SensorModel">
-    <description>
-      Class for initializing a SLAM process using a ground truth trajectory
-    </description>
-  </class>
-  <class type="bs_models::LoInitializer" base_class_type="fuse_core::SensorModel">
-    <description>
-      Class for initializing a SLAM process using lidar scans to generate an initial trajectory estimate
-    </description>
-  </class>
-  <class type="bs_models::VOInitializer" base_class_type="fuse_core::SensorModel">
-    <description>
-      Class for initializing a SLAM process using pure visual odometry
-    </description>
-  </class>
-  <class type="bs_models::VisualInertialOdometry" base_class_type="fuse_core::SensorModel">
-    <description>
-      An adapter-type sensor that produces camera rate odometry
+      An adapter-type sensor that takes images as input and outputs visual track messages
     </description>
   </class>
     <class type="bs_models::InertialOdometry" base_class_type="fuse_core::SensorModel">

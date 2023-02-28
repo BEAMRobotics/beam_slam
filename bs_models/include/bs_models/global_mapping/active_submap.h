@@ -141,7 +141,8 @@ class ActiveSubmap {
   PointCloudPtr lidar_map_points_;
   beam_matching::LoamPointCloudPtr loam_cloud_;
   PointCloudPtr visual_map_points_;
-  std::vector<cv::Mat> descriptors_;
+  std::vector<cv::Mat> visual_words_;
+  std::vector<uint32_t> word_ids_;
   ros::Subscriber submap_subscriber_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_online_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
