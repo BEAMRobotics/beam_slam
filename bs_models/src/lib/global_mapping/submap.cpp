@@ -4,6 +4,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
 
+#include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/descriptors/Descriptor.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/filesystem.h>
@@ -75,7 +76,7 @@ ros::Time Submap::Stamp() const {
   return stamp_;
 }
 
-uint8_t Submap::DescriptorType() const {
+std::string Submap::DescriptorType() const {
   return descriptor_type_;
 }
 
@@ -126,9 +127,30 @@ const std::map<uint64_t, cv::Mat>& Submap::GetKeyframeMap() {
 }
 
 void Submap::AddCameraMeasurement(
-    const std::vector<LandmarkMeasurementMsg>& landmarks, const cv::Mat& image,
-    uint8_t descriptor_type_int, const Eigen::Matrix4d& T_WORLDLM_BASELINK,
-    const ros::Time& stamp, int sensor_id, int measurement_id) {
+    const CameraMeasurementMsg& camera_measurement,
+    const Eigen::Matrix4d& T_WORLDLM_BASELINK) {
+  const auto stamp = camera_measurement.header.stamp;
+  cv::Mat image;
+  if (!camera_measurement.image.data.empty()) {
+    image = beam_cv::OpenCVConversions::RosImgToMat(camera_measurement.image);
+  }
+  const auto sensor_id = camera_measurement.sensor_id;
+  const auto measurement_id = camera_measurement.header.seq;
+
+  const auto d_type = beam_cv::Descriptor::StringToDescriptorType(
+      camera_measurement.descriptor_type);
+  if (!d_type.has_value()) {
+    BEAM_WARN("Using default: 'ORB'.");
+    descriptor_type_ = "ORB";
+  } else if (d_type.has_value() && !descriptor_type_.empty()) {
+    descriptor_type_ = camera_measurement.descriptor_type;
+  } else if (camera_measurement.descriptor_type != descriptor_type_) {
+    BEAM_WARN("Current camera measurement has a different descriptor type. "
+              "Changing type in submap to {}",
+              camera_measurement.descriptor_type);
+    descriptor_type_ = camera_measurement.descriptor_type;
+  }
+
   Eigen::Matrix4d T_SUBMAP_BASELINK =
       T_SUBMAP_WORLD_initial_ * T_WORLDLM_BASELINK;
 
@@ -136,34 +158,21 @@ void Submap::AddCameraMeasurement(
 
   keyframe_images_.emplace(stamp.toNSec(), image);
 
-  for (const LandmarkMeasurementMsg& landmark_msg : landmarks) {
-    Eigen::Vector2d value(landmark_msg.pixel_u, landmark_msg.pixel_v);
-    auto descriptor_type =
-        beam_cv::DescriptorTypeIntMap.find(descriptor_type_int);
-    if (descriptor_type == beam_cv::DescriptorTypeIntMap.end()) {
-      BEAM_ERROR("Invalid descriptor type in LandMarkMeasurementMsg. Skipping "
-                 "measurement.");
-      continue;
-    }
+  const auto landmarks = camera_measurement.landmarks;
+  std::for_each(landmarks.begin(), landmarks.end(), [&](const auto& lm_msg) {
+    cv::Mat descriptor = beam_cv::Descriptor::VectorDescriptorToCvMat(
+        {lm_msg.descriptor.data}, descriptor_type_);
+    Eigen::Vector2d value(lm_msg.pixel_u, lm_msg.pixel_v);
 
-    if (descriptor_type_int != descriptor_type_ && descriptor_type_ != 255) {
-      BEAM_WARN("Current camera measurement has a different descriptor type. "
-                "Changing "
-                "type in submap.");
-    }
-    descriptor_type_ = descriptor_type_int;
-
-    cv::Mat descriptor = beam_cv::Descriptor::CreateDescriptor(
-        landmark_msg.descriptor, descriptor_type->second);
     beam_containers::LandmarkMeasurement new_landmark{
         .time_point = stamp,
         .sensor_id = static_cast<uint8_t>(sensor_id),
-        .landmark_id = static_cast<uint64_t>(landmark_msg.landmark_id),
+        .landmark_id = static_cast<uint64_t>(lm_msg.landmark_id),
         .image = static_cast<uint64_t>(measurement_id),
         .value = value,
         .descriptor = descriptor};
     landmarks_.Insert(new_landmark);
-  }
+  });
 }
 
 void Submap::AddLidarMeasurement(const PointCloud& cloud,

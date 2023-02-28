@@ -138,7 +138,7 @@ public:
    * beam_cv/descriptors/Descriptor.h
    * @return descriptor_type
    */
-  uint8_t DescriptorType() const;
+  std::string DescriptorType() const;
 
   /*--------------------------------/
               ITERATORS
@@ -225,24 +225,12 @@ public:
   /-------------------------------*/
 
   /**
-   * @brief add a set of camera measurements associated with one image frame
-   * @param landmarks landmark measurements viewed by the input frame
-   * @param descriptor_type_int see DescriptorTypeIntMap in
-   * beam_cv/descriptors/Descriptor.h
+   * @brief add a camera measurement associated with one image frame
+   * @param camera_measurement camera measurement
    * @param T_WORLDLM_BASELINK pose of baselink at this camera measurement time.
-   * Note this transform is relative to the original world estimate that is
-   * tracked by the local mapper, not the optimized location from the PGO.
-   * @param stamp stamp associated with the image frame
-   * @param sensor_id camera sensor id. This isn't really used because we
-   * currently only use one camera
-   * @param measurement_id id of this specific measurement (image)
    */
-  void
-      AddCameraMeasurement(const std::vector<LandmarkMeasurementMsg>& landmarks,
-                           const cv::Mat& image, uint8_t descriptor_type_int,
-                           const Eigen::Matrix4d& T_WORLD_BASELINK,
-                           const ros::Time& stamp, int sensor_id,
-                           int measurement_id);
+  void AddCameraMeasurement(const CameraMeasurementMsg& camera_measurement,
+                            const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief add a set of lidar measurements associated with one scan
@@ -492,7 +480,7 @@ private:
   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;    // <id, position>
   std::map<uint64_t, cv::Mat> keyframe_images_;               // <time, image>
   beam_containers::LandmarkContainer landmarks_;
-  uint8_t descriptor_type_{255}; // see beam_cv/descriptors/Descriptor.h
+  std::string descriptor_type_{""}; // see beam_cv/descriptors/Descriptor.h
 
   // subframe trajectory measurements, where poses are T_KEYFRAME_FRAME
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;

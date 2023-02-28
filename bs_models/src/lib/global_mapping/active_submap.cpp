@@ -39,19 +39,24 @@ void ActiveSubmap::ActiveSubmapCallback(
   updates_counter_++;
   update_time_ = ros::Time::now();
 
-  descriptors_.clear();
+  visual_words_.clear();
+  word_ids_.clear();
   visual_map_points_->clear();
   lidar_map_points_->clear();
 
-  // get descriptor type
-  beam_cv::DescriptorType d_type =
-      beam_cv::DescriptorTypeIntMap[msg->descriptor_type];
+  // add all descriptors to list
+  for (auto& d : msg->visual_map_words) {
+    if (d.descriptor_type != msg->descriptor_type) {
+      BEAM_WARN("Descriptor mismatch in submap message, using type defined in "
+                "SubmapMsg.");
+    }
+    cv::Mat desc = beam_cv::Descriptor::VectorDescriptorToCvMat(
+        d.data, msg->descriptor_type);
+    visual_words_.push_back(desc);
+  }
 
   // add all descriptors to list
-  for (auto& d : msg->visual_map_descriptors) {
-    cv::Mat desc = beam_cv::Descriptor::CreateDescriptor(d.data, d_type);
-    descriptors_.push_back(desc);
-  }
+  for (auto& id : msg->visual_map_word_ids) { word_ids_.push_back(id); }
 
   // add all 3d locations of landmarks to cloud
   for (auto& p : msg->visual_map_points) {
@@ -123,7 +128,7 @@ const PointCloudPtr ActiveSubmap::GetVisualMapPoints() const {
 }
 
 const std::vector<cv::Mat>& ActiveSubmap::GetDescriptors() const {
-  return descriptors_;
+  return visual_words_;
 }
 
 const PointCloudPtr ActiveSubmap::GetLidarMap() const {
@@ -136,7 +141,7 @@ const beam_matching::LoamPointCloudPtr ActiveSubmap::GetLoamMapPtr() const {
 
 void ActiveSubmap::RemoveVisualMapPoint(size_t index) {
   visual_map_points_->erase(visual_map_points_->begin() + index);
-  descriptors_.erase(descriptors_.begin() + index);
+  visual_words_.erase(visual_words_.begin() + index);
 }
 
 void ActiveSubmap::Publish() const {
@@ -155,12 +160,12 @@ void ActiveSubmap::Publish() const {
   }
 
   if (!loam_cloud_->Empty()) {
-    beam_matching::LoamPointCloudCombined loam_combined = loam_cloud_->GetCombinedCloud();
+    beam_matching::LoamPointCloudCombined loam_combined =
+        loam_cloud_->GetCombinedCloud();
     sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointLoam>(
         loam_combined, update_time_, frame_id, updates_counter_);
     loam_map_publisher_.publish(pc_msg);
   }
-
 }
 
 } // namespace bs_models
