@@ -68,20 +68,20 @@ catkin_package(
 add_library(
   ${PROJECT_NAME}
   ## sensor models
-  src/imu_3d.cpp
   src/lidar_aggregation.cpp
   src/lidar_feature_extractor.cpp
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
+  src/slam_initialization.cpp
   src/visual_feature_tracker.cpp
-  src/inertial_odometry.cpp
   src/global_mapper.cpp
   ## vision helpers
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp
-  src/lib/vision/vio_initialization.cpp
+  src/lib/vision/utils.cpp
   ## imu helpers
   src/lib/imu/imu_preintegration.cpp
+  src/lib/imu/inertial_alignment.cpp
   ## lidar helpers
   src/lib/lidar/lidar_aggregator.cpp
   src/lib/lidar/scan_pose.cpp

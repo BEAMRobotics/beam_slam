@@ -11,11 +11,6 @@
       another node
     </description>
   </class>
-  <class type="bs_models::Imu3D" base_class_type="fuse_core::SensorModel">
-    <description>
-      An adapter-type sensor that produces relative constraints between IMU states
-    </description>
-  </class>
   <class type="bs_models::LidarOdometry" base_class_type="fuse_core::SensorModel">
     <description>
       An adapter-type sensor that produces relative pose constraints
@@ -36,14 +31,14 @@
       An adapter-type sensor that takes images as input and outputs visual track messages
     </description>
   </class>
-    <class type="bs_models::InertialOdometry" base_class_type="fuse_core::SensorModel">
-    <description>
-      An adapter-type sensor that produces high-rate odometry estimates from IMU data
-    </description>
-  </class>
   <class type="bs_models::GlobalMapper" base_class_type="fuse_core::SensorModel">
     <description>
       A plugin for managing the global map, implemented as a sensor model but subscribes to SLAM messages as opposed to sensor messages.
+    </description>
+  </class>
+  <class type="bs_models::SLAMInitialization" base_class_type="fuse_core::SensorModel">
+    <description>
+      Initialized slam using all available sensor information
     </description>
   </class>
 </library>
