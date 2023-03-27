@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <beam_utils/math.h>
+#include <beam_utils/se3.h>
 #include <bs_constraints/global/absolute_constraint.h>
 #include <bs_constraints/relative_pose/relative_constraints.h>
 #include <bs_models/imu_preintegration.h>

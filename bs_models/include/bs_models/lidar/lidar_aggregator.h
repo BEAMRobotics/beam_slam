@@ -6,6 +6,7 @@
 
 #include <beam_utils/math.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/se3.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/frame_initializers/frame_initializer_base.h>
@@ -102,9 +103,9 @@ public:
       // get lidar pose at aggregation time
       Eigen::Matrix4d T_WORLD_LIDARAGG;
       std::string error_msg;
-      if (!frame_initializer_->GetPose(
-              T_WORLD_LIDARAGG, current_aggregate_time,
-              extrinsics_.GetLidarFrameId(), error_msg)) {
+      if (!frame_initializer_->GetPose(T_WORLD_LIDARAGG, current_aggregate_time,
+                                       extrinsics_.GetLidarFrameId(),
+                                       error_msg)) {
         ROS_DEBUG("Cannot get lidar pose at requested aggregation time, "
                   "skipping. Reason: %s",
                   error_msg.c_str());

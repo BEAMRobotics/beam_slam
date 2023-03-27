@@ -1,6 +1,7 @@
 #pragma once
 
 #include <beam_utils/math.h>
+#include <beam_utils/se3.h>
 #include <beam_utils/time.h>
 #include <sensor_msgs/Imu.h>
 

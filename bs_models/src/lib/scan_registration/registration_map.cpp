@@ -7,6 +7,7 @@
 #include <pcl/io/pcd_io.h>
 
 #include <beam_utils/math.h>
+#include <beam_utils/se3.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
 

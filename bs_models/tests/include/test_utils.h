@@ -5,6 +5,7 @@
 #include <Eigen/Geometry>
 
 #include <beam_utils/math.h>
+#include <beam_utils/se3.h>
 #include <bs_common/imu_state.h>
 
 namespace bs_models {

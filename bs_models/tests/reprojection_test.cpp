@@ -8,6 +8,7 @@
 #include <bs_constraints/visual/reprojection_functor.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/math.h>
+#include <beam_utils/se3.h>
 
 TEST(ReprojectionFunctor, TestAccuracy) {
   std::string current_file = "reprojection_test.cpp";

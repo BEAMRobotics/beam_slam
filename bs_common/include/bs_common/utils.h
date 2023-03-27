@@ -11,6 +11,7 @@
 
 #include <beam_matching/loam/LoamPointCloud.h>
 #include <beam_utils/math.h>
+#include <beam_utils/se3.h>
 
 #ifndef GRAVITY_NOMINAL
 #  define GRAVITY_NOMINAL 9.80665
