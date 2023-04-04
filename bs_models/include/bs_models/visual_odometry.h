@@ -12,10 +12,11 @@
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
+#include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/vision/keyframe.h>
 #include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
-#include <bs_parameters/models/vo_params.h>
+#include <bs_parameters/models/visual_odometry_params.h>
 
 namespace bs_models {
 
@@ -92,11 +93,12 @@ private:
    * constraints
    * @param T_WORLD_BASELINK initial odometry estimate
    */
-  void ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK);
+  void ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK,
+                 const CameraMeasurementMsg::ConstPtr& msg);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
-  bs_parameters::models::VOParams vo_params_;
+  bs_parameters::models::VisualOdometryParams vo_params_;
 
   // calibration parameters
   bs_parameters::models::CalibrationParams calibration_params_;
@@ -108,10 +110,14 @@ private:
   ros::Subscriber measurement_subscriber_;
 
   // publishers
-  ros::Publisher odometry_publisher_; // publishes relative odometry for every frame
-  ros::Publisher keyframe_publisher_; // publishes world odometry for every keyframe
-  ros::Publisher slam_chunk_publisher_; // publishes a slam chunk associated to a keyframe
-  ros::Publisher reloc_publisher_; // publishes a reloc request message with the camera measurement
+  ros::Publisher
+      odometry_publisher_; // publishes relative odometry for every frame
+  ros::Publisher
+      keyframe_publisher_; // publishes world odometry for every keyframe
+  ros::Publisher
+      slam_chunk_publisher_; // publishes a slam chunk associated to a keyframe
+  ros::Publisher reloc_publisher_; // publishes a reloc request message with the
+                                   // camera measurement
 
   size_t container_size_ = 0;
   bool is_initialized_{false};

@@ -56,7 +56,7 @@ public:
 
     // keyframe decision parameters
     getParam<double >(nh, "keyframe_parallax", keyframe_parallax, 10.0);
-    getParam<double >(nh, "keyframe_translation_m", rkeyframe_translation_m, 1.0);
+    getParam<double >(nh, "keyframe_translation_m", keyframe_translation_m, 1.0);
     getParam<double >(nh, "keyframe_rotation_deg", keyframe_rotation_deg, 1.0);
   }
 
