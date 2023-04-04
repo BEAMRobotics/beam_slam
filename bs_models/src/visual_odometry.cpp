@@ -1,6 +1,5 @@
 #include <bs_models/visual_odometry.h>
 
-#include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 #include <std_msgs/Time.h>
@@ -34,7 +33,7 @@ void VisualOdometry::onInit() {
   vo_params_.loadFromROS(private_node_handle_);
   calibration_params_.loadFromROS();
 
-  // Load camera model and Create Map object
+  // Load camera model and create visua map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
   cam_model_->InitUndistortMap();
@@ -63,41 +62,35 @@ void VisualOdometry::onStart() {
 
 void VisualOdometry::processMeasurements(
     const CameraMeasurementMsg::ConstPtr& msg) {
-  // put all measurements into landmark container
-  // TODO: make this seperate function
-  for (const auto& lm : msg->landmarks) {
-    Eigen::Vector2d landmark(static_cast<double>(lm.pixel_u),
-                             static_cast<double>(lm.pixel_v));
-    cv::Mat landmark_descriptor = beam_cv::Descriptor::VectorDescriptorToCvMat(
-        {lm.descriptor.data}, msg->descriptor_type);
-    beam_containers::LandmarkMeasurement lm_measurement(
-        msg->header.stamp, msg->sensor_id, lm.landmark_id, msg->header.seq,
-        landmark, landmark_descriptor);
-    landmark_container_->Insert(lm_measurement);
-  }
-
+  AddMeasurementsToContainer(msg);
   // get most recent extrinsics, if failure then process frame later
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get camera to baselink transform.");
     return;
   }
 
-  // don't process until initialized
+  // don't process until we have initialized
   if (!is_initialized_) { return; }
+
+  // ! buffer the frame, attempt to process the front of the buffer
 
   // estimate pose of frame
   Eigen::Matrix4d T_WORLD_BASELINK = LocalizeFrame(msg->header.stamp);
-  // TODO: publish frame odometry
   if (IsKeyframe(msg->header.stamp, T_WORLD_BASELINK)) {
     Keyframe kf(msg->header.stamp, msg->image);
     keyframes_.push_back(kf);
-    if (keyframes_.size() >= 3) { ExtendMap(T_WORLD_BASELINK, msg); }
-    // TODO: change this to occur when publishing chunks
+    ExtendMap(T_WORLD_BASELINK);
     if (keyframes_.size() >= 20) { keyframes_.pop_front(); }
-    // TODO: publish keyframe odometry
   }
 
-  // TODO: clear landmark container to maintain size
+  // TODO: publish frame odometry
+  // TODO: publish keyframe odometry
+  // TODO: pop keyframes when we publish them as chunks
+
+  // remove first image from container if we are over the limit
+  if (landmark_container_->NumImages() > vo_params_.max_container_size) {
+    landmark_container_->PopFront();
+  }
 }
 
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
@@ -105,27 +98,14 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
   // TODO: "process" all camera measurements that arent in the init graph, but
-  // have been stored
+  // have been stored in the container
 }
 
 Eigen::Matrix4d VisualOdometry::LocalizeFrame(const ros::Time& img_time) {
   // get 2d-3d correspondences
-  // TODO: make this a function
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
-  std::vector<uint64_t> landmarks =
-      landmark_container_->GetLandmarkIDsInImage(img_time);
-  for (auto& id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm =
-        visual_map_->GetLandmark(id);
-    if (lm) {
-      Eigen::Vector3d point(lm->x(), lm->y(), lm->z());
-      Eigen::Vector2i pixeli =
-          landmark_container_->GetValue(img_time, id).cast<int>();
-      pixels.push_back(pixeli);
-      points.push_back(point);
-    }
-  }
+  GetPixelPointPairs(img_time, pixels, points);
 
   // get initial pose estimate
   Eigen::Matrix4d T_WORLD_BASELINK;
@@ -164,11 +144,10 @@ bool VisualOdometry::IsKeyframe(const ros::Time& img_time,
   return false;
 }
 
-void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK,
-                               const CameraMeasurementMsg::ConstPtr& msg) {
+void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // get current and previous keyframe timestamp
-  ros::Time prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
-  ros::Time cur_kf_time = keyframes_.back().Stamp();
+  const auto prev_kf_time = (keyframes_[keyframes_.size() - 2]).Stamp();
+  const auto cur_kf_time = keyframes_.back().Stamp();
 
   // create transaction for this keyframe
   auto transaction = fuse_core::Transaction::make_shared();
@@ -178,30 +157,23 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK,
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, cur_kf_time, transaction);
 
   // add prior if using a frame initializer
-  // TODO: make seperate function
   if (frame_initializer_ && vo_params_.use_pose_priors) {
-    auto p = visual_map_->GetPosition(cur_kf_time);
-    auto o = visual_map_->GetOrientation(cur_kf_time);
-    fuse_core::Vector7d mean;
-    mean << p->x(), p->y(), p->z(), o->w(), o->x(), o->y(), o->z();
-    auto prior =
-        std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-            "FRAMEINITIALIZERPRIOR", *p, *o, mean,
-            vo_params_.prior_covariance);
+    auto prior = MakeFrameInitPrior(*visual_map_->GetPosition(cur_kf_time),
+                                    *visual_map_->GetOrientation(cur_kf_time),
+                                    vo_params_.prior_covariance);
     transaction->addConstraint(prior);
   }
 
   // add visual constraints
   std::vector<uint64_t> landmarks =
-      landmark_container_->GetLandmarkIDsInImage(msg->header.stamp);
+      landmark_container_->GetLandmarkIDsInImage(cur_kf_time);
   // TODO: make body a lamba, the use for each
   for (auto& id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
     // add constraints to triangulated ids
     if (lm) {
-      Eigen::Vector2d pixel =
-          landmark_container_->GetValue(cur_kf_time, id);
+      Eigen::Vector2d pixel = landmark_container_->GetValue(cur_kf_time, id);
       Eigen::Vector2i tmp;
       if (!cam_model_->UndistortPixel(pixel.cast<int>(), tmp)) continue;
       // add constraint if its valid
@@ -215,8 +187,7 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK,
       // TODO: iterate backwards through keyframes and stop after N matches
       for (auto& kf : keyframes_) {
         try {
-          Eigen::Vector2d pixel =
-              landmark_container_->GetValue(kf.Stamp(), id);
+          Eigen::Vector2d pixel = landmark_container_->GetValue(kf.Stamp(), id);
           Eigen::Vector2i tmp;
           if (!cam_model_->UndistortPixel(pixel.cast<int>(), tmp)) continue;
           beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(kf.Stamp());
@@ -249,6 +220,53 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK,
   ROS_INFO_STREAM("Added " << keyframes_.back().Landmarks().size()
                            << " new landmarks.");
   sendTransaction(transaction);
+}
+
+std::shared_ptr<fuse_constraints::AbsolutePose3DStampedConstraint>
+    VisualOdometry::MakeFrameInitPrior(
+        const fuse_variables::Position3DStamped& position,
+        const fuse_variables::Orientation3DStamped& orientation,
+        const Eigen::Matrix<double, 6, 6>& covariance) {
+  fuse_core::Vector7d mean;
+  mean << position.x(), position.y(), position.z(), orientation.w(),
+      orientation.x(), orientation.y(), orientation.z();
+  return std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+      "FRAMEINITIALIZERPRIOR", position, orientation, mean, covariance);
+}
+
+void VisualOdometry::AddMeasurementsToContainer(
+    const CameraMeasurementMsg::ConstPtr& msg) {
+  // put all measurements into landmark container
+  for (const auto& lm : msg->landmarks) {
+    Eigen::Vector2d landmark(static_cast<double>(lm.pixel_u),
+                             static_cast<double>(lm.pixel_v));
+    cv::Mat landmark_descriptor = beam_cv::Descriptor::VectorDescriptorToCvMat(
+        {lm.descriptor.data}, msg->descriptor_type);
+    beam_containers::LandmarkMeasurement lm_measurement(
+        msg->header.stamp, msg->sensor_id, lm.landmark_id, msg->header.seq,
+        landmark, landmark_descriptor);
+    landmark_container_->Insert(lm_measurement);
+  }
+}
+
+void VisualOdometry::GetPixelPointPairs(
+    const ros::Time& img_time,
+    std::vector<Eigen::Vector2i, beam::AlignVec2i>& pixels,
+    std::vector<Eigen::Vector3d, beam::AlignVec3d>& points) {
+  std::vector<std::pair<Eigen::Vector2i, Eigen::Vector3d>> pixel_point_pairs;
+  std::vector<uint64_t> landmarks =
+      landmark_container_->GetLandmarkIDsInImage(img_time);
+  for (auto& id : landmarks) {
+    fuse_variables::Point3DLandmark::SharedPtr lm =
+        visual_map_->GetLandmark(id);
+    if (lm) {
+      Eigen::Vector3d point = lm->point();
+      Eigen::Vector2i pixel =
+          landmark_container_->GetValue(img_time, id).cast<int>();
+      points.push_back(point);
+      pixels.push_back(pixel);
+    }
+  }
 }
 
 } // namespace bs_models

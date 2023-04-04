@@ -2,6 +2,7 @@
 
 #include <queue>
 
+#include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/macros.h>
 #include <fuse_core/throttled_callback.h>
@@ -27,74 +28,78 @@ class VisualOdometry : public fuse_core::AsyncSensorModel {
 public:
   SMART_PTR_DEFINITIONS(VisualOdometry);
 
-  /**
-   * @brief Default Constructor
-   */
+  /// @brief Default Constructor
   VisualOdometry();
 
-  /**
-   * @brief Default Destructor
-   */
+  /// @brief Default Destructor
   ~VisualOdometry() override = default;
 
 private:
-  /**
-   * @brief Callback for image processing, this callback will add visual
-   * constraints and triangulate new landmarks when required
-   * @param[in] msg - The image to process
-   */
+  /// @brief Callback for image processing, this callback will add visual
+  /// constraints and triangulate new landmarks when required
+  /// @param msg The visual measurements to process
   void processMeasurements(const CameraMeasurementMsg::ConstPtr& msg);
 
-  /**
-   * @brief Perform any required initialization for the sensor model
-   *
-   * This could include things like reading from the parameter server or
-   * subscribing to topics. The class's node handles will be properly
-   * initialized before SensorModel::onInit() is called. Spinning of the
-   * callback queue will not begin until after the call to SensorModel::onInit()
-   * completes.
-   */
+  /// @brief Perform any required initialization for the sensor model
+  /// This could include things like reading from the parameter server or
+  /// subscribing to topics. The class's node handles will be
+  /// properlyinitialized before SensorModel::onInit() is called. Spinning of
+  /// thecallback queue will not begin until after the call to
+  /// SensorModel::onInit() completes.
   void onInit() override;
 
-  /**
-   * @brief Subscribe to the input topics to start sending transactions to the
-   * optimizer
-   */
+  /// @brief Subscribe to the input topics to start sending transactions to the
+  /// optimizer
   void onStart() override;
 
-  /**
-   * @brief Unsubscribe to the input topic
-   */
+  /// @brief Unsubscribe to the input topics and clear memory
   void onStop() override {}
 
-  /**
-   * @brief Callback for when a newly optimized graph is available
-   */
+  /// @brief Callback for when a newly optimized graph is available
+  /// @param graph_msg incoming grpah
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
-  /**
-   * @brief Localizes a given frame using the tracker and the current visual map
-   * @param img_time time of image to localize
-   * @return T_WORLD_BASELINK
-   */
+  /// @brief Localizes a given frame using the tracker and the current visual
+  /// map
+  /// @param img_time
+  /// @return pose of frame in world
   Eigen::Matrix4d LocalizeFrame(const ros::Time& img_time);
 
-  /**
-   * @brief Determines if a frame is a keyframe
-   * @param img_time time of image to determine if its a keyframe
-   * @param T_WORLD_BASELINK initial odometry estimate
-   * @return true or false decision
-   */
+  /// @brief Determines if a frame is a keyframe
+  /// @param img_time
+  /// @param T_WORLD_BASELINK
+  /// @return whether a frame is a keyframe
   bool IsKeyframe(const ros::Time& img_time,
                   const Eigen::Matrix4d& T_WORLD_BASELINK);
 
-  /**
-   * @brief Extends the map at the current keyframe time and adds the visual
-   * constraints
-   * @param T_WORLD_BASELINK initial odometry estimate
-   */
-  void ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK,
-                 const CameraMeasurementMsg::ConstPtr& msg);
+  /// @brief Extends the map at the current keyframe time and adds the visual
+  /// constraints
+  /// @param T_WORLD_BASELINK
+  void ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK);
+
+  /// @brief Adds visual measurements to the landmark container
+  /// @param msg
+  void AddMeasurementsToContainer(const CameraMeasurementMsg::ConstPtr& msg);
+
+  /// @brief Gets 2d-3d correspondences for landmarks measured at a given time
+  /// @param img_time
+  /// @param pixels
+  /// @param points
+  void GetPixelPointPairs(
+      const ros::Time& img_time,
+      std::vector<Eigen::Vector2i, beam::AlignVec2i>& pixels,
+      std::vector<Eigen::Vector3d, beam::AlignVec3d>& points);
+
+  /// @brief Creates a prior constraint given a pose and covariance
+  /// @param position
+  /// @param orientation
+  /// @param covariance
+  /// @return Shared pointer to constraint
+  std::shared_ptr<fuse_constraints::AbsolutePose3DStampedConstraint>
+      MakeFrameInitPrior(
+          const fuse_variables::Position3DStamped& position,
+          const fuse_variables::Orientation3DStamped& orientation,
+          const Eigen::Matrix<double, 6, 6>& covariance);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
@@ -110,16 +115,11 @@ private:
   ros::Subscriber measurement_subscriber_;
 
   // publishers
-  ros::Publisher
-      odometry_publisher_; // publishes relative odometry for every frame
-  ros::Publisher
-      keyframe_publisher_; // publishes world odometry for every keyframe
-  ros::Publisher
-      slam_chunk_publisher_; // publishes a slam chunk associated to a keyframe
-  ros::Publisher reloc_publisher_; // publishes a reloc request message with the
-                                   // camera measurement
+  ros::Publisher odometry_publisher_;
+  ros::Publisher keyframe_publisher_;
+  ros::Publisher slam_chunk_publisher_;
+  ros::Publisher reloc_publisher_;
 
-  size_t container_size_ = 0;
   bool is_initialized_{false};
   std::deque<Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
