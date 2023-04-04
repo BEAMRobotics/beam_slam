@@ -65,6 +65,7 @@ void VisualOdometry::onStart() {
 void VisualOdometry::processMeasurements(
     const CameraMeasurementMsg::ConstPtr& msg) {
   // put all measurements into landmark container
+  // TODO: make this seperate function
   for (const auto& lm : msg->landmarks) {
     Eigen::Vector2d landmark(static_cast<double>(lm.pixel_u),
                              static_cast<double>(lm.pixel_v));
@@ -98,16 +99,20 @@ void VisualOdometry::processMeasurements(
     if (keyframes_.size() >= 20) { keyframes_.pop_front(); }
     // TODO: publish keyframe odometry
   }
+
+  // TODO: clear landmark container to maintain size
 }
 
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   if (!is_initialized_) { is_initialized_ = true; }
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
+  // TODO: "process" all camera measurements that arent in the init graph, but have been stored
 }
 
 Eigen::Matrix4d VisualOdometry::LocalizeFrame(const ros::Time& img_time) {
   // get 2d-3d correspondences
+  // TODO: make this a function
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   std::vector<uint64_t> landmarks =
@@ -175,6 +180,7 @@ void VisualInertialOdometry::ExtendMap(
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, cur_kf_time, transaction);
 
   // add prior if using a frame initializer
+  // TODO: make seperate function
   if (frame_initializer_ && vo_params_.use_pose_priors) {
     auto p = visual_map_->GetPosition(cur_kf_time);
     auto o = visual_map_->GetOrientation(cur_kf_time);
@@ -190,6 +196,7 @@ void VisualInertialOdometry::ExtendMap(
   // add visual constraints
   std::vector<uint64_t> landmarks =
       landmark_container_.GetLandmarkIDsInImage(img_time);
+      // TODO: make body a lamba, the use for each
   for (auto& id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
@@ -207,8 +214,7 @@ void VisualInertialOdometry::ExtendMap(
       std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
       std::vector<ros::Time> observation_stamps;
       // get measurements of landmark for triangulation
-      // TODO: iterate backwards through keyframes and stop after N
-      // matches
+      // TODO: iterate backwards through keyframes and stop after N matches
       for (auto& kf : keyframes_) {
         try {
           Eigen::Vector2d pixel =
