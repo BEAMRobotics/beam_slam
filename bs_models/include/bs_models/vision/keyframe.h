@@ -9,8 +9,7 @@ namespace bs_models { namespace vision {
 class Keyframe {
 public:
   /**
-   * @brief Custom cosntrcutor
-   * @param cam_model camera model being used
+   * @brief Custom constructor
    */
   Keyframe(const ros::Time& timestamp, const sensor_msgs::Image& image);
 
@@ -57,7 +56,7 @@ public:
 protected:
   ros::Time timestamp_;
   sensor_msgs::Image image_;
-  uint64_t sequence_numer_;
+  uint64_t sequence_number_;
   std::map<uint64_t, Eigen::Matrix4d> trajectory_;
   std::vector<uint64_t> added_landmarks;
 };

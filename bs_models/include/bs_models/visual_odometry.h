@@ -62,8 +62,10 @@ private:
   /// @brief Localizes a given frame using the tracker and the current visual
   /// map
   /// @param img_time
-  /// @return pose of frame in world
-  Eigen::Matrix4d LocalizeFrame(const ros::Time& img_time);
+  /// @param T_WORLD_BASELINK estimated pose
+  /// @return whether it succeeded or not
+  bool LocalizeFrame(const ros::Time& img_time,
+                     Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /// @brief Determines if a frame is a keyframe
   /// @param img_time
@@ -101,6 +103,8 @@ private:
           const fuse_variables::Orientation3DStamped& orientation,
           const Eigen::Matrix<double, 6, 6>& covariance);
 
+  bool ComputeOdometryAndExtendMap(const CameraMeasurementMsg::ConstPtr& msg);
+
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
   bs_parameters::models::VisualOdometryParams vo_params_;
@@ -111,6 +115,7 @@ private:
   // Used to get initial pose estimates
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
 
+  std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;
   // subscribers
   ros::Subscriber measurement_subscriber_;
 

@@ -27,8 +27,8 @@ public:
         "/local_mapper/visual_feature_tracker/visual_measurements");
 
     // config for an optional frame initializer
-    getParam<std::string>(nh, "frame_initializer_config",
-                          frame_initializer_config, frame_initializer_config);
+    getParamRequired<std::string>(nh, "frame_initializer_config",
+                                  frame_initializer_config);
 
     // frame initializer priors
     getParam<bool>(nh, "use_pose_priors", use_pose_priors, false);
@@ -52,18 +52,18 @@ public:
     getParam<int>(nh, "max_container_size", max_container_size, 300);
 
     // period in which to perform reloc requests
-    getParam<double >(nh, "reloc_request_period", reloc_request_period, 1.0);
+    getParam<double>(nh, "reloc_request_period", reloc_request_period, 1.0);
 
     // keyframe decision parameters
-    getParam<double >(nh, "keyframe_parallax", keyframe_parallax, 10.0);
-    getParam<double >(nh, "keyframe_translation_m", keyframe_translation_m, 1.0);
-    getParam<double >(nh, "keyframe_rotation_deg", keyframe_rotation_deg, 1.0);
+    getParam<double>(nh, "keyframe_parallax", keyframe_parallax, 10.0);
+    getParam<double>(nh, "keyframe_translation_m", keyframe_translation_m, 1.0);
+    getParam<double>(nh, "keyframe_rotation_deg", keyframe_rotation_deg, 1.0);
   }
 
   std::string visual_measurement_topic{
       "/local_mapper/visual_feature_tracker/visual_measurements"};
   int max_container_size{300};
-  std::string frame_initializer_config{""};
+  std::string frame_initializer_config{};
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};
   bool use_pose_priors{false};
