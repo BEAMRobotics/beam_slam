@@ -1,0 +1,6 @@
+[submodule "dependencies/tf2_2d"]
+	path = dependencies/tf2_2d
+	url = git@github.com:locusrobotics/tf2_2d.git
+[submodule "dependencies/fuse"]
+	path = dependencies/fuse
+	url = git@github.com:jakemclaughlin6/fuse.git
