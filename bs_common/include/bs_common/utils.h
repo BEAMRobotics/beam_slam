@@ -1,8 +1,9 @@
 #pragma once
 
-#include <fuse_core/transaction.h>
 #include <fuse_core/graph.h>
+#include <fuse_core/transaction.h>
 #include <fuse_variables/orientation_3d_stamped.h>
+#include <fuse_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -25,121 +26,122 @@ static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, -GRAVITY_NOMINAL};
 
 namespace bs_common {
 
-/// @brief 
-/// @param T_WORLD_SENSOR 
-/// @param p 
-/// @param o 
+/// @brief
+/// @param T_WORLD_SENSOR
+/// @param p
+/// @param o
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                               fuse_variables::Position3DStamped& p,
                               fuse_variables::Orientation3DStamped& o);
 
-/// @brief 
-/// @param T_WORLD_SENSOR 
-/// @param p 
-/// @param o 
+/// @brief
+/// @param T_WORLD_SENSOR
+/// @param p
+/// @param o
 void EigenTransformToFusePose(
     const Eigen::Matrix4d& T_WORLD_SENSOR,
     fuse_variables::Position3DStamped::SharedPtr& p,
     fuse_variables::Orientation3DStamped::SharedPtr& o);
 
-/// @brief 
-/// @param p 
-/// @param o 
-/// @param T_WORLD_SENSOR 
+/// @brief
+/// @param p
+/// @param o
+/// @param T_WORLD_SENSOR
 void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                               const fuse_variables::Orientation3DStamped& o,
                               Eigen::Matrix4d& T_WORLD_SENSOR);
-/// @brief 
-/// @param p 
-/// @param o 
-/// @return 
+/// @brief
+/// @param p
+/// @param o
+/// @return
 Eigen::Matrix4d
     FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                              const fuse_variables::Orientation3DStamped& o);
 
-/// @brief 
-/// @param pose 
-/// @param T_WORLD_SENSOR 
+/// @brief
+/// @param pose
+/// @param T_WORLD_SENSOR
 void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
                                    Eigen::Matrix4d& T_WORLD_SENSOR);
 
-/// @brief 
-/// @param odom 
-/// @param T_WORLD_SENSOR 
+/// @brief
+/// @param odom
+/// @param T_WORLD_SENSOR
 void OdometryMsgToTransformationMatrix(const nav_msgs::Odometry& odom,
                                        Eigen::Matrix4d& T_WORLD_SENSOR);
 
-/// @brief 
-/// @param TROS 
-/// @param T 
+/// @brief
+/// @param TROS
+/// @param T
 void ROSStampedTransformToEigenTransform(const tf::StampedTransform& TROS,
                                          Eigen::Matrix4d& T);
 
-/// @brief 
-/// @param TROS 
-/// @param T 
+/// @brief
+/// @param TROS
+/// @param T
 void TransformStampedMsgToEigenTransform(
     const geometry_msgs::TransformStamped& TROS, Eigen::Matrix4d& T);
 
-/// @brief 
-/// @param T 
-/// @param stamp 
-/// @param seq 
-/// @param parent_frame_id 
-/// @param child_frame_id 
-/// @param tf_stamped 
+/// @brief
+/// @param T
+/// @param stamp
+/// @param seq
+/// @param parent_frame_id
+/// @param child_frame_id
+/// @param tf_stamped
 void EigenTransformToTransformStampedMsg(
     const Eigen::Matrix4d& T, const ros::Time& stamp, int seq,
     const std::string& parent_frame_id, const std::string& child_frame_id,
     geometry_msgs::TransformStamped& tf_stamped);
 
-/// @brief 
-/// @param T 
-/// @param stamp 
-/// @param seq 
-/// @param parent_frame_id 
-/// @param child_frame_id 
-/// @param odom_msg 
+/// @brief
+/// @param T
+/// @param stamp
+/// @param seq
+/// @param parent_frame_id
+/// @param child_frame_id
+/// @param odom_msg
 void EigenTransformToOdometryMsg(const Eigen::Matrix4d& T,
                                  const ros::Time& stamp, int seq,
                                  const std::string& parent_frame_id,
                                  const std::string& child_frame_id,
                                  nav_msgs::Odometry& odom_msg);
-/// @brief 
-/// @param T 
-/// @param stamp 
-/// @param seq 
-/// @param frame_id 
-/// @param pose_stamped 
+/// @brief
+/// @param T
+/// @param stamp
+/// @param seq
+/// @param frame_id
+/// @param pose_stamped
 void EigenTransformToPoseStamped(const Eigen::Matrix4d& T,
                                  const ros::Time& stamp, int seq,
                                  const std::string& frame_id,
                                  geometry_msgs::PoseStamped& pose_stamped);
 
-/// @brief 
-/// @param message 
-/// @param stamp 
-/// @param seq 
-/// @param parent_frame_id 
-/// @param child_frame_id 
-/// @param tf_stamped 
+/// @brief
+/// @param message
+/// @param stamp
+/// @param seq
+/// @param parent_frame_id
+/// @param child_frame_id
+/// @param tf_stamped
 void OdometryMsgToTransformedStamped(
     const nav_msgs::Odometry& message, const ros::Time& stamp, int seq,
     const std::string& parent_frame_id, const std::string& child_frame_id,
     geometry_msgs::TransformStamped& tf_stamped);
 
-/// @brief 
-/// @param stamp 
-/// @param seq 
-/// @param parent_frame_id 
-/// @param child_frame_id 
-/// @param T_PARENT_CHILD 
-/// @param covariance 
-/// @return 
+/// @brief
+/// @param stamp
+/// @param seq
+/// @param parent_frame_id
+/// @param child_frame_id
+/// @param T_PARENT_CHILD
+/// @param covariance
+/// @return
 nav_msgs::Odometry TransformToOdometryMessage(
     const ros::Time& stamp, const int seq, const std::string& parent_frame_id,
     const std::string& child_frame_id, const Eigen::Matrix4d T_PARENT_CHILD,
-    const Eigen::Matrix<double, 6, 6> covariance);
+    const Eigen::Matrix<double, 6, 6> covariance =
+        Eigen::Matrix<double, 6, 6>::Identity());
 
 /**
  * @brief Turns a pose message into an Eigen 4x4 matrix
@@ -192,24 +194,57 @@ int GetNumberOfConstraints(
  */
 int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction);
 
+/// @brief Gets a pointer to a gryo bias variable if it exists (nullptr
+/// otherwise)
+/// @param graph graph to look in
+/// @param stamp of variable to get
+/// @return pointer to variable
 bs_variables::GyroscopeBias3DStamped::SharedPtr
     GetGryoscopeBias(fuse_core::Graph::ConstSharedPtr graph,
                      const ros::Time& stamp);
 
+/// @brief Gets a pointer to an accel bias variable if it exists (nullptr
+/// otherwise)
+/// @param graph graph to look in
+/// @param stamp of variable to get
+/// @return pointer to variable
 bs_variables::AccelerationBias3DStamped::SharedPtr
     GetAccelBias(fuse_core::Graph::ConstSharedPtr graph,
                  const ros::Time& stamp);
 
+/// @brief Gets a pointer to a position variable if it exists (nullptr
+/// otherwise)
+/// @param graph graph to look in
+/// @param stamp of variable to get
+/// @return pointer to variable
 fuse_variables::Position3DStamped::SharedPtr
     GetPosition(fuse_core::Graph::ConstSharedPtr graph, const ros::Time& stamp);
 
+/// @brief Gets a pointer to an orientation variable if it exists (nullptr
+/// otherwise)
+/// @param graph graph to look in
+/// @param stamp of variable to get
+/// @return pointer to variable
 fuse_variables::Orientation3DStamped::SharedPtr
     GetOrientation(fuse_core::Graph::ConstSharedPtr graph,
                    const ros::Time& stamp);
 
+/// @brief Gets a pointer to a velocity variable if it exists (nullptr
+/// otherwise)
+/// @param graph graph to look in
+/// @param stamp of variable to get
+/// @return pointer to variable
 fuse_variables::VelocityLinear3DStamped::SharedPtr
     GetVelocity(fuse_core::Graph::ConstSharedPtr graph, const ros::Time& stamp);
 
+/// @brief Gets all timestamps in the given graph
+/// @param graph to search in
+/// @return set of timestamps
 std::set<ros::Time> CurrentTimestamps(fuse_core::Graph::ConstSharedPtr graph);
+
+/// @brief Gets all landmark id's in the given graph
+/// @param graph to search in
+/// @return set of landmark ids
+std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph);
 
 } // namespace bs_common

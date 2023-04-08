@@ -26,11 +26,11 @@ public:
         nh, "visual_measurement_topic", visual_measurement_topic,
         "/local_mapper/visual_feature_tracker/visual_measurements");
 
-    // config for an optional frame initializer
+    // config for frame initializer
     getParamRequired<std::string>(nh, "frame_initializer_config",
                                   frame_initializer_config);
 
-    // frame initializer priors
+    // frame initializer prior
     getParam<bool>(nh, "use_pose_priors", use_pose_priors, false);
     std::vector<double> prior_diagonal;
     nh.param("frame_initializer_prior_noise_diagonal", prior_diagonal,

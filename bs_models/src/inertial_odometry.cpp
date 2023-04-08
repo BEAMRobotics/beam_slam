@@ -102,7 +102,7 @@ void InertialOdometry::processOdometry(
   // add constraint at time
   auto transaction =
       imu_preint_->RegisterNewImuPreintegratedFactor(msg->header.stamp);
-  sendTransaction(transaction);
+  if (transaction) { sendTransaction(transaction); }
 }
 
 void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,

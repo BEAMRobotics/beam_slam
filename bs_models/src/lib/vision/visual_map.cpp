@@ -1,3 +1,4 @@
+#include <bs_common/utils.h>
 #include <bs_models/vision/visual_map.h>
 
 #include <beam_utils/math.h>
@@ -8,14 +9,14 @@
 namespace bs_models { namespace vision {
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model)
-    : cam_model_(cam_model) {}
-
-beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time& stamp) {
+    : cam_model_(cam_model) {
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
-    return {};
+    throw std::runtime_error("Unable to get baselink to camera transform.");
   }
+}
 
+beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time& stamp) {
   fuse_variables::Position3DStamped::SharedPtr p = GetPosition(stamp);
   fuse_variables::Orientation3DStamped::SharedPtr q = GetOrientation(stamp);
   if (p && q) {
@@ -35,11 +36,6 @@ beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time& stamp) {
 }
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetBaselinkPose(const ros::Time& stamp) {
-  if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
-    ROS_ERROR("Unable to get baselink to camera transform.");
-    return {};
-  }
-
   fuse_variables::Position3DStamped::SharedPtr p = GetPosition(stamp);
   fuse_variables::Orientation3DStamped::SharedPtr q = GetOrientation(stamp);
   if (p && q) {
@@ -133,11 +129,6 @@ fuse_variables::Position3DStamped::SharedPtr
 void VisualMap::AddCameraPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
                               const ros::Time& stamp,
                               fuse_core::Transaction::SharedPtr transaction) {
-  if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
-    ROS_ERROR("Unable to get baselink to camera transform.");
-    return;
-  }
-
   // transform pose into baselink coord space
   Eigen::Matrix4d T_WORLD_BASELINK = T_WORLD_CAMERA * T_cam_baselink_;
   Eigen::Quaterniond q;
@@ -233,11 +224,6 @@ void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
 bool VisualMap::AddVisualConstraint(
     const ros::Time& stamp, uint64_t lm_id, const Eigen::Vector2d& pixel,
     fuse_core::Transaction::SharedPtr transaction) {
-  if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
-    ROS_ERROR("Unable to get baselink to camera transform.");
-    return false;
-  }
-
   // get landmark
   fuse_variables::Point3DLandmark::SharedPtr lm = GetLandmark(lm_id);
 
@@ -300,13 +286,32 @@ bool VisualMap::LandmarkExists(uint64_t landmark_id) {
   return false;
 }
 
-
 void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   graph_ = graph_msg;
-  // clear local storage
-  orientations_.clear();
-  positions_.clear();
-  landmark_positions_.clear();
+  
+  // remove local copies of poses that are in the new graph
+  const auto graph_timestamps = bs_common::CurrentTimestamps(graph_);
+  std::vector<uint64_t> times_to_remove;
+  for (const auto [t_nsec, position] : positions_) {
+    if (graph_timestamps.find(beam::NSecToRos(t_nsec)) !=
+        graph_timestamps.end()) {
+      times_to_remove.push_back(t_nsec);
+    }
+  }
+  for (const auto& t_nsec : times_to_remove) {
+    orientations_.erase(t_nsec);
+    positions_.erase(t_nsec);
+  }
+
+  // remove local copies of landmarks that are in the new graph
+  const auto graph_lm_ids = bs_common::CurrentLandmarkIDs(graph_);
+  std::vector<uint64_t> lms_to_remove;
+  for (const auto [id, position] : landmark_positions_) {
+    if (graph_lm_ids.find(id) != graph_lm_ids.end()) {
+      lms_to_remove.push_back(id);
+    }
+  }
+  for (const auto& id : lms_to_remove) { landmark_positions_.erase(id); }
 }
 
 void VisualMap::Clear() {
@@ -314,6 +319,14 @@ void VisualMap::Clear() {
   positions_.clear();
   landmark_positions_.clear();
   if (graph_) { graph_ = nullptr; }
+}
+
+std::set<ros::Time> VisualMap::CurrentTimestamps() {
+  auto graph_timestamps = bs_common::CurrentTimestamps(graph_);
+  for (const auto& [t, pos] : positions_) {
+    graph_timestamps.insert(beam::NSecToRos(t));
+  }
+  return graph_timestamps;
 }
 
 }} // namespace bs_models::vision

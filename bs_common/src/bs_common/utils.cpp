@@ -326,8 +326,10 @@ bs_variables::GyroscopeBias3DStamped::SharedPtr
   auto gyro_bias = bs_variables::GyroscopeBias3DStamped::make_shared();
   const auto bg_uuid =
       fuse_core::uuid::generate(gyro_bias->type(), stamp, fuse_core::uuid::NIL);
-  *gyro_bias = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
-      graph->getVariable(bg_uuid));
+  try {
+    *gyro_bias = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
+        graph->getVariable(bg_uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
   return gyro_bias;
 }
 
@@ -337,8 +339,10 @@ bs_variables::AccelerationBias3DStamped::SharedPtr
   auto accel_bias = bs_variables::AccelerationBias3DStamped::make_shared();
   const auto ba_uuid = fuse_core::uuid::generate(accel_bias->type(), stamp,
                                                  fuse_core::uuid::NIL);
-  *accel_bias = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
-      graph->getVariable(ba_uuid));
+  try {
+    *accel_bias = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
+        graph->getVariable(ba_uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
   return accel_bias;
 }
 
@@ -348,8 +352,10 @@ fuse_variables::Position3DStamped::SharedPtr
   auto position = fuse_variables::Position3DStamped::make_shared();
   const auto pos_uuid =
       fuse_core::uuid::generate(position->type(), stamp, fuse_core::uuid::NIL);
-  *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
-      graph->getVariable(pos_uuid));
+  try {
+    *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
+        graph->getVariable(pos_uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
   return position;
 }
 
@@ -359,8 +365,10 @@ fuse_variables::Orientation3DStamped::SharedPtr
   auto orientation = fuse_variables::Orientation3DStamped::make_shared();
   const auto or_uuid = fuse_core::uuid::generate(orientation->type(), stamp,
                                                  fuse_core::uuid::NIL);
-  *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-      graph->getVariable(or_uuid));
+  try {
+    *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+        graph->getVariable(or_uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
   return orientation;
 }
 
@@ -370,8 +378,10 @@ fuse_variables::VelocityLinear3DStamped::SharedPtr
   auto velocity = fuse_variables::VelocityLinear3DStamped::make_shared();
   const auto vel_uuid =
       fuse_core::uuid::generate(velocity->type(), stamp, fuse_core::uuid::NIL);
-  *velocity = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
-      graph->getVariable(vel_uuid));
+  try {
+    *velocity = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+        graph->getVariable(vel_uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
   return velocity;
 }
 
@@ -384,6 +394,17 @@ std::set<ros::Time> CurrentTimestamps(fuse_core::Graph::ConstSharedPtr graph) {
     times.insert(position->stamp());
   }
   return times;
+}
+
+std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph) {
+  std::set<uint64_t> ids;
+  for (auto& var : graph->getVariables()) {
+    auto landmark = fuse_variables::Point3DLandmark::make_shared();
+    if (var.type() != landmark->type()) { continue; }
+    *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(var);
+    ids.insert(landmark->id());
+  }
+  return ids;
 }
 
 } // namespace bs_common

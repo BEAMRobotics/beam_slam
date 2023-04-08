@@ -201,6 +201,11 @@ public:
    */
   void Clear();
 
+  /**
+   * @brief Returns the set of all timestamps in the graph
+   */
+  std::set<ros::Time> CurrentTimestamps();
+
 protected:
   // temp maps for in between optimization cycles
   std::map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>

@@ -103,7 +103,14 @@ private:
           const fuse_variables::Orientation3DStamped& orientation,
           const Eigen::Matrix<double, 6, 6>& covariance);
 
+  /// @brief Localizes image and extends our visual map if its a keyframe
+  /// @param msg visual measurements
+  /// @return whether it succeeded in localizing
   bool ComputeOdometryAndExtendMap(const CameraMeasurementMsg::ConstPtr& msg);
+
+  /// @brief Publishes a keyframe object as a slam chunk
+  /// @param keyframe
+  void PublishSlamChunk(const Keyframe& keyframe);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
@@ -115,7 +122,6 @@ private:
   // Used to get initial pose estimates
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
 
-  std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;
   // subscribers
   ros::Subscriber measurement_subscriber_;
 
@@ -128,6 +134,9 @@ private:
   bool is_initialized_{false};
   std::deque<Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
+  std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;
+  Eigen::Matrix4d T_ODOM_BASELINKprevkf_{Eigen::Matrix4d::Identity()};
+  ros::Time previous_reloc_request_{ros::Time(0)};
 
   // callbacks for messages
   using ThrottledMeasurementCallback =

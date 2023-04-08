@@ -2,26 +2,21 @@
 
 namespace bs_models { namespace vision {
 
-Keyframe::Keyframe(const ros::Time& timestamp, const sensor_msgs::Image& image)
-    : timestamp_(timestamp), image_(image) {
+Keyframe::Keyframe(const bs_common::CameraMeasurementMsg& msg) : msg_(msg) {
   static uint64_t kf_seq_num_ = 0;
   sequence_number_ = kf_seq_num_++;
 }
 
-const ros::Time& Keyframe::Stamp() {
-  return timestamp_;
+const ros::Time& Keyframe::Stamp() const {
+  return msg_.header.stamp;
 }
 
-const sensor_msgs::Image& Keyframe::Image() {
-  return image_;
+const sensor_msgs::Image& Keyframe::Image() const {
+  return msg_.image;
 }
 
-const uint64_t& Keyframe::SequenceNumber() {
+const uint64_t& Keyframe::SequenceNumber() const {
   return sequence_number_;
-}
-
-const std::vector<uint64_t>& Keyframe::Landmarks() {
-  return added_landmarks;
 }
 
 void Keyframe::AddPose(const ros::Time& timestamp,
@@ -29,11 +24,11 @@ void Keyframe::AddPose(const ros::Time& timestamp,
   trajectory_[timestamp.toNSec()] = T_frame_keyframe;
 }
 
-void Keyframe::AddLandmark(uint64_t landmark_id) {
-  added_landmarks.push_back(landmark_id);
+const bs_common::CameraMeasurementMsg& Keyframe::MeasurementMessage() const {
+  return msg_;
 }
 
-const std::map<uint64_t, Eigen::Matrix4d>& Keyframe::Trajectory() {
+const std::map<uint64_t, Eigen::Matrix4d>& Keyframe::Trajectory() const {
   return trajectory_;
 }
 
