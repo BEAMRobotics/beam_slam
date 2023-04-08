@@ -126,6 +126,36 @@ fuse_variables::Position3DStamped::SharedPtr
   return nullptr;
 }
 
+bool VisualMap::AddVisualConstraint(
+    const ros::Time& stamp, uint64_t lm_id, const Eigen::Vector2d& pixel,
+    fuse_core::Transaction::SharedPtr transaction) {
+  // TODO: refactor to attempt undistortion in here, create constraint using
+  // just proejction matrix, and information weight passed in
+
+  // get landmark
+  fuse_variables::Point3DLandmark::SharedPtr lm = GetLandmark(lm_id);
+
+  // get robot pose
+  fuse_variables::Position3DStamped::SharedPtr position = GetPosition(stamp);
+  fuse_variables::Orientation3DStamped::SharedPtr orientation =
+      GetOrientation(stamp);
+
+  if (!position || !orientation) { return false; }
+  try {
+    if (lm) {
+      // add normal visual constraint
+      fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
+          fuse_constraints::VisualConstraint::make_shared(
+              source_, *orientation, *position, *lm, pixel, T_cam_baselink_,
+              cam_model_, "HUBER", "VANILLA");
+      transaction->addConstraint(vis_constraint);
+      return true;
+    }
+  } catch (const std::logic_error& le) {}
+
+  return false;
+}
+
 void VisualMap::AddCameraPose(const Eigen::Matrix4d& T_WORLD_CAMERA,
                               const ros::Time& stamp,
                               fuse_core::Transaction::SharedPtr transaction) {
@@ -221,33 +251,6 @@ void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
   landmark_positions_[landmark->id()] = landmark;
 }
 
-bool VisualMap::AddVisualConstraint(
-    const ros::Time& stamp, uint64_t lm_id, const Eigen::Vector2d& pixel,
-    fuse_core::Transaction::SharedPtr transaction) {
-  // get landmark
-  fuse_variables::Point3DLandmark::SharedPtr lm = GetLandmark(lm_id);
-
-  // get robot pose
-  fuse_variables::Position3DStamped::SharedPtr position = GetPosition(stamp);
-  fuse_variables::Orientation3DStamped::SharedPtr orientation =
-      GetOrientation(stamp);
-
-  if (!position || !orientation) { return false; }
-  try {
-    if (lm) {
-      // add normal visual constraint
-      fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
-          fuse_constraints::VisualConstraint::make_shared(
-              source_, *orientation, *position, *lm, pixel, T_cam_baselink_,
-              cam_model_, "HUBER", "VANILLA");
-      transaction->addConstraint(vis_constraint);
-      return true;
-    }
-  } catch (const std::logic_error& le) {}
-
-  return false;
-}
-
 fuse_core::UUID VisualMap::GetLandmarkUUID(uint64_t landmark_id) {
   fuse_variables::Point3DLandmark::SharedPtr landmark =
       fuse_variables::Point3DLandmark::make_shared();
@@ -288,7 +291,7 @@ bool VisualMap::LandmarkExists(uint64_t landmark_id) {
 
 void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   graph_ = graph_msg;
-  
+
   // remove local copies of poses that are in the new graph
   const auto graph_timestamps = bs_common::CurrentTimestamps(graph_);
   std::vector<uint64_t> times_to_remove;

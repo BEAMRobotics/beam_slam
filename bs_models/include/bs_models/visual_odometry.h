@@ -98,10 +98,8 @@ private:
   /// @param covariance
   /// @return Shared pointer to constraint
   std::shared_ptr<fuse_constraints::AbsolutePose3DStampedConstraint>
-      MakeFrameInitPrior(
-          const fuse_variables::Position3DStamped& position,
-          const fuse_variables::Orientation3DStamped& orientation,
-          const Eigen::Matrix<double, 6, 6>& covariance);
+      MakeFrameInitPrior(const ros::Time& frame_time,
+                         const Eigen::Matrix<double, 6, 6>& covariance);
 
   /// @brief Localizes image and extends our visual map if its a keyframe
   /// @param msg visual measurements

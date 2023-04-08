@@ -213,9 +213,7 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 
   // add prior if using a frame initializer
   if (frame_initializer_ && vo_params_.use_pose_priors) {
-    auto prior = MakeFrameInitPrior(*visual_map_->GetPosition(cur_kf_time),
-                                    *visual_map_->GetOrientation(cur_kf_time),
-                                    vo_params_.prior_covariance);
+    auto prior = MakeFrameInitPrior(cur_kf_time, vo_params_.prior_covariance);
     transaction->addConstraint(prior);
   }
 
@@ -321,14 +319,15 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 
 std::shared_ptr<fuse_constraints::AbsolutePose3DStampedConstraint>
     VisualOdometry::MakeFrameInitPrior(
-        const fuse_variables::Position3DStamped& position,
-        const fuse_variables::Orientation3DStamped& orientation,
+        const ros::Time& frame_time,
         const Eigen::Matrix<double, 6, 6>& covariance) {
+  const auto position = visual_map_->GetPosition(frame_time);
+  const auto orientation = visual_map_->GetOrientation(frame_time);
   fuse_core::Vector7d mean;
-  mean << position.x(), position.y(), position.z(), orientation.w(),
-      orientation.x(), orientation.y(), orientation.z();
+  mean << position->x(), position->y(), position->z(), orientation->w(),
+      orientation->x(), orientation->y(), orientation->z();
   return std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-      "FRAMEINITIALIZERPRIOR", position, orientation, mean, covariance);
+      "FRAMEINITIALIZERPRIOR", *position, *orientation, mean, covariance);
 }
 
 void VisualOdometry::AddMeasurementsToContainer(
