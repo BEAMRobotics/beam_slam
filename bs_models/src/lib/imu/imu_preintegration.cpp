@@ -124,7 +124,7 @@ PoseWithCovariance ImuPreintegration::GetRelativeMotion(const ros::Time& t1,
   bs_common::ImuState imu_state_1;
   if (window_states_.find(t1.toNSec()) == window_states_.end()) {
     pre_integrator_ij_.Integrate(t1, imu_state_i_.GyroBiasVec(),
-                                 imu_state_i_.AccelBiasVec(), false, true);
+                                 imu_state_i_.AccelBiasVec(), false, false);
     imu_state_1 = PredictState(pre_integrator_ij_, imu_state_i_, t1);
   } else {
     imu_state_1 = window_states_[t1.toNSec()];

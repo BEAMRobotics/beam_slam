@@ -115,7 +115,8 @@ public:
    */
   void ComputeSqrtInvCov();
 
-  double cov_tol{1e-6}; // tolarance on zero covariance matrix
+  double cov_tol{1e-5}; // tolarance on zero covariance matrix for pose and velocity terms
+  double bias_cov_tol{1e-9}; // tolarance on zero covariance matrix for bias terms
 
   Eigen::Matrix3d cov_w; // continuous noise covariance
   Eigen::Matrix3d cov_a;
