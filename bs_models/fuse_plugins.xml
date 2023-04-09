@@ -15,6 +15,11 @@
       Inertial odometry sensor model
     </description>
   </class>
+    <class type="bs_models::VisualOdometry" base_class_type="fuse_core::SensorModel">
+    <description>
+      Visual odometry sensor model
+    </description>
+  </class>
   <class type="bs_models::LidarAggregation" base_class_type="fuse_core::SensorModel">
     <description>
       A sensor model for aggregating and motion compensating lidar data

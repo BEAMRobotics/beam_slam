@@ -1,39 +1,37 @@
 #pragma once
 
-#include <sensor_msgs/Image.h>
-
 #include <beam_utils/utils.h>
+#include <bs_common/CameraMeasurementMsg.h>
+#include <sensor_msgs/Image.h>
 
 namespace bs_models { namespace vision {
 
 class Keyframe {
 public:
   /**
-   * @brief Custom cosntrcutor
-   * @param cam_model camera model being used
+   * @brief Custom constructor
    */
-  Keyframe(const ros::Time& timestamp, const sensor_msgs::Image& image);
+  Keyframe(const bs_common::CameraMeasurementMsg& msg);
 
   /**
    * @brief Read only access to the timestamp
    */
-  const ros::Time& Stamp();
+  const ros::Time& Stamp() const;
 
   /**
    * @brief Read only access to image message
    */
-  const sensor_msgs::Image& Image();
+  const sensor_msgs::Image& Image() const;
 
   /**
    * @brief Read only access to sequence number
    */
-  const uint64_t& SequenceNumber();
+  const uint64_t& SequenceNumber() const;
 
   /**
-   * @brief Read only access to the landmark ids that were added in this
-   * keyframe
+   * @brief Read only access to measurement message
    */
-  const std::vector<uint64_t>& Landmarks();
+  const bs_common::CameraMeasurementMsg& MeasurementMessage() const;
 
   /**
    * @brief Adds a relative pose to this keyframes trajectory
@@ -44,22 +42,16 @@ public:
                const Eigen::Matrix4d& T_frame_keyframe);
 
   /**
-   * @brief Adds a landmark to this keyframes list
-   * @param landmark_id id of landmark that was triangulated
-   */
-  void AddLandmark(uint64_t landmark_id);
-
-  /**
    * @brief Read only access to this keyframes trajectory
+   * <time, T_frame_keyframe>
    */
-  const std::map<uint64_t, Eigen::Matrix4d>& Trajectory();
+  const std::map<uint64_t, Eigen::Matrix4d>& Trajectory() const;
 
 protected:
   ros::Time timestamp_;
-  sensor_msgs::Image image_;
-  uint64_t sequence_numer_;
+  bs_common::CameraMeasurementMsg msg_;
+  uint64_t sequence_number_;
   std::map<uint64_t, Eigen::Matrix4d> trajectory_;
-  std::vector<uint64_t> added_landmarks;
 };
 
 }} // namespace bs_models::vision

@@ -11,6 +11,8 @@ sensor_models:
 # Odometry's
   - name: 'inertial_odometry'
     type: 'bs_models::InertialOdometry'
+  - name: 'visual_odometry'
+    type: 'bs_models::VisualOdometry'
 
 ##############################
 #    optimizer parameters    #
@@ -59,3 +61,14 @@ slam_initialization:
 inertial_odometry:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/visual_odometry/odom/relative"
+
+visual_odometry:
+  visual_measurement_topic: "/local_mapper/visual_feature_tracker/visual_measurements"
+  max_container_size: 300
+  frame_initializer_config: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
+  frame_initializer_prior_noise_diagonal: [0,0,0,0,0,0]
+  use_pose_priors: false
+  reloc_request_period: 3.0
+  keyframe_parallax: 10.0
+  keyframe_translation_m: 2.0
+  keyframe_rotation_deg: 20.0

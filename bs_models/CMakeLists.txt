@@ -72,6 +72,7 @@ add_library(
   src/lidar_feature_extractor.cpp
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
+  src/visual_odometry.cpp
   src/inertial_odometry.cpp
   src/slam_initialization.cpp
   src/visual_feature_tracker.cpp

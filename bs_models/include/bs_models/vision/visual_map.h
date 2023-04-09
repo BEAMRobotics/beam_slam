@@ -87,26 +87,6 @@ public:
                    fuse_core::Transaction::SharedPtr transaction);
 
   /**
-   * @brief Helper function to add a new landmark variable to a transaction or
-   * graph
-   * @param position of the landmark to add
-   * @param id of the landmark to add
-   * @param transaction to add to
-   */
-  void AddFixedLandmark(const Eigen::Vector3d& position, uint64_t id,
-                        fuse_core::Transaction::SharedPtr transaction);
-
-  /**
-   * @brief Helper function to add a new landmark variable to a transaction or
-   * graph
-   * @param landmark to add
-   * @param transaction to add to
-   */
-  void
-      AddFixedLandmark(fuse_variables::Point3DFixedLandmark::SharedPtr landmark,
-                       fuse_core::Transaction::SharedPtr transaction);
-
-  /**
    * @brief Helper function to add a constraint between a landmark and a pose
    * @param stamp associated image timestamp to add constraint to
    * @param landmark_id landmark to add constraint to
@@ -122,13 +102,6 @@ public:
    * @param landmark_id to retrieve
    */
   fuse_variables::Point3DLandmark::SharedPtr GetLandmark(uint64_t landmark_id);
-
-  /**
-   * @brief Helper function to get a landmark by id
-   * @param landmark_id to retrieve
-   */
-  fuse_variables::Point3DFixedLandmark::SharedPtr
-      GetFixedLandmark(uint64_t landmark_id);
 
   /**
    * @brief Retrieves q_WORLD_BASELINK
@@ -188,12 +161,6 @@ public:
   fuse_core::UUID GetLandmarkUUID(uint64_t landmark_id);
 
   /**
-   * @brief Gets fuse uuid of landmark
-   * @param landmark_id of landmark
-   */
-  fuse_core::UUID GetFixedLandmarkUUID(uint64_t landmark_id);
-
-  /**
    * @brief Gets fuse uuid of stamped position
    * @param stamp of position
    */
@@ -234,6 +201,11 @@ public:
    */
   void Clear();
 
+  /**
+   * @brief Returns the set of all timestamps in the graph
+   */
+  std::set<ros::Time> CurrentTimestamps();
+
 protected:
   // temp maps for in between optimization cycles
   std::map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
@@ -241,8 +213,6 @@ protected:
   std::map<uint64_t, fuse_variables::Position3DStamped::SharedPtr> positions_;
   std::map<uint64_t, fuse_variables::Point3DLandmark::SharedPtr>
       landmark_positions_;
-  std::map<uint64_t, fuse_variables::Point3DFixedLandmark::SharedPtr>
-      fixed_landmark_positions_;
 
   // copy of the current graph
   fuse_core::Graph::ConstSharedPtr graph_;
