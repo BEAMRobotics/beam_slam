@@ -91,6 +91,8 @@ private:
   bool point_stamps_checked_{false};
   int counter_{0};
 
+  ros::Time last_published_cloud_stamp_{ros::Time(0)};
+  ros::Duration max_aggregation_duration_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 

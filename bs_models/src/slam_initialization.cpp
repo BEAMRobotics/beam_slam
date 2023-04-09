@@ -115,8 +115,8 @@ void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
   frame_init_buffer_.pop_front();
 
   // check if path is long enough
-  const auto [first_time, first_pose] = *init_path_.begin();
-  const auto [current_time, current_pose] = *init_path_.rbegin();
+  const Eigen::Matrix4d& first_pose = init_path_.begin()->second;
+  const Eigen::Matrix4d& current_pose = init_path_.rbegin()->second;
   if (!beam::PassedMotionThreshold(first_pose, current_pose, 0.0,
                                    params_.min_trajectory_length_m, true, true,
                                    false)) {

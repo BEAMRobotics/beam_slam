@@ -2,10 +2,9 @@
 optimization_period: 0.5
 lag_duration: 7
 
-## model plugins: declare all plugins to use and give a unique name
 sensor_models:
-  - name: 'lo_initializer'
-    type: 'bs_models::LoInitializer'
+  # - name: 'lo_initializer'
+  #   type: 'bs_models::LoInitializer'
   - name: 'inertial_odometry'
     type: 'bs_models::InertialOdometry'
     motion_models: ['unicycle_3d']
@@ -22,14 +21,6 @@ sensor_models:
 motion_models:
   - name: 'unicycle_3d'
     type: 'bs_models::Unicycle3D'
-
-# publishers:
-#   - name: 'odom_pub'
-#     type: 'bs_publishers::Odometry3DPublisher'
-#   - name: 'path_pub'
-#     type: 'bs_publishers::Path3DPublisher'
-
-## plugin params: specify all params for the plugins, using their unique name
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -63,18 +54,16 @@ lo_initializer:
   max_frequency: 5 
 
 inertial_odometry:
-  input_topic: '/imu/data'
-  init_path_topic: '/local_mapper/lo_initializer/result'
-  init_use_scale_estimate: false
-  keyframe_rate: 0.1
-  msg_queue_size: 10000
+  imu_topic: "/imu/data"
+  constraint_odom_topic: "/local_mapper/lidar_odometry/odometry"
 
 lidar_aggregation:
-  aggregation_time_topic: '/local_mapper/inertial_odometry/pose_stamps'
-  odometry_topic: '/local_mapper/inertial_odometry/odometry'
-  use_trigger: true
+  aggregation_time_topic: ''
   pointcloud_topic: '/lidar_h/velodyne_packets_unpacked'
-  max_aggregation_time_seconds: 0.1 
+  lidar_type: 'VELODYNE'
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json'
+  max_aggregation_time_seconds: 0.1
+  use_trigger: false  
 
 lidar_odometry:
   # Local scan registration
