@@ -6,11 +6,10 @@
 #include <beam_matching/Matchers.h>
 
 #include <bs_common/utils.h>
-#include <bs_models/scan_registration/registration_map.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
+#include <bs_models/scan_registration/registration_map.h>
 
-namespace bs_models {
-namespace scan_registration {
+namespace bs_models { namespace scan_registration {
 
 using namespace beam_matching;
 using namespace bs_common;
@@ -20,7 +19,7 @@ ScanToMapRegistrationBase::ScanToMapRegistrationBase(
     : ScanRegistrationBase(base_params) {}
 
 bs_constraints::relative_pose::Pose3DStampedTransaction
-ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
+    ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
       new_scan.Stamp());
 
@@ -162,9 +161,7 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   Eigen::Matrix4d T_SCANPREV_SCANNEW =
       beam::InvertTransform(T_MAP_SCANPREV) * T_MAPEST_SCAN;
 
-  if (!PassedMotionThresholds(T_SCANPREV_SCANNEW)) {
-    return false;
-  }
+  if (!PassedMotionThresholds(T_SCANPREV_SCANNEW)) { return false; }
 
   LoamPointCloudPtr scan_in_map_frame =
       std::make_shared<LoamPointCloud>(scan_pose.LoamCloud());
@@ -177,17 +174,19 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   matcher_->SetRef(current_map);
   matcher_->SetTarget(scan_in_map_frame);
 
-  if (!matcher_->Match()) {
-    return false;
+  if (!matcher_->Match()) { return false; }
+
+  if (!params_.debug_output_dir.empty()) {
+    matcher_->SaveResults(params_.debug_output_dir,
+                          std::to_string(scan_pose.Stamp().toSec()));
   }
 
   Eigen::Matrix4d T_MAPEST_MAP = matcher_->GetResult().matrix();
 
   if (!PassedRegThreshold(T_MAPEST_MAP)) {
-    BEAM_WARN(
-        "Failed scan matcher transform threshold check for stamp {}.{}. "
-        "Skipping measurement.",
-        scan_pose.Stamp().sec, scan_pose.Stamp().nsec);
+    BEAM_WARN("Failed scan matcher transform threshold check for stamp {}.{}. "
+              "Skipping measurement.",
+              scan_pose.Stamp().sec, scan_pose.Stamp().nsec);
     return false;
   }
 
@@ -204,5 +203,4 @@ void ScanToMapLoamRegistration::AddScanToMap(
   }
 }
 
-}  // namespace scan_registration
-}  // namespace bs_models
+}} // namespace bs_models::scan_registration

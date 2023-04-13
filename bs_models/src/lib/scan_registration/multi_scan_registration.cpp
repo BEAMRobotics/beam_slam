@@ -8,8 +8,7 @@
 #include <bs_common/utils.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 
-namespace bs_models {
-namespace scan_registration {
+namespace bs_models { namespace scan_registration {
 
 using namespace beam_matching;
 using namespace bs_common;
@@ -79,9 +78,7 @@ MultiScanRegistrationBase::MultiScanRegistrationBase(
   params_.disable_lidar_map = disable_lidar_map;
 
   // if outputting results, clear output folder:
-  if (!output_scan_registration_results_) {
-    return;
-  }
+  if (!output_scan_registration_results_) { return; }
 
   if (boost::filesystem::is_directory(tmp_output_path_)) {
     boost::filesystem::remove_all(tmp_output_path_);
@@ -90,7 +87,7 @@ MultiScanRegistrationBase::MultiScanRegistrationBase(
 }
 
 bs_constraints::relative_pose::Pose3DStampedTransaction
-MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
+    MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   // create empty transaction
   bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
       new_scan.Stamp());
@@ -274,13 +271,12 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
   }
 
   // close output file
-  if (output_scan_registration_results_) {
-    measurements_file.close();
-  }
+  if (output_scan_registration_results_) { measurements_file.close(); }
 
   // calculate average and add to lidar map
   if (!params_.disable_lidar_map) {
-    Eigen::Matrix4d T_WORLD_LIDAR_AVG = beam::AverageTransforms(lidar_poses_est);
+    Eigen::Matrix4d T_WORLD_LIDAR_AVG =
+        beam::AverageTransforms(lidar_poses_est);
     map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(), T_WORLD_LIDAR_AVG);
   }
 
@@ -292,9 +288,7 @@ void MultiScanRegistrationBase::InsertCloudInReferences(const ScanPose& scan) {
   // the current scan in reference scans
   for (auto iter = reference_clouds_.begin(); iter != reference_clouds_.end();
        iter++) {
-    if (scan.Stamp() > iter->Stamp()) {
-      continue;
-    }
+    if (scan.Stamp() > iter->Stamp()) { continue; }
 
     // insert and then check size of references
     reference_clouds_.insert(iter, scan);
@@ -327,9 +321,7 @@ void MultiScanRegistrationBase::CleanUpScanLists(
     unregistered_clouds_.pop_back();
   }
 
-  if (params_.lag_duration == 0) {
-    return;
-  }
+  if (params_.lag_duration == 0) { return; }
 
   // clear old reference clouds
   auto i = reference_clouds_.begin();
@@ -389,17 +381,13 @@ ScanPose MultiScanRegistrationBase::GetScan(const ros::Time& t, bool& success) {
 }
 
 void MultiScanRegistrationBase::PrintScanDetails(std::ostream& stream) {
-  for (auto iter = Begin(); iter != End(); iter++) {
-    iter->Print(stream);
-  }
+  for (auto iter = Begin(); iter != End(); iter++) { iter->Print(stream); }
 }
 
 void MultiScanRegistrationBase::OutputResults(
     const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
     const Eigen::Matrix4d& T_LIDARREF_LIDARTGT, bool output_loam_cloud) {
-  if (!output_scan_registration_results_) {
-    return;
-  }
+  if (!output_scan_registration_results_) { return; }
 
   // get transforms
   Eigen::Matrix4d T_WORLD_LIDARREF = scan_pose_ref.T_REFFRAME_LIDAR();
@@ -475,9 +463,11 @@ void MultiScanRegistrationBase::OutputResults(
   }
 
   if (output_loam_cloud) {
-    loam_cloud_ref_world.Save(filename + "_ref/", true);
-    loam_cloud_tgt_in_world_init.Save(filename + "_tgt_init/", true);
-    loam_cloud_tgt_in_world_aligned.Save(filename + "_tgt_alig/", true);
+    loam_cloud_ref_world.SaveCombined(filename + "_ref/", "loam");
+    loam_cloud_tgt_in_world_init.SaveCombined(filename + "_tgt_init/",
+                                              "loam.pcd");
+    loam_cloud_tgt_in_world_aligned.SaveCombined(filename + "_tgt_alig/",
+                                                 "loam.pcd");
   }
 }
 
@@ -497,9 +487,7 @@ bool MultiScanRegistration::MatchScans(
       beam::InvertTransform(scan_pose_ref.T_REFFRAME_LIDAR()) *
       scan_pose_tgt.T_REFFRAME_LIDAR();
 
-  if (!PassedMotionThresholds(T_LidarRefEst_LidarTgt)) {
-    return false;
-  }
+  if (!PassedMotionThresholds(T_LidarRefEst_LidarTgt)) { return false; }
 
   // transform tgt cloud into est ref frame
   PointCloud tgtcloud_in_ref_est_frame;
@@ -558,9 +546,7 @@ bool MultiScanLoamRegistration::MatchScans(
       beam::InvertTransform(scan_pose_ref.T_REFFRAME_LIDAR()) *
       scan_pose_tgt.T_REFFRAME_LIDAR();
 
-  if (!PassedMotionThresholds(T_LidarRefEst_LidarTgt)) {
-    return false;
-  }
+  if (!PassedMotionThresholds(T_LidarRefEst_LidarTgt)) { return false; }
 
   std::shared_ptr<LoamPointCloud> tgtcloud_in_ref_est_frame =
       std::make_shared<LoamPointCloud>(scan_pose_tgt.LoamCloud());
@@ -603,5 +589,4 @@ bool MultiScanLoamRegistration::MatchScans(
   return true;
 }
 
-}  // namespace scan_registration
-}  // namespace bs_models
+}} // namespace bs_models::scan_registration

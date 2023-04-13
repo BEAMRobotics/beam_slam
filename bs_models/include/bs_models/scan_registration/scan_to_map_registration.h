@@ -3,16 +3,15 @@
 #include <list>
 
 #include <beam_matching/Matcher.h>
-#include <beam_utils/pointclouds.h>
 #include <beam_matching/loam/LoamPointCloud.h>
+#include <beam_utils/pointclouds.h>
 
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
-#include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/registration_map.h>
+#include <bs_models/scan_registration/scan_registration_base.h>
 
-namespace bs_models {
-namespace scan_registration {
+namespace bs_models { namespace scan_registration {
 
 using namespace beam_matching;
 using namespace bs_common;
@@ -23,7 +22,7 @@ using namespace bs_common;
  * on the point cloud type so a base class here helps remove duplicate code.
  */
 class ScanToMapRegistrationBase : public ScanRegistrationBase {
- public:
+public:
   /**
    * @brief Constructor that requires base params
    * @brief base_params
@@ -47,10 +46,10 @@ class ScanToMapRegistrationBase : public ScanRegistrationBase {
    * previous, unless the map is empty then the transaction will only contain a
    * prior constraint on this pose
    */
-  bs_constraints::relative_pose::Pose3DStampedTransaction RegisterNewScan(
-      const ScanPose& new_scan) override;
+  bs_constraints::relative_pose::Pose3DStampedTransaction
+      RegisterNewScan(const ScanPose& new_scan) override;
 
- protected:
+protected:
   /**
    * @brief Pure virtual function for determining if a map is empty. This is
    * used to determine whether or not we register a scan then add it, or just
@@ -89,7 +88,7 @@ class ScanToMapRegistrationBase : public ScanRegistrationBase {
  * matching
  */
 class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
- public:
+public:
   struct Params : public ScanRegistrationParamsBase {
     Params() = default;
 
@@ -107,6 +106,9 @@ class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
      */
     bool store_full_cloud{true};
 
+    /** If not empty, it will output scan registration results for each cloud */
+    std::string debug_output_dir{};
+
     /** load derived params & base params */
     void LoadFromJson(const std::string& config);
 
@@ -118,7 +120,7 @@ class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
                             const ScanRegistrationParamsBase& base_params,
                             int map_size = 10, bool store_full_cloud = true);
 
- private:
+private:
   bool IsMapEmpty() override;
 
   bool RegisterScanToMap(const ScanPose& scan_pose,
@@ -131,5 +133,4 @@ class ScanToMapLoamRegistration : public ScanToMapRegistrationBase {
   Params params_;
 };
 
-}  // namespace scan_registration
-}  // namespace bs_models
+}} // namespace bs_models::scan_registration

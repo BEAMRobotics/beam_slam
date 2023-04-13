@@ -86,6 +86,7 @@ add_library(
   src/lib/imu/inertial_alignment.cpp
   ## lidar helpers
   src/lib/lidar/lidar_aggregator.cpp
+  src/lib/lidar/lidar_path_init.cpp
   src/lib/lidar/scan_pose.cpp
   ## global mapping
   src/lib/global_mapping/global_map.cpp

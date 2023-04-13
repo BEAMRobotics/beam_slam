@@ -359,8 +359,7 @@ bool ScanPose::LoadData(const std::string& root_dir) {
 void ScanPose::SaveCloud(const std::string& save_path, bool to_reference_frame,
                          bool add_frame) const {
   if (!boost::filesystem::exists(save_path)) {
-    ROS_ERROR("Cannot save cloud, directory does not exist: %s",
-              save_path.c_str());
+    BEAM_ERROR("Cannot save cloud, directory does not exist: {}", save_path);
     return;
   }
 
@@ -415,28 +414,25 @@ void ScanPose::SaveCloud(const std::string& save_path, bool to_reference_frame,
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
   if (error_message.empty()) {
-    ROS_INFO("Saved cloud with stamp: %.5f", stamp_.toSec());
+    BEAM_INFO("Saved cloud with stamp: {}.{}", stamp_.sec, stamp_.nsec);
   }
 }
 
 void ScanPose::SaveLoamCloud(const std::string& save_path,
                              bool to_reference_frame, bool add_frame) const {
   if (cloud_type_ != "LOAMPOINTCLOUD") {
-    ROS_WARN("Scan pose has no LOAM pointcloud, not saving cloud.");
+    BEAM_WARN("Scan pose has no LOAM pointcloud, not saving cloud.");
     return;
   }
 
   if (!boost::filesystem::exists(save_path)) {
-    ROS_ERROR("Cannot save cloud, directory does not exist: %s",
-              save_path.c_str());
+    BEAM_ERROR("Cannot save cloud, directory does not exist: {}", save_path);
     return;
   }
 
-  std::string cloud_dir =
-      beam::CombinePaths(save_path, std::to_string(stamp_.toSec()));
-  boost::filesystem::create_directory(cloud_dir);
   if (!to_reference_frame) {
-    loampointcloud_.Save(cloud_dir, true);
+    loampointcloud_.SaveCombined(save_path,
+                                 std::to_string(stamp_.toSec()) + ".pcd");
     return;
   }
 
@@ -444,7 +440,8 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
       T_REFFRAME_BASELINK() * T_BASELINK_LIDAR_;
   beam_matching::LoamPointCloud loam_cloud_transformed = loampointcloud_;
   loam_cloud_transformed.TransformPointCloud(T_REFFRAME_LIDAR_final);
-  loam_cloud_transformed.Save(cloud_dir, true);
+  loam_cloud_transformed.SaveCombined(save_path,
+                                      std::to_string(stamp_.toSec()) + ".pcd");
 }
 
 } // namespace bs_models
