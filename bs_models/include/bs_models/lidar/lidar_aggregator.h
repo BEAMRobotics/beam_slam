@@ -70,10 +70,16 @@ public:
 
   /**
    * @brief Aggregates all lidar chunks added
-   * @param aggregation_time time at which to motion compensation chunks to
+   * @param aggregation_time time at which to motion compensation chunks to. If
+   * not provided (or set to zero), it will aggregate to the first available
+   * timestamp in the list
    */
-  void Aggregate(const ros::Time& aggregation_time) {
-    aggregation_times_.push(aggregation_time);
+  void Aggregate(const ros::Time& aggregation_time = ros::Time(0)) {
+    ros::Time t = aggregation_time;
+    if (aggregation_time == ros::Time(0)) {
+      t.fromNSec(lidar_chunks_.begin()->first);
+    }
+    aggregation_times_.push(t);
 
     // check aggregates have been added
     if (lidar_chunks_.size() == 0) { return; }

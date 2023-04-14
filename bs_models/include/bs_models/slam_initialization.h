@@ -17,6 +17,7 @@
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/imu/imu_preintegration.h>
+#include <bs_models/lidar/lidar_path_init.h>
 #include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/slam_initialization_params.h>
@@ -48,7 +49,7 @@ private:
    * constraints and triangulate new landmarks when required
    * @param[in] msg - The image to process
    */
-  void processMeasurements(const CameraMeasurementMsg::ConstPtr& msg);
+  void processCameraMeasurements(const CameraMeasurementMsg::ConstPtr& msg);
 
   /**
    * @brief Callback for imu processing, this will make sure the imu messages
@@ -116,6 +117,11 @@ private:
    */
   void AddVisualConstraints();
 
+/**
+   * @brief Adds lidar constraints to the graph
+   */
+  void AddLidarConstraints();
+
   /**
    * @brief Sends the local graph to the fuse optimizer
    */
@@ -155,19 +161,23 @@ private:
 
   // data storage
   std::deque<sensor_msgs::Imu> imu_buffer_;
-  std::deque<sensor_msgs::PointCloud2> lidar_buffer_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::deque<ros::Time> frame_init_buffer_;
+  double last_lidar_scan_time_s_{0};
 
   // measurement buffer sizes
   int max_landmark_container_size_;
   int imu_buffer_size_;
   int lidar_buffer_size_;
 
+  // params only tunable here
+  double min_lidar_scan_period_s_{0.1};
+
   // objects for intializing
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<VisualMap> visual_map_;
   std::shared_ptr<ImuPreintegration> imu_preint_;
+  std::unique_ptr<LidarPathInit> lidar_path_init_;
   bs_models::ImuPreintegration::Params imu_params_;
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
   fuse_core::Graph::SharedPtr local_graph_;

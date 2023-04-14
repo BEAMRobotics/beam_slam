@@ -45,7 +45,7 @@ public:
     transaction_->stamp(transaction_stamp);
   }
 
-  fuse_core::Transaction::SharedPtr GetTransaction() {
+  fuse_core::Transaction::SharedPtr GetTransaction() const {
     if (transaction_->empty()) { return nullptr; }
     return transaction_;
   }

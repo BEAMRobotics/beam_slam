@@ -311,13 +311,10 @@ public:
    * each feature type, with the option to also combine them
    * @param path full path to output directory (cannot specify filename since
    * multiple files will be outputted)
-   * @param combine_features set to true to also output a combined map of all
-   * features
    * @param use_initials set to true to use the initial world frame
    * from the local mapper, before global optimization
    */
   void SaveLidarLoamMapInWorldFrame(const std::string& path,
-                                    bool combine_features = true,
                                     bool use_initials = false) const;
 
   /*-------------------------------/

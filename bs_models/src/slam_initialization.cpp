@@ -18,7 +18,7 @@ SLAMInitialization::SLAMInitialization()
     : fuse_core::AsyncSensorModel(1),
       device_id_(fuse_core::uuid::NIL),
       throttled_measurement_callback_(
-          std::bind(&SLAMInitialization::processMeasurements, this,
+          std::bind(&SLAMInitialization::processCameraMeasurements, this,
                     std::placeholders::_1)),
       throttled_imu_callback_(std::bind(&SLAMInitialization::processIMU, this,
                                         std::placeholders::_1)),
@@ -64,17 +64,25 @@ void SLAMInitialization::onInit() {
   imu_params_.cov_accel_bias =
       Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
 
+  max_landmark_container_size_ =
+      params_.initialization_window_s * params_.camera_hz;
+  imu_buffer_size_ = params_.initialization_window_s * params_.imu_hz;
+  if (params_.lidar_hz < 1 / min_lidar_scan_period_s_) {
+    lidar_buffer_size_ = params_.initialization_window_s * params_.lidar_hz;
+  } else {
+    lidar_buffer_size_ =
+        params_.initialization_window_s * 1 / min_lidar_scan_period_s_;
+  }
+
   // set init mode
   if (params_.init_mode == "VISUAL") {
     mode_ = InitMode::VISUAL;
   } else if (params_.init_mode == "LIDAR") {
     mode_ = InitMode::LIDAR;
+    lidar_path_init_ = std::make_unique<LidarPathInit>(lidar_buffer_size_);
+  } else {
+    throw std::invalid_argument{"invalid init mode, options: VISUAL, LIDAR"};
   }
-
-  max_landmark_container_size_ =
-      params_.initialization_window_s * params_.camera_hz;
-  imu_buffer_size_ = params_.initialization_window_s * params_.imu_hz;
-  lidar_buffer_size_ = params_.initialization_window_s * params_.lidar_hz;
 }
 
 void SLAMInitialization::onStart() {
@@ -92,7 +100,7 @@ void SLAMInitialization::onStart() {
       ros::TransportHints().tcpNoDelay(false));
 
   lidar_subscriber_ = private_node_handle_.subscribe<sensor_msgs::PointCloud2>(
-      ros::names::resolve(params_.lidar_topic), 1000,
+      ros::names::resolve(params_.lidar_topic), 2,
       &ThrottledLidarCallback::callback, &throttled_lidar_callback_,
       ros::TransportHints().tcpNoDelay(false));
 }
@@ -115,8 +123,8 @@ void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
   frame_init_buffer_.pop_front();
 
   // check if path is long enough
-  const auto [first_time, first_pose] = *init_path_.begin();
-  const auto [current_time, current_pose] = *init_path_.rbegin();
+  const Eigen::Matrix4d& first_pose = init_path_.begin()->second;
+  const Eigen::Matrix4d& current_pose = init_path_.rbegin()->second;
   if (!beam::PassedMotionThreshold(first_pose, current_pose, 0.0,
                                    params_.min_trajectory_length_m, true, true,
                                    false)) {
@@ -127,7 +135,7 @@ void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
   if (Initialize()) { shutdown(); }
 }
 
-void SLAMInitialization::processMeasurements(
+void SLAMInitialization::processCameraMeasurements(
     const CameraMeasurementMsg::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "SLAMInitialization received VISUAL measurements: " << msg->header.stamp);
@@ -181,9 +189,6 @@ void SLAMInitialization::processLidar(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "SLAMInitialization received LIDAR measurements: " << msg->header.stamp);
-  lidar_buffer_.push_back(*msg);
-
-  if (lidar_buffer_.size() > lidar_buffer_size_) { lidar_buffer_.pop_front(); }
 
   // attempt initialization via frame initializer if its available
   if (frame_initializer_) {
@@ -191,22 +196,20 @@ void SLAMInitialization::processLidar(
     return;
   }
 
-  if (mode_ != InitMode::LIDAR) {
-    return;
-  } else {
-    ROS_ERROR("LIDAR initialization not yet implemented, exiting.");
-    throw std::invalid_argument{"LIDAR initialization not yet implemented."};
-  }
+  if (mode_ != InitMode::LIDAR) { return; }
 
-  // TODO: compute path/add to it via lidar
-
-  const auto [first_time, first_pose] = *init_path_.begin();
-  const auto [current_time, current_pose] = *init_path_.rbegin();
-  if (!beam::PassedMotionThreshold(first_pose, current_pose, 0.0,
-                                   params_.min_trajectory_length_m, true, true,
-                                   false)) {
+  double time_in_s = msg->header.stamp.toSec();
+  if (time_in_s - last_lidar_scan_time_s_ < min_lidar_scan_period_s_) {
     return;
   }
+  last_lidar_scan_time_s_ = time_in_s;
+
+  lidar_path_init_->ProcessLidar(msg);
+  double traj_length = lidar_path_init_->CalculateTrajectoryLength();
+  if (traj_length < params_.min_trajectory_length_m) { return; }
+  BEAM_INFO("trajectory min. length reached, initializing");
+  init_path_ = lidar_path_init_->GetPath();
+
   if (Initialize()) { shutdown(); }
 }
 
@@ -258,7 +261,7 @@ bool SLAMInitialization::Initialize() {
 
   AddVisualConstraints();
 
-  // TODO: AddLidarConstraints();
+  AddLidarConstraints();
 
   if (params_.max_optimization_s > 0.0) {
     ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
@@ -267,6 +270,9 @@ bool SLAMInitialization::Initialize() {
     local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s),
                               options);
     visual_map_->UpdateGraph(local_graph_);
+    if (lidar_path_init_) {
+      lidar_path_init_->UpdateRegistrationMap(local_graph_);
+    }
   }
 
   SendInitializationGraph();
@@ -370,6 +376,16 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
 
   // update visual map with updated graph
   visual_map_->UpdateGraph(local_graph_);
+}
+
+void SLAMInitialization::AddLidarConstraints() {
+  fuse_core::Transaction::SharedPtr transaction_combined =
+      fuse_core::Transaction::make_shared();
+  for (const auto& [timeInNs, transaction] :
+       lidar_path_init_->GetTransactions()) {
+    transaction_combined->merge(*(transaction.GetTransaction()));
+  }
+  local_graph_->update(*transaction_combined);
 }
 
 void SLAMInitialization::AddVisualConstraints() {
@@ -498,6 +514,10 @@ void SLAMInitialization::OutputResults() {
           error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
+
+  if (lidar_path_init_) {
+    lidar_path_init_->OutputResults(params_.output_folder);
+  }
 }
 
 void SLAMInitialization::shutdown() {
@@ -505,12 +525,12 @@ void SLAMInitialization::shutdown() {
   imu_subscriber_.shutdown();
   lidar_subscriber_.shutdown();
   imu_buffer_.clear();
-  lidar_buffer_.clear();
   frame_init_buffer_.clear();
   local_graph_->clear();
   frame_initializer_ = nullptr;
   visual_map_ = nullptr;
   imu_preint_ = nullptr;
+  lidar_path_init_ = nullptr;
 }
 
 } // namespace bs_models
