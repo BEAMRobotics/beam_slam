@@ -16,6 +16,9 @@
 
 namespace bs_models {
 
+using LidarTransactionType =
+    bs_constraints::relative_pose::Pose3DStampedTransaction;
+
 class LidarPathInit {
 public:
   explicit LidarPathInit(int lidar_buffer_size);
@@ -27,7 +30,7 @@ public:
    * position between each keyframe.
    * @return trajectory length
    */
-  double CalculateTrajectoryLength();
+  double CalculateTrajectoryLength() const;
 
   // initial path estimate for performing initialization, stored as
   // T_WORLD_BASELINK
@@ -36,7 +39,14 @@ public:
    * @brief get the generated path
    * @return map timestamp in NS -> T_WORLD_BASELINK
    */
-  std::map<uint64_t, Eigen::Matrix4d> GetPath();
+  std::map<uint64_t, Eigen::Matrix4d> GetPath() const;
+
+  /**
+   * @brief get the generated transactions for all the final keyframe
+   * registrations against the map
+   * @return map timestamp in NS -> transaction
+   */
+  std::unordered_map<uint64_t, LidarTransactionType> GetTransactions() const;
 
   /**
    * @brief Save three types of scans to separate folders:
@@ -47,8 +57,13 @@ public:
    * from factor graph
    *
    */
-  void OutputResults(const std::string& output_dir);
+  void OutputResults(const std::string& output_dir) const;
 
+  /**
+   * @brief use the output from a fuse graph to update the registration map.
+   * This is useful because it better initializes the registration map for
+   * future scan matching in the lidar odom
+   */
   void UpdateRegistrationMap(fuse_core::Graph::ConstSharedPtr graph_msg);
 
 private:
@@ -72,6 +87,10 @@ private:
   // already been converted to the baselink frame, and T_BASELINK_LIDAR is set
   // to identity
   std::list<ScanPose> keyframes_;
+
+  // store map from current keyframe timestamps in Ns to registration
+  // transaction
+  std::unordered_map<uint64_t, LidarTransactionType> keyframe_transactions_;
 
   // how many lidar scans to keep in the list of keyframes for calculating
   // length

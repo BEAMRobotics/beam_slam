@@ -117,6 +117,11 @@ private:
    */
   void AddVisualConstraints();
 
+/**
+   * @brief Adds lidar constraints to the graph
+   */
+  void AddLidarConstraints();
+
   /**
    * @brief Sends the local graph to the fuse optimizer
    */

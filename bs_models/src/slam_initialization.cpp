@@ -206,9 +206,7 @@ void SLAMInitialization::processLidar(
 
   lidar_path_init_->ProcessLidar(msg);
   double traj_length = lidar_path_init_->CalculateTrajectoryLength();
-  if (traj_length < params_.min_trajectory_length_m) {
-    return;
-  }
+  if (traj_length < params_.min_trajectory_length_m) { return; }
   BEAM_INFO("trajectory min. length reached, initializing");
   init_path_ = lidar_path_init_->GetPath();
 
@@ -262,6 +260,8 @@ bool SLAMInitialization::Initialize() {
   AddPosesAndInertialConstraints();
 
   AddVisualConstraints();
+
+  AddLidarConstraints();
 
   if (params_.max_optimization_s > 0.0) {
     ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
@@ -376,6 +376,16 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
 
   // update visual map with updated graph
   visual_map_->UpdateGraph(local_graph_);
+}
+
+void SLAMInitialization::AddLidarConstraints() {
+  fuse_core::Transaction::SharedPtr transaction_combined =
+      fuse_core::Transaction::make_shared();
+  for (const auto& [timeInNs, transaction] :
+       lidar_path_init_->GetTransactions()) {
+    transaction_combined->merge(*(transaction.GetTransaction()));
+  }
+  local_graph_->update(*transaction_combined);
 }
 
 void SLAMInitialization::AddVisualConstraints() {

@@ -42,7 +42,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
   reg_params.min_motion_trans_m = 0;
   reg_params.min_motion_rot_deg = 0;
   reg_params.max_motion_trans_m = 10;
-  reg_params.fix_first_scan = true;
+  reg_params.fix_first_scan = false;
 
   scan_registration_ =
       std::make_unique<scan_registration::ScanToMapLoamRegistration>(
@@ -105,7 +105,8 @@ void LidarPathInit::ProcessLidar(
   ScanPose current_scan_pose(cloud_filtered, msg->header.stamp,
                              T_WORLD_BASELINKLAST, T_BASELINK_LIDAR,
                              feature_extractor_);
-  scan_registration_->RegisterNewScan(current_scan_pose);
+  bs_constraints::relative_pose::Pose3DStampedTransaction transaction =
+      scan_registration_->RegisterNewScan(current_scan_pose);
 
   Eigen::Matrix4d T_WORLD_LIDAR;
   bool scan_in_map = scan_registration_->GetMap().GetScanPose(
@@ -115,8 +116,11 @@ void LidarPathInit::ProcessLidar(
   current_scan_pose.UpdatePose(T_WORLD_LIDAR *
                                beam::InvertTransform(T_BASELINK_LIDAR));
   keyframes_.push_back(current_scan_pose);
+  keyframe_transactions_.emplace(current_scan_pose.Stamp().toNSec(),
+                                 transaction);
 
   while (keyframes_.size() > lidar_buffer_size_) {
+    keyframe_transactions_.erase(keyframes_.front().Stamp().toNSec());
     keyframes_.pop_front();
     SetTrajectoryStart();
   }
@@ -138,7 +142,7 @@ void LidarPathInit::SetTrajectoryStart() {
   }
 }
 
-void LidarPathInit::OutputResults(const std::string& output_dir) {
+void LidarPathInit::OutputResults(const std::string& output_dir) const {
   if (!boost::filesystem::exists(output_dir)) {
     BEAM_ERROR("Output directory does not exist. Not outputting LO Initializer "
                "results.");
@@ -159,7 +163,7 @@ void LidarPathInit::OutputResults(const std::string& output_dir) {
   }
 }
 
-double LidarPathInit::CalculateTrajectoryLength() {
+double LidarPathInit::CalculateTrajectoryLength() const {
   double length{0};
   auto iter = keyframes_.begin();
   Eigen::Vector3d prev_position = iter->T_REFFRAME_BASELINK().block(0, 3, 3, 1);
@@ -177,12 +181,17 @@ double LidarPathInit::CalculateTrajectoryLength() {
   return length;
 }
 
-std::map<uint64_t, Eigen::Matrix4d> LidarPathInit::GetPath() {
+std::map<uint64_t, Eigen::Matrix4d> LidarPathInit::GetPath() const {
   std::map<uint64_t, Eigen::Matrix4d> path;
   for (const ScanPose& scan_pose : keyframes_) {
     path.emplace(scan_pose.Stamp().toNSec(), scan_pose.T_REFFRAME_BASELINK());
   }
   return path;
+}
+
+std::unordered_map<uint64_t, LidarTransactionType>
+    LidarPathInit::GetTransactions() const {
+  return keyframe_transactions_;
 }
 
 void LidarPathInit::UpdateRegistrationMap(
