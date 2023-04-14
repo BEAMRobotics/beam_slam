@@ -25,6 +25,8 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
   // to each other so iteration isn't necessary
   matcher_params->iterate_correspondences = true;
   matcher_params->max_correspondence_iterations = 3;
+  matcher_params->max_correspondence_distance = 0.25;
+  matcher_params->max_corner_less_sharp = 10;
 
   // override ceres config
   beam_optimization::CeresParams ceres_params;
@@ -105,20 +107,20 @@ void LidarPathInit::ProcessLidar(
   ScanPose current_scan_pose(cloud_filtered, msg->header.stamp,
                              T_WORLD_BASELINKLAST, T_BASELINK_LIDAR,
                              feature_extractor_);
+  ROS_DEBUG("Time to build scan pose: %.5f", timer.elapsedAndRestart());
   bs_constraints::relative_pose::Pose3DStampedTransaction transaction =
       scan_registration_->RegisterNewScan(current_scan_pose);
-
+  ROS_DEBUG("Time to register scan : %.5f", timer.elapsedAndRestart());
   Eigen::Matrix4d T_WORLD_LIDAR;
   bool scan_in_map = scan_registration_->GetMap().GetScanPose(
       current_scan_pose.Stamp(), T_WORLD_LIDAR);
-  ROS_DEBUG("Total time to process keyframe: %.5f", timer.elapsed());
+
   if (!scan_in_map) { return; }
   current_scan_pose.UpdatePose(T_WORLD_LIDAR *
                                beam::InvertTransform(T_BASELINK_LIDAR));
   keyframes_.push_back(current_scan_pose);
   keyframe_transactions_.emplace(current_scan_pose.Stamp().toNSec(),
                                  transaction);
-
   while (keyframes_.size() > lidar_buffer_size_) {
     keyframe_transactions_.erase(keyframes_.front().Stamp().toNSec());
     keyframes_.pop_front();
