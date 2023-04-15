@@ -31,6 +31,8 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
   // override ceres config
   beam_optimization::CeresParams ceres_params;
   ceres_params.GetSolverOptionsMutable().max_num_iterations = 15;
+  ceres_params.GetSolverOptionsMutable().num_threads =
+      std::thread::hardware_concurrency();
   matcher_params->optimizer_params = ceres_params;
 
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =

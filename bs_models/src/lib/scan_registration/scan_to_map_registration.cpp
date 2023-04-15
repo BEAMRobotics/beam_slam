@@ -45,10 +45,12 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
     return transaction;
   }
 
+  beam::HighResolutionTimer timer;
   if (!RegisterScanToMap(new_scan, T_MAP_SCAN)) {
     return bs_constraints::relative_pose::Pose3DStampedTransaction(
         new_scan.Stamp());
   }
+  ROS_DEBUG("Time to register scan to map: %.5f", timer.elapsedAndRestart());
 
   /**
    * We need to convert the relative poses measurements from lidar (or cloud)
@@ -80,6 +82,7 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
       new_scan.Stamp(), T_MAP_SCAN * new_scan.T_LIDAR_BASELINK(),
       new_scan.T_BASELINK_LIDAR());
 
+  ROS_DEBUG("Time get results: %.5f", timer.elapsedAndRestart());
   return transaction;
 }
 
@@ -163,8 +166,7 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   if (!PassedMotionThresholds(T_SCANPREV_SCANNEW)) { return false; }
 
   LoamPointCloudPtr scan_in_map_frame =
-      std::make_shared<LoamPointCloud>(scan_pose.LoamCloud());
-  scan_in_map_frame->TransformPointCloud(T_MAPEST_SCAN);
+      std::make_shared<LoamPointCloud>(scan_pose.LoamCloud(), T_MAPEST_SCAN);
 
   // get combined loamcloud map
   LoamPointCloudPtr current_map =
