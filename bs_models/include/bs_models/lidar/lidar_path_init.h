@@ -66,6 +66,10 @@ public:
    */
   void UpdateRegistrationMap(fuse_core::Graph::ConstSharedPtr graph_msg);
 
+  double GetMaxRegistrationTimeInS();
+  double GetMedianRegistrationTimeInS();
+  double GetMeanRegistrationTimeInS();
+
 private:
   /**
    * @brief Sets the first scan pose in the keyframes list to identity, and
@@ -76,6 +80,8 @@ private:
    * and is likely to have drifted.
    */
   void SetTrajectoryStart();
+
+  bool InitExtrinsics(const ros::Time& stamp);
 
   // scan registration objects
   std::unique_ptr<scan_registration::ScanToMapLoamRegistration>
@@ -98,6 +104,9 @@ private:
 
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
+  bool extrinsics_initialized_{false};
+  Eigen::Matrix4d T_BASELINK_LIDAR_;
+  std::set<double> registration_times_;
 };
 
 } // namespace bs_models
