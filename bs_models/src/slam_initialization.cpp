@@ -213,8 +213,10 @@ void SLAMInitialization::processLidar(
             lidar_path_init_->GetMedianRegistrationTimeInS(),
             lidar_path_init_->GetMaxRegistrationTimeInS());
   init_path_ = lidar_path_init_->GetPath();
-
-  if (Initialize()) { shutdown(); }
+  beam::HighResolutionTimer timer;
+  if (Initialize()) { 
+    BEAM_INFO("done initialization, total time: {}s", timer.elapsed());
+    shutdown(); }
 }
 
 void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
