@@ -1222,17 +1222,11 @@ void GlobalMap::FillSubmapMsg(SubmapMsg& submap_msg,
                               const std::vector<uint32_t> word_ids,
                               const std::string& descriptor_type,
                               const Eigen::Matrix4d& T) const {
-  PointCloud lidar_points_in_wlm_frame = lidar_points;
-  beam_matching::LoamPointCloud loam_points_in_wlm_frame = loam_points;
-  PointCloud keypoints_in_wlm_frame = keypoints;
-
-  // transform points if T is not identity
-  if (!T.isIdentity()) {
-    pcl::transformPointCloud(lidar_points_in_wlm_frame,
-                             lidar_points_in_wlm_frame, T);
-    loam_points_in_wlm_frame.TransformPointCloud(T);
-    pcl::transformPointCloud(keypoints_in_wlm_frame, keypoints_in_wlm_frame, T);
-  }
+  PointCloud lidar_points_in_wlm_frame;
+  pcl::transformPointCloud(lidar_points, lidar_points_in_wlm_frame, T);
+  PointCloud keypoints_in_wlm_frame;
+  pcl::transformPointCloud(keypoints, keypoints_in_wlm_frame, T);
+  beam_matching::LoamPointCloud loam_points_in_wlm_frame(loam_points, T);
 
   std::vector<geometry_msgs::Vector3> points_vec;
 

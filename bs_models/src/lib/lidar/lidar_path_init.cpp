@@ -5,6 +5,7 @@
 
 #include <beam_matching/Matchers.h>
 #include <beam_optimization/CeresParams.h>
+#include <beam_utils/bspline.h>
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/se3.h>
 #include <beam_utils/time.h>
@@ -24,18 +25,22 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
   // override iteration since we need this to be fast and scans are very close
   // to each other so iteration isn't necessary
   matcher_params->iterate_correspondences = true;
-  matcher_params->max_correspondence_iterations = 3;
+  matcher_params->max_correspondence_iterations = 1;
+  matcher_params->max_correspondence_distance = 0.25;
+  matcher_params->max_corner_less_sharp = 10;
 
   // override ceres config
   beam_optimization::CeresParams ceres_params;
   ceres_params.GetSolverOptionsMutable().max_num_iterations = 15;
+  ceres_params.GetSolverOptionsMutable().num_threads =
+      std::thread::hardware_concurrency();
   matcher_params->optimizer_params = ceres_params;
 
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
       std::make_unique<LoamMatcher>(*matcher_params);
 
   scan_registration::ScanToMapLoamRegistration::Params reg_params;
-  reg_params.map_size = 15;
+  reg_params.map_size = 3;
   reg_params.store_full_cloud = false;
   reg_params.outlier_threshold_trans_m = 0.5;
   reg_params.outlier_threshold_rot_deg = 45;
@@ -82,48 +87,82 @@ void LidarPathInit::ProcessLidar(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
 
-  Eigen::Matrix4d T_WORLD_BASELINKLAST{Eigen::Matrix4d::Identity()};
-  if (!keyframes_.empty()) {
-    T_WORLD_BASELINKLAST = keyframes_.back().T_REFFRAME_BASELINK();
-  }
+  if (!InitExtrinsics(msg->header.stamp)) { return; }
 
+  beam::HighResolutionTimer timer;
   PointCloud cloud_current = beam::ROSToPCL(*msg);
 
   PointCloud cloud_filtered = beam_filtering::FilterPointCloud<pcl::PointXYZ>(
       cloud_current, input_filter_params_);
 
-  Eigen::Matrix4d T_BASELINK_LIDAR;
-  if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, msg->header.stamp)) {
-    BEAM_WARN("Unable to get imu to lidar transform with time {}.{}",
-              msg->header.stamp.sec, msg->header.stamp.nsec);
-    return;
-  }
-
-  beam::HighResolutionTimer timer;
+  Eigen::Matrix4d T_WORLD_BASELINK_EST =
+      Get_T_WORLD_BASELINKEST(msg->header.stamp);
 
   // create scan pose
   ScanPose current_scan_pose(cloud_filtered, msg->header.stamp,
-                             T_WORLD_BASELINKLAST, T_BASELINK_LIDAR,
+                             T_WORLD_BASELINK_EST, T_BASELINK_LIDAR_,
                              feature_extractor_);
+  ROS_DEBUG("Time to build scan pose: %.5f", timer.elapsedAndRestart());
   bs_constraints::relative_pose::Pose3DStampedTransaction transaction =
       scan_registration_->RegisterNewScan(current_scan_pose);
-
+  registration_times_.insert(timer.elapsed());
+  ROS_DEBUG("Time to register scan : %.5f", timer.elapsedAndRestart());
   Eigen::Matrix4d T_WORLD_LIDAR;
   bool scan_in_map = scan_registration_->GetMap().GetScanPose(
       current_scan_pose.Stamp(), T_WORLD_LIDAR);
-  ROS_DEBUG("Total time to process keyframe: %.5f", timer.elapsed());
+
   if (!scan_in_map) { return; }
   current_scan_pose.UpdatePose(T_WORLD_LIDAR *
-                               beam::InvertTransform(T_BASELINK_LIDAR));
+                               beam::InvertTransform(T_BASELINK_LIDAR_));
   keyframes_.push_back(current_scan_pose);
   keyframe_transactions_.emplace(current_scan_pose.Stamp().toNSec(),
                                  transaction);
-
   while (keyframes_.size() > lidar_buffer_size_) {
     keyframe_transactions_.erase(keyframes_.front().Stamp().toNSec());
     keyframes_.pop_front();
     SetTrajectoryStart();
   }
+}
+
+Eigen::Matrix4d LidarPathInit::Get_T_WORLD_BASELINKEST(const ros::Time& stamp) {
+  Eigen::Matrix4d T_WORLD_BASELINKLAST{Eigen::Matrix4d::Identity()};
+  if (!keyframes_.empty()) {
+    T_WORLD_BASELINKLAST = keyframes_.back().T_REFFRAME_BASELINK();
+  }
+
+  if (!forward_predict_ || keyframes_.size() < min_spline_count_) {
+    return T_WORLD_BASELINKLAST;
+  }
+
+  std::vector<beam::Pose> poses;
+  for (auto it = keyframes_.begin(); it != keyframes_.end(); it++) {
+    int64_t tNs = it->Stamp().toNSec();
+    beam::Pose p;
+    p.T_FIXED_MOVING = it->T_REFFRAME_BASELINK();
+    p.timestampInNs = tNs;
+    poses.push_back(p);
+  }
+  beam::BsplineSE3 spline;
+  spline.feed_trajectory(poses);
+
+  Eigen::Matrix4d T_WORLD_BASELINK;
+  double t = stamp.toSec();
+  if (spline.extrapolate(t, T_WORLD_BASELINK)) {
+    return T_WORLD_BASELINK;
+  }
+  BEAM_WARN("spline extrapolation failed");
+  return T_WORLD_BASELINKLAST;
+}
+
+bool LidarPathInit::InitExtrinsics(const ros::Time& stamp) {
+  if (extrinsics_initialized_) { return true; }
+
+  if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR_, stamp)) {
+    BEAM_WARN("Unable to get imu to lidar transform with time {}.{}", stamp.sec,
+              stamp.nsec);
+    return false;
+  }
+  return true;
 }
 
 void LidarPathInit::SetTrajectoryStart() {
@@ -158,8 +197,29 @@ void LidarPathInit::OutputResults(const std::string& output_dir) const {
 
   // iterate through all keyframes, update based on graph and save initial and
   // final values
+  PointCloud map_final;
+  PointCloud map_init;
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
+    PointCloud scan_in_map_final;;
+    PointCloud scan_in_map_initial;
+    pcl::transformPointCloud(iter->Cloud(), scan_in_map_final,
+                             iter->T_REFFRAME_LIDAR());
+    pcl::transformPointCloud(iter->Cloud(), scan_in_map_initial,
+                             iter->T_REFFRAME_LIDAR_INIT());
+    map_final += scan_in_map_final;
+    map_init += scan_in_map_initial;
     iter->SaveCloud(save_path, true, true);
+  }
+  std::string error_message;
+  if (!beam::SavePointCloud<pcl::PointXYZ>(
+          beam::CombinePaths(save_path, "map_final.pcd"), map_final,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+  if (!beam::SavePointCloud<pcl::PointXYZ>(
+          beam::CombinePaths(save_path, "map_initial.pcd"), map_init,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 }
 
@@ -209,6 +269,32 @@ void LidarPathInit::UpdateRegistrationMap(
     throw std::runtime_error{
         "registration map contains no scans from graph message"};
   }
+}
+
+double LidarPathInit::GetMeanRegistrationTimeInS() {
+  if (registration_times_.empty()) { return 0; }
+  double sum = 0;
+  for (auto it = registration_times_.begin(); it != registration_times_.end();
+       it++) {
+    sum += *it;
+  }
+  return sum / registration_times_.size();
+}
+
+double LidarPathInit::GetMaxRegistrationTimeInS() {
+  if (registration_times_.empty()) { return 0; }
+  return *registration_times_.rbegin();
+}
+
+double LidarPathInit::GetMedianRegistrationTimeInS() {
+  if (registration_times_.size() == 1) {
+    return *registration_times_.begin();
+  } else if (registration_times_.empty()) {
+    return 0;
+  }
+  auto iter = registration_times_.begin();
+  std::advance(iter, registration_times_.size() / 2);
+  return *iter;
 }
 
 } // namespace bs_models

@@ -434,8 +434,8 @@ beam_matching::LoamPointCloud
     } else {
       T_WORLD_LIDAR = T_WORLD_SUBMAP_ * T_SUBMAP_LIDAR;
     }
-    beam_matching::LoamPointCloud cloud_in_world_frame = cloud_in_lidar_frame;
-    cloud_in_world_frame.TransformPointCloud(T_WORLD_LIDAR);
+    beam_matching::LoamPointCloud cloud_in_world_frame(cloud_in_lidar_frame,
+                                                       T_WORLD_LIDAR);
     map.Merge(cloud_in_world_frame);
   }
   return map;

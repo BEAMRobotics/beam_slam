@@ -52,7 +52,7 @@ slam_initialization:
   max_container_size: 100
   min_parallax: 50.0
   min_trajectory_length_m: 1.5
-  output_folder: "/userhome/tmp"
+  output_folder: ""
 
 
 inertial_odometry:

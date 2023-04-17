@@ -352,6 +352,8 @@ void LidarOdometry::SetupRegistration() {
   } else if (params_.local_registration_type == "MULTILOAM") {
     std::shared_ptr<LoamParams> matcher_params =
         std::make_shared<LoamParams>(params_.local_matcher_params_path);
+    matcher_params->optimizer_params.GetSolverOptionsMutable().num_threads =
+        std::thread::hardware_concurrency();
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
         std::make_unique<LoamMatcher>(*matcher_params);
     MultiScanRegistrationBase::Params params;
@@ -565,9 +567,8 @@ void LidarOdometry::SendRelocRequest(
   PointCloud cloud_in_baselink_frame;
   pcl::transformPointCloud(scan_pose->Cloud(), cloud_in_baselink_frame,
                            T_BASELINK_LIDAR);
-  beam_matching::LoamPointCloud loam_cloud_in_baselink_frame =
-      scan_pose->LoamCloud();
-  loam_cloud_in_baselink_frame.TransformPointCloud(T_BASELINK_LIDAR);
+  beam_matching::LoamPointCloud loam_cloud_in_baselink_frame(
+      scan_pose->LoamCloud(), T_BASELINK_LIDAR);
 
   // convert pose to vector
   const Eigen::Matrix4d& T = scan_pose->T_REFFRAME_BASELINK();

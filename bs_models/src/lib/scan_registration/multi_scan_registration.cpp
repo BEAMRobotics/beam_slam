@@ -420,21 +420,6 @@ void MultiScanRegistrationBase::OutputResults(
   cloud_tgt_in_world_aligned_col = beam::AddFrameToCloud(
       cloud_tgt_in_world_aligned_col, coord_frame_, T_WORLD_LIDARREF_OPT);
 
-  // get loam clouds
-  LoamPointCloud loam_cloud_ref_world;
-  LoamPointCloud loam_cloud_tgt_in_world_init;
-  LoamPointCloud loam_cloud_tgt_in_world_aligned;
-
-  if (output_loam_cloud) {
-    loam_cloud_ref_world = scan_pose_ref.LoamCloud();
-    loam_cloud_tgt_in_world_init = scan_pose_tgt.LoamCloud();
-    loam_cloud_tgt_in_world_aligned = scan_pose_tgt.LoamCloud();
-
-    loam_cloud_ref_world.TransformPointCloud(T_WORLD_LIDARREF);
-    loam_cloud_tgt_in_world_init.TransformPointCloud(T_WORLD_LIDARTGT_INIT);
-    loam_cloud_tgt_in_world_aligned.TransformPointCloud(T_WORLD_LIDARREF_OPT);
-  }
-
   // create directories
   double t = scan_pose_ref.Stamp().toSec();
   std::string filename = current_scan_path_ + std::to_string(t);
@@ -462,13 +447,21 @@ void MultiScanRegistrationBase::OutputResults(
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 
-  if (output_loam_cloud) {
-    loam_cloud_ref_world.SaveCombined(filename + "_ref/", "loam");
-    loam_cloud_tgt_in_world_init.SaveCombined(filename + "_tgt_init/",
-                                              "loam.pcd");
-    loam_cloud_tgt_in_world_aligned.SaveCombined(filename + "_tgt_alig/",
-                                                 "loam.pcd");
-  }
+  if (!output_loam_cloud) { return; }
+
+  // get loam clouds
+  LoamPointCloud loam_cloud_ref_world(scan_pose_ref.LoamCloud(),
+                                      T_WORLD_LIDARREF);
+  LoamPointCloud loam_cloud_tgt_in_world_init(scan_pose_tgt.LoamCloud(),
+                                              T_WORLD_LIDARTGT_INIT);
+  LoamPointCloud loam_cloud_tgt_in_world_aligned(scan_pose_tgt.LoamCloud(),
+                                                 T_WORLD_LIDARREF_OPT);
+
+  loam_cloud_ref_world.SaveCombined(filename + "_ref/", "loam");
+  loam_cloud_tgt_in_world_init.SaveCombined(filename + "_tgt_init/",
+                                            "loam.pcd");
+  loam_cloud_tgt_in_world_aligned.SaveCombined(filename + "_tgt_alig/",
+                                               "loam.pcd");
 }
 
 MultiScanRegistration::MultiScanRegistration(
