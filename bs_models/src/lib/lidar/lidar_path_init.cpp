@@ -25,7 +25,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
   // override iteration since we need this to be fast and scans are very close
   // to each other so iteration isn't necessary
   matcher_params->iterate_correspondences = true;
-  matcher_params->max_correspondence_iterations = 1;
+  matcher_params->max_correspondence_iterations = 2;
   matcher_params->max_correspondence_distance = 0.25;
   matcher_params->max_corner_less_sharp = 10;
 
@@ -87,6 +87,12 @@ void LidarPathInit::ProcessLidar(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
 
+  if (registered_last_) {
+    registered_last_ = false;
+    return;
+  }
+  registered_last_ = true;
+
   if (!InitExtrinsics(msg->header.stamp)) { return; }
 
   beam::HighResolutionTimer timer;
@@ -147,9 +153,7 @@ Eigen::Matrix4d LidarPathInit::Get_T_WORLD_BASELINKEST(const ros::Time& stamp) {
 
   Eigen::Matrix4d T_WORLD_BASELINK;
   double t = stamp.toSec();
-  if (spline.extrapolate(t, T_WORLD_BASELINK)) {
-    return T_WORLD_BASELINK;
-  }
+  if (spline.extrapolate(t, T_WORLD_BASELINK)) { return T_WORLD_BASELINK; }
   BEAM_WARN("spline extrapolation failed");
   return T_WORLD_BASELINKLAST;
 }
@@ -200,7 +204,8 @@ void LidarPathInit::OutputResults(const std::string& output_dir) const {
   PointCloud map_final;
   PointCloud map_init;
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
-    PointCloud scan_in_map_final;;
+    PointCloud scan_in_map_final;
+    ;
     PointCloud scan_in_map_initial;
     pcl::transformPointCloud(iter->Cloud(), scan_in_map_final,
                              iter->T_REFFRAME_LIDAR());

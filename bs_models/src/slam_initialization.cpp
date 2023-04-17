@@ -100,7 +100,7 @@ void SLAMInitialization::onStart() {
       ros::TransportHints().tcpNoDelay(false));
 
   lidar_subscriber_ = private_node_handle_.subscribe<sensor_msgs::PointCloud2>(
-      ros::names::resolve(params_.lidar_topic), 2,
+      ros::names::resolve(params_.lidar_topic), 15,
       &ThrottledLidarCallback::callback, &throttled_lidar_callback_,
       ros::TransportHints().tcpNoDelay(false));
 }
