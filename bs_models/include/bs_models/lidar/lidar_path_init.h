@@ -83,6 +83,8 @@ private:
 
   bool InitExtrinsics(const ros::Time& stamp);
 
+  Eigen::Matrix4d Get_T_WORLD_BASELINKEST(const ros::Time& stamp);
+
   // scan registration objects
   std::unique_ptr<scan_registration::ScanToMapLoamRegistration>
       scan_registration_;
@@ -107,6 +109,10 @@ private:
   bool extrinsics_initialized_{false};
   Eigen::Matrix4d T_BASELINK_LIDAR_;
   std::set<double> registration_times_;
+
+  // params only tunable here
+  bool forward_predict_{false};
+  int min_spline_count_{8};
 };
 
 } // namespace bs_models
