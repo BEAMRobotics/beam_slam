@@ -312,6 +312,13 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
 void LidarOdometry::SetupRegistration() {
   // setup local registration
   if (params_.local_registration_type == "MAPLOAM") {
+    // todo: the lidar slam initializer uses the registration map. That
+    // registration map is very small to keep the speeds up, whereas here we
+    // might want it bigger. Before running LO, we need to change this to allow
+    // this sensor model to re-adjust the map without deleting that data because
+    // starting with a good map is valuable
+    throw std::runtime_error{
+        "WE MUST UPDATE REGISTRATION MAP IF USING LIDAR SLAM INITIALIZER!"};
     std::shared_ptr<LoamParams> matcher_params =
         std::make_shared<LoamParams>(params_.local_matcher_params_path);
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
