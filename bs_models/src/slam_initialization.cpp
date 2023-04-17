@@ -208,9 +208,15 @@ void SLAMInitialization::processLidar(
   double traj_length = lidar_path_init_->CalculateTrajectoryLength();
   if (traj_length < params_.min_trajectory_length_m) { return; }
   BEAM_INFO("trajectory min. length reached, initializing");
+  BEAM_INFO("Registration time statistics: mean {}s, median {}s, max {}s",
+            lidar_path_init_->GetMeanRegistrationTimeInS(),
+            lidar_path_init_->GetMedianRegistrationTimeInS(),
+            lidar_path_init_->GetMaxRegistrationTimeInS());
   init_path_ = lidar_path_init_->GetPath();
-
-  if (Initialize()) { shutdown(); }
+  beam::HighResolutionTimer timer;
+  if (Initialize()) { 
+    BEAM_INFO("done initialization, total time: {}s", timer.elapsed());
+    shutdown(); }
 }
 
 void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {

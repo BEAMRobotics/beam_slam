@@ -211,9 +211,9 @@ private:
   bool publish_updates_{false};
   std::string frame_id_;
 
-  std::map<uint64_t, PointCloud> clouds_in_map_frame_;
+  std::map<uint64_t, PointCloudPtr> clouds_in_map_frame_;
   std::map<uint64_t, Eigen::Matrix4d> cloud_poses_;
-  std::map<uint64_t, LoamPointCloud> loam_clouds_in_map_frame_;
+  std::map<uint64_t, LoamPointCloudPtr> loam_clouds_in_map_frame_;
   std::map<uint64_t, Eigen::Matrix4d> loam_cloud_poses_;
 
   // store maps from uuid of pose variables to timestamp to uuid of pose

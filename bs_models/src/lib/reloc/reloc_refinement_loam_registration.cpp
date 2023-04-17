@@ -6,9 +6,7 @@
 
 #include <bs_common/utils.h>
 
-namespace bs_models {
-
-namespace reloc {
+namespace bs_models { namespace reloc {
 
 RelocRefinementLoam::RelocRefinementLoam(
     const Eigen::Matrix<double, 6, 6>& reloc_covariance,
@@ -22,15 +20,13 @@ fuse_core::Transaction::SharedPtr RelocRefinementLoam::GenerateTransaction(
     const SubmapPtr& matched_submap, const SubmapPtr& query_submap,
     const Eigen::Matrix4d& T_MATCH_QUERY_EST) {
   // extract and filter clouds from matched submap
-  LoamPointCloud matched_submap_in_submap_frame =
-      matched_submap->GetLidarLoamPointsInWorldFrame();
-  matched_submap_in_submap_frame.TransformPointCloud(
+  LoamPointCloud matched_submap_in_submap_frame(
+      matched_submap->GetLidarLoamPointsInWorldFrame(),
       beam::InvertTransform(matched_submap->T_WORLD_SUBMAP()));
 
   // extract and filter clouds from matched submap
-  LoamPointCloud query_submap_in_submap_frame =
-      query_submap->GetLidarLoamPointsInWorldFrame();
-  query_submap_in_submap_frame.TransformPointCloud(
+  LoamPointCloud query_submap_in_submap_frame(
+      query_submap->GetLidarLoamPointsInWorldFrame(),
       beam::InvertTransform(query_submap->T_WORLD_SUBMAP()));
 
   // get refined transform
@@ -58,9 +54,8 @@ bool RelocRefinementLoam::GetRefinedPose(
     const PointCloud& lidar_cloud_in_query_frame,
     const LoamPointCloudPtr& loam_cloud_in_query_frame, const cv::Mat& image) {
   // extract and filter clouds from match submap
-  LoamPointCloud submap_in_submap_frame =
-      submap->GetLidarLoamPointsInWorldFrame();
-  submap_in_submap_frame.TransformPointCloud(
+  LoamPointCloud submap_in_submap_frame(
+      submap->GetLidarLoamPointsInWorldFrame(),
       beam::InvertTransform(submap->T_WORLD_SUBMAP()));
 
   // get refined transform
@@ -76,9 +71,7 @@ bool RelocRefinementLoam::GetRefinedPose(
 void RelocRefinementLoam::LoadConfig() {
   std::string read_path = config_path_;
 
-  if (read_path.empty()) {
-    return;
-  }
+  if (read_path.empty()) { return; }
 
   if (read_path == "DEFAULT_PATH") {
     read_path = bs_common::GetBeamSlamConfigPath() +
@@ -154,6 +147,4 @@ bool RelocRefinementLoam::GetRefinedT_SUBMAP_QUERY(
   return true;
 }
 
-}  // namespace reloc
-
-}  // namespace bs_models
+}} // namespace bs_models::reloc

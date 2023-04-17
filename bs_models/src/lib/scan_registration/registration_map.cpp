@@ -65,8 +65,8 @@ void RegistrationMap::AddPointCloud(const PointCloud& cloud,
                                     const ros::Time& stamp,
                                     const Eigen::Matrix4d& T_MAP_SCAN) {
   // add cloud to map
-  PointCloud cloud_in_map_frame;
-  pcl::transformPointCloud(cloud, cloud_in_map_frame, T_MAP_SCAN);
+  PointCloudPtr cloud_in_map_frame = std::make_shared<PointCloud>();
+  pcl::transformPointCloud(cloud, *cloud_in_map_frame, T_MAP_SCAN);
   clouds_in_map_frame_.emplace(stamp.toNSec(), cloud_in_map_frame);
 
   // add pose
@@ -97,8 +97,8 @@ void RegistrationMap::AddPointCloud(const LoamPointCloud& cloud,
                                     const ros::Time& stamp,
                                     const Eigen::Matrix4d& T_MAP_SCAN) {
   // add cloud to map
-  LoamPointCloud cloud_in_map_frame = cloud;
-  cloud_in_map_frame.TransformPointCloud(T_MAP_SCAN);
+  LoamPointCloudPtr cloud_in_map_frame =
+      std::make_shared<LoamPointCloud>(cloud, T_MAP_SCAN);
   loam_clouds_in_map_frame_.emplace(stamp.toNSec(), cloud_in_map_frame);
 
   // add pose
@@ -129,7 +129,7 @@ PointCloud RegistrationMap::GetPointCloudMap() const {
   PointCloud cloud;
   for (auto it = clouds_in_map_frame_.begin(); it != clouds_in_map_frame_.end();
        it++) {
-    cloud += it->second;
+    cloud += *(it->second);
   }
   return cloud;
 }
@@ -138,7 +138,7 @@ LoamPointCloud RegistrationMap::GetLoamCloudMap() const {
   LoamPointCloud cloud;
   for (auto it = loam_clouds_in_map_frame_.begin();
        it != loam_clouds_in_map_frame_.end(); it++) {
-    cloud.Merge(it->second);
+    cloud.Merge(*(it->second));
   }
   return cloud;
 }
@@ -170,10 +170,8 @@ bool RegistrationMap::UpdateScan(const ros::Time& stamp,
     }
     Eigen::Matrix4d T_MAPNEW_MAPOLD =
         T_MAP_SCAN * beam::InvertTransform(pose_it->second);
-    PointCloud cloud_updated;
-    pcl::transformPointCloud(cloud_iter->second, cloud_updated,
+    pcl::transformPointCloud(*(cloud_iter->second), *(cloud_iter->second),
                              T_MAPNEW_MAPOLD);
-    cloud_iter->second = cloud_updated;
   }
 
   // update loam pointclouds
@@ -196,7 +194,7 @@ bool RegistrationMap::UpdateScan(const ros::Time& stamp,
     }
     Eigen::Matrix4d T_MAPNEW_MAPOLD =
         T_MAP_SCAN * beam::InvertTransform(loam_pose_it->second);
-    cloud_iter->second.TransformPointCloud(T_MAPNEW_MAPOLD);
+    cloud_iter->second->TransformPointCloud(T_MAPNEW_MAPOLD);
   }
 
   Publish();
@@ -255,7 +253,7 @@ bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
                                         PointCloud& cloud) const {
   auto iter = clouds_in_map_frame_.find(stamp.toNSec());
   if (iter != clouds_in_map_frame_.end()) {
-    cloud = iter->second;
+    cloud = *(iter->second);
     return true;
   }
 
@@ -266,7 +264,7 @@ bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
                                         LoamPointCloud& cloud) const {
   auto iter = loam_clouds_in_map_frame_.find(stamp.toNSec());
   if (iter != loam_clouds_in_map_frame_.end()) {
-    cloud = iter->second;
+    cloud = *(iter->second);
     return true;
   }
 

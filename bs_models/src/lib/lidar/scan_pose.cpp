@@ -438,8 +438,8 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
 
   Eigen::Matrix4d T_REFFRAME_LIDAR_final =
       T_REFFRAME_BASELINK() * T_BASELINK_LIDAR_;
-  beam_matching::LoamPointCloud loam_cloud_transformed = loampointcloud_;
-  loam_cloud_transformed.TransformPointCloud(T_REFFRAME_LIDAR_final);
+  beam_matching::LoamPointCloud loam_cloud_transformed(loampointcloud_,
+                                                       T_REFFRAME_LIDAR_final);
   loam_cloud_transformed.SaveCombined(save_path,
                                       std::to_string(stamp_.toSec()) + ".pcd");
 }
