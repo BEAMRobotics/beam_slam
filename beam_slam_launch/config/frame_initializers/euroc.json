@@ -1,8 +1,0 @@
-{
-  "type": "POSEFILE",
-  "info": "/home/jake/data/VIO/euroc/V1_01_poses.ply",
-  "sensor_frame_id_override": "",
-  "T_ORIGINAL_OVERRIDE": [],
-  "queue_size": 100,
-  "poses_buffer_time": 30
-}

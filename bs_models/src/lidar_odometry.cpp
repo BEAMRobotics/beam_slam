@@ -47,7 +47,7 @@ void LidarOdometry::onInit() {
   if (!filepath.empty()) {
     if (filepath == "DEFAULT_PATH") {
       filepath = bs_common::GetBeamSlamConfigPath() +
-                 "registration_config/input_filters.json";
+                 "registration/input_filters.json";
     }
 
     ROS_INFO("Reading input filter params from %s", filepath.c_str());

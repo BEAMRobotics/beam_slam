@@ -100,7 +100,7 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
     return;
   } else if (config == "DEFAULT_PATH") {
     std::string default_path = bs_common::GetBeamSlamConfigPath() +
-                               "registration_config/scan_to_map_loam.json";
+                               "registration/scan_to_map_loam.json";
     if (!boost::filesystem::exists(default_path)) {
       BEAM_WARN(
           "Could not find default multi scan registration config at: {}. Using "

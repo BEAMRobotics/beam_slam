@@ -58,8 +58,8 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
 
   // get filter params
   nlohmann::json J;
-  std::string filepath = bs_common::GetBeamSlamConfigPath() +
-                         "registration_config/input_filters.json";
+  std::string filepath =
+      bs_common::GetBeamSlamConfigPath() + "registration/input_filters.json";
 
   BEAM_INFO("Reading input filter params from {}", filepath);
   if (!beam::ReadJson(filepath, J)) {

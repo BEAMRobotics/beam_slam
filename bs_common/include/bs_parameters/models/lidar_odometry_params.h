@@ -74,20 +74,20 @@ public:
                           scan_output_directory);
 
     /** Matcher params for local registration. DEFAULT_PATH uses the
-     * appropriate config in beam_slam_launch/config/matcher_config/. Setting to
+     * appropriate config in beam_slam_launch/config/matchers/. Setting to
      * empty will use the default params defined in the class */
     getParam<std::string>(nh, "local_matcher_params_path",
                           local_matcher_params_path, local_matcher_params_path);
 
     /** Matcher params for global registration. DEFAULT_PATH uses the
-     * appropriate config in beam_slam_launch/config/matcher_config/. Setting to
+     * appropriate config in beam_slam_launch/config/matchers/. Setting to
      * empty will use the default params defined in the class */
     getParam<std::string>(nh, "global_matcher_params_path",
                           global_matcher_params_path,
                           global_matcher_params_path);
 
     /** Scan registration config path for local registration. DEFAULT_PATH uses
-     * the appropriate config in beam_slam_launch/config/registration_config/.
+     * the appropriate config in beam_slam_launch/config/registration/.
      * Setting to empty will use the default params defined in the class */
     getParam<std::string>(nh, "local_registration_config_path",
                           local_registration_config_path,
@@ -110,7 +110,7 @@ public:
     }
 
     /** DEFAULT_PATH uses the config in
-     * beam_slam_launch_config/config/registration_config/input_filters.json.
+     * beam_slam_launch_config/config/registration/input_filters.json.
      * Setting to empty uses no filters. */
     getParam<std::string>(nh, "input_filters_config_path",
                           input_filters_config_path, input_filters_config_path);
