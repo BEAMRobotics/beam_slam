@@ -48,6 +48,7 @@ public:
     }
     for (int i = 0; i < 6; i++) { prior_covariance(i, i) = prior_diagonal[i]; }
 
+    getParam<bool>(nh, "use_parallax", use_parallax, false);
     // feature tracker container size
     getParam<int>(nh, "max_container_size", max_container_size, 300);
 
@@ -58,6 +59,7 @@ public:
     getParam<double>(nh, "keyframe_parallax", keyframe_parallax, 10.0);
     getParam<double>(nh, "keyframe_translation_m", keyframe_translation_m, 1.0);
     getParam<double>(nh, "keyframe_rotation_deg", keyframe_rotation_deg, 1.0);
+    getParam<double>(nh, "keyframe_max_duration", keyframe_max_duration, 3.0);
   }
 
   std::string visual_measurement_topic{
@@ -67,9 +69,11 @@ public:
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};
   bool use_pose_priors{false};
+  bool use_parallax{false};
   double reloc_request_period{3.0};
   double keyframe_parallax{10.0};
   double keyframe_translation_m{2.0};
   double keyframe_rotation_deg{20.0};
+  double keyframe_max_duration{3.0};
 };
 }} // namespace bs_parameters::models

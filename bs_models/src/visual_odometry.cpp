@@ -84,6 +84,8 @@ void VisualOdometry::processMeasurements(
   // don't process until we have initialized
   if (!is_initialized_) { return; }
 
+  // todo: attempt to process as many in buffer as possible so it doesnt fill up
+
   // retrieve and process the message at the front of the buffer
   const auto current_msg = visual_measurement_buffer_.front();
   const auto success = ComputeOdometryAndExtendMap(current_msg);
@@ -127,6 +129,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   rel_odom_seq++;
 
   if (IsKeyframe(msg->header.stamp, T_WORLD_BASELINKcur)) {
+    std::cout << "New keyframe: " << msg->header.stamp << std::endl;
     Keyframe kf(*msg);
     keyframes_.push_back(kf);
     ExtendMap(T_WORLD_BASELINKcur);
@@ -163,14 +166,12 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& img_time,
                     << img_time);
     return false;
   }
-
   const auto prev_kf_pose = visual_map_->GetBaselinkPose(prev_kf.Stamp());
   if (!prev_kf_pose.has_value()) {
     ROS_ERROR_STREAM(__func__ << ": Cannot retrieve previous keyframe pose:"
                               << prev_kf.Stamp());
     throw std::runtime_error("Cannot retrieve previous keyframe pose.");
   }
-
   // estimate T_WORLD_BASELINK using the relative motion from frame init
   const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_kf_pose.value();
   T_WORLD_BASELINK = T_WORLD_BASELINKprev * T_PREVKF_CURFRAME;
@@ -179,7 +180,6 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& img_time,
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   GetPixelPointPairs(img_time, pixels, points);
-
   // perform motion only BA to refine estimate
   if (pixels.size() >= 10) {
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
@@ -195,7 +195,29 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& img_time,
 
 bool VisualOdometry::IsKeyframe(const ros::Time& img_time,
                                 const Eigen::Matrix4d& T_WORLD_BASELINK) {
-  if ((img_time - keyframes_.back().Stamp()).toSec() >= 0.1) { return true; }
+  if (keyframes_.empty()) { return true; }
+
+  const auto kf_time = keyframes_.back().Stamp();
+  const Eigen::Matrix4d kf_pose = visual_map_->GetBaselinkPose(kf_time).value();
+
+  if (vo_params_.use_parallax) {
+    // check for parallax
+    const auto avg_parallax =
+        landmark_container_->ComputeParallax(kf_time, img_time, false);
+    if (avg_parallax > vo_params_.keyframe_parallax) { return true; }
+  } else {
+    // check for movement
+    const auto passed_motion = beam::PassedMotionThreshold(
+        T_WORLD_BASELINK, kf_pose, vo_params_.keyframe_rotation_deg,
+        vo_params_.keyframe_translation_m, true);
+    if (passed_motion) { return true; }
+  }
+
+  // check for max duration in case of no motion
+  if ((img_time - kf_time).toSec() > vo_params_.keyframe_max_duration) {
+    return true;
+  }
+
   return false;
 }
 
@@ -298,6 +320,10 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
     is_initialized_ = true;
     while (!visual_measurement_buffer_.empty()) {
       auto msg = visual_measurement_buffer_.front();
+      if(msg->header.stamp < *timestamps.begin()){
+        visual_measurement_buffer_.pop_front();
+        continue;
+      }
       if (timestamps.find(msg->header.stamp) != timestamps.end()) {
         // measurement exists in graph -> therefore its a keyframe
         Keyframe kf(*msg);

@@ -101,6 +101,12 @@ private:
   bool Initialize();
 
   /**
+   * @brief If the path was estimated using FRAMEINIT or LIDAR, then we
+   * interpolate the poses for the visual measurements
+   */
+  void InterpolateVisualMeasurements();
+
+  /**
    * @brief Scales and aligns the init path and velocities using gravity and
    * scale estimates
    */
@@ -117,7 +123,7 @@ private:
    */
   void AddVisualConstraints();
 
-/**
+  /**
    * @brief Adds lidar constraints to the graph
    */
   void AddLidarConstraints();

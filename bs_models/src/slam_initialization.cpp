@@ -214,9 +214,10 @@ void SLAMInitialization::processLidar(
             lidar_path_init_->GetMaxRegistrationTimeInS());
   init_path_ = lidar_path_init_->GetPath();
   beam::HighResolutionTimer timer;
-  if (Initialize()) { 
+  if (Initialize()) {
     BEAM_INFO("done initialization, total time: {}s", timer.elapsed());
-    shutdown(); }
+    shutdown();
+  }
 }
 
 void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -238,8 +239,7 @@ bool SLAMInitialization::Initialize() {
     return false;
   }
 
-  // remove any visual measurements that are outside of the init path (todo:
-  // Same for lidar)
+  // remove any visual measurements that are outside of the init path
   auto visual_measurements = landmark_container_->GetMeasurementTimes();
   for (const auto& time : visual_measurements) {
     const auto stamp = beam::NSecToRos(time);
@@ -262,6 +262,8 @@ bool SLAMInitialization::Initialize() {
       std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
 
   AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
+
+  InterpolateVisualMeasurements();
 
   AddPosesAndInertialConstraints();
 
@@ -288,29 +290,8 @@ bool SLAMInitialization::Initialize() {
   return true;
 }
 
-void SLAMInitialization::AlignPathAndVelocities(bool apply_scale) {
-  // estimate rotation from estimated gravity to world gravity
-  Eigen::Quaterniond q =
-      Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
-
-  // apply rotation to initial path
-  for (auto& [stamp, T_WORLD_BASELINK] : init_path_) {
-    Eigen::Quaterniond ori;
-    Eigen::Vector3d pos;
-    beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, ori, pos);
-    ori = q * ori;
-    pos = q * pos;
-    if (apply_scale) { pos = scale_ * pos; }
-    beam::QuaternionAndTranslationToTransformMatrix(ori, pos, T_WORLD_BASELINK);
-  }
-
-  // apply rotation to velocities
-  for (auto& vel : velocities_) { vel.second = q * vel.second; }
-}
-
-void SLAMInitialization::AddPosesAndInertialConstraints() {
-  // interpolate for exisitng measurements if they aren't in the path (TODO: for
-  // lidar as well)
+void SLAMInitialization::InterpolateVisualMeasurements() {
+  // interpolate for existing visual measurements if they aren't in the path
   auto visual_measurements = landmark_container_->GetMeasurementTimes();
   if (mode_ != InitMode::VISUAL && landmark_container_->NumImages() > 0) {
     for (const auto& stamp : visual_measurements) {
@@ -335,7 +316,29 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
           beam::NSecToRos(stamp).toSec());
     }
   }
+}
 
+void SLAMInitialization::AlignPathAndVelocities(bool apply_scale) {
+  // estimate rotation from estimated gravity to world gravity
+  Eigen::Quaterniond q =
+      Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
+
+  // apply rotation to initial path
+  for (auto& [stamp, T_WORLD_BASELINK] : init_path_) {
+    Eigen::Quaterniond ori;
+    Eigen::Vector3d pos;
+    beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, ori, pos);
+    ori = q * ori;
+    pos = q * pos;
+    if (apply_scale) { pos = scale_ * pos; }
+    beam::QuaternionAndTranslationToTransformMatrix(ori, pos, T_WORLD_BASELINK);
+  }
+
+  // apply rotation to velocities
+  for (auto& vel : velocities_) { vel.second = q * vel.second; }
+}
+
+void SLAMInitialization::AddPosesAndInertialConstraints() {
   // add imu constraints between all poses in the path
   bool start_set = false;
   auto process_frame = [&](const auto& pair) {
