@@ -129,7 +129,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   rel_odom_seq++;
 
   if (IsKeyframe(msg->header.stamp, T_WORLD_BASELINKcur)) {
-    std::cout << "New keyframe: " << msg->header.stamp << std::endl;
+    ROS_DEBUG_STREAM("VisualOdometry: New keyframe detected at: " << msg->header.stamp);
     Keyframe kf(*msg);
     keyframes_.push_back(kf);
     ExtendMap(T_WORLD_BASELINKcur);
@@ -298,6 +298,10 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 }
 
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
+  // ! known issue: if slam initialization doesn't recieve any visual
+  // ! measurements, we need to set the first keyframe ourselves rather than
+  // ! from the graph
+
   ROS_INFO_STREAM_ONCE("VisualOdometry: Received initial graph.");
 
   // all timestamps in the new graph
@@ -320,7 +324,7 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
     is_initialized_ = true;
     while (!visual_measurement_buffer_.empty()) {
       auto msg = visual_measurement_buffer_.front();
-      if(msg->header.stamp < *timestamps.begin()){
+      if (msg->header.stamp < *timestamps.begin()) {
         visual_measurement_buffer_.pop_front();
         continue;
       }
