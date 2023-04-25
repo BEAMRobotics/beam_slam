@@ -39,7 +39,6 @@ add_message_files(
     LandmarkMeasurementMsg.msg
     CameraMeasurementMsg.msg    
     LidarMeasurementMsg.msg
-    TrajectoryMeasurementMsg.msg
     SlamChunkMsg.msg
     SubmapMsg.msg
     RelocRequestMsg.msg

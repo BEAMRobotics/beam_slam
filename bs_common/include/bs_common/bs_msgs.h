@@ -6,5 +6,4 @@
 #include <bs_common/LidarMeasurementMsg.h>
 #include <bs_common/RelocRequestMsg.h>
 #include <bs_common/SlamChunkMsg.h>
-#include <bs_common/TrajectoryMeasurementMsg.h>
 #include <bs_common/SubmapMsg.h>

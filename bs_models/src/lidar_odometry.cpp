@@ -577,16 +577,15 @@ void LidarOdometry::SendRelocRequest(
   beam_matching::LoamPointCloud loam_cloud_in_baselink_frame(
       scan_pose->LoamCloud(), T_BASELINK_LIDAR);
 
-  // convert pose to vector
-  const Eigen::Matrix4d& T = scan_pose->T_REFFRAME_BASELINK();
-  std::vector<double> pose{T(0, 0), T(0, 1), T(0, 2), T(0, 3),
-                           T(1, 0), T(1, 1), T(1, 2), T(1, 3),
-                           T(2, 0), T(2, 1), T(2, 2), T(2, 3)};
-
   // create message and publish
+  //! why is reloc frame id = baselink, while slam chunk frame id = lidar? line 624
   RelocRequestMsg msg;
-  msg.stamp = scan_pose->Stamp();
-  msg.T_WORLD_BASELINK = pose;
+  static uint64_t seq = 0;
+  geometry_msgs::PoseStamped pose_stamped;
+  bs_common::EigenTransformToPoseStamped(
+      scan_pose->T_REFFRAME_BASELINK(), scan_pose->Stamp(), seq++,
+      extrinsics_.GetBaselinkFrameId(), pose_stamped);
+  msg.T_WORLD_BASELINK = pose_stamped;
   msg.lidar_measurement.frame_id = extrinsics_.GetBaselinkFrameId();
   msg.lidar_measurement.lidar_points =
       beam::PCLToROSVector(cloud_in_baselink_frame);
@@ -618,15 +617,12 @@ void LidarOdometry::PublishMarginalizedScanPose(
 
   // output to global mapper
   SlamChunkMsg slam_chunk_msg;
-  slam_chunk_msg.stamp = scan_pose->Stamp();
-
-  std::vector<double> pose;
-  const Eigen::Matrix4d& T = scan_pose->T_REFFRAME_BASELINK();
-  for (uint8_t i = 0; i < 3; i++) {
-    for (uint8_t j = 0; j < 4; j++) { pose.push_back(T(i, j)); }
-  }
-
-  slam_chunk_msg.T_WORLD_BASELINK = pose;
+  static uint64_t seq = 0;
+  geometry_msgs::PoseStamped pose_stamped;
+  bs_common::EigenTransformToPoseStamped(
+      scan_pose->T_REFFRAME_BASELINK(), scan_pose->Stamp(), seq++,
+      extrinsics_.GetLidarFrameId(), pose_stamped);
+  slam_chunk_msg.T_WORLD_BASELINK = pose_stamped;
   slam_chunk_msg.lidar_measurement.frame_id = extrinsics_.GetLidarFrameId();
 
   if (params_.output_lidar_points) {

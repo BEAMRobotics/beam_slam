@@ -260,7 +260,7 @@ public:
   fuse_core::Transaction::SharedPtr
       AddMeasurement(const CameraMeasurementMsg& cam_measurement,
                      const LidarMeasurementMsg& lid_measurement,
-                     const TrajectoryMeasurementMsg& traj_measurement,
+                     const nav_msgs::Path& traj_measurement,
                      const Eigen::Matrix4d& T_WORLD_BASELINK,
                      const ros::Time& stamp);
 
