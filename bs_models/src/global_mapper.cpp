@@ -27,19 +27,10 @@ GlobalMapper::GlobalMapper()
 
 void GlobalMapper::ProcessSlamChunk(
     const bs_common::SlamChunkMsg::ConstPtr& msg) {
-  ros::Time stamp = msg->stamp;
-  std::vector<double> T = msg->T_WORLD_BASELINK;
-  Eigen::Matrix4d T_WORLD_BASELINK = beam::VectorToEigenTransform(T);
+  ros::Time stamp = msg->T_WORLD_BASELINK.header.stamp;
 
-  std::string matrix_check_summary;
-  if (!beam::IsTransformationMatrix(T_WORLD_BASELINK, matrix_check_summary)) {
-    BEAM_WARN(
-        "transformation matrix invalid, not adding SlamChunkMsg to global map. "
-        "Reason: %s, Input:",
-        matrix_check_summary.c_str());
-    std::cout << "T_WORLD_BASELINK\n" << T_WORLD_BASELINK << "\n";
-    return;
-  }
+  Eigen::Matrix4d T_WORLD_BASELINK;
+  bs_common::PoseMsgToTransformationMatrix(msg->T_WORLD_BASELINK, T_WORLD_BASELINK);
 
   // update extrinsics if necessary
   UpdateExtrinsics();

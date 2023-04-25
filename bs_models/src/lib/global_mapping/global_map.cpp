@@ -268,7 +268,7 @@ void GlobalMap::Setup() {
 fuse_core::Transaction::SharedPtr
     GlobalMap::AddMeasurement(const CameraMeasurementMsg& cam_measurement,
                               const LidarMeasurementMsg& lid_measurement,
-                              const TrajectoryMeasurementMsg& traj_measurement,
+                              const nav_msgs::Path& traj_measurement,
                               const Eigen::Matrix4d& T_WORLD_BASELINK,
                               const ros::Time& stamp) {
   fuse_core::Transaction::SharedPtr new_transaction = nullptr;
@@ -350,45 +350,15 @@ fuse_core::Transaction::SharedPtr
   }
 
   // add trajectory measurement if not empty
-  if (!traj_measurement.stamps.empty()) {
+  if (!traj_measurement.poses.empty()) {
     ROS_DEBUG("Adding trajectory measurement to global map.");
-    std::vector<double> poses_vec = traj_measurement.poses;
-    uint16_t num_poses = static_cast<uint16_t>(poses_vec.size() / 12);
-
-    // check dimensions of inputs first
-    if (poses_vec.size() % 12 != 0) {
-      BEAM_ERROR("Invalid size of poses vector, number of elements must be "
-                 "divisible "
-                 "by 12. Not adding trajectory measurement.");
-    } else if (num_poses != traj_measurement.stamps.size()) {
-      BEAM_ERROR(
-          "Number of poses is not equal to number of time stamps. Not adding "
-          "trajectory measurement.");
-    } else {
-      std::vector<Eigen::Matrix4d, beam::AlignMat4d> poses;
-      std::vector<ros::Time> stamps;
-      for (int i = 0; i < num_poses; i++) {
-        std::vector<double> current_pose;
-        for (int j = 0; j < 12; j++) {
-          current_pose.push_back(traj_measurement.poses[12 * i + j]);
-        }
-        Eigen::Matrix4d T_KEYFRAME_FRAME =
-            beam::VectorToEigenTransform(current_pose);
-        std::string matrix_check_summary;
-        if (!beam::IsTransformationMatrix(T_KEYFRAME_FRAME,
-                                          matrix_check_summary)) {
-          ROS_ERROR("transformation matrix invalid, not adding trajectory "
-                    "measurement to global map. Reason: %s. Input:",
-                    matrix_check_summary.c_str());
-          std::cout << "T_KEYFRAME_FRAME\n" << T_KEYFRAME_FRAME << "\n";
-        }
-        poses.push_back(T_KEYFRAME_FRAME);
-        ros::Time new_stamp;
-        new_stamp.fromNSec(traj_measurement.stamps[i]);
-        stamps.push_back(new_stamp);
-      }
-      online_submaps_.at(submap_id)->AddTrajectoryMeasurement(poses, stamps,
-                                                              stamp);
+    std::vector<Eigen::Matrix4d, beam::AlignMat4d> poses;
+    std::vector<ros::Time> stamps;
+    for (const auto& pose : traj_measurement.poses) {
+      Eigen::Matrix4d T_KEYFRAME_FRAME;
+      PoseMsgToTransformationMatrix(pose, T_KEYFRAME_FRAME);
+      poses.push_back(T_KEYFRAME_FRAME);
+      stamps.push_back(pose.header.stamp);
     }
   }
 
@@ -544,17 +514,10 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
 bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
                                     SubmapMsg& submap_msg) {
   // load pose
-  ros::Time stamp = reloc_request_msg.stamp;
-  std::vector<double> T = reloc_request_msg.T_WORLD_BASELINK;
-  Eigen::Matrix4d T_WORLDLM_QUERY = beam::VectorToEigenTransform(T);
-  std::string matrix_check_summary;
-  if (!beam::IsTransformationMatrix(T_WORLDLM_QUERY, matrix_check_summary)) {
-    BEAM_WARN(
-        "transformation matrix invalid, not running reloc. Reason: %s, Input:",
-        matrix_check_summary.c_str());
-    std::cout << "T_WORLDLM_QUERY:\n" << T_WORLDLM_QUERY << "\n";
-    return false;
-  }
+  ros::Time stamp = reloc_request_msg.T_WORLD_BASELINK.header.stamp;
+  Eigen::Matrix4d T_WORLDLM_QUERY;
+  bs_common::PoseMsgToTransformationMatrix(reloc_request_msg.T_WORLD_BASELINK,
+                                           T_WORLDLM_QUERY);
 
   // load pointcloud
   PointCloud lidar_cloud_in_query_frame =
