@@ -52,15 +52,16 @@ public:
 
     // transform landmark into camera frame
     Eigen::Matrix4d T_CAMERA_WORLD =
-        T_CAM_BASELINK * beam::InvertTransform(T_WORLD_BASELINK);
+        T_cam_baselink_ * beam::InvertTransform(T_WORLD_BASELINK);
     Eigen::Vector3d P(P_WORLD);
     Eigen::Vector4d P_CAMERA = (T_CAMERA_WORLD * P.homogeneous()).hnormalized();
 
     // project into image space
     Eigen::Vector2d reprojection = (intrinsic_matrix_ * P_CAMERA).hnormalized();
-
-    residual[0] = b_[0] - reprojection[0];
-    residual[1] = b_[1] - reprojection[1];
+    
+    Eigen::Vector2d E = A_ * (b_ - reprojection);
+    residual[0] = E[0];
+    residual[1] = E[1];
 
     if (jacobians) {
       const auto d_E_d_P_CAMERA =
