@@ -54,6 +54,8 @@ add_library(${PROJECT_NAME}
   src/motion/unicycle_3d_state_kinematic_constraint.cpp
   src/visual/visual_constraint.cpp
   src/visual/visual_constraint_fixed.cpp
+  src/visual/euclidean_reprojection_constraint.cpp
+  src/jacobians.cpp
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}

@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace fuse_constraints {
+namespace bs_constraints {
 
 class EuclideanReprojectionConstraint : public fuse_core::Constraint {
 public:
@@ -83,7 +83,7 @@ protected:
   Eigen::Vector2d pixel_;
   Eigen::Matrix4d T_cam_baselink_;
   Eigen::Matrix3d intrinsic_matrix_;
-  Eigen::Matrix2d covariance_;
+  Eigen::Matrix2d sqrt_information_;
 
 private:
   // Allow Boost Serialization access to private methods
@@ -107,4 +107,4 @@ private:
 
 } // namespace fuse_constraints
 
-BOOST_CLASS_EXPORT_KEY(fuse_constraints::EuclideanReprojectionConstraint);
+BOOST_CLASS_EXPORT_KEY(bs_constraints::EuclideanReprojectionConstraint);
