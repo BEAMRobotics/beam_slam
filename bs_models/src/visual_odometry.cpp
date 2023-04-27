@@ -123,10 +123,9 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   const Eigen::Matrix4d T_ODOM_BASELINKcur =
       T_ODOM_BASELINKprevkf_ * T_PREVKF_CURFRAME;
   const auto odom_msg = bs_common::TransformToOdometryMessage(
-      msg->header.stamp, rel_odom_seq, extrinsics_.GetWorldFrameId(),
+      msg->header.stamp, rel_odom_seq++, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetBaselinkFrameId(), T_ODOM_BASELINKcur);
   odometry_publisher_.publish(odom_msg);
-  rel_odom_seq++;
 
   if (IsKeyframe(msg->header.stamp, T_WORLD_BASELINKcur)) {
     ROS_DEBUG_STREAM(
@@ -137,16 +136,16 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
     // publish keyframe as odometry
     const auto kf_odom_msg = bs_common::TransformToOdometryMessage(
-        msg->header.stamp, kf_odom_seq, extrinsics_.GetWorldFrameId(),
+        kf.Stamp(), kf_odom_seq++, extrinsics_.GetWorldFrameId(),
         extrinsics_.GetBaselinkFrameId(), T_WORLD_BASELINKcur);
     keyframe_publisher_.publish(kf_odom_msg);
-    kf_odom_seq++;
 
-    // publish reloc request
-    if ((msg->header.stamp - previous_reloc_request_).toSec() >
+    // publish reloc request at given rate
+    if ((kf.Stamp() - previous_reloc_request_).toSec() >
         vo_params_.reloc_request_period) {
-      previous_reloc_request_ = msg->header.stamp;
-      // TODO: publish reloc request
+      ROS_INFO_STREAM("Publishing reloc request at: " << kf.Stamp());
+      previous_reloc_request_ = kf.Stamp();
+      PublishRelocRequest(kf);
     }
 
     // update odom pose if its a keyframe
@@ -401,8 +400,35 @@ void VisualOdometry::GetPixelPointPairs(
 }
 
 void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
-  bs_common::SlamChunkMsg slam_chunk;
-  // TODO: build slam chunk
-  // slam_chunk_publisher_.publish(slam_chunk);
+  static uint64_t slam_chunk_seq = 0;
+
+  const Eigen::Matrix4d T_WORLD_BASELINK =
+      visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
+
+  SlamChunkMsg slam_chunk_msg;
+  geometry_msgs::PoseStamped pose_stamped;
+  bs_common::EigenTransformToPoseStamped(
+      T_WORLD_BASELINK, keyframe.Stamp(), slam_chunk_seq++,
+      extrinsics_.GetBaselinkFrameId(), pose_stamped);
+  slam_chunk_msg.T_WORLD_BASELINK = pose_stamped;
+  slam_chunk_msg.camera_measurement = keyframe.MeasurementMessage();
+  slam_chunk_publisher_.publish(slam_chunk);
 }
+
+void VisualOdometry::PublishRelocRequest(const Keyframe& keyframe) {
+  static uint64_t reloc_seq = 0;
+
+  const Eigen::Matrix4d T_WORLD_BASELINK =
+      visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
+
+  bs_common::RelocRequestMsg reloc_msg;
+  geometry_msgs::PoseStamped pose_stamped;
+  bs_common::EigenTransformToPoseStamped(
+      T_WORLD_BASELINK, keyframe.Stamp(), reloc_seq++,
+      extrinsics_.GetBaselinkFrameId(), pose_stamped);
+  reloc_msg.T_WORLD_BASELINK = pose_stamped;
+  reloc_msg.camera_measurement = keyframe.MeasurementMessage();
+  reloc_publisher_.publish(reloc_msg);
+}
+
 } // namespace bs_models
