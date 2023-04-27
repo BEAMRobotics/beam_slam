@@ -223,7 +223,7 @@ fuse_core::Transaction::SharedPtr
         fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
         fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   bs_constraints::relative_pose::ImuState3DStampedTransaction transaction(
-      t_now);
+      t_now, true, false);
 
   // check requested time
   if (pre_integrator_ij_.data.empty()) {
