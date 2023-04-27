@@ -79,14 +79,18 @@ TEST(EuclideanReprojectionFunction, Validity) {
   reprojection_function.Evaluate(parameters, residual, jacobians);
 
   // calculate numerical jacobian
-  Eigen::Matrix<double, 2, 10> J_numerical;
+  Eigen::Matrix<double, 2, 10> J_numerical =
+      Eigen::Matrix<double, 2, 10>::Zero();
   for (int i = 0; i < 7; i++) {
-    if (i == 3) {
-      J_numerical(0, i) = 0;
-      J_numerical(1, i) = 0;
-    }
     Eigen::Matrix<double, 6, 1> pert = Eigen::Matrix<double, 6, 1>::Zero();
-    pert[i] = EPS;
+    if (i < 3) {
+      pert[i] = EPS;
+    } else if (i > 3) {
+      pert[i - 1] = EPS;
+    } else {
+      // useless 4th parameter in quaternion
+      continue;
+    }
     const auto proj = projection(T_WORLD_BASELINK, P_WORLD, K, T_CAM_BASELINK);
     const auto proj_pert = projection(beam::BoxPlus(T_WORLD_BASELINK, pert),
                                       P_WORLD, K, T_CAM_BASELINK);
