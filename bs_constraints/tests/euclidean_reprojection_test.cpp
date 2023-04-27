@@ -103,7 +103,7 @@ TEST(EuclideanReprojectionFunction, Validity) {
     J_numerical(1, i) = (proj_pert[1] - proj[1]) / EPS;
   }
 
-  EXPECT_TRUE(J_numerical.isApprox(*J_analytical, THRESHOLD));
+  EXPECT_TRUE(J_numerical.isApprox(J_analytical, THRESHOLD));
 }
 
 int main(int argc, char** argv) {
