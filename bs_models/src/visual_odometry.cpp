@@ -127,6 +127,8 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
       extrinsics_.GetBaselinkFrameId(), T_ODOM_BASELINKcur);
   odometry_publisher_.publish(odom_msg);
 
+  // todo: add every pose to the graph even if not keyframe?
+
   if (IsKeyframe(msg->header.stamp, T_WORLD_BASELINKcur)) {
     ROS_DEBUG_STREAM(
         "VisualOdometry: New keyframe detected at: " << msg->header.stamp);
