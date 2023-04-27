@@ -10,14 +10,8 @@ constexpr int N = 50;
 
 TEST(EuclideanReprojectionFunction, Validity) {
   // create lambda for function to test
-  auto projection = [&](const auto& q_WORLD_BASELINK,
-                        const auto& t_WORLD_BASELINK, const auto& P_WORLD,
+  auto projection = [&](const auto& T_WORLD_BASELINK, const auto& P_WORLD,
                         const auto& K, const auto& T_CAM_BASELINK) {
-    // get robot pose as a transformation matrix
-    Eigen::Matrix4d T_WORLD_BASELINK = Eigen::Matrix4d::Identity();
-    T_WORLD_BASELINK.block<3, 3>(0, 0) = q_WORLD_BASELINK.toRotationMatrix();
-    T_WORLD_BASELINK.block<3, 1>(0, 3) = t_WORLD_BASELINK;
-
     // transform landmark into camera frame
     Eigen::Matrix4d T_CAMERA_WORLD =
         T_CAM_BASELINK * beam::InvertTransform(T_WORLD_BASELINK);
@@ -53,8 +47,8 @@ TEST(EuclideanReprojectionFunction, Validity) {
       T_WORLD_BASELINK * beam::InvertTransform(T_CAM_BASELINK) * P_CAM;
 
   // compute its pixel projection
-  const Eigen::Vector2d pixel = projection(q_WORLD_BASELINK, t_WORLD_BASELINK,
-                                           P_WORLD, K, T_CAM_BASELINK);
+  const Eigen::Vector2d pixel =
+      projection(T_WORLD_BASELINK, P_WORLD, K, T_CAM_BASELINK);
 
   EuclideanReprojection reprojection_function(Eigen::Matrix2d::Identity(),
                                               pixel, K, T_cam_baselink);
@@ -75,7 +69,7 @@ TEST(EuclideanReprojectionFunction, Validity) {
   p_params[2] = P_WORLD.z();
 
   double** parameters[3];
-  parameters[0] = q_params;
+  RES parameters[0] = q_params;
   parameters[1] = t_params;
   parameters[2] = p_params;
 
@@ -84,8 +78,30 @@ TEST(EuclideanReprojectionFunction, Validity) {
   double jacobians[20];
   reprojection_function.Evaluate(parameters, residual, jacobians);
 
-  // calculate numerical jacobian in blocks (quaternion, translation, point)
+  // calculate numerical jacobian
   Eigen::Matrix<double, 2, 10> J_numerical;
+  for (int i = 0; i < 7; i++) {
+    if(i == 3){
+      J_numerical(0, i) = 0;
+      J_numerical(1, i) = 0;
+    }
+    Eigen::Matrix<double, 6, 1> pert = Eigen::Matrix<double, 6, 1>::Zero();
+    pert[i] = EPS;
+    const auto proj = projection(T_WORLD_BASELINK, P_WORLD, K, T_CAM_BASELINK);
+    const auto proj_pert = projection(beam::BoxPlus(T_WORLD_BASELINK, pert),
+                                      P_WORLD, K, T_CAM_BASELINK);
+    J_numerical(0, i) = (proj_pert[0] - proj[0]) / EPS;
+    J_numerical(1, i) = (proj_pert[1] - proj[1]) / EPS;
+  }
+  for (int i = 7; i < 10; i++) {
+    Eigen::Vector3d pert(0, 0, 0);
+    pert[i] = EPS;
+    const auto proj = projection(T_WORLD_BASELINK, P_WORLD, K, T_CAM_BASELINK);
+    const auto proj_pert =
+        projection(T_WORLD_BASELINK, P_WORLD + pert, K, T_CAM_BASELINK);
+    J_numerical(0, i) = (proj_pert[0] - proj[0]) / EPS;
+    J_numerical(1, i) = (proj_pert[1] - proj[1]) / EPS;
+  }
 
   EXPECT_TRUE(J_numerical.isApprox(*J_analytical, THRESHOLD));
 }
