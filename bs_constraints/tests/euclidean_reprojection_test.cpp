@@ -69,7 +69,7 @@ TEST(EuclideanReprojectionFunction, Validity) {
   p_params[2] = P_WORLD.z();
 
   double** parameters[3];
-  RES parameters[0] = q_params;
+  parameters[0] = q_params;
   parameters[1] = t_params;
   parameters[2] = p_params;
 
