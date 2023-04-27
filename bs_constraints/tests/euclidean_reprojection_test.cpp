@@ -81,7 +81,7 @@ TEST(EuclideanReprojectionFunction, Validity) {
   // calculate numerical jacobian
   Eigen::Matrix<double, 2, 10> J_numerical;
   for (int i = 0; i < 7; i++) {
-    if(i == 3){
+    if (i == 3) {
       J_numerical(0, i) = 0;
       J_numerical(1, i) = 0;
     }
@@ -103,6 +103,8 @@ TEST(EuclideanReprojectionFunction, Validity) {
     J_numerical(1, i) = (proj_pert[1] - proj[1]) / EPS;
   }
 
+  Eigen::Matrix<double, 2, 10> J_analytical =
+      Eigen::Map<Eigen::Matrix<double, 2, 10, RowMajor> >(jacobians);
   EXPECT_TRUE(J_numerical.isApprox(J_analytical, THRESHOLD));
 }
 
