@@ -128,6 +128,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   odometry_publisher_.publish(odom_msg);
 
   // todo: add every pose to the graph even if not keyframe?
+  // todo: otherwise IO will add poses itself?
 
   if (IsKeyframe(msg->header.stamp, T_WORLD_BASELINKcur)) {
     ROS_DEBUG_STREAM(
