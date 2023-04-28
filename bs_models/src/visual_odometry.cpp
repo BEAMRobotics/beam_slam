@@ -404,10 +404,8 @@ void VisualOdometry::GetPixelPointPairs(
 
 void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
   static uint64_t slam_chunk_seq = 0;
-
   const Eigen::Matrix4d T_WORLD_BASELINK =
       visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
-
   SlamChunkMsg slam_chunk_msg;
   geometry_msgs::PoseStamped pose_stamped;
   bs_common::EigenTransformToPoseStamped(
@@ -415,15 +413,13 @@ void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
       extrinsics_.GetBaselinkFrameId(), pose_stamped);
   slam_chunk_msg.T_WORLD_BASELINK = pose_stamped;
   slam_chunk_msg.camera_measurement = keyframe.MeasurementMessage();
-  slam_chunk_publisher_.publish(slam_chunk);
+  slam_chunk_publisher_.publish(slam_chunk_msg);
 }
 
 void VisualOdometry::PublishRelocRequest(const Keyframe& keyframe) {
   static uint64_t reloc_seq = 0;
-
   const Eigen::Matrix4d T_WORLD_BASELINK =
       visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
-
   bs_common::RelocRequestMsg reloc_msg;
   geometry_msgs::PoseStamped pose_stamped;
   bs_common::EigenTransformToPoseStamped(
