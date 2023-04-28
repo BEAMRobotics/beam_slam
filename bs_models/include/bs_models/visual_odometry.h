@@ -110,6 +110,10 @@ private:
   /// @param keyframe
   void PublishSlamChunk(const Keyframe& keyframe);
 
+  /// @brief Publishes a keyframe object as a reloc request
+  /// @param keyframe
+  void PublishRelocRequest(const Keyframe& keyframe);
+
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters
   bs_parameters::models::VisualOdometryParams vo_params_;
