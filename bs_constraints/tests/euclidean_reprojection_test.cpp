@@ -3,8 +3,9 @@
 
 #include <bs_common/imu_state.h>
 #include <bs_constraints/jacobians.h>
+#include <bs_constraints/visual/euclidean_reprojection_function.h>
 
-constexpr double EPS = 1e-6;
+constexpr double EPS = 1e-8;
 constexpr double THRESHOLD = 1e-6;
 constexpr int N = 50;
 
@@ -18,23 +19,23 @@ TEST(EuclideanReprojectionFunction, Validity) {
     Eigen::Vector3d P(P_WORLD);
     Eigen::Vector3d P_CAMERA = (T_CAMERA_WORLD * P.homogeneous()).hnormalized();
 
-    return (K * P_CAMERA).hnormalized()
+    return (K * P_CAMERA).hnormalized();
   };
 
   // generate random T_WORLD_BASELINK
   const Eigen::Matrix4d T_WORLD_BASELINK = beam::GenerateRandomPose(1.0, 10.0);
   const Eigen::Quaterniond q_WORLD_BASELINK(T_WORLD_BASELINK.block<3, 3>(0, 0));
   const Eigen::Vector3d t_WORLD_BASELINK =
-      T_WORLD_BASELINK.block<3, 1>(0, 3).tranpose();
+      T_WORLD_BASELINK.block<3, 1>(0, 3).transpose();
 
   // generate random K
   Eigen::Vector2d camera_center = beam::UniformRandomVector<2>(50.0, 100.0);
   double f = beam::randf(10.0, 100.0);
-  Eigen::Matrix3d K_rand = Eigen::Matrix3d::Identity();
-  K_rand(0, 0) = f;
-  K_rand(1, 1) = f;
-  K_rand(0, 2) = camera_center.x();
-  K_rand(1, 2) = camera_center.y();
+  Eigen::Matrix3d K = Eigen::Matrix3d::Identity();
+  K(0, 0) = f;
+  K(1, 1) = f;
+  K(0, 2) = camera_center.x();
+  K(1, 2) = camera_center.y();
 
   // generate random T_CAM_BASELINK
   const Eigen::Matrix4d T_CAM_BASELINK = beam::GenerateRandomPose(1.0, 10.0);
@@ -94,8 +95,8 @@ TEST(EuclideanReprojectionFunction, Validity) {
     const auto proj = projection(T_WORLD_BASELINK, P_WORLD, K, T_CAM_BASELINK);
     const auto proj_pert = projection(beam::BoxPlus(T_WORLD_BASELINK, pert),
                                       P_WORLD, K, T_CAM_BASELINK);
-    J_numerical(0, i) = (proj_pert[0] - proj[0]) / EPS;
-    J_numerical(1, i) = (proj_pert[1] - proj[1]) / EPS;
+    const auto finite_diff = (proj_pert - proj) / EPS;
+    J_numerical.col(i) = finite_diff.transpose();
   }
   for (int i = 7; i < 10; i++) {
     Eigen::Vector3d pert(0, 0, 0);
@@ -103,8 +104,8 @@ TEST(EuclideanReprojectionFunction, Validity) {
     const auto proj = projection(T_WORLD_BASELINK, P_WORLD, K, T_CAM_BASELINK);
     const auto proj_pert =
         projection(T_WORLD_BASELINK, P_WORLD + pert, K, T_CAM_BASELINK);
-    J_numerical(0, i) = (proj_pert[0] - proj[0]) / EPS;
-    J_numerical(1, i) = (proj_pert[1] - proj[1]) / EPS;
+    const auto finite_diff = (proj_pert - proj) / EPS;
+    J_numerical.col(i) = finite_diff.transpose();
   }
 
   Eigen::Matrix<double, 2, 10> J_analytical =
