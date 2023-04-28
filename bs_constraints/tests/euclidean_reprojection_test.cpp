@@ -92,8 +92,8 @@ TEST(EuclideanReprojectionFunction, Validity) {
     Eigen::Matrix<double, 10, 2> J_analytical_T;
     // clang-format off
     J_analytical_T << J[0][0], J[0][1], J[0][2], J[0][3], J[0][4], J[0][5], J[0][6], J[0][7],
-                    J[1][0], J[1][1], J[1][2], J[1][3], J[1][4], J[1][5],
-                    J[2][0], J[2][1], J[2][2], J[2][3], J[2][4], J[2][5];
+                      J[1][0], J[1][1], J[1][2], J[1][3], J[1][4], J[1][5],
+                      J[2][0], J[2][1], J[2][2], J[2][3], J[2][4], J[2][5];
     // clang-format on
     Eigen::Matrix<double, 2, 10> J_analytical = J_analytical_T.transpose();
 
