@@ -53,11 +53,12 @@ public:
     T_WORLD_BASELINK.block<3, 3>(0, 0) = q_WORLD_BASELINK.toRotationMatrix();
     T_WORLD_BASELINK.block<3, 1>(0, 3) = t_WORLD_BASELINK;
 
+    Eigen::Matrix4d T_BASELINK_WORLD = beam::InvertTransform(T_WORLD_BASELINK);
+
     // transform landmark into camera frame
-    Eigen::Matrix4d T_CAMERA_WORLD =
-        T_cam_baselink_ * beam::InvertTransform(T_WORLD_BASELINK);
-    Eigen::Vector3d P(P_WORLD);
-    Eigen::Vector3d P_CAMERA = (T_CAMERA_WORLD * P.homogeneous()).hnormalized();
+    Eigen::Matrix4d T_CAMERA_WORLD = T_cam_baselink_ * T_BASELINK_WORLD;
+    Eigen::Vector3d P_CAMERA =
+        (T_CAMERA_WORLD * P_WORLD.homogeneous()).hnormalized();
 
     // project into image space
     Eigen::Vector2d reprojection = (intrinsic_matrix_ * P_CAMERA).hnormalized();
@@ -71,19 +72,22 @@ public:
     if (jacobians) {
       const auto d_E_d_P_CAMERA =
           DImageProjectionDPoint(intrinsic_matrix_, P_CAMERA);
+
       const auto d_P_CAMERA_d_T_CAMERA_WORLD =
-          DPointTransformationDTransform(T_CAMERA_WORLD, P_CAMERA);
+          DPointTransformationDTransform(T_CAMERA_WORLD, P_WORLD);
 
       if (jacobians[0] || jacobians[1]) {
         // compute d(E)/d(T_WORLD_BASELINK) = d(E)/d(P_CAMERA) *
         // d(P_CAMERA)/d(T_CAMERA_WORLD) *
         // d(T_CAMERA_WORLD)/d(T_BASELINK_WORLD) *
         // d(T_BASELINK_WORLD)/d(T_WORLD_BASELINK)
+
+        const auto d_T_CAMERA_WORLD_d_T_BASELINK_WORLD =
+            DTransformCompositionDRightTransform(T_cam_baselink_,
+                                                 T_BASELINK_WORLD);
+
         const auto d_T_BASELINK_WORLD_d_T_WORLD_BASELINK =
             DInverseTransformDTransform(T_WORLD_BASELINK);
-        const auto d_T_CAMERA_WORLD_d_T_BASELINK_WORLD =
-            DTransformCompositionDRightTransform(
-                T_cam_baselink_, beam::InvertTransform(T_WORLD_BASELINK));
 
         // jacobian for full transform (2x6 : qx qy qz x y z)
         auto d_E_d_T_WORLD_BASELINK = d_E_d_P_CAMERA *
