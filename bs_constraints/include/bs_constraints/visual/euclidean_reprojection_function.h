@@ -82,7 +82,8 @@ public:
         const auto d_T_BASELINK_WORLD_d_T_WORLD_BASELINK =
             DInverseTransformDTransform(T_WORLD_BASELINK);
         const auto d_T_CAMERA_WORLD_d_T_BASELINK_WORLD =
-            DTransformCompositionDRightTransform();
+            DTransformCompositionDRightTransform(
+                T_cam_baselink_, beam::InvertTransform(T_WORLD_BASELINK));
 
         // jacobian for full transform (2x6 : qx qy qz x y z)
         auto d_E_d_T_WORLD_BASELINK = d_E_d_P_CAMERA *

@@ -46,7 +46,7 @@ catkin_package(
 add_library(${PROJECT_NAME}
   src/relative_pose/relative_constraints.cpp
   src/relative_pose/relative_pose_transaction_base.cpp
-  src/relative_pose/imu_state_3d_stamped_transaction.cpp_jacobian
+  src/relative_pose/imu_state_3d_stamped_transaction.cpp
   src/relative_pose/pose_3d_stamped_transaction.cpp
   src/relative_pose/relative_imu_state_3d_stamped_constraint.cpp
   src/global/absolute_constraint.cpp

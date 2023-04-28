@@ -47,16 +47,19 @@ Eigen::Matrix<double, 6, 6>
   return J;
 }
 
-Eigen::Matrix<double, 6, 6> DTransformCompositionDRightTransform() {
+Eigen::Matrix<double, 6, 6>
+    DTransformCompositionDRightTransform(const Eigen::Matrix4d& T_left,
+                                         const Eigen::Matrix4d& T_right) {
   return Eigen::Matrix<double, 6, 6>::Identity();
 }
 
-Eigen::Matrix<double, 6, 6> DTransformCompositionDLeftTransform(
-    const Eigen::Matrix4d& T_refframe_frame) {
-  assert(beam::IsTransformationMatrix(T_refframe_frame));
+Eigen::Matrix<double, 6, 6>
+    DTransformCompositionDLeftTransform(const Eigen::Matrix4d& T_left,
+                                        const Eigen::Matrix4d& T_right) {
+  assert(beam::IsTransformationMatrix(T_right));
   Eigen::Matrix<double, 6, 6> J = Eigen::Matrix<double, 6, 6>::Zero();
-  const auto linear = T_refframe_frame.block<3, 3>(0, 0);
-  const auto translation = T_refframe_frame.block<3, 1>(0, 3);
+  const auto linear = T_right.block<3, 3>(0, 0);
+  const auto translation = T_right.block<3, 1>(0, 3);
   J.block<3, 3>(0, 0) = linear.transpose();
   J.block<3, 3>(0, 3) =
       -2.0 * linear.transpose() * beam::SkewTransform(translation);

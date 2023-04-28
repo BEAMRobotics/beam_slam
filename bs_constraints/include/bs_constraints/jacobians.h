@@ -33,14 +33,20 @@ Eigen::Matrix3d
 Eigen::Matrix<double, 6, 6>
     DInverseTransformDTransform(const Eigen::Matrix4d& T_refframe_frame);
 
-/// @brief
-/// @return
-Eigen::Matrix<double, 6, 6> DTransformCompositionDRightTransform();
+/// @brief Computes jacobian of T_left * T_right wrt T_right
+/// @param T_left left transform
+/// @param T_right right transform
+/// @return 
+Eigen::Matrix<double, 6, 6>
+    DTransformCompositionDRightTransform(const Eigen::Matrix4d& T_left,
+                                         const Eigen::Matrix4d& T_right);
 
-/// @brief
-/// @param T_refframe_frame
-/// @return
-Eigen::Matrix<double, 6, 6> DTransformCompositionDLeftTransform(
-    const Eigen::Matrix4d& T_refframe_frame);
+/// @brief Computes jacobian of T_left * T_right wrt T_left
+/// @param T_left left transform
+/// @param T_right right transform
+/// @return 
+Eigen::Matrix<double, 6, 6>
+    DTransformCompositionDLeftTransform(const Eigen::Matrix4d& T_left,
+                                        const Eigen::Matrix4d& T_right);
 
 } // namespace bs_constraints
