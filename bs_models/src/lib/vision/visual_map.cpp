@@ -14,6 +14,7 @@ VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
     : cam_model_(cam_model),
       loss_function_(loss_function),
       covariance_(covariance) {
+  cam_model_->InitUndistortMap();
   camera_intrinsic_matrix_ =
       cam_model->GetRectifiedModel()->GetIntrinsicMatrix();
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {

@@ -41,7 +41,6 @@ void VisualOdometry::onInit() {
   // Load camera model and create visua map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
-  cam_model_->InitUndistortMap();
   const Eigen::Matrix2d cov =
       Eigen::Matrix2d::Identity() * vo_params_.reprojection_covariance_weight;
   visual_map_ =
@@ -245,7 +244,7 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
     transaction->addConstraint(prior);
   }
 
-  // process all landmarks
+  // process each landmark
   const auto landmarks =
       landmark_container_->GetLandmarkIDsInImage(cur_kf_time);
   auto process_landmark = [&](const auto& id) {
