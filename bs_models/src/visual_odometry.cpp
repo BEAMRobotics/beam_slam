@@ -87,17 +87,17 @@ void VisualOdometry::processMeasurements(
   // don't process until we have initialized
   if (!is_initialized_) { return; }
 
-  // todo: attempt to process as many in buffer as possible so it doesnt fill up
+  while (!visual_measurement_buffer_.empty()) {
+    // retrieve and process the message at the front of the buffer
+    const auto current_msg = visual_measurement_buffer_.front();
+    const auto success = ComputeOdometryAndExtendMap(current_msg);
 
-  // retrieve and process the message at the front of the buffer
-  const auto current_msg = visual_measurement_buffer_.front();
-  const auto success = ComputeOdometryAndExtendMap(current_msg);
+    // ! This should only fail if the frame initializer fails, in which
+    // ! case we just need to wait until it succeeds
+    if (!success) { return; }
 
-  // ! This should only fail if the frame initializer fails, in which
-  // ! case we just need to wait until it succeeds
-  if (!success) { return; }
-
-  visual_measurement_buffer_.pop_front();
+    visual_measurement_buffer_.pop_front();
+  }
 
   // remove measurements from container if we are over the limit
   while (landmark_container_->NumImages() > vo_params_.max_container_size) {
