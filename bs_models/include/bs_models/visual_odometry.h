@@ -83,9 +83,9 @@ private:
   /// @param msg
   void AddMeasurementsToContainer(const CameraMeasurementMsg::ConstPtr& msg);
 
-  /// @brief
-  /// @param id 
-  /// @return 
+  /// @brief Triangulates a landmark of the given id
+  /// @param id of landmark
+  /// @return optional 3d location
   beam::opt<Eigen::Vector3d> TriangulateLandmark(const uint64_t id);
 
   /// @brief Gets 2d-3d correspondences for landmarks measured at a given time

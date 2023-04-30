@@ -42,7 +42,10 @@ void VisualOdometry::onInit() {
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
   cam_model_->InitUndistortMap();
-  visual_map_ = std::make_shared<VisualMap>(cam_model_);
+  const Eigen::Matrix2d cov =
+      Eigen::Matrix2d::Identity() * vo_params_.reprojection_covariance_weight;
+  visual_map_ =
+      std::make_shared<VisualMap>(cam_model_, vo_params.reprojection_loss, cov);
 
   // Initialize landmark measurement container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
@@ -279,12 +282,14 @@ beam::opt<Eigen::Vector3d>
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   auto add_measurement = [&](const auto& m) {
-    const auto pixel = landmark_container_->GetValue(m.time_point, id);
+    Eigen::Vector2d pixel;
+    try {
+      pixel = landmark_container_->GetValue(stamp, id);
+    } catch (const std::out_of_range& oor) { return; }
     const auto T = visual_map_->GetCameraPose(m.time_point);
-    if (T.has_value()) {
-      pixels.push_back(pixel.cast<int>());
-      T_cam_world_v.push_back(T.value().inverse());
-    }
+    if (!T.has_value()) { return; }
+    pixels.push_back(pixel.cast<int>());
+    T_cam_world_v.push_back(T.value().inverse());
   };
   std::for_each(track.rbegin(), track.rend(), add_measurement);
 

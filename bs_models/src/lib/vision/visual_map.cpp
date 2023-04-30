@@ -9,8 +9,11 @@
 namespace bs_models { namespace vision {
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+                     fuse_core::Loss::SharedPtr loss_function,
                      const Eigen::Matrix2d& covariance)
-    : cam_model_(cam_model), covariance_(covariance) {
+    : cam_model_(cam_model),
+      loss_function_(loss_function),
+      covariance_(covariance) {
   camera_intrinsic_matrix_ =
       cam_model->GetRectifiedModel()->GetIntrinsicMatrix();
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
@@ -152,6 +155,7 @@ bool VisualMap::AddVisualConstraint(
       bs_constraints::EuclideanReprojectionConstraint::SharedPtr vis_constraint(
           source_, *orientation, *position, *lm, T_cam_baselink_,
           camera_intrinsic_matrix_, rectified_pixel.cast<double>(), covariance);
+      vis_constraint->loss(loss_function);
       transaction->addConstraint(vis_constraint);
       return true;
     }

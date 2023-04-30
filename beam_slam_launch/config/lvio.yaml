@@ -76,6 +76,8 @@ visual_odometry:
   keyframe_translation_m: 1.0
   keyframe_rotation_deg: 20.0
   keyframe_max_duration: 2.5
+  reprojection_loss/type: "HUBER"
+  reprojection_loss/a: 0.2
 
 lidar_odometry:
   # Local scan registration
