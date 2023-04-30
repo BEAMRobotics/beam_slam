@@ -149,14 +149,16 @@ bool VisualMap::AddVisualConstraint(
   if (!cam_model_->UndistortPixel(pixel.cast<int>(), rectified_pixel)) {
     return false;
   }
+  Eigen::Vector2d measurement = rectified_pixel.cast<double>();
 
   if (!position || !orientation) { return false; }
   try {
     if (lm) {
-      bs_constraints::EuclideanReprojectionConstraint::SharedPtr vis_constraint(
-          source_, *orientation, *position, *lm, T_cam_baselink_,
-          camera_intrinsic_matrix_, rectified_pixel.cast<double>(), covariance);
-      vis_constraint->loss(loss_function);
+      auto vis_constraint =
+          std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
+              source_, *orientation, *position, *lm, T_cam_baselink_,
+              camera_intrinsic_matrix_, measurement, covariance_);
+      vis_constraint->loss(loss_function_);
       transaction->addConstraint(vis_constraint);
       return true;
     }

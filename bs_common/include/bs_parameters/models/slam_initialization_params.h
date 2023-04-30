@@ -1,6 +1,9 @@
 #pragma once
 
 #include <bs_parameters/parameter_base.h>
+#include <fuse_core/loss.h>
+#include <fuse_core/parameter.h>
+
 
 #include <ros/node_handle.h>
 #include <ros/param.h>

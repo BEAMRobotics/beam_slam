@@ -410,9 +410,6 @@ void SLAMInitialization::AddVisualConstraints() {
     }
   }
 
-  // get all landmarks in the window and process
-  std::for_each(landmarks.begin(), landmarks.end(), process_landmark);
-
   const auto start = beam::NSecToRos(init_path_.begin()->first);
   const auto end = beam::NSecToRos(init_path_.rbegin()->first);
 
@@ -426,24 +423,19 @@ void SLAMInitialization::AddVisualConstraints() {
       landmark_container_->GetLandmarkIDsInWindow(start, end);
 
   auto process_landmark = [&](const auto& id) {
-    if (visual_map_->GetLandmark(id)) {
-      // add constraint
-      visual_map_->AddVisualConstraint(cur_kf_time, id, pixel, transaction);
-    } else {
-      // triangulate and add landmark
-      const auto initial_point = TriangulateLandmark(id);
-      if (!initial_point.has_value()) { return; }
-      visual_map_->AddLandmark(initial_point.value(), id, transaction);
-      num_landmarks++;
+    // triangulate and add landmark
+    const auto initial_point = TriangulateLandmark(id);
+    if (!initial_point.has_value()) { return; }
+    visual_map_->AddLandmark(initial_point.value(), id, landmark_transaction);
+    num_landmarks++;
 
-      // add constraints to keyframes that view its
-      for (const auto& stamp : kf_times) {
-        Eigen::Vector2d pixel;
-        try {
-          pixel = landmark_container_->GetValue(stamp, id);
-        } catch (const std::out_of_range& oor) { continue; }
-        visual_map_->AddVisualConstraint(stamp, id, pixel, transaction);
-      }
+    // add constraints to keyframes that view it
+    for (const auto& stamp : kf_times) {
+      Eigen::Vector2d pixel;
+      try {
+        pixel = landmark_container_->GetValue(stamp, id);
+      } catch (const std::out_of_range& oor) { continue; }
+      visual_map_->AddVisualConstraint(stamp, id, pixel, landmark_transaction);
     }
   };
   std::for_each(landmarks.begin(), landmarks.end(), process_landmark);

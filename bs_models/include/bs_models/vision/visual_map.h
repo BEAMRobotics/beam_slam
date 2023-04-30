@@ -222,7 +222,7 @@ protected:
   // pointer to camera model to use when adding constraints
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   fuse_core::Loss::SharedPtr loss_function_;
-  Eigen::Matrix2d camera_intrinsic_matrix_;
+  Eigen::Matrix3d camera_intrinsic_matrix_;
   Eigen::Matrix2d covariance_;
 
   // robot extrinsics

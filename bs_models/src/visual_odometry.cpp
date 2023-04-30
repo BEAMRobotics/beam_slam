@@ -42,7 +42,7 @@ void VisualOdometry::onInit() {
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
   visual_map_ = std::make_shared<VisualMap>(
-      cam_model_, vo_params.reprojection_loss,
+      cam_model_, vo_params_.reprojection_loss,
       Eigen::Matrix2d::Identity() * vo_params_.reprojection_covariance_weight);
 
   // Initialize landmark measurement container
@@ -248,6 +248,10 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
       landmark_container_->GetLandmarkIDsInImage(cur_kf_time);
   auto process_landmark = [&](const auto& id) {
     if (visual_map_->GetLandmark(id)) {
+      Eigen::Vector2d pixel;
+      try {
+        pixel = landmark_container_->GetValue(cur_kf_time, id);
+      } catch (const std::out_of_range& oor) { return; }
       // add constraint
       visual_map_->AddVisualConstraint(cur_kf_time, id, pixel, transaction);
     } else {
@@ -257,7 +261,7 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
       visual_map_->AddLandmark(initial_point.value(), id, transaction);
 
       // add constraints to keyframes that view its
-      for (const auto& kf : keyframes) {
+      for (const auto& kf : keyframes_) {
         const auto stamp = kf.Stamp();
         Eigen::Vector2d pixel;
         try {
@@ -274,23 +278,17 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 
 beam::opt<Eigen::Vector3d>
     VisualOdometry::TriangulateLandmark(const uint64_t id) {
-  const auto track = landmark_container_->GetTrack(id);
-
-  // get vector of poses and pixels
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
-  auto add_measurement = [&](const auto& m) {
-    Eigen::Vector2d pixel;
-    try {
-      pixel = landmark_container_->GetValue(stamp, id);
-    } catch (const std::out_of_range& oor) { return; }
-    const auto T = visual_map_->GetCameraPose(m.time_point);
-    if (!T.has_value()) { return; }
-    pixels.push_back(pixel.cast<int>());
-    T_cam_world_v.push_back(T.value().inverse());
-  };
-  std::for_each(track.rbegin(), track.rend(), add_measurement);
-
+  beam_containers::Track track = landmark_container_->GetTrack(id);
+  for (auto& m : track) {
+    const auto T_world_camera = visual_map_->GetCameraPose(m.time_point);
+    // check if the pose is in the graph (keyframe)
+    if (T_world_camera.has_value()) {
+      pixels.push_back(m.value.cast<int>());
+      T_cam_world_v.push_back(T_world_camera.value().inverse());
+    }
+  }
   // triangulate new points
   if (T_cam_world_v.size() >= 3) {
     return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
