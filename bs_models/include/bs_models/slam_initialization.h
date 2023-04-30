@@ -101,6 +101,12 @@ private:
   bool Initialize();
 
   /**
+   * @brief Triangulates a landmark
+   * @return position of landmark if it can be estimated
+   */
+  beam::opt<Eigen::Vector3d> TriangulateLandmark(const uint64_t lm_id);
+
+  /**
    * @brief If the path was estimated using FRAMEINIT or LIDAR, then we
    * interpolate the poses for the visual measurements
    */

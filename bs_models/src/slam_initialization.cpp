@@ -31,16 +31,15 @@ void SLAMInitialization::onInit() {
   calibration_params_.loadFromROS();
   params_.loadFromROS(private_node_handle_);
 
-  // Load camera model and Create Map object
+  // Load camera model and create map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
-  cam_model_->InitUndistortMap();
+  visual_map_ = std::make_shared<vision::VisualMap>(
+      cam_model_, params_.reprojection_loss,
+      Eigen::Matrix2d::Identity() * params_.reprojection_covariance_weight);
 
   // create optimization graph
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
-
-  // create visual map
-  visual_map_ = std::make_shared<vision::VisualMap>(cam_model_);
 
   // create landmark container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
@@ -402,67 +401,51 @@ void SLAMInitialization::AddVisualConstraints() {
   double keyframe_delta = 0.2; // 5hz keyframe rate
   ros::Time prev_kf(0.0);
   const auto visual_measurements = landmark_container_->GetMeasurementTimes();
-  std::set<uint64_t> keyframe_measurement_times;
+  std::set<ros::Time> kf_times;
   for (const auto time : visual_measurements) {
     const auto cur_time = beam::NSecToRos(time);
     if ((cur_time - prev_kf).toSec() >= keyframe_delta) {
-      keyframe_measurement_times.insert(time);
+      kf_times.insert(cur_time);
       prev_kf = cur_time;
     }
   }
 
+  // get all landmarks in the window and process
+  std::for_each(landmarks.begin(), landmarks.end(), process_landmark);
+
   const auto start = beam::NSecToRos(init_path_.begin()->first);
-  const auto end = beam::NSecToRos((*init_path_.rbegin()).first);
+  const auto end = beam::NSecToRos(init_path_.rbegin()->first);
 
   size_t num_landmarks = 0;
 
   auto landmark_transaction = fuse_core::Transaction::make_shared();
   landmark_transaction->stamp(end);
 
-  auto process_landmark = [&](const auto& lm_id) {
-    // if the landmark doesn't exist, then estimate it
-    if (!visual_map_->GetLandmark(lm_id)) {
-      std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
-      std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
-      beam_containers::Track track = landmark_container_->GetTrack(lm_id);
-      for (auto& m : track) {
-        Eigen::Vector2i tmp;
-        if (!cam_model_->UndistortPixel(m.value.cast<int>(), tmp)) continue;
-        const auto T_world_camera = visual_map_->GetCameraPose(m.time_point);
-        // check if the pose is in the graph (keyframe)
-        if (T_world_camera.has_value()) {
-          pixels.push_back(m.value.cast<int>());
-          T_cam_world_v.push_back(T_world_camera.value().inverse());
-        }
-      }
-      if (T_cam_world_v.size() >= 4) {
-        const auto point = beam_cv::Triangulation::TriangulatePoint(
-            cam_model_, T_cam_world_v, pixels);
-        if (point.has_value()) {
-          visual_map_->AddLandmark(point.value(), lm_id, landmark_transaction);
-          num_landmarks++;
-        }
-      }
-    }
+  // process each landmark
+  const auto landmarks =
+      landmark_container_->GetLandmarkIDsInWindow(start, end);
 
-    // add constraints to the landmark
-    for (auto& [stamp, T_WORLD_BASELINK] : init_path_) {
-      // only add visual constraints to keyframes
-      if (keyframe_measurement_times.find(stamp) ==
-          keyframe_measurement_times.end()) {
-        continue;
+  auto process_landmark = [&](const auto& id) {
+    if (visual_map_->GetLandmark(id)) {
+      // add constraint
+      visual_map_->AddVisualConstraint(cur_kf_time, id, pixel, transaction);
+    } else {
+      // triangulate and add landmark
+      const auto initial_point = TriangulateLandmark(id);
+      if (!initial_point.has_value()) { return; }
+      visual_map_->AddLandmark(initial_point.value(), id, transaction);
+      num_landmarks++;
+
+      // add constraints to keyframes that view its
+      for (const auto& stamp : kf_times) {
+        Eigen::Vector2d pixel;
+        try {
+          pixel = landmark_container_->GetValue(stamp, id);
+        } catch (const std::out_of_range& oor) { continue; }
+        visual_map_->AddVisualConstraint(stamp, id, pixel, transaction);
       }
-      const auto timestamp = beam::NSecToRos(stamp);
-      try {
-        visual_map_->AddVisualConstraint(
-            timestamp, lm_id, landmark_container_->GetValue(timestamp, lm_id),
-            landmark_transaction);
-      } catch (const std::out_of_range& oor) {}
     }
   };
-
-  // get all landmarks in the window and process
-  auto landmarks = landmark_container_->GetLandmarkIDsInWindow(start, end);
   std::for_each(landmarks.begin(), landmarks.end(), process_landmark);
 
   // send transaction to graph
@@ -472,6 +455,26 @@ void SLAMInitialization::AddVisualConstraints() {
 
   ROS_INFO_STREAM(__func__ << ": Added " << num_landmarks
                            << " visual landmarks to initialization graph.");
+}
+
+beam::opt<Eigen::Vector3d>
+    SLAMInitialization::TriangulateLandmark(const uint64_t lm_id) {
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
+  std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+  beam_containers::Track track = landmark_container_->GetTrack(lm_id);
+  for (auto& m : track) {
+    const auto T_world_camera = visual_map_->GetCameraPose(m.time_point);
+    // check if the pose is in the graph (keyframe)
+    if (T_world_camera.has_value()) {
+      pixels.push_back(m.value.cast<int>());
+      T_cam_world_v.push_back(T_world_camera.value().inverse());
+    }
+  }
+  if (T_cam_world_v.size() >= 3) {
+    return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+                                                    pixels);
+  }
+  return {};
 }
 
 void SLAMInitialization::SendInitializationGraph() {

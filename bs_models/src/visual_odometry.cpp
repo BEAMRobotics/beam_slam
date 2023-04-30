@@ -41,10 +41,9 @@ void VisualOdometry::onInit() {
   // Load camera model and create visua map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
-  const Eigen::Matrix2d cov =
-      Eigen::Matrix2d::Identity() * vo_params_.reprojection_covariance_weight;
-  visual_map_ =
-      std::make_shared<VisualMap>(cam_model_, vo_params.reprojection_loss, cov);
+  visual_map_ = std::make_shared<VisualMap>(
+      cam_model_, vo_params.reprojection_loss,
+      Eigen::Matrix2d::Identity() * vo_params_.reprojection_covariance_weight);
 
   // Initialize landmark measurement container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
