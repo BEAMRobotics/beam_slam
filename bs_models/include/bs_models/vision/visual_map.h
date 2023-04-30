@@ -27,7 +27,8 @@ public:
    * @brief Custom constructor
    * @param cam_model camera model being used
    */
-  VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model);
+  VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+            const Eigen::Matrix2d& covariance = Eigen::Matrix2d::Identity());
 
   /**
    * @brief Default destructor
@@ -219,6 +220,8 @@ protected:
 
   // pointer to camera model to use when adding constraints
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
+  Eigen::Matrix2d camera_intrinsic_matrix_;
+  Eigen::Matrix2d covariance_;
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;

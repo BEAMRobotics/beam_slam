@@ -242,62 +242,58 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
     transaction->addConstraint(prior);
   }
 
-  // add visual constraints
-  std::vector<uint64_t> landmarks =
+  // process all landmarks
+  const auto landmarks =
       landmark_container_->GetLandmarkIDsInImage(cur_kf_time);
-  int num_lms_added = 0;
-  // TODO: make body a lamba, use for each
-  for (auto& id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm =
-        visual_map_->GetLandmark(id);
-    // add constraints to triangulated ids
-    if (lm) {
-      Eigen::Vector2d pixel = landmark_container_->GetValue(cur_kf_time, id);
-      Eigen::Vector2i tmp;
-      if (!cam_model_->UndistortPixel(pixel.cast<int>(), tmp)) continue;
-      // add constraint if its valid
+  auto process_landmark = [&](const auto& id) {
+    if (visual_map_->GetLandmark(id)) {
+      // add constraint
       visual_map_->AddVisualConstraint(cur_kf_time, id, pixel, transaction);
     } else {
-      // otherwise then triangulate and add the constraints
-      std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
-      std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
-      std::vector<ros::Time> observation_stamps;
-      // get measurements of landmark for triangulation
-      // TODO: iterate backwards through keyframes and stop after N matches
-      for (auto& kf : keyframes_) {
-        try {
-          Eigen::Vector2d pixel = landmark_container_->GetValue(kf.Stamp(), id);
-          Eigen::Vector2i tmp;
-          if (!cam_model_->UndistortPixel(pixel.cast<int>(), tmp)) continue;
-          beam::opt<Eigen::Matrix4d> T = visual_map_->GetCameraPose(kf.Stamp());
-          if (T.has_value()) {
-            pixels.push_back(pixel.cast<int>());
-            T_cam_world_v.push_back(T.value().inverse());
-            observation_stamps.push_back(kf.Stamp());
-          }
-        } catch (const std::out_of_range& oor) {}
-      }
+      // triangulate and add landmark
+      const auto initial_point = TriangulateLandmark(id);
+      if (!initial_point.has_value()) { return; }
+      visual_map_->AddLandmark(initial_point.value(), id, transaction);
 
-      // triangulate new points
-      if (T_cam_world_v.size() >= 3) {
-        beam::opt<Eigen::Vector3d> point =
-            beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                     pixels);
-        if (point.has_value()) {
-          visual_map_->AddLandmark(point.value(), id, transaction);
-          num_lms_added++;
-          for (int i = 0; i < observation_stamps.size(); i++) {
-            visual_map_->AddVisualConstraint(
-                observation_stamps[i], id,
-                landmark_container_->GetValue(observation_stamps[i], id),
-                transaction);
-          }
-        }
+      // add constraints to keyframes that view its
+      for (const auto& kf : keyframes) {
+        const auto stamp = kf.Stamp();
+        Eigen::Vector2d pixel;
+        try {
+          pixel = landmark_container_->GetValue(stamp, id);
+        } catch (const std::out_of_range& oor) { continue; }
+        visual_map_->AddVisualConstraint(stamp, id, pixel, transaction);
       }
     }
-  }
-  ROS_DEBUG_STREAM("Added " << num_lms_added << " new landmarks.");
+  };
+  std::for_each(landmarks.begin(), landmarks.end(), process_landmark);
+
   sendTransaction(transaction);
+}
+
+beam::opt<Eigen::Vector3d>
+    VisualOdometry::TriangulateLandmark(const uint64_t id) {
+  const auto track = landmark_container_->GetTrack(id);
+
+  // get vector of poses and pixels
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
+  std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+  auto add_measurement = [&](const auto& m) {
+    const auto pixel = landmark_container_->GetValue(m.time_point, id);
+    const auto T = visual_map_->GetCameraPose(m.time_point);
+    if (T.has_value()) {
+      pixels.push_back(pixel.cast<int>());
+      T_cam_world_v.push_back(T.value().inverse());
+    }
+  };
+  std::for_each(track.rbegin(), track.rend(), add_measurement);
+
+  // triangulate new points
+  if (T_cam_world_v.size() >= 3) {
+    return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+                                                    pixels);
+  }
+  return {};
 }
 
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {

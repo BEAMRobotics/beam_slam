@@ -4,12 +4,15 @@
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
 
-#include <bs_constraints/visual/visual_constraint.h>
+#include <bs_constraints/visual/euclidean_reprojection_constraint.h>
 
 namespace bs_models { namespace vision {
 
-VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model)
-    : cam_model_(cam_model) {
+VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+                     const Eigen::Matrix2d& covariance)
+    : cam_model_(cam_model), covariance_(covariance) {
+  camera_intrinsic_matrix_ =
+      cam_model->GetRectifiedModel()->GetIntrinsicMatrix();
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
     throw std::runtime_error("Unable to get baselink to camera transform.");
@@ -129,9 +132,6 @@ fuse_variables::Position3DStamped::SharedPtr
 bool VisualMap::AddVisualConstraint(
     const ros::Time& stamp, uint64_t lm_id, const Eigen::Vector2d& pixel,
     fuse_core::Transaction::SharedPtr transaction) {
-  // TODO: refactor to attempt undistortion in here, create constraint using
-  // just proejction matrix, and information weight passed in
-
   // get landmark
   fuse_variables::Point3DLandmark::SharedPtr lm = GetLandmark(lm_id);
 
@@ -140,14 +140,18 @@ bool VisualMap::AddVisualConstraint(
   fuse_variables::Orientation3DStamped::SharedPtr orientation =
       GetOrientation(stamp);
 
+  // rectify pixel
+  Eigen::Vector2i rectified_pixel;
+  if (!cam_model_->UndistortPixel(pixel.cast<int>(), rectified_pixel)) {
+    return false;
+  }
+
   if (!position || !orientation) { return false; }
   try {
     if (lm) {
-      // add normal visual constraint
-      fuse_constraints::VisualConstraint::SharedPtr vis_constraint =
-          fuse_constraints::VisualConstraint::make_shared(
-              source_, *orientation, *position, *lm, pixel, T_cam_baselink_,
-              cam_model_, "HUBER", "VANILLA");
+      bs_constraints::EuclideanReprojectionConstraint::SharedPtr vis_constraint(
+          source_, *orientation, *position, *lm, T_cam_baselink_,
+          camera_intrinsic_matrix_, rectified_pixel.cast<double>(), covariance);
       transaction->addConstraint(vis_constraint);
       return true;
     }
