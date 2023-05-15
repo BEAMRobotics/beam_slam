@@ -41,8 +41,8 @@ public:
    */
   bool Evaluate(double const* const* parameters, double* residual,
                 double** jacobians) const override {
-    Eigen::Quaterniond q_WORLD_BASELINK(parameters[0][3], parameters[0][0],
-                                        parameters[0][1], parameters[0][2]);
+    Eigen::Quaterniond q_WORLD_BASELINK(parameters[0][0], parameters[0][1],
+                                        parameters[0][2], parameters[0][3]);
     Eigen::Vector3d t_WORLD_BASELINK(parameters[1][0], parameters[1][1],
                                      parameters[1][2]);
     Eigen::Vector3d P_WORLD(parameters[2][0], parameters[2][1],
@@ -96,32 +96,26 @@ public:
                                       d_T_BASELINK_WORLD_d_T_WORLD_BASELINK;
 
         if (jacobians[0]) {
+          Eigen::Map<Eigen::Matrix<double, 2, 4, Eigen::RowMajor>>
+              d_E_d_R_WORLD_BASELINK(jacobians[0]);
           // far right column = 0 due to compact quaternion representation
-          Eigen::Matrix<double, 2, 4> d_E_d_R_WORLD_BASELINK =
-              Eigen::Matrix<double, 2, 4>::Zero();
-          d_E_d_R_WORLD_BASELINK.block<2, 3>(0, 0) =
-              d_E_d_T_WORLD_BASELINK.block<2, 3>(0, 0);
-
-          Eigen::Map<Eigen::MatrixXd>(
-              jacobians[0], d_E_d_R_WORLD_BASELINK.rows(),
-              d_E_d_R_WORLD_BASELINK.cols()) = d_E_d_R_WORLD_BASELINK;
+          d_E_d_R_WORLD_BASELINK =
+              d_E_d_T_WORLD_BASELINK.block<2, 3>(0, 0) *
+              bs_constraints::LiftJacobian(q_WORLD_BASELINK);
         }
         if (jacobians[1]) {
-          Eigen::Matrix<double, 2, 3> d_E_d_t_WORLD_BASELINK =
-              d_E_d_T_WORLD_BASELINK.block<2, 3>(0, 3);
-          Eigen::Map<Eigen::MatrixXd>(
-              jacobians[1], d_E_d_t_WORLD_BASELINK.rows(),
-              d_E_d_t_WORLD_BASELINK.cols()) = d_E_d_t_WORLD_BASELINK;
+          Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>>
+              d_E_d_t_WORLD_BASELINK(jacobians[1]);
+          d_E_d_t_WORLD_BASELINK = d_E_d_T_WORLD_BASELINK.block<2, 3>(0, 3);
         }
       }
 
       if (jacobians[2]) {
+        Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>> d_E_D_P_WORLD(
+            jacobians[2]);
         // compute d(E)/d(P_WORLD) = d(E)/d(P_CAMERA) * d(P_CAMERA)/d(P_WORLD)
         auto d_P_CAMERA_D_P_WORLD = DPointTransformationDPoint(T_CAMERA_WORLD);
-        auto d_E_D_P_WORLD = d_E_d_P_CAMERA * d_P_CAMERA_D_P_WORLD;
-
-        Eigen::Map<Eigen::MatrixXd>(jacobians[2], d_E_D_P_WORLD.rows(),
-                                    d_E_D_P_WORLD.cols()) = d_E_D_P_WORLD;
+        d_E_D_P_WORLD = d_E_d_P_CAMERA * d_P_CAMERA_D_P_WORLD;
       }
     }
 

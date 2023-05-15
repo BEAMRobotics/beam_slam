@@ -1,8 +1,7 @@
 #pragma once
 
 #include <bs_parameters/parameter_base.h>
-#include <fuse_core/loss.h>
-#include <fuse_core/parameter.h>
+#include <fuse_loss/huber_loss.h>
 
 #include <ros/node_handle.h>
 #include <ros/param.h>
@@ -65,8 +64,11 @@ public:
     getParam<double>(nh, "reprojection_covariance_weight",
                      reprojection_covariance_weight, 0.01);
 
+    double reprojection_loss_a;
+    getParam<double>(nh, "reprojection_loss_a", reprojection_loss_a, 0.2);
     // reprojection loss
-    reprojection_loss = fuse_core::loadLossConfig(nh, "reprojection_loss");
+    reprojection_loss =
+        std::make_shared<fuse_loss ::HuberLoss>(reprojection_loss_a);
   }
 
   std::string visual_measurement_topic{

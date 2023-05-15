@@ -69,6 +69,11 @@ void VisualOdometry::onStart() {
       private_node_handle_.advertise<nav_msgs::Odometry>("odom/relative", 100);
   keyframe_publisher_ =
       private_node_handle_.advertise<nav_msgs::Odometry>("odom/keyframes", 100);
+  slam_chunk_publisher_ =
+      private_node_handle_.advertise<bs_common::SlamChunkMsg>(
+          "/local_mapper/slam_results", 100);
+  reloc_publisher_ = private_node_handle_.advertise<bs_common::RelocRequestMsg>(
+      "/local_mapper/reloc_request", 100);
 }
 
 void VisualOdometry::processMeasurements(
@@ -403,7 +408,7 @@ void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
   static uint64_t slam_chunk_seq = 0;
   const Eigen::Matrix4d T_WORLD_BASELINK =
       visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
-  SlamChunkMsg slam_chunk_msg;
+  bs_common::SlamChunkMsg slam_chunk_msg;
   geometry_msgs::PoseStamped pose_stamped;
   bs_common::EigenTransformToPoseStamped(
       T_WORLD_BASELINK, keyframe.Stamp(), slam_chunk_seq++,

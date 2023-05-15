@@ -54,13 +54,12 @@ slam_initialization:
   lidar_topic: "/lidar_h/velodyne_points"
   frame_initializer_config: ""
   init_mode: "LIDAR"
-  max_optimization_s: 0.0
+  max_optimization_s: 0.5
   max_container_size: 100
   min_parallax: 50.0
   min_trajectory_length_m: 1.0
   reprojection_covariance_weight: 0.01
-  reprojection_loss/type: "HUBER"
-  reprojection_loss/a: 0.2
+  reprojection_loss_a: 0.2
   output_folder: ""
 
 inertial_odometry:
@@ -80,8 +79,7 @@ visual_odometry:
   keyframe_rotation_deg: 20.0
   keyframe_max_duration: 2.5
   reprojection_covariance_weight: 0.01
-  reprojection_loss/type: "HUBER"
-  reprojection_loss/a: 0.2
+  reprojection_loss_a: 0.2
 
 lidar_odometry:
   # Local scan registration
