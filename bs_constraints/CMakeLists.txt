@@ -52,7 +52,7 @@ add_library(${PROJECT_NAME}
   src/global/absolute_constraint.cpp
   src/global/absolute_imu_state_3d_stamped_constraint.cpp
   src/motion/unicycle_3d_state_kinematic_constraint.cpp
-  # src/visual/euclidean_reprojection_constraint.cpp
+  src/visual/euclidean_reprojection_constraint.cpp
   src/jacobians.cpp
 )
 add_dependencies(${PROJECT_NAME}
@@ -96,19 +96,19 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD_REQUIRED YES
   )
 
-  # # Euclidean reprojection function jacobian test
-  # catkin_add_gtest(${PROJECT_NAME}_euclidean_reprojection_test
-  #   tests/euclidean_reprojection_test.cpp
-  # )
-  # target_link_libraries(${PROJECT_NAME}_euclidean_reprojection_test
-  #   ${PROJECT_NAME}
-  #   ${catkin_LIBRARIES}
-  # )
-  # set_target_properties(${PROJECT_NAME}_euclidean_reprojection_test
-  #   PROPERTIES
-  #     CXX_STANDARD 14
-  #     CXX_STANDARD_REQUIRED YES
-  # )
+  # Euclidean reprojection function jacobian test
+  catkin_add_gtest(${PROJECT_NAME}_euclidean_reprojection_test
+    tests/euclidean_reprojection_test.cpp
+  )
+  target_link_libraries(${PROJECT_NAME}_euclidean_reprojection_test
+    ${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+  )
+  set_target_properties(${PROJECT_NAME}_euclidean_reprojection_test
+    PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED YES
+  )
 
 
   # Absolute Imu State Stamped Constraint Tests

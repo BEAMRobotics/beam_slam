@@ -57,6 +57,7 @@ public:
 
     // transform landmark into camera frame
     Eigen::Matrix4d T_CAMERA_WORLD = T_cam_baselink_ * T_BASELINK_WORLD;
+
     Eigen::Vector3d P_CAMERA =
         (T_CAMERA_WORLD * P_WORLD.homogeneous()).hnormalized();
 
@@ -68,6 +69,19 @@ public:
     residual[0] = E[0];
     residual[1] = E[1];
 
+    // todo: compute whole jacobians wrt SE3, use "blocks" of those jacobians to
+    // extract the jacobians we want translation inverse isnt just subtracting,
+    // so its jacobian is wrong then test with running vio, see if its
+    // converging
+    // Eigen::Quaterniond q_cam_baselink(T_cam_baselink_.block<3, 3>(0, 0));
+    // Eigen::Vector3d t_cam_baselink = T_cam_baselink_.block<3, 1>(0, 3);
+    // Eigen::Matrix3d R_WORLD_BASELINK = q_WORLD_BASELINK.toRotationMatrix();
+    // Eigen::Matrix3d R_cam_baselink = T_cam_baselink_.block<3, 3>(0, 0);
+    // Eigen::Vector3d t_cam_baselink = T_cam_baselink_.block<3, 1>(0, 3);
+    // Eigen::Vector3d t_BASELINK_WORLD = T_BASELINK_WORLD.block<3, 1>(0, 3);
+    // Eigen::Matrix3d R_BASELINK_WORLD = T_BASELINK_WORLD.block<3, 3>(0, 0);
+    // Eigen::Matrix3d R_CAMERA_WORLD = T_CAMERA_WORLD.block<3, 3>(0, 0);
+    // Eigen::Vector3d t_CAMERA_WORLD = T_CAMERA_WORLD.block<3, 1>(0, 3);
     // compute jacobians
     if (jacobians) {
       const auto d_E_d_P_CAMERA =
@@ -75,6 +89,58 @@ public:
 
       const auto d_P_CAMERA_d_T_CAMERA_WORLD =
           DPointTransformationDTransform(T_CAMERA_WORLD, P_WORLD);
+
+      // if (jacobians[0]) {
+      //   // compute d(E)/d(R_WORLD_BASELINK) = d(E)/d(P_CAMERA) *
+      //   // d(P_CAMERA)/d(R_CAMERA_WORLD) *
+      //   // d(R_CAMERA_WORLD)/d(R_BASELINK_WORLD) *
+      //   // d(R_BASELINK_WORLD)/d(R_WORLD_BASELINK)
+      //   const auto d_P_CAMERA_d_R_CAMERA_WORLD =
+      //       DPointRotationDRotation(R_CAMERA_WORLD, P_WORLD);
+
+      //   const auto d_R_CAMERA_WORLD_d_R_BASELINK_WORLD =
+      //       DRotationCompositionDRightRotation(R_cam_baselink,
+      //                                          R_BASELINK_WORLD);
+
+      //   const auto d_R_BASELINK_WORLD_d_R_WORLD_BASELINK =
+      //       DInverseRotationDRotation(R_WORLD_BASELINK);
+
+      //   auto d_E_d_R_WORLD_BASELINK = d_E_d_P_CAMERA *
+      //                                 d_P_CAMERA_d_R_CAMERA_WORLD *
+      //                                 d_R_CAMERA_WORLD_d_R_BASELINK_WORLD *
+      //                                 d_R_BASELINK_WORLD_d_R_WORLD_BASELINK;
+
+      //   // lift to jacobian representation
+      //   Eigen::Map<Eigen::Matrix<double, 2, 4, Eigen::RowMajor>>
+      //       d_E_d_q_WORLD_BASELINK(jacobians[0]);
+
+      //   d_E_d_q_WORLD_BASELINK = Eigen::Matrix<double, 2, 4>::Zero();
+      //   d_E_d_q_WORLD_BASELINK.block<2, 3>(0, 0) = d_E_d_R_WORLD_BASELINK;
+
+      //   // d_E_d_q_WORLD_BASELINK =
+      //   //     d_E_d_R_WORLD_BASELINK * MinusJacobian(q_WORLD_BASELINK);
+      // }
+
+      // if (jacobians[1]) {
+      //   // compute d(E)/d(t_WORLD_BASELINK) = d(E)/d(P_CAMERA) *
+      //   // d(P_CAMERA)/d(t_CAMERA_WORLD) *
+      //   // d(t_CAMERA_WORLD)/d(t_BASELINK_WORLD) *
+      //   // d(t_BASELINK_WORLD)/d(t_WORLD_BASELINK)
+      //   const auto d_P_CAMERA_d_t_CAMERA_WORLD =
+      //       DPointTranslationDTranslation(t_CAMERA_WORLD, P_WORLD);
+      //   const auto d_t_CAMERA_WORLD_d_t_BASELINK_WORLD =
+      //       DTranslationCompositionDRightTranslation(t_cam_baselink,
+      //                                                t_BASELINK_WORLD);
+      //   const auto d_t_BASELINK_WORLD_d_t_WORLD_BASELINK =
+      //       DInverseTranslationDTranslation(t_WORLD_BASELINK);
+
+      //   Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>>
+      //       d_E_d_t_WORLD_BASELINK(jacobians[1]);
+      //   d_E_d_t_WORLD_BASELINK = d_E_d_P_CAMERA * d_P_CAMERA_d_t_CAMERA_WORLD
+      //   *
+      //                            d_t_CAMERA_WORLD_d_t_BASELINK_WORLD *
+      //                            d_t_BASELINK_WORLD_d_t_WORLD_BASELINK;
+      // }
 
       if (jacobians[0] || jacobians[1]) {
         // compute d(E)/d(T_WORLD_BASELINK) = d(E)/d(P_CAMERA) *
@@ -96,17 +162,44 @@ public:
                                       d_T_BASELINK_WORLD_d_T_WORLD_BASELINK;
 
         if (jacobians[0]) {
+          //           Eigen::Map<Eigen::Matrix<double, 2, 4, Eigen::RowMajor>>
+          //     d_E_d_q_WORLD_BASELINK(jacobians[0]);
+
+          // d_E_d_q_WORLD_BASELINK = Eigen::Matrix<double, 2, 4>::Zero();
+          // d_E_d_q_WORLD_BASELINK.block<2, 3>(0, 0) =
+          //     d_E_d_T_WORLD_BASELINK.block<2, 3>(0, 3);
+
+          // // lift to global parameterization
+          // // d_E_d_q_WORLD_BASELINK = d_E_d_T_WORLD_BASELINK.block<2,3 > (0,
+          // 0)
+          // // * MinusJacobian(q_WORLD_BASELINK);
+
+          // compute d(E)/d(R_WORLD_BASELINK) = d(E)/d(P_CAMERA) *
+          // d(P_CAMERA)/d(R_CAMERA_WORLD) *
+          // d(R_CAMERA_WORLD)/d(R_BASELINK_WORLD) *
+          // d(R_BASELINK_WORLD)/d(R_WORLD_BASELINK)
+          auto d_P_CAMERA_d_R_CAMERA_WORLD =
+              d_P_CAMERA_d_T_CAMERA_WORLD.block<3, 3>(0, 3);
+
+          auto d_R_CAMERA_WORLD_d_R_BASELINK_WORLD =
+              d_T_CAMERA_WORLD_d_T_BASELINK_WORLD.block<3, 3>(3, 3);
+
+          auto d_R_BASELINK_WORLD_d_R_WORLD_BASELINK =
+              d_T_BASELINK_WORLD_d_T_WORLD_BASELINK.block<3, 3>(3, 3);
+          auto d_E_d_R_WORLD_BASELINK = d_E_d_P_CAMERA *
+                                        d_P_CAMERA_d_R_CAMERA_WORLD *
+                                        d_R_CAMERA_WORLD_d_R_BASELINK_WORLD *
+                                        d_R_BASELINK_WORLD_d_R_WORLD_BASELINK;
+
           Eigen::Map<Eigen::Matrix<double, 2, 4, Eigen::RowMajor>>
-              d_E_d_R_WORLD_BASELINK(jacobians[0]);
-          // far right column = 0 due to compact quaternion representation
-          d_E_d_R_WORLD_BASELINK =
-              d_E_d_T_WORLD_BASELINK.block<2, 3>(0, 0) *
-              bs_constraints::LiftJacobian(q_WORLD_BASELINK);
+              d_E_d_q_WORLD_BASELINK(jacobians[0]);
+          d_E_d_q_WORLD_BASELINK = Eigen::Matrix<double, 2, 4>::Zero();
+          d_E_d_q_WORLD_BASELINK.block<2, 3>(0, 0) = d_E_d_R_WORLD_BASELINK;
         }
         if (jacobians[1]) {
           Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>>
               d_E_d_t_WORLD_BASELINK(jacobians[1]);
-          d_E_d_t_WORLD_BASELINK = d_E_d_T_WORLD_BASELINK.block<2, 3>(0, 3);
+          d_E_d_t_WORLD_BASELINK = d_E_d_T_WORLD_BASELINK.block<2, 3>(0, 0);
         }
       }
 
@@ -114,7 +207,9 @@ public:
         Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>> d_E_D_P_WORLD(
             jacobians[2]);
         // compute d(E)/d(P_WORLD) = d(E)/d(P_CAMERA) * d(P_CAMERA)/d(P_WORLD)
-        auto d_P_CAMERA_D_P_WORLD = DPointTransformationDPoint(T_CAMERA_WORLD);
+        auto d_P_CAMERA_D_P_WORLD =
+            DPointRotationDPoint(R_CAMERA_WORLD, P_WORLD) *
+            DPointTranslationDPoint(t_CAMERA_WORLD, P_WORLD);
         d_E_D_P_WORLD = d_E_d_P_CAMERA * d_P_CAMERA_D_P_WORLD;
       }
     }
