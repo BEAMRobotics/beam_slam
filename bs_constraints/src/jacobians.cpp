@@ -194,32 +194,6 @@ Eigen::Matrix<double, 2, 3>
   return J;
 }
 
-Eigen::Matrix3d DPointTranslationDTranslation(const Eigen::Vector3d& t,
-                                              const Eigen::Vector3d& point) {
-  return Eigen::Matrix3d::Identity();
-}
-
-Eigen::Matrix3d DPointTranslationDPoint(const Eigen::Vector3d& t,
-                                        const Eigen::Vector3d& point) {
-  return Eigen::Matrix3d::Identity();
-}
-
-Eigen::Matrix3d DInverseTranslationDTranslation(const Eigen::Vector3d& t) {
-  return -Eigen::Matrix3d::Identity();
-}
-
-Eigen::Matrix3d
-    DTranslationCompositionDLeftTranslation(const Eigen::Vector3d& t_left,
-                                            const Eigen::Vector3d& t_right) {
-  return Eigen::Matrix3d::Identity();
-}
-
-Eigen::Matrix3d
-    DTranslationCompositionDRightTranslation(const Eigen::Vector3d& t_left,
-                                             const Eigen::Vector3d& t_right) {
-  return Eigen::Matrix3d::Identity();
-}
-
 Eigen::Matrix<double, 3, 6>
     DPointTransformationDTransform(const Eigen::Matrix4d& T_frame_refframe,
                                    const Eigen::Vector3d& P_frame) {

@@ -1,5 +1,6 @@
 #include <bs_constraints/visual/euclidean_reprojection_constraint.h>
 #include <bs_constraints/visual/euclidean_reprojection_function.h>
+#include <bs_constraints/visual/reprojection_functor.h>
 
 #include <pluginlib/class_list_macros.h>
 
@@ -35,8 +36,11 @@ void EuclideanReprojectionConstraint::print(std::ostream& stream) const {
 }
 
 ceres::CostFunction* EuclideanReprojectionConstraint::costFunction() const {
-  return new EuclideanReprojection(sqrt_information_, pixel_,
-                                      intrinsic_matrix_, T_cam_baselink_);
+  return new EuclideanReprojection(sqrt_information_, pixel_, intrinsic_matrix_,
+                                   T_cam_baselink_);
+  // return new ceres::AutoDiffCostFunction<ReprojectionFunctor, 2, 4, 3, 3>(
+  //     new ReprojectionFunctor(sqrt_information_, pixel_, intrinsic_matrix_,
+  //                             T_cam_baselink_));
 }
 
 } // namespace bs_constraints

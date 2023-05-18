@@ -226,8 +226,7 @@ TEST(DPointTransformationDTransform, seperate_parameterizations) {
 
     // compute analytical jacobian
     Eigen::Matrix<double, 3, 6> J_analytical;
-    J_analytical.block<3, 3>(0, 0) =
-        bs_constraints::DPointTranslationDTranslation(t, point);
+    J_analytical.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
     J_analytical.block<3, 3>(0, 3) =
         bs_constraints::DPointRotationDRotation(R, point);
 
@@ -314,8 +313,7 @@ TEST(DPointTransformationDPoint, seperate_parameterizations) {
 
     // compute analytical jacobian
     Eigen::Matrix<double, 3, 3> J_analytical =
-        bs_constraints::DPointRotationDPoint(R, point) *
-        bs_constraints::DPointTranslationDPoint(t, point);
+        bs_constraints::DPointRotationDPoint(R, point);
 
     // calculate numerical jacobian
     Eigen::Matrix<double, 3, 3> J_numerical;

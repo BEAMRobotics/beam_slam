@@ -7,7 +7,6 @@
 
 namespace bs_constraints {
 
-
 Eigen::Quaterniond OPlus(const Eigen::Quaterniond& q,
                          const Eigen::Vector3d& pert);
 
@@ -80,41 +79,6 @@ Eigen::Matrix3d
 Eigen::Matrix<double, 2, 3>
     DImageProjectionDPoint(const Eigen::Matrix3d& camera_intrinsic_matrix,
                            const Eigen::Vector3d& P_CAMERA);
-
-/// @brief
-/// @param t
-/// @param point
-/// @return
-Eigen::Matrix3d DPointTranslationDTranslation(const Eigen::Vector3d& t,
-                                              const Eigen::Vector3d& point);
-
-/// @brief
-/// @param t
-/// @param point
-/// @return
-Eigen::Matrix3d DPointTranslationDPoint(const Eigen::Vector3d& t,
-                                        const Eigen::Vector3d& point);
-
-/// @brief
-/// @param t
-/// @return
-Eigen::Matrix3d DInverseTranslationDTranslation(const Eigen::Vector3d& t);
-
-/// @brief
-/// @param t_left
-/// @param t_right
-/// @return
-Eigen::Matrix3d
-    DTranslationCompositionDLeftTranslation(const Eigen::Vector3d& t_left,
-                                            const Eigen::Vector3d& t_right);
-
-/// @brief
-/// @param t_left
-/// @param t_right
-/// @return
-Eigen::Matrix3d
-    DTranslationCompositionDRightTranslation(const Eigen::Vector3d& t_left,
-                                             const Eigen::Vector3d& t_right);
 
 /// @brief
 /// @param T_frame_refframe
