@@ -45,9 +45,8 @@ TEST(EuclideanReprojectionFunction, Validity) {
   };
 
   for (int i = 0; i < N; i++) {
-    std::cout << "\nTest # " << i << std::endl;
     // generate random T_WORLD_BASELINK
-    const Eigen::Matrix4d T_WORLD_BASELINK = //Eigen::Matrix4d::Identity();
+    const Eigen::Matrix4d T_WORLD_BASELINK =
         beam::GenerateRandomPose(1.0, 10.0);
     const Eigen::Quaterniond q_WORLD_BASELINK(
         T_WORLD_BASELINK.block<3, 3>(0, 0));
@@ -59,7 +58,6 @@ TEST(EuclideanReprojectionFunction, Validity) {
 
     // generate random T_CAM_BASELINK
     const Eigen::Matrix4d T_CAM_BASELINK = beam::GenerateRandomPose(0.0, 1.0);
-    //Eigen::Matrix4d T_CAM_BASELINK = Eigen::Matrix4d::Identity();
 
     // generate random P_WORLD
     const Eigen::Vector3d P_CAM =
@@ -87,7 +85,6 @@ TEST(EuclideanReprojectionFunction, Validity) {
     const auto pixel = projection(params, K, T_CAM_BASELINK);
 
     Eigen::Matrix<double, 2, 10> J_analytical;
-
     { // calculate analytical jacobian
       bs_constraints::EuclideanReprojection reprojection_function(
           Eigen::Matrix2d::Identity(), pixel, K, T_CAM_BASELINK);
@@ -112,32 +109,35 @@ TEST(EuclideanReprojectionFunction, Validity) {
       std::cout << J_analytical << std::endl;
     }
 
-    Eigen::Matrix<double, 2, 9> J_numerical;
-    { // calculate numerical jacobian
-      for (int i = 0; i < 6; i++) {
-        Eigen::Matrix<double, 6, 1> pert = Eigen::Matrix<double, 6, 1>::Zero();
-        pert[i] = EPS;
-        Eigen::Matrix<double, 10, 1> params_perturbed;
-        params_perturbed << bs_constraints::BoxPlus(params.head<7>(), pert),
-            params.tail<3>();
-        const auto pixel_pert = projection(params_perturbed, K, T_CAM_BASELINK);
-        const auto finite_diff = (pixel - pixel_pert) / EPS;
-        J_numerical.col(i) = finite_diff.transpose();
-      }
-      for (int i = 6; i < 9; i++) {
-        Eigen::Vector3d pert = Eigen::Vector3d::Zero();
-        pert[i-6] = EPS;
-        Eigen::Matrix<double, 10, 1> params_perturbed;
-        params_perturbed << params.head<7>(), params.tail<3>() + pert;
-        const auto pixel_pert = projection(params_perturbed, K, T_CAM_BASELINK);
-        const auto finite_diff = (pixel - pixel_pert) / EPS;
-        J_numerical.col(i) = finite_diff.transpose();
-      }
-      std::cout << "Numerical jacobian: " << std::endl;
-      std::cout << J_numerical << std::endl;
+    Eigen::Matrix<double, 2, 10> J_auto;
+    { // calculate autodiff jacobian
+      auto cost_functor =
+          new ceres::AutoDiffCostFunction<bs_constraints::ReprojectionFunctor,
+                                          2, 4, 3, 3>(
+              new bs_constraints::ReprojectionFunctor(
+                  Eigen::Matrix2d::Identity(), pixel, K, T_CAM_BASELINK));
+
+      // evaulate reprojection and compute jacobians
+      double residual[2];
+      double* J[3];
+      double J_q[8];
+      double J_t[6];
+      double J_p[6];
+      J[0] = J_q;
+      J[1] = J_t;
+      J[2] = J_p;
+      cost_functor->Evaluate(parameters, residual, J);
+
+      // clang-format off
+      J_auto << J[0][0], J[0][1], J[0][2], J[0][3], J[1][0], J[1][1], J[1][2], J[2][0], J[2][1], J[2][2],
+                J[0][4], J[0][5], J[0][6], J[0][7], J[1][3], J[1][4], J[1][5], J[2][3], J[2][4], J[2][5];
+
+      // clang-format on
+      std::cout << "Autodiff jacobian: " << std::endl;
+      std::cout << J_auto << std::endl;
     }
 
-    // EXPECT_TRUE(J_numerical.isApprox(J_analytical, THRESHOLD));
+    // EXPECT_TRUE(J_auto.isApprox(J_analytical, THRESHOLD));
   }
 }
 

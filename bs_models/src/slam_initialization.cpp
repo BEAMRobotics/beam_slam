@@ -175,7 +175,7 @@ void SLAMInitialization::processCameraMeasurements(
 
   // compute visual path if no frame initializer is present
   init_path_ = bs_models::vision::ComputePathWithVision(
-      cam_model_, landmark_container_, T_cam_baselink_, 1.0);
+      cam_model_, landmark_container_, T_cam_baselink_, 2.0);
 
   // if we initialize successfully, stop this sensor model
   if (Initialize()) { shutdown(); }

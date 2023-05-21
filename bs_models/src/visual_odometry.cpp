@@ -241,6 +241,7 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 
   // add pose to map
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, cur_kf_time, transaction);
+  // TODO: add angular velocity and linear acceleration variables, so the motion model works
 
   // add prior if using a frame initializer
   if (frame_initializer_ && vo_params_.use_pose_priors) {

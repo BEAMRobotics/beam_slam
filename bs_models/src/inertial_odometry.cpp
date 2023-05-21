@@ -103,6 +103,8 @@ void InertialOdometry::processOdometry(
   auto transaction =
       imu_preint_->RegisterNewImuPreintegratedFactor(msg->header.stamp);
   if (transaction) { sendTransaction(transaction); }
+  // todo: estimate angular velocity and linear acceleration at this timestamp,
+  // and override that variable
 }
 
 void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,

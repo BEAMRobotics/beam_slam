@@ -77,7 +77,7 @@ public:
     // compute jacobians
     if (jacobians) {
       const auto d_E_d_P_CAMERA =
-          -DImageProjectionDPoint(intrinsic_matrix_, P_CAMERA);
+          DImageProjectionDPoint(intrinsic_matrix_, P_CAMERA);
       const auto d_P_CAMERA_d_P_BASELINK =
           DPointRotationDPoint(R_CAM_BASELINK, P_BASELINK);
       if (jacobians[0]) {
@@ -99,7 +99,8 @@ public:
         // d_E_d_q_WORLD_BASELINK.block<2, 3>(0, 0) = d_E_d_R_WORLD_BASELINK;
 
         d_E_d_q_WORLD_BASELINK =
-            d_E_d_R_WORLD_BASELINK * MinusJacobian(q_WORLD_BASELINK);
+            d_E_d_R_WORLD_BASELINK * LiftJacobian(q_WORLD_BASELINK);
+        d_E_d_q_WORLD_BASELINK = -d_E_d_q_WORLD_BASELINK;
       }
 
       if (jacobians[1]) {
@@ -112,6 +113,7 @@ public:
             d_E_d_t_WORLD_BASELINK(jacobians[1]);
         d_E_d_t_WORLD_BASELINK = d_E_d_P_CAMERA * d_P_CAMERA_d_P_BASELINK *
                                  d_P_BASELINK_d_t_WORLD_BASELINK;
+        d_E_d_t_WORLD_BASELINK = -d_E_d_t_WORLD_BASELINK;
       }
 
       if (jacobians[2]) {
@@ -123,6 +125,7 @@ public:
             DPointRotationDPoint(R_BASELINK_WORLD, P_WORLD);
         d_E_D_P_WORLD =
             d_E_d_P_CAMERA * d_P_CAMERA_d_P_BASELINK * d_P_BASELINK_d_P_WORLD;
+        d_E_D_P_WORLD = -d_E_D_P_WORLD;
       }
     }
     return true;
