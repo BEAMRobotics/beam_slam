@@ -163,11 +163,8 @@ void SLAMInitialization::processCameraMeasurements(
 
   if (mode_ != InitMode::VISUAL) { return; }
 
-  if (landmark_container_->NumImages() < 10) { return; }
-
-  if (landmark_container_->ComputeParallax(
-          landmark_container_->FrontTimestamp(),
-          landmark_container_->BackTimestamp()) < params_.min_parallax) {
+  // if we haven't reached window size then return
+  if (landmark_container_->NumImages() < max_landmark_container_size_) {
     return;
   }
 
@@ -178,10 +175,15 @@ void SLAMInitialization::processCameraMeasurements(
 
   // compute visual path if no frame initializer is present
   init_path_ = bs_models::vision::ComputePathWithVision(
-      cam_model_, landmark_container_, T_cam_baselink_);
+      cam_model_, landmark_container_, T_cam_baselink_, 1.0);
 
   // if we initialize successfully, stop this sensor model
   if (Initialize()) { shutdown(); }
+
+  // if we don't, prune the first second of images
+  for (int i = 0; i < params_.camera_hz; i++) {
+    landmark_container_->PopFront();
+  }
 }
 
 void SLAMInitialization::processLidar(
@@ -262,13 +264,14 @@ bool SLAMInitialization::Initialize() {
 
   AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
 
-  InterpolateVisualMeasurements();
+  if (landmark_container_->NumImages() > 0) { InterpolateVisualMeasurements(); }
 
   AddPosesAndInertialConstraints();
 
-  AddVisualConstraints();
+  if (landmark_container_->NumImages() > 0) { AddVisualConstraints(); }
 
-  AddLidarConstraints();
+  // todo: add lidar constraints even in visual mode
+  if (params_.init_mode == "LIDAR") { AddLidarConstraints(); }
 
   if (params_.max_optimization_s > 0.0) {
     ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
@@ -292,28 +295,24 @@ bool SLAMInitialization::Initialize() {
 void SLAMInitialization::InterpolateVisualMeasurements() {
   // interpolate for existing visual measurements if they aren't in the path
   auto visual_measurements = landmark_container_->GetMeasurementTimes();
-  if (mode_ != InitMode::VISUAL && landmark_container_->NumImages() > 0) {
-    for (const auto& stamp : visual_measurements) {
-      auto lb = init_path_.lower_bound(stamp);
-      auto ub = init_path_.upper_bound(stamp);
-      if (lb == init_path_.end() || ub == init_path_.end() ||
-          lb->first == stamp) {
-        continue;
-      }
-      lb = std::prev(lb);
-
-      // interpolate pose at image time
-      init_path_[stamp] = beam::InterpolateTransform(
-          init_path_.at(lb->first), beam::NSecToRos(lb->first).toSec(),
-          init_path_.at(ub->first), beam::NSecToRos(ub->first).toSec(),
-          beam::NSecToRos(stamp).toSec());
-
-      // interpolate velocity at image time
-      velocities_[stamp] = beam::InterpolateVector(
-          velocities_.at(lb->first), beam::NSecToRos(lb->first).toSec(),
-          velocities_.at(ub->first), beam::NSecToRos(ub->first).toSec(),
-          beam::NSecToRos(stamp).toSec());
+  for (const auto& stamp : visual_measurements) {
+    auto lb = init_path_.lower_bound(stamp);
+    auto ub = init_path_.upper_bound(stamp);
+    if (lb == init_path_.end() || ub == init_path_.end() ||
+        lb->first == stamp) {
+      continue;
     }
+    lb = std::prev(lb);
+    // interpolate pose at image time
+    init_path_[stamp] = beam::InterpolateTransform(
+        init_path_.at(lb->first), beam::NSecToRos(lb->first).toSec(),
+        init_path_.at(ub->first), beam::NSecToRos(ub->first).toSec(),
+        beam::NSecToRos(stamp).toSec());
+    // interpolate velocity at image time
+    velocities_[stamp] = beam::InterpolateVector(
+        velocities_.at(lb->first), beam::NSecToRos(lb->first).toSec(),
+        velocities_.at(ub->first), beam::NSecToRos(ub->first).toSec(),
+        beam::NSecToRos(stamp).toSec());
   }
 }
 
@@ -386,42 +385,34 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
   visual_map_->UpdateGraph(local_graph_);
 }
 
-void SLAMInitialization::AddLidarConstraints() {
-  fuse_core::Transaction::SharedPtr transaction_combined =
-      fuse_core::Transaction::make_shared();
-  for (const auto& [timeInNs, transaction] :
-       lidar_path_init_->GetTransactions()) {
-    transaction_combined->merge(*(transaction.GetTransaction()));
-  }
-  local_graph_->update(*transaction_combined);
-}
-
 void SLAMInitialization::AddVisualConstraints() {
-  // determine subset of visual measurements to be keyframes
-  double keyframe_delta = 0.2; // 5hz keyframe rate
-  ros::Time prev_kf(0.0);
-  const auto visual_measurements = landmark_container_->GetMeasurementTimes();
+  // get the keyframe times we want to add constraints to
   std::set<ros::Time> kf_times;
-  for (const auto time : visual_measurements) {
-    const auto cur_time = beam::NSecToRos(time);
-    if ((cur_time - prev_kf).toSec() >= keyframe_delta) {
-      kf_times.insert(cur_time);
-      prev_kf = cur_time;
+  auto visual_measurements = landmark_container_->GetMeasurementTimes();
+  if (params_.init_mode == "VISUAL") {
+    // keyframes = poses in init path
+    for (const auto& [nsec, pose] : init_path_) {
+      if (visual_measurements.find(nsec) != visual_measurements.end()) {
+        kf_times.insert(beam::NSecToRos(nsec));
+      }
+    }
+  } else {
+    // sample keyframes manually at 4hz
+    ros::Time prev_kf(0.0);
+    for (const auto& mt : visual_measurements) {
+      auto timestamp = beam::NSecToRos(mt);
+      if ((timestamp - prev_kf).toSec() >= 0.25) {
+        kf_times.insert(timestamp);
+        prev_kf = timestamp;
+      }
     }
   }
 
   const auto start = beam::NSecToRos(init_path_.begin()->first);
   const auto end = beam::NSecToRos(init_path_.rbegin()->first);
-
   size_t num_landmarks = 0;
-
   auto landmark_transaction = fuse_core::Transaction::make_shared();
   landmark_transaction->stamp(end);
-
-  // process each landmark
-  const auto landmarks =
-      landmark_container_->GetLandmarkIDsInWindow(start, end);
-
   auto process_landmark = [&](const auto& id) {
     // triangulate and add landmark
     const auto initial_point = TriangulateLandmark(id);
@@ -431,13 +422,16 @@ void SLAMInitialization::AddVisualConstraints() {
 
     // add constraints to keyframes that view it
     for (const auto& stamp : kf_times) {
-      Eigen::Vector2d pixel;
       try {
-        pixel = landmark_container_->GetValue(stamp, id);
+        Eigen::Vector2d pixel = landmark_container_->GetValue(stamp, id);
+        visual_map_->AddVisualConstraint(stamp, id, pixel,
+                                         landmark_transaction);
       } catch (const std::out_of_range& oor) { continue; }
-      visual_map_->AddVisualConstraint(stamp, id, pixel, landmark_transaction);
     }
   };
+  // process each landmark
+  const auto landmarks =
+      landmark_container_->GetLandmarkIDsInWindow(start, end);
   std::for_each(landmarks.begin(), landmarks.end(), process_landmark);
 
   // send transaction to graph
@@ -447,6 +441,16 @@ void SLAMInitialization::AddVisualConstraints() {
 
   ROS_INFO_STREAM(__func__ << ": Added " << num_landmarks
                            << " visual landmarks to initialization graph.");
+}
+
+void SLAMInitialization::AddLidarConstraints() {
+  fuse_core::Transaction::SharedPtr transaction_combined =
+      fuse_core::Transaction::make_shared();
+  for (const auto& [timeInNs, transaction] :
+       lidar_path_init_->GetTransactions()) {
+    transaction_combined->merge(*(transaction.GetTransaction()));
+  }
+  local_graph_->update(*transaction_combined);
 }
 
 beam::opt<Eigen::Vector3d>
@@ -492,11 +496,11 @@ void SLAMInitialization::OutputResults() {
   beam_mapping::Poses poses;
   for (const auto& [stamp, pose] : init_path_) {
     auto timestamp = beam::NSecToRos(stamp);
-    auto T = visual_map_->GetBaselinkPose(timestamp);
-    if (!T.has_value()) { continue; }
-    frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
+    // auto T = visual_map_->GetBaselinkPose(timestamp);
+    // if (!T.has_value()) { continue; }
+    frame_cloud = beam::AddFrameToCloud(frame_cloud, pose, 0.001);
     poses.AddSingleTimeStamp(timestamp);
-    poses.AddSinglePose(T.value());
+    poses.AddSinglePose(pose);
   }
 
   // create directory if it doesn't exist

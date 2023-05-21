@@ -44,9 +44,6 @@ public:
     // maximum optimizaiton time in seconds
     getParam<double>(nh, "max_optimization_s", max_optimization_s, 1.0);
 
-    // minimum parallax to intialize (if using VISUAL)
-    getParam<double>(nh, "min_parallax", min_parallax, 20.0);
-
     // minimum acceptable trajectory length to intialize (if using frame init is
     // given or using LIDAR)
     getParam<double>(nh, "min_trajectory_length_m", min_trajectory_length_m,
@@ -54,7 +51,7 @@ public:
 
     // size of init window in seconds
     getParam<double>(nh, "initialization_window_s", initialization_window_s,
-                     5.0);
+                     2.0);
 
     // sensor frequencies
     getParam<int>(nh, "imu_hz", imu_hz, 500);
@@ -80,11 +77,10 @@ public:
   std::string output_folder{""};
 
   double max_optimization_s{1.0};
-  double min_parallax{20.0};
   double min_trajectory_length_m{2.0};
   double frame_init_frequency{0.1};
 
-  double initialization_window_s{5.0};
+  double initialization_window_s{2.0};
   int imu_hz{500};
   int lidar_hz{10};
   int camera_hz{20};

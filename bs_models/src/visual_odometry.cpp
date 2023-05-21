@@ -97,7 +97,7 @@ void VisualOdometry::processMeasurements(
 
     // ! This should only fail if the frame initializer fails, in which
     // ! case we just need to wait until it succeeds
-    if (!success) { return; }
+    if (!success) { break; }
 
     visual_measurement_buffer_.pop_front();
   }

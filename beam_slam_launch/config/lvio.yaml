@@ -53,14 +53,14 @@ slam_initialization:
   imu_topic: "/imu/data"
   lidar_topic: "/lidar_h/velodyne_points"
   frame_initializer_config: ""
-  init_mode: "LIDAR"
+  init_mode: "VISUAL"
   max_optimization_s: 0.5
-  max_container_size: 100
-  min_parallax: 50.0
+  camera_hz: 20
+  initialization_window_s: 2.0
   min_trajectory_length_m: 1.0
   reprojection_covariance_weight: 0.01
   reprojection_loss_a: 0.2
-  output_folder: ""
+  output_folder: "/userhome/data/init_results/"
 
 inertial_odometry:
   imu_topic: "/imu/data"

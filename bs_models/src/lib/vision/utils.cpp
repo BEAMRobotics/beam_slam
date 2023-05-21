@@ -16,9 +16,9 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::shared_ptr<beam_containers::LandmarkContainer>&
         landmark_container,
-    const Eigen::Matrix4d& T_camera_baselink, double max_optimization_time) {
-  // check for minimum number of images to initialize
-  if (landmark_container->NumImages() < 10) { return {}; }
+    const Eigen::Matrix4d& T_camera_baselink, double max_optimization_time,
+    double keyframe_hz) {
+  assert(landmark_container->NumImages() > 3);
 
   // Get matches between first and last image in the window
   const auto first_time = landmark_container->FrontTimestamp();
@@ -115,27 +115,35 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     const auto landmark_id = matched_ids[i];
     visual_map->AddLandmark(points[i].value(), landmark_id,
                             initial_transaction);
-
-    Eigen::Vector2d first_pixel =
-        landmark_container->GetValue(first_time, landmark_id);
-    Eigen::Vector2d last_pixel =
-        landmark_container->GetValue(last_time, landmark_id);
-    Eigen::Vector2i tmp;
-    if (camera_model->UndistortPixel(first_pixel.cast<int>(), tmp) &&
-        camera_model->UndistortPixel(last_pixel.cast<int>(), tmp)) {
+    try {
+      Eigen::Vector2d first_pixel =
+          landmark_container->GetValue(first_time, landmark_id);
+      Eigen::Vector2d last_pixel =
+          landmark_container->GetValue(last_time, landmark_id);
       visual_map->AddVisualConstraint(first_time, landmark_id, first_pixel,
                                       initial_transaction);
       visual_map->AddVisualConstraint(last_time, landmark_id, last_pixel,
                                       initial_transaction);
-    }
+    } catch (const std::out_of_range& oor) { continue; }
   }
   visual_graph->update(*initial_transaction);
   visual_map->UpdateGraph(visual_graph);
 
-  // Localize frames in between and add variables to graph
+  // Subsample image times to target hz
   const auto img_times = landmark_container->GetMeasurementTimesVector();
-  for (int i = 0; i < img_times.size(); i++) {
-    const auto timestamp = beam::NSecToRos(img_times[i]);
+  double keyframe_period = 1.0 / keyframe_hz;
+  std::vector<ros::Time> keyframe_times;
+  ros::Time prev_kf(0.0);
+  for (const auto& nsec : img_times) {
+    auto stamp = beam::NSecToRos(nsec);
+    if ((stamp - prev_kf).toSec() > keyframe_period) {
+      keyframe_times.push_back(stamp);
+      prev_kf = stamp;
+    }
+  }
+
+  // process each keyframe
+  for (const auto& timestamp : keyframe_times) {
     if (timestamp == first_time || timestamp == last_time) continue;
 
     auto transaction = fuse_core::Transaction::make_shared();
@@ -169,12 +177,13 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
 
     // add visual constraints to
     for (auto& id : ids_in_frame) {
-      Eigen::Vector2d measurement = landmark_container->GetValue(timestamp, id);
-      Eigen::Vector2i tmp;
-      if (camera_model->UndistortPixel(measurement.cast<int>(), tmp)) {
+      try {
+        Eigen::Vector2d measurement =
+            landmark_container->GetValue(timestamp, id);
+
         visual_map->AddVisualConstraint(timestamp, id, measurement,
                                         transaction);
-      }
+      } catch (const std::out_of_range& oor) { continue; }
     }
     // add transaction to graph and notify visual map
     visual_graph->update(*transaction);

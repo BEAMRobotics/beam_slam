@@ -77,7 +77,7 @@ public:
     // compute jacobians
     if (jacobians) {
       const auto d_E_d_P_CAMERA =
-          DImageProjectionDPoint(intrinsic_matrix_, P_CAMERA);
+          -DImageProjectionDPoint(intrinsic_matrix_, P_CAMERA);
       const auto d_P_CAMERA_d_P_BASELINK =
           DPointRotationDPoint(R_CAM_BASELINK, P_BASELINK);
       if (jacobians[0]) {

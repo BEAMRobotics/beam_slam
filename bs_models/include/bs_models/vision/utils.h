@@ -20,6 +20,6 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     const std::shared_ptr<beam_containers::LandmarkContainer>&
         landmark_container,
     const Eigen::Matrix4d& T_camera_baselink,
-    double max_optimization_time = 0.5);
+    double max_optimization_time = 0.5, double keyframe_hz = 4.0);
 
 }} // namespace bs_models::vision
