@@ -264,6 +264,7 @@ bool SLAMInitialization::Initialize() {
 
   AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
 
+  // todo: interpolate lidar poses when in visual mode
   if (landmark_container_->NumImages() > 0) { InterpolateVisualMeasurements(); }
 
   AddPosesAndInertialConstraints();
