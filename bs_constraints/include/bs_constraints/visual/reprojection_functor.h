@@ -16,7 +16,7 @@
 #include <ceres/numeric_diff_cost_function.h>
 #include <ceres/rotation.h>
 
-namespace fuse_constraints {
+namespace bs_constraints {
 
 class ReprojectionFunctor {
 public:
@@ -28,82 +28,51 @@ public:
    * @param[in] pixel_measurement The pixel location of feature in the image
    * @param[in] cam_model The camera intrinsics for projection
    */
-  ReprojectionFunctor(
-      const Eigen::Vector2d& pixel_measurement,
-      const std::shared_ptr<beam_calibration::CameraModel> cam_model,
-      const Eigen::Matrix4d& T_cam_baselink)
-      : pixel_measurement_(pixel_measurement),
-        cam_model_(cam_model),
-        T_cam_baselink_(T_cam_baselink) {
-    // matrix to normalize reprojection errors
-    A_ = Eigen::Matrix2d::Identity();
-    A_(0, 0) = std::pow(1.0 / cam_model_->GetIntrinsics()[0], 2);
-    A_(1, 1) = std::pow(1.0 / cam_model_->GetIntrinsics()[1], 2);
-
-    // projection functor
-    compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
-        new ceres::NumericDiffCostFunction<
-            beam_optimization::CameraProjectionFunctor, ceres::CENTRAL, 2, 3>(
-            new beam_optimization::CameraProjectionFunctor(
-                cam_model_, pixel_measurement_))));
-  }
+  ReprojectionFunctor(const Eigen::Matrix2d& A, const Eigen::Vector2d& b,
+                      const Eigen::Matrix3d& intrinsic_matrix,
+                      const Eigen::Matrix4d& T_cam_baselink)
+      : A_(A),
+        b_(b),
+        intrinsic_matrix_(intrinsic_matrix),
+        T_cam_baselink_(T_cam_baselink) {}
 
   template <typename T>
-  bool operator()(const T* const R_WORLD_BASELINK,
-                  const T* const t_WORLD_BASELINK, const T* const P_WORLD,
+  bool operator()(const T* const q, const T* const t, const T* const P,
                   T* residual) const {
     // transform point from world frame into camera frame
     Eigen::Matrix<T, 4, 4> T_CAM_BASELINK = T_cam_baselink_.cast<T>();
 
-    T R_WORLD_BASELINK_mat[9];
-    ceres::QuaternionToRotation(R_WORLD_BASELINK, R_WORLD_BASELINK_mat);
+    T R[9];
+    ceres::QuaternionToRotation(q, R);
 
-    Eigen::Matrix<T, 4, 4> T_WORLD_BASELINK;
-    T_WORLD_BASELINK(0, 0) = R_WORLD_BASELINK_mat[0];
-    T_WORLD_BASELINK(0, 1) = R_WORLD_BASELINK_mat[1];
-    T_WORLD_BASELINK(0, 2) = R_WORLD_BASELINK_mat[2];
-    T_WORLD_BASELINK(0, 3) = t_WORLD_BASELINK[0];
-    T_WORLD_BASELINK(1, 0) = R_WORLD_BASELINK_mat[3];
-    T_WORLD_BASELINK(1, 1) = R_WORLD_BASELINK_mat[4];
-    T_WORLD_BASELINK(1, 2) = R_WORLD_BASELINK_mat[5];
-    T_WORLD_BASELINK(1, 3) = t_WORLD_BASELINK[1];
-    T_WORLD_BASELINK(2, 0) = R_WORLD_BASELINK_mat[6];
-    T_WORLD_BASELINK(2, 1) = R_WORLD_BASELINK_mat[7];
-    T_WORLD_BASELINK(2, 2) = R_WORLD_BASELINK_mat[8];
-    T_WORLD_BASELINK(2, 3) = t_WORLD_BASELINK[2];
-    T_WORLD_BASELINK(3, 0) = (T)0;
-    T_WORLD_BASELINK(3, 1) = (T)0;
-    T_WORLD_BASELINK(3, 2) = (T)0;
-    T_WORLD_BASELINK(3, 3) = (T)1;
+    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINK;
+    R_WORLD_BASELINK << R[0], R[1], R[2], R[3], R[4], R[5], R[6], R[7], R[8];
+    Eigen::Matrix<T, 3, 1> t_WORLD_BASELINK(t[0], t[1], t[2]);
+    Eigen::Matrix<T, 3, 1> P_WORLD(P[0], P[1], P[2]);
 
-    Eigen::Matrix<T, 4, 1> P_WORLD_h;
-    P_WORLD_h[0] = P_WORLD[0];
-    P_WORLD_h[1] = P_WORLD[1];
-    P_WORLD_h[2] = P_WORLD[2];
-    P_WORLD_h[3] = (T)1;
+    Eigen::Matrix<T, 4, 4> T_WORLD_BASELINK =
+        Eigen::Matrix<T, 4, 4>::Identity();
+    T_WORLD_BASELINK.block(0, 0, 3, 3) = R_WORLD_BASELINK;
+    T_WORLD_BASELINK.block(0, 3, 3, 1) = t_WORLD_BASELINK;
 
-    Eigen::Matrix<T, 4, 1> P_BASELINK_h =
-        T_WORLD_BASELINK.inverse() * P_WORLD_h;
-    Eigen::Matrix<T, 3, 1> P_CAM =
-        (T_CAM_BASELINK * P_BASELINK_h).hnormalized();
-    T P_CAMERA[3];
-    P_CAMERA[0] = P_CAM[0];
-    P_CAMERA[1] = P_CAM[1];
-    P_CAMERA[2] = P_CAM[2];
+    Eigen::Matrix<T, 4, 4> T_BASELINK_WORLD =
+        Eigen::Matrix<T, 4, 4>::Identity();
+    T_BASELINK_WORLD.block(0, 0, 3, 3) = R_WORLD_BASELINK.transpose();
+    T_BASELINK_WORLD.block(0, 3, 3, 1) =
+        -R_WORLD_BASELINK.transpose() * t_WORLD_BASELINK;
 
-    const T* P_CAMERA_const = &(P_CAMERA[0]);
+    // transform world point into camera frame
+    Eigen::Matrix<T, 3, 1> P_CAMERA =
+        (T_CAM_BASELINK * T_BASELINK_WORLD * P_WORLD.homogeneous())
+            .hnormalized();
 
     // project point into pixel space
-    T pixel_projected[2];
-    (*compute_projection)(P_CAMERA_const, &(pixel_projected[0]));
+    Eigen::Matrix<T, 2, 1> reproj =
+        (intrinsic_matrix_.cast<T>() * P_CAMERA).hnormalized();
 
     // compute the reprojection residual
     Eigen::Matrix<T, 2, 1> result;
-    result[0] = (pixel_measurement_.cast<T>()[0] - pixel_projected[0]);
-    result[1] = (pixel_measurement_.cast<T>()[1] - pixel_projected[1]);
-
-    // apply sqrt information matrix
-    result = A_.cast<T>() * result;
+    result = A_.cast<T>() * (b_.cast<T>() - reproj); 
 
     // fill residual
     residual[0] = result[0];
@@ -112,13 +81,12 @@ public:
   }
 
 private:
-  Eigen::Matrix2d A_;
-  Eigen::Vector2d pixel_measurement_;
-  std::shared_ptr<beam_calibration::CameraModel> cam_model_;
-  std::unique_ptr<ceres::CostFunctionToFunctor<2, 3>> compute_projection;
+  Eigen::Matrix2d A_; //!< The residual weighting matrix
+  Eigen::Vector2d b_; //!< The measured pixel value
+  Eigen::Matrix3d intrinsic_matrix_;
   Eigen::Matrix4d T_cam_baselink_;
 };
 
-} // namespace fuse_constraints
+} // namespace bs_constraints
 
 #endif // FUSE_MODELS_VISUAL_COST_FUNCTOR_H

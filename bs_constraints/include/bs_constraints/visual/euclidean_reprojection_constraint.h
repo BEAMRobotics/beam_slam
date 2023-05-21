@@ -21,37 +21,36 @@
 #include <string>
 #include <vector>
 
-namespace fuse_constraints {
+namespace bs_constraints {
 
-class VisualConstraint : public fuse_core::Constraint {
+class EuclideanReprojectionConstraint : public fuse_core::Constraint {
 public:
-  FUSE_CONSTRAINT_DEFINITIONS(VisualConstraint);
+  FUSE_CONSTRAINT_DEFINITIONS(EuclideanReprojectionConstraint);
 
   /**
    * @brief Default constructor
    */
-  VisualConstraint() = default;
+  EuclideanReprojectionConstraint() = default;
 
   /**
    * @brief Create a constraint using landmark location, camera pose and
    * measured pixel location
    *
    */
-  VisualConstraint(
+  EuclideanReprojectionConstraint(
       const std::string& source,
       const fuse_variables::Orientation3DStamped& R_WORLD_BASELINK,
       const fuse_variables::Position3DStamped& t_WORLD_BASELINK,
       const fuse_variables::Point3DLandmark& P_WORLD,
-      const Eigen::Vector2d& pixel_measurement,
       const Eigen::Matrix4d& T_cam_baselink,
-      const std::shared_ptr<beam_calibration::CameraModel> cam_model,
-      const std::string& loss_type = "TRIVIAL",
-      const std::string& reproj_type = "VANILLA");
+      const Eigen::Matrix3d& intrinsic_matrix,
+      const Eigen::Vector2d& measurement,
+      const Eigen::Matrix2d& covariance);
 
   /**
    * @brief Destructor
    */
-  virtual ~VisualConstraint() = default;
+  virtual ~EuclideanReprojectionConstraint() = default;
 
   /**
    * @brief Read-only access to the measured pixel value
@@ -83,8 +82,8 @@ public:
 protected:
   Eigen::Vector2d pixel_;
   Eigen::Matrix4d T_cam_baselink_;
-  std::shared_ptr<beam_calibration::CameraModel> cam_model_;
-  std::string reprojection_type_{"VANILLA"};
+  Eigen::Matrix3d intrinsic_matrix_;
+  Eigen::Matrix2d sqrt_information_;
 
 private:
   // Allow Boost Serialization access to private methods
@@ -108,4 +107,4 @@ private:
 
 } // namespace fuse_constraints
 
-BOOST_CLASS_EXPORT_KEY(fuse_constraints::VisualConstraint);
+BOOST_CLASS_EXPORT_KEY(bs_constraints::EuclideanReprojectionConstraint);

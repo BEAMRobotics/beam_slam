@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bs_parameters/parameter_base.h>
+#include <fuse_loss/huber_loss.h>
 
 #include <ros/node_handle.h>
 #include <ros/param.h>
@@ -60,6 +61,14 @@ public:
     getParam<double>(nh, "keyframe_translation_m", keyframe_translation_m, 1.0);
     getParam<double>(nh, "keyframe_rotation_deg", keyframe_rotation_deg, 1.0);
     getParam<double>(nh, "keyframe_max_duration", keyframe_max_duration, 3.0);
+    getParam<double>(nh, "reprojection_covariance_weight",
+                     reprojection_covariance_weight, 0.01);
+
+    double reprojection_loss_a;
+    getParam<double>(nh, "reprojection_loss_a", reprojection_loss_a, 0.2);
+    // reprojection loss
+    reprojection_loss =
+        std::make_shared<fuse_loss ::HuberLoss>(reprojection_loss_a);
   }
 
   std::string visual_measurement_topic{
@@ -75,5 +84,7 @@ public:
   double keyframe_translation_m{2.0};
   double keyframe_rotation_deg{20.0};
   double keyframe_max_duration{3.0};
+  double reprojection_covariance_weight{0.01};
+  fuse_core::Loss::SharedPtr reprojection_loss;
 };
 }} // namespace bs_parameters::models

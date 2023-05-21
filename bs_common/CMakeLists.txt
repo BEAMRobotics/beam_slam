@@ -22,6 +22,7 @@ set(catkin_build_depends
     tf
     fuse_variables
     fuse_constraints
+    fuse_loss
     bs_variables
 )
 
