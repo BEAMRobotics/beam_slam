@@ -29,7 +29,8 @@ Eigen::Matrix<double, 7, 1>
     TranslationSO3BoxPlus(const Eigen::Matrix<double, 7, 1>& T,
                           const Eigen::Matrix<double, 6, 1>& pert);
 
-/// @brief
+/// @brief Box Minus for a transform that is parameterized as a seperate
+/// Translation and Orientation
 /// @param T1
 /// @param T2
 /// @return
@@ -44,7 +45,8 @@ Eigen::Matrix<double, 6, 1>
 Eigen::Matrix<double, 7, 1> SE3BoxPlus(const Eigen::Matrix<double, 7, 1>& T,
                                        const Eigen::Matrix<double, 6, 1>& pert);
 
-/// @brief
+/// @brief Box Minus for a transform that is parameterized as a single SE3
+/// transform
 /// @param T1
 /// @param T2
 /// @return
@@ -54,20 +56,12 @@ Eigen::Matrix<double, 6, 1> SE3BoxMinus(const Eigen::Matrix<double, 7, 1>& T1,
 /// @brief
 /// @param q
 /// @return
-Eigen::Matrix<double, 3, 4, Eigen::RowMajor>
-    LiftJacobian(const Eigen::Quaterniond& q);
+Eigen::Matrix<double, 4, 3> PlusJacobian(const Eigen::Quaterniond& q);
 
 /// @brief
 /// @param q
 /// @return
-Eigen::Matrix<double, 4, 3, Eigen::RowMajor>
-    PlusJacobian(const Eigen::Quaterniond& q);
-
-/// @brief
-/// @param q
-/// @return
-Eigen::Matrix<double, 3, 4, Eigen::RowMajor>
-    MinusJacobian(const Eigen::Quaterniond& q);
+Eigen::Matrix<double, 3, 4> MinusJacobian(const Eigen::Quaterniond& q);
 
 /// @brief
 /// @param R

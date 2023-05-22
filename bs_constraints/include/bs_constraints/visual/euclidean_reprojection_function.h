@@ -95,11 +95,8 @@ public:
         Eigen::Map<Eigen::Matrix<double, 2, 4, Eigen::RowMajor>>
             d_E_d_q_WORLD_BASELINK(jacobians[0]);
 
-        // d_E_d_q_WORLD_BASELINK = Eigen::Matrix<double, 2, 4>::Zero();
-        // d_E_d_q_WORLD_BASELINK.block<2, 3>(0, 0) = d_E_d_R_WORLD_BASELINK;
-
         d_E_d_q_WORLD_BASELINK =
-            d_E_d_R_WORLD_BASELINK * LiftJacobian(q_WORLD_BASELINK);
+            d_E_d_R_WORLD_BASELINK * MinusJacobian(q_WORLD_BASELINK);
         d_E_d_q_WORLD_BASELINK = -d_E_d_q_WORLD_BASELINK;
       }
 

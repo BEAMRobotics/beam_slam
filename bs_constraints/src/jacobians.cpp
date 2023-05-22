@@ -7,7 +7,7 @@ inline void QuaternionInverse(const double in[4], double out[4]) {
   out[3] = -in[3];
 }
 
-inline Eigen::Matrix4d oplus_transform(const Eigen::Quaterniond& q_BC) {
+inline Eigen::Matrix4d Oplus(const Eigen::Quaterniond& q_BC) {
   Eigen::Vector4d q = q_BC.coeffs();
   Eigen::Matrix4d Q;
   // clang-format off
@@ -138,26 +138,12 @@ Eigen::Matrix<double, 6, 1> SE3BoxMinus(const Eigen::Matrix<double, 7, 1>& T1,
   return delta;
 }
 
-Eigen::Matrix<double, 3, 4, Eigen::RowMajor>
-    LiftJacobian(const Eigen::Quaterniond& q) {
-  Eigen::Matrix<double, 3, 4, Eigen::RowMajor> J_lift;
-  const Eigen::Quaterniond q_inv = q.inverse();
-  J_lift.setZero();
-  Eigen::Matrix4d Qplus = oplus_transform(q_inv);
-  Eigen::Matrix<double, 3, 4, Eigen::RowMajor> Jq_pinv =
-      Eigen::Matrix<double, 3, 4>::Zero();
-  Jq_pinv.topLeftCorner<3, 3>() = Eigen::Matrix3d::Identity() * 2.0;
-  J_lift = Jq_pinv * Qplus;
-  return J_lift;
-}
-
-Eigen::Matrix<double, 4, 3, Eigen::RowMajor>
-    PlusJacobian(const Eigen::Quaterniond& q) {
+Eigen::Matrix<double, 4, 3> PlusJacobian(const Eigen::Quaterniond& q) {
   double x0 = q.w() / 2;
   double x1 = q.x() / 2;
   double x2 = q.y() / 2;
   double x3 = q.z() / 2;
-  Eigen::Matrix<double, 4, 3, Eigen::RowMajor> jacobian;
+  Eigen::Matrix<double, 4, 3> jacobian;
   // clang-format off
   jacobian(0,0) = -x1; jacobian(0,1) = -x2; jacobian(0,2) = -x3; 
   jacobian(1,0) =  x0; jacobian(1,1) = -x3; jacobian(1,2) =  x2; 
@@ -167,13 +153,12 @@ Eigen::Matrix<double, 4, 3, Eigen::RowMajor>
   return jacobian;
 }
 
-Eigen::Matrix<double, 3, 4, Eigen::RowMajor>
-    MinusJacobian(const Eigen::Quaterniond& q) {
+Eigen::Matrix<double, 3, 4> MinusJacobian(const Eigen::Quaterniond& q) {
   double x0 = q.w() * 2;
   double x1 = q.x() * 2;
   double x2 = q.y() * 2;
   double x3 = q.z() * 2;
-  Eigen::Matrix<double, 3, 4, Eigen::RowMajor> jacobian;
+  Eigen::Matrix<double, 3, 4> jacobian;
   // clang-format off
   jacobian(0,0) = -x1; jacobian(0,1) =  x0; jacobian(0,2) =  x3;  jacobian(0,3) = -x2; 
   jacobian(1,0) = -x2; jacobian(1,1) = -x3; jacobian(1,2) =  x0;  jacobian(1,3) =  x1;  
