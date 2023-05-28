@@ -98,6 +98,8 @@ public:
         d_E_d_q_WORLD_BASELINK =
             d_E_d_R_WORLD_BASELINK * MinusJacobian(q_WORLD_BASELINK);
         d_E_d_q_WORLD_BASELINK = -d_E_d_q_WORLD_BASELINK;
+
+        // todo: numeric diff for this jacobian?
       }
 
       if (jacobians[1]) {

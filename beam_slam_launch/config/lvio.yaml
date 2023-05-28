@@ -1,10 +1,10 @@
-optimization_period: 0.5
+optimization_period: 1.0
 lag_duration: 10
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_SCHUR'
-  minimizer_progress_to_stdout: true
+  minimizer_progress_to_stdout: false
   num_threads: 8
   num_linear_solver_threads: 8
   max_num_iterations: 8
@@ -53,12 +53,12 @@ slam_initialization:
   imu_topic: "/imu/data"
   lidar_topic: "/lidar_h/velodyne_points"
   frame_initializer_config: ""
-  init_mode: "VISUAL"
-  max_optimization_s: 0.5
+  init_mode: "LIDAR"
+  max_optimization_s: 1.0
   camera_hz: 20
-  initialization_window_s: 2.0
+  initialization_window_s: 3.0
   min_trajectory_length_m: 1.0
-  reprojection_covariance_weight: 0.01
+  reprojection_covariance_weight: 0.1
   reprojection_loss_a: 0.2
   output_folder: "/userhome/data/init_results/"
 
@@ -73,7 +73,7 @@ visual_odometry:
   frame_initializer_prior_noise_diagonal: [0,0,0,0,0,0]
   use_pose_priors: false
   reloc_request_period: 3.0
-  use_parallax: false
+  use_parallax: true
   keyframe_parallax: 10.0
   keyframe_translation_m: 1.0
   keyframe_rotation_deg: 20.0

@@ -49,7 +49,7 @@ void VisualOdometry::onInit() {
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
 
   // create pose refiner for motion only BA
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-2, true, 1.0);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-1, true, 1.0);
 
   // get extrinsics
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
@@ -135,9 +135,13 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
   // todo: add every pose to the graph even if not keyframe?
   // todo: otherwise IO will add poses itself?
+  // auto transaction = fuse_core::Transaction::make_shared();
+  // transaction->stamp(msg->header.stamp);
+  // visual_map_->AddBaselinkPose(T_WORLD_BASELINKcur, msg->header.stamp,
+  // transaction); sendTransaction(transaction);
 
   if (IsKeyframe(msg->header.stamp, T_WORLD_BASELINKcur)) {
-    ROS_DEBUG_STREAM(
+    ROS_INFO_STREAM(
         "VisualOdometry: New keyframe detected at: " << msg->header.stamp);
     Keyframe kf(*msg);
     keyframes_.push_back(kf);
@@ -183,7 +187,8 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& img_time,
   }
   // estimate T_WORLD_BASELINK using the relative motion from frame init
   const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_kf_pose.value();
-  T_WORLD_BASELINK = T_WORLD_BASELINKprev * T_PREVKF_CURFRAME;
+  // T_WORLD_BASELINK = T_WORLD_BASELINKprev * T_PREVKF_CURFRAME;
+  T_WORLD_BASELINK = T_WORLD_BASELINKprev;
 
   // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
@@ -195,8 +200,12 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& img_time,
         T_WORLD_BASELINK * beam::InvertTransform(T_cam_baselink_));
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
         T_CAMERA_WORLD_est, cam_model_, pixels, points);
-    T_WORLD_BASELINK =
+    // std::cout << "\n" << img_time << std::endl;
+    // std::cout << pixels.size() << std::endl;
+    // std::cout << T_WORLD_BASELINK << std::endl;
+    auto T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
+    // std::cout << T_WORLD_BASELINK << std::endl;
   }
 
   return true;
@@ -241,7 +250,8 @@ void VisualOdometry::ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK) {
 
   // add pose to map
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, cur_kf_time, transaction);
-  // TODO: add angular velocity and linear acceleration variables, so the motion model works
+  // TODO: add angular velocity and linear acceleration variables, so the motion
+  // model works
 
   // add prior if using a frame initializer
   if (frame_initializer_ && vo_params_.use_pose_priors) {
@@ -296,7 +306,7 @@ beam::opt<Eigen::Vector3d>
     }
   }
   // triangulate new points
-  if (T_cam_world_v.size() >= 3) {
+  if (T_cam_world_v.size() >= 5) {
     return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
                                                     pixels);
   }
@@ -307,7 +317,6 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   // ! known issue: if slam initialization doesn't recieve any visual
   // ! measurements, we need to set the first keyframe ourselves rather than
   // ! from the graph - use reference to most recent pose in graph to localize
-
   ROS_INFO_STREAM_ONCE("VisualOdometry: Received initial graph.");
 
   // all timestamps in the new graph
