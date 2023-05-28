@@ -47,6 +47,7 @@ TEST(EuclideanReprojectionFunction, Validity) {
   for (int i = 0; i < N; i++) {
     // generate random T_WORLD_BASELINK
     const Eigen::Matrix4d T_WORLD_BASELINK =
+
         beam::GenerateRandomPose(1.0, 10.0);
     const Eigen::Quaterniond q_WORLD_BASELINK(
         T_WORLD_BASELINK.block<3, 3>(0, 0));
@@ -136,7 +137,6 @@ TEST(EuclideanReprojectionFunction, Validity) {
       std::cout << "Autodiff jacobian: " << std::endl;
       std::cout << J_auto << std::endl;
     }
-
     // EXPECT_TRUE(J_auto.isApprox(J_analytical, THRESHOLD));
   }
 }

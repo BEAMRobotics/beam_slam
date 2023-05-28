@@ -131,6 +131,7 @@ TEST(DRotationCompositionDLeftRotation, validity) {
       const auto res_pert =
           multiply_rotations(SO3BoxPlus(q_left, pert), q_right);
       const auto finite_diff = SO3BoxMinus(res, res_pert) / EPS;
+
       J_numerical.col(i) = finite_diff.transpose();
     }
     EXPECT_TRUE(J_numerical.isApprox(J_analytical, THRESHOLD));
@@ -304,6 +305,7 @@ TEST(DPointInverseTransformationDRotation, minimal_parameterization) {
                                   const auto& _point) {
     const Eigen::Vector3d result =
         (_q.inverse() * _point) - (_q.inverse() * _t);
+
     return result;
   };
   for (int i = 0; i < N; i++) {
@@ -330,6 +332,7 @@ TEST(DPointInverseTransformationDRotation, minimal_parameterization) {
       pert[i] = EPS;
       const auto q_pert = SO3BoxPlus(q, pert);
       const auto res_pert = point_transformation(q_pert, t, point);
+
       const auto finite_diff = (res_pert - res) / EPS;
       J_numerical.col(i) = finite_diff.transpose();
     }
@@ -343,6 +346,7 @@ TEST(DPointInverseTransformationDRotation, naive_parameterization) {
                                   const auto& _point) {
     const Eigen::Vector3d result =
         (_q.inverse() * _point) - (_q.inverse() * _t);
+
     return result;
   };
   for (int i = 0; i < N; i++) {
@@ -378,6 +382,7 @@ TEST(DPointInverseTransformationDRotation, naive_parameterization) {
     std::cout << J_analytical << std::endl;
     std::cout << "-----" << std::endl;
     std::cout << J_numerical << std::endl;
+
     EXPECT_TRUE(J_numerical.isApprox(J_analytical, THRESHOLD));
   }
 }

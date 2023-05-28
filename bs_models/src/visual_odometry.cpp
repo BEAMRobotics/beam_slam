@@ -307,6 +307,7 @@ beam::opt<Eigen::Vector3d>
   }
   // triangulate new points
   if (T_cam_world_v.size() >= 5) {
+
     return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
                                                     pixels);
   }

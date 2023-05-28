@@ -78,6 +78,7 @@ public:
     if (jacobians) {
       const auto d_E_d_P_CAMERA =
           DImageProjectionDPoint(intrinsic_matrix_, P_CAMERA);
+
       const auto d_P_CAMERA_d_P_BASELINK =
           DPointRotationDPoint(R_CAM_BASELINK, P_BASELINK);
       if (jacobians[0]) {
@@ -98,7 +99,6 @@ public:
         d_E_d_q_WORLD_BASELINK =
             d_E_d_R_WORLD_BASELINK * MinusJacobian(q_WORLD_BASELINK);
         d_E_d_q_WORLD_BASELINK = -d_E_d_q_WORLD_BASELINK;
-
         // todo: numeric diff for this jacobian?
       }
 

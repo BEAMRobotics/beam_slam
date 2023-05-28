@@ -59,6 +59,7 @@ slam_initialization:
   initialization_window_s: 3.0
   min_trajectory_length_m: 1.0
   reprojection_covariance_weight: 0.1
+
   reprojection_loss_a: 0.2
   output_folder: "/userhome/data/init_results/"
 
