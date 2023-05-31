@@ -58,8 +58,7 @@ slam_initialization:
   camera_hz: 20
   initialization_window_s: 3.0
   min_trajectory_length_m: 1.0
-  reprojection_covariance_weight: 0.1
-
+  reprojection_covariance_weight: 0.01
   reprojection_loss_a: 0.2
   output_folder: "/userhome/data/init_results/"
 
@@ -78,7 +77,7 @@ visual_odometry:
   keyframe_parallax: 10.0
   keyframe_translation_m: 1.0
   keyframe_rotation_deg: 20.0
-  keyframe_max_duration: 2.5
+  keyframe_max_duration: 0.25
   reprojection_covariance_weight: 0.01
   reprojection_loss_a: 0.2
 

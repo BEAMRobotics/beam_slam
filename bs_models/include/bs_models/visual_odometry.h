@@ -111,6 +111,11 @@ private:
   /// @return whether it succeeded in localizing
   bool ComputeOdometryAndExtendMap(const CameraMeasurementMsg::ConstPtr& msg);
 
+  /// @brief
+  /// @param T_WORLD_BASELINKcur
+  void ComputeRelativeOdometry(const ros::Time& timestamp,
+                               const Eigen::Matrix4d& T_WORLD_BASELINKcur);
+
   /// @brief Publishes a keyframe object as a slam chunk
   /// @param keyframe
   void PublishSlamChunk(const Keyframe& keyframe);
@@ -142,8 +147,9 @@ private:
   std::deque<Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
   std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;
-  Eigen::Matrix4d T_ODOM_BASELINKprevkf_{Eigen::Matrix4d::Identity()};
+  Eigen::Matrix4d T_ODOM_BASELINKprev_{Eigen::Matrix4d::Identity()};
   ros::Time previous_reloc_request_{ros::Time(0)};
+  ros::Time previous_frame_;
 
   // callbacks for messages
   using ThrottledMeasurementCallback =
