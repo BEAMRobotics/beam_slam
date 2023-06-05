@@ -1,3 +1,5 @@
+#pragma once
+
 #include <beam_utils/utils.h>
 #include <gtest/gtest.h>
 
@@ -35,7 +37,7 @@ TEST(DPointRotationDRotation, validity) {
     for (int i = 0; i < 3; i++) {
       Eigen::Vector3d pert = Eigen::Vector3d::Zero();
       pert[i] = EPS;
-      const auto res_pert = point_rotation(OPlus(q, pert), point_rand);
+      const auto res_pert = point_rotation(SO3BoxPlus(q, pert), point_rand);
       const auto finite_diff = (res_pert - res) / EPS;
       J_numerical.col(i) = finite_diff.transpose();
     }
@@ -95,8 +97,8 @@ TEST(DInverseRotationDRotation, validity) {
     for (int i = 0; i < 3; i++) {
       Eigen::Vector3d pert = Eigen::Vector3d::Zero();
       pert[i] = EPS;
-      const auto res_pert = invert_rotation(OPlus(q, pert));
-      const auto finite_diff = OMinus(res, res_pert) / EPS;
+      const auto res_pert = invert_rotation(SO3BoxPlus(q, pert));
+      const auto finite_diff = SO3BoxMinus(res, res_pert) / EPS;
       J_numerical.col(i) = finite_diff.transpose();
     }
     EXPECT_TRUE(J_numerical.isApprox(J_analytical, THRESHOLD));
@@ -128,8 +130,10 @@ TEST(DRotationCompositionDLeftRotation, validity) {
     for (int i = 0; i < 3; i++) {
       Eigen::Vector3d pert = Eigen::Vector3d::Zero();
       pert[i] = EPS;
-      const auto res_pert = multiply_rotations(OPlus(q_left, pert), q_right);
-      const auto finite_diff = OMinus(res, res_pert) / EPS;
+      const auto res_pert =
+          multiply_rotations(SO3BoxPlus(q_left, pert), q_right);
+      const auto finite_diff = SO3BoxMinus(res, res_pert) / EPS;
+
       J_numerical.col(i) = finite_diff.transpose();
     }
     EXPECT_TRUE(J_numerical.isApprox(J_analytical, THRESHOLD));
@@ -161,8 +165,9 @@ TEST(DRotationCompositionDRightRotation, validity) {
     for (int i = 0; i < 3; i++) {
       Eigen::Vector3d pert = Eigen::Vector3d::Zero();
       pert[i] = EPS;
-      const auto res_pert = multiply_rotations(q_left, OPlus(q_right, pert));
-      const auto finite_diff = OMinus(res, res_pert) / EPS;
+      const auto res_pert =
+          multiply_rotations(q_left, SO3BoxPlus(q_right, pert));
+      const auto finite_diff = SO3BoxMinus(res, res_pert) / EPS;
       J_numerical.col(i) = finite_diff.transpose();
     }
     EXPECT_TRUE(J_numerical.isApprox(J_analytical, THRESHOLD));
@@ -236,7 +241,7 @@ TEST(DPointTransformationDTransform, seperate_parameterizations) {
     for (int i = 0; i < 6; i++) {
       Eigen::Matrix<double, 6, 1> pert = Eigen::Matrix<double, 6, 1>::Zero();
       pert[i] = EPS;
-      auto T_vec_pert = BoxPlus(T_vec, pert);
+      auto T_vec_pert = TranslationSO3BoxPlus(T_vec, pert);
       Eigen::Quaterniond q_pert(T_vec_pert[3], T_vec_pert[4], T_vec_pert[5],
                                 T_vec_pert[6]);
       Eigen::Vector3d t_pert(T_vec_pert[0], T_vec_pert[1], T_vec_pert[2]);
@@ -280,7 +285,7 @@ TEST(DPointTransformationDTransform, single_parameterization) {
     for (int i = 0; i < 6; i++) {
       Eigen::Matrix<double, 6, 1> pert = Eigen::Matrix<double, 6, 1>::Zero();
       pert[i] = EPS;
-      auto T_vec_pert = BoxPlus2(T_vec, pert);
+      auto T_vec_pert = SE3BoxPlus(T_vec, pert);
       Eigen::Quaterniond q_pert(T_vec_pert[3], T_vec_pert[4], T_vec_pert[5],
                                 T_vec_pert[6]);
       Eigen::Vector3d t_pert(T_vec_pert[0], T_vec_pert[1], T_vec_pert[2]);
@@ -296,10 +301,13 @@ TEST(DPointTransformationDTransform, single_parameterization) {
   }
 }
 
-TEST(DPointTransformationDPoint, seperate_parameterizations) {
+TEST(DPointInverseTransformationDRotation, minimal_parameterization) {
   // create lambda for function to test
-  auto point_transformation = [&](const auto& _T, const auto& _point) {
-    const auto result = (_T * _point.homogeneous()).hnormalized();
+  auto point_transformation = [&](const auto& _q, const auto& _t,
+                                  const auto& _point) {
+    const Eigen::Vector3d result =
+        (_q.inverse() * _point) - (_q.inverse() * _t);
+
     return result;
   };
   for (int i = 0; i < N; i++) {
@@ -310,18 +318,23 @@ TEST(DPointTransformationDPoint, seperate_parameterizations) {
     Eigen::Matrix4d T = beam::GenerateRandomPose(1.0, 10.0);
     Eigen::Vector3d t = T.block<3, 1>(0, 3);
     Eigen::Matrix3d R = T.block<3, 3>(0, 0);
+    Eigen::Quaterniond q(R);
 
     // compute analytical jacobian
-    Eigen::Matrix<double, 3, 3> J_analytical =
-        bs_constraints::DPointRotationDPoint(R, point);
+    const auto J_analytical = DPointRotationDRotation(R.transpose(), point) *
+                                  DInverseRotationDRotation(R) -
+                              DPointRotationDRotation(R.transpose(), t) *
+                                  DInverseRotationDRotation(R);
 
     // calculate numerical jacobian
     Eigen::Matrix<double, 3, 3> J_numerical;
-    const auto res = point_transformation(T, point);
+    const auto res = point_transformation(q, t, point);
     for (int i = 0; i < 3; i++) {
-      Eigen::Matrix<double, 3, 1> pert = Eigen::Matrix<double, 3, 1>::Zero();
+      Eigen::Vector3d pert = Eigen::Vector3d::Zero();
       pert[i] = EPS;
-      const auto res_pert = point_transformation(T, point + pert);
+      const auto q_pert = SO3BoxPlus(q, pert);
+      const auto res_pert = point_transformation(q_pert, t, point);
+
       const auto finite_diff = (res_pert - res) / EPS;
       J_numerical.col(i) = finite_diff.transpose();
     }
@@ -329,10 +342,13 @@ TEST(DPointTransformationDPoint, seperate_parameterizations) {
   }
 }
 
-TEST(DPointTransformationDPoint, single_parameterization) {
+TEST(DPointInverseTransformationDRotation, naive_parameterization) {
   // create lambda for function to test
-  auto point_transformation = [&](const auto& _T, const auto& _point) {
-    const auto result = (_T * _point.homogeneous()).hnormalized();
+  auto point_transformation = [&](const auto& _q, const auto& _t,
+                                  const auto& _point) {
+    const Eigen::Vector3d result =
+        (_q.inverse() * _point) - (_q.inverse() * _t);
+
     return result;
   };
   for (int i = 0; i < N; i++) {
@@ -341,20 +357,34 @@ TEST(DPointTransformationDPoint, single_parameterization) {
 
     // random pose
     Eigen::Matrix4d T = beam::GenerateRandomPose(1.0, 10.0);
+    Eigen::Vector3d t = T.block<3, 1>(0, 3);
+    Eigen::Matrix3d R = T.block<3, 3>(0, 0);
+    Eigen::Quaterniond q(R);
 
     // compute analytical jacobian
-    const auto J_analytical = bs_constraints::DPointTransformationDPoint(T);
+    const auto J_minimal = DPointRotationDRotation(R.transpose(), point) *
+                               DInverseRotationDRotation(R) -
+                           DPointRotationDRotation(R.transpose(), t) *
+                               DInverseRotationDRotation(R);
+    const auto J_analytical = J_minimal * MinusJacobian(q);
 
     // calculate numerical jacobian
-    Eigen::Matrix<double, 3, 3> J_numerical;
-    const auto res = point_transformation(T, point);
-    for (int i = 0; i < 3; i++) {
-      Eigen::Matrix<double, 3, 1> pert = Eigen::Matrix<double, 3, 1>::Zero();
+    Eigen::Matrix<double, 3, 4> J_numerical;
+    const auto res = point_transformation(q, t, point);
+    for (int i = 0; i < 4; i++) {
+      Eigen::Vector4d pert = Eigen::Vector4d::Zero();
       pert[i] = EPS;
-      const auto res_pert = point_transformation(T, point + pert);
+      const auto q_pert_coeffs = q.coeffs() + pert;
+      const Eigen::Quaterniond q_pert(q_pert_coeffs[3], q_pert_coeffs[0],
+                                      q_pert_coeffs[1], q_pert_coeffs[2]);
+      const auto res_pert = point_transformation(q_pert, t, point);
       const auto finite_diff = (res_pert - res) / EPS;
       J_numerical.col(i) = finite_diff.transpose();
     }
+    std::cout << J_analytical << std::endl;
+    std::cout << "-----" << std::endl;
+    std::cout << J_numerical << std::endl;
+
     EXPECT_TRUE(J_numerical.isApprox(J_analytical, THRESHOLD));
   }
 }

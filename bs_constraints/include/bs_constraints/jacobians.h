@@ -7,35 +7,61 @@
 
 namespace bs_constraints {
 
-Eigen::Quaterniond OPlus(const Eigen::Quaterniond& q,
-                         const Eigen::Vector3d& pert);
+/// @brief
+/// @param q
+/// @param pert
+/// @return
+Eigen::Quaterniond SO3BoxPlus(const Eigen::Quaterniond& q,
+                              const Eigen::Vector3d& pert);
 
-Eigen::Vector3d OMinus(const Eigen::Quaterniond& q1,
-                       const Eigen::Quaterniond& q2);
+/// @brief
+/// @param q1
+/// @param q2
+/// @return
+Eigen::Vector3d SO3BoxMinus(const Eigen::Quaterniond& q1,
+                            const Eigen::Quaterniond& q2);
 
-Eigen::Matrix<double, 7, 1> BoxPlus(const Eigen::Matrix<double, 7, 1>& T,
-                                    const Eigen::Matrix<double, 6, 1>& pert);
+/// @brief
+/// @param T
+/// @param pert
+/// @return
+Eigen::Matrix<double, 7, 1>
+    TranslationSO3BoxPlus(const Eigen::Matrix<double, 7, 1>& T,
+                          const Eigen::Matrix<double, 6, 1>& pert);
 
-Eigen::Matrix<double, 6, 1> BoxMinus(const Eigen::Matrix<double, 7, 1>& T1,
-                                     const Eigen::Matrix<double, 7, 1>& T2);
+/// @brief Box Minus for a transform that is parameterized as a seperate
+/// Translation and Orientation
+/// @param T1
+/// @param T2
+/// @return
+Eigen::Matrix<double, 6, 1>
+    TranslationSO3BoxMinus(const Eigen::Matrix<double, 7, 1>& T1,
+                           const Eigen::Matrix<double, 7, 1>& T2);
 
-Eigen::Matrix<double, 7, 1> BoxPlus2(const Eigen::Matrix<double, 7, 1>& T,
-                                     const Eigen::Matrix<double, 6, 1>& pert);
+/// @brief
+/// @param T
+/// @param pert
+/// @return
+Eigen::Matrix<double, 7, 1> SE3BoxPlus(const Eigen::Matrix<double, 7, 1>& T,
+                                       const Eigen::Matrix<double, 6, 1>& pert);
 
-Eigen::Matrix<double, 6, 1> BoxMinus2(const Eigen::Matrix<double, 7, 1>& T1,
-                                      const Eigen::Matrix<double, 7, 1>& T2);
+/// @brief Box Minus for a transform that is parameterized as a single SE3
+/// transform
+/// @param T1
+/// @param T2
+/// @return
+Eigen::Matrix<double, 6, 1> SE3BoxMinus(const Eigen::Matrix<double, 7, 1>& T1,
+                                        const Eigen::Matrix<double, 7, 1>& T2);
 
 /// @brief
 /// @param q
 /// @return
-Eigen::Matrix<double, 4, 3, Eigen::RowMajor>
-    PlusJacobian(const Eigen::Quaterniond& q);
+Eigen::Matrix<double, 4, 3> PlusJacobian(const Eigen::Quaterniond& q);
 
 /// @brief
 /// @param q
 /// @return
-Eigen::Matrix<double, 3, 4, Eigen::RowMajor>
-    MinusJacobian(const Eigen::Quaterniond& q);
+Eigen::Matrix<double, 3, 4> MinusJacobian(const Eigen::Quaterniond& q);
 
 /// @brief
 /// @param R

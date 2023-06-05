@@ -1,7 +1,5 @@
 #include <bs_constraints/jacobians.h>
 
-namespace bs_constraints {
-
 inline void QuaternionInverse(const double in[4], double out[4]) {
   out[0] = in[0];
   out[1] = -in[1];
@@ -9,8 +7,22 @@ inline void QuaternionInverse(const double in[4], double out[4]) {
   out[3] = -in[3];
 }
 
-Eigen::Quaterniond OPlus(const Eigen::Quaterniond& q,
-                         const Eigen::Vector3d& pert) {
+inline Eigen::Matrix4d Oplus(const Eigen::Quaterniond& q_BC) {
+  Eigen::Vector4d q = q_BC.coeffs();
+  Eigen::Matrix4d Q;
+  // clang-format off
+  Q(0,0) =  q[3]; Q(0,1) =  q[2]; Q(0,2) = -q[1]; Q(0,3) =  q[0];
+  Q(1,0) = -q[2]; Q(1,1) =  q[3]; Q(1,2) =  q[0]; Q(1,3) =  q[1];
+  Q(2,0) =  q[1]; Q(2,1) = -q[0]; Q(2,2) =  q[3]; Q(2,3) =  q[2];
+  Q(3,0) = -q[0]; Q(3,1) = -q[1]; Q(3,2) = -q[2]; Q(3,3) =  q[3];
+  // clang-format on
+  return Q;
+}
+
+namespace bs_constraints {
+
+Eigen::Quaterniond SO3BoxPlus(const Eigen::Quaterniond& q,
+                              const Eigen::Vector3d& pert) {
   double x[4] = {q.w(), q.x(), q.y(), q.z()};
   double delta[3] = {pert[0], pert[1], pert[2]};
   double q_delta[4];
@@ -22,8 +34,8 @@ Eigen::Quaterniond OPlus(const Eigen::Quaterniond& q,
   return q_pert;
 }
 
-Eigen::Vector3d OMinus(const Eigen::Quaterniond& q1,
-                       const Eigen::Quaterniond& q2) {
+Eigen::Vector3d SO3BoxMinus(const Eigen::Quaterniond& q1,
+                            const Eigen::Quaterniond& q2) {
   double x1[4] = {q1.w(), q1.x(), q1.y(), q1.z()};
   double x2[4] = {q2.w(), q2.x(), q2.y(), q2.z()};
   double delta[3];
@@ -37,13 +49,15 @@ Eigen::Vector3d OMinus(const Eigen::Quaterniond& q1,
   return delta_out;
 }
 
-Eigen::Matrix<double, 7, 1> BoxPlus(const Eigen::Matrix<double, 7, 1>& T,
-                                    const Eigen::Matrix<double, 6, 1>& pert) {
+Eigen::Matrix<double, 7, 1>
+    TranslationSO3BoxPlus(const Eigen::Matrix<double, 7, 1>& T,
+                          const Eigen::Matrix<double, 6, 1>& pert) {
+
   Eigen::Quaterniond q(T[3], T[4], T[5], T[6]);
   Eigen::Vector3d t(T[0], T[1], T[2]);
   Eigen::Vector3d q_delta = pert.tail<3>();
   Eigen::Vector3d t_delta = pert.head<3>();
-  const auto q_plus_delta = OPlus(q, q_delta);
+  const auto q_plus_delta = SO3BoxPlus(q, q_delta);
   const auto t_plus_delta = t + t_delta;
   Eigen::Matrix<double, 7, 1> T_plus_delta;
   T_plus_delta << t_plus_delta.x(), t_plus_delta.y(), t_plus_delta.z(),
@@ -51,11 +65,13 @@ Eigen::Matrix<double, 7, 1> BoxPlus(const Eigen::Matrix<double, 7, 1>& T,
   return T_plus_delta;
 }
 
-Eigen::Matrix<double, 6, 1> BoxMinus(const Eigen::Matrix<double, 7, 1>& T1,
-                                     const Eigen::Matrix<double, 7, 1>& T2) {
+Eigen::Matrix<double, 6, 1>
+    TranslationSO3BoxMinus(const Eigen::Matrix<double, 7, 1>& T1,
+                           const Eigen::Matrix<double, 7, 1>& T2) {
   Eigen::Quaterniond q1(T1[3], T1[4], T1[5], T1[6]);
   Eigen::Quaterniond q2(T2[3], T2[4], T2[5], T2[6]);
-  const auto q_delta = OMinus(q1, q2);
+  const auto q_delta = SO3BoxMinus(q1, q2);
+
   Eigen::Vector3d t1(T1[0], T1[1], T1[2]);
   Eigen::Vector3d t2(T2[0], T2[1], T2[2]);
   const auto t_delta = t1 - t2;
@@ -65,8 +81,10 @@ Eigen::Matrix<double, 6, 1> BoxMinus(const Eigen::Matrix<double, 7, 1>& T1,
   return delta;
 }
 
-Eigen::Matrix<double, 7, 1> BoxPlus2(const Eigen::Matrix<double, 7, 1>& T,
-                                     const Eigen::Matrix<double, 6, 1>& pert) {
+Eigen::Matrix<double, 7, 1>
+    SE3BoxPlus(const Eigen::Matrix<double, 7, 1>& T,
+               const Eigen::Matrix<double, 6, 1>& pert) {
+
   Eigen::Quaterniond q(T[3], T[4], T[5], T[6]);
   Eigen::Vector3d t(T[0], T[1], T[2]);
   Eigen::Matrix4d T_mat = Eigen::Matrix4d::Identity();
@@ -94,8 +112,8 @@ Eigen::Matrix<double, 7, 1> BoxPlus2(const Eigen::Matrix<double, 7, 1>& T,
   return T_plus_delta;
 }
 
-Eigen::Matrix<double, 6, 1> BoxMinus2(const Eigen::Matrix<double, 7, 1>& T1,
-                                      const Eigen::Matrix<double, 7, 1>& T2) {
+Eigen::Matrix<double, 6, 1> SE3BoxMinus(const Eigen::Matrix<double, 7, 1>& T1,
+                                        const Eigen::Matrix<double, 7, 1>& T2) {
   Eigen::Quaterniond q1(T1[3], T1[4], T1[5], T1[6]);
   Eigen::Quaterniond q2(T2[3], T2[4], T2[5], T2[6]);
   Eigen::Vector3d t1(T1[0], T1[1], T1[2]);
@@ -123,13 +141,13 @@ Eigen::Matrix<double, 6, 1> BoxMinus2(const Eigen::Matrix<double, 7, 1>& T1,
   return delta;
 }
 
-Eigen::Matrix<double, 4, 3, Eigen::RowMajor>
-    PlusJacobian(const Eigen::Quaterniond& q) {
+Eigen::Matrix<double, 4, 3> PlusJacobian(const Eigen::Quaterniond& q) {
   double x0 = q.w() / 2;
   double x1 = q.x() / 2;
   double x2 = q.y() / 2;
   double x3 = q.z() / 2;
-  Eigen::Matrix<double, 4, 3, Eigen::RowMajor> jacobian;
+  Eigen::Matrix<double, 4, 3> jacobian;
+
   // clang-format off
   jacobian(0,0) = -x1; jacobian(0,1) = -x2; jacobian(0,2) = -x3; 
   jacobian(1,0) =  x0; jacobian(1,1) = -x3; jacobian(1,2) =  x2; 
@@ -139,13 +157,14 @@ Eigen::Matrix<double, 4, 3, Eigen::RowMajor>
   return jacobian;
 }
 
-Eigen::Matrix<double, 3, 4, Eigen::RowMajor>
-    MinusJacobian(const Eigen::Quaterniond& q) {
+Eigen::Matrix<double, 3, 4> MinusJacobian(const Eigen::Quaterniond& q) {
+
   double x0 = q.w() * 2;
   double x1 = q.x() * 2;
   double x2 = q.y() * 2;
   double x3 = q.z() * 2;
-  Eigen::Matrix<double, 3, 4, Eigen::RowMajor> jacobian;
+  Eigen::Matrix<double, 3, 4> jacobian;
+
   // clang-format off
   jacobian(0,0) = -x1; jacobian(0,1) =  x0; jacobian(0,2) =  x3;  jacobian(0,3) = -x2; 
   jacobian(1,0) = -x2; jacobian(1,1) = -x3; jacobian(1,2) =  x0;  jacobian(1,3) =  x1;  
