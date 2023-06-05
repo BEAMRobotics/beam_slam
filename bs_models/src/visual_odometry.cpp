@@ -167,13 +167,10 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
         T_CAMERA_WORLD_est, cam_model_, pixels, points);
 
-    std::cout << "\n" << timestamp << std::endl;
-    std::cout << pixels.size() << std::endl;
-    std::cout << T_WORLD_BASELINKprev << std::endl;
     T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
-    std::cout << T_WORLD_BASELINK << std::endl;
   } else {
+    // todo: use a motion model opposed to inertial odometry
     // use frame initializer for pose
     Eigen::Matrix4d T_PREVFRAME_CURFRAME;
     if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
@@ -296,6 +293,7 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
   const auto kf_time = keyframes_.back().Stamp();
   const Eigen::Matrix4d kf_pose = visual_map_->GetBaselinkPose(kf_time).value();
 
+  // todo: fix this and use only parallax?
   // if (vo_params_.use_parallax) {
   //   // check for parallax
   //   const auto avg_parallax =
