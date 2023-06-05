@@ -72,7 +72,7 @@ public:
       "/local_mapper/visual_feature_tracker/visual_measurements"};
   std::string imu_topic{""};
   std::string lidar_topic{""};
-  std::string frame_initializer_config{};
+  std::string frame_initializer_config{""};
   std::string init_mode{"FRAMEINIT"};
   std::string output_folder{""};
 

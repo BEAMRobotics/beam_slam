@@ -197,6 +197,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   ROS_INFO_STREAM(__func__ << ": Optimizing trajectory.");
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = true;
+  options.logging_type = ceres::PER_MINIMIZER_ITERATION;
   visual_graph->optimizeFor(ros::Duration(max_optimization_time), options);
   visual_map->UpdateGraph(visual_graph);
 

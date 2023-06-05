@@ -59,25 +59,32 @@ private:
   /// @param graph_msg incoming grpah
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
+  /// @brief Localizes image and extends our visual map if its a keyframe
+  /// @param msg visual measurements
+  /// @return whether it succeeded in localizing
+  bool ComputeOdometryAndExtendMap(const CameraMeasurementMsg::ConstPtr& msg);
+
   /// @brief Localizes a given frame using the tracker and the current visual
   /// map
-  /// @param img_time
+  /// @param timestamp
   /// @param T_WORLD_BASELINK estimated pose
   /// @return whether it succeeded or not
-  bool LocalizeFrame(const ros::Time& img_time,
+  bool LocalizeFrame(const ros::Time& timestamp,
                      Eigen::Matrix4d& T_WORLD_BASELINK);
-
-  /// @brief Determines if a frame is a keyframe
-  /// @param img_time
-  /// @param T_WORLD_BASELINK
-  /// @return whether a frame is a keyframe
-  bool IsKeyframe(const ros::Time& img_time,
-                  const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /// @brief Extends the map at the current keyframe time and adds the visual
   /// constraints
+  /// @param timestamp
   /// @param T_WORLD_BASELINK
-  void ExtendMap(const Eigen::Matrix4d& T_WORLD_BASELINK);
+  void ExtendMap(const ros::Time& timestamp,
+                 const Eigen::Matrix4d& T_WORLD_BASELINK);
+
+  /// @brief Determines if a frame is a keyframe
+  /// @param timestamp
+  /// @param T_WORLD_BASELINK
+  /// @return whether a frame is a keyframe
+  bool IsKeyframe(const ros::Time& timestamp,
+                  const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /// @brief Adds visual measurements to the landmark container
   /// @param msg
@@ -89,11 +96,11 @@ private:
   beam::opt<Eigen::Vector3d> TriangulateLandmark(const uint64_t id);
 
   /// @brief Gets 2d-3d correspondences for landmarks measured at a given time
-  /// @param img_time
+  /// @param timestamp
   /// @param pixels
   /// @param points
   void GetPixelPointPairs(
-      const ros::Time& img_time,
+      const ros::Time& timestamp,
       std::vector<Eigen::Vector2i, beam::AlignVec2i>& pixels,
       std::vector<Eigen::Vector3d, beam::AlignVec3d>& points);
 
@@ -106,13 +113,9 @@ private:
       MakeFrameInitPrior(const ros::Time& frame_time,
                          const Eigen::Matrix<double, 6, 6>& covariance);
 
-  /// @brief Localizes image and extends our visual map if its a keyframe
-  /// @param msg visual measurements
-  /// @return whether it succeeded in localizing
-  bool ComputeOdometryAndExtendMap(const CameraMeasurementMsg::ConstPtr& msg);
-
   /// @brief
-  /// @param T_WORLD_BASELINKcur
+  /// @param timestamp
+  /// @param T_WORLD_BASELINK
   void ComputeRelativeOdometry(const ros::Time& timestamp,
                                const Eigen::Matrix4d& T_WORLD_BASELINKcur);
 
@@ -123,6 +126,12 @@ private:
   /// @brief Publishes a keyframe object as a reloc request
   /// @param keyframe
   void PublishRelocRequest(const Keyframe& keyframe);
+
+  /// @brief
+  /// @param timestamp
+  /// @param T_WORLD_BASELINK
+  void PublishPose(const ros::Time& timestamp,
+                   const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters

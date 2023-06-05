@@ -1,3 +1,5 @@
+#pragma once
+
 #include <beam_utils/utils.h>
 #include <gtest/gtest.h>
 
