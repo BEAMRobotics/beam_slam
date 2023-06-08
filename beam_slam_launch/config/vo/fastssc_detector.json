@@ -1,5 +1,5 @@
 {
-  "num_features": 70,
+  "num_features": 100,
   "threshold": 10,
   "ssc_tolerance": 0.1,
   "nonmax_suppression": true,

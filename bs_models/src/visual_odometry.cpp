@@ -157,19 +157,47 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   GetPixelPointPairs(timestamp, pixels, points);
-  // todo: filter outliers
 
-  if (pixels.size() >= 20) {
+  // filter outliers
+  std::vector<Eigen::Vector2i, beam::AlignVec2i> inlier_pixels;
+  std::vector<Eigen::Vector3d, beam::AlignVec3d> inlier_points;
+  const auto T_cam_world = beam::InvertTransform(
+      visual_map_->GetCameraPose(previous_frame_).value());
+  for (size_t i = 0; i < points.size(); i++) {
+    // transform points into camera frame
+    Eigen::Vector3d pt_cam =
+        (T_cam_world * points[i].homogeneous()).hnormalized();
+
+    // reproject triangulated points into each frame
+    bool in_image = false;
+    Eigen::Vector2d pixel;
+    if (!cam_model_->ProjectPoint(pt_cam, pixel, in_image) || !in_image) {
+      continue;
+    }
+    // compute distance to actual pixel
+    Eigen::Vector2d measurement = pixels[i].cast<double>();
+    double dist = beam::distance(pixel, measurement);
+    // ! this threshold should change depending on the size of the image input as well
+    if (dist < 50.0) {
+      inlier_points.push_back(points[i]);
+      inlier_pixels.push_back(pixels[i]);
+    }
+  }
+
+  if (inlier_pixels.size() >= 20) {
     // perform motion only BA to refine estimate, initialize at previous frame
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
         T_WORLD_BASELINKprev * beam::InvertTransform(T_cam_baselink_));
 
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
-        T_CAMERA_WORLD_est, cam_model_, pixels, points);
+        T_CAMERA_WORLD_est, cam_model_, inlier_pixels, inlier_points);
 
     T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
   } else {
+    ROS_WARN_STREAM(
+        "Using motion model, not enough inliers for visual estimation: "
+        << inlier_pixels.size());
     // todo: use a motion model opposed to inertial odometry
     // use frame initializer for pose
     Eigen::Matrix4d T_PREVFRAME_CURFRAME;
@@ -185,7 +213,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
   }
 
   return true;
-}
+} // namespace bs_models
 
 void VisualOdometry::ExtendMap(const ros::Time& timestamp,
                                const Eigen::Matrix4d& T_WORLD_BASELINK) {
@@ -293,7 +321,7 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
   const auto kf_time = keyframes_.back().Stamp();
   const Eigen::Matrix4d kf_pose = visual_map_->GetBaselinkPose(kf_time).value();
 
-  // todo: fix this and use only parallax?
+  // todo: fix this and use only parallax
   // if (vo_params_.use_parallax) {
   //   // check for parallax
   //   const auto avg_parallax =
