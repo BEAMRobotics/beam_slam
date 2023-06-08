@@ -264,14 +264,12 @@ bool SLAMInitialization::Initialize() {
 
   AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
 
-  // todo: interpolate lidar poses when in visual mode
   if (landmark_container_->NumImages() > 0) { InterpolateVisualMeasurements(); }
 
   AddPosesAndInertialConstraints();
 
   if (landmark_container_->NumImages() > 0) { AddVisualConstraints(); }
 
-  // todo: add lidar constraints even in visual mode
   if (params_.init_mode == "LIDAR") { AddLidarConstraints(); }
 
   if (params_.max_optimization_s > 0.0) {
@@ -497,11 +495,11 @@ void SLAMInitialization::OutputResults() {
   beam_mapping::Poses poses;
   for (const auto& [stamp, pose] : init_path_) {
     auto timestamp = beam::NSecToRos(stamp);
-    // auto T = visual_map_->GetBaselinkPose(timestamp);
-    // if (!T.has_value()) { continue; }
-    frame_cloud = beam::AddFrameToCloud(frame_cloud, pose, 0.001);
+    auto T = visual_map_->GetBaselinkPose(timestamp);
+    if (!T.has_value()) { continue; }
+    frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
     poses.AddSingleTimeStamp(timestamp);
-    poses.AddSinglePose(pose);
+    poses.AddSinglePose(T.value());
   }
 
   // create directory if it doesn't exist
