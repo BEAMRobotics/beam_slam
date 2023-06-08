@@ -177,6 +177,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     // compute distance to actual pixel
     Eigen::Vector2d measurement = pixels[i].cast<double>();
     double dist = beam::distance(pixel, measurement);
+    // ! this threshold should change depending on the size of the image input as well
     if (dist < 50.0) {
       inlier_points.push_back(points[i]);
       inlier_pixels.push_back(pixels[i]);
