@@ -33,25 +33,14 @@ public:
     getParamRequired<std::string>(nh, "frame_initializer_config",
                                   frame_initializer_config);
 
-    // frame initializer prior
+    // frame initializer priorx
     getParam<bool>(nh, "use_pose_priors", use_pose_priors, false);
-    std::vector<double> prior_diagonal;
-    nh.param("frame_initializer_prior_noise_diagonal", prior_diagonal,
-             prior_diagonal);
-    if (prior_diagonal.size() != 6) {
-      ROS_ERROR("Invalid noise_diagonal params, required 6 params, "
-                "given: %zu. Using default (0.1 for all)",
-                prior_diagonal.size());
-      prior_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
-    }
-    if (std::accumulate(prior_diagonal.begin(), prior_diagonal.end(), 0.0) ==
-        0.0) {
-      ROS_INFO("Prior diagonal set to zero, not adding priors");
-      use_pose_priors = false;
-    }
-    for (int i = 0; i < 6; i++) { prior_covariance(i, i) = prior_diagonal[i]; }
 
-    getParam<bool>(nh, "use_parallax", use_parallax, false);
+    // prior on frame init poses if desired
+    double prior_covariance_weight;
+    getParam<double>(nh, "prior_covariance_weight", prior_covariance_weight, 0.1);
+    prior_covariance = prior_covariance_weight * prior_covariance;
+
     // feature tracker container size
     getParam<int>(nh, "max_container_size", max_container_size, 300);
 
@@ -59,15 +48,13 @@ public:
     getParam<double>(nh, "reloc_request_period", reloc_request_period, 1.0);
 
     // keyframe decision parameters
-    getParam<double>(nh, "keyframe_parallax", keyframe_parallax, 10.0);
-    getParam<double>(nh, "keyframe_translation_m", keyframe_translation_m, 1.0);
-    getParam<double>(nh, "keyframe_rotation_deg", keyframe_rotation_deg, 1.0);
-    getParam<double>(nh, "keyframe_max_duration", keyframe_max_duration, 3.0);
+    getParam<double>(nh, "keyframe_parallax", keyframe_parallax, 40.0);
+    getParam<double>(nh, "keyframe_max_duration", keyframe_max_duration, 0.5);
     getParam<double>(nh, "reprojection_covariance_weight",
                      reprojection_covariance_weight, 0.01);
 
     double reprojection_loss_a;
-    getParam<double>(nh, "reprojection_loss_a", reprojection_loss_a, 0.2);
+    getParam<double>(nh, "reprojection_loss_a", reprojection_loss_a, 1.0);
     // reprojection loss
     reprojection_loss =
         std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
@@ -75,17 +62,16 @@ public:
 
   std::string visual_measurement_topic{
       "/local_mapper/visual_feature_tracker/visual_measurements"};
-  int max_container_size{300};
+
   std::string frame_initializer_config{};
   Eigen::Matrix<double, 6, 6> prior_covariance{
       Eigen::Matrix<double, 6, 6>::Identity()};
+
+  int max_container_size{300};
   bool use_pose_priors{false};
-  bool use_parallax{false};
   double reloc_request_period{3.0};
-  double keyframe_parallax{10.0};
-  double keyframe_translation_m{2.0};
-  double keyframe_rotation_deg{20.0};
-  double keyframe_max_duration{3.0};
+  double keyframe_parallax{40.0};
+  double keyframe_max_duration{0.5};
   double reprojection_covariance_weight{0.01};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };

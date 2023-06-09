@@ -177,7 +177,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     // compute distance to actual pixel
     Eigen::Vector2d measurement = pixels[i].cast<double>();
     double dist = beam::distance(pixel, measurement);
-    // ! this threshold should change depending on the size of the image input as well
+    // ! this threshold should change depending on the size of the image
     if (dist < 50.0) {
       inlier_points.push_back(points[i]);
       inlier_pixels.push_back(pixels[i]);
@@ -198,8 +198,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     ROS_WARN_STREAM(
         "Using motion model, not enough inliers for visual estimation: "
         << inlier_pixels.size());
-    // todo: use a motion model opposed to inertial odometry
-    // use frame initializer for pose
+    // todo: use a motion model opposed to inertial odometry as frame init
     Eigen::Matrix4d T_PREVFRAME_CURFRAME;
     if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
                                              previous_frame_, timestamp)) {
@@ -213,7 +212,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
   }
 
   return true;
-} // namespace bs_models
+}
 
 void VisualOdometry::ExtendMap(const ros::Time& timestamp,
                                const Eigen::Matrix4d& T_WORLD_BASELINK) {
@@ -317,26 +316,12 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
                                 const Eigen::Matrix4d& T_WORLD_BASELINK) {
   if (keyframes_.empty()) { return true; }
-
   const auto kf_time = keyframes_.back().Stamp();
-  const Eigen::Matrix4d kf_pose = visual_map_->GetBaselinkPose(kf_time).value();
-
-  // todo: fix this and use only parallax
-  // if (vo_params_.use_parallax) {
-  //   // check for parallax
-  //   const auto avg_parallax =
-  //       landmark_container_->ComputeParallax(kf_time, timestamp, false);
-  //   if (avg_parallax > vo_params_.keyframe_parallax) { return true; }
-  // } else {
-  //   // check for movement
-  //   const auto passed_motion = beam::PassedMotionThreshold(
-  //       T_WORLD_BASELINK, kf_pose, vo_params_.keyframe_rotation_deg,
-  //       vo_params_.keyframe_translation_m, true);
-  //   if (passed_motion) { return true; }
-  // }
-
-  // check for max duration in case of no motion
-  if ((timestamp - kf_time).toSec() > vo_params_.keyframe_max_duration) {
+  const auto avg_parallax =
+      landmark_container_->ComputeParallax(kf_time, timestamp, false);
+  if (avg_parallax > vo_params_.keyframe_parallax) {
+    return true;
+  } else if ((timestamp - kf_time).toSec() > vo_params_.keyframe_max_duration) {
     return true;
   }
 
