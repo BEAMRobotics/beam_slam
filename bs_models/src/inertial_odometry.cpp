@@ -1,5 +1,8 @@
 #include <bs_models/inertial_odometry.h>
 
+#include <fuse_variables/acceleration_linear_3d_stamped.h>
+#include <fuse_variables/velocity_angular_3d_stamped.h>
+
 #include <beam_utils/utils.h>
 #include <pluginlib/class_list_macros.h>
 
@@ -71,6 +74,15 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   // push imu message onto buffer
   imu_buffer_.push(*msg);
 
+  // add measurement to window
+  Eigen::Vector3d lin_acc(msg->linear_acceleration.x,
+                          msg->linear_acceleration.y,
+                          msg->linear_acceleration.z);
+  Eigen::Vector3d ang_vel(msg->angular_velocity.x, msg->angular_velocity.y,
+                          msg->angular_velocity.z);
+  imu_measurement_buffer_[msg->header.stamp.toNSec()] =
+      std::make_pair(lin_acc, ang_vel);
+
   // return if its not initialized_
   if (!initialized_) return;
 
@@ -102,9 +114,36 @@ void InertialOdometry::processOdometry(
   // add constraint at time
   auto transaction =
       imu_preint_->RegisterNewImuPreintegratedFactor(msg->header.stamp);
-  if (transaction) { sendTransaction(transaction); }
-  // todo: estimate angular velocity and linear acceleration at this timestamp,
-  // and override that variable
+
+  if (!transaction) { return; }
+
+  // get linear accel and angular velocity variables
+  auto lin_acc = fuse_variables::AccelerationLinear3DStamped::make_shared(
+      msg->header.stamp);
+  auto ang_vel =
+      fuse_variables::VelocityAngular3DStamped::make_shared(msg->header.stamp);
+
+  bool override_variable = false;
+  auto lb = imu_measurement_buffer_.lower_bound(msg->header.stamp.toNSec());
+  if (lb != imu_measurement_buffer_.end()) {
+    const auto [lin_acc_data, ang_vel_data] =
+        imu_measurement_buffer_[lb->first];
+    lin_acc->x() = lin_acc_data.x();
+    lin_acc->y() = lin_acc_data.y();
+    lin_acc->z() = lin_acc_data.z();
+
+    ang_vel->roll() = ang_vel_data.x();
+    ang_vel->pitch() = ang_vel_data.y();
+    ang_vel->yaw() = ang_vel_data.z();
+    override_variable = true;
+
+    // clear buffer up to the current odom
+    imu_measurement_buffer_.erase(imu_measurement_buffer_.begin(), lb);
+  }
+  transaction->addVariable(lin_acc, override_variable);
+  transaction->addVariable(ang_vel, override_variable);
+
+  sendTransaction(transaction);
 }
 
 void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
@@ -124,8 +163,7 @@ void InertialOdometry::ComputeAbsolutePose(const ros::Time& curr_stamp) {
   auto odom_msg_abs = bs_common::TransformToOdometryMessage(
       curr_stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetImuFrameId(), T_WORLD_IMU, cov_abs);
-  // TODO: what frame do we publish this in? can't have two world frames
-  // world_odom_publisher_.publish(odom_msg_abs);
+  // TODO: turn this into Pose3DStamped message
 }
 
 void InertialOdometry::onGraphUpdate(

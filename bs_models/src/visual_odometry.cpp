@@ -1,6 +1,8 @@
 #include <bs_models/visual_odometry.h>
 
 #include <fuse_core/transaction.h>
+#include <fuse_variables/acceleration_linear_3d_stamped.h>
+#include <fuse_variables/velocity_angular_3d_stamped.h>
 #include <pluginlib/class_list_macros.h>
 #include <std_msgs/Time.h>
 #include <std_msgs/UInt64MultiArray.h>
@@ -121,9 +123,26 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(timestamp);
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
-  sendTransaction(transaction);
+
+  // add acceleration and velocity 
+  auto lin_acc =
+      fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
+  auto ang_vel =
+      fuse_variables::VelocityAngular3DStamped::make_shared(timestamp);
+
+  lin_acc->x() = 0;
+  lin_acc->y() = 0;
+  lin_acc->z() = 0;
+
+  ang_vel->roll() = 0;
+  ang_vel->pitch() = 0;
+  ang_vel->yaw() = 0;
+
+  transaction->addVariable(lin_acc);
+  transaction->addVariable(ang_vel);
+  
   previous_frame_ = timestamp;
-  // todo: add angular velocity and linear acceleration variables
+  sendTransaction(transaction);
 
   if (IsKeyframe(timestamp, T_WORLD_BASELINK)) {
     ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);

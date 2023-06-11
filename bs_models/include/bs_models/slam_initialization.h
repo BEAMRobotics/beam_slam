@@ -173,6 +173,8 @@ private:
 
   // data storage
   std::deque<sensor_msgs::Imu> imu_buffer_;
+  std::map<uint64_t, std::pair<Eigen::Vector3d, Eigen::Vector3d>>
+      imu_measurement_buffer_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::deque<ros::Time> frame_init_buffer_;
   double last_lidar_scan_time_s_{0};
