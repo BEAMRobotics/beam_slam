@@ -67,10 +67,13 @@ void SLAMInitialization::onInit() {
       Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
 
   max_landmark_container_size_ =
-      params_.initialization_window_s * params_.camera_hz;
-  imu_buffer_size_ = params_.initialization_window_s * params_.imu_hz;
-  if (params_.lidar_hz < 1 / min_lidar_scan_period_s_) {
-    lidar_buffer_size_ = params_.initialization_window_s * params_.lidar_hz;
+      params_.initialization_window_s * calibration_params_.camera_hz;
+  imu_buffer_size_ =
+      params_.initialization_window_s * calibration_params_.imu_hz;
+
+  if (calibration_params_.lidar_hz < 1 / min_lidar_scan_period_s_) {
+    lidar_buffer_size_ =
+        params_.initialization_window_s * calibration_params_.lidar_hz;
   } else {
     lidar_buffer_size_ =
         params_.initialization_window_s * 1 / min_lidar_scan_period_s_;
@@ -184,7 +187,7 @@ void SLAMInitialization::processCameraMeasurements(
   if (Initialize()) { shutdown(); }
 
   // if we don't, prune the first second of images
-  for (int i = 0; i < params_.camera_hz; i++) {
+  for (int i = 0; i < calibration_params_.camera_hz; i++) {
     landmark_container_->PopFront();
   }
 }
@@ -360,8 +363,9 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     auto transaction = fuse_core::Transaction::make_shared();
     transaction->stamp(timestamp);
 
+    // get the gravity in the current frame
     Eigen::Vector3d gravity_baselink =
-        beam::InvertTransform(T_WORLD_BASELINK) * GRAVITY_WORLD;
+        T_WORLD_BASELINK.block(0, 0, 3, 3).transpose() * GRAVITY_WORLD;
     // get linear accel and angular velocity variables
     auto lin_acc =
         fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);

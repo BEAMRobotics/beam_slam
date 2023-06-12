@@ -53,11 +53,6 @@ public:
     getParam<double>(nh, "initialization_window_s", initialization_window_s,
                      2.0);
 
-    // sensor frequencies
-    getParam<int>(nh, "imu_hz", imu_hz, 500);
-    getParam<int>(nh, "lidar_hz", lidar_hz, 10);
-    getParam<int>(nh, "camera_hz", camera_hz, 20);
-
     getParam<double>(nh, "reprojection_covariance_weight",
                      reprojection_covariance_weight, 0.01);
 
@@ -81,9 +76,6 @@ public:
   double frame_init_frequency{0.1};
 
   double initialization_window_s{2.0};
-  int imu_hz{500};
-  int lidar_hz{10};
-  int camera_hz{20};
 
   double reprojection_covariance_weight{0.01};
   fuse_core::Loss::SharedPtr reprojection_loss;

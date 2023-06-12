@@ -9,14 +9,13 @@
 #include <string>
 #include <vector>
 
-namespace bs_parameters {
-namespace models {
+namespace bs_parameters { namespace models {
 
 /**
  * @brief Defines the set of parameters required by the ScanMatcher class
  */
 struct CalibrationParams : public ParameterBase {
- public:
+public:
   /**
    * @brief Method for loading parameter values from ROS.
    *
@@ -33,6 +32,10 @@ struct CalibrationParams : public ParameterBase {
     ros::param::get("/calibration_params/baselink_frame", baselink_frame);
     ros::param::get("/calibration_params/world_frame", world_frame);
     ros::param::get("/calibration_params/static_extrinsics", static_extrinsics);
+
+    ros::param::get("/calibration_params/camera_hz", camera_hz);
+    ros::param::get("/calibration_params/imu_hz", imu_hz);
+    ros::param::get("/calibration_params/lidar_hz", lidar_hz);
 
     if (imu_frame.empty() || lidar_frame.empty() || camera_frame.empty() ||
         baselink_frame.empty() || world_frame.empty()) {
@@ -55,10 +58,12 @@ struct CalibrationParams : public ParameterBase {
   std::string camera_frame{};
   std::string baselink_frame{};
   std::string world_frame{};
+  int camera_hz;
+  int imu_hz;
+  int lidar_hz;
   bool static_extrinsics{};
 };
 
-}  // namespace models
-}  // namespace bs_parameters
+}} // namespace bs_parameters::models
 
 #endif

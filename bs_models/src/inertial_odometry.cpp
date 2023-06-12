@@ -1,8 +1,5 @@
 #include <bs_models/inertial_odometry.h>
 
-#include <fuse_variables/acceleration_linear_3d_stamped.h>
-#include <fuse_variables/velocity_angular_3d_stamped.h>
-
 #include <beam_utils/utils.h>
 #include <pluginlib/class_list_macros.h>
 
@@ -101,6 +98,10 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   odom_seq_++;
   prev_stamp_ = curr_stamp;
   imu_buffer_.pop();
+
+  if (imu_measurement_buffer_.size() > calibration_params_.imu_hz * 5) {
+    imu_measurement_buffer_.erase(imu_measurement_buffer_.begin());
+  }
 }
 
 void InertialOdometry::processOdometry(
@@ -116,32 +117,6 @@ void InertialOdometry::processOdometry(
       imu_preint_->RegisterNewImuPreintegratedFactor(msg->header.stamp);
 
   if (!transaction) { return; }
-
-  // get linear accel and angular velocity variables
-  auto lin_acc = fuse_variables::AccelerationLinear3DStamped::make_shared(
-      msg->header.stamp);
-  auto ang_vel =
-      fuse_variables::VelocityAngular3DStamped::make_shared(msg->header.stamp);
-
-  bool override_variable = false;
-  auto lb = imu_measurement_buffer_.lower_bound(msg->header.stamp.toNSec());
-  if (lb != imu_measurement_buffer_.end()) {
-    const auto [lin_acc_data, ang_vel_data] =
-        imu_measurement_buffer_[lb->first];
-    lin_acc->x() = lin_acc_data.x();
-    lin_acc->y() = lin_acc_data.y();
-    lin_acc->z() = lin_acc_data.z();
-
-    ang_vel->roll() = ang_vel_data.x();
-    ang_vel->pitch() = ang_vel_data.y();
-    ang_vel->yaw() = ang_vel_data.z();
-    override_variable = true;
-
-    // clear buffer up to the current odom
-    imu_measurement_buffer_.erase(imu_measurement_buffer_.begin(), lb);
-  }
-  transaction->addVariable(lin_acc, override_variable);
-  transaction->addVariable(ang_vel, override_variable);
 
   sendTransaction(transaction);
 }
@@ -227,6 +202,10 @@ void InertialOdometry::onGraphUpdate(
     prev_stamp_ = curr_stamp;
     imu_buffer_.pop();
   }
+
+  // clear measurement buffer
+  auto lb = imu_measurement_buffer_.lower_bound(prev_stamp_.toNSec());
+  imu_measurement_buffer_.erase(imu_measurement_buffer_.begin(), lb);
 
   initialized_ = true;
 }
