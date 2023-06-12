@@ -104,8 +104,8 @@ public:
    * @param t2 second timestamp
    * @return [T_IMUSTATE1_IMUSTATE2, cov]
    */
-  PoseWithCovariance GetRelativeMotion(const ros::Time& t1,
-                                       const ros::Time& t2);
+  PoseWithCovariance GetRelativeMotion(const ros::Time& t1, const ros::Time& t2,
+                                       Eigen::Vector3d& velocity_t2);
 
   /**
    * @brief Predicts new IMU state from imu preintegration

@@ -4,8 +4,7 @@
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
 #include <pluginlib/class_list_macros.h>
-#include <std_msgs/Time.h>
-#include <std_msgs/UInt64MultiArray.h>
+#include <geometry_msgs/PoseStamped.h>
 
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/Utils.h>
@@ -70,7 +69,7 @@ void VisualOdometry::onStart() {
   odometry_publisher_ =
       private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
   keyframe_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("camera_pose", 100);
+      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 100);
   slam_chunk_publisher_ =
       private_node_handle_.advertise<bs_common::SlamChunkMsg>(
           "/local_mapper/slam_results", 100);
@@ -124,7 +123,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   transaction->stamp(timestamp);
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
 
-  // add acceleration and velocity 
+  // add acceleration and velocity
   auto lin_acc =
       fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
   auto ang_vel =
@@ -140,7 +139,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
   transaction->addVariable(lin_acc);
   transaction->addVariable(ang_vel);
-  
+
   previous_frame_ = timestamp;
   sendTransaction(transaction);
 
@@ -473,12 +472,12 @@ void VisualOdometry::PublishRelocRequest(const Keyframe& keyframe) {
 
 void VisualOdometry::PublishPose(const ros::Time& timestamp,
                                  const Eigen::Matrix4d& T_WORLD_BASELINK) {
-  // todo: change this topic to be a pose stamped topic
   static uint64_t kf_odom_seq = 0;
-  const auto kf_odom_msg = bs_common::TransformToOdometryMessage(
-      timestamp, kf_odom_seq++, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetBaselinkFrameId(), T_WORLD_BASELINK);
-  keyframe_publisher_.publish(kf_odom_msg);
+  geometry_msgs::PoseStamped msg;
+  bs_common::EigenTransformToPoseStamped(T_WORLD_BASELINK, timestamp,
+                                         kf_odom_seq++,
+                                         extrinsics_.GetBaselinkFrameId(), msg);
+  keyframe_publisher_.publish(msg);
 }
 
 } // namespace bs_models

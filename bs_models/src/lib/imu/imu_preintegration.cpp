@@ -106,8 +106,8 @@ PoseWithCovariance ImuPreintegration::GetPose(const ros::Time& t_now) {
   return std::make_pair(T_WORLD_IMU, covariance);
 }
 
-PoseWithCovariance ImuPreintegration::GetRelativeMotion(const ros::Time& t1,
-                                                        const ros::Time& t2) {
+PoseWithCovariance ImuPreintegration::GetRelativeMotion(
+    const ros::Time& t1, const ros::Time& t2, Eigen::Vector3d& velocity_t2) {
   assert(!pre_integrator_ij_.data.empty() &&
          "No data in preintegrator, cannot retrieve relative motion.");
   assert(t1 >= imu_state_i_.Stamp() &&
@@ -163,6 +163,9 @@ PoseWithCovariance ImuPreintegration::GetRelativeMotion(const ros::Time& t1,
   // get covariance
   Eigen::Matrix<double, 6, 6> covariance =
       pre_integrator.delta.cov.block<6, 6>(0, 0);
+
+  // get velocity
+  velocity_t2 = imu_state_2.VelocityVec();
 
   return std::make_pair(T_IMUSTATE1_IMUSTATE2, covariance);
 }

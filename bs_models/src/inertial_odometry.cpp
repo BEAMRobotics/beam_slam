@@ -1,4 +1,6 @@
+#include <bs_common/utils.h>
 #include <bs_models/inertial_odometry.h>
+#include <geometry_msgs/PoseStamped.h>
 
 #include <beam_utils/utils.h>
 #include <pluginlib/class_list_macros.h>
@@ -58,10 +60,10 @@ void InertialOdometry::onStart() {
   }
 
   // setup publishers
-  relative_odom_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odom/relative", 100);
-  world_odom_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odom/world", 100);
+  odometry_publisher_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
+  pose_publisher_ =
+      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 100);
 }
 
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -99,8 +101,13 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   prev_stamp_ = curr_stamp;
   imu_buffer_.pop();
 
-  if (imu_measurement_buffer_.size() > calibration_params_.imu_hz * 5) {
+  if (imu_measurement_buffer_.size() >
+      calibration_params_.imu_hz * params_.measurement_buffer_duration) {
     imu_measurement_buffer_.erase(imu_measurement_buffer_.begin());
+  }
+  if (velocity_buffer_.size() >
+      calibration_params_.imu_hz * params_.measurement_buffer_duration) {
+    velocity_buffer_.erase(velocity_buffer_.begin());
   }
 }
 
@@ -123,22 +130,26 @@ void InertialOdometry::processOdometry(
 
 void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
                                              const ros ::Time& curr_stamp) {
+  Eigen::Vector3d velocity_curr;
   const auto [T_IMUprev_IMUcurr, cov_rel] =
-      imu_preint_->GetRelativeMotion(prev_stamp, curr_stamp);
+      imu_preint_->GetRelativeMotion(prev_stamp, curr_stamp, velocity_curr);
+  // add velocity to buffer
+  velocity_buffer_[curr_stamp.toNSec()] = velocity_curr;
+  // publish relative odometry
   T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
   auto odom_msg_rel = bs_common::TransformToOdometryMessage(
       curr_stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov_rel);
-  relative_odom_publisher_.publish(odom_msg_rel);
+  odometry_publisher_.publish(odom_msg_rel);
 }
 
 void InertialOdometry::ComputeAbsolutePose(const ros::Time& curr_stamp) {
   // get world pose and publish
   const auto [T_WORLD_IMU, cov_abs] = imu_preint_->GetPose(curr_stamp);
-  auto odom_msg_abs = bs_common::TransformToOdometryMessage(
-      curr_stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetImuFrameId(), T_WORLD_IMU, cov_abs);
-  // TODO: turn this into Pose3DStamped message
+  geometry_msgs::PoseStamped msg;
+  bs_common::EigenTransformToPoseStamped(T_WORLD_IMU, curr_stamp, odom_seq_,
+                                         extrinsics_.GetImuFrameId(), msg);
+  pose_publisher_.publish(msg);
 }
 
 void InertialOdometry::onGraphUpdate(
@@ -159,7 +170,7 @@ void InertialOdometry::onGraphUpdate(
         stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
         extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_,
         Eigen::Matrix<double, 6, 6>::Identity());
-    relative_odom_publisher_.publish(odom_msg);
+    odometry_publisher_.publish(odom_msg);
   }
 
   // get most recent variables in graph to initialize imu preintegrator

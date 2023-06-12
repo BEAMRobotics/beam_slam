@@ -106,12 +106,14 @@ private:
   ros::Subscriber odom_subscriber_;
 
   // publishers
-  ros::Publisher relative_odom_publisher_;
-  ros::Publisher world_odom_publisher_;
+  ros::Publisher odometry_publisher_;
+  ros::Publisher pose_publisher_;
 
   // data storage
   std::queue<sensor_msgs::Imu> imu_buffer_;
-  std::map<uint64_t, std::pair<Eigen::Vector3d,Eigen::Vector3d>> imu_measurement_buffer_;
+  std::map<uint64_t, std::pair<Eigen::Vector3d, Eigen::Vector3d>>
+      imu_measurement_buffer_;
+  std::map<uint64_t, Eigen::Vector3d> velocity_buffer_;
 
   // primary odom objects
   std::shared_ptr<ImuPreintegration> imu_preint_;

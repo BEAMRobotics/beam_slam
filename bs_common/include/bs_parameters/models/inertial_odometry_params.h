@@ -21,13 +21,17 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
+    getParam<double>(nh, "measurement_buffer_duration",
+                     measurement_buffer_duration, 10.0);
     // imu topic
     getParamRequired<std::string>(nh, "imu_topic", imu_topic);
 
     // odometry topic for the poses to add constraints to
-    getParamRequired<std::string>(nh, "constraint_odom_topic", constraint_odom_topic);
+    getParamRequired<std::string>(nh, "constraint_odom_topic",
+                                  constraint_odom_topic);
   }
 
+  double measurement_buffer_duration{10.0};
   std::string imu_topic{};
   std::string constraint_odom_topic{};
 };
