@@ -1,4 +1,4 @@
-#include <bs_constraints/relative_pose/relative_imu_state_3d_stamped_constraint.h>
+#include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>
 
 #include <string>
 
@@ -6,10 +6,9 @@
 #include <ceres/autodiff_cost_function.h>
 #include <pluginlib/class_list_macros.h>
 
-#include <bs_constraints/relative_pose/normal_delta_imu_state_3d_cost_functor.h>
+#include <bs_constraints/inertial/normal_delta_imu_state_3d_cost_functor.h>
 
-namespace bs_constraints {
-namespace relative_pose {
+namespace bs_constraints { namespace inertial {
 
 RelativeImuState3DStampedConstraint::RelativeImuState3DStampedConstraint(
     const std::string& source, const bs_common::ImuState& imu_state_i,
@@ -48,11 +47,10 @@ ceres::CostFunction* RelativeImuState3DStampedConstraint::costFunction() const {
       new NormalDeltaImuState3DCostFunctor(imu_state_i_, pre_integrator_));
 }
 
-}  // namespace relative_pose
-}  // namespace bs_constraints
+}} // namespace bs_constraints::inertial
 
 BOOST_CLASS_EXPORT_IMPLEMENT(
-    bs_constraints::relative_pose::RelativeImuState3DStampedConstraint);
+    bs_constraints::inertial::RelativeImuState3DStampedConstraint);
 PLUGINLIB_EXPORT_CLASS(
-    bs_constraints::relative_pose::RelativeImuState3DStampedConstraint,
+    bs_constraints::inertial::RelativeImuState3DStampedConstraint,
     fuse_core::Constraint);

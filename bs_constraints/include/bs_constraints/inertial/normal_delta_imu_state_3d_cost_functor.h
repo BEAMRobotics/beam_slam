@@ -9,7 +9,7 @@
 #include <bs_common/preintegrator.h>
 #include <bs_common/utils.h>
 
-namespace bs_constraints { namespace relative_pose {
+namespace bs_constraints { namespace inertial {
 
 /**
  * @brief Implements a cost function that models a difference between 3D
@@ -67,13 +67,12 @@ NormalDeltaImuState3DCostFunctor::NormalDeltaImuState3DCostFunctor(
       A_(pre_integrator->delta.sqrt_inv_cov) {}
 
 template <typename T>
-bool NormalDeltaImuState3DCostFunctor::
-    operator()(const T* const orientation1, const T* const position1,
-               const T* const velocity1, const T* const gyrobias1,
-               const T* const accelbias1, const T* const orientation2,
-               const T* const position2, const T* const velocity2,
-               const T* const gyrobias2, const T* const accelbias2,
-               T* residual) const {
+bool NormalDeltaImuState3DCostFunctor::operator()(
+    const T* const orientation1, const T* const position1,
+    const T* const velocity1, const T* const gyrobias1,
+    const T* const accelbias1, const T* const orientation2,
+    const T* const position2, const T* const velocity2,
+    const T* const gyrobias2, const T* const accelbias2, T* residual) const {
   // map input to templated
   Eigen::Quaternion<T> q_i(orientation1[0], orientation1[1], orientation1[2],
                            orientation1[3]);
@@ -149,4 +148,4 @@ bool NormalDeltaImuState3DCostFunctor::
   return true;
 }
 
-}} // namespace bs_constraints::relative_pose
+}} // namespace bs_constraints::inertial

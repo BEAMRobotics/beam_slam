@@ -329,7 +329,11 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 }
 
 /****************************************************/
+/*                                                  */
+/*                                                  */
 /*                      Helpers                     */
+/*                                                  */
+/*                                                  */
 /****************************************************/
 
 bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,

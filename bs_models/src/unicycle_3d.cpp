@@ -20,9 +20,8 @@ PLUGINLIB_EXPORT_CLASS(bs_models::Unicycle3D, fuse_core::MotionModel)
 
 namespace bs_models {
 
-static constexpr double EPSILON =
-    1.0e-9;  //!< "Small" value used to check if state variables are effectively
-             //!< zero
+//!< "Small" value used to check if state variables are effectively zero
+static constexpr double EPSILON = 1.0e-9;
 
 Unicycle3D::Unicycle3D()
     : fuse_core::AsyncMotionModel(1),
@@ -278,9 +277,7 @@ void Unicycle3D::generateMotionModel(
 void Unicycle3D::updateStateHistoryEstimates(
     const fuse_core::Graph& graph, StateHistory& state_history,
     const ros::Duration& buffer_length) {
-  if (state_history.empty()) {
-    return;
-  }
+  if (state_history.empty()) { return; }
 
   ros::Time expiration_time;
 
@@ -377,4 +374,4 @@ void Unicycle3D::updateStateHistoryEstimates(
   }
 }
 
-}  // namespace bs_models
+} // namespace bs_models

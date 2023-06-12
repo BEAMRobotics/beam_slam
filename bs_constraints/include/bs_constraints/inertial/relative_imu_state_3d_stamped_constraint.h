@@ -17,7 +17,7 @@
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
 
-namespace bs_constraints { namespace relative_pose {
+namespace bs_constraints { namespace inertial {
 
 /**
  * @brief A constraint that represents a measurement on the difference between
@@ -97,7 +97,7 @@ private:
   }
 };
 
-}} // namespace bs_constraints::relative_pose
+}} // namespace bs_constraints::inertial
 
 BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::relative_pose::RelativeImuState3DStampedConstraint);
+    bs_constraints::inertial::RelativeImuState3DStampedConstraint);

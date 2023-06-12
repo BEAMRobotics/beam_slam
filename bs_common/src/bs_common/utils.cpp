@@ -385,6 +385,33 @@ fuse_variables::VelocityLinear3DStamped::SharedPtr
   return velocity;
 }
 
+fuse_variables::VelocityAngular3DStamped::SharedPtr
+    GetAngularVelocity(fuse_core::Graph::ConstSharedPtr graph,
+                       const ros::Time& stamp) {
+  auto velocity = fuse_variables::VelocityAngular3DStamped::make_shared();
+  const auto vel_uuid =
+      fuse_core::uuid::generate(velocity->type(), stamp, fuse_core::uuid::NIL);
+  try {
+    *velocity = dynamic_cast<const fuse_variables::VelocityAngular3DStamped&>(
+        graph->getVariable(vel_uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
+  return velocity;
+}
+
+fuse_variables::AccelerationLinear3DStamped::SharedPtr
+    GetLinearAcceleration(fuse_core::Graph::ConstSharedPtr graph,
+                          const ros::Time& stamp) {
+  auto velocity = fuse_variables::AccelerationLinear3DStamped::make_shared();
+  const auto vel_uuid =
+      fuse_core::uuid::generate(velocity->type(), stamp, fuse_core::uuid::NIL);
+  try {
+    *velocity =
+        dynamic_cast<const fuse_variables::AccelerationLinear3DStamped&>(
+            graph->getVariable(vel_uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
+  return velocity;
+}
+
 std::set<ros::Time> CurrentTimestamps(fuse_core::Graph::ConstSharedPtr graph) {
   std::set<ros::Time> times;
   for (auto& var : graph->getVariables()) {

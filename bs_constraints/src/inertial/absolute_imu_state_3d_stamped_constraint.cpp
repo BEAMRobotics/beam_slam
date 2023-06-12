@@ -1,15 +1,14 @@
-#include <bs_constraints/global/absolute_imu_state_3d_stamped_constraint.h>
-#include <bs_constraints/global/normal_prior_imu_state_3d_cost_functor.h>
+#include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
+#include <bs_constraints/inertial/normal_prior_imu_state_3d_cost_functor.h>
 
 #include <string>
 
+#include <Eigen/Dense>
 #include <boost/serialization/export.hpp>
 #include <ceres/autodiff_cost_function.h>
-#include <Eigen/Dense>
 #include <pluginlib/class_list_macros.h>
 
-namespace bs_constraints {
-namespace global {
+namespace bs_constraints { namespace inertial {
 
 AbsoluteImuState3DStampedConstraint::AbsoluteImuState3DStampedConstraint(
     const std::string& source, const bs_common::ImuState& imu_state,
@@ -18,7 +17,7 @@ AbsoluteImuState3DStampedConstraint::AbsoluteImuState3DStampedConstraint(
     : fuse_core::Constraint(
           source, {imu_state.Orientation().uuid(), imu_state.Position().uuid(),
                    imu_state.Velocity().uuid(), imu_state.GyroBias().uuid(),
-                   imu_state.AccelBias().uuid()}),  // NOLINT(whitespace/braces)
+                   imu_state.AccelBias().uuid()}), // NOLINT(whitespace/braces)
       mean_(mean),
       sqrt_information_(covariance.inverse().llt().matrixU()) {}
 
@@ -46,11 +45,10 @@ ceres::CostFunction* AbsoluteImuState3DStampedConstraint::costFunction() const {
       new NormalPriorImuState3DCostFunctor(sqrt_information_, mean_));
 }
 
-}  // namespace global
-}  // namespace bs_constraints
+}} // namespace bs_constraints::inertial
 
 BOOST_CLASS_EXPORT_IMPLEMENT(
-    bs_constraints::global::AbsoluteImuState3DStampedConstraint);
+    bs_constraints::inertial::AbsoluteImuState3DStampedConstraint);
 PLUGINLIB_EXPORT_CLASS(
-    bs_constraints::global::AbsoluteImuState3DStampedConstraint,
+    bs_constraints::inertial::AbsoluteImuState3DStampedConstraint,
     fuse_core::Constraint);

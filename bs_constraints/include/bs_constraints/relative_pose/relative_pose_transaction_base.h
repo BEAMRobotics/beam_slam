@@ -10,10 +10,7 @@
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 
-#include <bs_common/imu_state.h>
 #include <bs_common/utils.h>
-#include <bs_constraints/global/absolute_imu_state_3d_stamped_constraint.h>
-#include <bs_constraints/relative_pose/relative_imu_state_3d_stamped_constraint.h>
 
 namespace bs_constraints { namespace relative_pose {
 
@@ -186,65 +183,6 @@ public:
         override_variables_);
     transaction_->addVariable(
         fuse_variables::Orientation3DStamped::make_shared(orientation),
-        override_variables_);
-  }
-
-  void AddPriorImuStateConstraint(
-      const bs_common::ImuState& imu_state,
-      const Eigen::Matrix<double, 15, 15>& prior_covariance,
-      const std::string& prior_source = "NULL") {
-    // populate mean
-    Eigen::Matrix<double, 16, 1> mean;
-    mean << imu_state.OrientationQuat().w(), imu_state.OrientationQuat().x(),
-        imu_state.OrientationQuat().y(), imu_state.OrientationQuat().z(),
-        imu_state.PositionVec(), imu_state.VelocityVec(),
-        imu_state.GyroBiasVec(), imu_state.AccelBiasVec();
-
-    // build and add constraint
-    auto prior = std::make_shared<
-        bs_constraints::global::AbsoluteImuState3DStampedConstraint>(
-        prior_source, imu_state, mean, prior_covariance);
-    transaction_->addConstraint(prior, override_constraints_);
-  }
-
-  void AddRelativeImuStateConstraint(
-      const bs_common::ImuState& imu_state_i,
-      const bs_common::ImuState& imu_state_j,
-      const bs_common::PreIntegrator& pre_integrator,
-      const std::string& source = "NULL") {
-    std::shared_ptr<bs_common::PreIntegrator> pre_integrator_ptr =
-        std::make_shared<bs_common::PreIntegrator>(pre_integrator);
-    // build and add constraint
-    auto constraint =
-        bs_constraints::relative_pose::RelativeImuState3DStampedConstraint::
-            make_shared(source, imu_state_i, imu_state_j, pre_integrator_ptr);
-    transaction_->addConstraint(constraint, override_constraints_);
-  }
-
-  void AddImuStateVariables(const bs_common::ImuState& imu_state) {
-    // extract fuse/beam variables
-    const fuse_variables::Orientation3DStamped& orr = imu_state.Orientation();
-    const fuse_variables::Position3DStamped& pos = imu_state.Position();
-    const fuse_variables::VelocityLinear3DStamped& vel = imu_state.Velocity();
-    const bs_variables::GyroscopeBias3DStamped& bg = imu_state.GyroBias();
-    const bs_variables::AccelerationBias3DStamped& ba = imu_state.AccelBias();
-
-    // add to transaction
-    transaction_->addInvolvedStamp(imu_state.Stamp());
-    transaction_->addVariable(
-        fuse_variables::Orientation3DStamped::make_shared(orr),
-        override_variables_);
-    transaction_->addVariable(
-        fuse_variables::Position3DStamped::make_shared(pos),
-        override_variables_);
-    transaction_->addVariable(
-        fuse_variables::VelocityLinear3DStamped::make_shared(vel),
-        override_variables_);
-    transaction_->addVariable(
-        bs_variables::GyroscopeBias3DStamped::make_shared(bg),
-        override_variables_);
-    transaction_->addVariable(
-        bs_variables::AccelerationBias3DStamped::make_shared(ba),
         override_variables_);
   }
 

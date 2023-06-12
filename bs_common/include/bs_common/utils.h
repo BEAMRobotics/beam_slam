@@ -2,9 +2,11 @@
 
 #include <fuse_core/graph.h>
 #include <fuse_core/transaction.h>
+#include <fuse_variables/acceleration_linear_3d_stamped.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
+#include <fuse_variables/velocity_angular_3d_stamped.h>
 #include <fuse_variables/velocity_linear_3d_stamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -236,6 +238,24 @@ fuse_variables::Orientation3DStamped::SharedPtr
 /// @return pointer to variable
 fuse_variables::VelocityLinear3DStamped::SharedPtr
     GetVelocity(fuse_core::Graph::ConstSharedPtr graph, const ros::Time& stamp);
+
+/// @brief Gets a pointer to an angular velocity variable if it exists (nullptr
+/// otherwise)
+/// @param graph graph to look in
+/// @param stamp of variable to get
+/// @return pointer to variable
+fuse_variables::VelocityAngular3DStamped::SharedPtr
+    GetAngularVelocity(fuse_core::Graph::ConstSharedPtr graph,
+                       const ros::Time& stamp);
+
+/// @brief Gets a pointer to a linear acceleration variable if it exists
+/// (nullptr otherwise)
+/// @param graph graph to look in
+/// @param stamp of variable to get
+/// @return pointer to variable
+fuse_variables::AccelerationLinear3DStamped::SharedPtr
+    GetLinearAcceleration(fuse_core::Graph::ConstSharedPtr graph,
+                          const ros::Time& stamp);
 
 /// @brief Gets all timestamps in the given graph
 /// @param graph to search in

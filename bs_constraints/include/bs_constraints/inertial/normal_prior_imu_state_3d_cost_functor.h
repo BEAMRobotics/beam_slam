@@ -6,7 +6,7 @@
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/util.h>
 
-namespace bs_constraints { namespace global {
+namespace bs_constraints { namespace inertial {
 
 /**
  * @brief Create a prior cost function on the 3D imu state at once.
@@ -52,10 +52,12 @@ NormalPriorImuState3DCostFunctor::NormalPriorImuState3DCostFunctor(
       orientation_functor_(fuse_core::Matrix3d::Identity(), b_.head<4>()) {}
 
 template <typename T>
-bool NormalPriorImuState3DCostFunctor::
-    operator()(const T* const orientation, const T* const position,
-               const T* const velocity, const T* const gyrobias,
-               const T* const accelbias, T* residual) const {
+bool NormalPriorImuState3DCostFunctor::operator()(const T* const orientation,
+                                                  const T* const position,
+                                                  const T* const velocity,
+                                                  const T* const gyrobias,
+                                                  const T* const accelbias,
+                                                  T* residual) const {
   // Use the 3D orientation cost functor to compute the orientation delta
   orientation_functor_(orientation, &residual[0]);
 
@@ -87,4 +89,4 @@ bool NormalPriorImuState3DCostFunctor::
   return true;
 }
 
-}} // namespace bs_constraints::global
+}} // namespace bs_constraints::inertial

@@ -13,6 +13,10 @@ solver_options:
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
 
+motion_models:
+  - name: 'unicycle_3d'
+    type: 'bs_models::Unicycle3D'
+
 sensor_models:
   - name: 'visual_feature_tracker'
     type: 'bs_models::VisualFeatureTracker'
@@ -20,12 +24,10 @@ sensor_models:
     type: 'bs_models::SLAMInitialization'
   - name: 'inertial_odometry'
     type: 'bs_models::InertialOdometry'
+    motion_models: [unicycle_3d]
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
-  
-motion_models:
-  - name: 'unicycle_3d'
-    type: 'bs_models::Unicycle3D'
+    motion_models: [unicycle_3d]
 
 # publishers:
 #   - name: 'odom_pub'
