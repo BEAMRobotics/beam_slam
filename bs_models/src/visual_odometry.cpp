@@ -293,9 +293,6 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 
   // do initial setup
   if (!is_initialized_) {
-    // ! known issue: if slam initialization doesn't recieve any visual
-    // ! measurements, we need to set the first keyframe ourselves rather than
-    // ! from the graph - use reference to most recent pose in graph to localize
     const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(graph);
     assert(!current_landmark_ids.empty() &&
            "Cannot use Visual Odometry without initializing with visual "
