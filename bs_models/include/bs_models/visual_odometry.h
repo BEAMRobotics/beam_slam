@@ -153,6 +153,7 @@ private:
   ros::Publisher reloc_publisher_;
 
   bool is_initialized_{false};
+  double pixel_outlier_distance_;
   std::deque<Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
   std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;

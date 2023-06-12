@@ -3,8 +3,8 @@
 #include <fuse_core/transaction.h>
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
-#include <pluginlib/class_list_macros.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <pluginlib/class_list_macros.h>
 
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/Utils.h>
@@ -45,6 +45,8 @@ void VisualOdometry::onInit() {
   visual_map_ = std::make_shared<VisualMap>(
       cam_model_, vo_params_.reprojection_loss,
       Eigen::Matrix2d::Identity() * vo_params_.reprojection_covariance_weight);
+
+  pixel_outlier_distance_ = cam_model_->GetWidth() / 40.0;
 
   // Initialize landmark measurement container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
@@ -194,9 +196,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     }
     // compute distance to actual pixel
     Eigen::Vector2d measurement = pixels[i].cast<double>();
-    double dist = beam::distance(pixel, measurement);
-    // ! this threshold should change depending on the size of the image
-    if (dist < 50.0) {
+    if (beam::distance(pixel, measurement) < pixel_outlier_distance_) {
       inlier_points.push_back(points[i]);
       inlier_pixels.push_back(pixels[i]);
     }
