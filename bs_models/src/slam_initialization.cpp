@@ -360,6 +360,8 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     auto transaction = fuse_core::Transaction::make_shared();
     transaction->stamp(timestamp);
 
+    Eigen::Vector3d gravity_baselink =
+        beam::InvertTransform(T_WORLD_BASELINK) * GRAVITY_WORLD;
     // get linear accel and angular velocity variables
     auto lin_acc =
         fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
@@ -369,9 +371,9 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     if (lb != imu_measurement_buffer_.end()) {
       const auto [lin_acc_data, ang_vel_data] =
           imu_measurement_buffer_[lb->first];
-      lin_acc->x() = lin_acc_data.x();
-      lin_acc->y() = lin_acc_data.y();
-      lin_acc->z() = lin_acc_data.z();
+      lin_acc->x() = lin_acc_data.x() - gravity_baselink.x();
+      lin_acc->y() = lin_acc_data.y() - gravity_baselink.y();
+      lin_acc->z() = lin_acc_data.z() - gravity_baselink.z();
 
       ang_vel->roll() = ang_vel_data.x();
       ang_vel->pitch() = ang_vel_data.y();
