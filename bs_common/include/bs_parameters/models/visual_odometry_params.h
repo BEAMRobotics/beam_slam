@@ -57,7 +57,7 @@ public:
     getParam<double>(nh, "reprojection_loss_a", reprojection_loss_a, 1.0);
     // reprojection loss
     reprojection_loss =
-        std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
+        std::make_shared<fuse_loss::WelschLoss>(reprojection_loss_a);
   }
 
   std::string visual_measurement_topic{

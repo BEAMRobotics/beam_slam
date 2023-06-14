@@ -1,5 +1,8 @@
 #include <bs_models/slam_initialization.h>
 
+#include <fuse_variables/acceleration_linear_3d_stamped.h>
+#include <fuse_variables/velocity_angular_3d_stamped.h>
+
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_mapping/Poses.h>
 #include <beam_utils/utils.h>
@@ -64,10 +67,13 @@ void SLAMInitialization::onInit() {
       Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
 
   max_landmark_container_size_ =
-      params_.initialization_window_s * params_.camera_hz;
-  imu_buffer_size_ = params_.initialization_window_s * params_.imu_hz;
-  if (params_.lidar_hz < 1 / min_lidar_scan_period_s_) {
-    lidar_buffer_size_ = params_.initialization_window_s * params_.lidar_hz;
+      params_.initialization_window_s * calibration_params_.camera_hz;
+  imu_buffer_size_ =
+      params_.initialization_window_s * calibration_params_.imu_hz;
+
+  if (calibration_params_.lidar_hz < 1 / min_lidar_scan_period_s_) {
+    lidar_buffer_size_ =
+        params_.initialization_window_s * calibration_params_.lidar_hz;
   } else {
     lidar_buffer_size_ =
         params_.initialization_window_s * 1 / min_lidar_scan_period_s_;
@@ -181,7 +187,7 @@ void SLAMInitialization::processCameraMeasurements(
   if (Initialize()) { shutdown(); }
 
   // if we don't, prune the first second of images
-  for (int i = 0; i < params_.camera_hz; i++) {
+  for (int i = 0; i < calibration_params_.camera_hz; i++) {
     landmark_container_->PopFront();
   }
 }
@@ -225,7 +231,20 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "SLAMInitialization received IMU measurements: " << msg->header.stamp);
   imu_buffer_.push_back(*msg);
+
+  // add measurement to window
+  Eigen::Vector3d lin_acc(msg->linear_acceleration.x,
+                          msg->linear_acceleration.y,
+                          msg->linear_acceleration.z);
+  Eigen::Vector3d ang_vel(msg->angular_velocity.x, msg->angular_velocity.y,
+                          msg->angular_velocity.z);
+  imu_measurement_buffer_[msg->header.stamp.toNSec()] =
+      std::make_pair(lin_acc, ang_vel);
+
   if (imu_buffer_.size() > imu_buffer_size_) { imu_buffer_.pop_front(); }
+  if (imu_measurement_buffer_.size() > imu_buffer_size_) {
+    imu_measurement_buffer_.erase(imu_measurement_buffer_.begin());
+  }
 }
 
 bool SLAMInitialization::Initialize() {
@@ -340,8 +359,36 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
   bool start_set = false;
   auto process_frame = [&](const auto& pair) {
     auto [stamp, T_WORLD_BASELINK] = pair;
-    // add imu data to preint for this frame
     const auto timestamp = beam::NSecToRos(stamp);
+    auto transaction = fuse_core::Transaction::make_shared();
+    transaction->stamp(timestamp);
+
+    // get linear accel and angular velocity variables
+    auto lin_acc =
+        fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
+    lin_acc->x() = 0;
+    lin_acc->y() = 0;
+    lin_acc->z() = 0;
+    auto ang_vel =
+        fuse_variables::VelocityAngular3DStamped::make_shared(timestamp);
+    auto lb = imu_measurement_buffer_.lower_bound(timestamp.toNSec());
+    if (lb != imu_measurement_buffer_.end()) {
+      const auto [lin_acc_data, ang_vel_data] =
+          imu_measurement_buffer_[lb->first];
+      ang_vel->roll() = ang_vel_data.x();
+      ang_vel->pitch() = ang_vel_data.y();
+      ang_vel->yaw() = ang_vel_data.z();
+      // clear buffer up to the current odom
+      imu_measurement_buffer_.erase(imu_measurement_buffer_.begin(), lb);
+    } else {
+      ang_vel->roll() = 0;
+      ang_vel->pitch() = 0;
+      ang_vel->yaw() = 0;
+    }
+    transaction->addVariable(lin_acc);
+    transaction->addVariable(ang_vel);
+
+    // add imu data to preint for this frame
     while (imu_buffer_.front().header.stamp < timestamp &&
            !imu_buffer_.empty()) {
       imu_preint_->AddToBuffer(imu_buffer_.front());
@@ -349,10 +396,8 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     }
 
     // add pose to graph
-    auto pose_transaction = fuse_core::Transaction::make_shared();
-    pose_transaction->stamp(timestamp);
-    visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, pose_transaction);
-    local_graph_->update(*pose_transaction);
+    visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
+    local_graph_->update(*transaction);
 
     // get velocity at the given time
     Eigen::Vector3d velocity_estimate = velocities_[stamp];
@@ -534,6 +579,7 @@ void SLAMInitialization::shutdown() {
   imu_buffer_.clear();
   frame_init_buffer_.clear();
   local_graph_->clear();
+  imu_measurement_buffer_.clear();
   frame_initializer_ = nullptr;
   visual_map_ = nullptr;
   imu_preint_ = nullptr;

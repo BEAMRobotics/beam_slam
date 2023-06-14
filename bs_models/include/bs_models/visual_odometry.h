@@ -153,12 +153,16 @@ private:
   ros::Publisher reloc_publisher_;
 
   bool is_initialized_{false};
+  double pixel_outlier_distance_;
   std::deque<Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
   std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;
   Eigen::Matrix4d T_ODOM_BASELINKprev_{Eigen::Matrix4d::Identity()};
   ros::Time previous_reloc_request_{ros::Time(0)};
   ros::Time previous_frame_;
+
+  std::array<double, 3> cur_lin_acc_;
+  std::array<double, 3> cur_ang_vel_;
 
   // callbacks for messages
   using ThrottledMeasurementCallback =

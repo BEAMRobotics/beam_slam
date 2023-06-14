@@ -5,7 +5,7 @@
 #include <bs_common/bs_msgs.h>
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
-#include <bs_constraints/relative_pose/imu_state_3d_stamped_transaction.h>
+#include <bs_constraints/inertial/imu_state_3d_stamped_transaction.h>
 #include <sensor_msgs/Imu.h>
 
 namespace bs_models {
@@ -104,8 +104,8 @@ public:
    * @param t2 second timestamp
    * @return [T_IMUSTATE1_IMUSTATE2, cov]
    */
-  PoseWithCovariance GetRelativeMotion(const ros::Time& t1,
-                                       const ros::Time& t2);
+  PoseWithCovariance GetRelativeMotion(const ros::Time& t1, const ros::Time& t2,
+                                       Eigen::Vector3d& velocity_t2);
 
   /**
    * @brief Predicts new IMU state from imu preintegration

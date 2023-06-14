@@ -35,6 +35,9 @@ public:
   ~InertialOdometry() override = default;
 
 private:
+  // todo: service that will return the closest linear acceleration, linear
+  // todo: velocity and angular velocity to request (within the stored window)
+
   /**
    * @brief Callback for imu processing, this will make sure the imu messages
    * are added to the buffer at the correct time
@@ -45,8 +48,8 @@ private:
   /**
    * @brief Perform any required initialization for the sensor model
    * (Load parameters from yaml files and read in imu intrinsics)
-   * @brief Callback for processing odometry messages, these messages are meant to be poses in which
-   * we add constraints to
+   * @brief Callback for processing odometry messages, these messages are meant
+   * to be poses in which we add constraints to
    * @param[in] msg - The odom msg to process
    */
   void processOdometry(const nav_msgs::Odometry::ConstPtr& msg);
@@ -79,11 +82,13 @@ private:
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
   /// @brief Computes relative motion and publishes to odometry
-  /// @param prev_stamp 
-  /// @param curr_stamp 
-  void ComputeRelativeMotion(const ros::Time& prev_stamp, const ros::Time& curr_stamp);
+  /// @param prev_stamp
+  /// @param curr_stamp
+  void ComputeRelativeMotion(const ros::Time& prev_stamp,
+                             const ros::Time& curr_stamp);
 
-  /// @brief Computes pose in world frame wrt the graph and published to odometry
+  /// @brief Computes pose in world frame wrt the graph and published to
+  /// odometry
   /// @param curr_stamp
   void ComputeAbsolutePose(const ros::Time& curr_stamp);
 
@@ -104,11 +109,14 @@ private:
   ros::Subscriber odom_subscriber_;
 
   // publishers
-  ros::Publisher relative_odom_publisher_;
-  ros::Publisher world_odom_publisher_;
+  ros::Publisher odometry_publisher_;
+  ros::Publisher pose_publisher_;
 
   // data storage
   std::queue<sensor_msgs::Imu> imu_buffer_;
+  std::map<uint64_t, std::pair<Eigen::Vector3d, Eigen::Vector3d>>
+      imu_measurement_buffer_;
+  std::map<uint64_t, Eigen::Vector3d> velocity_buffer_;
 
   // primary odom objects
   std::shared_ptr<ImuPreintegration> imu_preint_;
@@ -117,14 +125,17 @@ private:
 
   // extrinsics
   Eigen::Matrix4d T_imu_baselink_;
-  bs_common::ExtrinsicsLookupOnline& extrinsics_ = bs_common::ExtrinsicsLookupOnline::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // throttled callbacks for imu
-  using ThrottledIMUCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
+  using ThrottledIMUCallback =
+      fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;
   ThrottledIMUCallback throttled_imu_callback_;
 
   // throttle callback for odometry
-  using ThrottledOdomCallback = fuse_core::ThrottledMessageCallback<nav_msgs::Odometry>;
+  using ThrottledOdomCallback =
+      fuse_core::ThrottledMessageCallback<nav_msgs::Odometry>;
   ThrottledOdomCallback throttled_odom_callback_;
 };
 

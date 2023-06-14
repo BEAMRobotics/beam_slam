@@ -7,6 +7,11 @@
 /calibration_params/world_frame: "lidar_world"
 /calibration_params/baselink_frame: "imu_link"
 
+# topic frequencies
+/calibration_params/imu_hz: 500
+/calibration_params/camera_hz: 20
+/calibration_params/lidar_hz: 10
+
 # calibrations
 /calibration_params/static_extrinsics: true
 /calibration_params/camera_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/ig2/F1.json"
