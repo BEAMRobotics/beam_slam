@@ -375,6 +375,7 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     if (lb != imu_measurement_buffer_.end()) {
       const auto [lin_acc_data, ang_vel_data] =
           imu_measurement_buffer_[lb->first];
+      // todo: should i convert raw data from rad to deg?
       ang_vel->roll() = ang_vel_data.x();
       ang_vel->pitch() = ang_vel_data.y();
       ang_vel->yaw() = ang_vel_data.z();

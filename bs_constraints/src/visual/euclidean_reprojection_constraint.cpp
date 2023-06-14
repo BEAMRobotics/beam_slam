@@ -44,3 +44,7 @@ ceres::CostFunction* EuclideanReprojectionConstraint::costFunction() const {
 }
 
 } // namespace bs_constraints
+
+BOOST_CLASS_EXPORT_IMPLEMENT(bs_constraints::EuclideanReprojectionConstraint);
+PLUGINLIB_EXPORT_CLASS(bs_constraints::EuclideanReprojectionConstraint,
+                       fuse_core::Constraint);

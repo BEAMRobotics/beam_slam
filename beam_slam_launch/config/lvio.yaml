@@ -29,7 +29,9 @@ sensor_models:
     type: 'bs_models::VisualOdometry'
     motion_models: [unicycle_3d]
 
-# publishers:
+publishers:
+    - name: 'graph'
+      type: 'fuse_publishers::SerializedPublisher'
 #   - name: 'odom_pub'
 #     type: 'bs_publishers::Odometry3DPublisher'
 #   - name: 'path_pub'

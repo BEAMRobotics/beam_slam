@@ -44,8 +44,7 @@ public:
       const fuse_variables::Point3DLandmark& P_WORLD,
       const Eigen::Matrix4d& T_cam_baselink,
       const Eigen::Matrix3d& intrinsic_matrix,
-      const Eigen::Vector2d& measurement,
-      const Eigen::Matrix2d& covariance);
+      const Eigen::Vector2d& measurement, const Eigen::Matrix2d& covariance);
 
   /**
    * @brief Destructor
@@ -105,6 +104,6 @@ private:
   }
 };
 
-} // namespace fuse_constraints
+} // namespace bs_constraints
 
 BOOST_CLASS_EXPORT_KEY(bs_constraints::EuclideanReprojectionConstraint);
