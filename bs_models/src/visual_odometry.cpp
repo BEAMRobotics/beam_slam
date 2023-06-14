@@ -130,15 +130,8 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
       fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
   auto ang_vel =
       fuse_variables::VelocityAngular3DStamped::make_shared(timestamp);
-
-  lin_acc->x() = 0;
-  lin_acc->y() = 0;
-  lin_acc->z() = 0;
-
-  ang_vel->roll() = 0;
-  ang_vel->pitch() = 0;
-  ang_vel->yaw() = 0;
-
+  lin_acc->array() = cur_lin_acc_;
+  ang_vel->array() = cur_ang_vel_;
   transaction->addVariable(lin_acc);
   transaction->addVariable(ang_vel);
 
@@ -178,44 +171,19 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   GetPixelPointPairs(timestamp, pixels, points);
 
-  // filter outliers
-  std::vector<Eigen::Vector2i, beam::AlignVec2i> inlier_pixels;
-  std::vector<Eigen::Vector3d, beam::AlignVec3d> inlier_points;
-  const auto T_cam_world = beam::InvertTransform(
-      visual_map_->GetCameraPose(previous_frame_).value());
-  for (size_t i = 0; i < points.size(); i++) {
-    // transform points into camera frame
-    Eigen::Vector3d pt_cam =
-        (T_cam_world * points[i].homogeneous()).hnormalized();
-
-    // reproject triangulated points into each frame
-    bool in_image = false;
-    Eigen::Vector2d pixel;
-    if (!cam_model_->ProjectPoint(pt_cam, pixel, in_image) || !in_image) {
-      continue;
-    }
-    // compute distance to actual pixel
-    Eigen::Vector2d measurement = pixels[i].cast<double>();
-    if (beam::distance(pixel, measurement) < pixel_outlier_distance_) {
-      inlier_points.push_back(points[i]);
-      inlier_pixels.push_back(pixels[i]);
-    }
-  }
-
-  if (inlier_pixels.size() >= 20) {
+  if (pixels.size() >= 20) {
     // perform motion only BA to refine estimate, initialize at previous frame
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
         T_WORLD_BASELINKprev * beam::InvertTransform(T_cam_baselink_));
 
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
-        T_CAMERA_WORLD_est, cam_model_, inlier_pixels, inlier_points);
-
+        T_CAMERA_WORLD_est, cam_model_, pixels, points);
     T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
   } else {
     ROS_WARN_STREAM(
-        "Using motion model, not enough inliers for visual estimation: "
-        << inlier_pixels.size());
+        "Using motion model, not enough points for visual estimation: "
+        << pixels.size());
     // todo: use a motion model opposed to inertial odometry as frame init
     Eigen::Matrix4d T_PREVFRAME_CURFRAME;
     if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
@@ -274,7 +242,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 }
 
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
-  ROS_INFO_STREAM_ONCE("VisualOdometry: Received initial graph.");
+  ROS_INFO_STREAM_ONCE("VisualOdometry received initial graph.");
 
   // all timestamps in the new graph
   const auto timestamps = bs_common::CurrentTimestamps(graph);
@@ -287,6 +255,12 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
       keyframes_.pop_front();
     }
   }
+
+  // get most recent linear acceleration and angular velocity
+  const auto end_timestamp = *timestamps.rbegin();
+  cur_lin_acc_ =
+      bs_common::GetLinearAcceleration(graph, end_timestamp)->array();
+  cur_ang_vel_ = bs_common::GetAngularVelocity(graph, end_timestamp)->array();
 
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);

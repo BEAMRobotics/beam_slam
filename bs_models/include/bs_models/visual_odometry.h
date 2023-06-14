@@ -161,6 +161,9 @@ private:
   ros::Time previous_reloc_request_{ros::Time(0)};
   ros::Time previous_frame_;
 
+  std::array<double, 3> cur_lin_acc_;
+  std::array<double, 3> cur_ang_vel_;
+
   // callbacks for messages
   using ThrottledMeasurementCallback =
       fuse_core::ThrottledMessageCallback<CameraMeasurementMsg>;

@@ -7,7 +7,7 @@ solver_options:
   minimizer_progress_to_stdout: true
   num_threads: 16
   num_linear_solver_threads: 16
-  max_num_iterations: 10
+  max_num_iterations: 3
   max_solver_time_in_seconds: 0.7
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
@@ -59,8 +59,8 @@ slam_initialization:
   camera_hz: 20
   initialization_window_s: 3.0
   min_trajectory_length_m: 1.0
-  reprojection_covariance_weight: 0.01
-  reprojection_loss_a: 1.0
+  reprojection_covariance_weight: 1.0
+  reprojection_loss_a: 10.0
 
 inertial_odometry:
   imu_topic: "/imu/data"
@@ -71,10 +71,10 @@ visual_odometry:
   max_container_size: 300
   frame_initializer_config: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
   reloc_request_period: 3.0
-  keyframe_parallax: 35.0
+  keyframe_parallax: 50.0
   keyframe_max_duration: 0.5
-  reprojection_covariance_weight: 0.01
-  reprojection_loss_a: 0.5
+  reprojection_covariance_weight: 1.0
+  reprojection_loss_a: 10.0
 
 lidar_odometry:
   # Local scan registration

@@ -363,32 +363,24 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     auto transaction = fuse_core::Transaction::make_shared();
     transaction->stamp(timestamp);
 
-    // get the gravity in the current frame
-    Eigen::Vector3d gravity_baselink =
-        T_WORLD_BASELINK.block(0, 0, 3, 3).transpose() * GRAVITY_WORLD;
     // get linear accel and angular velocity variables
     auto lin_acc =
         fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
+    lin_acc->x() = 0;
+    lin_acc->y() = 0;
+    lin_acc->z() = 0;
     auto ang_vel =
         fuse_variables::VelocityAngular3DStamped::make_shared(timestamp);
     auto lb = imu_measurement_buffer_.lower_bound(timestamp.toNSec());
     if (lb != imu_measurement_buffer_.end()) {
       const auto [lin_acc_data, ang_vel_data] =
           imu_measurement_buffer_[lb->first];
-      lin_acc->x() = lin_acc_data.x() - gravity_baselink.x();
-      lin_acc->y() = lin_acc_data.y() - gravity_baselink.y();
-      lin_acc->z() = lin_acc_data.z() - gravity_baselink.z();
-
       ang_vel->roll() = ang_vel_data.x();
       ang_vel->pitch() = ang_vel_data.y();
       ang_vel->yaw() = ang_vel_data.z();
       // clear buffer up to the current odom
       imu_measurement_buffer_.erase(imu_measurement_buffer_.begin(), lb);
     } else {
-      lin_acc->x() = 0;
-      lin_acc->y() = 0;
-      lin_acc->z() = 0;
-
       ang_vel->roll() = 0;
       ang_vel->pitch() = 0;
       ang_vel->yaw() = 0;
