@@ -41,58 +41,54 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   }
 
   // Compute relative pose between first and last
-  beam::opt<Eigen::Matrix4d> T_cameraN_camera0 =
+  beam::opt<Eigen::Matrix4d> T_camera0_cameraN =
       beam_cv::RelativePoseEstimator::RANSACEstimator(
           camera_model, camera_model, first_landmarks, last_landmarks,
-          beam_cv::EstimatorMethod::SEVENPOINT, 20);
-  if (!T_cameraN_camera0.has_value()) { return {}; }
+          beam_cv::EstimatorMethod::SEVENPOINT, 100);
+  if (!T_camera0_cameraN.has_value()) { return {}; }
 
-  Eigen::Matrix4d T_camera0_cameraN = T_cameraN_camera0.value().inverse();
-  Eigen::Matrix4d T_world_camera0 = T_camera_baselink.inverse();
-  Eigen::Matrix4d T_world_cameraN = T_world_camera0 * T_camera0_cameraN;
+  // Eigen::Matrix4d T_camera0_cameraN = T_cameraN_camera0.value().inverse();
+  Eigen::Matrix4d T_world_camera0 = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d T_world_cameraN = T_camera0_cameraN.value();
 
   // Triangulate points
-  std::vector<beam::opt<Eigen::Vector3d>> points =
-      beam_cv::Triangulation::TriangulatePoints(
-          camera_model, camera_model, T_world_camera0.inverse(),
-          T_world_cameraN.inverse(), first_landmarks, last_landmarks);
+  auto points = beam_cv::Triangulation::TriangulatePoints(
+      camera_model, camera_model, T_world_camera0, T_world_cameraN,
+      first_landmarks, last_landmarks);
 
   // Determine inliers of triangulated points
-  int inliers = 0;
+  std::vector<int> inlier_indices;
+  int total_size = first_landmarks.size();
   for (size_t i = 0; i < points.size(); i++) {
-    if (points[i].has_value()) {
-      Eigen::Vector3d t_point_world = points[i].value();
-      // transform points into each camera frame
-      Eigen::Vector3d t_point_camera0 =
-          (T_world_camera0.inverse() * t_point_world.homogeneous())
-              .hnormalized();
-      Eigen::Vector3d t_point_cameraN =
-          (T_world_cameraN.inverse() * t_point_world.homogeneous())
-              .hnormalized();
-      // reproject triangulated points into each frame
-      bool in_image1 = false, in_image2 = false;
-      Eigen::Vector2d t_rep0, t_repN;
-      if (!camera_model->ProjectPoint(t_point_camera0, t_rep0, in_image1) ||
-          !camera_model->ProjectPoint(t_point_cameraN, t_repN, in_image2)) {
-        continue;
-      } else if (!in_image1 || !in_image2) {
-        continue;
-      }
-      // compute distance to actual pixel
-      Eigen::Vector2d pixel0 = first_landmarks[i].cast<double>();
-      Eigen::Vector2d pixelN = last_landmarks[i].cast<double>();
-      if (beam::distance(t_rep0, pixel0) > 5.0 &&
-          beam::distance(t_repN, pixelN) > 5.0) {
-        // set outlier to have no value in the vector
-        points[i].reset();
-      } else {
-        inliers++;
-      }
+    // transform points into each camera frame
+    Eigen::Vector3d t_point_camera0 =
+        (T_world_camera0.inverse() * points[i].homogeneous()).hnormalized();
+    Eigen::Vector3d t_point_cameraN =
+        (T_world_cameraN.inverse() * points[i].homogeneous()).hnormalized();
+    // check for good triangulation
+    if (t_point_camera0[2] < 0 || t_point_cameraN[2] < 0 ||
+        t_point_camera0[2] > 100 || t_point_cameraN[2] > 100) {
+      total_size--;
+      continue;
+    }
+    // reproject triangulated points into each frame
+    Eigen::Vector2d t_rep0, t_repN;
+    if (!camera_model->ProjectPoint(t_point_camera0, t_rep0) ||
+        !camera_model->ProjectPoint(t_point_cameraN, t_repN)) {
+      total_size--;
+      continue;
+    }
+    // compute distance to actual pixel
+    Eigen::Vector2d pixel0 = first_landmarks[i].cast<double>();
+    Eigen::Vector2d pixelN = last_landmarks[i].cast<double>();
+    if (beam::distance(t_rep0, pixel0) < 10.0 &&
+        beam::distance(t_repN, pixelN) < 10.0) {
+      inlier_indices.push_back(i);
     }
   }
 
   // If not enough inliers, return
-  float inlier_ratio = (float)inliers / first_landmarks.size();
+  float inlier_ratio = (float)inlier_indices.size() / first_landmarks.size();
   if (inlier_ratio < 0.8) { return {}; }
   ROS_INFO_STREAM(__func__ << ": Valid image pair. Inlier Ratio: "
                            << inlier_ratio
@@ -110,11 +106,9 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   visual_map->AddCameraPose(T_world_camera0, first_time, initial_transaction);
   visual_map->AddCameraPose(T_world_cameraN, last_time, initial_transaction);
 
-  for (size_t i = 0; i < points.size(); i++) {
-    if (!points[i].has_value()) { continue; }
-    const auto landmark_id = matched_ids[i];
-    visual_map->AddLandmark(points[i].value(), landmark_id,
-                            initial_transaction);
+  for (const auto& id : inlier_indices) {
+    const auto landmark_id = matched_ids[id];
+    visual_map->AddLandmark(points[id], landmark_id, initial_transaction);
     try {
       Eigen::Vector2d first_pixel =
           landmark_container->GetValue(first_time, landmark_id);
@@ -126,6 +120,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
                                       initial_transaction);
     } catch (const std::out_of_range& oor) { continue; }
   }
+
   visual_graph->update(*initial_transaction);
   visual_map->UpdateGraph(visual_graph);
 
@@ -198,8 +193,43 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = true;
   options.logging_type = ceres::PER_MINIMIZER_ITERATION;
-  visual_graph->optimizeFor(ros::Duration(max_optimization_time), options);
+  visual_graph->optimizeFor(ros::Duration(20.0), options);
   visual_map->UpdateGraph(visual_graph);
+
+  // // for each timestamp in landmark container try:
+  // // get pose, get image thats been saved, plot measurements, project
+  // // corresponding landmarks, draw line btw them
+  // std::cout << "Outputting reprojections" << std::endl;
+  // auto visual_measurements = landmark_container->GetMeasurementTimes();
+  // for (const auto& t : visual_measurements) {
+  //   const auto stamp = beam::NSecToRos(t);
+  //   auto T = visual_map->GetCameraPose(stamp);
+  //   if (!T.has_value()) { continue; }
+  //   std::string file = "/home/jake/data/images/" + std::to_string(t) + ".png";
+  //   cv::Mat image = cv::imread(file, cv::IMREAD_COLOR);
+  //   const auto lm_ids = landmark_container->GetLandmarkIDsInImage(stamp);
+  //   for (const auto& id : lm_ids) {
+  //     try {
+  //       Eigen::Vector2d pixel =
+  //           landmark_container->GetMeasurement(stamp, id).value;
+  //       auto lm = visual_map->GetLandmark(id);
+  //       if (!lm) { continue; }
+  //       Eigen::Vector3d landmark = lm->point();
+  //       Eigen::Vector3d lm_camera =
+  //           (T.value() * landmark.homogeneous()).hnormalized();
+  //       bool in_image = false;
+  //       Eigen::Vector2d projected;
+  //       bool in_domain;
+  //       camera_model->ProjectPoint(lm_camera, projected, in_image);
+  //       cv::Point start(pixel[0], pixel[1]);
+  //       cv::Point end(projected[0], projected[1]);
+  //       cv::line(image, start, end, cv::Scalar(255, 255, 0), 4, 8);
+
+  //     } catch (const std::out_of_range& oor) { continue; }
+  //   }
+  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) + ".png",
+  //               image);
+  // }
 
   // return result
   std::map<uint64_t, Eigen::Matrix4d> init_path;

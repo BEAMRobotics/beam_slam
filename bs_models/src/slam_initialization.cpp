@@ -180,9 +180,11 @@ void SLAMInitialization::processCameraMeasurements(
   }
 
   // compute visual path if no frame initializer is present
+  ROS_INFO("Attempting visual initialization");
   init_path_ = bs_models::vision::ComputePathWithVision(
       cam_model_, landmark_container_, T_cam_baselink_, 1.0);
 
+  // todo: debug why we get stuck here
   // if we initialize successfully, stop this sensor model
   if (Initialize()) { shutdown(); }
 
@@ -500,7 +502,7 @@ void SLAMInitialization::AddLidarConstraints() {
 
 beam::opt<Eigen::Vector3d>
     SLAMInitialization::TriangulateLandmark(const uint64_t lm_id) {
-  std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_world_cam_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   beam_containers::Track track = landmark_container_->GetTrack(lm_id);
   for (auto& m : track) {
@@ -508,12 +510,18 @@ beam::opt<Eigen::Vector3d>
     // check if the pose is in the graph (keyframe)
     if (T_world_camera.has_value()) {
       pixels.push_back(m.value.cast<int>());
-      T_cam_world_v.push_back(T_world_camera.value().inverse());
+      T_world_cam_v.push_back(T_world_camera.value());
     }
   }
-  if (T_cam_world_v.size() >= 3) {
-    return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                    pixels);
+  if (T_world_cam_v.size() >= 3) {
+    const Eigen::Vector3d p_world = beam_cv::Triangulation::TriangulatePoint(
+        cam_model_, T_world_cam_v, pixels);
+    for (auto& T : T_world_cam_v) {
+      const Eigen::Vector3d p_cam =
+          (beam::InvertTransform(T) * p_world.homogeneous()).hnormalized();
+      if (p_cam[2] < 0 || p_cam[2] > 100) { return {}; }
+    }
+    return p_world;
   }
   return {};
 }

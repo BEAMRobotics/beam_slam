@@ -14,5 +14,5 @@
 
 # calibrations
 /calibration_params/static_extrinsics: true
-/calibration_params/camera_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/ig2/F1.json"
+/calibration_params/camera_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/ig2/F1_radtan.json"
 /calibration_params/imu_intrinsics_path: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/calibrations/ig2/imu.json"

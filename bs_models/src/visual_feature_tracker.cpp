@@ -69,6 +69,10 @@ void VisualFeatureTracker::processImage(
   cv::Mat image = beam_cv::OpenCVConversions::RosImgToMat(*msg);
   tracker_->AddImage(image, msg->header.stamp);
 
+  // cv::imwrite("/home/jake/data/images/" +
+  //                 std::to_string(msg->header.stamp.toNSec()) + ".png",
+  //             image);
+
   // delay publishing by one image to ensure that the tracks are actually
   // published
   if (prev_time_ == ros::Time(0)) {
