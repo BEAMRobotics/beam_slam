@@ -866,9 +866,9 @@ void Submap::TriangulateKeypoints(bool override_points) {
     }
 
     // triangulate point and add if successful
-    Eigen::Vector3d point = beam_cv::Triangulation::TriangulatePoint(
+    auto point = beam_cv::Triangulation::TriangulatePoint(
         camera_model_, Ts_CAM_WORLD, pixels);
-    landmark_positions_.emplace(landmark_id, point);
+    landmark_positions_.emplace(landmark_id, point.value());
   }
 }
 

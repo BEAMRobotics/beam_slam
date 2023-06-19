@@ -2,8 +2,6 @@
 
 #include <bs_parameters/parameter_base.h>
 #include <fuse_loss/cauchy_loss.h>
-#include <fuse_loss/geman_mcclure_loss.h>
-#include <fuse_loss/welsch_loss.h>
 
 #include <ros/node_handle.h>
 #include <ros/param.h>
@@ -57,7 +55,7 @@ public:
     getParam<double>(nh, "reprojection_loss_a", reprojection_loss_a, 1.0);
     // reprojection loss
     reprojection_loss =
-        std::make_shared<fuse_loss::WelschLoss>(reprojection_loss_a);
+        std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
   }
 
   std::string visual_measurement_topic{

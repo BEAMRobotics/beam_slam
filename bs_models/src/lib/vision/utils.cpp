@@ -6,7 +6,7 @@
 #include <beam_utils/utils.h>
 #include <bs_models/vision/visual_map.h>
 #include <fuse_graphs/hash_graph.h>
-#include <fuse_loss/huber_loss.h>
+#include <fuse_loss/cauchy_loss.h>
 
 #include <algorithm>
 
@@ -23,6 +23,9 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   // Get matches between first and last image in the window
   const auto first_time = landmark_container->FrontTimestamp();
   const auto last_time = landmark_container->BackTimestamp();
+  std::cout << "\nVISUAL INIT" << std::endl;
+  std::cout << first_time << std::endl;
+  std::cout << last_time << std::endl;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> first_landmarks;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> last_landmarks;
   std::vector<uint64_t> ids =
@@ -41,36 +44,34 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   }
 
   // Compute relative pose between first and last
-  beam::opt<Eigen::Matrix4d> T_camera0_cameraN =
+  beam::opt<Eigen::Matrix4d> T_cameraN_camera0 =
       beam_cv::RelativePoseEstimator::RANSACEstimator(
           camera_model, camera_model, first_landmarks, last_landmarks,
           beam_cv::EstimatorMethod::SEVENPOINT, 100);
-  if (!T_camera0_cameraN.has_value()) { return {}; }
 
-  // Eigen::Matrix4d T_camera0_cameraN = T_cameraN_camera0.value().inverse();
+  if (!T_cameraN_camera0.has_value()) { return {}; }
+
   Eigen::Matrix4d T_world_camera0 = Eigen::Matrix4d::Identity();
-  Eigen::Matrix4d T_world_cameraN = T_camera0_cameraN.value();
+  Eigen::Matrix4d T_world_cameraN =
+      beam::InvertTransform(T_cameraN_camera0.value());
 
+  Eigen::Matrix4d T_camera0_world = beam::InvertTransform(T_world_camera0);
+  Eigen::Matrix4d T_cameraN_world = beam::InvertTransform(T_world_cameraN);
   // Triangulate points
   auto points = beam_cv::Triangulation::TriangulatePoints(
-      camera_model, camera_model, T_world_camera0, T_world_cameraN,
+      camera_model, camera_model, T_camera0_world, T_cameraN_world,
       first_landmarks, last_landmarks);
 
   // Determine inliers of triangulated points
   std::vector<int> inlier_indices;
   int total_size = first_landmarks.size();
   for (size_t i = 0; i < points.size(); i++) {
+    if (!points[i].has_value()) { continue; }
     // transform points into each camera frame
     Eigen::Vector3d t_point_camera0 =
-        (T_world_camera0.inverse() * points[i].homogeneous()).hnormalized();
+        (T_camera0_world * points[i].value().homogeneous()).hnormalized();
     Eigen::Vector3d t_point_cameraN =
-        (T_world_cameraN.inverse() * points[i].homogeneous()).hnormalized();
-    // check for good triangulation
-    if (t_point_camera0[2] < 0 || t_point_cameraN[2] < 0 ||
-        t_point_camera0[2] > 100 || t_point_cameraN[2] > 100) {
-      total_size--;
-      continue;
-    }
+        (T_cameraN_world * points[i].value().homogeneous()).hnormalized();
     // reproject triangulated points into each frame
     Eigen::Vector2d t_rep0, t_repN;
     if (!camera_model->ProjectPoint(t_point_camera0, t_rep0) ||
@@ -97,18 +98,20 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   // Perform SFM
   auto visual_graph = std::make_shared<fuse_graphs::HashGraph>();
   auto visual_map = std::make_shared<vision::VisualMap>(
-      camera_model, std::make_shared<fuse_loss::HuberLoss>(0.2),
-      Eigen::Matrix2d::Identity() * 0.01);
+      camera_model, std::make_shared<fuse_loss::CauchyLoss>(2.0),
+      Eigen::Matrix2d::Identity() * 0.1);
 
   // Add initial poses, landmarks and constraints to graph
   auto initial_transaction = fuse_core::Transaction::make_shared();
   initial_transaction->stamp(first_time);
+
   visual_map->AddCameraPose(T_world_camera0, first_time, initial_transaction);
   visual_map->AddCameraPose(T_world_cameraN, last_time, initial_transaction);
 
   for (const auto& id : inlier_indices) {
     const auto landmark_id = matched_ids[id];
-    visual_map->AddLandmark(points[id], landmark_id, initial_transaction);
+    visual_map->AddLandmark(points[id].value(), landmark_id,
+                            initial_transaction);
     try {
       Eigen::Vector2d first_pixel =
           landmark_container->GetValue(first_time, landmark_id);
@@ -164,11 +167,11 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     // localize with correspondences
     Eigen::Matrix4d T_CAMERA_WORLD_est =
         beam_cv::AbsolutePoseEstimator::RANSACEstimator(camera_model, pixels,
-                                                        points, 30);
+                                                        points, 100);
 
     // add pose to graph
-    visual_map->AddCameraPose(T_CAMERA_WORLD_est.inverse(), timestamp,
-                              transaction);
+    visual_map->AddCameraPose(beam::InvertTransform(T_CAMERA_WORLD_est),
+                              timestamp, transaction);
 
     // add visual constraints to
     for (auto& id : ids_in_frame) {
@@ -185,9 +188,6 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     visual_map->UpdateGraph(visual_graph);
   }
 
-  // hold first pose constant
-  visual_graph->holdVariable(visual_map->GetPositionUUID(first_time), true);
-  visual_graph->holdVariable(visual_map->GetOrientationUUID(first_time), true);
   // optimize graph
   ROS_INFO_STREAM(__func__ << ": Optimizing trajectory.");
   ceres::Solver::Options options;
@@ -195,41 +195,6 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   options.logging_type = ceres::PER_MINIMIZER_ITERATION;
   visual_graph->optimizeFor(ros::Duration(20.0), options);
   visual_map->UpdateGraph(visual_graph);
-
-  // // for each timestamp in landmark container try:
-  // // get pose, get image thats been saved, plot measurements, project
-  // // corresponding landmarks, draw line btw them
-  // std::cout << "Outputting reprojections" << std::endl;
-  // auto visual_measurements = landmark_container->GetMeasurementTimes();
-  // for (const auto& t : visual_measurements) {
-  //   const auto stamp = beam::NSecToRos(t);
-  //   auto T = visual_map->GetCameraPose(stamp);
-  //   if (!T.has_value()) { continue; }
-  //   std::string file = "/home/jake/data/images/" + std::to_string(t) + ".png";
-  //   cv::Mat image = cv::imread(file, cv::IMREAD_COLOR);
-  //   const auto lm_ids = landmark_container->GetLandmarkIDsInImage(stamp);
-  //   for (const auto& id : lm_ids) {
-  //     try {
-  //       Eigen::Vector2d pixel =
-  //           landmark_container->GetMeasurement(stamp, id).value;
-  //       auto lm = visual_map->GetLandmark(id);
-  //       if (!lm) { continue; }
-  //       Eigen::Vector3d landmark = lm->point();
-  //       Eigen::Vector3d lm_camera =
-  //           (T.value() * landmark.homogeneous()).hnormalized();
-  //       bool in_image = false;
-  //       Eigen::Vector2d projected;
-  //       bool in_domain;
-  //       camera_model->ProjectPoint(lm_camera, projected, in_image);
-  //       cv::Point start(pixel[0], pixel[1]);
-  //       cv::Point end(projected[0], projected[1]);
-  //       cv::line(image, start, end, cv::Scalar(255, 255, 0), 4, 8);
-
-  //     } catch (const std::out_of_range& oor) { continue; }
-  //   }
-  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) + ".png",
-  //               image);
-  // }
 
   // return result
   std::map<uint64_t, Eigen::Matrix4d> init_path;

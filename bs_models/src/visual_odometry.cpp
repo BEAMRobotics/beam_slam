@@ -344,26 +344,20 @@ void VisualOdometry::AddMeasurementsToContainer(
 
 beam::opt<Eigen::Vector3d>
     VisualOdometry::TriangulateLandmark(const uint64_t id) {
-  std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_world_cam_v;
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   beam_containers::Track track = landmark_container_->GetTrack(id);
   for (auto& m : track) {
-    const auto T_world_camera = visual_map_->GetCameraPose(m.time_point);
+    const auto T_camera_world = visual_map_->GetCameraPose(m.time_point);
     // check if the pose is in the graph
-    if (T_world_camera.has_value()) {
+    if (T_camera_world.has_value()) {
       pixels.push_back(m.value.cast<int>());
-      T_world_cam_v.push_back(T_world_camera.value());
+      T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
     }
   }
-  if (T_world_cam_v.size() >= 5) {
-    const Eigen::Vector3d p_world = beam_cv::Triangulation::TriangulatePoint(
-        cam_model_, T_world_cam_v, pixels);
-    for (auto& T : T_world_cam_v) {
-      const Eigen::Vector3d p_cam =
-          (beam::InvertTransform(T) * p_world.homogeneous()).hnormalized();
-      if (p_cam[2] < 0 || p_cam[2] > 100) { return {}; }
-    }
-    return p_world;
+  if (T_cam_world_v.size() >= 5) {
+    return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+                                                    pixels);
   }
   return {};
 }

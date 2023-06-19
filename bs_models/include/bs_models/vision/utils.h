@@ -6,7 +6,7 @@
 #include <beam_utils/utils.h>
 
 namespace bs_models { namespace vision {
-
+    
 /**
  * @brief Estimates a trajectory given visual measurements only
  * @param camera_model pointer to camera model being used

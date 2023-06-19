@@ -309,6 +309,41 @@ bool SLAMInitialization::Initialize() {
 
   if (!params_.output_folder.empty()) { OutputResults(); }
 
+  // // for each timestamp in landmark container try:
+  // // get pose, get image thats been saved, plot measurements, project
+  // // corresponding landmarks, draw line btw them
+  // std::cout << "Outputting reprojections" << std::endl;
+  // for (const auto& t : visual_measurements) {
+  //   const auto stamp = beam::NSecToRos(t);
+  //   auto T = visual_map_->GetCameraPose(stamp);
+  //   if (!T.has_value()) { continue; }
+  //   std::string file = "/home/jake/data/images/" + std::to_string(t) + ".png";
+  //   cv::Mat image = cv::imread(file, cv::IMREAD_COLOR);
+  //   const auto lm_ids = landmark_container_->GetLandmarkIDsInImage(stamp);
+  //   for (const auto& id : lm_ids) {
+  //     try {
+  //       Eigen::Vector2d pixel =
+  //           landmark_container_->GetMeasurement(stamp, id).value;
+  //       auto lm = visual_map_->GetLandmark(id);
+  //       if (!lm) { continue; }
+  //       Eigen::Vector3d landmark = lm->point();
+  //       Eigen::Vector3d lm_camera =
+  //           (beam::InvertTransform(T.value()) * landmark.homogeneous())
+  //               .hnormalized();
+  //       bool in_image = false;
+  //       Eigen::Vector2d projected;
+  //       bool in_domain;
+  //       cam_model_->ProjectPoint(lm_camera, projected, in_image);
+  //       cv::Point start(pixel[0], pixel[1]);
+  //       cv::Point end(projected[0], projected[1]);
+  //       cv::line(image, start, end, cv::Scalar(255, 255, 0), 4, 8);
+
+  //     } catch (const std::out_of_range& oor) { continue; }
+  //   }
+  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) + ".png",
+  //               image);
+  // }
+
   return true;
 }
 
@@ -502,26 +537,20 @@ void SLAMInitialization::AddLidarConstraints() {
 
 beam::opt<Eigen::Vector3d>
     SLAMInitialization::TriangulateLandmark(const uint64_t lm_id) {
-  std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_world_cam_v;
+  std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   beam_containers::Track track = landmark_container_->GetTrack(lm_id);
   for (auto& m : track) {
-    const auto T_world_camera = visual_map_->GetCameraPose(m.time_point);
-    // check if the pose is in the graph (keyframe)
-    if (T_world_camera.has_value()) {
+    const auto T_camera_world = visual_map_->GetCameraPose(m.time_point);
+    // check if the pose is in the graph
+    if (T_camera_world.has_value()) {
       pixels.push_back(m.value.cast<int>());
-      T_world_cam_v.push_back(T_world_camera.value());
+      T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
     }
   }
-  if (T_world_cam_v.size() >= 3) {
-    const Eigen::Vector3d p_world = beam_cv::Triangulation::TriangulatePoint(
-        cam_model_, T_world_cam_v, pixels);
-    for (auto& T : T_world_cam_v) {
-      const Eigen::Vector3d p_cam =
-          (beam::InvertTransform(T) * p_world.homogeneous()).hnormalized();
-      if (p_cam[2] < 0 || p_cam[2] > 100) { return {}; }
-    }
-    return p_world;
+  if (T_cam_world_v.size() >= 3) {
+    return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+                                                    pixels);
   }
   return {};
 }
