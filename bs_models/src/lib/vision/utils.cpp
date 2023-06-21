@@ -16,8 +16,9 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::shared_ptr<beam_containers::LandmarkContainer>&
         landmark_container,
-    const Eigen::Matrix4d& T_camera_baselink, double max_optimization_time,
-    double keyframe_hz) {
+    const Eigen::Matrix4d& T_camera_baselink,
+    fuse_core::Loss::SharedPtr loss_function, double max_optimization_time,
+    double covariance_weight, double keyframe_hz) {
   assert(landmark_container->NumImages() > 3);
 
   // Get matches between first and last image in the window
@@ -98,8 +99,8 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   // Perform SFM
   auto visual_graph = std::make_shared<fuse_graphs::HashGraph>();
   auto visual_map = std::make_shared<vision::VisualMap>(
-      camera_model, std::make_shared<fuse_loss::CauchyLoss>(2.0),
-      Eigen::Matrix2d::Identity() * 0.1);
+      camera_model, loss_function,
+      Eigen::Matrix2d::Identity() * covariance_weight);
 
   // Add initial poses, landmarks and constraints to graph
   auto initial_transaction = fuse_core::Transaction::make_shared();
@@ -193,8 +194,42 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = true;
   options.logging_type = ceres::PER_MINIMIZER_ITERATION;
-  visual_graph->optimizeFor(ros::Duration(20.0), options);
+  visual_graph->optimizeFor(ros::Duration(max_optimization_time), options);
   visual_map->UpdateGraph(visual_graph);
+
+  // std::cout << "Outputting reprojections" << std::endl;
+  // auto visual_measurements = landmark_container->GetMeasurementTimes();
+  // for (const auto& t : visual_measurements) {
+  //   const auto stamp = beam::NSecToRos(t);
+  //   auto T = visual_map->GetCameraPose(stamp);
+  //   if (!T.has_value()) { continue; }
+  //   std::string file = "/home/jake/data/images/" + std::to_string(t) +
+  //   ".png"; cv::Mat image = cv::imread(file, cv::IMREAD_COLOR); const auto
+  //   lm_ids = landmark_container->GetLandmarkIDsInImage(stamp); for (const
+  //   auto& id : lm_ids) {
+  //     try {
+  //       Eigen::Vector2d pixel =
+  //           landmark_container->GetMeasurement(stamp, id).value;
+  //       auto lm = visual_map->GetLandmark(id);
+  //       if (!lm) { continue; }
+  //       Eigen::Vector3d landmark = lm->point();
+  //       Eigen::Vector3d lm_camera =
+  //           (beam::InvertTransform(T.value()) * landmark.homogeneous())
+  //               .hnormalized();
+  //       bool in_image = false;
+  //       Eigen::Vector2d projected;
+  //       bool in_domain;
+  //       camera_model->ProjectPoint(lm_camera, projected, in_image);
+  //       cv::Point start(pixel[0], pixel[1]);
+  //       cv::Point end(projected[0], projected[1]);
+  //       cv::line(image, start, end, cv::Scalar(255, 255, 0), 4, 8);
+
+  //     } catch (const std::out_of_range& oor) { continue; }
+  //   }
+  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) +
+  //   ".png",
+  //               image);
+  // }
 
   // return result
   std::map<uint64_t, Eigen::Matrix4d> init_path;

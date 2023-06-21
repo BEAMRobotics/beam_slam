@@ -94,18 +94,18 @@ void SLAMInitialization::onStart() {
   // subscribe to topics
   visual_measurement_subscriber_ =
       private_node_handle_.subscribe<CameraMeasurementMsg>(
-          ros::names::resolve(params_.visual_measurement_topic), 1000,
+          ros::names::resolve(params_.visual_measurement_topic), 100,
           &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
 
   imu_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Imu>(
-      ros::names::resolve(params_.imu_topic), 1000,
+      ros::names::resolve(params_.imu_topic), 100,
       &ThrottledIMUCallback::callback, &throttled_imu_callback_,
       ros::TransportHints().tcpNoDelay(false));
 
   lidar_subscriber_ = private_node_handle_.subscribe<sensor_msgs::PointCloud2>(
-      ros::names::resolve(params_.lidar_topic), 15,
+      ros::names::resolve(params_.lidar_topic), 100,
       &ThrottledLidarCallback::callback, &throttled_lidar_callback_,
       ros::TransportHints().tcpNoDelay(false));
 }
@@ -182,11 +182,12 @@ void SLAMInitialization::processCameraMeasurements(
   // compute visual path if no frame initializer is present
   ROS_INFO("Attempting visual initialization");
   init_path_ = bs_models::vision::ComputePathWithVision(
-      cam_model_, landmark_container_, T_cam_baselink_, 1.0);
+      cam_model_, landmark_container_, T_cam_baselink_,
+      params_.reprojection_loss, 1.0, params_.reprojection_covariance_weight);
 
-  // todo: debug why we get stuck here
   // if we initialize successfully, stop this sensor model
   if (Initialize()) { shutdown(); }
+  // todo: sometimes if this fails we get stuck here
 
   // if we don't, prune the first second of images
   for (int i = 0; i < calibration_params_.camera_hz; i++) {
@@ -317,10 +318,10 @@ bool SLAMInitialization::Initialize() {
   //   const auto stamp = beam::NSecToRos(t);
   //   auto T = visual_map_->GetCameraPose(stamp);
   //   if (!T.has_value()) { continue; }
-  //   std::string file = "/home/jake/data/images/" + std::to_string(t) + ".png";
-  //   cv::Mat image = cv::imread(file, cv::IMREAD_COLOR);
-  //   const auto lm_ids = landmark_container_->GetLandmarkIDsInImage(stamp);
-  //   for (const auto& id : lm_ids) {
+  //   std::string file = "/home/jake/data/images/" + std::to_string(t) +
+  //   ".png"; cv::Mat image = cv::imread(file, cv::IMREAD_COLOR); const auto
+  //   lm_ids = landmark_container_->GetLandmarkIDsInImage(stamp); for (const
+  //   auto& id : lm_ids) {
   //     try {
   //       Eigen::Vector2d pixel =
   //           landmark_container_->GetMeasurement(stamp, id).value;
@@ -340,7 +341,8 @@ bool SLAMInitialization::Initialize() {
 
   //     } catch (const std::out_of_range& oor) { continue; }
   //   }
-  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) + ".png",
+  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) +
+  //   ".png",
   //               image);
   // }
 

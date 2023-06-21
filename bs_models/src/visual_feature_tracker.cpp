@@ -40,7 +40,7 @@ void VisualFeatureTracker::onInit() {
   beam_cv::KLTracker::Params tracker_params;
   tracker_params.LoadFromJson(params_.tracker_config);
   tracker_ = std::make_shared<beam_cv::KLTracker>(tracker_params, detector,
-                                                  descriptor_, 100);
+                                                  descriptor_, 10);
 
   // create output directory if its not empty
   if (!params_.save_tracks_folder.empty() &&
@@ -52,12 +52,12 @@ void VisualFeatureTracker::onInit() {
 void VisualFeatureTracker::onStart() {
   // subscribe to image topic
   image_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Image>(
-      ros::names::resolve(params_.image_topic), 1000,
+      ros::names::resolve(params_.image_topic), 10,
       &ThrottledImageCallback::callback, &throttled_image_callback_,
       ros::TransportHints().tcpNoDelay(false));
 
   measurement_publisher_ = private_node_handle_.advertise<CameraMeasurementMsg>(
-      "visual_measurements", 100);
+      "visual_measurements", 5);
 }
 
 /************************************************************
