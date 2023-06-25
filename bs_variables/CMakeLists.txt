@@ -7,6 +7,8 @@ set(build_depends
   roscpp
 )
 
+set(CMAKE_BUILD_TYPE "release")
+
 find_package(beam REQUIRED COMPONENTS cv)
 
 find_package(catkin REQUIRED COMPONENTS

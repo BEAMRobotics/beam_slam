@@ -11,6 +11,8 @@ find_package(
     utils
 )
 
+set(CMAKE_BUILD_TYPE "release")
+
 find_package(
   catkin REQUIRED
   COMPONENTS

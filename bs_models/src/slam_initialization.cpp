@@ -157,7 +157,8 @@ void SLAMInitialization::processCameraMeasurements(
   }
 
   // remove first image from container if we are over the limit
-  if (landmark_container_->NumImages() > max_landmark_container_size_) {
+  if (landmark_container_->NumImages() >
+      max_landmark_container_size_ + calibration_params_.camera_hz / 2) {
     landmark_container_->PopFront();
   }
 
@@ -170,7 +171,8 @@ void SLAMInitialization::processCameraMeasurements(
   if (mode_ != InitMode::VISUAL) { return; }
 
   // if we haven't reached window size then return
-  if (landmark_container_->NumImages() < max_landmark_container_size_) {
+  if (landmark_container_->NumImages() <
+      max_landmark_container_size_ - calibration_params_.camera_hz / 2) {
     return;
   }
 
@@ -186,11 +188,12 @@ void SLAMInitialization::processCameraMeasurements(
       params_.reprojection_loss, 1.0, params_.reprojection_covariance_weight);
 
   // if we initialize successfully, stop this sensor model
-  if (Initialize()) { shutdown(); }
+  if (Initialize()) {
+    shutdown();
+    return;
+  }
 
-  std::cout << "Clearing buffer" << std::endl;
-  // todo: sometimes if this fails we get stuck here
-
+  ROS_INFO("Visual initialization, failure, clearing buffer and retrying...");
   // if we don't, prune the first second of images
   for (int i = 0; i < calibration_params_.camera_hz; i++) {
     landmark_container_->PopFront();
@@ -300,6 +303,7 @@ bool SLAMInitialization::Initialize() {
     ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
     ceres::Solver::Options options;
     options.minimizer_progress_to_stdout = true;
+    options.num_threads = 6;
     local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s),
                               options);
     visual_map_->UpdateGraph(local_graph_);
@@ -320,10 +324,10 @@ bool SLAMInitialization::Initialize() {
   //   const auto stamp = beam::NSecToRos(t);
   //   auto T = visual_map_->GetCameraPose(stamp);
   //   if (!T.has_value()) { continue; }
-  //   std::string file = "/home/jake/data/images/" + std::to_string(t) +
-  //   ".png"; cv::Mat image = cv::imread(file, cv::IMREAD_COLOR); const auto
-  //   lm_ids = landmark_container_->GetLandmarkIDsInImage(stamp); for (const
-  //   auto& id : lm_ids) {
+  //   std::string file = "/home/jake/data/images/" + std::to_string(t) + ".png";
+  //   cv::Mat image = cv::imread(file, cv::IMREAD_COLOR);
+  //   const auto lm_ids = landmark_container_->GetLandmarkIDsInImage(stamp);
+  //   for (const auto& id : lm_ids) {
   //     try {
   //       Eigen::Vector2d pixel =
   //           landmark_container_->GetMeasurement(stamp, id).value;
@@ -343,8 +347,7 @@ bool SLAMInitialization::Initialize() {
 
   //     } catch (const std::out_of_range& oor) { continue; }
   //   }
-  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) +
-  //   ".png",
+  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) + ".png",
   //               image);
   // }
 
