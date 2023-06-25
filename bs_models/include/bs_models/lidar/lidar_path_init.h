@@ -62,7 +62,9 @@ public:
   /**
    * @brief use the output from a fuse graph to update the registration map.
    * This is useful because it better initializes the registration map for
-   * future scan matching in the lidar odom
+   * future scan matching in the lidar odom. We also increase the registration
+   * map to the size of all keyframes so that future scan registration has the
+   * opportunity to use all available initial data
    */
   void UpdateRegistrationMap(fuse_core::Graph::ConstSharedPtr graph_msg);
 

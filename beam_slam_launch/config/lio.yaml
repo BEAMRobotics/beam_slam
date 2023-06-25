@@ -5,16 +5,16 @@ lag_duration: 7
 sensor_models:
   - name: 'slam_initialization'
     type: 'bs_models::SLAMInitialization'
-  # - name: 'inertial_odometry'
-  #   type: 'bs_models::InertialOdometry'
-  #   motion_models: ['unicycle_3d']
+  - name: 'inertial_odometry'
+    type: 'bs_models::InertialOdometry'
+    motion_models: ['unicycle_3d']
   #   ignition: true
   # - name: 'lidar_aggregation'
   #   type: 'bs_models::LidarAggregation'
   #   motion_models: ['unicycle_3d']
-  # - name: 'lidar_odometry'
-  #   type: 'bs_models::LidarOdometry'
-  #   motion_models: ['unicycle_3d']
+  - name: 'lidar_odometry'
+    type: 'bs_models::LidarOdometry'
+    motion_models: ['unicycle_3d']
 
 
 
@@ -52,7 +52,7 @@ slam_initialization:
   max_container_size: 100
   min_parallax: 50.0
   min_trajectory_length_m: 1.5
-  output_folder: ""
+  output_folder: "" #"/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
 
 
 inertial_odometry:
@@ -63,7 +63,7 @@ lidar_aggregation:
   aggregation_time_topic: ''
   pointcloud_topic: '/lidar_h/velodyne_packets_unpacked'
   lidar_type: 'VELODYNE'
-  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json'
+  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/path.json'
   max_aggregation_time_seconds: 0.1
   use_trigger: false
 
@@ -76,20 +76,25 @@ lidar_odometry:
   # global scan registration
   global_registration_type: 'LOAM'
   global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matchers/loam_vlp16.json'
-  global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+  global_registration_noise_diagonal: [0, 0, 0, 0, 0, 0] # [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+
   # general params
   lidar_type: 'VELODYNE'
   input_filters_config_path: 'DEFAULT_PATH'
-  input_topic: '/local_mapper/lidar_aggregation/points_undistorted'
+  input_topic: '/lidar_h/velodyne_packets_unpacked'
   output_loam_points: true
   output_lidar_points: true
   publish_active_submap: true
   publish_local_map: true
   publish_registration_results: true
-  frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json'
+  # frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/path.json'
+  frame_initializer_config: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
   frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
   reloc_request_period: 1
-  scan_output_directory: ''
+  scan_output_directory: '' #/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
+  # these are only relevant if scan_output_directory is not empty
+  save_graph_updates: true
+  save_marginalized_scans: true
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom

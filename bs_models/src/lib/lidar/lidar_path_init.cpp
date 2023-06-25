@@ -205,7 +205,6 @@ void LidarPathInit::OutputResults(const std::string& output_dir) const {
   PointCloud map_init;
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
     PointCloud scan_in_map_final;
-    ;
     PointCloud scan_in_map_initial;
     pcl::transformPointCloud(iter->Cloud(), scan_in_map_final,
                              iter->T_REFFRAME_LIDAR());
@@ -226,6 +225,10 @@ void LidarPathInit::OutputResults(const std::string& output_dir) const {
           beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
+
+  // save registration map
+  scan_registration_->GetMap().Save(save_path);
+
 }
 
 double LidarPathInit::CalculateTrajectoryLength() const {
@@ -262,11 +265,16 @@ std::unordered_map<uint64_t, LidarTransactionType>
 void LidarPathInit::UpdateRegistrationMap(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
   auto& registration_map = scan_registration_->GetMapMutable();
+  registration_map.SetParams(keyframes_.size());
   int counter{0};
   for (ScanPose& p : keyframes_) {
     if (p.UpdatePose(graph_msg)) {
       counter++;
-      registration_map.UpdateScan(p.Stamp(), p.T_REFFRAME_BASELINK(), 0, 0);
+      bool in_map = registration_map.UpdateScan(p.Stamp(), p.T_REFFRAME_LIDAR(), 0, 0);
+      if(!in_map){
+        registration_map.AddPointCloud(p.Cloud(), p.Stamp(), p.T_REFFRAME_LIDAR());
+        registration_map.AddPointCloud(p.LoamCloud(), p.Stamp(), p.T_REFFRAME_LIDAR());
+      }
     }
   }
 

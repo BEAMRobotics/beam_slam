@@ -50,12 +50,6 @@ public:
       RegisterNewScan(const ScanPose& new_scan) override;
 
 protected:
-  /**
-   * @brief Pure virtual function for determining if a map is empty. This is
-   * used to determine whether or not we register a scan then add it, or just
-   * add it.
-   */
-  virtual bool IsMapEmpty() = 0;
 
   /**
    * @brief Pure virtual function for registering a new scan to the map.
@@ -121,7 +115,6 @@ public:
                             int map_size = 10, bool store_full_cloud = true);
 
 private:
-  bool IsMapEmpty() override;
 
   bool RegisterScanToMap(const ScanPose& scan_pose,
                          Eigen::Matrix4d& T_MAP_SCAN) override;

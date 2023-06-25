@@ -22,14 +22,12 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
     ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
       new_scan.Stamp());
-
   // add pose variables for new scan
   transaction.AddPoseVariables(new_scan.Position(), new_scan.Orientation(),
                                new_scan.Stamp());
-
   // if map is empty, then add to the map then return
   Eigen::Matrix4d T_MAP_SCAN;
-  if (IsMapEmpty()) {
+  if (scan_pose_prev_ == nullptr) {
     T_MAP_SCAN = new_scan.T_REFFRAME_LIDAR();
     AddScanToMap(new_scan, T_MAP_SCAN);
     if (base_params_.fix_first_scan) {
@@ -41,7 +39,6 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
     scan_pose_prev_ = std::make_unique<ScanPose>(new_scan.Stamp(),
                                                  new_scan.T_REFFRAME_BASELINK(),
                                                  new_scan.T_BASELINK_LIDAR());
-
     return transaction;
   }
 
@@ -81,7 +78,6 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
   scan_pose_prev_ = std::make_unique<ScanPose>(
       new_scan.Stamp(), T_MAP_SCAN * new_scan.T_LIDAR_BASELINK(),
       new_scan.T_BASELINK_LIDAR());
-
   ROS_DEBUG("Time get results: %.5f", timer.elapsedAndRestart());
   return transaction;
 }
@@ -152,45 +148,35 @@ ScanToMapLoamRegistration::ScanToMapLoamRegistration(
   map_.SetParams(params_.map_size);
 }
 
-bool ScanToMapLoamRegistration::IsMapEmpty() {
-  return map_.NumLoamClouds() == 0;
-}
-
 bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
                                                   Eigen::Matrix4d& T_MAP_SCAN) {
   const Eigen::Matrix4d& T_MAPEST_SCAN = scan_pose.T_REFFRAME_LIDAR();
   const Eigen::Matrix4d& T_MAP_SCANPREV = scan_pose_prev_->T_REFFRAME_LIDAR();
   Eigen::Matrix4d T_SCANPREV_SCANNEW =
       beam::InvertTransform(T_MAP_SCANPREV) * T_MAPEST_SCAN;
-
   if (!PassedMotionThresholds(T_SCANPREV_SCANNEW)) { return false; }
 
   LoamPointCloudPtr scan_in_map_frame =
       std::make_shared<LoamPointCloud>(scan_pose.LoamCloud(), T_MAPEST_SCAN);
-
-  // get combined loamcloud map
+  // get combined loam cloud map
   LoamPointCloudPtr current_map =
       std::make_shared<LoamPointCloud>(map_.GetLoamCloudMap());
-
   matcher_->SetRef(current_map);
   matcher_->SetTarget(scan_in_map_frame);
-
   if (!matcher_->Match()) { return false; }
-
   if (!params_.debug_output_dir.empty()) {
     matcher_->SaveResults(params_.debug_output_dir,
                           std::to_string(scan_pose.Stamp().toSec()));
   }
-
   Eigen::Matrix4d T_MAPEST_MAP = matcher_->GetResult().matrix();
 
   if (!PassedRegThreshold(T_MAPEST_MAP)) {
     BEAM_WARN("Failed scan matcher transform threshold check for stamp {}.{}. "
               "Skipping measurement.",
               scan_pose.Stamp().sec, scan_pose.Stamp().nsec);
+    std::cout << "T_MAPEST_MAP: \n" << T_MAPEST_MAP << "\n";          
     return false;
   }
-
   T_MAP_SCAN = beam::InvertTransform(T_MAPEST_MAP) * T_MAPEST_SCAN;
 
   return true;

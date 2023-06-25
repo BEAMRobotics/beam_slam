@@ -24,6 +24,12 @@ namespace bs_models {
 
 using namespace beam_matching;
 
+/**
+ * @brief todo
+ *
+ * Initialization: this doesn't start until the first graph update is received.
+ * The goal of this is to ensure the slam initializer is always run
+ */
 class LidarOdometry : public fuse_core::AsyncSensorModel {
 public:
   FUSE_SMART_PTR_DEFINITIONS(LidarOdometry);
@@ -64,8 +70,9 @@ private:
       const ScanPose& scan_pose);
 
   void PublishTfTransform(const Eigen::Matrix4d& T_CHILD_PARENT,
-                        const std::string& child_frame,
-                        const std::string& parent_frame, const ros::Time& time);
+                          const std::string& child_frame,
+                          const std::string& parent_frame,
+                          const ros::Time& time);
 
   /** subscribe to lidar data */
   ros::Subscriber subscriber_;
