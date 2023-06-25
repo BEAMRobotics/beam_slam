@@ -13,6 +13,8 @@ set(build_depends
   bs_constraints
   )
 
+set(CMAKE_BUILD_TYPE "release")
+
 find_package(catkin REQUIRED COMPONENTS
   ${build_depends}
   )

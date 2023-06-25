@@ -7,7 +7,7 @@ solver_options:
   minimizer_progress_to_stdout: true
   num_threads: 16
   num_linear_solver_threads: 16
-  max_num_iterations: 3
+  max_num_iterations: 10
   max_solver_time_in_seconds: 0.7
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
@@ -22,12 +22,12 @@ sensor_models:
     type: 'bs_models::VisualFeatureTracker'
   - name: 'slam_initialization'
     type: 'bs_models::SLAMInitialization'
-  - name: 'inertial_odometry'
-    type: 'bs_models::InertialOdometry'
-    motion_models: [unicycle_3d]
-  - name: 'visual_odometry'
-    type: 'bs_models::VisualOdometry'
-    motion_models: [unicycle_3d]
+  # - name: 'inertial_odometry'
+  #   type: 'bs_models::InertialOdometry'
+  #   motion_models: [unicycle_3d]
+  # - name: 'visual_odometry'
+  #   type: 'bs_models::VisualOdometry'
+  #   motion_models: [unicycle_3d]
 
 publishers:
     - name: 'graph'
@@ -50,13 +50,13 @@ visual_feature_tracker:
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vo/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vo/fastssc_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vo/tracker.json'
-  save_tracks_folder: ""
+  publish_tracks: false
 
 slam_initialization:
   visual_measurement_topic: "/local_mapper/visual_feature_tracker/visual_measurements"
   imu_topic: "/imu/data"
   lidar_topic: "/lidar_h/velodyne_points"
-  init_mode: "VISUAL"
+  init_mode: "LIDAR"
   max_optimization_s: 2.0
   initialization_window_s: 2.0
   min_trajectory_length_m: 1.0

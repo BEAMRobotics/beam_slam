@@ -16,6 +16,8 @@ set(build_depends
   bs_variables
 )
 
+set(CMAKE_BUILD_TYPE "release")
+
 find_package(beam REQUIRED COMPONENTS calibration optimization)
 
 find_package(catkin REQUIRED COMPONENTS

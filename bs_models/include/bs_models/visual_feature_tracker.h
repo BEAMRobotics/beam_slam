@@ -78,12 +78,15 @@ private:
 
   // publishers
   ros::Publisher measurement_publisher_;
+  ros::Publisher tracked_image_publisher_;
 
   // extrinsics object
-  bs_common::ExtrinsicsLookupOnline& extrinsics_ = bs_common::ExtrinsicsLookupOnline::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   // callbacks for messages
-  using ThrottledImageCallback = fuse_core::ThrottledMessageCallback<sensor_msgs::Image>;
+  using ThrottledImageCallback =
+      fuse_core::ThrottledMessageCallback<sensor_msgs::Image>;
   ThrottledImageCallback throttled_image_callback_;
 
   std::shared_ptr<beam_cv::Tracker> tracker_;

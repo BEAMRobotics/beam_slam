@@ -26,9 +26,9 @@ public:
     getParamRequired<std::string>(nh, "detector_config", detector_config);
     getParamRequired<std::string>(nh, "tracker_config", tracker_config);
 
-    getParam<std::string>(nh, "save_tracks_folder", save_tracks_folder, "");
     getParam<int>(nh, "sensor_id", sensor_id, 0);
     getParam<int>(nh, "visual_window_size", visual_window_size, 10);
+    getParam<bool>(nh, "publish_tracks", publish_tracks, false);
   }
 
   // subscribing topics
@@ -38,7 +38,7 @@ public:
   std::string descriptor_config{};
   std::string detector_config{};
   std::string tracker_config{};
-  std::string save_tracks_folder{};
+  bool publish_tracks{false};
 
   int sensor_id{0};
   int visual_window_size{100};

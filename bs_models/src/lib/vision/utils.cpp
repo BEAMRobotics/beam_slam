@@ -24,9 +24,6 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   // Get matches between first and last image in the window
   const auto first_time = landmark_container->FrontTimestamp();
   const auto last_time = landmark_container->BackTimestamp();
-  std::cout << "\nVISUAL INIT" << std::endl;
-  std::cout << first_time << std::endl;
-  std::cout << last_time << std::endl;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> first_landmarks;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> last_landmarks;
   std::vector<uint64_t> ids =
@@ -193,7 +190,9 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   ROS_INFO_STREAM(__func__ << ": Optimizing trajectory.");
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = true;
+  options.num_threads = 6;
   options.logging_type = ceres::PER_MINIMIZER_ITERATION;
+  options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
   visual_graph->optimizeFor(ros::Duration(max_optimization_time), options);
   visual_map->UpdateGraph(visual_graph);
 
@@ -235,9 +234,10 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   std::map<uint64_t, Eigen::Matrix4d> init_path;
   for (const auto& time : landmark_container->GetMeasurementTimes()) {
     const auto timestamp = beam::NSecToRos(time);
-    const auto pose = visual_map->GetBaselinkPose(timestamp);
+    const auto pose = visual_map->GetCameraPose(timestamp);
     if (pose.has_value()) { init_path[time] = pose.value(); }
   }
+
   return init_path;
 }
 

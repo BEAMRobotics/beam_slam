@@ -10,10 +10,6 @@
 #include <beam_optimization/CamPoseReprojectionCost.h>
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
-
-#include <ceres/autodiff_cost_function.h>
-#include <ceres/cost_function_to_functor.h>
-#include <ceres/numeric_diff_cost_function.h>
 #include <ceres/rotation.h>
 
 namespace bs_constraints {
