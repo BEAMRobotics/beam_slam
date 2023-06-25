@@ -4,7 +4,6 @@
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/descriptors/ORBDescriptor.h>
 #include <beam_cv/detectors/FASTSSCDetector.h>
-#include <beam_utils/filesystem.h>
 #include <bs_common/utils.h>
 
 #include <algorithm>
@@ -41,12 +40,6 @@ void VisualFeatureTracker::onInit() {
   tracker_params.LoadFromJson(params_.tracker_config);
   tracker_ = std::make_shared<beam_cv::KLTracker>(tracker_params, detector,
                                                   descriptor_, 10);
-
-  // create output directory if its not empty
-  if (!params_.save_tracks_folder.empty() &&
-      !boost::filesystem::exists(params_.save_tracks_folder)) {
-    boost::filesystem::create_directory(params_.save_tracks_folder);
-  }
 }
 
 void VisualFeatureTracker::onStart() {
@@ -58,6 +51,8 @@ void VisualFeatureTracker::onStart() {
 
   measurement_publisher_ = private_node_handle_.advertise<CameraMeasurementMsg>(
       "visual_measurements", 5);
+  tracked_image_publisher_ =
+      private_node_handle_.advertise<sensor_msgs::Image>("tracked_image", 5);
 }
 
 /************************************************************
@@ -65,6 +60,7 @@ void VisualFeatureTracker::onStart() {
  ************************************************************/
 void VisualFeatureTracker::processImage(
     const sensor_msgs::Image::ConstPtr& msg) {
+  static ros::Time prev_track_publish(0.0);
   // track features in image
   cv::Mat image = beam_cv::OpenCVConversions::RosImgToMat(*msg);
   tracker_->AddImage(image, msg->header.stamp);
@@ -83,14 +79,17 @@ void VisualFeatureTracker::processImage(
   const auto measurement_msg = BuildCameraMeasurement(prev_time_, *msg);
   measurement_publisher_.publish(measurement_msg);
 
-  if (!params_.save_tracks_folder.empty()) {
-    std::string image_file = std::to_string(prev_time_.toNSec()) + ".png";
-    std::string image_path =
-        beam::CombinePaths({params_.save_tracks_folder, image_file});
-    cv::Mat track_image =
-        tracker_->DrawTracks(tracker_->GetTracks(prev_time_), image);
-    cv::imwrite(image_path, track_image);
+  if (params_.publish_tracks) {
+    if (prev_time_ - prev_track_publish > ros::Duration(0.25)) {
+      cv::Mat track_image =
+          tracker_->DrawTracks(tracker_->GetTracks(prev_time_), image);
+      sensor_msgs::Image out_msg = beam_cv::OpenCVConversions::MatToRosImg(
+          track_image, msg->header, "rgb8");
+      tracked_image_publisher_.publish(out_msg);
+      prev_track_publish = prev_time_;
+    }
   }
+
   prev_time_ = msg->header.stamp;
 }
 

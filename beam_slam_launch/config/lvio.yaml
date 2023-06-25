@@ -50,7 +50,7 @@ visual_feature_tracker:
   descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vo/orb_descriptor.json'
   detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vo/fastssc_detector.json'
   tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vo/tracker.json'
-  save_tracks_folder: ""
+  publish_tracks: true
 
 slam_initialization:
   visual_measurement_topic: "/local_mapper/visual_feature_tracker/visual_measurements"

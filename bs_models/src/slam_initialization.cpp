@@ -187,6 +187,8 @@ void SLAMInitialization::processCameraMeasurements(
 
   // if we initialize successfully, stop this sensor model
   if (Initialize()) { shutdown(); }
+
+  std::cout << "Clearing buffer" << std::endl;
   // todo: sometimes if this fails we get stuck here
 
   // if we don't, prune the first second of images

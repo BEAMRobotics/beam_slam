@@ -24,9 +24,6 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   // Get matches between first and last image in the window
   const auto first_time = landmark_container->FrontTimestamp();
   const auto last_time = landmark_container->BackTimestamp();
-  std::cout << "\nVISUAL INIT" << std::endl;
-  std::cout << first_time << std::endl;
-  std::cout << last_time << std::endl;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> first_landmarks;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> last_landmarks;
   std::vector<uint64_t> ids =
