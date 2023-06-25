@@ -23,15 +23,15 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
       std::make_shared<LoamParams>("DEFAULT_PATH");
 
   // override iteration since we need this to be fast and scans are very close
-  // to each other so iteration isn't necessary
+  // to each other so iteration isn't as necessary
   matcher_params->iterate_correspondences = true;
-  matcher_params->max_correspondence_iterations = 2;
+  matcher_params->max_correspondence_iterations = 5;
   matcher_params->max_correspondence_distance = 0.25;
   matcher_params->max_corner_less_sharp = 10;
 
   // override ceres config
   beam_optimization::CeresParams ceres_params;
-  ceres_params.GetSolverOptionsMutable().max_num_iterations = 15;
+  ceres_params.GetSolverOptionsMutable().max_num_iterations = 40;
   ceres_params.GetSolverOptionsMutable().num_threads =
       std::thread::hardware_concurrency();
   matcher_params->optimizer_params = ceres_params;
@@ -40,7 +40,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
       std::make_unique<LoamMatcher>(*matcher_params);
 
   scan_registration::ScanToMapLoamRegistration::Params reg_params;
-  reg_params.map_size = 3;
+  reg_params.map_size = 10;
   reg_params.store_full_cloud = false;
   reg_params.outlier_threshold_trans_m = 0.5;
   reg_params.outlier_threshold_rot_deg = 45;
