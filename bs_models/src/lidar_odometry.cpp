@@ -814,7 +814,6 @@ void LidarOdometry::PublishScanRegistrationResults(
         }
         Eigen::Matrix4d T_WORLD_REF;
         map.GetScanPose(ref_stamp, T_WORLD_REF);
-        // Ts_WORLD_LIDARREFLM.push_back(T_WORLD_REF * T_REF_SCAN);
         Ts_WORLD_LIDARREFLM.push_back(T_WORLD_REF * beam::InvertTransform(T_REF_SCAN));
       }
     }
