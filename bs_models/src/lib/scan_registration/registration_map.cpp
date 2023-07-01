@@ -16,7 +16,7 @@ namespace bs_models { namespace scan_registration {
 RegistrationMap::RegistrationMap() {
   bs_common::ExtrinsicsLookupOnline& extrinsics_online =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
-  frame_id_ = extrinsics_online.GetWorldFrameId();
+  world_frame_id_ = extrinsics_online.GetWorldFrameId();
 
   ros::NodeHandle n;
 
@@ -232,10 +232,12 @@ void RegistrationMap::Save(const std::string& save_path, bool add_frames,
       beam::MergeFrameToCloud(map_col, frame, T_MAP_SCAN);
     }
 
+    std::string map_path =
+        beam::CombinePaths(save_path, "registration_map.pcd");
     std::string error_message{};
     if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-            save_path + "registration_map.pcd", map_col,
-            beam::PointCloudFileType::PCDBINARY, error_message)) {
+            map_path, map_col, beam::PointCloudFileType::PCDBINARY,
+            error_message)) {
       BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
     }
   }
@@ -309,14 +311,14 @@ void RegistrationMap::Publish() {
 
   if (!lidar_map.empty()) {
     sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<pcl::PointXYZ>(
-        lidar_map, update_time, frame_id_, updates_counter_);
+        lidar_map, update_time, world_frame_id_, updates_counter_);
     lidar_map_publisher_.publish(pc_msg);
   }
 
   if (!loam_map.Empty()) {
     LoamPointCloudCombined loam_combined = loam_map.GetCombinedCloud();
     sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointLoam>(
-        loam_combined, update_time, frame_id_, updates_counter_);
+        loam_combined, update_time, world_frame_id_, updates_counter_);
     loam_map_publisher_.publish(pc_msg);
   }
 

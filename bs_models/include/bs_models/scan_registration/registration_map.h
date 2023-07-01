@@ -175,11 +175,17 @@ public:
 
   ros::Time GetLastLoamPoseStamp() const;
   ros::Time GetLastCloudPoseStamp() const;
-  
+
   /**
    * @brief clears all scans and their associated poses
    */
   void Clear();
+
+  /**
+   * @brief publish the current map. This gets called each time the map saves,
+   * if publish_updates_ is set to true
+   */
+  void Publish();
 
   /**
    * @brief Delete copy constructor
@@ -197,12 +203,6 @@ private:
    */
   RegistrationMap();
 
-  /**
-   * @brief publish the current map. This gets called each time the map saves,
-   * if publish_updates_ is set to true
-   */
-  void Publish();
-
   // publisher
   ros::Publisher lidar_map_publisher_;
   ros::Publisher loam_map_publisher_;
@@ -211,7 +211,7 @@ private:
   bool map_params_set_{false};
   int updates_counter_{0};
   bool publish_updates_{false};
-  std::string frame_id_;
+  std::string world_frame_id_;
 
   std::map<uint64_t, PointCloudPtr> clouds_in_map_frame_;
   std::map<uint64_t, Eigen::Matrix4d> cloud_poses_;
