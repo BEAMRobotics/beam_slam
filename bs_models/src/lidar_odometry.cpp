@@ -376,7 +376,11 @@ void LidarOdometry::SetupRegistration() {
 
   // set registration map to publish
   RegistrationMap& map = RegistrationMap::GetInstance();
-  if (params_.publish_local_map) { map.SetParams(map.MapSize(), true); }
+  if (params_.publish_local_map) {
+    map.SetParams(map.MapSize(), true);
+    ROS_INFO("Publishing initial lidar_odometry registration map");
+    map.Publish();
+  }
 
   // Get last scan pose to initialize with if registration map isn't empty
   if (!map.Empty()) {
