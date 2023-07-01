@@ -183,6 +183,9 @@ bool RegistrationMap::UpdateScan(const ros::Time& stamp,
         T_MAP_SCAN * beam::InvertTransform(pose_it->second);
     pcl::transformPointCloud(*(cloud_iter->second), *(cloud_iter->second),
                              T_MAPNEW_MAPOLD);
+
+    // update pose
+    pose_it->second = T_MAP_SCAN;
   }
 
   // update loam pointclouds
@@ -206,6 +209,9 @@ bool RegistrationMap::UpdateScan(const ros::Time& stamp,
     Eigen::Matrix4d T_MAPNEW_MAPOLD =
         T_MAP_SCAN * beam::InvertTransform(loam_pose_it->second);
     cloud_iter->second->TransformPointCloud(T_MAPNEW_MAPOLD);
+
+    // update pose
+    loam_pose_it->second = T_MAP_SCAN;
   }
 
   Publish();
@@ -325,7 +331,7 @@ void RegistrationMap::Publish() {
   updates_counter_++;
 }
 
-ros::Time RegistrationMap::GetLastLoamPoseStamp() const {
+ros::Time RegistrationMap::GetLastCloudPoseStamp() const {
   if (cloud_poses_.empty()) { return {}; }
   uint64_t t_in_ns = cloud_poses_.rbegin()->first;
   ros::Time stamp;
@@ -333,11 +339,12 @@ ros::Time RegistrationMap::GetLastLoamPoseStamp() const {
   return stamp;
 }
 
-ros::Time RegistrationMap::GetLastCloudPoseStamp() const {
+ros::Time RegistrationMap::GetLastLoamPoseStamp() const {
   if (loam_cloud_poses_.empty()) { return {}; }
   uint64_t t_in_ns = loam_cloud_poses_.rbegin()->first;
   ros::Time stamp;
   stamp.fromNSec(t_in_ns);
+
   return stamp;
 }
 

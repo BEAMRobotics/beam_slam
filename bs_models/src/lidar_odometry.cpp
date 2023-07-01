@@ -155,9 +155,17 @@ void LidarOdometry::onStop() {
 fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
+
+  // ensure monotonically increasing data
+  if (msg->header.stamp <= last_scan_pose_time_) {
+    ROS_WARN(
+        "detected non-monotonically increasing lidar stamp, skipping scan");
+    return nullptr;
+  }
   Eigen::Matrix4d T_WORLD_BASELINKINIT;
   bool init_successful{true};
   std::string error_msg;
+
   if (frame_initializer_ == nullptr) {
     T_WORLD_BASELINKINIT = T_WORLD_BASELINKLAST_;
   } else if (use_frame_init_relative_) {
@@ -397,11 +405,11 @@ void LidarOdometry::SetupRegistration() {
     Eigen::Matrix4d T_MAP_SCAN;
     ros::Time last_stamp;
     if (params_.local_registration_type == "MAPLOAM") {
-      last_stamp = map.GetLastLoamPoseStamp();
+      last_scan_pose_time_ = map.GetLastLoamPoseStamp();
     } else {
-      last_stamp = map.GetLastCloudPoseStamp();
+      last_scan_pose_time_ = map.GetLastCloudPoseStamp();
     }
-    map.GetScanPose(last_stamp, T_MAP_SCAN);
+    map.GetScanPose(last_scan_pose_time_, T_MAP_SCAN);
 
     T_WORLD_BASELINKLAST_ =
         T_MAP_SCAN * beam::InvertTransform(T_BASELINK_LIDAR);
