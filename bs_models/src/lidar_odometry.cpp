@@ -246,7 +246,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   nav_msgs::Odometry odom_msg_global;
   bs_common::EigenTransformToOdometryMsg(
       T_WORLD_BASELINKCURRENT, current_scan_pose->Stamp(),
-      odom_publisher_global_counter_, "lidar_world",
+      odom_publisher_global_counter_, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetBaselinkFrameId(), odom_msg_global);
   odom_publisher_global_.publish(odom_msg_global);
   odom_publisher_global_counter_++;
@@ -262,7 +262,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
       T_WORLD_BASELINKLAST_ * T_BASELINKLAST_BASELINKCURRENT;
   bs_common::EigenTransformToOdometryMsg(
       T_WORLD_BASELINKSMOOTH, current_scan_pose->Stamp(),
-      odom_publisher_smooth_counter_, "lidar_world_smooth",
+      odom_publisher_smooth_counter_, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetBaselinkFrameId(), odom_msg_smooth);
   odom_publisher_smooth_.publish(odom_msg_smooth);
   odom_publisher_smooth_counter_++;
@@ -814,7 +814,8 @@ void LidarOdometry::PublishScanRegistrationResults(
         }
         Eigen::Matrix4d T_WORLD_REF;
         map.GetScanPose(ref_stamp, T_WORLD_REF);
-        Ts_WORLD_LIDARREFLM.push_back(T_WORLD_REF * beam::InvertTransform(T_REF_SCAN));
+        Ts_WORLD_LIDARREFLM.push_back(T_WORLD_REF *
+                                      beam::InvertTransform(T_REF_SCAN));
       }
     }
     if (Ts_WORLD_LIDARREFLM.size() > 0) {
