@@ -30,9 +30,8 @@ public:
 
   /**
    * @brief set the parameters of this lidar map. Since this is implemented as a
-   * singleton, we don't want to set the parameters from one client, then have
-   * another change it. So this checks if the params were already set, if so
-   * then it'll disregard this call and output a warning.
+   * singleton, this checks if the params were already set, if so then it'll
+   * output a warning.
    * @param map_size number of scans to store in this map
    * @param publish_updates if set to true, this class with publish the full
    * lidar map in the world frame whenever the map is updated
@@ -174,10 +173,19 @@ public:
    */
   bool GetUUIDStamp(const fuse_core::UUID& uuid, ros::Time& stamp) const;
 
+  ros::Time GetLastLoamPoseStamp() const;
+  ros::Time GetLastCloudPoseStamp() const;
+
   /**
    * @brief clears all scans and their associated poses
    */
   void Clear();
+
+  /**
+   * @brief publish the current map. This gets called each time the map saves,
+   * if publish_updates_ is set to true
+   */
+  void Publish();
 
   /**
    * @brief Delete copy constructor
@@ -195,21 +203,15 @@ private:
    */
   RegistrationMap();
 
-  /**
-   * @brief publish the current map. This gets called each time the map saves,
-   * if publish_updates_ is set to true
-   */
-  void Publish();
-
   // publisher
   ros::Publisher lidar_map_publisher_;
   ros::Publisher loam_map_publisher_;
-  
+
   int map_size_{10};
   bool map_params_set_{false};
   int updates_counter_{0};
   bool publish_updates_{false};
-  std::string frame_id_;
+  std::string world_frame_id_;
 
   std::map<uint64_t, PointCloudPtr> clouds_in_map_frame_;
   std::map<uint64_t, Eigen::Matrix4d> cloud_poses_;

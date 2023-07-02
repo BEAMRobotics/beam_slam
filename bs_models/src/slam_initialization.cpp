@@ -119,9 +119,11 @@ void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
   auto front_timestamp = frame_init_buffer_.front();
 
   Eigen::Matrix4d T_WORLD_BASELINK;
+  std::string error_msg;
   if (!frame_initializer_->GetPose(T_WORLD_BASELINK, front_timestamp,
-                                   extrinsics_.GetBaselinkFrameId())) {
-    ROS_WARN("Error getting pose from frame initializer.");
+                                   extrinsics_.GetBaselinkFrameId(),
+                                   error_msg)) {
+    ROS_WARN("Error getting pose from frame initializer, error: %s", error_msg.c_str());
     return;
   }
   init_path_[front_timestamp.toNSec()] = T_WORLD_BASELINK;

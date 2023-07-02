@@ -95,6 +95,7 @@ private:
   bool initialized_{false};
   ros::Time prev_stamp_{0.0};
   Eigen::Matrix4d T_ODOM_IMUprev_{Eigen::Matrix4d::Identity()};
+  
   // calibration parameters
   bs_parameters::models::CalibrationParams calibration_params_;
 

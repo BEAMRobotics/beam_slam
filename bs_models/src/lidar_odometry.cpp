@@ -38,9 +38,6 @@ void LidarOdometry::onInit() {
             params_.frame_initializer_config);
   }
 
-  // init scan registration
-  SetupRegistration();
-
   // get filter params
   nlohmann::json J;
   std::string filepath = params_.input_filters_config_path;
@@ -74,7 +71,10 @@ void LidarOdometry::onInit() {
   }
 
   // if outputting scans, clear folders
-  if (!params_.scan_output_directory.empty()) {
+  if (params_.scan_output_directory.empty()) {
+    params_.save_marginalized_scans = false;
+    params_.save_graph_updates = false;
+  } else {
     if (boost::filesystem::is_directory(params_.scan_output_directory)) {
       boost::filesystem::remove_all(params_.scan_output_directory);
     }
@@ -113,11 +113,6 @@ void LidarOdometry::onStart() {
   if (params_.reloc_request_period != 0) {
     reloc_request_publisher_ = private_node_handle_.advertise<RelocRequestMsg>(
         "/local_mapper/reloc_request", 10);
-  }
-
-  if (params_.publish_local_map) {
-    RegistrationMap& map = RegistrationMap::GetInstance();
-    map.SetParams(map.MapSize(), true);
   }
 
   if (params_.publish_registration_results) {
@@ -161,9 +156,16 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
 
+  // ensure monotonically increasing data
+  if (msg->header.stamp <= last_scan_pose_time_) {
+    ROS_WARN(
+        "detected non-monotonically increasing lidar stamp, skipping scan");
+    return nullptr;
+  }
   Eigen::Matrix4d T_WORLD_BASELINKINIT;
   bool init_successful{true};
   std::string error_msg;
+
   if (frame_initializer_ == nullptr) {
     T_WORLD_BASELINKINIT = T_WORLD_BASELINKLAST_;
   } else if (use_frame_init_relative_) {
@@ -178,13 +180,11 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
         T_WORLD_BASELINKINIT, msg->header.stamp,
         extrinsics_.GetBaselinkFrameId(), error_msg);
   }
-
   if (!init_successful) {
     ROS_DEBUG("Could not initialize frame, skipping scan. Reason: %s",
               error_msg.c_str());
     return nullptr;
   }
-
   Eigen::Matrix4d T_BASELINK_LIDAR;
   if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR, msg->header.stamp)) {
     ROS_ERROR(
@@ -214,7 +214,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
         cloud_filtered, msg->header.stamp, T_WORLD_BASELINKINIT,
         T_BASELINK_LIDAR, feature_extractor_);
   } else {
-    BEAM_ERROR(
+    ROS_ERROR(
         "Invalid lidar type param. Lidar type may not be implemented yet.");
   }
 
@@ -230,6 +230,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
     lm_transaction =
         local_scan_registration_->RegisterNewScan(*current_scan_pose)
             .GetTransaction();
+
     Eigen::Matrix4d T_WORLD_LIDAR;
     local_scan_registration_->GetMap().GetScanPose(current_scan_pose->Stamp(),
                                                    T_WORLD_LIDAR);
@@ -245,7 +246,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
   nav_msgs::Odometry odom_msg_global;
   bs_common::EigenTransformToOdometryMsg(
       T_WORLD_BASELINKCURRENT, current_scan_pose->Stamp(),
-      odom_publisher_global_counter_, "lidar_world",
+      odom_publisher_global_counter_, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetBaselinkFrameId(), odom_msg_global);
   odom_publisher_global_.publish(odom_msg_global);
   odom_publisher_global_counter_++;
@@ -261,7 +262,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
       T_WORLD_BASELINKLAST_ * T_BASELINKLAST_BASELINKCURRENT;
   bs_common::EigenTransformToOdometryMsg(
       T_WORLD_BASELINKSMOOTH, current_scan_pose->Stamp(),
-      odom_publisher_smooth_counter_, "lidar_world_smooth",
+      odom_publisher_smooth_counter_, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetBaselinkFrameId(), odom_msg_smooth);
   odom_publisher_smooth_.publish(odom_msg_smooth);
   odom_publisher_smooth_counter_++;
@@ -312,13 +313,6 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
 void LidarOdometry::SetupRegistration() {
   // setup local registration
   if (params_.local_registration_type == "MAPLOAM") {
-    // todo: the lidar slam initializer uses the registration map. That
-    // registration map is very small to keep the speeds up, whereas here we
-    // might want it bigger. Before running LO, we need to change this to allow
-    // this sensor model to re-adjust the map without deleting that data because
-    // starting with a good map is valuable
-    throw std::runtime_error{
-        "WE MUST UPDATE REGISTRATION MAP IF USING LIDAR SLAM INITIALIZER!"};
     std::shared_ptr<LoamParams> matcher_params =
         std::make_shared<LoamParams>(params_.local_matcher_params_path);
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
@@ -370,10 +364,10 @@ void LidarOdometry::SetupRegistration() {
         params.lag_duration, params.disable_lidar_map);
     feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
   } else {
-    BEAM_ERROR(
-        "Invalid local_registration_type. Input: {}. Options: MAPLOAM, "
+    ROS_ERROR(
+        "Invalid local_registration_type. Input: %s. Options: MAPLOAM, "
         "MULTILOAM, MULTIICP, MULTIGICP, MULTINDT. Using default: MAPLOAM",
-        params_.local_registration_type);
+        params_.local_registration_type.c_str());
     std::shared_ptr<LoamParams> matcher_params =
         std::make_shared<LoamParams>(params_.local_matcher_params_path);
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
@@ -387,6 +381,39 @@ void LidarOdometry::SetupRegistration() {
   }
   local_scan_registration_->SetFixedCovariance(
       params_.local_registration_covariance);
+
+  // set registration map to publish
+  RegistrationMap& map = RegistrationMap::GetInstance();
+  if (params_.publish_local_map) {
+    map.SetParams(map.MapSize(), true);
+    ROS_INFO("Publishing initial lidar_odometry registration map");
+    map.Publish();
+  }
+
+  // Get last scan pose to initialize with if registration map isn't empty
+  if (!map.Empty()) {
+    // get extrinsics
+    Eigen::Matrix4d T_BASELINK_LIDAR;
+    if (!extrinsics_.GetT_BASELINK_LIDAR(T_BASELINK_LIDAR)) {
+      ROS_ERROR(
+          "Cannot lookup transform from lidar to baselink, not sending reloc "
+          "request.");
+      throw std::runtime_error{"cannot lookup transform"};
+    }
+
+    // get scan pose
+    Eigen::Matrix4d T_MAP_SCAN;
+    ros::Time last_stamp;
+    if (params_.local_registration_type == "MAPLOAM") {
+      last_scan_pose_time_ = map.GetLastLoamPoseStamp();
+    } else {
+      last_scan_pose_time_ = map.GetLastCloudPoseStamp();
+    }
+    map.GetScanPose(last_scan_pose_time_, T_MAP_SCAN);
+
+    T_WORLD_BASELINKLAST_ =
+        T_MAP_SCAN * beam::InvertTransform(T_BASELINK_LIDAR);
+  }
 
   // Setup global registration matcher
   if (params_.global_registration_type == "LOAM") {
@@ -402,11 +429,10 @@ void LidarOdometry::SetupRegistration() {
     global_matching_ = std::make_unique<NdtMatcher>(
         NdtMatcher::Params(params_.global_matcher_params_path));
   } else {
-    BEAM_ERROR(
-        "Invalid global_registration_type. Input: {}. Options: LOAM, ICP, "
-        "GICP, NDT. Using default: "
-        "LOAM",
-        params_.global_registration_type);
+    ROS_ERROR(
+        "Invalid global_registration_type. Input: %s. Options: LOAM, ICP, "
+        "GICP, NDT. Using default: LOAM",
+        params_.global_registration_type.c_str());
     global_loam_matching_ = std::make_unique<LoamMatcher>(
         LoamParams(params_.global_matcher_params_path));
   }
@@ -424,6 +450,11 @@ fuse_core::Transaction::SharedPtr
     scan_in_map_frame->TransformPointCloud(T_MAPEST_SCAN);
 
     LoamPointCloudPtr current_map = active_submap_.GetLoamMapPtr();
+    if (current_map->Empty()) {
+      ROS_WARN_THROTTLE(
+          5, "active submap empty, make sure you have a global mapper running");
+      return nullptr;
+    }
 
     global_loam_matching_->SetRef(current_map);
     global_loam_matching_->SetTarget(scan_in_map_frame);
@@ -438,6 +469,12 @@ fuse_core::Transaction::SharedPtr
 
     PointCloudPtr current_map = active_submap_.GetLidarMap();
 
+    if (current_map->empty()) {
+      ROS_WARN_THROTTLE(
+          5, "active submap empty, make sure you have a global mapper running");
+      return nullptr;
+    }
+
     global_matching_->SetRef(current_map);
     global_matching_->SetTarget(scan_in_map_frame);
 
@@ -448,8 +485,8 @@ fuse_core::Transaction::SharedPtr
 
   // check against threshold. Use threshold params from local matcher
   if (!local_scan_registration_->PassedRegThreshold(T_MAPEST_MAP)) {
-    BEAM_WARN(
-        "Failed global scan matcher transform threshold check for stamp {}.{}. "
+    ROS_WARN(
+        "Failed global scan matcher transform threshold check for stamp %d.%d. "
         "Skipping measurement.",
         scan_pose.Stamp().sec, scan_pose.Stamp().nsec);
     return nullptr;
@@ -492,6 +529,11 @@ fuse_core::Transaction::SharedPtr
 }
 
 void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
+  if (updates_ == 0) {
+    ROS_INFO("received first graph update, initializing regisation and "
+             "starting lidar odometry");
+    SetupRegistration();
+  }
   updates_++;
 
   auto i = active_clouds_.begin();
@@ -538,8 +580,8 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
   std::string update_time =
       beam::ConvertTimeToDate(std::chrono::system_clock::now());
-  std::string curent_path = graph_updates_path_ + "U" +
-                            std::to_string(updates_) + "_" + update_time + "/";
+  std::string curent_path = beam::CombinePaths(
+      graph_updates_path_, "U" + std::to_string(updates_) + "_" + update_time);
   boost::filesystem::create_directory(curent_path);
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
        iter++) {
@@ -548,6 +590,12 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 }
 
 void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
+  if (updates_ == 0) {
+    ROS_INFO_THROTTLE(1, "lidar odometry not yet initialized, waiting on first graph "
+                         "update before beginning");
+    return;
+  }
+
   fuse_core::Transaction::SharedPtr new_transaction = GenerateTransaction(msg);
   if (new_transaction != nullptr) {
     ROS_DEBUG("Sending transaction.");
@@ -578,7 +626,8 @@ void LidarOdometry::SendRelocRequest(
       scan_pose->LoamCloud(), T_BASELINK_LIDAR);
 
   // create message and publish
-  //! why is reloc frame id = baselink, while slam chunk frame id = lidar? line 624
+  //! why is reloc frame id = baselink, while slam chunk frame id = lidar? line
+  //! 624
   RelocRequestMsg msg;
   static uint64_t seq = 0;
   geometry_msgs::PoseStamped pose_stamped;
@@ -759,13 +808,14 @@ void LidarOdometry::PublishScanRegistrationResults(
         const RegistrationMap& map = local_scan_registration_->GetMap();
         ros::Time ref_stamp;
         if (!map.GetUUIDStamp(variables.at(0), ref_stamp)) {
-          BEAM_WARN("UUID not found in registration map, not publishing scan "
-                    "registration result.");
+          ROS_WARN("UUID not found in registration map, not publishing scan "
+                   "registration result.");
           continue;
         }
         Eigen::Matrix4d T_WORLD_REF;
         map.GetScanPose(ref_stamp, T_WORLD_REF);
-        Ts_WORLD_LIDARREFLM.push_back(T_WORLD_REF * T_REF_SCAN);
+        Ts_WORLD_LIDARREFLM.push_back(T_WORLD_REF *
+                                      beam::InvertTransform(T_REF_SCAN));
       }
     }
     if (Ts_WORLD_LIDARREFLM.size() > 0) {

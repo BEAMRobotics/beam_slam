@@ -16,7 +16,7 @@ namespace bs_models { namespace scan_registration {
 RegistrationMap::RegistrationMap() {
   bs_common::ExtrinsicsLookupOnline& extrinsics_online =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
-  frame_id_ = extrinsics_online.GetWorldFrameId();
+  world_frame_id_ = extrinsics_online.GetWorldFrameId();
 
   ros::NodeHandle n;
 
@@ -36,8 +36,19 @@ bool RegistrationMap::SetParams(int map_size, bool publish_updates) {
   publish_updates_ = publish_updates;
 
   if (map_params_set_ && map_size != map_size_) {
-    BEAM_ERROR("Map parameters already set, these cannot be changed.");
-    return false;
+    BEAM_WARN(
+        "Map parameters already set, overriding and purging extra clouds.");
+    // in case the map size decreased and existing scans are here, let's purge
+    while (clouds_in_map_frame_.size() > map_size) {
+      uint64_t first_scan_stamp = clouds_in_map_frame_.begin()->first;
+      clouds_in_map_frame_.erase(first_scan_stamp);
+      cloud_poses_.erase(first_scan_stamp);
+    }
+    while (loam_clouds_in_map_frame_.size() > map_size) {
+      uint64_t first_scan_stamp = loam_clouds_in_map_frame_.begin()->first;
+      loam_clouds_in_map_frame_.erase(first_scan_stamp);
+      loam_cloud_poses_.erase(first_scan_stamp);
+    }
   }
 
   map_size_ = map_size;
@@ -172,6 +183,9 @@ bool RegistrationMap::UpdateScan(const ros::Time& stamp,
         T_MAP_SCAN * beam::InvertTransform(pose_it->second);
     pcl::transformPointCloud(*(cloud_iter->second), *(cloud_iter->second),
                              T_MAPNEW_MAPOLD);
+
+    // update pose
+    pose_it->second = T_MAP_SCAN;
   }
 
   // update loam pointclouds
@@ -195,6 +209,9 @@ bool RegistrationMap::UpdateScan(const ros::Time& stamp,
     Eigen::Matrix4d T_MAPNEW_MAPOLD =
         T_MAP_SCAN * beam::InvertTransform(loam_pose_it->second);
     cloud_iter->second->TransformPointCloud(T_MAPNEW_MAPOLD);
+
+    // update pose
+    loam_pose_it->second = T_MAP_SCAN;
   }
 
   Publish();
@@ -210,7 +227,7 @@ void RegistrationMap::Save(const std::string& save_path, bool add_frames,
 
   if (!loam_clouds_in_map_frame_.empty()) {
     LoamPointCloud map = GetLoamCloudMap();
-    map.Save(save_path);
+    map.SaveCombined(save_path, "registration_map_loam.pcd");
   }
   if (!clouds_in_map_frame_.empty()) {
     PointCloud map = GetPointCloudMap();
@@ -221,10 +238,12 @@ void RegistrationMap::Save(const std::string& save_path, bool add_frames,
       beam::MergeFrameToCloud(map_col, frame, T_MAP_SCAN);
     }
 
+    std::string map_path =
+        beam::CombinePaths(save_path, "registration_map.pcd");
     std::string error_message{};
     if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-            save_path + "pointcloud.pcd", map_col,
-            beam::PointCloudFileType::PCDBINARY, error_message)) {
+            map_path, map_col, beam::PointCloudFileType::PCDBINARY,
+            error_message)) {
       BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
     }
   }
@@ -298,18 +317,35 @@ void RegistrationMap::Publish() {
 
   if (!lidar_map.empty()) {
     sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<pcl::PointXYZ>(
-        lidar_map, update_time, frame_id_, updates_counter_);
+        lidar_map, update_time, world_frame_id_, updates_counter_);
     lidar_map_publisher_.publish(pc_msg);
   }
 
   if (!loam_map.Empty()) {
     LoamPointCloudCombined loam_combined = loam_map.GetCombinedCloud();
     sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointLoam>(
-        loam_combined, update_time, frame_id_, updates_counter_);
+        loam_combined, update_time, world_frame_id_, updates_counter_);
     loam_map_publisher_.publish(pc_msg);
   }
 
   updates_counter_++;
+}
+
+ros::Time RegistrationMap::GetLastCloudPoseStamp() const {
+  if (cloud_poses_.empty()) { return {}; }
+  uint64_t t_in_ns = cloud_poses_.rbegin()->first;
+  ros::Time stamp;
+  stamp.fromNSec(t_in_ns);
+  return stamp;
+}
+
+ros::Time RegistrationMap::GetLastLoamPoseStamp() const {
+  if (loam_cloud_poses_.empty()) { return {}; }
+  uint64_t t_in_ns = loam_cloud_poses_.rbegin()->first;
+  ros::Time stamp;
+  stamp.fromNSec(t_in_ns);
+
+  return stamp;
 }
 
 }} // namespace bs_models::scan_registration

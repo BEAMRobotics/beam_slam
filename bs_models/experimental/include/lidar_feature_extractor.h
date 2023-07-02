@@ -7,9 +7,9 @@
 #include <beam_matching/loam/LoamFeatureExtractor.h>
 #include <beam_matching/loam/LoamPointCloud.h>
 
-#include <bs_parameters/models/lidar_feature_extractor_params.h>
+#include "parameters/models/lidar_feature_extractor_params.h"
 
-namespace bs_models {
+namespace bs_models::experimental {
 
 class LidarFeatureExtractor : public fuse_core::AsyncSensorModel {
 public:
@@ -49,4 +49,4 @@ private:
   uint32_t counter_{0};
 };
 
-} // namespace bs_models
+} // namespace bs_models::experimental

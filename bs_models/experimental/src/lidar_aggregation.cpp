@@ -1,11 +1,12 @@
-#include <bs_models/lidar_aggregation.h>
+#include "lidar_aggregation.h"
 
 #include <pluginlib/class_list_macros.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::LidarAggregation, fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::experimental::LidarAggregation,
+                       fuse_core::SensorModel)
 
-namespace bs_models {
+namespace bs_models::experimental {
 
 LidarAggregation::LidarAggregation()
     : fuse_core::AsyncSensorModel(1),
@@ -152,4 +153,4 @@ void LidarAggregation::ProcessTimeTrigger(const std_msgs::Time::ConstPtr& msg) {
   counter_++;
 }
 
-} // namespace bs_models
+} // namespace bs_models::experimental

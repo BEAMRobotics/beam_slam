@@ -23,15 +23,15 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
       std::make_shared<LoamParams>("DEFAULT_PATH");
 
   // override iteration since we need this to be fast and scans are very close
-  // to each other so iteration isn't necessary
+  // to each other so iteration isn't as necessary
   matcher_params->iterate_correspondences = true;
-  matcher_params->max_correspondence_iterations = 2;
+  matcher_params->max_correspondence_iterations = 5;
   matcher_params->max_correspondence_distance = 0.25;
   matcher_params->max_corner_less_sharp = 10;
 
   // override ceres config
   beam_optimization::CeresParams ceres_params;
-  ceres_params.GetSolverOptionsMutable().max_num_iterations = 15;
+  ceres_params.GetSolverOptionsMutable().max_num_iterations = 40;
   ceres_params.GetSolverOptionsMutable().num_threads =
       std::thread::hardware_concurrency();
   matcher_params->optimizer_params = ceres_params;
@@ -40,7 +40,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
       std::make_unique<LoamMatcher>(*matcher_params);
 
   scan_registration::ScanToMapLoamRegistration::Params reg_params;
-  reg_params.map_size = 3;
+  reg_params.map_size = 10;
   reg_params.store_full_cloud = false;
   reg_params.outlier_threshold_trans_m = 0.5;
   reg_params.outlier_threshold_rot_deg = 45;
@@ -205,7 +205,6 @@ void LidarPathInit::OutputResults(const std::string& output_dir) const {
   PointCloud map_init;
   for (auto iter = keyframes_.begin(); iter != keyframes_.end(); iter++) {
     PointCloud scan_in_map_final;
-    ;
     PointCloud scan_in_map_initial;
     pcl::transformPointCloud(iter->Cloud(), scan_in_map_final,
                              iter->T_REFFRAME_LIDAR());
@@ -226,6 +225,10 @@ void LidarPathInit::OutputResults(const std::string& output_dir) const {
           beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
+
+  // save registration map
+  scan_registration_->GetMap().Save(save_path);
+
 }
 
 double LidarPathInit::CalculateTrajectoryLength() const {
@@ -262,11 +265,16 @@ std::unordered_map<uint64_t, LidarTransactionType>
 void LidarPathInit::UpdateRegistrationMap(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
   auto& registration_map = scan_registration_->GetMapMutable();
+  registration_map.SetParams(keyframes_.size());
   int counter{0};
   for (ScanPose& p : keyframes_) {
     if (p.UpdatePose(graph_msg)) {
       counter++;
-      registration_map.UpdateScan(p.Stamp(), p.T_REFFRAME_BASELINK(), 0, 0);
+      bool in_map = registration_map.UpdateScan(p.Stamp(), p.T_REFFRAME_LIDAR(), 0, 0);
+      if(!in_map){
+        registration_map.AddPointCloud(p.Cloud(), p.Stamp(), p.T_REFFRAME_LIDAR());
+        registration_map.AddPointCloud(p.LoamCloud(), p.Stamp(), p.T_REFFRAME_LIDAR());
+      }
     }
   }
 

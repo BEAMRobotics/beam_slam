@@ -269,8 +269,7 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   if (!is_initialized_) {
     const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(graph);
     assert(!current_landmark_ids.empty() &&
-           "Cannot use Visual Odometry without initializing with visual "
-           "information.");
+           "Cannot use Visual Odometry without initializing with visual information.");
 
     is_initialized_ = true;
     while (!visual_measurement_buffer_.empty()) {
