@@ -5,10 +5,10 @@
 #include <fuse_core/throttled_callback.h>
 #include <std_msgs/Time.h>
 
-#include <bs_models/lidar/lidar_aggregator.h>
-#include <bs_parameters/models/lidar_aggregation_params.h>
+#include "lidar/lidar_aggregator.h"
+#include "parameters/models/lidar_aggregation_params.h"
 
-namespace bs_models {
+namespace bs_models::experimental {
 
 class LidarAggregation : public fuse_core::AsyncSensorModel {
 public:
@@ -104,4 +104,4 @@ private:
   int aggregate_publisher_queue_size_{10};
 };
 
-} // namespace bs_models
+} // namespace bs_models::experimental

@@ -20,19 +20,9 @@
       Visual odometry sensor model
     </description>
   </class>
-  <class type="bs_models::LidarAggregation" base_class_type="fuse_core::SensorModel">
-    <description>
-      A sensor model for aggregating and motion compensating lidar data
-    </description>
-  </class>
   <class type="bs_models::LidarScanDeskewer" base_class_type="fuse_core::SensorModel">
     <description>
       A sensor model for motion compensating individual lidar scans
-    </description>
-  </class>
-  <class type="bs_models::LidarFeatureExtractor" base_class_type="fuse_core::SensorModel">
-    <description>
-      A sensor model for extracting LOAM features from lidar scans
     </description>
   </class>
   <class type="bs_models::VisualFeatureTracker" base_class_type="fuse_core::SensorModel">
@@ -48,6 +38,16 @@
   <class type="bs_models::SLAMInitialization" base_class_type="fuse_core::SensorModel">
     <description>
       Initialized slam using all available sensor information
+    </description>
+  <class type="bs_models::experimental::LidarAggregation" base_class_type="fuse_core::SensorModel">
+    <description>
+      A sensor model for aggregating and motion compensating lidar data
+    </description>
+  </class>
+  </class>
+    <class type="bs_models::experimental::LidarFeatureExtractor" base_class_type="fuse_core::SensorModel">
+    <description>
+      A sensor model for extracting LOAM features from lidar scans
     </description>
   </class>
 </library>

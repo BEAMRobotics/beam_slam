@@ -70,9 +70,7 @@ catkin_package(
 add_library(
   ${PROJECT_NAME}
   ## sensor models
-  src/lidar_aggregation.cpp
   src/lidar_scan_deskewer.cpp
-  src/lidar_feature_extractor.cpp
   src/unicycle_3d.cpp
   src/lidar_odometry.cpp
   src/visual_odometry.cpp
@@ -88,7 +86,6 @@ add_library(
   src/lib/imu/imu_preintegration.cpp
   src/lib/imu/inertial_alignment.cpp
   ## lidar helpers
-  src/lib/lidar/lidar_aggregator.cpp
   src/lib/lidar/lidar_path_init.cpp
   src/lib/lidar/scan_pose.cpp
   ## global mapping
@@ -115,7 +112,6 @@ add_library(
 include_directories(
   include
   ${OpenCV_INCLUDE_DIRS}
-  #${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
 )
 
@@ -145,6 +141,10 @@ target_link_libraries(
     beam::optimization
 )
 
+if(NOT CMAKE_DISABLE_EXPERIMENTAL)
+    add_subdirectory(experimental)
+endif(NOT CMAKE_DISABLE_EXPERIMENTAL)
+
 #############
 ## Testing ##
 #############
@@ -163,14 +163,6 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES
   )  
-
-  # add_executable(${PROJECT_NAME}_scan_pose_tests 
-  #   tests/scan_pose_tests.cpp)
-  # target_link_libraries(${PROJECT_NAME}_scan_pose_tests 
-  #   ${PROJECT_NAME}
-  #   gtest_main)
-  # add_test(NAME ${PROJECT_NAME}_scan_pose_tests 
-  #       COMMAND ${PROJECT_NAME}_scan_pose_tests)
   
   # Scan to scan registration tests
   catkin_add_gtest(${PROJECT_NAME}_multi_scan_registration_tests 
@@ -249,16 +241,5 @@ if(CATKIN_ENABLE_TESTING)
       CXX_STANDARD 14
       CXX_STANDARD_REQUIRED YES
   )
-  
-  # add_executable(${PROJECT_NAME}_global_map_refinement_tests 
-  #   tests/global_map_refinement_tests.cpp)
-  # target_link_libraries(${PROJECT_NAME}_global_map_refinement_tests 
-  #   ${PROJECT_NAME}
-  #   # ${catkin_LIBRARIES}
-  #   ${PCL_LIBRARIES}
-  #   gtest_main
-  # )
-  # add_test(NAME ${PROJECT_NAME}_global_map_refinement_tests 
-  #         COMMAND ${PROJECT_NAME}_global_map_refinement_tests)
 
 endif()

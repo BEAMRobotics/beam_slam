@@ -1,12 +1,13 @@
-#include <bs_models/lidar_feature_extractor.h>
+#include "lidar_feature_extractor.h"
 
 #include <pluginlib/class_list_macros.h>
 #include <ros/names.h>
 
 // Register this sensor model with ROS as a plugin.
-PLUGINLIB_EXPORT_CLASS(bs_models::LidarFeatureExtractor, fuse_core::SensorModel)
+PLUGINLIB_EXPORT_CLASS(bs_models::experimental::LidarFeatureExtractor,
+                       fuse_core::SensorModel)
 
-namespace bs_models {
+namespace bs_models::experimental {
 
 LidarFeatureExtractor::LidarFeatureExtractor()
     : fuse_core::AsyncSensorModel(1),
@@ -76,4 +77,4 @@ void LidarFeatureExtractor::PublishLoamCloud(
   counter_++;
 }
 
-} // namespace bs_models
+} // namespace bs_models::experimental
