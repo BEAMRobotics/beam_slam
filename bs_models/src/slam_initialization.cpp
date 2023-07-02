@@ -229,9 +229,7 @@ void SLAMInitialization::processLidar(
             lidar_path_init_->GetMeanRegistrationTimeInS(),
             lidar_path_init_->GetMedianRegistrationTimeInS(),
             lidar_path_init_->GetMaxRegistrationTimeInS());
-  init_path_ = lidar_path_init_->GetPath();
 
-  // TODO: init path should be in baselink frame
   if (!extrinsics_.GetT_LIDAR_BASELINK(T_lidar_baselink_)) {
     ROS_ERROR("Unable to get baselink to camera transform.");
     throw std::runtime_error("Unable to get baselink to camera transform.");
