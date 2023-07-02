@@ -35,9 +35,6 @@ public:
   ~InertialOdometry() override = default;
 
 private:
-  // todo: service that will return the closest linear acceleration, linear
-  // todo: velocity and angular velocity to request (within the stored window)
-
   /**
    * @brief Callback for imu processing, this will make sure the imu messages
    * are added to the buffer at the correct time

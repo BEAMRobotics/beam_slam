@@ -69,7 +69,7 @@ void SLAMInitialization::onInit() {
   max_landmark_container_size_ =
       params_.initialization_window_s * calibration_params_.camera_hz;
   imu_buffer_size_ =
-      params_.initialization_window_s * calibration_params_.imu_hz;
+      params_.initialization_window_s * 1.5 * calibration_params_.imu_hz;
 
   if (calibration_params_.lidar_hz < 1 / min_lidar_scan_period_s_) {
     lidar_buffer_size_ =
@@ -228,6 +228,17 @@ void SLAMInitialization::processLidar(
             lidar_path_init_->GetMedianRegistrationTimeInS(),
             lidar_path_init_->GetMaxRegistrationTimeInS());
   init_path_ = lidar_path_init_->GetPath();
+
+  // TODO: init path should be in baselink frame
+  if (!extrinsics_.GetT_LIDAR_BASELINK(T_lidar_baselink_)) {
+    ROS_ERROR("Unable to get baselink to camera transform.");
+    throw std::runtime_error("Unable to get baselink to camera transform.");
+  }
+  init_path_.clear();
+  for (const auto& [nsec, T_WORLD_LIDAR] : lidar_path_init_->GetPath()) {
+    init_path_[nsec] = T_WORLD_LIDAR * T_lidar_baselink_;
+  }
+
   beam::HighResolutionTimer timer;
   if (Initialize()) {
     BEAM_INFO("done initialization, total time: {}s", timer.elapsed());
@@ -256,7 +267,7 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 bool SLAMInitialization::Initialize() {
-  // prune poses in path that don't have at least two imu messages before it
+  // prune poses in path at start that don't have >= imu messages before it
   auto second_imu_msg = std::next(imu_buffer_.begin());
   while (init_path_.begin()->first < second_imu_msg->header.stamp.toNSec()) {
     init_path_.erase(init_path_.begin()->first);
@@ -275,6 +286,10 @@ bool SLAMInitialization::Initialize() {
       landmark_container_->RemoveMeasurementsAtTime(stamp);
     }
   }
+
+  // todo: when running full speed, init path has poses without imu measurements
+  // between them at the end fix: remove poses at end if no imu measurements are
+  // between them?
 
   // Estimate imu biases and gravity using the initial path
   bs_models::imu::EstimateParameters(init_path_, imu_buffer_, imu_params_,
@@ -315,41 +330,6 @@ bool SLAMInitialization::Initialize() {
   SendInitializationGraph();
 
   if (!params_.output_folder.empty()) { OutputResults(); }
-
-  // // for each timestamp in landmark container try:
-  // // get pose, get image thats been saved, plot measurements, project
-  // // corresponding landmarks, draw line btw them
-  // std::cout << "Outputting reprojections" << std::endl;
-  // for (const auto& t : visual_measurements) {
-  //   const auto stamp = beam::NSecToRos(t);
-  //   auto T = visual_map_->GetCameraPose(stamp);
-  //   if (!T.has_value()) { continue; }
-  //   std::string file = "/home/jake/data/images/" + std::to_string(t) + ".png";
-  //   cv::Mat image = cv::imread(file, cv::IMREAD_COLOR);
-  //   const auto lm_ids = landmark_container_->GetLandmarkIDsInImage(stamp);
-  //   for (const auto& id : lm_ids) {
-  //     try {
-  //       Eigen::Vector2d pixel =
-  //           landmark_container_->GetMeasurement(stamp, id).value;
-  //       auto lm = visual_map_->GetLandmark(id);
-  //       if (!lm) { continue; }
-  //       Eigen::Vector3d landmark = lm->point();
-  //       Eigen::Vector3d lm_camera =
-  //           (beam::InvertTransform(T.value()) * landmark.homogeneous())
-  //               .hnormalized();
-  //       bool in_image = false;
-  //       Eigen::Vector2d projected;
-  //       bool in_domain;
-  //       cam_model_->ProjectPoint(lm_camera, projected, in_image);
-  //       cv::Point start(pixel[0], pixel[1]);
-  //       cv::Point end(projected[0], projected[1]);
-  //       cv::line(image, start, end, cv::Scalar(255, 255, 0), 4, 8);
-
-  //     } catch (const std::out_of_range& oor) { continue; }
-  //   }
-  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) + ".png",
-  //               image);
-  // }
 
   return true;
 }
@@ -557,7 +537,7 @@ beam::opt<Eigen::Vector3d>
   }
   if (T_cam_world_v.size() >= 3) {
     return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                    pixels);
+                                                    pixels, 100.0, 50.0);
   }
   return {};
 }

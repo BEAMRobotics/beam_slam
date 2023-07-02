@@ -1,4 +1,4 @@
-optimization_period: 0.9
+optimization_period: 0.1
 lag_duration: 7
 
 solver_options:
@@ -8,7 +8,7 @@ solver_options:
   num_threads: 16
   num_linear_solver_threads: 16
   max_num_iterations: 10
-  max_solver_time_in_seconds: 0.7
+  max_solver_time_in_seconds: 0.08
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
@@ -22,12 +22,12 @@ sensor_models:
     type: 'bs_models::VisualFeatureTracker'
   - name: 'slam_initialization'
     type: 'bs_models::SLAMInitialization'
-  # - name: 'inertial_odometry'
-  #   type: 'bs_models::InertialOdometry'
-  #   motion_models: [unicycle_3d]
-  # - name: 'visual_odometry'
-  #   type: 'bs_models::VisualOdometry'
-  #   motion_models: [unicycle_3d]
+  - name: 'inertial_odometry'
+    type: 'bs_models::InertialOdometry'
+    motion_models: [unicycle_3d]
+  - name: 'visual_odometry'
+    type: 'bs_models::VisualOdometry'
+    motion_models: [unicycle_3d]
 
 publishers:
     - name: 'graph'
@@ -56,7 +56,7 @@ slam_initialization:
   visual_measurement_topic: "/local_mapper/visual_feature_tracker/visual_measurements"
   imu_topic: "/imu/data"
   lidar_topic: "/lidar_h/velodyne_points"
-  init_mode: "LIDAR"
+  init_mode: "VISUAL"
   max_optimization_s: 2.0
   initialization_window_s: 2.0
   min_trajectory_length_m: 1.0
@@ -72,8 +72,8 @@ visual_odometry:
   max_container_size: 300
   frame_initializer_config: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
   reloc_request_period: 3.0
-  keyframe_parallax: 50.0
-  keyframe_max_duration: 0.5
+  keyframe_parallax: 30.0
+  keyframe_max_duration: 0.25
   reprojection_covariance_weight: 1.0
   reprojection_loss_a: 20.0
 

@@ -181,10 +181,10 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
   } else {
+    // todo: signal to IO that we are losing track
     ROS_WARN_STREAM(
         "Using motion model, not enough points for visual estimation: "
         << pixels.size());
-    // todo: use a motion model opposed to inertial odometry as frame init
     Eigen::Matrix4d T_PREVFRAME_CURFRAME;
     if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
                                              previous_frame_, timestamp)) {
@@ -194,7 +194,6 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
       return false;
     }
     T_WORLD_BASELINK = T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
-    // todo: signal to IO that we are losing track
   }
 
   return true;
@@ -262,6 +261,7 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
       bs_common::GetLinearAcceleration(graph, end_timestamp)->array();
   cur_ang_vel_ = bs_common::GetAngularVelocity(graph, end_timestamp)->array();
 
+  // todo: "cull" bad landmarks
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
 
@@ -355,9 +355,9 @@ beam::opt<Eigen::Vector3d>
       T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
     }
   }
-  if (T_cam_world_v.size() >= 5) {
+  if (T_cam_world_v.size() >= 3) {
     return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                    pixels);
+                                                    pixels, 100.0, 50.0);
   }
   return {};
 }

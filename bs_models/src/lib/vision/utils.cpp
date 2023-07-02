@@ -196,45 +196,11 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   visual_graph->optimizeFor(ros::Duration(max_optimization_time), options);
   visual_map->UpdateGraph(visual_graph);
 
-  // std::cout << "Outputting reprojections" << std::endl;
-  // auto visual_measurements = landmark_container->GetMeasurementTimes();
-  // for (const auto& t : visual_measurements) {
-  //   const auto stamp = beam::NSecToRos(t);
-  //   auto T = visual_map->GetCameraPose(stamp);
-  //   if (!T.has_value()) { continue; }
-  //   std::string file = "/home/jake/data/images/" + std::to_string(t) +
-  //   ".png"; cv::Mat image = cv::imread(file, cv::IMREAD_COLOR); const auto
-  //   lm_ids = landmark_container->GetLandmarkIDsInImage(stamp); for (const
-  //   auto& id : lm_ids) {
-  //     try {
-  //       Eigen::Vector2d pixel =
-  //           landmark_container->GetMeasurement(stamp, id).value;
-  //       auto lm = visual_map->GetLandmark(id);
-  //       if (!lm) { continue; }
-  //       Eigen::Vector3d landmark = lm->point();
-  //       Eigen::Vector3d lm_camera =
-  //           (beam::InvertTransform(T.value()) * landmark.homogeneous())
-  //               .hnormalized();
-  //       bool in_image = false;
-  //       Eigen::Vector2d projected;
-  //       bool in_domain;
-  //       camera_model->ProjectPoint(lm_camera, projected, in_image);
-  //       cv::Point start(pixel[0], pixel[1]);
-  //       cv::Point end(projected[0], projected[1]);
-  //       cv::line(image, start, end, cv::Scalar(255, 255, 0), 4, 8);
-
-  //     } catch (const std::out_of_range& oor) { continue; }
-  //   }
-  //   cv::imwrite("/home/jake/data/images_reproj/" + std::to_string(t) +
-  //   ".png",
-  //               image);
-  // }
-
   // return result
   std::map<uint64_t, Eigen::Matrix4d> init_path;
   for (const auto& time : landmark_container->GetMeasurementTimes()) {
     const auto timestamp = beam::NSecToRos(time);
-    const auto pose = visual_map->GetCameraPose(timestamp);
+    const auto pose = visual_map->GetBaselinkPose(timestamp);
     if (pose.has_value()) { init_path[time] = pose.value(); }
   }
 
