@@ -69,7 +69,6 @@ void InertialOdometry::onStart() {
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "InertialOdometry received IMU measurements: " << msg->header.stamp);
-
   // push imu message onto buffer
   imu_buffer_.push(*msg);
 
@@ -83,7 +82,12 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
       std::make_pair(lin_acc, ang_vel);
 
   // return if its not initialized_
-  if (!initialized_) return;
+  if (!initialized_) {
+    ROS_INFO_THROTTLE(
+        1, "inertial odometry not yet initialized, waiting on first graph "
+           "update before beginning");
+    return;
+  }
 
   const auto curr_msg = imu_buffer_.front();
   const auto curr_stamp = curr_msg.header.stamp;
@@ -117,7 +121,7 @@ void InertialOdometry::processOdometry(
       "InertialOdometry received Odometry measurements: " << msg->header.stamp);
 
   // return if its not initialized_
-  if (!initialized_) return;
+  if (!initialized_) { return; }
 
   // add constraint at time
   auto transaction =

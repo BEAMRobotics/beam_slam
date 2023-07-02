@@ -7,14 +7,10 @@ sensor_models:
     type: 'bs_models::SLAMInitialization'
   - name: 'inertial_odometry'
     type: 'bs_models::InertialOdometry'
-    motion_models: ['unicycle_3d']
-  #   ignition: true
-  # - name: 'lidar_aggregation'
-  #   type: 'bs_models::LidarAggregation'
-  #   motion_models: ['unicycle_3d']
+  - name: 'lidar_deskewer'
+    type: 'bs_models::LidarScanDeskewer'
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
-    motion_models: ['unicycle_3d']
 
 
 
@@ -59,13 +55,10 @@ inertial_odometry:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
 
-lidar_aggregation:
-  aggregation_time_topic: ''
-  pointcloud_topic: '/lidar_h/velodyne_packets_unpacked'
+lidar_deskewer:
+  input_topic: '/lidar_h/velodyne_packets_unpacked'
   lidar_type: 'VELODYNE'
-  frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/path.json'
-  max_aggregation_time_seconds: 0.1
-  use_trigger: false
+  frame_initializer_config: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
 
 lidar_odometry:
   # Local scan registration
