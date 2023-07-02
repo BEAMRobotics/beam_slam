@@ -591,7 +591,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
 void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   if (updates_ == 0) {
-    ROS_INFO_THROTTLE(1, "Initialization incomplete, waiting on first graph "
+    ROS_INFO_THROTTLE(1, "lidar odometry not yet initialized, waiting on first graph "
                          "update before beginning");
     return;
   }
