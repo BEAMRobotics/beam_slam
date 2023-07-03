@@ -56,7 +56,7 @@ public:
                    save_graph_updates);
 
     getParam<bool>(nh, "save_marginalized_scans", save_marginalized_scans,
-                   save_marginalized_scans);               
+                   save_marginalized_scans);                               
 
     /**The first part is either MULTI (for multi scan registration) or MAP (for
      * scan to map registration), and the second part is the matcher type.
