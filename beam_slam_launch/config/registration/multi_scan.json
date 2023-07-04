@@ -1,4 +1,5 @@
 {
+  "registration_type": "MULTISCAN",
   "outlier_threshold_trans_m": 0.3,
   "outlier_threshold_rot_deg": 20,
   "min_motion_trans_m": 0,
