@@ -307,6 +307,7 @@ bool SLAMInitialization::Initialize() {
     ceres::Solver::Options options;
     options.minimizer_progress_to_stdout = true;
     options.num_threads = std::thread::hardware_concurrency() / 2;
+    options.max_num_iterations = 1000;
     local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s),
                               options);
     visual_map_->UpdateGraph(local_graph_);
