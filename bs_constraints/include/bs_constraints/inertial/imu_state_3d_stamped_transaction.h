@@ -51,8 +51,6 @@ public:
 
 protected:
   fuse_core::Transaction::SharedPtr transaction_;
-  bool override_constraints_;
-  bool override_variables_;
 };
 
 }} // namespace bs_constraints::relative_pose

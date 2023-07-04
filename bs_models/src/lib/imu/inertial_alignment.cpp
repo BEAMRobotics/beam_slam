@@ -42,11 +42,10 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
     preintegrator.cov_ba = params.cov_accel_bias;
     while (imu_buffer_copy.front().header.stamp < stamp &&
            !imu_buffer_copy.empty()) {
-      // std::cout << "---IMU time: " << imu_buffer_copy.front().header.stamp << std::endl;
       preintegrator.data.push_back(imu_buffer_copy.front());
       imu_buffer_copy.pop_front();
     }
-    // std::cout << "Pose time: " << stamp << std::endl;
+
     if (preintegrator.data.empty()) {
       const std::string msg = std::string(__func__) +
                               ": Empty preintegrator for pose in init path.";

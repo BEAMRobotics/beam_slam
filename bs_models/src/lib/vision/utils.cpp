@@ -130,8 +130,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   double keyframe_period = 1.0 / keyframe_hz;
   std::vector<ros::Time> keyframe_times;
   ros::Time prev_kf(0.0);
-  for (const auto& nsec : img_times) {
-    auto stamp = beam::NSecToRos(nsec);
+  for (const auto& stamp : img_times) {
     if ((stamp - prev_kf).toSec() > keyframe_period) {
       keyframe_times.push_back(stamp);
       prev_kf = stamp;
@@ -198,10 +197,9 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
 
   // return result
   std::map<uint64_t, Eigen::Matrix4d> init_path;
-  for (const auto& time : landmark_container->GetMeasurementTimes()) {
-    const auto timestamp = beam::NSecToRos(time);
+  for (const auto& timestamp : landmark_container->GetMeasurementTimes()) {
     const auto pose = visual_map->GetBaselinkPose(timestamp);
-    if (pose.has_value()) { init_path[time] = pose.value(); }
+    if (pose.has_value()) { init_path[timestamp.toNSec()] = pose.value(); }
   }
 
   return init_path;

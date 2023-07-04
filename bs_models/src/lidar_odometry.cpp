@@ -354,7 +354,7 @@ void LidarOdometry::SetupRegistration() {
     std::shared_ptr<LoamParams> matcher_params =
         std::make_shared<LoamParams>(params_.local_matcher_params_path);
     matcher_params->optimizer_params.GetSolverOptionsMutable().num_threads =
-        std::thread::hardware_concurrency();
+        std::thread::hardware_concurrency() / 2;
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
         std::make_unique<LoamMatcher>(*matcher_params);
     MultiScanRegistrationBase::Params params;

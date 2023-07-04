@@ -318,4 +318,8 @@ std::string ImuPreintegration::PrintBuffer() {
   return str;
 }
 
+size_t ImuPreintegration::CurrentBufferSize() {
+  return pre_integrator_ij_.data.size();
+}
+
 } // namespace bs_models

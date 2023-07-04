@@ -8,7 +8,7 @@
 /calibration_params/baselink_frame: "imu_link"
 
 # topic frequencies
-/calibration_params/imu_hz: 500
+/calibration_params/imu_hz: 200
 /calibration_params/camera_hz: 20
 /calibration_params/lidar_hz: 10
 

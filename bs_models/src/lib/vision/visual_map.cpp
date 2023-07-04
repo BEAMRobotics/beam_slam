@@ -156,7 +156,7 @@ bool VisualMap::AddVisualConstraint(
     if (lm) {
       auto vis_constraint =
           std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
-              source_, *orientation, *position, *lm, T_cam_baselink_,
+              "VO", *orientation, *position, *lm, T_cam_baselink_,
               camera_intrinsic_matrix_, measurement, covariance_);
       vis_constraint->loss(loss_function_);
       transaction->addConstraint(vis_constraint);

@@ -18,7 +18,7 @@ namespace bs_models {
 using namespace vision;
 
 SLAMInitialization::SLAMInitialization()
-    : fuse_core::AsyncSensorModel(1),
+    : fuse_core::AsyncSensorModel(3),
       device_id_(fuse_core::uuid::NIL),
       throttled_measurement_callback_(
           std::bind(&SLAMInitialization::processCameraMeasurements, this,
@@ -69,7 +69,7 @@ void SLAMInitialization::onInit() {
   max_landmark_container_size_ =
       params_.initialization_window_s * calibration_params_.camera_hz;
   imu_buffer_size_ =
-      params_.initialization_window_s * 1.5 * calibration_params_.imu_hz;
+      params_.initialization_window_s * 2.0 * calibration_params_.imu_hz;
 
   if (calibration_params_.lidar_hz < 1 / min_lidar_scan_period_s_) {
     lidar_buffer_size_ =
@@ -94,18 +94,18 @@ void SLAMInitialization::onStart() {
   // subscribe to topics
   visual_measurement_subscriber_ =
       private_node_handle_.subscribe<CameraMeasurementMsg>(
-          ros::names::resolve(params_.visual_measurement_topic), 100,
+          ros::names::resolve(params_.visual_measurement_topic), 200,
           &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
 
   imu_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Imu>(
-      ros::names::resolve(params_.imu_topic), 100,
+      ros::names::resolve(params_.imu_topic), 2000,
       &ThrottledIMUCallback::callback, &throttled_imu_callback_,
       ros::TransportHints().tcpNoDelay(false));
 
   lidar_subscriber_ = private_node_handle_.subscribe<sensor_msgs::PointCloud2>(
-      ros::names::resolve(params_.lidar_topic), 100,
+      ros::names::resolve(params_.lidar_topic), 200,
       &ThrottledLidarCallback::callback, &throttled_lidar_callback_,
       ros::TransportHints().tcpNoDelay(false));
 }
@@ -123,7 +123,8 @@ void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
   if (!frame_initializer_->GetPose(T_WORLD_BASELINK, front_timestamp,
                                    extrinsics_.GetBaselinkFrameId(),
                                    error_msg)) {
-    ROS_WARN("Error getting pose from frame initializer, error: %s", error_msg.c_str());
+    ROS_WARN("Error getting pose from frame initializer, error: %s",
+             error_msg.c_str());
     return;
   }
   init_path_[front_timestamp.toNSec()] = T_WORLD_BASELINK;
@@ -229,15 +230,7 @@ void SLAMInitialization::processLidar(
             lidar_path_init_->GetMeanRegistrationTimeInS(),
             lidar_path_init_->GetMedianRegistrationTimeInS(),
             lidar_path_init_->GetMaxRegistrationTimeInS());
-
-  if (!extrinsics_.GetT_LIDAR_BASELINK(T_lidar_baselink_)) {
-    ROS_ERROR("Unable to get baselink to camera transform.");
-    throw std::runtime_error("Unable to get baselink to camera transform.");
-  }
-  init_path_.clear();
-  for (const auto& [nsec, T_WORLD_LIDAR] : lidar_path_init_->GetPath()) {
-    init_path_[nsec] = T_WORLD_LIDAR * T_lidar_baselink_;
-  }
+  init_path_ = lidar_path_init_->GetPath();
 
   beam::HighResolutionTimer timer;
   if (Initialize()) {
@@ -280,16 +273,11 @@ bool SLAMInitialization::Initialize() {
 
   // remove any visual measurements that are outside of the init path
   auto visual_measurements = landmark_container_->GetMeasurementTimes();
-  for (const auto& time : visual_measurements) {
-    const auto stamp = beam::NSecToRos(time);
-    if (time < init_path_.begin()->first) {
+  for (const auto& stamp : visual_measurements) {
+    if (stamp.toNSec() < init_path_.begin()->first) {
       landmark_container_->RemoveMeasurementsAtTime(stamp);
     }
   }
-
-  // todo: when running full speed, init path has poses without imu measurements
-  // between them at the end fix: remove poses at end if no imu measurements are
-  // between them?
 
   // Estimate imu biases and gravity using the initial path
   bs_models::imu::EstimateParameters(init_path_, imu_buffer_, imu_params_,
@@ -318,7 +306,7 @@ bool SLAMInitialization::Initialize() {
     ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
     ceres::Solver::Options options;
     options.minimizer_progress_to_stdout = true;
-    options.num_threads = 6;
+    options.num_threads = std::thread::hardware_concurrency() / 2;
     local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s),
                               options);
     visual_map_->UpdateGraph(local_graph_);
@@ -338,27 +326,45 @@ void SLAMInitialization::InterpolateVisualMeasurements() {
   // interpolate for existing visual measurements if they aren't in the path
   auto visual_measurements = landmark_container_->GetMeasurementTimes();
   for (const auto& stamp : visual_measurements) {
-    auto lb = init_path_.lower_bound(stamp);
-    auto ub = init_path_.upper_bound(stamp);
-    if (lb == init_path_.end() || ub == init_path_.end() ||
-        lb->first == stamp) {
+    auto nsec = stamp.toNSec();
+    auto lb = init_path_.lower_bound(nsec);
+    auto ub = init_path_.upper_bound(nsec);
+    if (lb == init_path_.end() || ub == init_path_.end() || lb->first == nsec) {
       continue;
     }
     lb = std::prev(lb);
+    auto ub_time = beam::NSecToRos(ub->first).toSec();
+    auto lb_time = beam::NSecToRos(lb->first).toSec();
     // interpolate pose at image time
-    init_path_[stamp] = beam::InterpolateTransform(
-        init_path_.at(lb->first), beam::NSecToRos(lb->first).toSec(),
-        init_path_.at(ub->first), beam::NSecToRos(ub->first).toSec(),
-        beam::NSecToRos(stamp).toSec());
+    init_path_[nsec] = beam::InterpolateTransform(
+        init_path_.at(lb->first), lb_time, init_path_.at(ub->first), ub_time,
+        stamp.toSec());
     // interpolate velocity at image time
-    velocities_[stamp] = beam::InterpolateVector(
-        velocities_.at(lb->first), beam::NSecToRos(lb->first).toSec(),
-        velocities_.at(ub->first), beam::NSecToRos(ub->first).toSec(),
-        beam::NSecToRos(stamp).toSec());
+    velocities_[nsec] = beam::InterpolateVector(
+        velocities_.at(lb->first), lb_time, velocities_.at(ub->first), ub_time,
+        stamp.toSec());
   }
 }
 
 void SLAMInitialization::AlignPathAndVelocities(bool apply_scale) {
+  Eigen::Matrix4d T_baselink_sensor;
+  if (mode_ == InitMode::VISUAL) {
+    if (!extrinsics_.GetT_BASELINK_CAMERA(T_baselink_sensor)) {
+      ROS_ERROR("Unable to get camera to baselink transform.");
+      throw std::runtime_error{"Unable to get camera to baselink transform."};
+    }
+  } else {
+    if (!extrinsics_.GetT_BASELINK_LIDAR(T_baselink_sensor)) {
+      ROS_ERROR("Unable to get lidar to baselink transform.");
+      throw std::runtime_error{"Unable to get lidar to baselink transform."};
+    }
+  }
+
+  // transform gravity estimate into baselink frame
+  gravity_ = T_baselink_sensor.block<3, 3>(0, 0) * gravity_;
+  std::cout << "Gravity in baselink frame: [" << gravity_.x() << ", "
+            << gravity_.y() << ", " << gravity_.z() << "]" << std::endl;
+
   // estimate rotation from estimated gravity to world gravity
   Eigen::Quaterniond q =
       Eigen::Quaterniond::FromTwoVectors(gravity_, GRAVITY_WORLD);
@@ -420,17 +426,16 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
       imu_buffer_.pop_front();
     }
 
-    // add pose to graph
+    // add pose and velocity to graph
     visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
-    local_graph_->update(*transaction);
-
-    // get velocity at the given time
     Eigen::Vector3d velocity_estimate = velocities_[stamp];
     auto velocity =
         std::make_shared<fuse_variables::VelocityLinear3DStamped>(timestamp);
     velocity->x() = velocity_estimate.x();
     velocity->y() = velocity_estimate.y();
     velocity->z() = velocity_estimate.z();
+    transaction->addVariable(velocity);
+    local_graph_->update(*transaction);
 
     // get the fuse pose variables
     auto img_orientation = visual_map_->GetOrientation(timestamp);
@@ -442,6 +447,10 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
       start_set = true;
       return;
     }
+
+    // no imu measurements between states -> dont register an imu factor
+    if (imu_preint_->CurrentBufferSize() == 0) { return; }
+
     auto imu_transaction = imu_preint_->RegisterNewImuPreintegratedFactor(
         timestamp, img_orientation, img_position, velocity);
     local_graph_->update(*imu_transaction);
@@ -461,16 +470,16 @@ void SLAMInitialization::AddVisualConstraints() {
   if (params_.init_mode == "VISUAL") {
     // keyframes = poses in init path
     for (const auto& [nsec, pose] : init_path_) {
-      if (visual_measurements.find(nsec) != visual_measurements.end()) {
-        kf_times.insert(beam::NSecToRos(nsec));
+      const auto timestamp = beam::NSecToRos(nsec);
+      if (visual_measurements.find(timestamp) != visual_measurements.end()) {
+        kf_times.insert(timestamp);
       }
     }
   } else {
-    // sample keyframes manually at 4hz
+    // sample keyframes manually at 10hz
     ros::Time prev_kf(0.0);
-    for (const auto& mt : visual_measurements) {
-      auto timestamp = beam::NSecToRos(mt);
-      if ((timestamp - prev_kf).toSec() >= 0.25) {
+    for (const auto& timestamp : visual_measurements) {
+      if ((timestamp - prev_kf).toSec() >= 0.10) {
         kf_times.insert(timestamp);
         prev_kf = timestamp;
       }

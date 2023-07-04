@@ -229,9 +229,6 @@ protected:
   Eigen::Matrix4d T_cam_baselink_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
-
-  // source for the odometry topic to use when publishing
-  std::string source_{"VIO"};
 };
 
 }} // namespace bs_models::vision
