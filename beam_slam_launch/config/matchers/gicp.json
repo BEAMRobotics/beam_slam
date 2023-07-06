@@ -1,4 +1,5 @@
 {
+  "matcher_type": "GICP",
   "corr_rand": 10,
   "max_iter": 100,
   "r_eps": 1e-8,

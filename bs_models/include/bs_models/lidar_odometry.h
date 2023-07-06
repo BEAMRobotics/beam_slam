@@ -109,21 +109,19 @@ private:
   ActiveSubmap& active_submap_ = ActiveSubmap::GetInstance();
 
   /** Only needed if using LoamMatcher */
-  std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_{
-      nullptr};
+  std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
 
   // register scans to local map
   std::unique_ptr<scan_registration::ScanRegistrationBase>
       local_scan_registration_;
 
-  std::unique_ptr<Matcher<PointCloudPtr>> global_matching_{nullptr};
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> global_loam_matching_{nullptr};
+  std::unique_ptr<Matcher<PointCloudPtr>> global_matching_;
+  std::unique_ptr<Matcher<LoamPointCloudPtr>> global_loam_matching_;
 
   fuse_core::UUID device_id_; //!< The UUID of this device
 
   /** Used to get initial pose estimates */
-  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_{
-      nullptr};
+  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
 
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();

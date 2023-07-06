@@ -56,42 +56,26 @@ public:
                    save_graph_updates);
 
     getParam<bool>(nh, "save_marginalized_scans", save_marginalized_scans,
-                   save_marginalized_scans);                               
-
-    /**The first part is either MULTI (for multi scan registration) or MAP (for
-     * scan to map registration), and the second part is the matcher type.
-     * Options: MULTIICP, MULTINDT, MULTIGICP, MULTILOAM, MAPLOAM (
-     * TODO:  LIBPOINTMATCHER, TEASER */
-    getParamRequired<std::string>(nh, "local_registration_type",
-                                  local_registration_type);
-
-    /** Matcher type for global registration. Options: ICP, NDT, GICP, LOAM */
-    getParamRequired<std::string>(nh, "global_registration_type",
-                                  global_registration_type);
+                   save_marginalized_scans);
 
     /** Outputs scans as PCD files IFF not empty */
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           scan_output_directory);
 
-    /** Matcher params for local registration. DEFAULT_PATH uses the
-     * appropriate config in beam_slam_launch/config/matchers/. Setting to
-     * empty will use the default params defined in the class */
-    getParam<std::string>(nh, "local_matcher_params_path",
-                          local_matcher_params_path, local_matcher_params_path);
+    /** Matcher params for local registration. Provide path relative to config
+     * folder */
+    getParam<std::string>(nh, "local_matcher_config", local_matcher_config,
+                          local_matcher_config);
 
-    /** Matcher params for global registration. DEFAULT_PATH uses the
-     * appropriate config in beam_slam_launch/config/matchers/. Setting to
-     * empty will use the default params defined in the class */
-    getParam<std::string>(nh, "global_matcher_params_path",
-                          global_matcher_params_path,
-                          global_matcher_params_path);
+    /** Matcher params for global registration.Provide path relative to config
+     * folder */
+    getParam<std::string>(nh, "global_matcher_config", global_matcher_config,
+                          global_matcher_config);
 
-    /** Scan registration config path for local registration. DEFAULT_PATH uses
-     * the appropriate config in beam_slam_launch/config/registration/.
-     * Setting to empty will use the default params defined in the class */
-    getParam<std::string>(nh, "local_registration_config_path",
-                          local_registration_config_path,
-                          local_registration_config_path);
+    /** Scan registration config path for local registration.Provide path
+     * relative to config folder  */
+    getParam<std::string>(nh, "local_registration_config",
+                          local_registration_config, local_registration_config);
 
     /**
      * type of lidar. Options: VELODYNE, OUSTER. This is needed so we know how
@@ -109,11 +93,9 @@ public:
       lidar_type = iter->second;
     }
 
-    /** DEFAULT_PATH uses the config in
-     * beam_slam_launch_config/config/registration/input_filters.json.
-     * Setting to empty uses no filters. */
-    getParam<std::string>(nh, "input_filters_config_path",
-                          input_filters_config_path, input_filters_config_path);
+    /** relative file path to input filters config */
+    getParam<std::string>(nh, "input_filters_config", input_filters_config,
+                          input_filters_config);
 
     /** Options: TRANSFORM, ODOMETRY, POSEFILE */
     getParam<std::string>(nh, "frame_initializer_config",
@@ -130,52 +112,6 @@ public:
      * request cannot be at a higher frequency than the optimizer. */
     getParam<double>(nh, "reloc_request_period", reloc_request_period,
                      reloc_request_period);
-
-    /** Use this to specify local mapper covariance by diagonal. If all diagonal
-     * elements are set to zero, global map registration will not be performed
-     */
-    std::vector<double> lm_noise_diagonal;
-    nh.param("local_registration_noise_diagonal", lm_noise_diagonal,
-             lm_noise_diagonal);
-    if (lm_noise_diagonal.size() != 6) {
-      ROS_ERROR(
-          "Invalid local_mapper_noise_diagonal params, required 6 params, "
-          "given: %zu. Using default (0.1 for all)",
-          lm_noise_diagonal.size());
-      lm_noise_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
-    }
-    if (std::accumulate(lm_noise_diagonal.begin(), lm_noise_diagonal.end(),
-                        0.0) == 0.0) {
-      ROS_INFO("Local mapper noise diagonal set to zero, not performing "
-               "registration to local map.");
-      register_to_lm = false;
-    }
-    for (int i = 0; i < 6; i++) {
-      local_registration_covariance(i, i) = lm_noise_diagonal[i];
-    }
-
-    /** Use this to specify global mapper covariance by diagonal. If all
-     * diagonal elements are set to zero, global map registration will not be
-     * performed */
-    std::vector<double> gm_noise_diagonal;
-    nh.param("global_registration_noise_diagonal", gm_noise_diagonal,
-             gm_noise_diagonal);
-    if (gm_noise_diagonal.size() != 6) {
-      ROS_ERROR("Invalid global_registration_noise_diagonal params, required 6 "
-                "params, "
-                "given: %zu. Using default (0.1 for all)",
-                gm_noise_diagonal.size());
-      gm_noise_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
-    }
-    if (std::accumulate(gm_noise_diagonal.begin(), gm_noise_diagonal.end(),
-                        0.0) == 0) {
-      ROS_INFO("Global mapper noise diagonal set to zero, not performing "
-               "registration to global map.");
-      register_to_gm = false;
-    }
-    for (int i = 0; i < 6; i++) {
-      global_registration_covariance(i, i) = gm_noise_diagonal[i];
-    }
 
     /** Use this to specify prior covariance by diagonal. If all diagonal
      * elements are set to zero, priors will not be added */
@@ -196,25 +132,15 @@ public:
     for (int i = 0; i < 6; i++) { prior_covariance(i, i) = prior_diagonal[i]; }
   }
 
-  // Local Scan Registration Params
-  std::string local_registration_type;
-  std::string local_registration_config_path{"DEFAULT_PATH"};
-  std::string local_matcher_params_path{"DEFAULT_PATH"};
-  Eigen::Matrix<double, 6, 6> local_registration_covariance{
-      Eigen::Matrix<double, 6, 6>::Identity()};
-  bool register_to_lm{true};
-
-  // Global Scan Registration Params
-  std::string global_registration_type;
-  std::string global_matcher_params_path{"DEFAULT_PATH"};
-  Eigen::Matrix<double, 6, 6> global_registration_covariance{
-      Eigen::Matrix<double, 6, 6>::Identity()};
-  bool register_to_gm{true};
+  // Scan Registration Params
+  std::string local_registration_config;
+  std::string local_matcher_config;
+  std::string global_matcher_config;
 
   // General params
   std::string input_topic;
   std::string frame_initializer_config{""};
-  std::string input_filters_config_path{""};
+  std::string input_filters_config{""};
   std::string scan_output_directory{""};
 
   double reloc_request_period;
@@ -225,7 +151,6 @@ public:
   bool publish_local_map{false};
   bool publish_registration_results{false};
   bool use_pose_priors{true};
-
   bool save_graph_updates{false};
   bool save_marginalized_scans{true};
 

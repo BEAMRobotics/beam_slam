@@ -58,8 +58,8 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size)
 
   // get filter params
   nlohmann::json J;
-  std::string filepath =
-      bs_common::GetBeamSlamConfigPath() + "registration/input_filters.json";
+  std::string filepath = bs_common::GetBeamSlamConfigPath() +
+                         "lidar_filters/input_filters_slam_init.json";
 
   BEAM_INFO("Reading input filter params from {}", filepath);
   if (!beam::ReadJson(filepath, J)) {
@@ -228,7 +228,6 @@ void LidarPathInit::OutputResults(const std::string& output_dir) const {
 
   // save registration map
   scan_registration_->GetMap().Save(save_path);
-
 }
 
 double LidarPathInit::CalculateTrajectoryLength() const {
@@ -270,10 +269,13 @@ void LidarPathInit::UpdateRegistrationMap(
   for (ScanPose& p : keyframes_) {
     if (p.UpdatePose(graph_msg)) {
       counter++;
-      bool in_map = registration_map.UpdateScan(p.Stamp(), p.T_REFFRAME_LIDAR(), 0, 0);
-      if(!in_map){
-        registration_map.AddPointCloud(p.Cloud(), p.Stamp(), p.T_REFFRAME_LIDAR());
-        registration_map.AddPointCloud(p.LoamCloud(), p.Stamp(), p.T_REFFRAME_LIDAR());
+      bool in_map =
+          registration_map.UpdateScan(p.Stamp(), p.T_REFFRAME_LIDAR(), 0, 0);
+      if (!in_map) {
+        registration_map.AddPointCloud(p.Cloud(), p.Stamp(),
+                                       p.T_REFFRAME_LIDAR());
+        registration_map.AddPointCloud(p.LoamCloud(), p.Stamp(),
+                                       p.T_REFFRAME_LIDAR());
       }
     }
   }

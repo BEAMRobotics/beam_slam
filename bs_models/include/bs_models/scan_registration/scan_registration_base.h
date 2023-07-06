@@ -4,13 +4,12 @@
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/registration_map.h>
 
-namespace bs_models {
-namespace scan_registration {
+namespace bs_models { namespace scan_registration {
 
 template <typename ConstraintType, typename PriorType>
 using TransactionBase =
     bs_constraints::relative_pose::RelativePoseTransactionBase<ConstraintType,
-                                                                PriorType>;
+                                                               PriorType>;
 
 static std::string _tmp_string{""};
 
@@ -54,10 +53,17 @@ struct ScanRegistrationParamsBase {
 };
 
 class ScanRegistrationBase {
- public:
+public:
   ScanRegistrationBase(const ScanRegistrationParamsBase& base_params);
 
   ~ScanRegistrationBase() = default;
+
+  /**
+   * @brief Factory method to create a scan registration object at runtime
+   */
+  static std::unique_ptr<ScanRegistrationBase>
+      Create(const std::string& registration_config,
+             const std::string& matcher_config);
 
   void SetFixedCovariance(const Eigen::Matrix<double, 6, 6>& covariance);
 
@@ -72,7 +78,7 @@ class ScanRegistrationBase {
    * relative baselink poses given the extrinsics
    */
   virtual bs_constraints::relative_pose::Pose3DStampedTransaction
-  RegisterNewScan(const ScanPose& new_scan) = 0;
+      RegisterNewScan(const ScanPose& new_scan) = 0;
 
   const RegistrationMap& GetMap() const;
 
@@ -80,7 +86,7 @@ class ScanRegistrationBase {
 
   bool PassedRegThreshold(const Eigen::Matrix4d& T_measured);
 
- protected:
+protected:
   bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
   ScanRegistrationParamsBase base_params_;
@@ -96,5 +102,4 @@ class ScanRegistrationBase {
   std::string base_source_{"SCANREGISTRATIONBASE"};
 };
 
-}  // namespace scan_registration
-}  // namespace bs_models
+}} // namespace bs_models::scan_registration
