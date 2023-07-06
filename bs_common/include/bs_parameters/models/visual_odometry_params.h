@@ -1,13 +1,14 @@
 #pragma once
 
-#include <bs_parameters/parameter_base.h>
-#include <fuse_loss/cauchy_loss.h>
+#include <string>
+#include <vector>
 
+#include <fuse_loss/cauchy_loss.h>
 #include <ros/node_handle.h>
 #include <ros/param.h>
 
-#include <string>
-#include <vector>
+#include <bs_common/utils.h>
+#include <bs_parameters/parameter_base.h>
 
 namespace bs_parameters { namespace models {
 
@@ -28,15 +29,21 @@ public:
         "/local_mapper/visual_feature_tracker/visual_measurements");
 
     // config for frame initializer
+    std::string frame_initializer_config_rel;
     getParamRequired<std::string>(nh, "frame_initializer_config",
-                                  frame_initializer_config);
+                                  frame_initializer_config_rel);
+    if (!frame_initializer_config_rel.empty()) {
+      frame_initializer_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), frame_initializer_config_rel);
+    }
 
-    // frame initializer priorx
+    // frame initializer prior
     getParam<bool>(nh, "use_pose_priors", use_pose_priors, false);
 
     // prior on frame init poses if desired
     double prior_covariance_weight;
-    getParam<double>(nh, "prior_covariance_weight", prior_covariance_weight, 0.1);
+    getParam<double>(nh, "prior_covariance_weight", prior_covariance_weight,
+                     0.1);
     prior_covariance = prior_covariance_weight * prior_covariance;
 
     // feature tracker container size

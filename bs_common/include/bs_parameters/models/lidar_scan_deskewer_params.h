@@ -6,6 +6,7 @@
 
 #include <beam_utils/pointclouds.h>
 
+#include <bs_common/utils.h>
 #include <bs_parameters/parameter_base.h>
 
 namespace bs_parameters { namespace models {
@@ -44,8 +45,14 @@ public:
       lidar_type = iter->second;
     }
 
+    std::string frame_initializer_config_rel;
     getParam<std::string>(nh, "frame_initializer_config",
-                          frame_initializer_config, frame_initializer_config);
+                          frame_initializer_config_rel,
+                          frame_initializer_config_rel);
+    if (!frame_initializer_config_rel.empty()) {
+      frame_initializer_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), frame_initializer_config_rel);
+    }
   }
 
   int scan_buffer_size{5};

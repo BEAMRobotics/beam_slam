@@ -1,13 +1,16 @@
 #ifndef bs_models_PARAMETERS_GLOBAL_PARAMS_H
 #define bs_models_PARAMETERS_GLOBAL_PARAMS_H
 
-#include <bs_parameters/parameter_base.h>
+#include <string>
+#include <vector>
 
 #include <ros/node_handle.h>
 #include <ros/param.h>
 
-#include <string>
-#include <vector>
+#include <beam_utils/filesystem.h>
+
+#include <bs_parameters/parameter_base.h>
+#include <bs_common/utils.h>
 
 namespace bs_parameters { namespace models {
 
@@ -22,10 +25,12 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh = ros::NodeHandle()) final {
+    std::string imu_intrinsics_path_rel;
     ros::param::get("/calibration_params/imu_intrinsics_path",
-                    imu_intrinsics_path);
+                    imu_intrinsics_path_rel);
+    std::string cam_intrinsics_path_rel;
     ros::param::get("/calibration_params/camera_intrinsics_path",
-                    cam_intrinsics_path);
+                    cam_intrinsics_path_rel);
     ros::param::get("/calibration_params/imu_frame", imu_frame);
     ros::param::get("/calibration_params/lidar_frame", lidar_frame);
     ros::param::get("/calibration_params/camera_frame", camera_frame);
@@ -42,12 +47,18 @@ public:
       ROS_WARN("One or more calibration frames not set. ");
     }
 
-    if (imu_intrinsics_path.empty()) {
+    if (imu_intrinsics_path_rel.empty()) {
       ROS_WARN("Imu intrinsics path not set. ");
+    } else {
+      imu_intrinsics_path = beam::CombinePaths(
+          bs_common::GetBeamSlamCalibrationsPath(), imu_intrinsics_path_rel);
     }
 
-    if (cam_intrinsics_path.empty()) {
+    if (cam_intrinsics_path_rel.empty()) {
       ROS_WARN("Camera intrinsics path not set. ");
+    } else {
+      cam_intrinsics_path = beam::CombinePaths(
+          bs_common::GetBeamSlamCalibrationsPath(), cam_intrinsics_path_rel);
     }
   }
 

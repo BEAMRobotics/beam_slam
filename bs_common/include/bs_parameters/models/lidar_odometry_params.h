@@ -6,8 +6,10 @@
 #include <fuse_variables/position_3d_stamped.h>
 #include <ros/param.h>
 
+#include <beam_utils/filesystem.h>
 #include <beam_utils/pointclouds.h>
 
+#include <bs_common/utils.h>
 #include <bs_parameters/parameter_base.h>
 
 namespace bs_parameters { namespace models {
@@ -64,18 +66,34 @@ public:
 
     /** Matcher params for local registration. Provide path relative to config
      * folder */
-    getParam<std::string>(nh, "local_matcher_config", local_matcher_config,
-                          local_matcher_config);
+    std::string local_matcher_config_rel;
+    getParam<std::string>(nh, "local_matcher_config", local_matcher_config_rel,
+                          local_matcher_config_rel);
+    if (!local_matcher_config_rel.empty()) {
+      local_matcher_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), local_matcher_config_rel);
+    }
 
     /** Matcher params for global registration.Provide path relative to config
      * folder */
-    getParam<std::string>(nh, "global_matcher_config", global_matcher_config,
-                          global_matcher_config);
+    std::string global_matcher_config_rel;
+    getParam<std::string>(nh, "global_matcher_config",
+                          global_matcher_config_rel, global_matcher_config_rel);
+    if (!global_matcher_config_rel.empty()) {
+      global_matcher_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), global_matcher_config_rel);
+    }
 
     /** Scan registration config path for local registration.Provide path
      * relative to config folder  */
+    std::string local_registration_config_rel;
     getParam<std::string>(nh, "local_registration_config",
-                          local_registration_config, local_registration_config);
+                          local_registration_config_rel,
+                          local_registration_config_rel);
+    if (!local_registration_config_rel.empty()) {
+      local_registration_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), local_registration_config_rel);
+    }
 
     /**
      * type of lidar. Options: VELODYNE, OUSTER. This is needed so we know how
@@ -98,8 +116,14 @@ public:
                           input_filters_config);
 
     /** Options: TRANSFORM, ODOMETRY, POSEFILE */
+    std::string frame_initializer_config_rel;
     getParam<std::string>(nh, "frame_initializer_config",
-                          frame_initializer_config, frame_initializer_config);
+                          frame_initializer_config_rel,
+                          frame_initializer_config_rel);
+    if (!frame_initializer_config_rel.empty()) {
+      frame_initializer_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), frame_initializer_config_rel);
+    }
 
     /** Minimum time between each reloc reequest. If set to zero, it will not
      * send any. Relocs are sent each time a scan pose receives its first graph

@@ -56,13 +56,13 @@ inertial_odometry:
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_packets_unpacked'
   lidar_type: 'VELODYNE'
-  frame_initializer_config: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
+  frame_initializer_config: "frame_initializers/io.json"
 
 lidar_odometry:
   # Scan registration params
   local_registration_config: 'registration/scan_to_map_loam.json'
   local_matcher_config: 'matchers/loam_vlp16.json'
-  global_matcher_params_path: 'registration/loam_vlp16.json'
+  global_matcher_config: 'registration/loam_vlp16.json'
 
   # general params
   lidar_type: 'VELODYNE'
@@ -73,8 +73,8 @@ lidar_odometry:
   publish_active_submap: true
   publish_local_map: true
   publish_registration_results: true
-  # frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/path.json'
-  frame_initializer_config: "" #"/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
+  # frame_initializer_config: 'frame_initializers/path.json'
+  frame_initializer_config: "/frame_initializers/io.json"
   frame_initializer_prior_noise_diagonal: [0,0,0,0,0,0] #[0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
   reloc_request_period: 1
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'

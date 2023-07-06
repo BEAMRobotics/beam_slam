@@ -311,16 +311,13 @@ void LidarOdometry::SetupRegistration() {
   // setup local registration
   beam_matching::MatcherType local_matcher_type;
   if (!params_.local_matcher_config.empty()) {
-    std::string reg_filepath = beam::CombinePaths(
-        bs_common::GetBeamSlamConfigPath(), params_.local_registration_config);
-    std::string matcher_filepath = beam::CombinePaths(
-        bs_common::GetBeamSlamConfigPath(), params_.local_matcher_config);
+    const auto& reg_filepath = params_.local_registration_config;
+    const auto& matcher_filepath = params_.local_matcher_config;
     local_scan_registration_ =
         ScanRegistrationBase::Create(reg_filepath, matcher_filepath);
 
     // setup feature extractor if needed
-    local_matcher_type =
-        beam_matching::GetTypeFromConfig(matcher_filepath);
+    local_matcher_type = beam_matching::GetTypeFromConfig(matcher_filepath);
     if (local_matcher_type == beam_matching::MatcherType::LOAM) {
       std::shared_ptr<LoamParams> matcher_params =
           std::make_shared<LoamParams>(matcher_filepath);
@@ -364,8 +361,7 @@ void LidarOdometry::SetupRegistration() {
 
   // Setup global registration matcher
   if (!params_.global_matcher_config.empty()) {
-    std::string filepath = beam::CombinePaths(
-        bs_common::GetBeamSlamConfigPath(), params_.global_matcher_config);
+    const auto& filepath = params_.global_matcher_config;
     auto matcher_type = beam_matching::GetTypeFromConfig(filepath);
 
     if (matcher_type == beam_matching::MatcherType::LOAM) {

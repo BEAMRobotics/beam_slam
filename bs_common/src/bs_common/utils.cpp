@@ -295,6 +295,21 @@ std::string GetBeamSlamConfigPath() {
   return config_root_location;
 }
 
+std::string GetBeamSlamCalibrationsPath() {
+  std::string current_path_from_beam_slam = "bs_common/src/bs_common/utils.cpp";
+  std::string calibration_root_location = __FILE__;
+  calibration_root_location.erase(calibration_root_location.end() -
+                                      current_path_from_beam_slam.length(),
+                                  calibration_root_location.end());
+  calibration_root_location += "beam_slam_launch/calibrations/";
+  if (!boost::filesystem::exists(calibration_root_location)) {
+    BEAM_ERROR(
+        "Cannot locate beam slam calibrations folder. Expected to be at: {}",
+        calibration_root_location);
+  }
+  return calibration_root_location;
+}
+
 int GetNumberOfConstraints(
     const fuse_core::Transaction::SharedPtr& transaction) {
   if (transaction == nullptr) { return 0; }
