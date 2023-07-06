@@ -11,7 +11,7 @@ PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel);
 namespace bs_models {
 
 InertialOdometry::InertialOdometry()
-    : fuse_core::AsyncSensorModel(1),
+    : fuse_core::AsyncSensorModel(2),
       device_id_(fuse_core::uuid::NIL),
       throttled_imu_callback_(std::bind(&InertialOdometry::processIMU, this,
                                         std::placeholders::_1)),
@@ -72,15 +72,6 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   // push imu message onto buffer
   imu_buffer_.push(*msg);
 
-  // add measurement to window
-  Eigen::Vector3d lin_acc(msg->linear_acceleration.x,
-                          msg->linear_acceleration.y,
-                          msg->linear_acceleration.z);
-  Eigen::Vector3d ang_vel(msg->angular_velocity.x, msg->angular_velocity.y,
-                          msg->angular_velocity.z);
-  imu_measurement_buffer_[msg->header.stamp.toNSec()] =
-      std::make_pair(lin_acc, ang_vel);
-
   // return if its not initialized_
   if (!initialized_) {
     ROS_INFO_THROTTLE(
@@ -104,15 +95,6 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   odom_seq_++;
   prev_stamp_ = curr_stamp;
   imu_buffer_.pop();
-
-  if (imu_measurement_buffer_.size() >
-      calibration_params_.imu_hz * params_.measurement_buffer_duration) {
-    imu_measurement_buffer_.erase(imu_measurement_buffer_.begin());
-  }
-  if (velocity_buffer_.size() >
-      calibration_params_.imu_hz * params_.measurement_buffer_duration) {
-    velocity_buffer_.erase(velocity_buffer_.begin());
-  }
 }
 
 void InertialOdometry::processOdometry(
@@ -137,8 +119,6 @@ void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
   Eigen::Vector3d velocity_curr;
   const auto [T_IMUprev_IMUcurr, cov_rel] =
       imu_preint_->GetRelativeMotion(prev_stamp, curr_stamp, velocity_curr);
-  // add velocity to buffer
-  velocity_buffer_[curr_stamp.toNSec()] = velocity_curr;
   // publish relative odometry
   T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
   auto odom_msg_rel = bs_common::TransformToOdometryMessage(
@@ -217,10 +197,6 @@ void InertialOdometry::onGraphUpdate(
     prev_stamp_ = curr_stamp;
     imu_buffer_.pop();
   }
-
-  // clear measurement buffer
-  auto lb = imu_measurement_buffer_.lower_bound(prev_stamp_.toNSec());
-  imu_measurement_buffer_.erase(imu_measurement_buffer_.begin(), lb);
 
   initialized_ = true;
 }

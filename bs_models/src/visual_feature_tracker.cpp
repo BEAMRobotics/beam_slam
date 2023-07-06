@@ -65,10 +65,6 @@ void VisualFeatureTracker::processImage(
   cv::Mat image = beam_cv::OpenCVConversions::RosImgToMat(*msg);
   tracker_->AddImage(image, msg->header.stamp);
 
-  // cv::imwrite("/home/jake/data/images/" +
-  //                 std::to_string(msg->header.stamp.toNSec()) + ".png",
-  //             image);
-
   // delay publishing by one image to ensure that the tracks are actually
   // published
   if (prev_time_ == ros::Time(0)) {
@@ -80,7 +76,7 @@ void VisualFeatureTracker::processImage(
   measurement_publisher_.publish(measurement_msg);
 
   if (params_.publish_tracks) {
-    if (prev_time_ - prev_track_publish > ros::Duration(0.25)) {
+    if (prev_time_ - prev_track_publish > ros::Duration(0.1)) {
       cv::Mat track_image =
           tracker_->DrawTracks(tracker_->GetTracks(prev_time_), image);
       sensor_msgs::Image out_msg = beam_cv::OpenCVConversions::MatToRosImg(

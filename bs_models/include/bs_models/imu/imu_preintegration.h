@@ -152,6 +152,11 @@ public:
    */
   std::string PrintBuffer();
 
+  /**
+   * @brief Gets the current size of the imu buffer
+   */
+  size_t CurrentBufferSize();
+
 private:
   /**
    * @brief Checks parameters

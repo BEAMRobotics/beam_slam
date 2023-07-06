@@ -35,7 +35,7 @@ void ImuState3DStampedTransaction::AddPriorImuStateConstraint(
   // build and add constraint
   auto prior = std::make_shared<PriorType>(prior_source, imu_state, mean,
                                            prior_covariance);
-  transaction_->addConstraint(prior, override_constraints_);
+  transaction_->addConstraint(prior, true);
 }
 
 void ImuState3DStampedTransaction::AddRelativeImuStateConstraint(
@@ -47,7 +47,7 @@ void ImuState3DStampedTransaction::AddRelativeImuStateConstraint(
   // build and add constraint
   auto constraint = ConstraintType::make_shared(
       source, imu_state_i, imu_state_j, pre_integrator_ptr);
-  transaction_->addConstraint(constraint, override_constraints_);
+  transaction_->addConstraint(constraint, true);
 }
 
 void ImuState3DStampedTransaction::AddImuStateVariables(

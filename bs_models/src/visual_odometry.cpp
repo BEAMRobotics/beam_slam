@@ -162,8 +162,10 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix4d& T_WORLD_BASELINK) {
   const auto prev_frame_pose = visual_map_->GetBaselinkPose(previous_frame_);
-  assert(prev_frame_pose.has_value() &&
-         "Cannot retrieve previous keyframe pose.");
+  if (!prev_frame_pose.has_value()) {
+    ROS_ERROR("Cannot retrieve previous keyframe pose.");
+    throw std::runtime_error{"Cannot retrieve previous keyframe pose."};
+  }
   const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_frame_pose.value();
 
   // get 2d-3d correspondences
@@ -180,11 +182,19 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         T_CAMERA_WORLD_est, cam_model_, pixels, points);
     T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
+
+    //   Eigen::Matrix4d T_PREVFRAME_CURFRAME;
+    //   frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
+    //   previous_frame_, timestamp);
+    //   Eigen::Matrix4d temp = T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
+    //   std::cout << "Visual estimate: \n" << T_WORLD_BASELINK << std::endl;
+    //   std::cout << "Inertial estimate: \n" << temp << std::endl;
   } else {
+    // todo: signal to IO that we are losing track
+
     ROS_WARN_STREAM(
         "Using motion model, not enough points for visual estimation: "
         << pixels.size());
-    // todo: use a motion model opposed to inertial odometry as frame init
     Eigen::Matrix4d T_PREVFRAME_CURFRAME;
     if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
                                              previous_frame_, timestamp)) {
@@ -194,7 +204,6 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
       return false;
     }
     T_WORLD_BASELINK = T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
-    // todo: signal to IO that we are losing track
   }
 
   return true;
@@ -262,19 +271,24 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
       bs_common::GetLinearAcceleration(graph, end_timestamp)->array();
   cur_ang_vel_ = bs_common::GetAngularVelocity(graph, end_timestamp)->array();
 
+  // todo: "cull" bad landmarks
+
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
 
   // do initial setup
   if (!is_initialized_) {
     const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(graph);
-    assert(!current_landmark_ids.empty() &&
-           "Cannot use Visual Odometry without initializing with visual information.");
+    if (current_landmark_ids.empty()) {
+      ROS_ERROR("Cannot use Visual Odometry without initializing with visual "
+                "information.");
+      throw std::runtime_error{"Cannot use Visual Odometry without "
+                               "initializing with visual information."};
+    }
 
     is_initialized_ = true;
     while (!visual_measurement_buffer_.empty()) {
       const auto msg = visual_measurement_buffer_.front();
-
       if (msg->header.stamp < *timestamps.begin()) {
         // ignore measurements prior to the start of the initial graph
         visual_measurement_buffer_.pop_front();
@@ -324,7 +338,7 @@ void VisualOdometry::AddMeasurementsToContainer(
     const CameraMeasurementMsg::ConstPtr& msg) {
   // check that message hasnt already been added to container
   const auto times = landmark_container_->GetMeasurementTimes();
-  if (times.find(msg->header.stamp.toNSec()) != times.end()) { return; }
+  if (times.find(msg->header.stamp) != times.end()) { return; }
 
   // put all measurements into landmark container
   beam::HighResolutionTimer timer;
@@ -354,9 +368,9 @@ beam::opt<Eigen::Vector3d>
       T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
     }
   }
-  if (T_cam_world_v.size() >= 5) {
+  if (T_cam_world_v.size() >= 3) {
     return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                    pixels);
+                                                    pixels, 100.0, 50.0);
   }
   return {};
 }

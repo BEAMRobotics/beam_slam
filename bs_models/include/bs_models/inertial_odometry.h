@@ -35,9 +35,6 @@ public:
   ~InertialOdometry() override = default;
 
 private:
-  // todo: service that will return the closest linear acceleration, linear
-  // todo: velocity and angular velocity to request (within the stored window)
-
   /**
    * @brief Callback for imu processing, this will make sure the imu messages
    * are added to the buffer at the correct time
@@ -115,9 +112,6 @@ private:
 
   // data storage
   std::queue<sensor_msgs::Imu> imu_buffer_;
-  std::map<uint64_t, std::pair<Eigen::Vector3d, Eigen::Vector3d>>
-      imu_measurement_buffer_;
-  std::map<uint64_t, Eigen::Vector3d> velocity_buffer_;
 
   // primary odom objects
   std::shared_ptr<ImuPreintegration> imu_preint_;

@@ -45,6 +45,7 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
       preintegrator.data.push_back(imu_buffer_copy.front());
       imu_buffer_copy.pop_front();
     }
+
     if (preintegrator.data.empty()) {
       const std::string msg = std::string(__func__) +
                               ": Empty preintegrator for pose in init path.";

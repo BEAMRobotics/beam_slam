@@ -97,6 +97,7 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
       new_scan.T_BASELINK_LIDAR());
   return transaction;
 }
+
 ScanToMapLoamRegistration::Params::Params(
     const ScanRegistrationParamsBase& base_params, int _map_size,
     bool _store_full_cloud)
