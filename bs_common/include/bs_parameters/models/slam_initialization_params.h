@@ -1,13 +1,14 @@
 #pragma once
 
-#include <bs_parameters/parameter_base.h>
-#include <fuse_loss/cauchy_loss.h>
+#include <string>
+#include <vector>
 
+#include <fuse_loss/cauchy_loss.h>
 #include <ros/node_handle.h>
 #include <ros/param.h>
 
-#include <string>
-#include <vector>
+#include <bs_common/utils.h>
+#include <bs_parameters/parameter_base.h>
 
 namespace bs_parameters { namespace models {
 
@@ -30,8 +31,14 @@ public:
     getParam<std::string>(nh, "lidar_topic", lidar_topic, "");
 
     // config for an optional frame initializer
+    std::string frame_initializer_config_rel;
     getParam<std::string>(nh, "frame_initializer_config",
-                          frame_initializer_config, frame_initializer_config);
+                          frame_initializer_config_rel,
+                          frame_initializer_config_rel);
+    if (!frame_initializer_config_rel.empty()) {
+      frame_initializer_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), frame_initializer_config_rel);
+    }
 
     // path to optional output folder
     getParam<std::string>(nh, "output_folder", output_folder, output_folder);

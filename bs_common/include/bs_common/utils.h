@@ -182,6 +182,13 @@ void EstimateVelocityFromPath(
 std::string GetBeamSlamConfigPath();
 
 /**
+ * @brief Get full path the the calibrations root directory in beam_slam_launch
+ * (.../beam_slam_launch/calibrations/)
+ * @return path
+ */
+std::string GetBeamSlamCalibrationsPath();
+
+/**
  * @brief Get number of constraints being added by a transaction
  * @param transaction
  * @return number of constraints

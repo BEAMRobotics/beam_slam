@@ -107,9 +107,6 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
     int num_measurements = RegisterScanToReferences(*unreg_iter, transaction);
 
     if (num_measurements > 0) {
-      // BEAM_DEBUG(
-      //     "Adding {} measurements to unregistered scan with stamp {}.{}.",
-      //     num_measurements, new_scan.Stamp().sec, new_scan.Stamp().nsec);
       ROS_DEBUG("Adding %d measurements to unregistered scan with stamp %d.%d.",
                 num_measurements, new_scan.Stamp().sec, new_scan.Stamp().nsec);
       InsertCloudInReferences(*unreg_iter);
@@ -134,18 +131,11 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
         "No constraints added to new scan with stamp %d.%d, adding scan to "
         "unregistered list.",
         new_scan.Stamp().sec, new_scan.Stamp().nsec);
-    // BEAM_DEBUG(
-    //     "No constraints added to new scan with stamp {}.{}, adding scan to "
-    //     "unregistered list.",
-    //     new_scan.Stamp().sec, new_scan.Stamp().nsec);
     unregistered_clouds_.push_back(new_scan);
   } else {
     ROS_DEBUG("Adding %d measurements to scan with stamp %d.%d",
               num_new_measurements, new_scan.Stamp().sec,
               new_scan.Stamp().nsec);
-    // BEAM_DEBUG("Adding {} measurements to scan with stamp {}.{}",
-    //            num_new_measurements, new_scan.Stamp().sec,
-    //            new_scan.Stamp().nsec);
     // add cloud to reference cloud list
     reference_clouds_.push_front(new_scan);
 
@@ -516,8 +506,8 @@ bool MultiScanRegistration::MatchScans(
   } else {
     BEAM_WARN(
         "Automated covariance estimation not tested, use fixed covariance!");
-    matcher_->EstimateInfo();
-    covariance = matcher_->GetInfo();
+    matcher_->GetCovariance();
+    covariance = matcher_->GetCovariance();
   }
 
   return true;
@@ -576,7 +566,7 @@ bool MultiScanLoamRegistration::MatchScans(
     covariance = covariance_;
   } else {
     BEAM_ERROR("Must use fixed covariance for loam registration.");
-    covariance = covariance_;
+    covariance = matcher_->GetCovariance();
   }
 
   return true;

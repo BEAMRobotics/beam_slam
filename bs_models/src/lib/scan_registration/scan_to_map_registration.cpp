@@ -195,6 +195,7 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   }
   T_MAP_SCAN = beam::InvertTransform(T_MAPEST_MAP) * T_MAPEST_SCAN;
 
+  if (!use_fixed_covariance_) { covariance_ = matcher_->GetCovariance(); }
   return true;
 }
 

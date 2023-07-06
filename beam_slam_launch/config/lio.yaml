@@ -1,5 +1,5 @@
 # optimization params
-optimization_period: 0.5
+optimization_period: 0.1
 lag_duration: 7
 
 sensor_models:
@@ -12,8 +12,6 @@ sensor_models:
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
 
-
-
 motion_models:
   - name: 'unicycle_3d'
     type: 'bs_models::Unicycle3D'
@@ -25,7 +23,7 @@ solver_options:
   num_threads: 6
   num_linear_solver_threads: 6
   max_num_iterations: 20
-  max_solver_time_in_seconds: 0.05
+  max_solver_time_in_seconds: 0.08
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
@@ -53,35 +51,30 @@ slam_initialization:
 
 inertial_odometry:
   imu_topic: "/imu/data"
-  constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
+  constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global2"
 
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_packets_unpacked'
   lidar_type: 'VELODYNE'
-  frame_initializer_config: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
+  frame_initializer_config: "frame_initializers/io.json"
 
 lidar_odometry:
-  # Local scan registration
-  local_registration_type: 'MAPLOAM'
-  local_registration_config_path: 'DEFAULT_PATH'
-  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matchers/loam_vlp16.json'
-  local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-  # global scan registration
-  global_registration_type: 'LOAM'
-  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matchers/loam_vlp16.json'
-  global_registration_noise_diagonal: [0, 0, 0, 0, 0, 0] # [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+  # Scan registration params
+  local_registration_config: 'registration/scan_to_map_loam.json'
+  local_matcher_config: 'matchers/loam_vlp16.json'
+  global_matcher_config: 'registration/loam_vlp16.json'
 
   # general params
   lidar_type: 'VELODYNE'
-  input_filters_config_path: 'DEFAULT_PATH'
-  input_topic: '/lidar_h/velodyne_packets_unpacked'
+  input_filters_config:  '' # 'lidar_filters/input_filters.json'
+  input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true
   output_lidar_points: true
   publish_active_submap: true
   publish_local_map: true
   publish_registration_results: true
-  # frame_initializer_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/path.json'
-  frame_initializer_config: "" #"/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
+  # frame_initializer_config: 'frame_initializers/path.json'
+  frame_initializer_config: "/frame_initializers/io.json"
   frame_initializer_prior_noise_diagonal: [0,0,0,0,0,0] #[0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
   reloc_request_period: 1
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'

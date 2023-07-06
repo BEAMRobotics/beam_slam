@@ -1,4 +1,5 @@
 {
+  "matcher_type": "LOAM",
   "number_of_beams": 16,
   "fov_deg": 30,
   "vertical_axis": "Z",
