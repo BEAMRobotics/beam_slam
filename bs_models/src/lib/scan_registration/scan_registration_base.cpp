@@ -15,7 +15,8 @@ using namespace bs_common;
 
 std::unique_ptr<ScanRegistrationBase>
     ScanRegistrationBase::Create(const std::string& registration_config,
-                                 const std::string& matcher_config) {
+                                 const std::string& matcher_config,
+                                 const std::string& save_path) {
   // get registration type
   if (!boost::filesystem::exists(registration_config)) {
     BEAM_ERROR("invalid file path for matcher config, file path: {}",
@@ -44,6 +45,9 @@ std::unique_ptr<ScanRegistrationBase>
     if (registration_type == "SCANTOMAP") {
       ScanToMapLoamRegistration::Params params;
       params.LoadFromJson(registration_config);
+      params.save_path = save_path;
+      std::cout << "TEST1\n";
+      params.Print();
       registration = std::make_unique<ScanToMapLoamRegistration>(
           std::move(matcher), params.GetBaseParams(), params.map_size,
           params.store_full_cloud);
@@ -51,6 +55,7 @@ std::unique_ptr<ScanRegistrationBase>
     } else if (registration_type == "MULTISCAN") {
       MultiScanRegistrationBase::Params params;
       params.LoadFromJson(registration_config);
+      params.save_path = save_path;
       registration = std::make_unique<MultiScanLoamRegistration>(
           std::move(matcher), params.GetBaseParams(), params.num_neighbors,
           params.lag_duration, params.disable_lidar_map);
@@ -65,6 +70,7 @@ std::unique_ptr<ScanRegistrationBase>
   std::unique_ptr<Matcher<PointCloudPtr>> matcher;
   MultiScanRegistrationBase::Params params;
   params.LoadFromJson(registration_config);
+  params.save_path = save_path;
   if (registration_type == "MULTISCAN") {
     if (matcher_type == beam_matching::MatcherType::ICP) {
       matcher =
@@ -95,6 +101,18 @@ std::unique_ptr<ScanRegistrationBase>
   }
 
   return std::move(registration);
+}
+
+
+void ScanRegistrationParamsBase::Print(std::ostream& stream) const {
+  stream << "ScanRegistrationParamsBase: \n";
+  stream << "outlier_threshold_trans_m: " << outlier_threshold_trans_m << "\n";
+  stream << "outlier_threshold_rot_deg: " << outlier_threshold_rot_deg << "\n";
+  stream << "min_motion_trans_m: " << min_motion_trans_m << "\n";
+  stream << "min_motion_rot_deg: " << min_motion_rot_deg << "\n";
+  stream << "max_motion_trans_m: " << max_motion_trans_m << "\n";
+  stream << "fix_first_scan: " << fix_first_scan << "\n";
+  stream << "save_path: " << save_path << "\n";
 }
 
 void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {

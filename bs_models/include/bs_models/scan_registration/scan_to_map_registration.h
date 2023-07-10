@@ -50,7 +50,6 @@ public:
       RegisterNewScan(const ScanPose& new_scan) override;
 
 protected:
-
   /**
    * @brief Pure virtual function for registering a new scan to the map.
    */
@@ -100,14 +99,13 @@ public:
      */
     bool store_full_cloud{true};
 
-    /** If not empty, it will output scan registration results for each cloud */
-    std::string debug_output_dir{};
-
     /** load derived params & base params */
     void LoadFromJson(const std::string& config);
 
+    void Print(std::ostream& stream = std::cout) const;
+
     /** Get the base class params */
-    ScanRegistrationParamsBase GetBaseParams();
+    ScanRegistrationParamsBase GetBaseParams() const;
   };
 
   ScanToMapLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
@@ -115,7 +113,6 @@ public:
                             int map_size = 10, bool store_full_cloud = true);
 
 private:
-
   bool RegisterScanToMap(const ScanPose& scan_pose,
                          Eigen::Matrix4d& T_MAP_SCAN) override;
 

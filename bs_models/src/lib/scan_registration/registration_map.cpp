@@ -18,9 +18,8 @@ RegistrationMap::RegistrationMap() {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   world_frame_id_ = extrinsics_online.GetWorldFrameId();
 
-  ros::NodeHandle n;
-
   // setup publishers
+  ros::NodeHandle n;
   lidar_map_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
       "/local_mapper/local_map/lidar_map", 10);
   loam_map_publisher_ = n.advertise<sensor_msgs::PointCloud2>(

@@ -47,9 +47,14 @@ struct ScanRegistrationParamsBase {
    * prior to the pose of the first scan. */
   bool fix_first_scan{false};
 
+  /** If not empty, each method can save registration output to this path */
+  std::string save_path;
+
   /** This will load the default params, and can be called by derived classes.
    */
   void LoadBaseFromJson(const std::string& config);
+
+  void Print(std::ostream& stream = std::cout) const;
 };
 
 class ScanRegistrationBase {
@@ -63,7 +68,8 @@ public:
    */
   static std::unique_ptr<ScanRegistrationBase>
       Create(const std::string& registration_config,
-             const std::string& matcher_config);
+             const std::string& matcher_config,
+             const std::string& save_path = "");
 
   void SetFixedCovariance(const Eigen::Matrix<double, 6, 6>& covariance);
 

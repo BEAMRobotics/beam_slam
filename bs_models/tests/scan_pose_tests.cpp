@@ -22,9 +22,9 @@
 
 using namespace bs_models;
 
-class Data {
- public:
-  Data() {
+class ScanPoseTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
     // read input cloud
     std::string current_file = "scan_pose_tests.cpp";
     std::string test_path = __FILE__;
@@ -131,8 +131,6 @@ class Data {
   fuse_constraints::AbsolutePose3DStampedConstraint::SharedPtr prior;
 };
 
-Data data_;
-
 fuse_constraints::RelativePose3DStampedConstraint::SharedPtr CreateConstraint(
     const fuse_variables::Position3DStamped& position1,
     const fuse_variables::Orientation3DStamped& orientation1,
@@ -162,31 +160,31 @@ fuse_constraints::RelativePose3DStampedConstraint::SharedPtr CreateConstraint(
   return constraint;
 }
 
-TEST(ScanPose, IO) {
+TEST_F(ScanPoseTest, IO) {
   // create scan poses
-  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
-  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP1(S1, ros::Time(0), T_WORLD_S1);
+  ScanPose SP2(S2, ros::Time(1), T_WORLD_S2);
 
   Eigen::Matrix4d T_WORLD_S2_ = SP2.T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_WORLD_S1_ = SP1.T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_WORLD_S2_lidar = SP2.T_REFFRAME_LIDAR();
   Eigen::Matrix4d T_WORLD_S1_lidar = SP1.T_REFFRAME_LIDAR();
-  EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S1, T_WORLD_S1_, 0.1, 0.001));
-  EXPECT_TRUE(beam::ArePosesEqual(data_.T_WORLD_S2, T_WORLD_S2_, 0.1, 0.001));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1, T_WORLD_S1_, 0.1, 0.001));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2, T_WORLD_S2_, 0.1, 0.001));
   EXPECT_TRUE(
-      beam::ArePosesEqual(data_.T_WORLD_S1, T_WORLD_S1_lidar, 0.1, 0.001));
+      beam::ArePosesEqual(T_WORLD_S1, T_WORLD_S1_lidar, 0.1, 0.001));
   EXPECT_TRUE(
-      beam::ArePosesEqual(data_.T_WORLD_S2, T_WORLD_S2_lidar, 0.1, 0.001));
-  EXPECT_EQ(SP1.Cloud().size(), data_.S1.size());
-  EXPECT_EQ(SP2.Cloud().size(), data_.S2.size());
+      beam::ArePosesEqual(T_WORLD_S2, T_WORLD_S2_lidar, 0.1, 0.001));
+  EXPECT_EQ(SP1.Cloud().size(), S1.size());
+  EXPECT_EQ(SP2.Cloud().size(), S2.size());
   EXPECT_EQ(SP1.Stamp(), ros::Time(0));
   EXPECT_EQ(SP2.Stamp(), ros::Time(1));
 }
 
-TEST(ScanPose, 2NodeFG) {
+TEST_F(ScanPoseTest, 2NodeFG) {
   // create scan poses
-  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
-  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
+  ScanPose SP1(S1, ros::Time(0), T_WORLD_S1);
+  ScanPose SP2(S2, ros::Time(1), T_WORLD_S2);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -207,7 +205,7 @@ TEST(ScanPose, 2NodeFG) {
   graph.addVariable(o2);
 
   // Add constraint
-  auto constraint1 = CreateConstraint(*p1, *o1, *p2, *o2, data_.T_S1_S2);
+  auto constraint1 = CreateConstraint(*p1, *o1, *p2, *o2, T_S1_S2);
   graph.addConstraint(constraint1);
 
   // Optimize the constraints and variables.
@@ -223,11 +221,11 @@ TEST(ScanPose, 2NodeFG) {
   }
 }
 
-TEST(ScanPose, 2NodeFGPert) {
+TEST_F(ScanPoseTest, 2NodeFGPert) {
   // create scan poses
-  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
-  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
-  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
+  ScanPose SP1(S1, ros::Time(0), T_WORLD_S1);
+  ScanPose SP2(S2, ros::Time(1), T_WORLD_S2);
+  ScanPose SP2_pert(S2, ros::Time(1), T_WORLD_S2_pert);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -247,11 +245,11 @@ TEST(ScanPose, 2NodeFGPert) {
   graph.addVariable(o2);
 
   // Add constraint between poses
-  auto constraint1 = CreateConstraint(*p1, *o1, *p2, *o2, data_.T_S1_S2);
+  auto constraint1 = CreateConstraint(*p1, *o1, *p2, *o2, T_S1_S2);
   graph.addConstraint(constraint1);
 
   // Add prior on first pose
-  graph.addConstraint(data_.prior);
+  graph.addConstraint(prior);
 
   // Optimize the constraints and variables.
   graph.optimize();
@@ -266,14 +264,14 @@ TEST(ScanPose, 2NodeFGPert) {
   }
 }
 
-TEST(ScanPose, ScanRegistrationICP) {
+TEST_F(ScanPoseTest, ScanRegistrationICP) {
   // create scan poses
-  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
-  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
-  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
+  ScanPose SP1(S1, ros::Time(0), T_WORLD_S1);
+  ScanPose SP2(S2, ros::Time(1), T_WORLD_S2);
+  ScanPose SP2_pert(S2, ros::Time(1), T_WORLD_S2_pert);
 
   Eigen::Matrix4d T_S1_S2_initial =
-      beam::InvertTransform(data_.T_WORLD_S1) * data_.T_WORLD_S2_pert;
+      beam::InvertTransform(T_WORLD_S1) * T_WORLD_S2_pert;
   PointCloudPtr S2_RefFEst = std::make_shared<PointCloud>();
   pcl::transformPointCloud(SP2_pert.Cloud(), *S2_RefFEst,
                            Eigen::Affine3d(T_S1_S2_initial));
@@ -296,14 +294,14 @@ TEST(ScanPose, ScanRegistrationICP) {
   pcl::transformPointCloud(SP2_pert.Cloud(), S2_RefFOpt2, T_S1_S2_opt);
 
   // check final transform is close to original
-  EXPECT_NEAR(data_.T_S1_S2.norm(), T_S1_S2_opt.norm(), 0.001);
+  EXPECT_NEAR(T_S1_S2.norm(), T_S1_S2_opt.norm(), 0.001);
 }
 
-TEST(ScanPose, ScanRegistrationPGPert) {
+TEST_F(ScanPoseTest, ScanRegistrationPGPert) {
   // create scan poses
-  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1);
-  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2);
-  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert);
+  ScanPose SP1(S1, ros::Time(0), T_WORLD_S1);
+  ScanPose SP2(S2, ros::Time(1), T_WORLD_S2);
+  ScanPose SP2_pert(S2, ros::Time(1), T_WORLD_S2_pert);
 
   // run scan registration
   // * (1) transform second scan into estimated scan 1 frame
@@ -311,27 +309,26 @@ TEST(ScanPose, ScanRegistrationPGPert) {
   // * (3) get estimated transform between two frames
   //
   Eigen::Matrix4d T_S1_S2_init =
-      beam::InvertTransform(data_.T_WORLD_S1) * data_.T_WORLD_S2_pert;
+      beam::InvertTransform(T_WORLD_S1) * T_WORLD_S2_pert;
   PointCloudPtr S2_RefFEst = std::make_shared<PointCloud>();
   pcl::transformPointCloud(SP2_pert.Cloud(), *S2_RefFEst,
                            Eigen::Affine3d(T_S1_S2_init));
 
   std::unique_ptr<beam_matching::IcpMatcher> matcher =
-      std::make_unique<beam_matching::IcpMatcher>(data_.matcher_params);
+      std::make_unique<beam_matching::IcpMatcher>(matcher_params);
   matcher->SetRef(S2_RefFEst);
   matcher->SetTarget(std::make_shared<PointCloud>(SP1.Cloud()));
   matcher->Match();
-  matcher->EstimateInfo();
 
   Eigen::Matrix4d T_S1Opt_S1Ini = matcher->GetResult().matrix();
   Eigen::Matrix4d T_S1_S2_opt = T_S1Opt_S1Ini * T_S1_S2_init;
-  Eigen::Matrix<double, 6, 6> covariance = matcher->GetInfo();
+  Eigen::Matrix<double, 6, 6> covariance = matcher->GetCovariance();
 
-  Eigen::Matrix4d T_W_S2_opt = data_.T_WORLD_S1 * T_S1_S2_opt;
+  Eigen::Matrix4d T_W_S2_opt = T_WORLD_S1 * T_S1_S2_opt;
 
   // check final transform is close to original
-  EXPECT_NEAR(data_.T_S1_S2.norm(), T_S1_S2_opt.norm(), 0.001);
-  EXPECT_NEAR(data_.T_WORLD_S2.norm(), T_W_S2_opt.norm(), 0.001);
+  EXPECT_NEAR(T_S1_S2.norm(), T_S1_S2_opt.norm(), 0.001);
+  EXPECT_NEAR(T_WORLD_S2.norm(), T_W_S2_opt.norm(), 0.001);
 
   // Create the graph
   fuse_graphs::HashGraph graph;
@@ -356,7 +353,7 @@ TEST(ScanPose, ScanRegistrationPGPert) {
   graph.addConstraint(constraint1);
 
   // Add prior on first pose
-  graph.addConstraint(data_.prior);
+  graph.addConstraint(prior);
 
   // Optimize the constraints and variables.
   graph.optimize();
@@ -369,4 +366,9 @@ TEST(ScanPose, ScanRegistrationPGPert) {
     EXPECT_TRUE(std::abs(SP1.Orientation().data()[i] - o1->data()[i]) < 0.001);
     EXPECT_TRUE(std::abs(SP2.Orientation().data()[i] - o2->data()[i]) < 0.001);
   }
+}
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

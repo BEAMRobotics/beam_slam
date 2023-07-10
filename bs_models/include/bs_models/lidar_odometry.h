@@ -137,6 +137,7 @@ private:
   ros::Time last_scan_pose_time_{ros::Time(0)};
   std::string graph_updates_path_;
   std::string marginalized_scans_path_;
+  std::string registration_results_path_;
 
   /** Params that can only be updated here: */
   bool update_local_map_on_graph_update_{true};

@@ -4,23 +4,22 @@
 #include <unordered_set>
 
 #include <beam_matching/Matcher.h>
-#include <beam_utils/pointclouds.h>
 #include <beam_matching/loam/LoamPointCloud.h>
+#include <beam_utils/pointclouds.h>
 
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
-#include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_models/lidar/scan_pose.h>
+#include <bs_models/scan_registration/scan_registration_base.h>
 
 static bool _tmp_bool{true};
 
-namespace bs_models {
-namespace scan_registration {
+namespace bs_models { namespace scan_registration {
 
 using namespace beam_matching;
 using namespace bs_common;
 
 class MultiScanRegistrationBase : public ScanRegistrationBase {
- public:
+public:
   struct Params : public ScanRegistrationParamsBase {
     Params() = default;
 
@@ -56,8 +55,8 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 
   ~MultiScanRegistrationBase() = default;
 
-  bs_constraints::relative_pose::Pose3DStampedTransaction RegisterNewScan(
-      const ScanPose& new_scan) override;
+  bs_constraints::relative_pose::Pose3DStampedTransaction
+      RegisterNewScan(const ScanPose& new_scan) override;
 
   // The following public functions are not in the RegistrationBase class so
   // they will not be accessible in client code that uses a pointer to the base
@@ -71,10 +70,9 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
   void RemoveMissingScans(fuse_core::Graph::ConstSharedPtr graph_msg,
                           bool require_one_update = true);
 
-  inline MultiScanRegistrationBase::Params GetParams() const {return params_;
-  }                        
+  inline MultiScanRegistrationBase::Params GetParams() const { return params_; }
 
- protected:
+protected:
   /**
    * @brief Add scan to lidar map, if not disabled, and add prior to the
    * transaction
@@ -159,16 +157,12 @@ class MultiScanRegistrationBase : public ScanRegistrationBase {
 
   const std::string source_{"MULTISCANREGISTRATION"};
 
-  // Extra debugging tools: these must be set here, not in the config file
-  bool output_scan_registration_results_{false};
-  std::string current_scan_path_;
-  std::string tmp_output_path_{
-      "/userhome/results/beam_slam/scan_registration/multi_scan/"};
+  std::string current_scan_path_; // when output dir is set
   PointCloudCol coord_frame_;
 };
 
 class MultiScanLoamRegistration : public MultiScanRegistrationBase {
- public:
+public:
   using Params = MultiScanRegistrationBase::Params;
 
   MultiScanLoamRegistration() = delete;
@@ -178,7 +172,7 @@ class MultiScanLoamRegistration : public MultiScanRegistrationBase {
                             int num_neighbors = 10, double lag_duration = 0,
                             bool disable_lidar_map = false);
 
- private:
+private:
   bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
                   Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                   Eigen::Matrix<double, 6, 6>& covariance) override;
@@ -187,7 +181,7 @@ class MultiScanLoamRegistration : public MultiScanRegistrationBase {
 };
 
 class MultiScanRegistration : public MultiScanRegistrationBase {
- public:
+public:
   using Params = MultiScanRegistrationBase::Params;
 
   MultiScanRegistration() = delete;
@@ -197,7 +191,7 @@ class MultiScanRegistration : public MultiScanRegistrationBase {
                         int num_neighbors = 10, double lag_duration = 0,
                         bool disable_lidar_map = false);
 
- private:
+private:
   bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
                   Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
                   Eigen::Matrix<double, 6, 6>& covariance) override;
@@ -205,5 +199,4 @@ class MultiScanRegistration : public MultiScanRegistrationBase {
   std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
 };
 
-}  // namespace scan_registration
-}  // namespace bs_models
+}} // namespace bs_models::scan_registration

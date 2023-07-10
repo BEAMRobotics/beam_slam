@@ -57,6 +57,9 @@ public:
     getParam<bool>(nh, "save_graph_updates", save_graph_updates,
                    save_graph_updates);
 
+    getParam<bool>(nh, "save_scan_registration_results", save_scan_registration_results,
+                   save_scan_registration_results);
+
     getParam<bool>(nh, "save_marginalized_scans", save_marginalized_scans,
                    save_marginalized_scans);
 
@@ -176,6 +179,7 @@ public:
   bool publish_registration_results{false};
   bool use_pose_priors{true};
   bool save_graph_updates{false};
+  bool save_scan_registration_results{false};
   bool save_marginalized_scans{true};
 
   LidarType lidar_type{LidarType::VELODYNE};

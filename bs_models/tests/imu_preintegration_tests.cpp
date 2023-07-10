@@ -516,12 +516,12 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   // check default
   imu_preintegration->SetStart(t_start);
   bs_common::ImuState IS_start_default = imu_preintegration->GetImuState();
-  bs_models::ExpectImuStateEq(IS_start_default, IS_default);
+  bs_models::test::ExpectImuStateEq(IS_start_default, IS_default);
 
   // check optional initialization
   imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
   bs_common::ImuState IS_start = imu_preintegration->GetImuState();
-  bs_models::ExpectImuStateEq(IS_start, IS1);
+  bs_models::test::ExpectImuStateEq(IS_start, IS1);
 
   /**
    * PredictState() functionality
@@ -549,8 +549,8 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
       imu_preintegration->PredictState(pre_integrator_23, IS_middle_predict);
 
   // check
-  bs_models::ExpectImuStateEq(IS_middle_predict, IS2);
-  bs_models::ExpectImuStateEq(IS_end_predict, IS3);
+  bs_models::test::ExpectImuStateEq(IS_middle_predict, IS2);
+  bs_models::test::ExpectImuStateEq(IS_end_predict, IS3);
 
   /**
    * GetPose() functionality
@@ -567,7 +567,7 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
     if (msg.t == ros::Time(cur_time) && cur_time - 1 < data.pose_gt.size()) {
       Eigen::Matrix4d T_WORLD_IMU;
       imu_preintegration->GetPose(T_WORLD_IMU, ros::Time(cur_time));
-      bs_models::ExpectTransformsNear(T_WORLD_IMU, data.pose_gt[cur_time - 1]);
+      bs_models::test::ExpectTransformsNear(T_WORLD_IMU, data.pose_gt[cur_time - 1]);
       cur_time++;
     }
   }
@@ -588,7 +588,7 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   // get end imu state from preintegration
   bs_common::ImuState IS_end = imu_preintegration->GetImuState();
   // check
-  bs_models::ExpectImuStateNear(IS_end, IS3);
+  bs_models::test::ExpectImuStateNear(IS_end, IS3);
 
   // validate stamps
   EXPECT_TRUE(transaction->stamp() == IS_end.Stamp());
@@ -631,8 +631,8 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   IS_end.Update(g);
 
   // check
-  bs_models::ExpectImuStateNear(IS1, IS_start);
-  bs_models::ExpectImuStateNear(IS3, IS_end);
+  bs_models::test::ExpectImuStateNear(IS1, IS_start);
+  bs_models::test::ExpectImuStateNear(IS3, IS_end);
 
   // clear data in preintegrators
   imu_preintegration->Clear();
@@ -706,9 +706,9 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
   IS_end.Update(g);
 
   // check
-  bs_models::ExpectImuStateNear(IS1, IS_start);
-  bs_models::ExpectImuStateNear(IS2, IS_middle);
-  bs_models::ExpectImuStateNear(IS3, IS_end);
+  bs_models::test::ExpectImuStateNear(IS1, IS_start);
+  bs_models::test::ExpectImuStateNear(IS2, IS_middle);
+  bs_models::test::ExpectImuStateNear(IS3, IS_end);
 
   imu_preintegration->Clear();
 }
@@ -847,7 +847,7 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
     IS_ground_truth_vec.at(i).Print();
 
     // check is approx. close to ground truth
-    // bs_models::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
+    // bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
     // tol);
   }
 }

@@ -1,14 +1,14 @@
 #pragma once
 
+#include <Eigen/Geometry>
 #include <array>
 #include <gtest/gtest.h>
-#include <Eigen/Geometry>
 
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
 #include <bs_common/imu_state.h>
 
-namespace bs_models {
+namespace bs_models::test {
 
 inline void ExpectTransformsNear(const Eigen::Matrix4d& T1,
                                  const Eigen::Matrix4d& T2) {
@@ -80,4 +80,18 @@ inline void ExpectImuStateNear(const bs_common::ImuState& IS1,
   ExpectImuStateNear(IS1, IS2, tol);
 }
 
-}  // namespace bs_models
+inline void SetCalibrationParams() {
+  ros::param::set("/calibration_params/imu_intrinsics_path", "ig2/imu.json");
+  ros::param::set("/calibration_params/camera_intrinsics_path", "ig2/F1.json");
+  ros::param::set("/calibration_params/imu_frame", "imu_link");
+  ros::param::set("/calibration_params/lidar_frame", "lidar_h_link");
+  ros::param::set("/calibration_params/camera_frame", "F1_link");
+  ros::param::set("/calibration_params/baselink_frame", "imu_link");
+  ros::param::set("/calibration_params/world_frame", "world");
+  ros::param::set("/calibration_params/static_extrinsics", true);
+  ros::param::set("/calibration_params/camera_hz", 20);
+  ros::param::set("/calibration_params/imu_hz", 200);
+  ros::param::set("/calibration_params/lidar_hz", 10);
+}
+
+} // namespace bs_models::test
