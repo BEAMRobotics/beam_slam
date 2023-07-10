@@ -485,7 +485,7 @@ fuse_core::Transaction::SharedPtr
 
 void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   if (updates_ == 0) {
-    ROS_INFO("received first graph update, initializing regisation and "
+    ROS_INFO("received first graph update, initializing registration and "
              "starting lidar odometry");
     SetupRegistration();
   }

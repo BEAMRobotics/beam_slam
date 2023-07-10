@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /LO-Glob1/Shape1
+        - /LO-Smooth1/Shape1
       Splitter Ratio: 0.5
     Tree Height: 858
   - Class: rviz/Selection
@@ -209,20 +210,20 @@ Visualization Manager:
           Value: true
         Value: false
       Enabled: true
-      Keep: 100
+      Keep: 100000
       Name: LO-Glob
       Position Tolerance: 0.10000000149011612
       Queue Size: 10
       Shape:
         Alpha: 1
-        Axes Length: 1
-        Axes Radius: 0.10000000149011612
+        Axes Length: 0.30000001192092896
+        Axes Radius: 0.029999999329447746
         Color: 52; 101; 164
         Head Length: 0.30000001192092896
         Head Radius: 0.10000000149011612
         Shaft Length: 1
         Shaft Radius: 0.05000000074505806
-        Value: Arrow
+        Value: Axes
       Topic: /local_mapper/lidar_odometry/odom/global
       Unreliable: false
       Value: true
@@ -243,24 +244,24 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: false
-      Enabled: true
-      Keep: 100
+      Enabled: false
+      Keep: 10000
       Name: LO-Smooth
       Position Tolerance: 0.10000000149011612
       Queue Size: 10
       Shape:
         Alpha: 1
-        Axes Length: 1
-        Axes Radius: 0.10000000149011612
+        Axes Length: 0.30000001192092896
+        Axes Radius: 0.019999999552965164
         Color: 117; 80; 123
         Head Length: 0.30000001192092896
         Head Radius: 0.10000000149011612
         Shaft Length: 1
         Shaft Radius: 0.05000000074505806
-        Value: Arrow
+        Value: Axes
       Topic: /local_mapper/lidar_odometry/odom/smooth
       Unreliable: false
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -289,7 +290,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 36.150550842285156
+      Distance: 28.818397521972656
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -297,17 +298,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -4.014276027679443
-        Y: -3.344219923019409
-        Z: -1.8546825647354126
+        X: -1.5996687412261963
+        Y: 3.992975950241089
+        Z: 5.147008895874023
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.2397966384887695
+      Pitch: 1.2897963523864746
       Target Frame: <Fixed Frame>
-      Yaw: 0.8367013335227966
+      Yaw: 4.766171455383301
     Saved: ~
 Window Geometry:
   Displays:

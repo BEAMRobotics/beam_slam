@@ -74,7 +74,7 @@ lidar_odometry:
   publish_local_map: true
   publish_registration_results: true
   # frame_initializer_config: 'frame_initializers/path.json'
-  frame_initializer_config: "" # "/frame_initializers/io.json"
+  frame_initializer_config: "/frame_initializers/io.json"
   frame_initializer_prior_noise_diagonal: [0,0,0,0,0,0] #[0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
   reloc_request_period: 1
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
