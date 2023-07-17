@@ -38,15 +38,18 @@ bool ImuPreintegration::Params::LoadFromJSON(const std::string& path) {
   return true;
 }
 
-ImuPreintegration::ImuPreintegration(const Params& params) : params_(params) {
+ImuPreintegration::ImuPreintegration(const Params& params,
+                                     const double info_weight)
+    : params_(params), info_weight_(info_weight) {
   CheckParameters();
   SetPreintegrator();
 }
 
 ImuPreintegration::ImuPreintegration(const Params& params,
                                      const Eigen::Vector3d& init_bg,
-                                     const Eigen::Vector3d& init_ba)
-    : params_(params), bg_(init_bg), ba_(init_ba) {
+                                     const Eigen::Vector3d& init_ba,
+                                     const double info_weight)
+    : params_(params), bg_(init_bg), ba_(init_ba), info_weight_(info_weight) {
   CheckParameters();
   SetPreintegrator();
 }
@@ -262,7 +265,7 @@ fuse_core::Transaction::SharedPtr
 
   // Add relative constraints and variables between key frames
   transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j,
-                                            pre_integrator_ij_);
+                                            pre_integrator_ij_, info_weight_);
   transaction.AddImuStateVariables(imu_state_j);
 
   // update orientation, position and velocity of predicted imu state with

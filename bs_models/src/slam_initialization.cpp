@@ -289,8 +289,8 @@ bool SLAMInitialization::Initialize() {
     return false;
   }
 
-  imu_preint_ =
-      std::make_shared<bs_models::ImuPreintegration>(imu_params_, bg_, ba_);
+  imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(
+      imu_params_, bg_, ba_, params_.inertial_info_weight);
 
   AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
 

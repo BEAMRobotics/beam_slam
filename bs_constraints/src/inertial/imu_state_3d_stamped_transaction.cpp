@@ -41,12 +41,13 @@ void ImuState3DStampedTransaction::AddPriorImuStateConstraint(
 void ImuState3DStampedTransaction::AddRelativeImuStateConstraint(
     const bs_common::ImuState& imu_state_i,
     const bs_common::ImuState& imu_state_j,
-    const bs_common::PreIntegrator& pre_integrator, const std::string& source) {
+    const bs_common::PreIntegrator& pre_integrator, const double info_weight,
+    const std::string& source) {
   std::shared_ptr<bs_common::PreIntegrator> pre_integrator_ptr =
       std::make_shared<bs_common::PreIntegrator>(pre_integrator);
   // build and add constraint
   auto constraint = ConstraintType::make_shared(
-      source, imu_state_i, imu_state_j, pre_integrator_ptr);
+      source, imu_state_i, imu_state_j, pre_integrator_ptr, info_weight);
   transaction_->addConstraint(constraint, true);
 }
 

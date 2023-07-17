@@ -13,7 +13,8 @@ namespace bs_constraints { namespace inertial {
 RelativeImuState3DStampedConstraint::RelativeImuState3DStampedConstraint(
     const std::string& source, const bs_common::ImuState& imu_state_i,
     const bs_common::ImuState& imu_state_j,
-    const std::shared_ptr<bs_common::PreIntegrator>& pre_integrator)
+    const std::shared_ptr<bs_common::PreIntegrator>& pre_integrator,
+    const double info_weight)
     : fuse_core::Constraint(
           source,
           {imu_state_i.Orientation().uuid(), imu_state_i.Position().uuid(),
@@ -23,7 +24,8 @@ RelativeImuState3DStampedConstraint::RelativeImuState3DStampedConstraint(
            imu_state_j.GyroBias().uuid(), imu_state_j.AccelBias().uuid()}),
       imu_state_i_(imu_state_i),
       imu_state_j_(imu_state_j),
-      pre_integrator_(pre_integrator) {}
+      pre_integrator_(pre_integrator),
+      info_weight_(info_weight) {}
 
 void RelativeImuState3DStampedConstraint::print(std::ostream& stream) const {
   stream << type() << "\n"
@@ -44,7 +46,8 @@ void RelativeImuState3DStampedConstraint::print(std::ostream& stream) const {
 ceres::CostFunction* RelativeImuState3DStampedConstraint::costFunction() const {
   return new ceres::AutoDiffCostFunction<NormalDeltaImuState3DCostFunctor, 15,
                                          4, 3, 3, 3, 3, 4, 3, 3, 3, 3>(
-      new NormalDeltaImuState3DCostFunctor(imu_state_i_, pre_integrator_));
+      new NormalDeltaImuState3DCostFunctor(imu_state_i_, pre_integrator_,
+                                           info_weight_));
 }
 
 }} // namespace bs_constraints::inertial

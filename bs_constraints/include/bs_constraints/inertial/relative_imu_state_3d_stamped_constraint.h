@@ -48,7 +48,8 @@ public:
   RelativeImuState3DStampedConstraint(
       const std::string& source, const bs_common::ImuState& imu_state_i,
       const bs_common::ImuState& imu_state_j,
-      const std::shared_ptr<bs_common::PreIntegrator>& pre_integrator);
+      const std::shared_ptr<bs_common::PreIntegrator>& pre_integrator,
+      const double info_weight);
 
   /**
    * @brief Destructor
@@ -79,6 +80,7 @@ protected:
   bs_common::ImuState imu_state_i_;
   bs_common::ImuState imu_state_j_;
   std::shared_ptr<bs_common::PreIntegrator> pre_integrator_;
+  double info_weight_;
 
 private:
   // Allow Boost Serialization access to private methods

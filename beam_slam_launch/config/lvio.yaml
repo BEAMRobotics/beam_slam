@@ -47,9 +47,9 @@ unicycle_3d:
 
 visual_feature_tracker:
   image_topic: '/F1/image_raw'
-  descriptor_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vo/orb_descriptor.json'
-  detector_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vo/fastssc_detector.json'
-  tracker_config: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/vo/tracker.json'
+  descriptor_config: 'vo/orb_descriptor.json'
+  detector_config: 'vo/fastssc_detector.json'
+  tracker_config: 'vo/tracker.json'
   publish_tracks: false
 
 slam_initialization:
@@ -62,6 +62,7 @@ slam_initialization:
   min_trajectory_length_m: 3.0
   reprojection_covariance_weight: 1.0
   reprojection_loss_a: 20.0
+  inertial_information_weight: 1.0
   output_folder: ""
 
 inertial_odometry:
@@ -71,7 +72,7 @@ inertial_odometry:
 visual_odometry:
   visual_measurement_topic: "/local_mapper/visual_feature_tracker/visual_measurements"
   max_container_size: 300
-  frame_initializer_config: "/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json"
+  frame_initializer_config: "/frame_initializers/io.json"
   reloc_request_period: 3.0
   keyframe_parallax: 30.0
   keyframe_max_duration: 0.25
@@ -82,11 +83,11 @@ lidar_odometry:
   # Local scan registration
   local_registration_type: 'MAPLOAM'
   local_registration_config_path: 'DEFAULT_PATH'
-  local_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matchers/loam_vlp16.json'
+  local_matcher_params_path: 'matchers/loam_vlp16.json'
   local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
   # global scan registration
   global_registration_type: 'LOAM'
-  global_matcher_params_path: '/userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/matchers/loam_vlp16.json'
+  global_matcher_params_path: 'matchers/loam_vlp16.json'
   global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
   # general params
   lidar_type: 'VELODYNE'
@@ -97,7 +98,7 @@ lidar_odometry:
   publish_active_submap: true
   publish_local_map: true
   publish_registration_results: true
-  frame_initializer_config: 'userhome/catkin_ws/src/beam_slam/beam_slam_launch/config/frame_initializers/io.json'
+  frame_initializer_config: 'frame_initializers/io.json'
   frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
   reloc_request_period: 1
   scan_output_directory: ''
