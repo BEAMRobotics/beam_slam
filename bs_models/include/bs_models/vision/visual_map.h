@@ -29,7 +29,7 @@ public:
    */
   VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
             fuse_core::Loss::SharedPtr loss_function,
-            const Eigen::Matrix2d& covariance = Eigen::Matrix2d::Identity());
+            const double reprojection_information_weight);
 
   /**
    * @brief Default destructor
@@ -223,7 +223,7 @@ protected:
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   fuse_core::Loss::SharedPtr loss_function_;
   Eigen::Matrix3d camera_intrinsic_matrix_;
-  Eigen::Matrix2d covariance_;
+  double reprojection_information_weight_;
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;

@@ -23,11 +23,6 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-    /** subscribing topics */
-    getParam<std::string>(
-        nh, "visual_measurement_topic", visual_measurement_topic,
-        "/local_mapper/visual_feature_tracker/visual_measurements");
-
     // config for frame initializer
     std::string frame_initializer_config_rel;
     getParamRequired<std::string>(nh, "frame_initializer_config",
@@ -55,11 +50,14 @@ public:
     // keyframe decision parameters
     getParam<double>(nh, "keyframe_parallax", keyframe_parallax, 40.0);
     getParam<double>(nh, "keyframe_max_duration", keyframe_max_duration, 0.5);
-    getParam<double>(nh, "reprojection_covariance_weight",
-                     reprojection_covariance_weight, 0.01);
+    getParam<double>(nh, "reprojection_information_weight",
+                     reprojection_information_weight, 1.0);
+    getParam<double>(nh, "max_triangulation_distance",
+                     max_triangulation_distance, 40.0);
+    getParam<double>(nh, "max_triangulation_reprojection",
+                     max_triangulation_reprojection, 40.0);
 
-    double reprojection_loss_a;
-    getParam<double>(nh, "reprojection_loss_a", reprojection_loss_a, 1.0);
+    double reprojection_loss_a = 10.0 * reprojection_information_weight;
     // reprojection loss
     reprojection_loss =
         std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
@@ -77,7 +75,9 @@ public:
   double reloc_request_period{3.0};
   double keyframe_parallax{40.0};
   double keyframe_max_duration{0.5};
-  double reprojection_covariance_weight{0.01};
+  double reprojection_information_weight{1.0};
+  double max_triangulation_distance{40.0};
+  double max_triangulation_reprojection{20.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };
 }} // namespace bs_parameters::models

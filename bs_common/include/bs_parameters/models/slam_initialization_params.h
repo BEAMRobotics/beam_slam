@@ -24,9 +24,6 @@ public:
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
     // subscribing topics
-    getParam<std::string>(
-        nh, "visual_measurement_topic", visual_measurement_topic,
-        "/local_mapper/visual_feature_tracker/visual_measurements");
     getParam<std::string>(nh, "imu_topic", imu_topic, "");
     getParam<std::string>(nh, "lidar_topic", lidar_topic, "");
 
@@ -63,14 +60,18 @@ public:
     getParam<double>(nh, "initialization_window_s", initialization_window_s,
                      2.0);
 
-    getParam<double>(nh, "reprojection_covariance_weight",
-                     reprojection_covariance_weight, 0.01);
+    getParam<double>(nh, "reprojection_information_weight",
+                     reprojection_information_weight, 1.0);
 
-    double reprojection_loss_a;
-    getParam<double>(nh, "reprojection_loss_a", reprojection_loss_a, 0.2);
+    getParam<double>(nh, "max_triangulation_distance",
+                     max_triangulation_distance, 40.0);
+    getParam<double>(nh, "max_triangulation_reprojection",
+                     max_triangulation_reprojection, 40.0);
+
+    double reprojection_loss_a = 10.0 * reprojection_information_weight;
     // reprojection loss
     reprojection_loss =
-        std::make_shared<fuse_loss ::CauchyLoss>(reprojection_loss_a);
+        std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
   }
 
   std::string visual_measurement_topic{
@@ -85,10 +86,10 @@ public:
   double inertial_info_weight{1.0};
   double min_trajectory_length_m{2.0};
   double frame_init_frequency{0.1};
-
+  double max_triangulation_distance{40.0};
+  double max_triangulation_reprojection{20.0};
   double initialization_window_s{2.0};
-
-  double reprojection_covariance_weight{0.01};
+  double reprojection_information_weight{1.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };
 }} // namespace bs_parameters::models

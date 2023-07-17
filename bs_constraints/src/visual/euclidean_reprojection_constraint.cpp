@@ -20,13 +20,14 @@ EuclideanReprojectionConstraint::EuclideanReprojectionConstraint(
     const fuse_variables::Point3DLandmark& P_WORLD,
     const Eigen::Matrix4d& T_cam_baselink,
     const Eigen::Matrix3d& intrinsic_matrix, const Eigen::Vector2d& measurement,
-    const Eigen::Matrix2d& covariance)
+    const double reprojection_information_weight)
     : fuse_core::Constraint(source, {R_WORLD_BASELINK.uuid(),
                                      t_WORLD_BASELINK.uuid(), P_WORLD.uuid()}),
       T_cam_baselink_(T_cam_baselink),
       intrinsic_matrix_(intrinsic_matrix),
       pixel_(measurement),
-      sqrt_information_(covariance.inverse().llt().matrixU()) {}
+      sqrt_information_(reprojection_information_weight *
+                        Eigen::Matrix2d::Identity()) {}
 
 void EuclideanReprojectionConstraint::print(std::ostream& stream) const {
   stream << type() << "\n"

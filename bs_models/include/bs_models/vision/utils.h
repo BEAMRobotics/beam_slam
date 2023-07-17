@@ -22,7 +22,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
         landmark_container,
     const Eigen::Matrix4d& T_camera_baselink,
     fuse_core::Loss::SharedPtr loss_function,
-    double max_optimization_time = 0.5, double covariance_weight = 1.0,
+    double max_optimization_time = 0.5, double information_weight = 1.0,
     double keyframe_hz = 4.0);
 
 }} // namespace bs_models::vision

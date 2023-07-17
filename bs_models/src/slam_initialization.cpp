@@ -39,7 +39,7 @@ void SLAMInitialization::onInit() {
       calibration_params_.cam_intrinsics_path);
   visual_map_ = std::make_shared<vision::VisualMap>(
       cam_model_, params_.reprojection_loss,
-      Eigen::Matrix2d::Identity() * params_.reprojection_covariance_weight);
+      params_.reprojection_information_weight);
 
   // create optimization graph
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
@@ -188,7 +188,7 @@ void SLAMInitialization::processCameraMeasurements(
   ROS_INFO("Attempting visual initialization");
   init_path_ = bs_models::vision::ComputePathWithVision(
       cam_model_, landmark_container_, T_cam_baselink_,
-      params_.reprojection_loss, 1.0, params_.reprojection_covariance_weight);
+      params_.reprojection_loss, 1.0, params_.reprojection_information_weight);
 
   // if we initialize successfully, stop this sensor model
   if (Initialize()) {
@@ -546,8 +546,9 @@ beam::opt<Eigen::Vector3d>
     }
   }
   if (T_cam_world_v.size() >= 3) {
-    return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                    pixels, 100.0, 50.0);
+    return beam_cv::Triangulation::TriangulatePoint(
+        cam_model_, T_cam_world_v, pixels, params_.max_triangulation_distance,
+        params_.max_triangulation_reprojection);
   }
   return {};
 }

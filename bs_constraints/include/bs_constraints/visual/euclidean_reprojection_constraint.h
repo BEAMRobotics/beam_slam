@@ -44,7 +44,8 @@ public:
       const fuse_variables::Point3DLandmark& P_WORLD,
       const Eigen::Matrix4d& T_cam_baselink,
       const Eigen::Matrix3d& intrinsic_matrix,
-      const Eigen::Vector2d& measurement, const Eigen::Matrix2d& covariance);
+      const Eigen::Vector2d& measurement,
+      const double reprojection_information_weight);
 
   /**
    * @brief Destructor

@@ -10,10 +10,10 @@ namespace bs_models { namespace vision {
 
 VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
                      fuse_core::Loss::SharedPtr loss_function,
-                     const Eigen::Matrix2d& covariance)
+                     const double reprojection_information_weight)
     : cam_model_(cam_model),
       loss_function_(loss_function),
-      covariance_(covariance) {
+      reprojection_information_weight_(reprojection_information_weight) {
   cam_model_->InitUndistortMap();
   camera_intrinsic_matrix_ =
       cam_model->GetRectifiedModel()->GetIntrinsicMatrix();
@@ -157,7 +157,7 @@ bool VisualMap::AddVisualConstraint(
       auto vis_constraint =
           std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
               "VO", *orientation, *position, *lm, T_cam_baselink_,
-              camera_intrinsic_matrix_, measurement, covariance_);
+              camera_intrinsic_matrix_, measurement, reprojection_information_weight_);
       vis_constraint->loss(loss_function_);
       transaction->addConstraint(vis_constraint);
       return true;

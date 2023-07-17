@@ -42,9 +42,9 @@ void VisualOdometry::onInit() {
   // Load camera model and create visua map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
-  visual_map_ = std::make_shared<VisualMap>(
-      cam_model_, vo_params_.reprojection_loss,
-      Eigen::Matrix2d::Identity() * vo_params_.reprojection_covariance_weight);
+  visual_map_ =
+      std::make_shared<VisualMap>(cam_model_, vo_params_.reprojection_loss,
+                                  vo_params_.reprojection_information_weight);
 
   pixel_outlier_distance_ = cam_model_->GetWidth() / 40.0;
 
@@ -369,8 +369,10 @@ beam::opt<Eigen::Vector3d>
     }
   }
   if (T_cam_world_v.size() >= 3) {
-    return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
-                                                    pixels, 100.0, 50.0);
+    return beam_cv::Triangulation::TriangulatePoint(
+        cam_model_, T_cam_world_v, pixels,
+        vo_params_.max_triangulation_distance,
+        vo_params_.max_triangulation_reprojection);
   }
   return {};
 }

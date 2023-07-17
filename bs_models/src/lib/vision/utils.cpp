@@ -18,7 +18,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
         landmark_container,
     const Eigen::Matrix4d& T_camera_baselink,
     fuse_core::Loss::SharedPtr loss_function, double max_optimization_time,
-    double covariance_weight, double keyframe_hz) {
+    double information_weight, double keyframe_hz) {
   assert(landmark_container->NumImages() > 3);
 
   // Get matches between first and last image in the window
@@ -96,8 +96,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   // Perform SFM
   auto visual_graph = std::make_shared<fuse_graphs::HashGraph>();
   auto visual_map = std::make_shared<vision::VisualMap>(
-      camera_model, loss_function,
-      Eigen::Matrix2d::Identity() * covariance_weight);
+      camera_model, loss_function, information_weight);
 
   // Add initial poses, landmarks and constraints to graph
   auto initial_transaction = fuse_core::Transaction::make_shared();
