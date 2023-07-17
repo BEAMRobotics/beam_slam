@@ -148,9 +148,8 @@ endif(NOT CMAKE_DISABLE_EXPERIMENTAL)
 #############
 ## Testing ##
 #############
+# to build tests, run catkin build with: --make-args tests
 if(CATKIN_ENABLE_TESTING)
-  find_package(rostest REQUIRED)
-
   # scan pose tests
   catkin_add_gtest(${PROJECT_NAME}_scan_pose_tests 
     tests/scan_pose_tests.cpp
@@ -171,6 +170,10 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(${PROJECT_NAME}_multi_scan_registration_tests 
     ${PROJECT_NAME}
   )
+  target_include_directories(${PROJECT_NAME}_multi_scan_registration_tests
+    PUBLIC
+    tests/include
+  )
   set_target_properties(${PROJECT_NAME}_multi_scan_registration_tests 
     PROPERTIES
       CXX_STANDARD 14
@@ -183,6 +186,10 @@ if(CATKIN_ENABLE_TESTING)
   )
   target_link_libraries(${PROJECT_NAME}_scan_to_map_registration_tests 
     ${PROJECT_NAME}
+  )
+  target_include_directories(${PROJECT_NAME}_scan_to_map_registration_tests
+    PUBLIC
+    tests/include
   )
   set_target_properties(${PROJECT_NAME}_scan_to_map_registration_tests 
     PROPERTIES
@@ -235,6 +242,10 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(${PROJECT_NAME}_global_map_refinement_tests
     ${PROJECT_NAME}
     ${catkin_LIBRARIES}
+  )
+  target_include_directories(${PROJECT_NAME}_global_map_refinement_tests
+    PUBLIC
+    tests/include
   )
   set_target_properties(${PROJECT_NAME}_global_map_refinement_tests
     PROPERTIES

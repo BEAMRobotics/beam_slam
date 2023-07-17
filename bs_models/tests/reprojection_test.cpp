@@ -5,10 +5,10 @@
 #include <gtest/gtest.h>
 
 #include <beam_calibration/CameraModels.h>
-#include <bs_constraints/visual/reprojection_functor.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
+#include <bs_constraints/visual/reprojection_functor.h>
 
 TEST(ReprojectionFunctor, TestAccuracy) {
   std::string current_file = "reprojection_test.cpp";
@@ -42,9 +42,11 @@ TEST(ReprojectionFunctor, TestAccuracy) {
   point_cam_h << point_cam[0], point_cam[1], point_cam[2], 1;
   Eigen::Vector3d point_world = (T_world_cam * point_cam_h).hnormalized();
 
+  Eigen::Matrix2d A = Eigen::Matrix2d::Identity();
   Eigen::Vector2d pixeld = pixel.cast<double>();
-  fuse_constraints::ReprojectionFunctor reproj =
-      fuse_constraints::ReprojectionFunctor(pixeld, cam, T_imu_cam);
+  bs_constraints::ReprojectionFunctor reproj =
+      bs_constraints::ReprojectionFunctor(A, pixeld, cam->GetIntrinsicMatrix(),
+                                          T_imu_cam.inverse());
 
   double t_WORLD_IMU[3];
   t_WORLD_IMU[0] = p[0];

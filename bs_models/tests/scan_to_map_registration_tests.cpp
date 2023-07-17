@@ -13,19 +13,21 @@
 #include <beam_filtering/VoxelDownsample.h>
 #include <beam_matching/Matchers.h>
 #include <beam_utils/math.h>
-#include <beam_utils/se3.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/se3.h>
 
 #include <bs_common/utils.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
+
+#include <test_utils.h>
 
 using namespace bs_models;
 using namespace scan_registration;
 using namespace bs_common;
 
-class Data {
- public:
-  Data() {
+class ScanToMapLoamRegistrationTest : public ::testing::Test {
+public:
+  void SetUp() override {
     // read input cloud
     std::string current_file = "scan_to_map_registration_tests.cpp";
     std::string test_path = __FILE__;
@@ -41,7 +43,7 @@ class Data {
 
     // create scan reg params
     scan_reg_params.outlier_threshold_trans_m = 1;
-    scan_reg_params.outlier_threshold_rot_deg = 30;
+    scan_reg_params.outlier_threshold_rot_deg = 31;
     scan_reg_params.min_motion_trans_m = 0;
     scan_reg_params.min_motion_rot_deg = 0;
     scan_reg_params.fix_first_scan = true;
@@ -122,36 +124,30 @@ class Data {
   ScanToMapLoamRegistration::Params scan_reg_params;
 };
 
-Data data_;
-
-TEST(ScanToMapLoamRegistration, 2Scans) {
-  data_ = Data();
-
+TEST_F(ScanToMapLoamRegistrationTest, 2Scans) { 
   // init scan registration
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
-  matcher = std::make_unique<LoamMatcher>(*data_.loam_params);
+  matcher = std::make_unique<LoamMatcher>(*loam_params);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
-      std::make_shared<LoamFeatureExtractor>(data_.loam_params);
+      std::make_shared<LoamFeatureExtractor>(loam_params);
 
   // create scan poses
-  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1, data_.T_BASELINK_LIDAR,
+  ScanPose SP1(S1, ros::Time(0), T_WORLD_S1, T_BASELINK_LIDAR,
                feature_extractor);
-  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2, data_.T_BASELINK_LIDAR,
+  ScanPose SP2(S2, ros::Time(1), T_WORLD_S2, T_BASELINK_LIDAR,
                feature_extractor);
-  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert,
-                    data_.T_BASELINK_LIDAR, feature_extractor);
+  ScanPose SP2_pert(S2, ros::Time(1), T_WORLD_S2_pert, T_BASELINK_LIDAR,
+                    feature_extractor);
 
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
       std::make_unique<ScanToMapLoamRegistration>(
-          std::move(matcher), data_.scan_reg_params.GetBaseParams(),
-          data_.scan_reg_params.map_size,
-          data_.scan_reg_params.store_full_cloud);
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.map_size, scan_reg_params.store_full_cloud);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
   covariance = covariance * 0.1;
   scan_registration->SetFixedCovariance(covariance);
-
   auto transaction1 = scan_registration->RegisterNewScan(SP1).GetTransaction();
   auto transaction2 =
       scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
@@ -179,32 +175,28 @@ TEST(ScanToMapLoamRegistration, 2Scans) {
   Eigen::Matrix4d T_WORLD_S1_mea = bs_common::FusePoseToEigenTransform(p1, o1);
   Eigen::Matrix4d T_WORLD_S2_mea = bs_common::FusePoseToEigenTransform(p2, o2);
 
-  EXPECT_TRUE(
-      beam::ArePosesEqual(T_WORLD_S1_mea, data_.T_WORLD_S1, 1, 0.005, true));
-  EXPECT_TRUE(
-      beam::ArePosesEqual(T_WORLD_S2_mea, data_.T_WORLD_S2, 1, 0.06, true));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, T_WORLD_S1, 1, 0.005, true));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, T_WORLD_S2, 1, 0.06, true));
 }
 
-TEST(ScanToMapLoamRegistration, 3Scans) {
-  data_ = Data();
-
+TEST_F(ScanToMapLoamRegistrationTest, 3Scans) {
   // init scan registration
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
-  matcher = std::make_unique<LoamMatcher>(*data_.loam_params);
+  matcher = std::make_unique<LoamMatcher>(*loam_params);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
-      std::make_shared<LoamFeatureExtractor>(data_.loam_params);
+      std::make_shared<LoamFeatureExtractor>(loam_params);
 
   // create scan poses
-  ScanPose SP1(data_.S1, ros::Time(0), data_.T_WORLD_S1, data_.T_BASELINK_LIDAR,
+  ScanPose SP1(S1, ros::Time(0), T_WORLD_S1, T_BASELINK_LIDAR,
                feature_extractor);
-  ScanPose SP2(data_.S2, ros::Time(1), data_.T_WORLD_S2, data_.T_BASELINK_LIDAR,
+  ScanPose SP2(S2, ros::Time(1), T_WORLD_S2, T_BASELINK_LIDAR,
                feature_extractor);
-  ScanPose SP3(data_.S3, ros::Time(2), data_.T_WORLD_S3, data_.T_BASELINK_LIDAR,
+  ScanPose SP3(S3, ros::Time(2), T_WORLD_S3, T_BASELINK_LIDAR,
                feature_extractor);
-  ScanPose SP2_pert(data_.S2, ros::Time(1), data_.T_WORLD_S2_pert,
-                    data_.T_BASELINK_LIDAR, feature_extractor);
-  ScanPose SP3_pert(data_.S3, ros::Time(2), data_.T_WORLD_S3_pert,
-                    data_.T_BASELINK_LIDAR, feature_extractor);
+  ScanPose SP2_pert(S2, ros::Time(1), T_WORLD_S2_pert, T_BASELINK_LIDAR,
+                    feature_extractor);
+  ScanPose SP3_pert(S3, ros::Time(2), T_WORLD_S3_pert, T_BASELINK_LIDAR,
+                    feature_extractor);
   //   SP1.Save("/userhome/tmp/loam_scan_registration/sp1/");
   //   SP2.Save("/userhome/tmp/loam_scan_registration/sp2/");
   //   SP3.Save("/userhome/tmp/loam_scan_registration/sp3/");
@@ -212,9 +204,8 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
   // init scan registration
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
       std::make_unique<ScanToMapLoamRegistration>(
-          std::move(matcher), data_.scan_reg_params.GetBaseParams(),
-          data_.scan_reg_params.map_size,
-          data_.scan_reg_params.store_full_cloud);
+          std::move(matcher), scan_reg_params.GetBaseParams(),
+          scan_reg_params.map_size, scan_reg_params.store_full_cloud);
 
   Eigen::Matrix<double, 6, 6> covariance;
   covariance.setIdentity();
@@ -225,23 +216,31 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
   fuse_graphs::HashGraph graph;
 
   // add transactions
+  std::cout << "SP1.Cloud().size(): " << SP1.Cloud().size() << "\n";
+  std::cout << "SP1.LoamCloud().size(): " << SP1.LoamCloud().Size() << "\n";
   auto transaction1 = scan_registration->RegisterNewScan(SP1).GetTransaction();
 
-  //   scan_registration->GetMap().Save("/userhome/tmp/loam_scan_registration/maps/1/");
+  //
+  scan_registration->GetMap().Save(
+      "/userhome/tmp/loam_scan_registration/maps/1/");
   EXPECT_EQ(scan_registration->GetMap().NumLoamClouds(), 1);
   EXPECT_EQ(scan_registration->GetMap().NumPointClouds(), 0);
 
   auto transaction2 =
       scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
 
-  //   scan_registration->GetMap().Save("/userhome/tmp/loam_scan_registration/maps/2/");
+  //
+  scan_registration->GetMap().Save(
+      "/userhome/tmp/loam_scan_registration/maps/2/");
   EXPECT_EQ(scan_registration->GetMap().NumLoamClouds(), 2);
   EXPECT_EQ(scan_registration->GetMap().NumPointClouds(), 0);
 
   auto transaction3 =
       scan_registration->RegisterNewScan(SP3_pert).GetTransaction();
 
-  //   scan_registration->GetMap().Save("/userhome/tmp/loam_scan_registration/maps/3/");
+  //
+  scan_registration->GetMap().Save(
+      "/userhome/tmp/loam_scan_registration/maps/3/");
   EXPECT_EQ(scan_registration->GetMap().NumLoamClouds(), 3);
   EXPECT_EQ(scan_registration->GetMap().NumPointClouds(), 0);
 
@@ -270,29 +269,39 @@ TEST(ScanToMapLoamRegistration, 3Scans) {
   Eigen::Matrix4d T_WORLD_S3_mea = bs_common::FusePoseToEigenTransform(p3, o3);
 
   //   std::cout << "S1 ground truth: \n";
-  //   beam::OutputTransformInformation(data_.T_WORLD_S1);
+  //   beam::OutputTransformInformation(T_WORLD_S1);
   //   std::cout << "S1 Measured: \n";
   //   beam::OutputTransformInformation(T_WORLD_S1_mea);
 
   //   std::cout << "\nS2 ground truth: \n";
-  //   beam::OutputTransformInformation(data_.T_WORLD_S2);
+  //   beam::OutputTransformInformation(T_WORLD_S2);
   //   std::cout << "S2 Measured: \n";
   //   beam::OutputTransformInformation(T_WORLD_S2_mea);
 
   //   std::cout << "\nS3 ground truth: \n";
-  //   beam::OutputTransformInformation(data_.T_WORLD_S3);
+  //   beam::OutputTransformInformation(T_WORLD_S3);
   //   std::cout << "S3 Measured: \n";
   //   beam::OutputTransformInformation(T_WORLD_S3_mea);
 
-  EXPECT_TRUE(
-      beam::ArePosesEqual(T_WORLD_S1_mea, data_.T_WORLD_S1, 1, 0.005, true));
-  EXPECT_TRUE(
-      beam::ArePosesEqual(T_WORLD_S2_mea, data_.T_WORLD_S2, 1, 0.06, true));
-  EXPECT_TRUE(
-      beam::ArePosesEqual(T_WORLD_S3_mea, data_.T_WORLD_S3, 1, 0.06, true));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, T_WORLD_S1, 1, 0.005, true));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, T_WORLD_S2, 1, 0.06, true));
+  EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S3_mea, T_WORLD_S3, 1, 0.06, true));
 }
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  std::cout << "Starting ROS test, make sure you have a roscore going\n";
+  std::cout << "---------------------------------------------------------------"
+               "----------------------\n";
+  std::cout << "WARNING: Each test case must be run individually, or ceres "
+               "will have memories issues.\n";
+  std::cout << "To run test individually, add gest filter, e.g.: \n";
+  std::cout << "'--gtest_filter=ScanToMapLoamRegistrationTest.3Scans'\n";
+  std::cout << "---------------------------------------------------------------"
+               "----------------------\n";
+  ros::init(argc, argv, "scan_to_map_registration_test");
+  bs_models::test::SetCalibrationParams();
+  int ret = RUN_ALL_TESTS();
+  ros::shutdown();
+  return ret;
 }

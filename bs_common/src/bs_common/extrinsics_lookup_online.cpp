@@ -14,7 +14,6 @@ ExtrinsicsLookupOnline& ExtrinsicsLookupOnline::GetInstance() {
 
 ExtrinsicsLookupOnline::ExtrinsicsLookupOnline() {
   calibration_params_.loadFromROS();
-
   ExtrinsicsLookupBase::FrameIds frame_ids{
       .imu = calibration_params_.imu_frame,
       .camera = calibration_params_.camera_frame,
@@ -219,11 +218,15 @@ bool ExtrinsicsLookupOnline::LookupTransform(Eigen::Matrix4d& T,
                                              const ros::Time& time,
                                              int max_iterations,
                                              const ros::Duration& sleep_time) {
+  if (!tf_listener_) {
+    tf_listener_ = std::make_unique<tf::TransformListener>();
+  }
+
   tf::StampedTransform TROS;
   int count = 0;
   while (true) {
     try {
-      tf_listener_.lookupTransform(to_frame, from_frame, time, TROS);
+      tf_listener_->lookupTransform(to_frame, from_frame, time, TROS);
     } catch (tf::TransformException& ex) {
       if (static_extrinsics_) {
         BEAM_WARN("Cannot lookup static extrinsics between frames: {} , {}. "

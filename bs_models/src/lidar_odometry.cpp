@@ -71,11 +71,12 @@ void LidarOdometry::onInit() {
   if (params_.scan_output_directory.empty()) {
     params_.save_marginalized_scans = false;
     params_.save_graph_updates = false;
+    params_.save_scan_registration_results = false;
   } else {
-    if (boost::filesystem::is_directory(params_.scan_output_directory)) {
-      boost::filesystem::remove_all(params_.scan_output_directory);
+    if (!boost::filesystem::is_directory(params_.scan_output_directory)) {
+      boost::filesystem::create_directory(params_.scan_output_directory);
     }
-    boost::filesystem::create_directory(params_.scan_output_directory);
+
     if (params_.save_graph_updates) {
       graph_updates_path_ =
           beam::CombinePaths(params_.scan_output_directory, "graph_updates");
@@ -83,6 +84,15 @@ void LidarOdometry::onInit() {
         boost::filesystem::remove_all(graph_updates_path_);
       }
       boost::filesystem::create_directory(graph_updates_path_);
+    }
+
+    if (params_.save_scan_registration_results) {
+      registration_results_path_ = beam::CombinePaths(
+          params_.scan_output_directory, "registration_results");
+      if (boost::filesystem::is_directory(registration_results_path_)) {
+        boost::filesystem::remove_all(registration_results_path_);
+      }
+      boost::filesystem::create_directory(registration_results_path_);
     }
 
     if (params_.save_marginalized_scans) {
@@ -313,8 +323,8 @@ void LidarOdometry::SetupRegistration() {
   if (!params_.local_matcher_config.empty()) {
     const auto& reg_filepath = params_.local_registration_config;
     const auto& matcher_filepath = params_.local_matcher_config;
-    local_scan_registration_ =
-        ScanRegistrationBase::Create(reg_filepath, matcher_filepath);
+    local_scan_registration_ = ScanRegistrationBase::Create(
+        reg_filepath, matcher_filepath, registration_results_path_);
 
     // setup feature extractor if needed
     local_matcher_type = beam_matching::GetTypeFromConfig(matcher_filepath);
@@ -475,7 +485,7 @@ fuse_core::Transaction::SharedPtr
 
 void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   if (updates_ == 0) {
-    ROS_INFO("received first graph update, initializing regisation and "
+    ROS_INFO("received first graph update, initializing registration and "
              "starting lidar odometry");
     SetupRegistration();
   }

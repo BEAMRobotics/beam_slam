@@ -265,7 +265,7 @@ private:
 
   bs_parameters::models::CalibrationParams calibration_params_;
 
-  tf::TransformListener tf_listener_;
+  std::unique_ptr<tf::TransformListener> tf_listener_;
 
   std::shared_ptr<ExtrinsicsLookupBase> extrinsics_;
 

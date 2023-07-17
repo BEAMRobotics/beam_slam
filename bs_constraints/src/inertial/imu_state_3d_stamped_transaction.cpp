@@ -48,6 +48,7 @@ void ImuState3DStampedTransaction::AddRelativeImuStateConstraint(
   // build and add constraint
   auto constraint = ConstraintType::make_shared(
       source, imu_state_i, imu_state_j, pre_integrator_ptr, info_weight);
+
   transaction_->addConstraint(constraint, true);
 }
 

@@ -143,14 +143,23 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
   store_full_cloud = J["store_full_cloud"];
 }
 
-ScanRegistrationParamsBase ScanToMapLoamRegistration::Params::GetBaseParams() {
+void ScanToMapLoamRegistration::Params::Print(std::ostream& stream) const {
+  GetBaseParams().Print(stream);
+  stream << "ScanToMapLoamRegistration::Params: \n";
+  stream << "map_size: " << map_size << "\n";
+  stream << "store_full_cloud: " << store_full_cloud << "\n";
+}
+
+ScanRegistrationParamsBase
+    ScanToMapLoamRegistration::Params::GetBaseParams() const {
   ScanRegistrationParamsBase base_params{
       .outlier_threshold_trans_m = outlier_threshold_trans_m,
       .outlier_threshold_rot_deg = outlier_threshold_rot_deg,
       .min_motion_trans_m = min_motion_trans_m,
       .min_motion_rot_deg = min_motion_rot_deg,
       .max_motion_trans_m = max_motion_trans_m,
-      .fix_first_scan = fix_first_scan};
+      .fix_first_scan = fix_first_scan,
+      .save_path = save_path};
   return base_params;
 }
 
@@ -158,9 +167,11 @@ ScanToMapLoamRegistration::ScanToMapLoamRegistration(
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
     const ScanRegistrationParamsBase& base_params, int map_size,
     bool store_full_cloud)
-    : ScanToMapRegistrationBase(base_params), matcher_(std::move(matcher)) {
-  params_.map_size = map_size;
-  params_.store_full_cloud = store_full_cloud;
+    : ScanToMapRegistrationBase(base_params),
+      matcher_(std::move(matcher)),
+      params_(base_params, map_size, store_full_cloud) {
+  std::cout << "TEST2\n";
+  params_.Print();
   map_.SetParams(params_.map_size);
 }
 
@@ -180,8 +191,8 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   matcher_->SetRef(current_map);
   matcher_->SetTarget(scan_in_map_frame);
   if (!matcher_->Match()) { return false; }
-  if (!params_.debug_output_dir.empty()) {
-    matcher_->SaveResults(params_.debug_output_dir,
+  if (!params_.save_path.empty()) {
+    matcher_->SaveResults(params_.save_path,
                           std::to_string(scan_pose.Stamp().toSec()));
   }
   Eigen::Matrix4d T_MAPEST_MAP = matcher_->GetResult().matrix();

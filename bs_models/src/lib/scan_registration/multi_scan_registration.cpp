@@ -76,14 +76,6 @@ MultiScanRegistrationBase::MultiScanRegistrationBase(
   params_.num_neighbors = num_neighbors;
   params_.lag_duration = lag_duration;
   params_.disable_lidar_map = disable_lidar_map;
-
-  // if outputting results, clear output folder:
-  if (!output_scan_registration_results_) { return; }
-
-  if (boost::filesystem::is_directory(tmp_output_path_)) {
-    boost::filesystem::remove_all(tmp_output_path_);
-  }
-  boost::filesystem::create_directory(tmp_output_path_);
 }
 
 bs_constraints::relative_pose::Pose3DStampedTransaction
@@ -174,9 +166,10 @@ void MultiScanRegistrationBase::AddFirstScan(
 int MultiScanRegistrationBase::RegisterScanToReferences(
     const ScanPose& new_scan,
     bs_constraints::relative_pose::Pose3DStampedTransaction& transaction) {
-  if (output_scan_registration_results_) {
+  if (!params_.GetBaseParams().save_path.empty()) {
     current_scan_path_ =
-        tmp_output_path_ + std::to_string(new_scan.Stamp().toSec()) + "/";
+        beam::CombinePaths(params_.GetBaseParams().save_path,
+                           std::to_string(new_scan.Stamp().toSec()));
     boost::filesystem::create_directory(current_scan_path_);
   }
 
@@ -185,7 +178,7 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
 
   // open output file
   std::ofstream measurements_file;
-  if (output_scan_registration_results_) {
+  if (!params_.GetBaseParams().save_path.empty()) {
     measurements_file.open(current_scan_path_ +
                            "absolute_pose_measurements.txt");
     measurements_file << "New Scan Stamp: " << new_scan.Stamp().sec << "."
@@ -231,7 +224,7 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
     bs_common::EigenTransformToFusePose(
         T_BASELINKREF_BASELINKNEW, position_relative, orientation_relative);
 
-    if (output_scan_registration_results_) {
+    if (!params_.GetBaseParams().save_path.empty()) {
       // calculate measured pose of target (new scan)
       Eigen::Matrix4d T_REFFRAME_BASELINKNEW =
           ref_iter->T_REFFRAME_BASELINK() * T_BASELINKREF_BASELINKNEW;
@@ -261,7 +254,7 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
   }
 
   // close output file
-  if (output_scan_registration_results_) { measurements_file.close(); }
+  if (!params_.GetBaseParams().save_path.empty()) { measurements_file.close(); }
 
   // calculate average and add to lidar map
   if (!params_.disable_lidar_map) {
@@ -377,7 +370,7 @@ void MultiScanRegistrationBase::PrintScanDetails(std::ostream& stream) {
 void MultiScanRegistrationBase::OutputResults(
     const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
     const Eigen::Matrix4d& T_LIDARREF_LIDARTGT, bool output_loam_cloud) {
-  if (!output_scan_registration_results_) { return; }
+  if (params_.GetBaseParams().save_path.empty()) { return; }
 
   // get transforms
   Eigen::Matrix4d T_WORLD_LIDARREF = scan_pose_ref.T_REFFRAME_LIDAR();

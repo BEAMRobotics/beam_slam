@@ -13,12 +13,14 @@
 #include <beam_filtering/VoxelDownsample.h>
 #include <beam_matching/Matchers.h>
 #include <beam_utils/math.h>
-#include <beam_utils/se3.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/se3.h>
 #include <beam_utils/simple_path_generator.h>
 
 #include <bs_common/utils.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
+
+#include <test_utils.h>
 
 using namespace bs_models;
 using namespace scan_registration;
@@ -35,7 +37,7 @@ Eigen::Matrix4d PerturbPoseRandom(const Eigen::Matrix4d& T, double max_trans,
 }
 
 class MultiScanRegistrationTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     // read input cloud
     std::string current_file = "multi_scan_registration_tests.cpp";
@@ -158,9 +160,9 @@ int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
   return counter;
 }
 
-std::vector<fuse_core::UUID> AddVariables(
-    const fuse_core::Transaction::SharedPtr& transaction,
-    fuse_graphs::HashGraph& graph) {
+std::vector<fuse_core::UUID>
+    AddVariables(const fuse_core::Transaction::SharedPtr& transaction,
+                 fuse_graphs::HashGraph& graph) {
   fuse_variables::Position3DStamped dummy_position;
   fuse_variables::Orientation3DStamped dummy_orientation;
   std::vector<fuse_core::UUID> uuids;
@@ -189,9 +191,7 @@ std::vector<fuse_core::UUID> AddVariables(
 bool VectorsEqual(double* v1, double* v2, int vsize) {
   double precision = 0.001;
   for (int i = 0; i < vsize; i++) {
-    if (std::abs(v1[i] - v2[i]) > precision) {
-      return false;
-    }
+    if (std::abs(v1[i] - v2[i]) > precision) { return false; }
   }
   return true;
 }
@@ -910,7 +910,7 @@ TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
       PerturbPoseRandom(Eigen::Matrix4d::Identity(), 0.1, 30);
 
   // transform scans
-  PointCloud S1 = S1_;  // in lidar frame
+  PointCloud S1 = S1_; // in lidar frame
 
   PointCloud S2;
   Eigen::Matrix4d T_LIDAR2_LIDAR1 = beam::InvertTransform(T_BASELINK_LIDAR) *
@@ -1026,7 +1026,7 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
   scan_reg_params.min_motion_trans_m = 0;
   scan_reg_params.min_motion_rot_deg = 0;
   scan_reg_params.fix_first_scan = true;
-  scan_reg_params.num_neighbors = 1;  // use 7
+  scan_reg_params.num_neighbors = 1; // use 7
   scan_reg_params.lag_duration = 1000;
   scan_reg_params.disable_lidar_map = true;
 
@@ -1046,9 +1046,9 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
   beam::SimplePathGenerator path(nodes);
 
   // create a vec of N scan poses
-  int num_scans = 2;  // use 15
+  int num_scans = 2; // use 15
   ros::Time stamp_current = ros::Time(0);
-  ros::Duration time_inc = ros::Duration(1);  // increment by 1 s
+  ros::Duration time_inc = ros::Duration(1); // increment by 1 s
   std::vector<ScanPose> scan_poses;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> gt_poses;
   for (size_t i = 0; i < num_scans; i++) {
@@ -1088,9 +1088,7 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
     // scan_pose.Print();
     auto transaction =
         multi_scan_registration->RegisterNewScan(scan_pose).GetTransaction();
-    if (transaction != nullptr) {
-      graph->update(*transaction);
-    }
+    if (transaction != nullptr) { graph->update(*transaction); }
   }
 
   // optimize
@@ -1123,5 +1121,10 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  std::cout << "Starting ROS test, make sure you have a roscore going\n";
+  ros::init(argc, argv, "scan_to_map_registration_test");
+  bs_models::test::SetCalibrationParams();
+  int ret = RUN_ALL_TESTS();
+  ros::shutdown();
+  return ret;
 }

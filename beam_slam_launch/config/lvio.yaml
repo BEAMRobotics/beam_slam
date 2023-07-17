@@ -68,6 +68,7 @@ slam_initialization:
 inertial_odometry:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/visual_odometry/odometry"
+  inertial_information_weight: 1.0
 
 visual_odometry:
   visual_measurement_topic: "/local_mapper/visual_feature_tracker/visual_measurements"

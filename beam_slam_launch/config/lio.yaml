@@ -51,7 +51,7 @@ slam_initialization:
 
 inertial_odometry:
   imu_topic: "/imu/data"
-  constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global2"
+  constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
 
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_packets_unpacked'
@@ -62,7 +62,7 @@ lidar_odometry:
   # Scan registration params
   local_registration_config: 'registration/scan_to_map_loam.json'
   local_matcher_config: 'matchers/loam_vlp16.json'
-  global_matcher_config: 'registration/loam_vlp16.json'
+  global_matcher_config: "" # 'matchers/loam_vlp16.json'
 
   # general params
   lidar_type: 'VELODYNE'
@@ -81,6 +81,7 @@ lidar_odometry:
   # these are only relevant if scan_output_directory is not empty
   save_graph_updates: true
   save_marginalized_scans: true
+  save_scan_registration_results: true
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom

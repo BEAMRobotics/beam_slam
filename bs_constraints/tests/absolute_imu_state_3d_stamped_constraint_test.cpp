@@ -13,7 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <bs_common/imu_state.h>
-#include <bs_constraints/global/absolute_imu_state_3d_stamped_constraint.h>
+#include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
 
 class Data {
  public:
@@ -53,7 +53,7 @@ class Data {
     // clang-format on
 
     absolute_imu_state_constraint = std::make_shared<
-        bs_constraints::global::AbsoluteImuState3DStampedConstraint>(
+        bs_constraints::inertial::AbsoluteImuState3DStampedConstraint>(
         "test", imu_state, mean, cov);
   }
 
@@ -61,7 +61,7 @@ class Data {
   Eigen::Matrix<double, 16, 1> mean;
   Eigen::Matrix<double, 15, 15> cov;
 
-  bs_constraints::global::AbsoluteImuState3DStampedConstraint::SharedPtr
+  bs_constraints::inertial::AbsoluteImuState3DStampedConstraint::SharedPtr
       absolute_imu_state_constraint;
 };
 
@@ -107,7 +107,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
 
   // Create an absolute pose constraint
   auto constraint =
-      bs_constraints::global::AbsoluteImuState3DStampedConstraint::make_shared(
+      bs_constraints::inertial::AbsoluteImuState3DStampedConstraint::make_shared(
           "test", data_.imu_state, data_.mean, data_.cov);
 
   // Build the problem
@@ -299,7 +299,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
 
 TEST(AbsoluteImuState3DStampedConstraint, Serialization) {
   // Construct a constraint
-  bs_constraints::global::AbsoluteImuState3DStampedConstraint expected(
+  bs_constraints::inertial::AbsoluteImuState3DStampedConstraint expected(
       "test", data_.imu_state, data_.mean, data_.cov);
 
   // Serialize the constraint into an archive
@@ -310,7 +310,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Serialization) {
   }
 
   // Deserialize a new constraint from that same stream
-  bs_constraints::global::AbsoluteImuState3DStampedConstraint actual;
+  bs_constraints::inertial::AbsoluteImuState3DStampedConstraint actual;
   {
     fuse_core::TextInputArchive archive(stream);
     actual.deserialize(archive);

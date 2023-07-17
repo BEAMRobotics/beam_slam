@@ -7,14 +7,16 @@
 #include <beam_filtering/VoxelDownsample.h>
 #include <beam_matching/Matchers.h>
 #include <beam_utils/math.h>
-#include <beam_utils/se3.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/se3.h>
 #include <beam_utils/simple_path_generator.h>
 
-#include <bs_models/scan_registration/multi_scan_registration.h>
-#include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_models/global_mapping/global_map_refinement.h>
+#include <bs_models/scan_registration/multi_scan_registration.h>
+#include <bs_models/scan_registration/scan_to_map_registration.h>
+
+#include <test_utils.h>
 
 using namespace bs_models;
 using namespace global_mapping;
@@ -32,7 +34,7 @@ Eigen::Matrix4d PerturbPoseRandom(const Eigen::Matrix4d& T, double max_trans,
 }
 
 class GlobalMapRefinementTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     // get data path
     std::string current_file = "global_map_refinement_tests.cpp";
@@ -111,7 +113,7 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
   // create scan poses
   int num_scans = 15;
   ros::Time stamp_current = ros::Time(0);
-  ros::Duration time_inc = ros::Duration(1);  // increment by 1 s
+  ros::Duration time_inc = ros::Duration(1); // increment by 1 s
   std::vector<ScanPose> scan_poses;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> gt_poses;
   for (size_t i = 0; i < num_scans; i++) {
@@ -152,15 +154,9 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
       scan_poses.at(0).Stamp(), T_WORLD_SUBMAP, nullptr, extrinsics_);
   for (const ScanPose& sp : scan_poses) {
     submap->AddLidarMeasurement(sp.Cloud(), sp.T_REFFRAME_BASELINK(),
-                                sp.Stamp(), 0);
-    submap->AddLidarMeasurement(sp.LoamCloud().edges.strong.cloud,
-                                sp.T_REFFRAME_BASELINK(), sp.Stamp(), 1);
-    submap->AddLidarMeasurement(sp.LoamCloud().surfaces.strong.cloud,
-                                sp.T_REFFRAME_BASELINK(), sp.Stamp(), 2);
-    submap->AddLidarMeasurement(sp.LoamCloud().edges.weak.cloud,
-                                sp.T_REFFRAME_BASELINK(), sp.Stamp(), 3);
-    submap->AddLidarMeasurement(sp.LoamCloud().surfaces.weak.cloud,
-                                sp.T_REFFRAME_BASELINK(), sp.Stamp(), 4);
+                                sp.Stamp());
+    submap->AddLidarMeasurement(sp.LoamCloud(), sp.T_REFFRAME_BASELINK(),
+                                sp.Stamp());
   }
   std::vector<SubmapPtr> submaps{submap};
 
@@ -216,7 +212,7 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
   // create scan poses
   int num_scans = 15;
   ros::Time stamp_current = ros::Time(0);
-  ros::Duration time_inc = ros::Duration(1);  // increment by 1 s
+  ros::Duration time_inc = ros::Duration(1); // increment by 1 s
   std::vector<ScanPose> scan_poses;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> gt_poses;
   for (size_t i = 0; i < num_scans - 5; i++) {
@@ -257,15 +253,9 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
       scan_poses.at(0).Stamp(), T_WORLD_SUBMAP, nullptr, extrinsics_);
   for (const ScanPose& sp : scan_poses) {
     submap->AddLidarMeasurement(sp.Cloud(), sp.T_REFFRAME_BASELINK(),
-                                sp.Stamp(), 0);
-    submap->AddLidarMeasurement(sp.LoamCloud().edges.strong.cloud,
-                                sp.T_REFFRAME_BASELINK(), sp.Stamp(), 1);
-    submap->AddLidarMeasurement(sp.LoamCloud().surfaces.strong.cloud,
-                                sp.T_REFFRAME_BASELINK(), sp.Stamp(), 2);
-    submap->AddLidarMeasurement(sp.LoamCloud().edges.weak.cloud,
-                                sp.T_REFFRAME_BASELINK(), sp.Stamp(), 3);
-    submap->AddLidarMeasurement(sp.LoamCloud().surfaces.weak.cloud,
-                                sp.T_REFFRAME_BASELINK(), sp.Stamp(), 4);
+                                sp.Stamp());
+    submap->AddLidarMeasurement(sp.LoamCloud(), sp.T_REFFRAME_BASELINK(),
+                                sp.Stamp());
   }
   std::vector<SubmapPtr> submaps{submap};
 
@@ -331,5 +321,10 @@ TEST_F(GlobalMapRefinementTest, MultiScanRealData) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  std::cout << "Starting ROS test, make sure you have a roscore going\n";
+  ros::init(argc, argv, "scan_to_map_registration_test");
+  bs_models::test::SetCalibrationParams();
+  int ret = RUN_ALL_TESTS();
+  ros::shutdown();
+  return ret;
 }
