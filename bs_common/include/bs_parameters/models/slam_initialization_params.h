@@ -56,6 +56,9 @@ public:
     getParam<double>(nh, "min_trajectory_length_m", min_trajectory_length_m,
                      2.0);
 
+    // weighting factor of inertial information matrix
+    getParam<double>(nh, "inertial_info_weight", inertial_info_weight, 1.0);
+
     // size of init window in seconds
     getParam<double>(nh, "initialization_window_s", initialization_window_s,
                      2.0);
@@ -79,6 +82,7 @@ public:
   std::string output_folder{""};
 
   double max_optimization_s{1.0};
+  double inertial_info_weight{1.0};
   double min_trajectory_length_m{2.0};
   double frame_init_frequency{0.1};
 

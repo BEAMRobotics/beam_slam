@@ -27,7 +27,8 @@ public:
    */
   NormalDeltaImuState3DCostFunctor(
       const bs_common::ImuState& imu_state_i,
-      const std::shared_ptr<bs_common::PreIntegrator> pre_integrator);
+      const std::shared_ptr<bs_common::PreIntegrator> pre_integrator,
+      const double info_weight);
 
   /**
    * @brief Compute the cost values/residuals using the provided
@@ -61,10 +62,11 @@ inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
 
 NormalDeltaImuState3DCostFunctor::NormalDeltaImuState3DCostFunctor(
     const bs_common::ImuState& imu_state_i,
-    const std::shared_ptr<bs_common::PreIntegrator> pre_integrator)
+    const std::shared_ptr<bs_common::PreIntegrator> pre_integrator,
+    const double info_weight)
     : imu_state_i_(imu_state_i),
       pre_integrator_(pre_integrator),
-      A_(pre_integrator->delta.sqrt_inv_cov) {}
+      A_(info_weight * pre_integrator->delta.sqrt_inv_cov) {}
 
 template <typename T>
 bool NormalDeltaImuState3DCostFunctor::operator()(

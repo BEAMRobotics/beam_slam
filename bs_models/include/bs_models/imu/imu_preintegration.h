@@ -46,7 +46,7 @@ public:
    * @brief Constructor
    * @param params all input params optional. See struct above
    */
-  ImuPreintegration(const Params& params);
+  ImuPreintegration(const Params& params, const double info_weight = 1.0);
 
   /**
    * @brief Constructor
@@ -55,7 +55,8 @@ public:
    * @param init_ba initial acceleration bias
    */
   ImuPreintegration(const Params& params, const Eigen::Vector3d& init_bg,
-                    const Eigen::Vector3d& init_ba);
+                    const Eigen::Vector3d& init_ba,
+                    const double info_weight = 1.0);
 
   /**
    * @brief Destructor
@@ -181,6 +182,7 @@ private:
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero acceleration bias
   std::map<uint64_t, bs_common::ImuState>
       window_states_; // state velocities in the window
+  double info_weight_{1.0};
 };
 
 } // namespace bs_models
