@@ -39,7 +39,7 @@ void VisualFeatureTracker::onInit() {
   beam_cv::KLTracker::Params tracker_params;
   tracker_params.LoadFromJson(params_.tracker_config);
   tracker_ = std::make_shared<beam_cv::KLTracker>(tracker_params, detector,
-                                                  descriptor_, 10);
+                                                  descriptor_, 3);
 }
 
 void VisualFeatureTracker::onStart() {
