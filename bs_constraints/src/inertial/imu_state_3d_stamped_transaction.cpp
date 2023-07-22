@@ -65,16 +65,16 @@ void ImuState3DStampedTransaction::AddImuStateVariables(
   transaction_->addInvolvedStamp(imu_state.Stamp());
   // we do not want to override the pose
   transaction_->addVariable(
-      fuse_variables::Orientation3DStamped::make_shared(orr), false);
-  transaction_->addVariable(fuse_variables::Position3DStamped::make_shared(pos),
-                            false);
+      fuse_variables::Orientation3DStamped::make_shared(orr));
+  transaction_->addVariable(
+      fuse_variables::Position3DStamped::make_shared(pos));
   // we do want to override these
   transaction_->addVariable(
-      fuse_variables::VelocityLinear3DStamped::make_shared(vel), true);
+      fuse_variables::VelocityLinear3DStamped::make_shared(vel));
   transaction_->addVariable(
-      bs_variables::GyroscopeBias3DStamped::make_shared(bg), true);
+      bs_variables::GyroscopeBias3DStamped::make_shared(bg));
   transaction_->addVariable(
-      bs_variables::AccelerationBias3DStamped::make_shared(ba), true);
+      bs_variables::AccelerationBias3DStamped::make_shared(ba));
 }
 
 }} // namespace bs_constraints::inertial

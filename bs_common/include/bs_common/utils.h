@@ -24,9 +24,21 @@
 #  define GRAVITY_NOMINAL 9.80665
 #endif
 
-static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, -GRAVITY_NOMINAL};
+static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, GRAVITY_NOMINAL};
 
 namespace bs_common {
+
+template <typename T>
+inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
+  Eigen::Quaternion<T> dq;
+  Eigen::Matrix<T, 3, 1> half_theta = theta;
+  half_theta /= static_cast<T>(2.0);
+  dq.w() = static_cast<T>(1.0);
+  dq.x() = half_theta(0, 0);
+  dq.y() = half_theta(1, 0);
+  dq.z() = half_theta(2, 0);
+  return dq;
+}
 
 /// @brief
 /// @param T_WORLD_SENSOR
