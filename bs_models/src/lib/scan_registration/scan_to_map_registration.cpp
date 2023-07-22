@@ -170,8 +170,6 @@ ScanToMapLoamRegistration::ScanToMapLoamRegistration(
     : ScanToMapRegistrationBase(base_params),
       matcher_(std::move(matcher)),
       params_(base_params, map_size, store_full_cloud) {
-  std::cout << "TEST2\n";
-  params_.Print();
   map_.SetParams(params_.map_size);
 }
 
