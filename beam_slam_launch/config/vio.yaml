@@ -33,23 +33,24 @@ publishers:
 #     type: 'bs_publishers::Path3DPublisher'
 
 visual_feature_tracker:
-  image_topic: '/F1/image_raw'
+  image_topic: '/F1/image_raw_debayered'
   descriptor_config: 'vo/orb_descriptor.json'
   detector_config: 'vo/fastssc_detector.json'
   tracker_config: 'vo/tracker.json'
-  publish_tracks: false
+  publish_tracks: true
 
 slam_initialization:
   imu_topic: "/imu/data"
-  lidar_topic: ""
-  init_mode: "VISUAL"
-  max_optimization_s: 0.5
+  lidar_topic: "/lidar_h/velodyne_packets_unpacked"
+  init_mode: "LIDAR"
+  max_optimization_s: 1.0
   initialization_window_s: 2.0
-  min_trajectory_length_m: 3.0
+  min_trajectory_length_m: 2.0
   reprojection_information_weight: 1.0
   inertial_information_weight: 1.0
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
+  output_folder: ""
 
 inertial_odometry:
   imu_topic: "/imu/data"

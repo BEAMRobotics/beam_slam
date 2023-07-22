@@ -40,7 +40,9 @@ void RelativeImuState3DStampedConstraint::print(std::ostream& stream) const {
          << "  ImuState_j Position variable: " << variables().at(6) << "\n"
          << "  ImuState_j Velocity variable: " << variables().at(7) << "\n"
          << "  ImuState_j GyroBias variable: " << variables().at(8) << "\n"
-         << "  ImuState_j AccelBias variable: " << variables().at(9) << "\n";
+         << "  ImuState_j AccelBias variable: " << variables().at(9) << "\n"
+         << "  sqrt_info: \n"
+         << info_weight_ * pre_integrator_->delta.sqrt_inv_cov << "\n";
 }
 
 ceres::CostFunction* RelativeImuState3DStampedConstraint::costFunction() const {
