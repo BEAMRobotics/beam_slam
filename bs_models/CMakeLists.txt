@@ -198,8 +198,11 @@ if(CATKIN_ENABLE_TESTING)
   )
 
   # IMU preintegration tests
+  # to build these tests, first install Sophus using function from beam_install_scripts
+  # then clone https://github.com/BEAMRobotics/basalt-headers-mirror to your catkin ws
   find_package(basalt QUIET)
   if(basalt_FOUND)
+  find_package(fmt)
     catkin_add_gtest(${PROJECT_NAME}_imu_preintegration_tests
       tests/imu_preintegration_tests.cpp
     )
@@ -211,6 +214,7 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(${PROJECT_NAME}_imu_preintegration_tests
       ${PROJECT_NAME}
       ${basalt_LIBRARIES}
+      fmt::fmt
     )
     set_target_properties(${PROJECT_NAME}_imu_preintegration_tests
       PROPERTIES
