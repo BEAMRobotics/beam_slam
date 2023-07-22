@@ -577,8 +577,7 @@ void SLAMInitialization::SendInitializationGraph() {
 }
 
 void SLAMInitialization::OutputResults() {
-  ROS_INFO_STREAM(__func__ << ": Outputting initialization results to '"
-                           << params_.output_folder << "'");
+  BEAM_INFO("Outputting initialization results to {}", params_.output_folder);
   pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
   beam_mapping::Poses poses;
   for (const auto& [stamp, pose] : init_path_) {
@@ -595,14 +594,29 @@ void SLAMInitialization::OutputResults() {
     boost::filesystem::create_directory(params_.output_folder);
   }
 
+  // create save directory
+  std::string save_path = beam::CombinePaths(
+      params_.output_folder,
+      beam::ConvertTimeToDate(std::chrono::system_clock::now()));
+  boost::filesystem::create_directory(save_path);
+
+  // output graph
+  std::string graph_txt_path = beam::CombinePaths({save_path, "graph.txt"});
+  std::ofstream out_graph_file;
+  out_graph_file.open(graph_txt_path);
+  std::stringstream ss;
+  local_graph_->print(ss);
+  out_graph_file << ss.rdbuf();
+  out_graph_file.close();
+
   // output trajectory as a txt file (tx ty tz, qx qy qz qw)
-  std::string txt_path = beam::CombinePaths(
-      {params_.output_folder, "initialization_trajectory.txt"});
+  std::string txt_path =
+      beam::CombinePaths({save_path, "initialization_trajectory.txt"});
   poses.WriteToTXT(txt_path, beam_mapping::format_type::Type2);
 
   // output trajectory as a point cloud
-  std::string pcd_path = beam::CombinePaths(
-      {params_.output_folder, "initialization_trajectory.pcd"});
+  std::string pcd_path =
+      beam::CombinePaths({save_path, "initialization_trajectory.pcd"});
   std::string error_message{};
   if (!beam::SavePointCloud<pcl::PointXYZRGB>(
           pcd_path, frame_cloud, beam::PointCloudFileType::PCDBINARY,
@@ -611,7 +625,10 @@ void SLAMInitialization::OutputResults() {
   }
 
   if (lidar_path_init_) {
-    lidar_path_init_->OutputResults(params_.output_folder);
+    std::string lidar_results_path =
+        beam::CombinePaths(save_path, "lidar_results");
+    boost::filesystem::create_directory(lidar_results_path);
+    lidar_path_init_->OutputResults(lidar_results_path);
   }
 }
 

@@ -112,6 +112,11 @@ private:
   Eigen::Matrix4d T_BASELINK_LIDAR_;
   std::set<double> registration_times_;
 
+  // for outputting results
+  PointCloud map_optimized_;
+  PointCloud map_registered_;
+  PointCloud map_init_;
+
   // params only tunable here
   bool forward_predict_{false};
   int min_spline_count_{8};

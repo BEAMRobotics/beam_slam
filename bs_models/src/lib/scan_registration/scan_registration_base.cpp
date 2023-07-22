@@ -45,9 +45,6 @@ std::unique_ptr<ScanRegistrationBase>
     if (registration_type == "SCANTOMAP") {
       ScanToMapLoamRegistration::Params params;
       params.LoadFromJson(registration_config);
-      params.save_path = save_path;
-      std::cout << "TEST1\n";
-      params.Print();
       registration = std::make_unique<ScanToMapLoamRegistration>(
           std::move(matcher), params.GetBaseParams(), params.map_size,
           params.store_full_cloud);
