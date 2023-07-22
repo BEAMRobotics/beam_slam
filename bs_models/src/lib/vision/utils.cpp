@@ -20,7 +20,6 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     fuse_core::Loss::SharedPtr loss_function, double max_optimization_time,
     double information_weight, double keyframe_hz) {
   assert(landmark_container->NumImages() > 3);
-
   // Get matches between first and last image in the window
   const auto first_time = landmark_container->FrontTimestamp();
   const auto last_time = landmark_container->BackTimestamp();
@@ -88,7 +87,11 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
 
   // If not enough inliers, return
   float inlier_ratio = (float)inlier_indices.size() / first_landmarks.size();
-  if (inlier_ratio < 0.8) { return {}; }
+  if (inlier_ratio < 0.8) {
+    ROS_WARN_STREAM(__func__ << ": Invalid image pair. Inlier Ratio: "
+                             << inlier_ratio);
+    return {};
+  }
   ROS_INFO_STREAM(__func__ << ": Valid image pair. Inlier Ratio: "
                            << inlier_ratio
                            << ". Attempting Visual Path Estimation.");

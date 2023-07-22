@@ -188,7 +188,8 @@ void SLAMInitialization::processCameraMeasurements(
   ROS_INFO("Attempting visual initialization");
   init_path_ = bs_models::vision::ComputePathWithVision(
       cam_model_, landmark_container_, T_cam_baselink_,
-      params_.reprojection_loss, 1.0, params_.reprojection_information_weight);
+      params_.reprojection_loss, 1.0, params_.reprojection_information_weight,
+      10.0);
 
   // if we initialize successfully, stop this sensor model
   if (Initialize()) {
@@ -261,9 +262,15 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
 bool SLAMInitialization::Initialize() {
   // prune poses in path at start that don't have >= imu messages before it
+  if (imu_buffer_.empty()) {
+    ROS_ERROR_STREAM(__func__ << ": IMU buffer empty, cannot initialize!");
+    return false;
+  }
+
   auto second_imu_msg = std::next(imu_buffer_.begin());
   while (init_path_.begin()->first < second_imu_msg->header.stamp.toNSec()) {
     init_path_.erase(init_path_.begin()->first);
+    // todo: also remove from the lidar initialization
   }
 
   if (init_path_.size() < 3) {
