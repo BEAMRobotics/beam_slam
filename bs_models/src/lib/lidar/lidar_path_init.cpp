@@ -16,18 +16,21 @@ namespace bs_models {
 
 using namespace beam_matching;
 
-LidarPathInit::LidarPathInit(int lidar_buffer_size)
+LidarPathInit::LidarPathInit(int lidar_buffer_size,
+                             const std::string& matcher_config)
     : lidar_buffer_size_(lidar_buffer_size) {
   // init scan registration
-  std::shared_ptr<LoamParams> matcher_params =
-      std::make_shared<LoamParams>("DEFAULT_PATH");
-
-  // override iteration since we need this to be fast and scans are very close
-  // to each other so iteration isn't as necessary
-  matcher_params->iterate_correspondences = true;
-  matcher_params->max_correspondence_iterations = 5;
-  matcher_params->max_correspondence_distance = 0.25;
-  matcher_params->max_corner_less_sharp = 10;
+  std::shared_ptr<LoamParams> matcher_params;
+  if (matcher_config.empty()) {
+    matcher_params = std::make_shared<LoamParams>("DEFAULT_PATH");
+    // set well tested config
+    matcher_params->iterate_correspondences = true;
+    matcher_params->max_correspondence_iterations = 5;
+    matcher_params->max_correspondence_distance = 0.25;
+    matcher_params->max_corner_less_sharp = 10;
+  } else {
+    matcher_params = std::make_shared<LoamParams>(matcher_config);
+  }
 
   // override ceres config
   beam_optimization::CeresParams ceres_params;

@@ -84,7 +84,8 @@ void SLAMInitialization::onInit() {
     mode_ = InitMode::VISUAL;
   } else if (params_.init_mode == "LIDAR") {
     mode_ = InitMode::LIDAR;
-    lidar_path_init_ = std::make_unique<LidarPathInit>(lidar_buffer_size_);
+    lidar_path_init_ = std::make_unique<LidarPathInit>(lidar_buffer_size_,
+                                                       params_.matcher_config);
   } else {
     throw std::invalid_argument{"invalid init mode, options: VISUAL, LIDAR"};
   }

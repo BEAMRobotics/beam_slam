@@ -68,6 +68,14 @@ public:
     getParam<double>(nh, "max_triangulation_reprojection",
                      max_triangulation_reprojection, 40.0);
 
+    std::string matcher_config_rel;
+    getParam<std::string>(nh, "matcher_config", matcher_config_rel,
+                          matcher_config_rel);
+    if (!matcher_config_rel.empty()) {
+      matcher_config = beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
+                                          matcher_config_rel);
+    }
+
     double reprojection_loss_a = 10.0 * reprojection_information_weight;
     // reprojection loss
     reprojection_loss =
@@ -82,6 +90,7 @@ public:
   std::string init_mode{"FRAMEINIT"};
   std::string output_folder{""};
 
+  std::string matcher_config;
   double max_optimization_s{1.0};
   double inertial_info_weight{1.0};
   double min_trajectory_length_m{2.0};

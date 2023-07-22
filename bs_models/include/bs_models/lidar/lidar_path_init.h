@@ -21,7 +21,8 @@ using LidarTransactionType =
 
 class LidarPathInit {
 public:
-  explicit LidarPathInit(int lidar_buffer_size);
+  explicit LidarPathInit(int lidar_buffer_size,
+                         const std::string& matcher_config);
 
   void ProcessLidar(const sensor_msgs::PointCloud2::ConstPtr& msg);
 

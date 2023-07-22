@@ -49,8 +49,9 @@ slam_initialization:
   min_trajectory_length_m: 2.0
   reprojection_information_weight: 1.0
   inertial_information_weight: 1.0
-  max_triangulation_distance: 50.0
-  max_triangulation_reprojection: 30.0
+  max_triangulation_distance: 50.0 # vision specific
+  max_triangulation_reprojection: 30.0 # vision specific
+  matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
   output_folder: "/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
 
 
