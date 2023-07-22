@@ -48,18 +48,6 @@ private:
   Eigen::Matrix<double, 15, 15> A_; //!< The residual weighting matrix
 };
 
-template <typename T>
-inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
-  Eigen::Quaternion<T> dq;
-  Eigen::Matrix<T, 3, 1> half_theta = theta;
-  half_theta /= static_cast<T>(2.0);
-  dq.w() = static_cast<T>(1.0);
-  dq.x() = half_theta(0, 0);
-  dq.y() = half_theta(1, 0);
-  dq.z() = half_theta(2, 0);
-  return dq;
-}
-
 NormalDeltaImuState3DCostFunctor::NormalDeltaImuState3DCostFunctor(
     const bs_common::ImuState& imu_state_i,
     const std::shared_ptr<bs_common::PreIntegrator> pre_integrator,
@@ -108,7 +96,7 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
 
   // calculate orientation residuals
   Eigen::Matrix<T, 3, 1> q_tmp = dq_dbg * dbg;
-  Eigen::Quaternion<T> q_corrected = dq * DeltaQ(q_tmp);
+  Eigen::Quaternion<T> q_corrected = dq * bs_common::DeltaQ(q_tmp);
   Eigen::Matrix<T, 3, 1> res_q =
       static_cast<T>(2) * (q_corrected.inverse() * (q_i.inverse() * q_j)).vec();
   residual[0] = res_q[0];
