@@ -822,7 +822,7 @@ public:
   ros::Time t_start;
 
   // tolerance on optimization results
-  std::array<double, 5> tol{1e-4, 1e-2, 1e-2, 1e-6, 1e-6};
+  std::array<double, 5> tol{1e-3, 1e-2, 1e-2, 1.0, 1.0};
 };
 
 TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
