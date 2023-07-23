@@ -17,6 +17,26 @@
 #include <bs_models/imu/imu_preintegration.h>
 #include <test_utils.h>
 
+int CountVariables(
+    const fuse_core::Transaction::const_variable_range& variable_range) {
+  int counter = 0;
+  for (auto iter = variable_range.begin(); iter != variable_range.end();
+       iter++) {
+    counter++;
+  }
+  return counter;
+}
+
+int CountConstraints(
+    const fuse_core::Transaction::const_constraint_range& constraint_range) {
+  int counter = 0;
+  for (auto iter = constraint_range.begin(); iter != constraint_range.end();
+       iter++) {
+    counter++;
+  }
+  return counter;
+}
+
 void CalculateRelativeMotion(const bs_common::ImuState& IS1,
                              const bs_common::ImuState& IS2,
                              ros::Duration& delta_t,
@@ -498,12 +518,14 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
    */
 
   // instantiate preintegration class with invalid prior noise
+  double noise_orig = params.cov_prior_noise;
   EXPECT_ANY_THROW({
     bs_models::ImuPreintegration::Params params;
     params.cov_prior_noise = 0;
     std::unique_ptr<bs_models::ImuPreintegration> dummy_imu_preintegration =
         std::make_unique<bs_models::ImuPreintegration>(params);
   });
+  params.cov_prior_noise = noise_orig;
 
   /**
    * SetStart() functionality
@@ -585,10 +607,14 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
    * RegisterNewImuPreintegratedFactor() functionality
    */
   // expect false as incorrect time will return nullptr
-  EXPECT_FALSE(imu_preintegration->RegisterNewImuPreintegratedFactor(t_start));
+  auto transaction_init =
+      imu_preintegration->RegisterNewImuPreintegratedFactor(t_start);
+  EXPECT_TRUE(transaction_init);
+  EXPECT_TRUE(CountVariables(transaction_init->addedVariables()) == 5);
+  EXPECT_TRUE(CountConstraints(transaction_init->addedConstraints()) == 1);
 
   // generate transaction to perform imu preintegration
-  auto transaction =
+  auto transaction_final =
       imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
 
   // get end imu state from preintegration
@@ -597,35 +623,42 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   bs_models::test::ExpectImuStateNear(IS_end, IS3);
 
   // validate stamps
-  EXPECT_TRUE(transaction->stamp() == IS_end.Stamp());
+  EXPECT_TRUE(transaction_final->stamp() == IS_end.Stamp());
 
   // Create the graph
   fuse_graphs::HashGraph graph;
 
   // add variables and validate uuids for each transaction
-  std::vector<fuse_core::UUID> transaction_uuids;
-  transaction_uuids = AddVariables(transaction, graph);
-  EXPECT_TRUE(transaction_uuids.size() == 10);
+  std::vector<fuse_core::UUID> transaction_uuids_init = AddVariables(transaction_init, graph);
+  std::vector<fuse_core::UUID> transaction_uuids_final = AddVariables(transaction_final, graph);
+  EXPECT_TRUE(transaction_uuids_init.size() == 5);
+  EXPECT_TRUE(transaction_uuids_final.size() == 5);
 
-  std::vector<fuse_core::UUID> state_uuids;
-  state_uuids.emplace_back(IS_start.Orientation().uuid());
-  state_uuids.emplace_back(IS_start.Position().uuid());
-  state_uuids.emplace_back(IS_start.Velocity().uuid());
-  state_uuids.emplace_back(IS_start.GyroBias().uuid());
-  state_uuids.emplace_back(IS_start.AccelBias().uuid());
-  state_uuids.emplace_back(IS_end.Orientation().uuid());
-  state_uuids.emplace_back(IS_end.Position().uuid());
-  state_uuids.emplace_back(IS_end.Velocity().uuid());
-  state_uuids.emplace_back(IS_end.GyroBias().uuid());
-  state_uuids.emplace_back(IS_end.AccelBias().uuid());
+  std::vector<fuse_core::UUID> state_uuids_init_expected;
+  std::vector<fuse_core::UUID> state_uuids_final_expected;
+  state_uuids_init_expected.emplace_back(IS_start.Orientation().uuid());
+  state_uuids_init_expected.emplace_back(IS_start.Position().uuid());
+  state_uuids_init_expected.emplace_back(IS_start.Velocity().uuid());
+  state_uuids_init_expected.emplace_back(IS_start.GyroBias().uuid());
+  state_uuids_init_expected.emplace_back(IS_start.AccelBias().uuid());
+  state_uuids_final_expected.emplace_back(IS_end.Orientation().uuid());
+  state_uuids_final_expected.emplace_back(IS_end.Position().uuid());
+  state_uuids_final_expected.emplace_back(IS_end.Velocity().uuid());
+  state_uuids_final_expected.emplace_back(IS_end.GyroBias().uuid());
+  state_uuids_final_expected.emplace_back(IS_end.AccelBias().uuid());
 
-  std::sort(transaction_uuids.begin(), transaction_uuids.end());
-  std::sort(state_uuids.begin(), state_uuids.end());
-  EXPECT_TRUE(transaction_uuids == state_uuids);
+  std::sort(state_uuids_final_expected.begin(), state_uuids_final_expected.end());
+  std::sort(state_uuids_init_expected.begin(), state_uuids_init_expected.end());
+  std::sort(transaction_uuids_init.begin(), transaction_uuids_init.end());
+  std::sort(transaction_uuids_final.begin(), transaction_uuids_final.end());
+  
+  EXPECT_TRUE(transaction_uuids_final == state_uuids_final_expected);
+  EXPECT_TRUE(transaction_uuids_init == state_uuids_init_expected);
 
   // add constraints and validate for transaction
   int counter{0};
-  counter += AddConstraints(transaction, graph);
+  counter += AddConstraints(transaction_init, graph);
+  counter += AddConstraints(transaction_final, graph);
   EXPECT_TRUE(counter == 2);
 
   // optimize the constraints and variables.

@@ -202,7 +202,7 @@ if(CATKIN_ENABLE_TESTING)
   # then clone https://github.com/BEAMRobotics/basalt-headers-mirror to your catkin ws
   find_package(basalt QUIET)
   if(basalt_FOUND)
-  find_package(fmt)
+    find_package(fmt)
     catkin_add_gtest(${PROJECT_NAME}_imu_preintegration_tests
       tests/imu_preintegration_tests.cpp
     )

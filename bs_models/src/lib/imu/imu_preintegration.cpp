@@ -55,8 +55,9 @@ ImuPreintegration::ImuPreintegration(const Params& params,
 }
 
 void ImuPreintegration::CheckParameters() {
-  if (params_.cov_prior_noise <= 0) {
-    ROS_ERROR("Prior noise on IMU state must be positive");
+  if (params_.cov_prior_noise <= 0.0) {
+    ROS_ERROR("Prior noise on IMU state must be greater than zero, value: %.9f",
+              params_.cov_prior_noise);
     throw std::invalid_argument{"Inputs to ImuPreintegration invalid."};
   }
 }
@@ -80,9 +81,11 @@ void ImuPreintegration::AddToBuffer(const bs_common::IMUData& imu_data) {
 }
 
 PoseWithCovariance ImuPreintegration::GetPose(const ros::Time& t_now) {
-  assert(t_now >= imu_state_k_.Stamp() &&
-         "Requested time is before current imu state. Request a "
-         "pose at a timestamp >= the most recent imu measurement");
+  if (t_now < imu_state_k_.Stamp()) {
+    throw std::runtime_error{
+        "Requested time is before current imu state. Request a "
+        "pose at a timestamp >= the most recent imu measurement"};
+  }
 
   // integrate between frames if there is data to integrate
   if (!pre_integrator_kj_.data.empty()) {
@@ -111,17 +114,23 @@ PoseWithCovariance ImuPreintegration::GetPose(const ros::Time& t_now) {
 
 PoseWithCovariance ImuPreintegration::GetRelativeMotion(
     const ros::Time& t1, const ros::Time& t2, Eigen::Vector3d& velocity_t2) {
-  assert(!pre_integrator_ij_.data.empty() &&
-         "No data in preintegrator, cannot retrieve relative motion.");
-  assert(t1 >= imu_state_i_.Stamp() &&
-         "Requested time is before current window of measurements.");
-  assert(t1 <= pre_integrator_ij_.data.back().t &&
-         "Requested start time is after the end of the current window of imu "
-         "measurements.");
-  assert(t2 >= pre_integrator_ij_.data.front().t &&
-         "Requested end time is before the start of the current window of imu "
-         "measurements.");
-  assert(t1 < t2 && "Start time of window must preceed end times.");
+  if (pre_integrator_ij_.data.empty()) {
+    throw std::runtime_error{
+        "No data in preintegrator, cannot retrieve relative motion."};
+  } else if (t1 < imu_state_i_.Stamp()) {
+    throw std::runtime_error{
+        "Requested time is before current window of measurements."};
+  } else if (t1 > pre_integrator_ij_.data.back().t) {
+    throw std::runtime_error{
+        "Requested start time is after the end of the current window of imu "
+        "measurements."};
+  } else if (t2 < pre_integrator_ij_.data.front().t) {
+    throw std::runtime_error{
+        "Requested end time is before the start of the current window of imu "
+        "measurements."};
+  } else if (t1 >= t2) {
+    throw std::runtime_error{"Start time of window must precede end times."};
+  }
 
   // get state at t1
   bs_common::ImuState imu_state_1;
@@ -252,6 +261,7 @@ fuse_core::Transaction::SharedPtr
                                            "FIRST_IMU_STATE_PRIOR");
     transaction.AddImuStateVariables(imu_state_i_);
     first_window_ = false;
+    return transaction.GetTransaction();
   }
 
   // integrate between key frames, incrementally calculating covariance and
