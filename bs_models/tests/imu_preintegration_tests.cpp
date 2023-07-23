@@ -911,6 +911,107 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
   }
 }
 
+TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactionsPosePrios) {
+  // set start
+  fuse_variables::Orientation3DStamped::SharedPtr o_start =
+      fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
+  fuse_variables::Position3DStamped::SharedPtr p_start =
+      fuse_variables::Position3DStamped::make_shared(IS1.Position());
+  fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
+      fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
+  imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
+
+  // create graph
+  fuse_graphs::HashGraph graph;
+
+  // with the introduction of process noise, assess multiple transactions over a
+  // smaller windows, taking key frames every second (as recorded by the ground
+  // truth poses). Though predicted poses will not match the ground truth poses,
+  // they should be reasonably close given typical process noise
+  int cur_time = 1;
+  // populate ImuPreintegration with synthetic imu measurements
+  for (bs_common::IMUData msg : data.imu_data_gt) {
+    // adjust raw IMU measurements with biases and noise
+    msg.w[0] += bg[0] + gyro_noise_dist(gen);
+    msg.w[1] += bg[1] + gyro_noise_dist(gen);
+    msg.w[2] += bg[2] + gyro_noise_dist(gen);
+
+    msg.a[0] += ba[0] + accel_noise_dist(gen);
+    msg.a[1] += ba[1] + accel_noise_dist(gen);
+    msg.a[2] += ba[2] + accel_noise_dist(gen);
+
+    // populate IMU message buffer
+    imu_preintegration->AddToBuffer(msg);
+
+    if (msg.t == ros::Time(cur_time) && cur_time - 1 < data.pose_gt.size()) {
+      // get ground truth pose every key frame
+      ros::Time t_now = ros::Time(cur_time);
+      Eigen::Matrix4d T_WORLD_IMU_gt = data.pose_gt.at(cur_time - 1);
+
+      // convert ground truth pose to fuse variable shared pointers
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt =
+          std::make_shared<fuse_variables::Orientation3DStamped>(t_now);
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt =
+          std::make_shared<fuse_variables::Position3DStamped>(t_now);
+
+      Eigen::Quaterniond q(T_WORLD_IMU_gt.block<3, 3>(0, 0));
+      Eigen::Vector3d t = T_WORLD_IMU_gt.block<3, 1>(0, 3);
+      R_WORLD_IMU_gt->x() = q.x();
+      R_WORLD_IMU_gt->y() = q.y();
+      R_WORLD_IMU_gt->z() = q.z();
+      R_WORLD_IMU_gt->w() = q.w();
+      t_WORLD_IMU_gt->x() = t.x();
+      t_WORLD_IMU_gt->y() = t.y();
+      t_WORLD_IMU_gt->z() = t.z();
+      graph.addVariable(R_WORLD_IMU_gt);
+      graph.addVariable(t_WORLD_IMU_gt);
+
+      // Register factor
+      auto transaction =
+          imu_preintegration->RegisterNewImuPreintegratedFactor(t_now);
+
+      // get predicted, current IMU state
+      IS_predicted_vec.emplace_back(imu_preintegration->GetImuState());
+
+      // update and optimize
+      graph.update(*transaction);
+
+      ceres::Solver::Options options;
+      options.minimizer_progress_to_stdout = true;
+      options.logging_type = ceres::PER_MINIMIZER_ITERATION;
+      std::cout << graph.optimize(options).FullReport() << std::endl;
+
+      // get ground truth IMU state
+      bs_common::ImuState IS_ground_truth(t_now);
+      IS_ground_truth.SetOrientation(q);
+      IS_ground_truth.SetPosition(t);
+      IS_ground_truth.SetVelocity(data.linear_velocity_gt.at(cur_time - 1));
+      IS_ground_truth.SetGyroBias(bg);
+      IS_ground_truth.SetAccelBias(ba);
+
+      IS_ground_truth_vec.emplace_back(IS_ground_truth);
+
+      cur_time++;
+    }
+  }
+
+  // update IMU states with optimized graph
+  auto g = fuse_graphs::HashGraph::make_shared(graph);
+  for (size_t i = 0; i < IS_predicted_vec.size(); i++) {
+    // get copy of predicted and update
+    bs_common::ImuState& IS_predicted = IS_predicted_vec.at(i);
+    IS_predicted.Update(g);
+
+    // DEBUG
+    IS_predicted.Print();
+    IS_ground_truth_vec.at(i).Print();
+
+    // check is approx. close to ground truth
+    bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
+                                        tol);
+  }
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
