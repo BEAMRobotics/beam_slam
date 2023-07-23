@@ -927,7 +927,7 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
 }
 
 TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
-       MultipleTransactionsPosePrios) {
+       MultipleTransactionsPosePriors) {
   // set start
   fuse_variables::Orientation3DStamped::SharedPtr o_start =
       fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
@@ -972,6 +972,9 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
 
       Eigen::Quaterniond q(T_WORLD_IMU_gt.block<3, 3>(0, 0));
       Eigen::Vector3d t = T_WORLD_IMU_gt.block<3, 1>(0, 3);
+      fuse_core::Vector7d mean;
+      mean << t.x(), t.y(), t.z(), q.w(), q.x(), q.y(), q.z();
+      fuse_core::Matrix6d cov = Eigen::Matrix<double, 6, 6>::Identity() * 0.1;
       R_WORLD_IMU_gt->x() = q.x();
       R_WORLD_IMU_gt->y() = q.y();
       R_WORLD_IMU_gt->z() = q.z();
@@ -981,6 +984,11 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
       t_WORLD_IMU_gt->z() = t.z();
       graph.addVariable(R_WORLD_IMU_gt);
       graph.addVariable(t_WORLD_IMU_gt);
+
+      fuse_constraints::AbsolutePose3DStampedConstraint::SharedPtr prior =
+          std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+              "IMUTEST", *t_WORLD_IMU_gt, *R_WORLD_IMU_gt, mean, cov);
+      graph.addConstraint(prior);
 
       // Register factor
       auto transaction =
