@@ -93,37 +93,39 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
 
   // map gravity to templated
   Eigen::Matrix<T, 3, 1> G = GRAVITY_WORLD.cast<T>();
-
-  // calculate orientation residuals
+  
   Eigen::Matrix<T, 3, 1> q_tmp = dq_dbg * dbg;
   Eigen::Quaternion<T> q_corrected = dq * bs_common::DeltaQ(q_tmp);
+  Eigen::Matrix<T, 3, 1> p_corrected = dp + dp_dbg * dbg + dp_dba * dba;
+  Eigen::Matrix<T, 3, 1> v_corrected = dv + dv_dbg * dbg + dv_dba * dba;
+
+  // calculate orientation residual
   Eigen::Matrix<T, 3, 1> res_q =
       static_cast<T>(2) * (q_corrected.inverse() * (q_i.inverse() * q_j)).vec();
-  residual[0] = res_q[0];
-  residual[1] = res_q[1];
-  residual[2] = res_q[2];
 
-  // calculate position residuals
-  Eigen::Matrix<T, 3, 1> p_corrected = dp + dp_dbg * dbg + dp_dba * dba;
-  Eigen::Matrix<T, 3, 1> p_delta =
+  // calculate position residual
+  Eigen::Matrix<T, 3, 1> res_p =
       q_i.conjugate() *
-      (p_j - p_i - dt * v_i - static_cast<T>(0.5) * dt * dt * G);
-  Eigen::Matrix<T, 3, 1> res_p = p_delta - p_corrected;
-  residual[3] = res_p[0];
-  residual[4] = res_p[1];
-  residual[5] = res_p[2];
+          (p_j - p_i - dt * v_i - static_cast<T>(0.5) * dt * dt * G) -
+      p_corrected;
 
-  // calculate velocity residuals
-  Eigen::Matrix<T, 3, 1> v_corrected = dv + dv_dbg * dbg + dv_dba * dba;
-  Eigen::Matrix<T, 3, 1> v_delta = q_i.conjugate() * (v_j - v_i - dt * G);
-  Eigen::Matrix<T, 3, 1> res_v = v_delta - v_corrected;
-  residual[6] = res_v[0];
-  residual[7] = res_v[1];
-  residual[8] = res_v[2];
+  // calculate velocity residual
+  Eigen::Matrix<T, 3, 1> res_v =
+      q_i.conjugate() * (v_j - v_i - dt * G) - v_corrected;
 
   // calculate bias residuals
   Eigen::Matrix<T, 3, 1> res_bg = bg_j - bg_i;
   Eigen::Matrix<T, 3, 1> res_ba = ba_j - ba_i;
+
+  residual[0] = res_q[0];
+  residual[1] = res_q[1];
+  residual[2] = res_q[2];
+  residual[3] = res_p[0];
+  residual[4] = res_p[1];
+  residual[5] = res_p[2];
+  residual[6] = res_v[0];
+  residual[7] = res_v[1];
+  residual[8] = res_v[2];
   residual[9] = res_bg[0];
   residual[10] = res_bg[1];
   residual[11] = res_bg[2];

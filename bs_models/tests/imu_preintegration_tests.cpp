@@ -771,55 +771,58 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
   imu_preintegration->Clear();
 }
 
-class ImuPreintegration_ProccessNoiseConstantBiasNick : public ::testing::Test {
+class ImuPreintegration_ProccessNoiseConstantBias : public ::testing::Test {
 public:
   void SetUp() override {
     // set small, random bias values
-    _bg = Eigen::Vector3d::Random() / 100;
-    _ba = Eigen::Vector3d::Random() / 10;
+    bg = Eigen::Vector3d::Random() / 100;
+    ba = Eigen::Vector3d::Random() / 10;
 
     // set intrinsic noise of imu
-    _params.cov_gyro_noise.setIdentity() * GYRO_STD_DEV* GYRO_STD_DEV;
-    _params.cov_accel_noise.setIdentity() * ACCEL_STD_DEV* ACCEL_STD_DEV;
-    _params.cov_gyro_bias.setIdentity() * 1e-9;
-    _params.cov_accel_bias.setIdentity() * 1e-9;
+    params.cov_gyro_noise.setIdentity() * GYRO_STD_DEV* GYRO_STD_DEV;
+    params.cov_accel_noise.setIdentity() * ACCEL_STD_DEV* ACCEL_STD_DEV;
+    params.cov_gyro_bias.setIdentity() * 1e-9;
+    params.cov_accel_bias.setIdentity() * 1e-9;
 
     // instantiate preintegration class with gaussian noise. By default,
     // bias terms (i.e. bg, ba) are set to zero
-    _imu_preintegration =
-        std::make_unique<bs_models::ImuPreintegration>(_params, _bg, _ba);
+    imu_preintegration =
+        std::make_unique<bs_models::ImuPreintegration>(params, bg, ba);
 
     // get copies of IMU states at start and assign constant biases
-    _IS1 = _data.IS1;
-    _IS1.SetGyroBias(_bg);
-    _IS1.SetAccelBias(_ba);
+    IS1 = data.IS1;
+    IS1.SetGyroBias(bg);
+    IS1.SetAccelBias(ba);
 
     // get stamp of IMU state at start
-    _t_start = _IS1.Stamp();
+    t_start = IS1.Stamp();
   }
 
   // assume Euroc MAV dataset noise
   const double ACCEL_STD_DEV = 0.013026127;
   const double GYRO_STD_DEV = 0.044721359;
 
-  std::normal_distribution<> _gyro_noise_dist{0, GYRO_STD_DEV};
-  std::normal_distribution<> _accel_noise_dist{0, ACCEL_STD_DEV};
+  std::normal_distribution<> gyro_noise_dist{0, GYRO_STD_DEV};
+  std::normal_distribution<> accel_noise_dist{0, ACCEL_STD_DEV};
 
   std::random_device rd{};
-  std::mt19937 _gen{rd()};
+  std::mt19937 gen{rd()};
 
-  Eigen::Vector3d _bg;
-  Eigen::Vector3d _ba;
+  Eigen::Vector3d bg;
+  Eigen::Vector3d ba;
 
-  Data _data;
-  bs_models::ImuPreintegration::Params _params;
-  std::unique_ptr<bs_models::ImuPreintegration> _imu_preintegration;
+  Data data;
+  bs_models::ImuPreintegration::Params params;
+  std::unique_ptr<bs_models::ImuPreintegration> imu_preintegration;
 
-  bs_common::ImuState _IS1;
-  ros::Time _t_start;
+  bs_common::ImuState IS1;
+  std::vector<bs_common::ImuState> IS_predicted_vec;
+  std::vector<bs_common::ImuState> IS_ground_truth_vec;
+
+  ros::Time t_start;
 
   // tolerance on optimization results
-  std::array<double, 5> _tol{1e-4, 1e-2, 1e-2, 1e-6, 1e-6};
+  std::array<double, 5> tol{1e-4, 1e-2, 1e-2, 1e-6, 1e-6};
 };
 
 TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
@@ -1024,6 +1027,57 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
                                         tol);
   }
 }
+
+class ImuPreintegration_ProccessNoiseConstantBiasNick : public ::testing::Test {
+public:
+  void SetUp() override {
+    // set small, random bias values
+    _bg = Eigen::Vector3d::Random() / 100;
+    _ba = Eigen::Vector3d::Random() / 10;
+
+    // set intrinsic noise of imu
+    _params.cov_gyro_noise.setIdentity() * GYRO_STD_DEV* GYRO_STD_DEV;
+    _params.cov_accel_noise.setIdentity() * ACCEL_STD_DEV* ACCEL_STD_DEV;
+    _params.cov_gyro_bias.setIdentity() * 1e-9;
+    _params.cov_accel_bias.setIdentity() * 1e-9;
+
+    // instantiate preintegration class with gaussian noise. By default,
+    // bias terms (i.e. bg, ba) are set to zero
+    _imu_preintegration =
+        std::make_unique<bs_models::ImuPreintegration>(_params, _bg, _ba);
+
+    // get copies of IMU states at start and assign constant biases
+    _IS1 = _data.IS1;
+    _IS1.SetGyroBias(_bg);
+    _IS1.SetAccelBias(_ba);
+
+    // get stamp of IMU state at start
+    _t_start = _IS1.Stamp();
+  }
+
+  // assume Euroc MAV dataset noise
+  const double ACCEL_STD_DEV = 0.013026127;
+  const double GYRO_STD_DEV = 0.044721359;
+
+  std::normal_distribution<> _gyro_noise_dist{0, GYRO_STD_DEV};
+  std::normal_distribution<> _accel_noise_dist{0, ACCEL_STD_DEV};
+
+  std::random_device rd{};
+  std::mt19937 _gen{rd()};
+
+  Eigen::Vector3d _bg;
+  Eigen::Vector3d _ba;
+
+  Data _data;
+  bs_models::ImuPreintegration::Params _params;
+  std::unique_ptr<bs_models::ImuPreintegration> _imu_preintegration;
+
+  bs_common::ImuState _IS1;
+  ros::Time _t_start;
+
+  // tolerance on optimization results
+  std::array<double, 5> _tol{1e-4, 1e-2, 1e-2, 1e-6, 1e-6};
+};
 
 TEST_F(ImuPreintegration_ProccessNoiseConstantBiasNick, MultipleTransactions) {
   // set start

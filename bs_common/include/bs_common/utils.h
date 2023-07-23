@@ -22,7 +22,7 @@
 #  define GRAVITY_NOMINAL 9.80665
 #endif
 
-static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, GRAVITY_NOMINAL};
+static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, -GRAVITY_NOMINAL};
 
 namespace bs_common {
 
