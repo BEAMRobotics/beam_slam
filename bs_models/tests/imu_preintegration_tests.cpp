@@ -882,8 +882,8 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
 
       // get ground truth IMU state
       bs_common::ImuState IS_ground_truth(t_now);
-      IS_ground_truth.SetOrientation(R_WORLD_IMU_gt->data());
-      IS_ground_truth.SetPosition(t_WORLD_IMU_gt->data());
+      IS_ground_truth.SetOrientation(q);
+      IS_ground_truth.SetPosition(t);
       IS_ground_truth.SetVelocity(data.linear_velocity_gt.at(cur_time - 1));
       IS_ground_truth.SetGyroBias(bg);
       IS_ground_truth.SetAccelBias(ba);
