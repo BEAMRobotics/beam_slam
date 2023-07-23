@@ -261,6 +261,11 @@ fuse_core::Transaction::SharedPtr
                                            "FIRST_IMU_STATE_PRIOR");
     transaction.AddImuStateVariables(imu_state_i_);
     first_window_ = false;
+  }
+
+  // if current time is equal to the first imu time, then we can't add a
+  // relative constraint
+  if (t_now == pre_integrator_ij_.data.front().t) {
     return transaction.GetTransaction();
   }
 

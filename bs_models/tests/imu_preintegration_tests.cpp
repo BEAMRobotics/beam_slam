@@ -609,13 +609,14 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   // expect false as incorrect time will return nullptr
   auto transaction_init =
       imu_preintegration->RegisterNewImuPreintegratedFactor(t_start);
-  EXPECT_TRUE(transaction_init);
-  EXPECT_TRUE(CountVariables(transaction_init->addedVariables()) == 5);
-  EXPECT_TRUE(CountConstraints(transaction_init->addedConstraints()) == 1);
 
   // generate transaction to perform imu preintegration
   auto transaction_final =
       imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
+
+  EXPECT_TRUE(transaction_init);
+  EXPECT_TRUE(CountVariables(transaction_init->addedVariables()) == 5);
+  EXPECT_TRUE(CountConstraints(transaction_init->addedConstraints()) == 1);
 
   // get end imu state from preintegration
   bs_common::ImuState IS_end = imu_preintegration->GetImuState();
