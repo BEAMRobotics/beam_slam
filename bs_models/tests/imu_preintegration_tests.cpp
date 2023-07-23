@@ -19,8 +19,10 @@
 #include <bs_models/imu/imu_preintegration.h>
 #include <test_utils.h>
 
-void OutputResults(const std::string& output_pcd,
-                   const std::vector<bs_common::ImuState>& imu_states) {
+std::string save_path_ = "/home/nick/debug/imu_tests";
+
+void OutputImuStates(const std::string& output_pcd,
+                     const std::vector<bs_common::ImuState>& imu_states) {
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   for (const auto& imu_state : imu_states) {
     pcl::PointCloud<pcl::PointXYZRGBL> current_state_cloud =
@@ -924,6 +926,22 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
     bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
                                         tol);
   }
+
+  if (!save_path_.empty()) {
+    if (!boost::filesystem::exists(save_path_)) {
+      std::cout << "invalid save path, not outputting imu states\n";
+    } else {
+      std::string test_path =
+          beam::CombinePaths(save_path_, "NoiseConstBNoPriors");
+      if (!boost::filesystem::exists(test_path)) {
+        boost::filesystem::create_directory(test_path);
+      }
+      OutputImuStates(beam::CombinePaths(test_path, "poses_gt.pcd"),
+                      IS_ground_truth_vec);
+      OutputImuStates(beam::CombinePaths(test_path, "poses_predicted.pcd"),
+                      IS_predicted_vec);
+    }
+  }
 }
 
 TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
@@ -1033,6 +1051,22 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
     // check is approx. close to ground truth
     bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
                                         tol);
+  }
+
+  if (!save_path_.empty()) {
+    if (!boost::filesystem::exists(save_path_)) {
+      std::cout << "invalid save path, not outputting imu states\n";
+    } else {
+      std::string test_path =
+          beam::CombinePaths(save_path_, "NoiseConstBWithPriors");
+      if (!boost::filesystem::exists(test_path)) {
+        boost::filesystem::create_directory(test_path);
+      }
+      OutputImuStates(beam::CombinePaths(test_path, "poses_gt.pcd"),
+                      IS_ground_truth_vec);
+      OutputImuStates(beam::CombinePaths(test_path, "poses_predicted.pcd"),
+                      IS_predicted_vec);
+    }
   }
 }
 
@@ -1176,11 +1210,20 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBiasNick, MultipleTransactions) {
                                         _tol);
   }
 
-  std::string save_path = "/home/nick/debug/imu_tests";
-  OutputResults(beam::CombinePaths(save_path, "poses_gt.pcd"),
-                IS_ground_truth_vec);
-  OutputResults(beam::CombinePaths(save_path, "poses_predicted.pcd"),
-                IS_predicted_vec);
+  if (!save_path_.empty()) {
+    if (!boost::filesystem::exists(save_path_)) {
+      std::cout << "invalid save path, not outputting imu states\n";
+    } else {
+      std::string test_path = beam::CombinePaths(save_path_, "NoiseConstBNick");
+      if (!boost::filesystem::exists(test_path)) {
+        boost::filesystem::create_directory(test_path);
+      }
+      OutputImuStates(beam::CombinePaths(test_path, "poses_gt.pcd"),
+                      IS_ground_truth_vec);
+      OutputImuStates(beam::CombinePaths(test_path, "poses_predicted.pcd"),
+                      IS_predicted_vec);
+    }
+  }
 }
 
 int main(int argc, char** argv) {
