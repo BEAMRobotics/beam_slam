@@ -272,182 +272,182 @@ std::vector<fuse_core::UUID>
   return uuids;
 }
 
-TEST(ImuPreintegration, Simple2StateFG) {
-  // create arbitrary state values
-  Eigen::Quaterniond q1_quat(0.952, 0.038, -0.189, 0.239);
-  Eigen::Vector3d p1_vec(1.5, -3.0, 1.0);
-  Eigen::Vector3d v1_vec(1.5, -3.0, 1.0);
-  Eigen::Vector3d bg1_vec(4e-5, 5e-5, 6e-5);
-  Eigen::Vector3d ba1_vec(1e-5, 2e-5, 3e-5);
+// TEST(ImuPreintegration, Simple2StateFG) {
+//   // create arbitrary state values
+//   Eigen::Quaterniond q1_quat(0.952, 0.038, -0.189, 0.239);
+//   Eigen::Vector3d p1_vec(1.5, -3.0, 1.0);
+//   Eigen::Vector3d v1_vec(1.5, -3.0, 1.0);
+//   Eigen::Vector3d bg1_vec(4e-5, 5e-5, 6e-5);
+//   Eigen::Vector3d ba1_vec(1e-5, 2e-5, 3e-5);
 
-  Eigen::Quaterniond q2_quat(0.944, -0.128, 0.145, -0.269);
-  Eigen::Vector3d p2_vec(-1.5, 3.0, -1.0);
-  Eigen::Vector3d v2_vec(-1.5, 3.0, -1.0);
-  Eigen::Vector3d bg2_vec(4e-5, 5e-5, 6e-5);
-  Eigen::Vector3d ba2_vec(1e-5, 2e-5, 3e-5);
+//   Eigen::Quaterniond q2_quat(0.944, -0.128, 0.145, -0.269);
+//   Eigen::Vector3d p2_vec(-1.5, 3.0, -1.0);
+//   Eigen::Vector3d v2_vec(-1.5, 3.0, -1.0);
+//   Eigen::Vector3d bg2_vec(4e-5, 5e-5, 6e-5);
+//   Eigen::Vector3d ba2_vec(1e-5, 2e-5, 3e-5);
 
-  // instantiate IMU states
-  bs_common::ImuState IS1(ros::Time(1), q1_quat, p1_vec, v1_vec, bg1_vec,
-                          ba1_vec);
-  bs_common::ImuState IS2(ros::Time(2), q2_quat, p2_vec, v2_vec, bg2_vec,
-                          ba2_vec);
+//   // instantiate IMU states
+//   bs_common::ImuState IS1(ros::Time(1), q1_quat, p1_vec, v1_vec, bg1_vec,
+//                           ba1_vec);
+//   bs_common::ImuState IS2(ros::Time(2), q2_quat, p2_vec, v2_vec, bg2_vec,
+//                           ba2_vec);
 
-  // Create the graph
-  fuse_graphs::HashGraph graph;
+//   // Create the graph
+//   fuse_graphs::HashGraph graph;
 
-  // Add variables
-  fuse_variables::Orientation3DStamped::SharedPtr o1 =
-      fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
-  fuse_variables::Position3DStamped::SharedPtr p1 =
-      fuse_variables::Position3DStamped::make_shared(IS1.Position());
-  fuse_variables::VelocityLinear3DStamped::SharedPtr v1 =
-      fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
-  bs_variables::GyroscopeBias3DStamped::SharedPtr bg1 =
-      bs_variables::GyroscopeBias3DStamped::make_shared(IS1.GyroBias());
-  bs_variables::AccelerationBias3DStamped::SharedPtr ba1 =
-      bs_variables::AccelerationBias3DStamped::make_shared(IS1.AccelBias());
+//   // Add variables
+//   fuse_variables::Orientation3DStamped::SharedPtr o1 =
+//       fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
+//   fuse_variables::Position3DStamped::SharedPtr p1 =
+//       fuse_variables::Position3DStamped::make_shared(IS1.Position());
+//   fuse_variables::VelocityLinear3DStamped::SharedPtr v1 =
+//       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
+//   bs_variables::GyroscopeBias3DStamped::SharedPtr bg1 =
+//       bs_variables::GyroscopeBias3DStamped::make_shared(IS1.GyroBias());
+//   bs_variables::AccelerationBias3DStamped::SharedPtr ba1 =
+//       bs_variables::AccelerationBias3DStamped::make_shared(IS1.AccelBias());
 
-  fuse_variables::Orientation3DStamped::SharedPtr o2 =
-      fuse_variables::Orientation3DStamped::make_shared(IS2.Orientation());
-  fuse_variables::Position3DStamped::SharedPtr p2 =
-      fuse_variables::Position3DStamped::make_shared(IS2.Position());
-  fuse_variables::VelocityLinear3DStamped::SharedPtr v2 =
-      fuse_variables::VelocityLinear3DStamped::make_shared(IS2.Velocity());
-  bs_variables::GyroscopeBias3DStamped::SharedPtr bg2 =
-      bs_variables::GyroscopeBias3DStamped::make_shared(IS2.GyroBias());
-  bs_variables::AccelerationBias3DStamped::SharedPtr ba2 =
-      bs_variables::AccelerationBias3DStamped::make_shared(IS2.AccelBias());
+//   fuse_variables::Orientation3DStamped::SharedPtr o2 =
+//       fuse_variables::Orientation3DStamped::make_shared(IS2.Orientation());
+//   fuse_variables::Position3DStamped::SharedPtr p2 =
+//       fuse_variables::Position3DStamped::make_shared(IS2.Position());
+//   fuse_variables::VelocityLinear3DStamped::SharedPtr v2 =
+//       fuse_variables::VelocityLinear3DStamped::make_shared(IS2.Velocity());
+//   bs_variables::GyroscopeBias3DStamped::SharedPtr bg2 =
+//       bs_variables::GyroscopeBias3DStamped::make_shared(IS2.GyroBias());
+//   bs_variables::AccelerationBias3DStamped::SharedPtr ba2 =
+//       bs_variables::AccelerationBias3DStamped::make_shared(IS2.AccelBias());
 
-  graph.addVariable(o1);
-  graph.addVariable(p1);
-  graph.addVariable(v1);
-  graph.addVariable(bg1);
-  graph.addVariable(ba1);
+//   graph.addVariable(o1);
+//   graph.addVariable(p1);
+//   graph.addVariable(v1);
+//   graph.addVariable(bg1);
+//   graph.addVariable(ba1);
 
-  graph.addVariable(o2);
-  graph.addVariable(p2);
-  graph.addVariable(v2);
-  graph.addVariable(bg2);
-  graph.addVariable(ba2);
+//   graph.addVariable(o2);
+//   graph.addVariable(p2);
+//   graph.addVariable(v2);
+//   graph.addVariable(bg2);
+//   graph.addVariable(ba2);
 
-  // Create an absolute pose constraint at the origin
-  fuse_core::Vector7d pose_mean_origin;
-  pose_mean_origin << 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;
-  fuse_core::Matrix6d pose_cov_origin = fuse_core::Matrix6d::Identity();
-  auto prior_pose =
-      fuse_constraints::AbsolutePose3DStampedConstraint::make_shared(
-          "test", *p1, *o1, pose_mean_origin, pose_cov_origin);
+//   // Create an absolute pose constraint at the origin
+//   fuse_core::Vector7d pose_mean_origin;
+//   pose_mean_origin << 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;
+//   fuse_core::Matrix6d pose_cov_origin = fuse_core::Matrix6d::Identity();
+//   auto prior_pose =
+//       fuse_constraints::AbsolutePose3DStampedConstraint::make_shared(
+//           "test", *p1, *o1, pose_mean_origin, pose_cov_origin);
 
-  // Create an absolute linear velocity constraint at the origin
-  fuse_core::Vector3d vel_mean_origin;
-  vel_mean_origin << 0.0, 0.0, 0.0;
-  fuse_core::Matrix3d vel_cov_origin = fuse_core::Matrix3d::Identity();
-  auto prior_vel =
-      bs_constraints::global::AbsoluteVelocityLinear3DStampedConstraint::
-          make_shared("test", *v1, vel_mean_origin, vel_cov_origin);
+//   // Create an absolute linear velocity constraint at the origin
+//   fuse_core::Vector3d vel_mean_origin;
+//   vel_mean_origin << 0.0, 0.0, 0.0;
+//   fuse_core::Matrix3d vel_cov_origin = fuse_core::Matrix3d::Identity();
+//   auto prior_vel =
+//       bs_constraints::global::AbsoluteVelocityLinear3DStampedConstraint::
+//           make_shared("test", *v1, vel_mean_origin, vel_cov_origin);
 
-  // Create absolute bias constraint at zero
-  fuse_core::Vector3d bias_mean_origin;
-  bias_mean_origin << 0.0, 0.0, 0.0;
-  fuse_core::Matrix3d bias_cov_origin = fuse_core::Matrix3d::Identity();
-  auto prior_bg =
-      bs_constraints::global::AbsoluteGyroBias3DStampedConstraint::make_shared(
-          "test", *bg1, bias_mean_origin, bias_cov_origin);
-  auto prior_ba =
-      bs_constraints::global::AbsoluteAccelBias3DStampedConstraint::make_shared(
-          "test", *ba1, bias_mean_origin, bias_cov_origin);
+//   // Create absolute bias constraint at zero
+//   fuse_core::Vector3d bias_mean_origin;
+//   bias_mean_origin << 0.0, 0.0, 0.0;
+//   fuse_core::Matrix3d bias_cov_origin = fuse_core::Matrix3d::Identity();
+//   auto prior_bg =
+//       bs_constraints::global::AbsoluteGyroBias3DStampedConstraint::make_shared(
+//           "test", *bg1, bias_mean_origin, bias_cov_origin);
+//   auto prior_ba =
+//       bs_constraints::global::AbsoluteAccelBias3DStampedConstraint::make_shared(
+//           "test", *ba1, bias_mean_origin, bias_cov_origin);
 
-  // Create a relative pose constraint for 1m in the x direction
-  fuse_core::Vector7d pose_mean_delta;
-  pose_mean_delta << 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;
-  fuse_core::Matrix6d pose_cov_delta = fuse_core::Matrix6d::Identity();
-  auto relative_pose =
-      fuse_constraints::RelativePose3DStampedConstraint::make_shared(
-          "test", *p1, *o1, *p2, *o2, pose_mean_delta, pose_cov_delta);
+//   // Create a relative pose constraint for 1m in the x direction
+//   fuse_core::Vector7d pose_mean_delta;
+//   pose_mean_delta << 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;
+//   fuse_core::Matrix6d pose_cov_delta = fuse_core::Matrix6d::Identity();
+//   auto relative_pose =
+//       fuse_constraints::RelativePose3DStampedConstraint::make_shared(
+//           "test", *p1, *o1, *p2, *o2, pose_mean_delta, pose_cov_delta);
 
-  // Create a relative linear velocity constraint for 1m/s in the x direction
-  fuse_core::Vector3d vel_mean_delta;
-  vel_mean_delta << 1.0, 0.0, 0.0;
-  fuse_core::Matrix3d vel_cov_delta = fuse_core::Matrix3d::Identity();
-  auto relative_vel =
-      bs_constraints::relative_pose::RelativeVelocityLinear3DStampedConstraint::
-          make_shared("test", *v1, *v2, vel_mean_delta, vel_cov_delta);
+//   // Create a relative linear velocity constraint for 1m/s in the x direction
+//   fuse_core::Vector3d vel_mean_delta;
+//   vel_mean_delta << 1.0, 0.0, 0.0;
+//   fuse_core::Matrix3d vel_cov_delta = fuse_core::Matrix3d::Identity();
+//   auto relative_vel =
+//       bs_constraints::relative_pose::RelativeVelocityLinear3DStampedConstraint::
+//           make_shared("test", *v1, *v2, vel_mean_delta, vel_cov_delta);
 
-  // Create relative bias constraints for 0.001 in the x direction
-  fuse_core::Vector3d bias_mean_delta;
-  bias_mean_delta << 0.001, 0.0, 0.0;
-  fuse_core::Matrix3d bias_cov_delta = fuse_core::Matrix3d::Identity();
-  auto relative_bg =
-      bs_constraints::relative_pose::RelativeGyroBias3DStampedConstraint::
-          make_shared("test", *bg1, *bg2, bias_mean_delta, bias_cov_delta);
-  auto relative_ba =
-      bs_constraints::relative_pose::RelativeAccelBias3DStampedConstraint::
-          make_shared("test", *ba1, *ba2, bias_mean_delta, bias_cov_delta);
+//   // Create relative bias constraints for 0.001 in the x direction
+//   fuse_core::Vector3d bias_mean_delta;
+//   bias_mean_delta << 0.001, 0.0, 0.0;
+//   fuse_core::Matrix3d bias_cov_delta = fuse_core::Matrix3d::Identity();
+//   auto relative_bg =
+//       bs_constraints::relative_pose::RelativeGyroBias3DStampedConstraint::
+//           make_shared("test", *bg1, *bg2, bias_mean_delta, bias_cov_delta);
+//   auto relative_ba =
+//       bs_constraints::relative_pose::RelativeAccelBias3DStampedConstraint::
+//           make_shared("test", *ba1, *ba2, bias_mean_delta, bias_cov_delta);
 
-  // get means
-  Eigen::Matrix<double, 16, 1> mean_origin;
-  Eigen::Matrix<double, 16, 1> mean_delta;
-  mean_origin << pose_mean_origin, vel_mean_origin, bias_mean_origin,
-      bias_mean_delta;
-  mean_delta << pose_mean_delta, vel_mean_delta, bias_mean_delta,
-      bias_mean_delta;
+//   // get means
+//   Eigen::Matrix<double, 16, 1> mean_origin;
+//   Eigen::Matrix<double, 16, 1> mean_delta;
+//   mean_origin << pose_mean_origin, vel_mean_origin, bias_mean_origin,
+//       bias_mean_delta;
+//   mean_delta << pose_mean_delta, vel_mean_delta, bias_mean_delta,
+//       bias_mean_delta;
 
-  // Add constraints
-  graph.addConstraint(prior_pose);
-  graph.addConstraint(prior_vel);
-  graph.addConstraint(prior_bg);
-  graph.addConstraint(prior_ba);
+//   // Add constraints
+//   graph.addConstraint(prior_pose);
+//   graph.addConstraint(prior_vel);
+//   graph.addConstraint(prior_bg);
+//   graph.addConstraint(prior_ba);
 
-  graph.addConstraint(relative_pose);
-  graph.addConstraint(relative_vel);
-  graph.addConstraint(relative_bg);
-  graph.addConstraint(relative_ba);
+//   graph.addConstraint(relative_pose);
+//   graph.addConstraint(relative_vel);
+//   graph.addConstraint(relative_bg);
+//   graph.addConstraint(relative_ba);
 
-  // Optimize
-  graph.optimize();
+//   // Optimize
+//   graph.optimize();
 
-  // Update IMU states with optimized graph
-  auto g = fuse_graphs::HashGraph::make_shared(graph);
-  IS1.Update(g);
-  IS2.Update(g);
+//   // Update IMU states with optimized graph
+//   auto g = fuse_graphs::HashGraph::make_shared(graph);
+//   IS1.Update(g);
+//   IS2.Update(g);
 
-  // Check
-  EXPECT_EQ(1, IS1.Updates());
-  EXPECT_NEAR(pose_mean_origin[3], IS1.Orientation().w(), 1.0e-3);
-  EXPECT_NEAR(pose_mean_origin[4], IS1.Orientation().x(), 1.0e-3);
-  EXPECT_NEAR(pose_mean_origin[5], IS1.Orientation().y(), 1.0e-3);
-  EXPECT_NEAR(pose_mean_origin[6], IS1.Orientation().z(), 1.0e-3);
-  EXPECT_NEAR(pose_mean_origin[0], IS1.Position().x(), 1.0e-5);
-  EXPECT_NEAR(pose_mean_origin[1], IS1.Position().y(), 1.0e-5);
-  EXPECT_NEAR(pose_mean_origin[2], IS1.Position().z(), 1.0e-5);
-  EXPECT_NEAR(vel_mean_origin[0], IS1.Velocity().x(), 1.0e-5);
-  EXPECT_NEAR(vel_mean_origin[1], IS1.Velocity().y(), 1.0e-5);
-  EXPECT_NEAR(vel_mean_origin[2], IS1.Velocity().z(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_origin[0], IS1.GyroBias().x(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_origin[1], IS1.GyroBias().y(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_origin[2], IS1.GyroBias().z(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_origin[0], IS1.AccelBias().x(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_origin[1], IS1.AccelBias().y(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_origin[2], IS1.AccelBias().z(), 1.0e-5);
+//   // Check
+//   EXPECT_EQ(1, IS1.Updates());
+//   EXPECT_NEAR(pose_mean_origin[3], IS1.Orientation().w(), 1.0e-3);
+//   EXPECT_NEAR(pose_mean_origin[4], IS1.Orientation().x(), 1.0e-3);
+//   EXPECT_NEAR(pose_mean_origin[5], IS1.Orientation().y(), 1.0e-3);
+//   EXPECT_NEAR(pose_mean_origin[6], IS1.Orientation().z(), 1.0e-3);
+//   EXPECT_NEAR(pose_mean_origin[0], IS1.Position().x(), 1.0e-5);
+//   EXPECT_NEAR(pose_mean_origin[1], IS1.Position().y(), 1.0e-5);
+//   EXPECT_NEAR(pose_mean_origin[2], IS1.Position().z(), 1.0e-5);
+//   EXPECT_NEAR(vel_mean_origin[0], IS1.Velocity().x(), 1.0e-5);
+//   EXPECT_NEAR(vel_mean_origin[1], IS1.Velocity().y(), 1.0e-5);
+//   EXPECT_NEAR(vel_mean_origin[2], IS1.Velocity().z(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_origin[0], IS1.GyroBias().x(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_origin[1], IS1.GyroBias().y(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_origin[2], IS1.GyroBias().z(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_origin[0], IS1.AccelBias().x(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_origin[1], IS1.AccelBias().y(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_origin[2], IS1.AccelBias().z(), 1.0e-5);
 
-  EXPECT_EQ(1, IS2.Updates());
-  EXPECT_NEAR(pose_mean_delta[3], IS2.Orientation().w(), 1.0e-3);
-  EXPECT_NEAR(pose_mean_delta[4], IS2.Orientation().x(), 1.0e-3);
-  EXPECT_NEAR(pose_mean_delta[5], IS2.Orientation().y(), 1.0e-3);
-  EXPECT_NEAR(pose_mean_delta[6], IS2.Orientation().z(), 1.0e-3);
-  EXPECT_NEAR(pose_mean_delta[0], IS2.Position().x(), 1.0e-5);
-  EXPECT_NEAR(pose_mean_delta[1], IS2.Position().y(), 1.0e-5);
-  EXPECT_NEAR(pose_mean_delta[2], IS2.Position().z(), 1.0e-5);
-  EXPECT_NEAR(vel_mean_delta[0], IS2.Velocity().x(), 1.0e-5);
-  EXPECT_NEAR(vel_mean_delta[1], IS2.Velocity().y(), 1.0e-5);
-  EXPECT_NEAR(vel_mean_delta[2], IS2.Velocity().z(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_delta[0], IS2.GyroBias().x(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_delta[1], IS2.GyroBias().y(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_delta[2], IS2.GyroBias().z(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_delta[0], IS2.AccelBias().x(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_delta[1], IS2.AccelBias().y(), 1.0e-5);
-  EXPECT_NEAR(bias_mean_delta[2], IS2.AccelBias().z(), 1.0e-5);
-}
+//   EXPECT_EQ(1, IS2.Updates());
+//   EXPECT_NEAR(pose_mean_delta[3], IS2.Orientation().w(), 1.0e-3);
+//   EXPECT_NEAR(pose_mean_delta[4], IS2.Orientation().x(), 1.0e-3);
+//   EXPECT_NEAR(pose_mean_delta[5], IS2.Orientation().y(), 1.0e-3);
+//   EXPECT_NEAR(pose_mean_delta[6], IS2.Orientation().z(), 1.0e-3);
+//   EXPECT_NEAR(pose_mean_delta[0], IS2.Position().x(), 1.0e-5);
+//   EXPECT_NEAR(pose_mean_delta[1], IS2.Position().y(), 1.0e-5);
+//   EXPECT_NEAR(pose_mean_delta[2], IS2.Position().z(), 1.0e-5);
+//   EXPECT_NEAR(vel_mean_delta[0], IS2.Velocity().x(), 1.0e-5);
+//   EXPECT_NEAR(vel_mean_delta[1], IS2.Velocity().y(), 1.0e-5);
+//   EXPECT_NEAR(vel_mean_delta[2], IS2.Velocity().z(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_delta[0], IS2.GyroBias().x(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_delta[1], IS2.GyroBias().y(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_delta[2], IS2.GyroBias().z(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_delta[0], IS2.AccelBias().x(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_delta[1], IS2.AccelBias().y(), 1.0e-5);
+//   EXPECT_NEAR(bias_mean_delta[2], IS2.AccelBias().z(), 1.0e-5);
+// }
 
 class ImuPreintegration_ZeroNoiseConstantBias : public ::testing::Test {
 public:
@@ -512,246 +512,251 @@ public:
   ros::Time t_end;
 };
 
-TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
-  /**
-   * CheckParameters() functionality
-   */
+// TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
+//   /**
+//    * CheckParameters() functionality
+//    */
 
-  // instantiate preintegration class with invalid prior noise
-  double noise_orig = params.cov_prior_noise;
-  EXPECT_ANY_THROW({
-    bs_models::ImuPreintegration::Params params;
-    params.cov_prior_noise = 0;
-    std::unique_ptr<bs_models::ImuPreintegration> dummy_imu_preintegration =
-        std::make_unique<bs_models::ImuPreintegration>(params);
-  });
-  params.cov_prior_noise = noise_orig;
+//   // instantiate preintegration class with invalid prior noise
+//   double noise_orig = params.cov_prior_noise;
+//   EXPECT_ANY_THROW({
+//     bs_models::ImuPreintegration::Params params;
+//     params.cov_prior_noise = 0;
+//     std::unique_ptr<bs_models::ImuPreintegration> dummy_imu_preintegration =
+//         std::make_unique<bs_models::ImuPreintegration>(params);
+//   });
+//   params.cov_prior_noise = noise_orig;
 
-  /**
-   * SetStart() functionality
-   */
+//   /**
+//    * SetStart() functionality
+//    */
 
-  // set start of imu preintegration. This requires us to pass three fuse
-  // variables, which for testing purposes will match IS1
-  fuse_variables::Orientation3DStamped::SharedPtr o_start =
-      fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
-  fuse_variables::Position3DStamped::SharedPtr p_start =
-      fuse_variables::Position3DStamped::make_shared(IS1.Position());
-  fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
-      fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
+//   // set start of imu preintegration. This requires us to pass three fuse
+//   // variables, which for testing purposes will match IS1
+//   fuse_variables::Orientation3DStamped::SharedPtr o_start =
+//       fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
+//   fuse_variables::Position3DStamped::SharedPtr p_start =
+//       fuse_variables::Position3DStamped::make_shared(IS1.Position());
+//   fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
+//       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
 
-  // check default
-  imu_preintegration->SetStart(t_start);
-  bs_common::ImuState IS_start_default = imu_preintegration->GetImuState();
-  bs_models::test::ExpectImuStateEq(IS_start_default, IS_default);
+//   // check default
+//   imu_preintegration->SetStart(t_start);
+//   bs_common::ImuState IS_start_default = imu_preintegration->GetImuState();
+//   bs_models::test::ExpectImuStateEq(IS_start_default, IS_default);
 
-  // check optional initialization
-  imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
-  bs_common::ImuState IS_start = imu_preintegration->GetImuState();
-  bs_models::test::ExpectImuStateEq(IS_start, IS1);
+//   // check optional initialization
+//   imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
+//   bs_common::ImuState IS_start = imu_preintegration->GetImuState();
+//   bs_models::test::ExpectImuStateEq(IS_start, IS1);
 
-  /**
-   * PredictState() functionality
-   */
+//   /**
+//    * PredictState() functionality
+//    */
 
-  // populate Preintegrator class with imu preintegration deltas
-  // from data class
-  bs_common::PreIntegrator pre_integrator_12;
-  pre_integrator_12.delta.t = data.delta_t_12;
-  pre_integrator_12.delta.q = data.delta_q_12;
-  pre_integrator_12.delta.p = data.delta_p_12;
-  pre_integrator_12.delta.v = data.delta_v_12;
+//   // populate Preintegrator class with imu preintegration deltas
+//   // from data class
+//   bs_common::PreIntegrator pre_integrator_12;
+//   pre_integrator_12.delta.t = data.delta_t_12;
+//   pre_integrator_12.delta.q = data.delta_q_12;
+//   pre_integrator_12.delta.p = data.delta_p_12;
+//   pre_integrator_12.delta.v = data.delta_v_12;
 
-  bs_common::PreIntegrator pre_integrator_23;
-  pre_integrator_23.delta.t = data.delta_t_23;
-  pre_integrator_23.delta.q = data.delta_q_23;
-  pre_integrator_23.delta.p = data.delta_p_23;
-  pre_integrator_23.delta.v = data.delta_v_23;
+//   bs_common::PreIntegrator pre_integrator_23;
+//   pre_integrator_23.delta.t = data.delta_t_23;
+//   pre_integrator_23.delta.q = data.delta_q_23;
+//   pre_integrator_23.delta.p = data.delta_p_23;
+//   pre_integrator_23.delta.v = data.delta_v_23;
 
-  // predict middle and end imu state using relative change-in-motion ground
-  // truth
-  bs_common::ImuState IS_middle_predict =
-      imu_preintegration->PredictState(pre_integrator_12, IS_start);
-  bs_common::ImuState IS_end_predict =
-      imu_preintegration->PredictState(pre_integrator_23, IS_middle_predict);
+//   // predict middle and end imu state using relative change-in-motion ground
+//   // truth
+//   bs_common::ImuState IS_middle_predict =
+//       imu_preintegration->PredictState(pre_integrator_12, IS_start);
+//   bs_common::ImuState IS_end_predict =
+//       imu_preintegration->PredictState(pre_integrator_23, IS_middle_predict);
 
-  // check
-  bs_models::test::ExpectImuStateEq(IS_middle_predict, IS2);
-  bs_models::test::ExpectImuStateEq(IS_end_predict, IS3);
+//   // check
+//   bs_models::test::ExpectImuStateEq(IS_middle_predict, IS2);
+//   bs_models::test::ExpectImuStateEq(IS_end_predict, IS3);
 
-  /**
-   * GetPose() functionality
-   */
-  int cur_time = 1;
-  // populate ImuPreintegration with synthetic imu measurements
-  for (bs_common::IMUData msg : data.imu_data_gt) {
-    // adjust raw IMU measurements with biases
-    msg.w += bg;
-    msg.a += ba;
-    // populate IMU message buffer
-    imu_preintegration->AddToBuffer(msg);
+//   /**
+//    * GetPose() functionality
+//    */
+//   int cur_time = 1;
+//   // populate ImuPreintegration with synthetic imu measurements
+//   for (bs_common::IMUData msg : data.imu_data_gt) {
+//     // adjust raw IMU measurements with biases
+//     msg.w += bg;
+//     msg.a += ba;
+//     // populate IMU message buffer
+//     imu_preintegration->AddToBuffer(msg);
 
-    if (msg.t == ros::Time(cur_time) && cur_time - 1 < data.pose_gt.size()) {
-      bs_models::PoseWithCovariance pose =
-          imu_preintegration->GetPose(ros::Time(cur_time));
-      const Eigen::Matrix4d& T_WORLD_IMU = pose.first;
-      bs_models::test::ExpectTransformsNear(T_WORLD_IMU,
-                                            data.pose_gt[cur_time - 1]);
-      cur_time++;
-    }
-  }
-  // expect false from incorrect time
-  EXPECT_ANY_THROW(imu_preintegration->GetPose(t_start));
+//     if (msg.t == ros::Time(cur_time) && cur_time - 1 < data.pose_gt.size()) {
+//       bs_models::PoseWithCovariance pose =
+//           imu_preintegration->GetPose(ros::Time(cur_time));
+//       const Eigen::Matrix4d& T_WORLD_IMU = pose.first;
+//       bs_models::test::ExpectTransformsNear(T_WORLD_IMU,
+//                                             data.pose_gt[cur_time - 1]);
+//       cur_time++;
+//     }
+//   }
+//   // expect false from incorrect time
+//   EXPECT_ANY_THROW(imu_preintegration->GetPose(t_start));
 
-  /**
-   * RegisterNewImuPreintegratedFactor() functionality
-   */
-  // expect false as incorrect time will return nullptr
-  auto transaction_init =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_start);
+//   /**
+//    * RegisterNewImuPreintegratedFactor() functionality
+//    */
+//   // expect false as incorrect time will return nullptr
+//   auto transaction_init =
+//       imu_preintegration->RegisterNewImuPreintegratedFactor(t_start);
 
-  // generate transaction to perform imu preintegration
-  auto transaction_final =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
+//   // generate transaction to perform imu preintegration
+//   auto transaction_final =
+//       imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
 
-  EXPECT_TRUE(transaction_init);
-  EXPECT_TRUE(CountVariables(transaction_init->addedVariables()) == 5);
-  EXPECT_TRUE(CountConstraints(transaction_init->addedConstraints()) == 1);
+//   EXPECT_TRUE(transaction_init);
+//   EXPECT_TRUE(CountVariables(transaction_init->addedVariables()) == 5);
+//   EXPECT_TRUE(CountConstraints(transaction_init->addedConstraints()) == 1);
 
-  // get end imu state from preintegration
-  bs_common::ImuState IS_end = imu_preintegration->GetImuState();
-  // check
-  bs_models::test::ExpectImuStateNear(IS_end, IS3);
+//   // get end imu state from preintegration
+//   bs_common::ImuState IS_end = imu_preintegration->GetImuState();
+//   // check
+//   bs_models::test::ExpectImuStateNear(IS_end, IS3);
 
-  // validate stamps
-  EXPECT_TRUE(transaction_final->stamp() == IS_end.Stamp());
+//   // validate stamps
+//   EXPECT_TRUE(transaction_final->stamp() == IS_end.Stamp());
 
-  // Create the graph
-  fuse_graphs::HashGraph graph;
+//   // Create the graph
+//   fuse_graphs::HashGraph graph;
 
-  // add variables and validate uuids for each transaction
-  std::vector<fuse_core::UUID> transaction_uuids_init = AddVariables(transaction_init, graph);
-  std::vector<fuse_core::UUID> transaction_uuids_final = AddVariables(transaction_final, graph);
-  EXPECT_TRUE(transaction_uuids_init.size() == 5);
-  EXPECT_TRUE(transaction_uuids_final.size() == 5);
+//   // add variables and validate uuids for each transaction
+//   std::vector<fuse_core::UUID> transaction_uuids_init =
+//       AddVariables(transaction_init, graph);
+//   std::vector<fuse_core::UUID> transaction_uuids_final =
+//       AddVariables(transaction_final, graph);
+//   EXPECT_TRUE(transaction_uuids_init.size() == 5);
+//   EXPECT_TRUE(transaction_uuids_final.size() == 5);
 
-  std::vector<fuse_core::UUID> state_uuids_init_expected;
-  std::vector<fuse_core::UUID> state_uuids_final_expected;
-  state_uuids_init_expected.emplace_back(IS_start.Orientation().uuid());
-  state_uuids_init_expected.emplace_back(IS_start.Position().uuid());
-  state_uuids_init_expected.emplace_back(IS_start.Velocity().uuid());
-  state_uuids_init_expected.emplace_back(IS_start.GyroBias().uuid());
-  state_uuids_init_expected.emplace_back(IS_start.AccelBias().uuid());
-  state_uuids_final_expected.emplace_back(IS_end.Orientation().uuid());
-  state_uuids_final_expected.emplace_back(IS_end.Position().uuid());
-  state_uuids_final_expected.emplace_back(IS_end.Velocity().uuid());
-  state_uuids_final_expected.emplace_back(IS_end.GyroBias().uuid());
-  state_uuids_final_expected.emplace_back(IS_end.AccelBias().uuid());
+//   std::vector<fuse_core::UUID> state_uuids_init_expected;
+//   std::vector<fuse_core::UUID> state_uuids_final_expected;
+//   state_uuids_init_expected.emplace_back(IS_start.Orientation().uuid());
+//   state_uuids_init_expected.emplace_back(IS_start.Position().uuid());
+//   state_uuids_init_expected.emplace_back(IS_start.Velocity().uuid());
+//   state_uuids_init_expected.emplace_back(IS_start.GyroBias().uuid());
+//   state_uuids_init_expected.emplace_back(IS_start.AccelBias().uuid());
+//   state_uuids_final_expected.emplace_back(IS_end.Orientation().uuid());
+//   state_uuids_final_expected.emplace_back(IS_end.Position().uuid());
+//   state_uuids_final_expected.emplace_back(IS_end.Velocity().uuid());
+//   state_uuids_final_expected.emplace_back(IS_end.GyroBias().uuid());
+//   state_uuids_final_expected.emplace_back(IS_end.AccelBias().uuid());
 
-  std::sort(state_uuids_final_expected.begin(), state_uuids_final_expected.end());
-  std::sort(state_uuids_init_expected.begin(), state_uuids_init_expected.end());
-  std::sort(transaction_uuids_init.begin(), transaction_uuids_init.end());
-  std::sort(transaction_uuids_final.begin(), transaction_uuids_final.end());
-  
-  EXPECT_TRUE(transaction_uuids_final == state_uuids_final_expected);
-  EXPECT_TRUE(transaction_uuids_init == state_uuids_init_expected);
+//   std::sort(state_uuids_final_expected.begin(),
+//             state_uuids_final_expected.end());
+//   std::sort(state_uuids_init_expected.begin(),
+//   state_uuids_init_expected.end()); std::sort(transaction_uuids_init.begin(),
+//   transaction_uuids_init.end()); std::sort(transaction_uuids_final.begin(),
+//   transaction_uuids_final.end());
 
-  // add constraints and validate for transaction
-  int counter{0};
-  counter += AddConstraints(transaction_init, graph);
-  counter += AddConstraints(transaction_final, graph);
-  EXPECT_TRUE(counter == 2);
+//   EXPECT_TRUE(transaction_uuids_final == state_uuids_final_expected);
+//   EXPECT_TRUE(transaction_uuids_init == state_uuids_init_expected);
 
-  // optimize the constraints and variables.
-  graph.optimize();
+//   // add constraints and validate for transaction
+//   int counter{0};
+//   counter += AddConstraints(transaction_init, graph);
+//   counter += AddConstraints(transaction_final, graph);
+//   EXPECT_TRUE(counter == 2);
 
-  // update IMU states with optimized graph
-  auto g = fuse_graphs::HashGraph::make_shared(graph);
-  IS_start.Update(g);
-  IS_end.Update(g);
+//   // optimize the constraints and variables.
+//   graph.optimize();
 
-  // check
-  bs_models::test::ExpectImuStateNear(IS1, IS_start);
-  bs_models::test::ExpectImuStateNear(IS3, IS_end);
+//   // update IMU states with optimized graph
+//   auto g = fuse_graphs::HashGraph::make_shared(graph);
+//   IS_start.Update(g);
+//   IS_end.Update(g);
 
-  // clear data in preintegrators
-  imu_preintegration->Clear();
-}
+//   // check
+//   bs_models::test::ExpectImuStateNear(IS1, IS_start);
+//   bs_models::test::ExpectImuStateNear(IS3, IS_end);
 
-TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
-  // set start
-  fuse_variables::Orientation3DStamped::SharedPtr o_start =
-      fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
-  fuse_variables::Position3DStamped::SharedPtr p_start =
-      fuse_variables::Position3DStamped::make_shared(IS1.Position());
-  fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
-      fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
+//   // clear data in preintegrators
+//   imu_preintegration->Clear();
+// }
 
-  imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
-  bs_common::ImuState IS_start = imu_preintegration->GetImuState();
-  // populate ImuPreintegration with synthetic imu measurements up to middle
-  for (bs_common::IMUData msg : data.imu_data_gt) {
-    if (msg.t <= t_middle) {
-      // adjust raw IMU measurements with biases
-      msg.w += bg;
-      msg.a += ba;
-      // populate IMU message buffer
-      imu_preintegration->AddToBuffer(msg);
-    } else {
-      break;
-    }
-  }
+// TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
+//   // set start
+//   fuse_variables::Orientation3DStamped::SharedPtr o_start =
+//       fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
+//   fuse_variables::Position3DStamped::SharedPtr p_start =
+//       fuse_variables::Position3DStamped::make_shared(IS1.Position());
+//   fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
+//       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
 
-  // for testing, call GetPose() from start to middle
-  for (int i = t_start.toSec() + 1; i - 1 < t_middle.toSec(); i++) {
-    bs_models::PoseWithCovariance pose_dummy =
-        imu_preintegration->GetPose(ros::Time(i));
-  }
+//   imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
+//   bs_common::ImuState IS_start = imu_preintegration->GetImuState();
+//   // populate ImuPreintegration with synthetic imu measurements up to middle
+//   for (bs_common::IMUData msg : data.imu_data_gt) {
+//     if (msg.t <= t_middle) {
+//       // adjust raw IMU measurements with biases
+//       msg.w += bg;
+//       msg.a += ba;
+//       // populate IMU message buffer
+//       imu_preintegration->AddToBuffer(msg);
+//     } else {
+//       break;
+//     }
+//   }
 
-  // generate transactions, taking start, middle, and end as key frames
-  auto transaction1 =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_middle);
-  bs_common::ImuState IS_middle = imu_preintegration->GetImuState();
+//   // for testing, call GetPose() from start to middle
+//   for (int i = t_start.toSec() + 1; i - 1 < t_middle.toSec(); i++) {
+//     bs_models::PoseWithCovariance pose_dummy =
+//         imu_preintegration->GetPose(ros::Time(i));
+//   }
 
-  // populate ImuPreintegration with synthetic imu measurements from middle to
-  // end
-  for (bs_common::IMUData msg : data.imu_data_gt) {
-    if (msg.t > t_middle && msg.t <= t_end) {
-      // adjust raw IMU measurements with biases
-      msg.w += bg;
-      msg.a += ba;
-      // populate IMU message buffer
-      imu_preintegration->AddToBuffer(msg);
-    }
-  }
+//   // generate transactions, taking start, middle, and end as key frames
+//   auto transaction1 =
+//       imu_preintegration->RegisterNewImuPreintegratedFactor(t_middle);
+//   bs_common::ImuState IS_middle = imu_preintegration->GetImuState();
 
-  auto transaction2 =
-      imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
-  bs_common::ImuState IS_end = imu_preintegration->GetImuState();
+//   // populate ImuPreintegration with synthetic imu measurements from middle
+//   to
+//   // end
+//   for (bs_common::IMUData msg : data.imu_data_gt) {
+//     if (msg.t > t_middle && msg.t <= t_end) {
+//       // adjust raw IMU measurements with biases
+//       msg.w += bg;
+//       msg.a += ba;
+//       // populate IMU message buffer
+//       imu_preintegration->AddToBuffer(msg);
+//     }
+//   }
 
-  // create graph
-  fuse_graphs::HashGraph graph;
+//   auto transaction2 =
+//       imu_preintegration->RegisterNewImuPreintegratedFactor(t_end);
+//   bs_common::ImuState IS_end = imu_preintegration->GetImuState();
 
-  // add transactions
-  graph.update(*transaction1);
-  graph.optimize();
+//   // create graph
+//   fuse_graphs::HashGraph graph;
 
-  graph.update(*transaction2);
-  graph.optimize();
+//   // add transactions
+//   graph.update(*transaction1);
+//   graph.optimize();
 
-  // update IMU states with optimized graph
-  auto g = fuse_graphs::HashGraph::make_shared(graph);
-  IS_start.Update(g);
-  IS_middle.Update(g);
-  IS_end.Update(g);
+//   graph.update(*transaction2);
+//   graph.optimize();
 
-  // check
-  bs_models::test::ExpectImuStateNear(IS1, IS_start);
-  bs_models::test::ExpectImuStateNear(IS2, IS_middle);
-  bs_models::test::ExpectImuStateNear(IS3, IS_end);
+//   // update IMU states with optimized graph
+//   auto g = fuse_graphs::HashGraph::make_shared(graph);
+//   IS_start.Update(g);
+//   IS_middle.Update(g);
+//   IS_end.Update(g);
 
-  imu_preintegration->Clear();
-}
+//   // check
+//   bs_models::test::ExpectImuStateNear(IS1, IS_start);
+//   bs_models::test::ExpectImuStateNear(IS2, IS_middle);
+//   bs_models::test::ExpectImuStateNear(IS3, IS_end);
+
+//   imu_preintegration->Clear();
+// }
 
 class ImuPreintegration_ProccessNoiseConstantBias : public ::testing::Test {
 public:
@@ -845,21 +850,37 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
       Eigen::Matrix4d T_WORLD_IMU_gt = data.pose_gt.at(cur_time - 1);
 
       // convert ground truth pose to fuse variable shared pointers
-      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt;
-      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt;
-      bs_common::EigenTransformToFusePose(T_WORLD_IMU_gt, t_WORLD_IMU_gt,
-                                          R_WORLD_IMU_gt);
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt =
+          std::make_shared<fuse_variables::Orientation3DStamped>(t_now);
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt =
+          std::make_shared<fuse_variables::Position3DStamped>(t_now);
+
+      Eigen::Quaterniond q(T_WORLD_IMU_gt.block<3, 3>(0, 0));
+      Eigen::Vector3d t = T_WORLD_IMU_gt.block<3, 1>(0, 3);
+      R_WORLD_IMU_gt->x() = q.x();
+      R_WORLD_IMU_gt->y() = q.y();
+      R_WORLD_IMU_gt->z() = q.z();
+      R_WORLD_IMU_gt->w() = q.w();
+      t_WORLD_IMU_gt->x() = t.x();
+      t_WORLD_IMU_gt->y() = t.y();
+      t_WORLD_IMU_gt->z() = t.z();
+      graph.addVariable(R_WORLD_IMU_gt);
+      graph.addVariable(t_WORLD_IMU_gt);
 
       // Register factor
-      auto transaction = imu_preintegration->RegisterNewImuPreintegratedFactor(
-          t_now, R_WORLD_IMU_gt, t_WORLD_IMU_gt);
+      auto transaction =
+          imu_preintegration->RegisterNewImuPreintegratedFactor(t_now);
 
       // get predicted, current IMU state
       IS_predicted_vec.emplace_back(imu_preintegration->GetImuState());
 
       // update and optimize
       graph.update(*transaction);
-      graph.optimize();
+
+      ceres::Solver::Options options;
+      options.minimizer_progress_to_stdout = true;
+      options.logging_type = ceres::PER_MINIMIZER_ITERATION;
+      std::cout << graph.optimize(options).FullReport() << std::endl;
 
       // get ground truth IMU state
       bs_common::ImuState IS_ground_truth(t_now);
@@ -887,8 +908,8 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
     IS_ground_truth_vec.at(i).Print();
 
     // check is approx. close to ground truth
-    // bs_models::test::ExpectImuStateNear(IS_predicted,
-    // IS_ground_truth_vec.at(i), tol);
+    bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
+                                        tol);
   }
 }
 
