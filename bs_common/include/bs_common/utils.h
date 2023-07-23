@@ -2,23 +2,21 @@
 
 #include <fuse_core/graph.h>
 #include <fuse_core/transaction.h>
+#include <fuse_core/variable.h>
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
-#include <fuse_variables/orientation_3d_stamped.h>
-#include <fuse_variables/point_3d_landmark.h>
-#include <fuse_variables/position_3d_stamped.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
-#include <fuse_variables/velocity_linear_3d_stamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 #include <tf/transform_datatypes.h>
 
-#include <beam_matching/loam/LoamPointCloud.h>
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
-#include <bs_variables/accel_bias_3d_stamped.h>
-#include <bs_variables/gyro_bias_3d_stamped.h>
+
+#include <bs_common/imu_state.h>
 
 #ifndef GRAVITY_NOMINAL
 #  define GRAVITY_NOMINAL 9.80665
@@ -39,6 +37,13 @@ inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
   dq.z() = half_theta(2, 0);
   return dq;
 }
+
+// Draw a coordinate frame with a velocity vector.
+// For the frame: RGB corresponds to the frames (x-r, y-g, z-b) and label
+// corresponds to the timestamp For the velocity vector: RGB is always magenta,
+// label corresponds to the magnitude of velocity in mm/s (m/s * 1000)
+pcl::PointCloud<pcl::PointXYZRGBL>
+    ImuStateToCloudInWorld(const ImuState& imu_state);
 
 /// @brief
 /// @param T_WORLD_SENSOR

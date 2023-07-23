@@ -1,6 +1,46 @@
 #include <bs_common/utils.h>
 
+#include <fuse_variables/point_3d_landmark.h>
+
+#include <beam_utils/pointclouds.h>
+
 namespace bs_common {
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    ImuStateToCloudInWorld(const ImuState& imu_state) {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud_in_world;
+  Eigen::Matrix3d R_World_Imu = imu_state.OrientationMat();
+  Eigen::Matrix4d T_World_Imu;
+  T_World_Imu.block(0, 0, 3, 3) = R_World_Imu;
+  T_World_Imu.block(0, 3, 3, 1) = imu_state.PositionVec();
+
+  Eigen::Vector3d v_in_imu = imu_state.VelocityVec();
+  Eigen::Vector3d v_in_world = R_World_Imu * v_in_imu;
+  Eigen::Vector3d v_dir_in_world = v_in_world.normalized();
+  double v_mag_in_world = v_in_imu.norm();
+
+  double increment = 0.01;
+  double length = 0.3;
+  pcl::PointCloud<pcl::PointXYZRGBL> frame =
+      beam::CreateFrameCol(imu_state.Stamp(), increment, length);
+  beam::MergeFrameToCloud(cloud_in_world, frame, T_World_Imu);
+
+  double cur_length{0};
+  while (cur_length < length) {
+    Eigen::Vector3d p = cur_length * v_dir_in_world + imu_state.PositionVec();
+    pcl::PointXYZRGBL p_labeled;
+    p_labeled.x = p[0];
+    p_labeled.y = p[1];
+    p_labeled.z = p[2];
+    p_labeled.r = 255;
+    p_labeled.g = 0;
+    p_labeled.b = 255;
+    p_labeled.label = v_mag_in_world * 1000; 
+    cloud_in_world.points.emplace_back(p_labeled);
+    cur_length += increment;
+  }
+  return cloud_in_world;
+}
 
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                               fuse_variables::Position3DStamped& p,

@@ -7,7 +7,9 @@
 #include <fuse_graphs/hash_graph.h>
 #include <gtest/gtest.h>
 
+#include <beam_utils/filesystem.h>
 #include <beam_utils/math.h>
+#include <beam_utils/pointclouds.h>
 #include <beam_utils/se3.h>
 
 #include <bs_constraints/global/absolute_constraint.h>
@@ -16,6 +18,17 @@
 #include <bs_constraints/relative_pose/relative_constraints.h>
 #include <bs_models/imu/imu_preintegration.h>
 #include <test_utils.h>
+
+void OutputResults(const std::string& output_pcd,
+                   const std::vector<bs_common::ImuState>& imu_states) {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  for (const auto& imu_state : imu_states) {
+    pcl::PointCloud<pcl::PointXYZRGBL> current_state_cloud =
+        bs_common::ImuStateToCloudInWorld(imu_state);
+    cloud += current_state_cloud;
+  }
+  beam::SavePointCloud<pcl::PointXYZRGBL>(output_pcd, cloud);
+}
 
 int CountVariables(
     const fuse_core::Transaction::const_variable_range& variable_range) {
@@ -61,20 +74,19 @@ class Data {
 public:
   Data() {
     // set time of simulation
-    int64_t t_simulation = t_sim_start + t_sim_duration;
+    int64_t t_sim_end = t_sim_start + t_sim_duration;
 
     // set times of IMU states by converting nSec to Sec
     ros::Time t1_ros = ros::Time(t_sim_start * 1e-9);
-    ros::Time t2_ros = ros::Time((t_sim_start + t_simulation) * 0.5 * 1e-9);
-    ros::Time t3_ros = ros::Time(t_simulation * 1e-9);
+    ros::Time t2_ros = ros::Time((t_sim_start + t_sim_end) * 0.5 * 1e-9);
+    ros::Time t3_ros = ros::Time(t_sim_end * 1e-9);
 
     // generate spline
-    basalt::Se3Spline<5> gt_spline(t_sim_interval, t_sim_start);
+    basalt::Se3Spline<5> gt_spline(t_sim_knot_interval, t_sim_start);
     gt_spline.genRandomTrajectory(num_knots);
 
     // create synthetic imu measurements
-    for (int64_t t_ns = t_sim_start; t_ns < t_simulation + dt_ns;
-         t_ns += dt_ns) {
+    for (int64_t t_ns = t_sim_start; t_ns < t_sim_end + dt_ns; t_ns += dt_ns) {
       // get state in middle of interval
       Sophus::SE3d pose = gt_spline.pose(t_ns + dt_ns / 2);
       Eigen::Vector3d rot_vel_body = gt_spline.rotVelBody(t_ns + dt_ns / 2);
@@ -92,8 +104,7 @@ public:
       imu_data_gt.emplace_back(imu_data);
 
       // get ground truth pose every second between start and end exclusive
-      if (t_ns % int64_t(1e9) == 0 && t_ns > t_sim_start &&
-          t_ns < t_simulation) {
+      if (t_ns % int64_t(1e9) == 0 && t_ns > t_sim_start && t_ns < t_sim_end) {
         Eigen::Matrix3d q_k_mat = gt_spline.pose(t_ns).so3().matrix();
         Eigen::Vector3d p_k_vec = gt_spline.pose(t_ns).translation();
         Eigen::Vector3d v_k_vec = gt_spline.transVelWorld(t_ns);
@@ -105,6 +116,10 @@ public:
         linear_velocity_gt.emplace_back(v_k_vec);
       }
     }
+
+    std::cout << "Generated " << pose_gt.size() << " GT poses, "
+              << linear_velocity_gt.size() << " GT velocities, and "
+              << imu_data_gt.size() << " GT IMU data measurements\n";
 
     // set IMU State 1
     Sophus::SE3d pose1 = gt_spline.pose(t1_ros.toNSec());
@@ -142,10 +157,10 @@ public:
 
   // spline parameters
   int num_knots = 15;
-  int64_t t_sim_start = 0;       // [nano sec]
-  int64_t t_sim_interval = 10e9; // [nano sec]
-  int64_t t_sim_duration = 20e9; // [nano sec]
-  int64_t dt_ns = 1e7;           // [nano sec]
+  int64_t t_sim_start = 0;            // [nano sec]
+  int64_t t_sim_knot_interval = 10e9; // 10e9 ns = 10 s
+  int64_t t_sim_duration = 20e9;      // 20e9 ns = 20 s
+  int64_t dt_ns = 1e7;                // 1e7 ns = 10ms = 100Hz
 
   // buffers
   std::vector<bs_common::IMUData> imu_data_gt;
@@ -630,8 +645,10 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   fuse_graphs::HashGraph graph;
 
   // add variables and validate uuids for each transaction
-  std::vector<fuse_core::UUID> transaction_uuids_init = AddVariables(transaction_init, graph);
-  std::vector<fuse_core::UUID> transaction_uuids_final = AddVariables(transaction_final, graph);
+  std::vector<fuse_core::UUID> transaction_uuids_init =
+      AddVariables(transaction_init, graph);
+  std::vector<fuse_core::UUID> transaction_uuids_final =
+      AddVariables(transaction_final, graph);
   EXPECT_TRUE(transaction_uuids_init.size() == 5);
   EXPECT_TRUE(transaction_uuids_final.size() == 5);
 
@@ -648,11 +665,12 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, BaseFunctionality) {
   state_uuids_final_expected.emplace_back(IS_end.GyroBias().uuid());
   state_uuids_final_expected.emplace_back(IS_end.AccelBias().uuid());
 
-  std::sort(state_uuids_final_expected.begin(), state_uuids_final_expected.end());
+  std::sort(state_uuids_final_expected.begin(),
+            state_uuids_final_expected.end());
   std::sort(state_uuids_init_expected.begin(), state_uuids_init_expected.end());
   std::sort(transaction_uuids_init.begin(), transaction_uuids_init.end());
   std::sort(transaction_uuids_final.begin(), transaction_uuids_final.end());
-  
+
   EXPECT_TRUE(transaction_uuids_final == state_uuids_final_expected);
   EXPECT_TRUE(transaction_uuids_init == state_uuids_init_expected);
 
@@ -753,58 +771,55 @@ TEST_F(ImuPreintegration_ZeroNoiseConstantBias, MultipleTransactions) {
   imu_preintegration->Clear();
 }
 
-class ImuPreintegration_ProccessNoiseConstantBias : public ::testing::Test {
+class ImuPreintegration_ProccessNoiseConstantBiasNick : public ::testing::Test {
 public:
   void SetUp() override {
     // set small, random bias values
-    bg = Eigen::Vector3d::Random() / 100;
-    ba = Eigen::Vector3d::Random() / 10;
+    _bg = Eigen::Vector3d::Random() / 100;
+    _ba = Eigen::Vector3d::Random() / 10;
 
     // set intrinsic noise of imu
-    params.cov_gyro_noise.setIdentity() * GYRO_STD_DEV* GYRO_STD_DEV;
-    params.cov_accel_noise.setIdentity() * ACCEL_STD_DEV* ACCEL_STD_DEV;
-    params.cov_gyro_bias.setIdentity() * 1e-9;
-    params.cov_accel_bias.setIdentity() * 1e-9;
+    _params.cov_gyro_noise.setIdentity() * GYRO_STD_DEV* GYRO_STD_DEV;
+    _params.cov_accel_noise.setIdentity() * ACCEL_STD_DEV* ACCEL_STD_DEV;
+    _params.cov_gyro_bias.setIdentity() * 1e-9;
+    _params.cov_accel_bias.setIdentity() * 1e-9;
 
     // instantiate preintegration class with gaussian noise. By default,
     // bias terms (i.e. bg, ba) are set to zero
-    imu_preintegration =
-        std::make_unique<bs_models::ImuPreintegration>(params, bg, ba);
+    _imu_preintegration =
+        std::make_unique<bs_models::ImuPreintegration>(_params, _bg, _ba);
 
     // get copies of IMU states at start and assign constant biases
-    IS1 = data.IS1;
-    IS1.SetGyroBias(bg);
-    IS1.SetAccelBias(ba);
+    _IS1 = _data.IS1;
+    _IS1.SetGyroBias(_bg);
+    _IS1.SetAccelBias(_ba);
 
     // get stamp of IMU state at start
-    t_start = IS1.Stamp();
+    _t_start = _IS1.Stamp();
   }
 
   // assume Euroc MAV dataset noise
   const double ACCEL_STD_DEV = 0.013026127;
   const double GYRO_STD_DEV = 0.044721359;
 
-  std::normal_distribution<> gyro_noise_dist{0, GYRO_STD_DEV};
-  std::normal_distribution<> accel_noise_dist{0, ACCEL_STD_DEV};
+  std::normal_distribution<> _gyro_noise_dist{0, GYRO_STD_DEV};
+  std::normal_distribution<> _accel_noise_dist{0, ACCEL_STD_DEV};
 
   std::random_device rd{};
-  std::mt19937 gen{rd()};
+  std::mt19937 _gen{rd()};
 
-  Eigen::Vector3d bg;
-  Eigen::Vector3d ba;
+  Eigen::Vector3d _bg;
+  Eigen::Vector3d _ba;
 
-  Data data;
-  bs_models::ImuPreintegration::Params params;
-  std::unique_ptr<bs_models::ImuPreintegration> imu_preintegration;
+  Data _data;
+  bs_models::ImuPreintegration::Params _params;
+  std::unique_ptr<bs_models::ImuPreintegration> _imu_preintegration;
 
-  bs_common::ImuState IS1;
-  std::vector<bs_common::ImuState> IS_predicted_vec;
-  std::vector<bs_common::ImuState> IS_ground_truth_vec;
-
-  ros::Time t_start;
+  bs_common::ImuState _IS1;
+  ros::Time _t_start;
 
   // tolerance on optimization results
-  std::array<double, 5> tol{1e-4, 1e-2, 1e-2, 1e-6, 1e-6};
+  std::array<double, 5> _tol{1e-4, 1e-2, 1e-2, 1e-6, 1e-6};
 };
 
 TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
@@ -845,26 +860,42 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
       Eigen::Matrix4d T_WORLD_IMU_gt = data.pose_gt.at(cur_time - 1);
 
       // convert ground truth pose to fuse variable shared pointers
-      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt;
-      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt;
-      bs_common::EigenTransformToFusePose(T_WORLD_IMU_gt, t_WORLD_IMU_gt,
-                                          R_WORLD_IMU_gt);
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt =
+          std::make_shared<fuse_variables::Orientation3DStamped>(t_now);
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt =
+          std::make_shared<fuse_variables::Position3DStamped>(t_now);
+
+      Eigen::Quaterniond q(T_WORLD_IMU_gt.block<3, 3>(0, 0));
+      Eigen::Vector3d t = T_WORLD_IMU_gt.block<3, 1>(0, 3);
+      R_WORLD_IMU_gt->x() = q.x();
+      R_WORLD_IMU_gt->y() = q.y();
+      R_WORLD_IMU_gt->z() = q.z();
+      R_WORLD_IMU_gt->w() = q.w();
+      t_WORLD_IMU_gt->x() = t.x();
+      t_WORLD_IMU_gt->y() = t.y();
+      t_WORLD_IMU_gt->z() = t.z();
+      graph.addVariable(R_WORLD_IMU_gt);
+      graph.addVariable(t_WORLD_IMU_gt);
 
       // Register factor
-      auto transaction = imu_preintegration->RegisterNewImuPreintegratedFactor(
-          t_now, R_WORLD_IMU_gt, t_WORLD_IMU_gt);
+      auto transaction =
+          imu_preintegration->RegisterNewImuPreintegratedFactor(t_now);
 
       // get predicted, current IMU state
       IS_predicted_vec.emplace_back(imu_preintegration->GetImuState());
 
       // update and optimize
       graph.update(*transaction);
-      graph.optimize();
+
+      ceres::Solver::Options options;
+      options.minimizer_progress_to_stdout = true;
+      options.logging_type = ceres::PER_MINIMIZER_ITERATION;
+      std::cout << graph.optimize(options).FullReport() << std::endl;
 
       // get ground truth IMU state
       bs_common::ImuState IS_ground_truth(t_now);
-      IS_ground_truth.SetOrientation(R_WORLD_IMU_gt->data());
-      IS_ground_truth.SetPosition(t_WORLD_IMU_gt->data());
+      IS_ground_truth.SetOrientation(q);
+      IS_ground_truth.SetPosition(t);
       IS_ground_truth.SetVelocity(data.linear_velocity_gt.at(cur_time - 1));
       IS_ground_truth.SetGyroBias(bg);
       IS_ground_truth.SetAccelBias(ba);
@@ -887,9 +918,207 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
     IS_ground_truth_vec.at(i).Print();
 
     // check is approx. close to ground truth
-    // bs_models::test::ExpectImuStateNear(IS_predicted,
-    // IS_ground_truth_vec.at(i), tol);
+    bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
+                                        tol);
   }
+}
+
+TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
+       MultipleTransactionsPosePrios) {
+  // set start
+  fuse_variables::Orientation3DStamped::SharedPtr o_start =
+      fuse_variables::Orientation3DStamped::make_shared(IS1.Orientation());
+  fuse_variables::Position3DStamped::SharedPtr p_start =
+      fuse_variables::Position3DStamped::make_shared(IS1.Position());
+  fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
+      fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
+  imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
+
+  // create graph
+  fuse_graphs::HashGraph graph;
+
+  // with the introduction of process noise, assess multiple transactions over a
+  // smaller windows, taking key frames every second (as recorded by the ground
+  // truth poses). Though predicted poses will not match the ground truth poses,
+  // they should be reasonably close given typical process noise
+  int cur_time = 1;
+  // populate ImuPreintegration with synthetic imu measurements
+  for (bs_common::IMUData msg : data.imu_data_gt) {
+    // adjust raw IMU measurements with biases and noise
+    msg.w[0] += bg[0] + gyro_noise_dist(gen);
+    msg.w[1] += bg[1] + gyro_noise_dist(gen);
+    msg.w[2] += bg[2] + gyro_noise_dist(gen);
+
+    msg.a[0] += ba[0] + accel_noise_dist(gen);
+    msg.a[1] += ba[1] + accel_noise_dist(gen);
+    msg.a[2] += ba[2] + accel_noise_dist(gen);
+
+    // populate IMU message buffer
+    imu_preintegration->AddToBuffer(msg);
+
+    if (msg.t == ros::Time(cur_time) && cur_time - 1 < data.pose_gt.size()) {
+      // get ground truth pose every key frame
+      ros::Time t_now = ros::Time(cur_time);
+      Eigen::Matrix4d T_WORLD_IMU_gt = data.pose_gt.at(cur_time - 1);
+
+      // convert ground truth pose to fuse variable shared pointers
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt =
+          std::make_shared<fuse_variables::Orientation3DStamped>(t_now);
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt =
+          std::make_shared<fuse_variables::Position3DStamped>(t_now);
+
+      Eigen::Quaterniond q(T_WORLD_IMU_gt.block<3, 3>(0, 0));
+      Eigen::Vector3d t = T_WORLD_IMU_gt.block<3, 1>(0, 3);
+      R_WORLD_IMU_gt->x() = q.x();
+      R_WORLD_IMU_gt->y() = q.y();
+      R_WORLD_IMU_gt->z() = q.z();
+      R_WORLD_IMU_gt->w() = q.w();
+      t_WORLD_IMU_gt->x() = t.x();
+      t_WORLD_IMU_gt->y() = t.y();
+      t_WORLD_IMU_gt->z() = t.z();
+      graph.addVariable(R_WORLD_IMU_gt);
+      graph.addVariable(t_WORLD_IMU_gt);
+
+      // Register factor
+      auto transaction =
+          imu_preintegration->RegisterNewImuPreintegratedFactor(t_now);
+
+      // get predicted, current IMU state
+      IS_predicted_vec.emplace_back(imu_preintegration->GetImuState());
+
+      // update and optimize
+      graph.update(*transaction);
+
+      ceres::Solver::Options options;
+      options.minimizer_progress_to_stdout = true;
+      options.logging_type = ceres::PER_MINIMIZER_ITERATION;
+      std::cout << graph.optimize(options).FullReport() << std::endl;
+
+      // get ground truth IMU state
+      bs_common::ImuState IS_ground_truth(t_now);
+      IS_ground_truth.SetOrientation(q);
+      IS_ground_truth.SetPosition(t);
+      IS_ground_truth.SetVelocity(data.linear_velocity_gt.at(cur_time - 1));
+      IS_ground_truth.SetGyroBias(bg);
+      IS_ground_truth.SetAccelBias(ba);
+
+      IS_ground_truth_vec.emplace_back(IS_ground_truth);
+
+      cur_time++;
+    }
+  }
+
+  // update IMU states with optimized graph
+  auto g = fuse_graphs::HashGraph::make_shared(graph);
+  for (size_t i = 0; i < IS_predicted_vec.size(); i++) {
+    // get copy of predicted and update
+    bs_common::ImuState& IS_predicted = IS_predicted_vec.at(i);
+    IS_predicted.Update(g);
+
+    // DEBUG
+    IS_predicted.Print();
+    IS_ground_truth_vec.at(i).Print();
+
+    // check is approx. close to ground truth
+    bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
+                                        tol);
+  }
+}
+
+TEST_F(ImuPreintegration_ProccessNoiseConstantBiasNick, MultipleTransactions) {
+  // set start
+  fuse_variables::Orientation3DStamped::SharedPtr o_start =
+      fuse_variables::Orientation3DStamped::make_shared(_IS1.Orientation());
+  fuse_variables::Position3DStamped::SharedPtr p_start =
+      fuse_variables::Position3DStamped::make_shared(_IS1.Position());
+  fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
+      fuse_variables::VelocityLinear3DStamped::make_shared(_IS1.Velocity());
+  _imu_preintegration->SetStart(_t_start, o_start, p_start, v_start);
+
+  // create graph
+  fuse_graphs::HashGraph graph;
+
+  // with the introduction of process noise, assess multiple transactions over a
+  // smaller windows, taking key frames every second (as recorded by the ground
+  // truth poses). Though predicted poses will not match the ground truth poses,
+  // they should be reasonably close given typical process noise
+  int cur_time = 1;
+  // populate ImuPreintegration with synthetic imu measurements
+  std::vector<bs_common::ImuState> IS_predicted_vec;
+  std::vector<bs_common::ImuState> IS_ground_truth_vec;
+  for (bs_common::IMUData msg : _data.imu_data_gt) {
+    // adjust raw IMU measurements with biases and noise
+    msg.w[0] += _bg[0] + _gyro_noise_dist(_gen);
+    msg.w[1] += _bg[1] + _gyro_noise_dist(_gen);
+    msg.w[2] += _bg[2] + _gyro_noise_dist(_gen);
+
+    msg.a[0] += _ba[0] + _accel_noise_dist(_gen);
+    msg.a[1] += _ba[1] + _accel_noise_dist(_gen);
+    msg.a[2] += _ba[2] + _accel_noise_dist(_gen);
+
+    // populate IMU message buffer
+    _imu_preintegration->AddToBuffer(msg);
+
+    if (msg.t == ros::Time(cur_time) && cur_time - 1 < _data.pose_gt.size()) {
+      // get ground truth pose every key frame
+      ros::Time t_now = ros::Time(cur_time);
+      Eigen::Matrix4d T_WORLD_IMU_gt = _data.pose_gt.at(cur_time - 1);
+
+      // convert ground truth pose to fuse variable shared pointers
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt;
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt;
+      bs_common::EigenTransformToFusePose(T_WORLD_IMU_gt, t_WORLD_IMU_gt,
+                                          R_WORLD_IMU_gt);
+
+      // Register factor
+      auto transaction = _imu_preintegration->RegisterNewImuPreintegratedFactor(
+          t_now, R_WORLD_IMU_gt, t_WORLD_IMU_gt);
+
+      // get predicted, current IMU state
+      IS_predicted_vec.emplace_back(_imu_preintegration->GetImuState());
+
+      // update and optimize
+      graph.update(*transaction);
+      graph.optimize();
+
+      // get ground truth IMU state
+      bs_common::ImuState IS_ground_truth(t_now);
+      IS_ground_truth.SetOrientation(R_WORLD_IMU_gt->data());
+      IS_ground_truth.SetPosition(t_WORLD_IMU_gt->data());
+      IS_ground_truth.SetVelocity(_data.linear_velocity_gt.at(cur_time - 1));
+      IS_ground_truth.SetGyroBias(_bg);
+      IS_ground_truth.SetAccelBias(_ba);
+
+      IS_ground_truth_vec.emplace_back(IS_ground_truth);
+
+      cur_time++;
+    }
+  }
+
+  std::cout << "\n\nFuse Graph:\n";
+  graph.print();
+
+  // update IMU states with optimized graph
+  auto g = fuse_graphs::HashGraph::make_shared(graph);
+  for (size_t i = 0; i < IS_predicted_vec.size(); i++) {
+    // get copy of predicted and update
+    bs_common::ImuState& IS_predicted = IS_predicted_vec.at(i);
+    IS_predicted.Update(g);
+
+    // DEBUG
+    // IS_predicted.Print();
+    // IS_ground_truth_vec.at(i).Print();
+
+    // check is approx. close to ground truth
+    bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
+                                        _tol);
+  }
+
+  std::string save_path = "/home/nick/debug/imu_tests";
+  OutputResults(beam::CombinePaths(save_path, "poses_gt.pcd"),
+                IS_ground_truth_vec);
+  OutputResults(beam::CombinePaths(save_path, "poses_predicted.pcd"),
+                IS_predicted_vec);
 }
 
 int main(int argc, char** argv) {
