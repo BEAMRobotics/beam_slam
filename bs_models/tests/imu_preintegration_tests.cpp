@@ -1039,18 +1039,19 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
 
   // update IMU states with optimized graph
   auto g = fuse_graphs::HashGraph::make_shared(graph);
+  std::vector<bs_common::ImuState> IS_optimized_vec;
   for (size_t i = 0; i < IS_predicted_vec.size(); i++) {
     // get copy of predicted and update
-    bs_common::ImuState& IS_predicted = IS_predicted_vec.at(i);
-    IS_predicted.Update(g);
+    bs_common::ImuState IS_opt = IS_predicted_vec.at(i).Copy();
+    IS_opt.Update(g);
+    IS_optimized_vec.push_back(IS_opt);
 
-    // DEBUG
-    IS_predicted.Print();
-    IS_ground_truth_vec.at(i).Print();
+    // // DEBUG
+    // IS_predicted.Print();
+    // IS_ground_truth_vec.at(i).Print();
 
     // check is approx. close to ground truth
-    bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
-                                        tol);
+    bs_models::test::ExpectImuStateNear(IS_opt, IS_ground_truth_vec.at(i), tol);
   }
 
   if (!save_path_.empty()) {
@@ -1066,6 +1067,8 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
                       IS_ground_truth_vec);
       OutputImuStates(beam::CombinePaths(test_path, "poses_predicted.pcd"),
                       IS_predicted_vec);
+      OutputImuStates(beam::CombinePaths(test_path, "poses_optimized.pcd"),
+                      IS_optimized_vec);
     }
   }
 }
