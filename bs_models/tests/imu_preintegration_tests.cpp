@@ -1081,6 +1081,9 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
       fuse_variables::VelocityLinear3DStamped::make_shared(IS1.Velocity());
   imu_preintegration->SetStart(t_start, o_start, p_start, v_start);
 
+  double pert_rot_max = 5;      // 5 deg
+  double pert_trans_max = 0.05; // 5 cm
+
   // create graph
   fuse_graphs::HashGraph graph;
 
@@ -1108,7 +1111,6 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
       ros::Time t_now = ros::Time(cur_time);
       Eigen::Matrix4d T_WORLD_IMU_gt = data.pose_gt.at(cur_time - 1);
 
-      /**
       Eigen::VectorXd pert(6);
       pert << beam::randf(-pert_rot_max, pert_rot_max),
           beam::randf(-pert_rot_max, pert_rot_max),
@@ -1118,32 +1120,31 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
           beam::randf(-pert_trans_max, pert_trans_max);
       Eigen::Matrix4d T_WORLD_IMU_pert =
           beam::PerturbTransformDegM(T_WORLD_IMU_gt, pert);
-      */
 
       // convert ground truth pose to fuse variable shared pointers
-      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_gt =
+      fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU_init =
           std::make_shared<fuse_variables::Orientation3DStamped>(t_now);
-      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_gt =
+      fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU_init =
           std::make_shared<fuse_variables::Position3DStamped>(t_now);
 
-      Eigen::Quaterniond q(T_WORLD_IMU_gt.block<3, 3>(0, 0));
-      Eigen::Vector3d t = T_WORLD_IMU_gt.block<3, 1>(0, 3);
+      Eigen::Quaterniond q(T_WORLD_IMU_pert.block<3, 3>(0, 0));
+      Eigen::Vector3d t = T_WORLD_IMU_pert.block<3, 1>(0, 3);
       fuse_core::Vector7d mean;
       mean << t.x(), t.y(), t.z(), q.w(), q.x(), q.y(), q.z();
       fuse_core::Matrix6d cov = Eigen::Matrix<double, 6, 6>::Identity() * 0.1;
-      R_WORLD_IMU_gt->x() = q.x();
-      R_WORLD_IMU_gt->y() = q.y();
-      R_WORLD_IMU_gt->z() = q.z();
-      R_WORLD_IMU_gt->w() = q.w();
-      t_WORLD_IMU_gt->x() = t.x();
-      t_WORLD_IMU_gt->y() = t.y();
-      t_WORLD_IMU_gt->z() = t.z();
-      graph.addVariable(R_WORLD_IMU_gt);
-      graph.addVariable(t_WORLD_IMU_gt);
+      R_WORLD_IMU_init->x() = q.x();
+      R_WORLD_IMU_init->y() = q.y();
+      R_WORLD_IMU_init->z() = q.z();
+      R_WORLD_IMU_init->w() = q.w();
+      t_WORLD_IMU_init->x() = t.x();
+      t_WORLD_IMU_init->y() = t.y();
+      t_WORLD_IMU_init->z() = t.z();
+      graph.addVariable(R_WORLD_IMU_init);
+      graph.addVariable(t_WORLD_IMU_init);
 
       fuse_constraints::AbsolutePose3DStampedConstraint::SharedPtr prior =
           std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-              "IMUTEST", *t_WORLD_IMU_gt, *R_WORLD_IMU_gt, mean, cov);
+              "IMUTEST", *t_WORLD_IMU_init, *R_WORLD_IMU_init, mean, cov);
       graph.addConstraint(prior);
 
       // Register factor
@@ -1155,11 +1156,6 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
 
       // update and optimize
       graph.update(*transaction);
-
-      ceres::Solver::Options options;
-      options.minimizer_progress_to_stdout = true;
-      options.logging_type = ceres::PER_MINIMIZER_ITERATION;
-      std::cout << graph.optimize(options).FullReport() << std::endl;
 
       // get ground truth IMU state
       bs_common::ImuState IS_ground_truth(t_now);
@@ -1175,13 +1171,20 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
     }
   }
 
+  ceres::Solver::Options options;
+  options.minimizer_progress_to_stdout = true;
+  options.logging_type = ceres::PER_MINIMIZER_ITERATION;
+  std::cout << graph.optimize(options).FullReport() << std::endl;
+
   // update IMU states with optimized graph
   auto g = fuse_graphs::HashGraph::make_shared(graph);
-  auto IS_optimized_vec = IS_predicted_vec;
-  for (size_t i = 0; i < IS_optimized_vec.size(); i++) {
+  std::vector<bs_common::ImuState> IS_optimized_vec;
+  for (size_t i = 0; i < IS_predicted_vec.size(); i++) {
     // get copy of predicted and update
-    bs_common::ImuState& IS_optimized = IS_optimized_vec.at(i);
+    bs_common::ImuState IS_optimized = IS_predicted_vec.at(i).Copy();
+    IS_predicted_vec.at(i).Print();
     IS_optimized.Update(g);
+    IS_optimized_vec.push_back(IS_optimized);
 
     // DEBUG
     // IS_optimized.Print();
@@ -1206,7 +1209,7 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
       OutputImuStates(beam::CombinePaths(test_path, "poses_predicted.pcd"),
                       IS_predicted_vec);
       OutputImuStates(beam::CombinePaths(test_path, "poses_optimized.pcd"),
-                      IS_optimized_vec);                
+                      IS_optimized_vec);
     }
   }
 }

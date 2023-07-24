@@ -12,7 +12,8 @@ ImuState::ImuState(const ros::Time& time) : stamp_(time) {
 }
 
 ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-                   const Eigen::Vector3d& position, const Eigen::Vector3d& velocity)
+                   const Eigen::Vector3d& position,
+                   const Eigen::Vector3d& velocity)
     : stamp_(time) {
   InstantiateVariables();
   SetOrientation(orientation);
@@ -23,7 +24,8 @@ ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
 }
 
 ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-                   const Eigen::Vector3d& position, const bs_common::PreIntegrator& preint)
+                   const Eigen::Vector3d& position,
+                   const bs_common::PreIntegrator& preint)
     : stamp_(time) {
   InstantiateVariables();
   SetOrientation(orientation);
@@ -35,8 +37,10 @@ ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
 }
 
 ImuState::ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-                   const Eigen::Vector3d& position, const Eigen::Vector3d& velocity,
-                   const Eigen::Vector3d& gyrobias, const Eigen::Vector3d& accelbias)
+                   const Eigen::Vector3d& position,
+                   const Eigen::Vector3d& velocity,
+                   const Eigen::Vector3d& gyrobias,
+                   const Eigen::Vector3d& accelbias)
     : stamp_(time) {
   InstantiateVariables();
   SetOrientation(orientation);
@@ -97,7 +101,8 @@ fuse_variables::Orientation3DStamped ImuState::Orientation() const {
 }
 
 Eigen::Quaterniond ImuState::OrientationQuat() const {
-  Eigen::Quaterniond q(orientation_->w(), orientation_->x(), orientation_->y(), orientation_->z());
+  Eigen::Quaterniond q(orientation_->w(), orientation_->x(), orientation_->y(),
+                       orientation_->z());
   return q.normalized();
 }
 
@@ -154,7 +159,8 @@ void ImuState::SetPreintegrator(const bs_common::PreIntegrator& preint) {
   *preint_ = preint;
 }
 
-void ImuState::SetOrientation(const double& w, const double& x, const double& y, const double& z) {
+void ImuState::SetOrientation(const double& w, const double& x, const double& y,
+                              const double& z) {
   orientation_->w() = w;
   orientation_->x() = x;
   orientation_->y() = y;
@@ -274,15 +280,30 @@ void ImuState::Print(std::ostream& stream) const {
 }
 
 void ImuState::InstantiateVariables() {
-  orientation_ =
-      std::make_shared<fuse_variables::Orientation3DStamped>(stamp_, fuse_core::uuid::NIL);
-  position_ = std::make_shared<fuse_variables::Position3DStamped>(stamp_, fuse_core::uuid::NIL);
-  velocity_ =
-      std::make_shared<fuse_variables::VelocityLinear3DStamped>(stamp_, fuse_core::uuid::NIL);
-  gyrobias_ = std::make_shared<bs_variables::GyroscopeBias3DStamped>(stamp_, fuse_core::uuid::NIL);
-  accelbias_ =
-      std::make_shared<bs_variables::AccelerationBias3DStamped>(stamp_, fuse_core::uuid::NIL);
+  orientation_ = std::make_shared<fuse_variables::Orientation3DStamped>(
+      stamp_, fuse_core::uuid::NIL);
+  position_ = std::make_shared<fuse_variables::Position3DStamped>(
+      stamp_, fuse_core::uuid::NIL);
+  velocity_ = std::make_shared<fuse_variables::VelocityLinear3DStamped>(
+      stamp_, fuse_core::uuid::NIL);
+  gyrobias_ = std::make_shared<bs_variables::GyroscopeBias3DStamped>(
+      stamp_, fuse_core::uuid::NIL);
+  accelbias_ = std::make_shared<bs_variables::AccelerationBias3DStamped>(
+      stamp_, fuse_core::uuid::NIL);
   preint_ = std::make_shared<bs_common::PreIntegrator>();
+}
+
+ImuState ImuState::Copy() const {
+  Eigen::Quaterniond o(orientation_->w(), orientation_->x(), orientation_->y(),
+                       orientation_->z());
+  Eigen::Vector3d p(position_->x(), position_->y(), position_->z());
+  Eigen::Vector3d v(velocity_->x(), velocity_->y(), velocity_->z());
+  Eigen::Vector3d gb(gyrobias_->x(), gyrobias_->y(), gyrobias_->z());
+  Eigen::Vector3d ab(accelbias_->x(), accelbias_->y(), accelbias_->z());
+
+  ImuState state(stamp_, o, p, v, gb, ab);
+  state.SetPreintegrator(*preint_);
+  return state;
 }
 
 } // namespace bs_common
