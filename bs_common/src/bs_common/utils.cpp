@@ -35,11 +35,60 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     p_labeled.r = 255;
     p_labeled.g = 0;
     p_labeled.b = 255;
-    p_labeled.label = v_mag_in_world * 1000; 
+    p_labeled.label = v_mag_in_world * 1000;
     cloud_in_world.points.emplace_back(p_labeled);
     cur_length += increment;
   }
   return cloud_in_world;
+}
+
+void SaveGraphPosesAsCloud(const fuse_core::Graph& graph,
+                           const std::string& output_file) {
+  beam::LogSourceLocation(beam::source_location::current());
+  // save as IMU state so we can reuse the pointcloud function above
+  std::map<uint64_t, ImuState> poses;
+  const auto var_range = graph.getVariables();
+  for (auto it = var_range.begin(); it != var_range.end(); it++) {
+    if (it->type() == "fuse_variables::Position3DStamped") {
+      auto v = dynamic_cast<const fuse_variables::Position3DStamped&>(*it);
+      uint64_t t = v.stamp().toNSec();
+      if (poses.find(t) != poses.end()) {
+        poses.at(t).SetPosition(v.x(), v.y(), v.z());
+      } else {
+        ImuState state(v.stamp());
+        state.SetPosition(v.x(), v.y(), v.z());
+        poses.emplace(t, state);
+      }
+    } else if (it->type() == "fuse_variables::Orientation3DStamped") {
+      auto v = dynamic_cast<const fuse_variables::Orientation3DStamped&>(*it);
+      uint64_t t = v.stamp().toNSec();
+      if (poses.find(t) != poses.end()) {
+        poses.at(t).SetOrientation(v.w(), v.x(), v.y(), v.z());
+      } else {
+        ImuState state(v.stamp());
+        state.SetOrientation(v.w(), v.x(), v.y(), v.z());
+        poses.emplace(t, state);
+      }
+    } else if (it->type() == "fuse_variables::Velocity3DStamped") {
+      auto v =
+          dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(*it);
+      uint64_t t = v.stamp().toNSec();
+      if (poses.find(t) != poses.end()) {
+        poses.at(t).SetVelocity(v.x(), v.y(), v.z());
+      } else {
+        ImuState state(v.stamp());
+        state.SetVelocity(v.x(), v.y(), v.z());
+        poses.emplace(t, state);
+      }
+    }
+  }
+
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  for (const auto& [t, imu_state] : poses) {
+    auto pose_cloud = ImuStateToCloudInWorld(imu_state);
+    cloud += pose_cloud;
+  }
+  beam::SavePointCloud<pcl::PointXYZRGBL>(output_file, cloud);
 }
 
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
