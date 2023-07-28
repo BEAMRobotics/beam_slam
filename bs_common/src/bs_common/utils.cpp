@@ -42,9 +42,23 @@ pcl::PointCloud<pcl::PointXYZRGBL>
   return cloud_in_world;
 }
 
-void SaveGraphPosesAsCloud(const fuse_core::Graph& graph,
-                           const std::string& output_file) {
-  beam::LogSourceLocation(beam::source_location::current());
+pcl::PointCloud<pcl::PointXYZRGBL>
+    TrajectoryToCloud(const std::map<uint64_t, Eigen::Matrix4d>& trajectory) {
+  double increment = 0.01;
+  double length = 0.3;
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  for (const auto& [stamp, T] : trajectory) {
+    ros::Time stamp_ros;
+    stamp_ros.fromNSec(stamp);
+    pcl::PointCloud<pcl::PointXYZRGBL> frame =
+        beam::CreateFrameCol(stamp_ros, increment, length);
+    beam::MergeFrameToCloud(cloud, frame, T);
+  }
+  return cloud;
+}
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GetGraphPosesAsCloud(const fuse_core::Graph& graph) {
   // save as IMU state so we can reuse the pointcloud function above
   std::map<uint64_t, ImuState> poses;
   const auto var_range = graph.getVariables();
@@ -69,7 +83,7 @@ void SaveGraphPosesAsCloud(const fuse_core::Graph& graph,
         state.SetOrientation(v.w(), v.x(), v.y(), v.z());
         poses.emplace(t, state);
       }
-    } else if (it->type() == "fuse_variables::Velocity3DStamped") {
+    } else if (it->type() == "fuse_variables::VelocityLinear3DStamped") {
       auto v =
           dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(*it);
       uint64_t t = v.stamp().toNSec();
@@ -88,7 +102,7 @@ void SaveGraphPosesAsCloud(const fuse_core::Graph& graph,
     auto pose_cloud = ImuStateToCloudInWorld(imu_state);
     cloud += pose_cloud;
   }
-  beam::SavePointCloud<pcl::PointXYZRGBL>(output_file, cloud);
+  return cloud;
 }
 
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,

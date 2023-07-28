@@ -45,9 +45,13 @@ inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
 pcl::PointCloud<pcl::PointXYZRGBL>
     ImuStateToCloudInWorld(const ImuState& imu_state);
 
-// Save position, orientation, and velocity using coordinate frames pointclouds
-void SaveGraphPosesAsCloud(const fuse_core::Graph& graph,
-                           const std::string& output_file);
+// Get pointcloud with position, orientations and velocities saves as coordinate
+// frames
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GetGraphPosesAsCloud(const fuse_core::Graph& graph);
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    TrajectoryToCloud(const std::map<uint64_t, Eigen::Matrix4d>& trajectory);
 
 /// @brief
 /// @param T_WORLD_SENSOR
