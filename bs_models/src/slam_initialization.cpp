@@ -141,7 +141,8 @@ void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
   }
 
   // if we initialize successfully, stop this sensor model
-  if (Initialize()) { shutdown(); }
+  if (InitializeTest()) { shutdown(); }
+  // if (Initialize()) { shutdown(); }
 }
 
 void SLAMInitialization::processCameraMeasurements(
@@ -232,10 +233,23 @@ void SLAMInitialization::processLidar(
             lidar_path_init_->GetMeanRegistrationTimeInS(),
             lidar_path_init_->GetMedianRegistrationTimeInS(),
             lidar_path_init_->GetMaxRegistrationTimeInS());
+
   init_path_ = lidar_path_init_->GetPath();
 
+  pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
+  beam_mapping::Poses poses;
+  for (const auto& [stamp, pose] : init_path_) {
+    auto timestamp = beam::NSecToRos(stamp);
+    auto T = visual_map_->GetBaselinkPose(timestamp);
+    if (!T.has_value()) { continue; }
+    frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
+    poses.AddSingleTimeStamp(timestamp);
+    poses.AddSinglePose(T.value());
+  }
+
   beam::HighResolutionTimer timer;
-  if (Initialize()) {
+  // if (Initialize()) {
+  if (InitializeTest()) {
     BEAM_INFO("done initialization, total time: {}s", timer.elapsed());
     shutdown();
   }
@@ -262,12 +276,12 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 bool SLAMInitialization::Initialize() {
-  // prune poses in path at start that don't have >= imu messages before it
   if (imu_buffer_.empty()) {
     ROS_ERROR_STREAM(__func__ << ": IMU buffer empty, cannot initialize!");
     return false;
   }
 
+  // prune poses in path at start that don't have >= imu messages before it
   auto second_imu_msg = std::next(imu_buffer_.begin());
   while (init_path_.begin()->first < second_imu_msg->header.stamp.toNSec()) {
     init_path_.erase(init_path_.begin()->first);
@@ -327,6 +341,95 @@ bool SLAMInitialization::Initialize() {
   SendInitializationGraph();
 
   if (!params_.output_folder.empty()) { OutputResults(); }
+
+  return true;
+}
+
+bool SLAMInitialization::InitializeTest() {
+  // Estimate imu biases and gravity using the initial path
+  bs_models::imu::EstimateParameters(init_path_, imu_buffer_, imu_params_,
+                                     gravity_, bg_, ba_, velocities_, scale_);
+
+  imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(
+      imu_params_, bg_, ba_, params_.inertial_info_weight);
+
+  AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
+
+  // -------------------------------------------------------------------------------------
+  // AddPosesAndInertialConstraints();
+  uint64_t t_start = init_path_.begin()->first;
+  ros::Time t_start_ros;
+  t_start_ros.fromNSec(t_start);
+  for (const auto& [t_ns, imu_measurement] : imu_measurement_buffer_) {
+    if (t_ns < t_start) { continue; }
+    bs_common::IMUData msg;
+    ros::Time t_ros;
+    t_ros.fromNSec(t_ns);
+    msg.t = t_ros;
+    msg.a = imu_measurement.first;
+    msg.w = imu_measurement.second;
+    imu_preint_->AddToBuffer(msg);
+  }
+
+  auto first_vel_iter = velocities_.find(t_start);
+  if (first_vel_iter == velocities_.end()) {
+    throw std::runtime_error("start pose not found in initial velocities");
+  }
+  fuse_variables::VelocityLinear3DStamped::SharedPtr v_start =
+      std::make_shared<fuse_variables::VelocityLinear3DStamped>(t_start_ros);
+  v_start->x() = first_vel_iter->second[0];
+  v_start->y() = first_vel_iter->second[1];
+  v_start->z() = first_vel_iter->second[2];
+
+  auto pose_iter = init_path_.begin();
+  fuse_variables::Position3DStamped::SharedPtr p_start =
+      std::make_shared<fuse_variables::Position3DStamped>(t_start_ros);
+  fuse_variables::Orientation3DStamped::SharedPtr o_start =
+      std::make_shared<fuse_variables::Orientation3DStamped>(t_start_ros);
+  bs_common::EigenTransformToFusePose(pose_iter->second, p_start, o_start);
+  imu_preint_->SetStart(t_start_ros, o_start, p_start, v_start);
+  pose_iter++;
+  while (pose_iter != init_path_.end()) {
+    uint64_t t_ns = pose_iter->first;
+    const Eigen::Matrix4d& T_World_Baselink = pose_iter->second;
+    ros::Time t;
+    t.fromNSec(t_ns);
+    fuse_variables::Position3DStamped::SharedPtr p =
+        std::make_shared<fuse_variables::Position3DStamped>(t);
+    fuse_variables::Orientation3DStamped::SharedPtr o =
+        std::make_shared<fuse_variables::Orientation3DStamped>(t);
+    bs_common::EigenTransformToFusePose(T_World_Baselink, p, o);
+    local_graph_->addVariable(p);
+    local_graph_->addVariable(o);
+    auto transaction = imu_preint_->RegisterNewImuPreintegratedFactor(t);
+    local_graph_->update(*transaction);
+    pose_iter++;
+  }
+
+  // -------------------------------------------------------------------------------------
+
+  if (params_.init_mode == "LIDAR") { AddLidarConstraints(); }
+
+  if (!params_.output_folder.empty()) {
+    graph_poses_before_opt_ = bs_common::GetGraphPosesAsCloud(*local_graph_);
+  }
+
+  if (params_.max_optimization_s > 0.0) {
+    ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
+    ceres::Solver::Options options;
+    options.minimizer_progress_to_stdout = true;
+    options.num_threads = std::thread::hardware_concurrency() / 2;
+    options.max_num_iterations = 1000;
+    local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s),
+                              options);
+    visual_map_->UpdateGraph(local_graph_);
+    if (lidar_path_init_) {
+      lidar_path_init_->UpdateRegistrationMap(local_graph_);
+    }
+  }
+
+  SendInitializationGraph();
+  OutputResults();
 
   return true;
 }
@@ -578,17 +681,9 @@ void SLAMInitialization::SendInitializationGraph() {
 }
 
 void SLAMInitialization::OutputResults() {
+  if (params_.output_folder.empty()) { return; }
+
   BEAM_INFO("Outputting initialization results to {}", params_.output_folder);
-  pcl::PointCloud<pcl::PointXYZRGB> frame_cloud;
-  beam_mapping::Poses poses;
-  for (const auto& [stamp, pose] : init_path_) {
-    auto timestamp = beam::NSecToRos(stamp);
-    auto T = visual_map_->GetBaselinkPose(timestamp);
-    if (!T.has_value()) { continue; }
-    frame_cloud = beam::AddFrameToCloud(frame_cloud, T.value(), 0.001);
-    poses.AddSingleTimeStamp(timestamp);
-    poses.AddSinglePose(T.value());
-  }
 
   // create directory if it doesn't exist
   if (!boost::filesystem::exists(params_.output_folder)) {
@@ -610,17 +705,13 @@ void SLAMInitialization::OutputResults() {
   out_graph_file << ss.rdbuf();
   out_graph_file.close();
 
-  // output trajectory as a txt file (tx ty tz, qx qy qz qw)
-  std::string txt_path =
-      beam::CombinePaths({save_path, "initialization_trajectory.txt"});
-  poses.WriteToTXT(txt_path, beam_mapping::format_type::Type2);
-
-  // output trajectory as a point cloud
-  std::string pcd_path =
-      beam::CombinePaths({save_path, "initialization_trajectory.pcd"});
-  std::string error_message{};
-  if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-          pcd_path, frame_cloud, beam::PointCloudFileType::PCDBINARY,
+  // output trajectory
+  auto traj_cloud = bs_common::TrajectoryToCloud(init_path_);
+  std::string traj_path =
+      beam::CombinePaths({save_path, "initial_trajectory.pcd"});
+  std::string error_message;    
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          traj_path, traj_cloud, beam::PointCloudFileType::PCDBINARY,
           error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
@@ -630,6 +721,23 @@ void SLAMInitialization::OutputResults() {
         beam::CombinePaths(save_path, "lidar_results");
     boost::filesystem::create_directory(lidar_results_path);
     lidar_path_init_->OutputResults(lidar_results_path);
+  }
+
+  std::string graph_poses_init =
+      beam::CombinePaths({save_path, "graph_poses_inital.pcd"});
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          graph_poses_init, graph_poses_before_opt_,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+
+  std::string graph_poses_opt =
+      beam::CombinePaths({save_path, "graph_poses_optimized.pcd"});
+  auto graph_poses_after_opt = bs_common::GetGraphPosesAsCloud(*local_graph_);
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          graph_poses_opt, graph_poses_after_opt,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 }
 

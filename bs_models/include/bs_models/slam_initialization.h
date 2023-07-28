@@ -100,6 +100,8 @@ private:
    */
   bool Initialize();
 
+  bool InitializeTest();
+
   /**
    * @brief Triangulates a landmark
    * @return position of landmark if it can be estimated
@@ -174,7 +176,7 @@ private:
   // data storage
   std::deque<sensor_msgs::Imu> imu_buffer_;
   std::map<uint64_t, std::pair<Eigen::Vector3d, Eigen::Vector3d>>
-      imu_measurement_buffer_;
+      imu_measurement_buffer_; // <acc, vel>
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::deque<ros::Time> frame_init_buffer_;
   double last_lidar_scan_time_s_{0};
@@ -202,6 +204,9 @@ private:
   Eigen::Matrix4d T_imu_baselink_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  // save for plotting
+  pcl::PointCloud<pcl::PointXYZRGBL> graph_poses_before_opt_;
 
   // throttled callbacks for messages
   using ThrottledMeasurementCallback =
