@@ -35,11 +35,74 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     p_labeled.r = 255;
     p_labeled.g = 0;
     p_labeled.b = 255;
-    p_labeled.label = v_mag_in_world * 1000; 
+    p_labeled.label = v_mag_in_world * 1000;
     cloud_in_world.points.emplace_back(p_labeled);
     cur_length += increment;
   }
   return cloud_in_world;
+}
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    TrajectoryToCloud(const std::map<uint64_t, Eigen::Matrix4d>& trajectory) {
+  double increment = 0.01;
+  double length = 0.3;
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  for (const auto& [stamp, T] : trajectory) {
+    ros::Time stamp_ros;
+    stamp_ros.fromNSec(stamp);
+    pcl::PointCloud<pcl::PointXYZRGBL> frame =
+        beam::CreateFrameCol(stamp_ros, increment, length);
+    beam::MergeFrameToCloud(cloud, frame, T);
+  }
+  return cloud;
+}
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GetGraphPosesAsCloud(const fuse_core::Graph& graph) {
+  // save as IMU state so we can reuse the pointcloud function above
+  std::map<uint64_t, ImuState> poses;
+  const auto var_range = graph.getVariables();
+  for (auto it = var_range.begin(); it != var_range.end(); it++) {
+    if (it->type() == "fuse_variables::Position3DStamped") {
+      auto v = dynamic_cast<const fuse_variables::Position3DStamped&>(*it);
+      uint64_t t = v.stamp().toNSec();
+      if (poses.find(t) != poses.end()) {
+        poses.at(t).SetPosition(v.x(), v.y(), v.z());
+      } else {
+        ImuState state(v.stamp());
+        state.SetPosition(v.x(), v.y(), v.z());
+        poses.emplace(t, state);
+      }
+    } else if (it->type() == "fuse_variables::Orientation3DStamped") {
+      auto v = dynamic_cast<const fuse_variables::Orientation3DStamped&>(*it);
+      uint64_t t = v.stamp().toNSec();
+      if (poses.find(t) != poses.end()) {
+        poses.at(t).SetOrientation(v.w(), v.x(), v.y(), v.z());
+      } else {
+        ImuState state(v.stamp());
+        state.SetOrientation(v.w(), v.x(), v.y(), v.z());
+        poses.emplace(t, state);
+      }
+    } else if (it->type() == "fuse_variables::VelocityLinear3DStamped") {
+      auto v =
+          dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(*it);
+      uint64_t t = v.stamp().toNSec();
+      if (poses.find(t) != poses.end()) {
+        poses.at(t).SetVelocity(v.x(), v.y(), v.z());
+      } else {
+        ImuState state(v.stamp());
+        state.SetVelocity(v.x(), v.y(), v.z());
+        poses.emplace(t, state);
+      }
+    }
+  }
+
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  for (const auto& [t, imu_state] : poses) {
+    auto pose_cloud = ImuStateToCloudInWorld(imu_state);
+    cloud += pose_cloud;
+  }
+  return cloud;
 }
 
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,

@@ -257,6 +257,12 @@ public:
    */
   void Print(std::ostream& stream = std::cout) const;
 
+  /**
+   * @brief deep copy of the member variables
+   * @return copy of data
+   */
+  ImuState Copy() const;
+
 private:
   /**
    * @brief instantiates fuse/beam variables contained in this ImuState
