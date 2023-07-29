@@ -1,10 +1,64 @@
 #include <bs_common/utils.h>
 
+#include <bs_common/matplotlibcpp.h>
 #include <fuse_variables/point_3d_landmark.h>
 
 #include <beam_utils/pointclouds.h>
 
 namespace bs_common {
+
+// using plt = matplotlibcpp;
+namespace plt = matplotlibcpp;
+
+void PlotImuBiasesFromGraph(const fuse_core::Graph& graph,
+                            const std::string& filepath) {
+  const auto var_range = graph.getVariables();
+  std::vector<double> t; // in s
+  std::vector<double> gx;
+  std::vector<double> gy;
+  std::vector<double> gz;
+  std::vector<double> ax;
+  std::vector<double> ay;
+  std::vector<double> az;
+  for (auto it = var_range.begin(); it != var_range.end(); it++) {
+    if (it->type() == "bs_variables::GyroscopeBias3DStamped") {
+      auto v = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(*it);
+      gx.push_back(v.x());
+      gy.push_back(v.y());
+      gz.push_back(v.z());
+      if (!t.empty()) {
+        t.push_back(v.stamp().toSec() - t.at(0));
+      } else {
+        t.push_back(v.stamp().toSec());
+      }
+
+    } else if (it->type() == "bs_variables::AccelerationBias3DStamped") {
+      auto v =
+          dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(*it);
+      ax.push_back(v.x());
+      ay.push_back(v.y());
+      az.push_back(v.z());
+    }
+  }
+  if (t.empty()) {
+    BEAM_ERROR("no bias terms in graph, not plotting IMU biases");
+    return;
+  }
+
+  plt::suptitle("IMU Biases");
+  plt::subplot(2, 1, 1);
+  plt::named_plot("gx", t, gx, "r");
+  plt::named_plot("gy", t, gy, "g");
+  plt::named_plot("gz", t, gz, "b");
+  plt::legend();
+  plt::subplot(2, 1, 2);
+  plt::named_plot("ax", t, ax, "r");
+  plt::named_plot("ay", t, ay, "g");
+  plt::named_plot("az", t, az, "b");
+  plt::legend();
+  plt::xlabel("time elapsed (s)");
+  plt::save(filepath);
+}
 
 pcl::PointCloud<pcl::PointXYZRGBL>
     ImuStateToCloudInWorld(const ImuState& imu_state) {
