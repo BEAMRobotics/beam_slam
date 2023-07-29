@@ -92,7 +92,7 @@ public:
 
   std::string matcher_config;
   double max_optimization_s{1.0};
-  double inertial_info_weight{1.0};
+  double inertial_info_weight{0.001};
   double min_trajectory_length_m{2.0};
   double frame_init_frequency{0.1};
   double max_triangulation_distance{40.0};

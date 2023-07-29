@@ -38,6 +38,9 @@ inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
   return dq;
 }
 
+void PlotImuBiasesFromGraph(const fuse_core::Graph& graph,
+                            const std::string& filepath);
+
 // Draw a coordinate frame with a velocity vector.
 // For the frame: RGB corresponds to the frames (x-r, y-g, z-b) and label
 // corresponds to the timestamp For the velocity vector: RGB is always magenta,
