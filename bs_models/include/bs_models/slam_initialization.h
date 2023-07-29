@@ -100,8 +100,6 @@ private:
    */
   bool Initialize();
 
-  bool InitializeTest();
-
   /**
    * @brief Triangulates a landmark
    * @return position of landmark if it can be estimated

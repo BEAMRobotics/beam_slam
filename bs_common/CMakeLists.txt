@@ -28,6 +28,8 @@ set(catkin_build_depends
     bs_variables
 )
 
+find_package(PythonLibs REQUIRED)
+
 find_package(
   catkin REQUIRED 
   COMPONENTS
@@ -103,10 +105,12 @@ target_include_directories(${PROJECT_NAME}
     ${catkin_INCLUDE_DIRS}
     ${CERES_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIRS}
+    ${PYTHON_INCLUDE_DIRS}
 )
 target_link_libraries(
   ${PROJECT_NAME}
     ${catkin_LIBRARIES}
+    ${PYTHON_LIBRARIES}
     beam::utils
     beam::matching
   )
