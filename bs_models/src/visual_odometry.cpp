@@ -62,8 +62,9 @@ void VisualOdometry::onStart() {
   // setup subscribers
   measurement_subscriber_ =
       private_node_handle_.subscribe<CameraMeasurementMsg>(
-          ros::names::resolve("/local_mapper/visual_feature_tracker/visual_measurements"), 100,
-          &ThrottledMeasurementCallback::callback,
+          ros::names::resolve(
+              "/local_mapper/visual_feature_tracker/visual_measurements"),
+          100, &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
 
@@ -271,14 +272,8 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
       bs_common::GetLinearAcceleration(graph, end_timestamp)->array();
   cur_ang_vel_ = bs_common::GetAngularVelocity(graph, end_timestamp)->array();
 
-  // todo: "cull" bad landmarks
-
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
-
-  // todo: set union between timestamps and timestamps in the visual measurement buffer
-  // todo: process each of those using the second if block
-  // todo: for each measurement in the buffer, past the end of the union, do ComputeOdometryAndExtendMap
 
   // do initial setup
   if (!is_initialized_) {
@@ -290,28 +285,56 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
                                "initializing with visual information."};
     }
 
-    is_initialized_ = true;
-    while (!visual_measurement_buffer_.empty()) {
-      const auto msg = visual_measurement_buffer_.front();
-      if (msg->header.stamp < *timestamps.begin()) {
-        // ignore measurements prior to the start of the initial graph
-        visual_measurement_buffer_.pop_front();
-        continue;
-      } else if (timestamps.find(msg->header.stamp) != timestamps.end()) {
-        // measurement exists in graph, therefore its a keyframe
-        Keyframe kf(*msg);
-        keyframes_.push_back(kf);
-        previous_frame_ = msg->header.stamp;
-        visual_measurement_buffer_.pop_front();
-        continue;
-      }
-      // process visual information in buffer that isn't in the graph yet
-      if (!ComputeOdometryAndExtendMap(msg)) {
-        // break and wait in normal loop to catch up
-        break;
-      }
+    // get measurments as a vector of timestamps
+    std::vector<uint64_t> measurement_stamps;
+    std::for_each(visual_measurement_buffer_.begin(),
+                  visual_measurement_buffer_.end(), [&](const auto& msg) {
+                    measurement_stamps.push_back(msg->header.stamp.toNSec());
+                  });
+
+    // get timestamps in graph as a vector
+    std::vector<uint64_t> graph_stamps;
+    std::for_each(timestamps.begin(), timestamps.end(), [&](const auto& stamp) {
+      graph_stamps.push_back(stamp.toNSec());
+    });
+
+    // find the union between the two
+    std::vector<uint64_t> union_stamps;
+    std::set_intersection(graph_stamps.begin(), graph_stamps.end(),
+                   measurement_stamps.begin(), measurement_stamps.end(),
+                   std::inserter(union_stamps, union_stamps.begin()));
+
+    // create a map to access measurements based on stamp
+    std::map<uint64_t, CameraMeasurementMsg::ConstPtr> measurement_map;
+    std::for_each(
+        visual_measurement_buffer_.begin(), visual_measurement_buffer_.end(),
+        [&](auto msg) { measurement_map[msg->header.stamp.toNSec()] = msg; });
+
+    // add each measurement as a keyframe if its in the graph
+    for (const auto& stamp : union_stamps) {
+      std::cout << stamp << std::endl;
+      const auto msg = measurement_map.at(stamp);
+      Keyframe kf(*msg);
+      keyframes_.push_back(kf);
+      previous_frame_ = msg->header.stamp;
+    }
+
+    // remove measurements
+    const uint64_t last_stamp = *union_stamps.rbegin();
+    while (!visual_measurement_buffer_.empty() &&
+           visual_measurement_buffer_.front()->header.stamp.toNSec() <
+               last_stamp) {
       visual_measurement_buffer_.pop_front();
     }
+
+    // process visual information in buffer that isn't in the graph yet
+    while (!visual_measurement_buffer_.empty()) {
+      const auto msg = visual_measurement_buffer_.front();
+      if (!ComputeOdometryAndExtendMap(msg)) { break; }
+      visual_measurement_buffer_.pop_front();
+    }
+
+    is_initialized_ = true;
   }
 }
 
