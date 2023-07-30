@@ -276,6 +276,10 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
 
+  // todo: set union between timestamps and timestamps in the visual measurement buffer
+  // todo: process each of those using the second if block
+  // todo: for each measurement in the buffer, past the end of the union, do ComputeOdometryAndExtendMap
+
   // do initial setup
   if (!is_initialized_) {
     const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(graph);
