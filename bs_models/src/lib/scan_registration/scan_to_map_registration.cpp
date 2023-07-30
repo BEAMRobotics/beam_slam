@@ -86,7 +86,7 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
   transaction.AddPoseConstraint(
       scan_pose_prev_->Position(), new_scan.Position(),
       scan_pose_prev_->Orientation(), new_scan.Orientation(), position_relative,
-      orientation_relative, covariance_, source_);
+      orientation_relative, covariance_weight_ * covariance_, source_);
 
   // add new registered scan and then trim the map
   AddScanToMap(new_scan, T_MAP_SCAN);
@@ -204,9 +204,7 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   }
   T_MAP_SCAN = beam::InvertTransform(T_MAPEST_MAP) * T_MAPEST_SCAN;
 
-  if (!use_fixed_covariance_) {
-    covariance_ = matcher_->GetCovariance();
-  }
+  if (!use_fixed_covariance_) { covariance_ = matcher_->GetCovariance(); }
   return true;
 }
 

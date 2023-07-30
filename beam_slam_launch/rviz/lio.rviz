@@ -103,7 +103,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.05000000074505806
       Style: Flat Squares
-      Topic: /local_mapper/lidar_odometry/registration/aligned_lm
+      Topic: /local_mapper/lidar_odometry/registration/aligned
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -290,7 +290,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 28.818397521972656
+      Distance: 43.41541290283203
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -298,17 +298,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.5996687412261963
-        Y: 3.992975950241089
-        Z: 5.147008895874023
+        X: -2.7726733684539795
+        Y: -1.4550124406814575
+        Z: 5.267746448516846
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.2897963523864746
+      Pitch: 0.8247970342636108
       Target Frame: <Fixed Frame>
-      Yaw: 4.766171455383301
+      Yaw: 5.211163520812988
     Saved: ~
 Window Geometry:
   Displays:

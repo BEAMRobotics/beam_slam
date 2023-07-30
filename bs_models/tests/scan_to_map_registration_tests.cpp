@@ -124,7 +124,7 @@ public:
   ScanToMapLoamRegistration::Params scan_reg_params;
 };
 
-TEST_F(ScanToMapLoamRegistrationTest, 2Scans) { 
+TEST_F(ScanToMapLoamRegistrationTest, 2Scans) {
   // init scan registration
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
   matcher = std::make_unique<LoamMatcher>(*loam_params);
@@ -144,10 +144,6 @@ TEST_F(ScanToMapLoamRegistrationTest, 2Scans) {
           std::move(matcher), scan_reg_params.GetBaseParams(),
           scan_reg_params.map_size, scan_reg_params.store_full_cloud);
 
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  scan_registration->SetFixedCovariance(covariance);
   auto transaction1 = scan_registration->RegisterNewScan(SP1).GetTransaction();
   auto transaction2 =
       scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
@@ -206,11 +202,6 @@ TEST_F(ScanToMapLoamRegistrationTest, 3Scans) {
       std::make_unique<ScanToMapLoamRegistration>(
           std::move(matcher), scan_reg_params.GetBaseParams(),
           scan_reg_params.map_size, scan_reg_params.store_full_cloud);
-
-  Eigen::Matrix<double, 6, 6> covariance;
-  covariance.setIdentity();
-  covariance = covariance * 0.1;
-  scan_registration->SetFixedCovariance(covariance);
 
   // Create the graph
   fuse_graphs::HashGraph graph;

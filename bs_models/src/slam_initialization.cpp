@@ -81,6 +81,9 @@ void SLAMInitialization::onInit() {
 
   // set init mode
   if (params_.init_mode == "VISUAL") {
+    // TODO for Jake
+    throw std::runtime_error{
+        "VISUAL MODE DISABLED - JAKE TO SWITCH TO PARALLAX INSTEAD OF TIME"};
     mode_ = InitMode::VISUAL;
   } else if (params_.init_mode == "LIDAR") {
     mode_ = InitMode::LIDAR;
@@ -331,8 +334,8 @@ bool SLAMInitialization::Initialize() {
 }
 
 void SLAMInitialization::InterpolateVisualMeasurements() {
-  if (landmark_container_->NumImages() == 0){return;}
-  
+  if (landmark_container_->NumImages() == 0) { return; }
+
   // interpolate for existing visual measurements if they aren't in the path
   auto visual_measurements = landmark_container_->GetMeasurementTimes();
   for (const auto& stamp : visual_measurements) {
@@ -469,7 +472,7 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
 }
 
 void SLAMInitialization::AddVisualConstraints() {
-   if (landmark_container_->NumImages() == 0) {return;}
+  if (landmark_container_->NumImages() == 0) { return; }
 
   // get the keyframe times we want to add constraints to
   std::set<ros::Time> kf_times;
@@ -529,7 +532,7 @@ void SLAMInitialization::AddVisualConstraints() {
 }
 
 void SLAMInitialization::AddLidarConstraints() {
-  if (params_.init_mode != "LIDAR"){return;}
+  if (params_.init_mode != "LIDAR") { return; }
 
   fuse_core::Transaction::SharedPtr transaction_combined =
       fuse_core::Transaction::make_shared();

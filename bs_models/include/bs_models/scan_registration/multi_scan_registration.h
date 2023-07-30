@@ -101,12 +101,11 @@ protected:
 
   /**
    * @brief pure virtual function that must be overridden in each derived multi
-   * scan registraion classes
+   * scan registration classes
    */
   virtual bool MatchScans(const ScanPose& scan_pose_ref,
                           const ScanPose& scan_pose_tgt,
-                          Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
-                          Eigen::Matrix<double, 6, 6>& covariance) = 0;
+                          Eigen::Matrix4d& T_LIDARREF_LIDARTGT) = 0;
 
   /**
    * @brief this function does 3 things:
@@ -174,8 +173,7 @@ public:
 
 private:
   bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
-                  Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
-                  Eigen::Matrix<double, 6, 6>& covariance) override;
+                  Eigen::Matrix4d& T_LIDARREF_LIDARTGT) override;
 
   std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher_;
 };
@@ -193,8 +191,7 @@ public:
 
 private:
   bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
-                  Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
-                  Eigen::Matrix<double, 6, 6>& covariance) override;
+                  Eigen::Matrix4d& T_LIDARREF_LIDARTGT) override;
 
   std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
 };

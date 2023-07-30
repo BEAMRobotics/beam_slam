@@ -92,6 +92,8 @@ public:
 
   bool PassedRegThreshold(const Eigen::Matrix4d& T_measured);
 
+  void SetInformationWeight(double w);
+
 protected:
   bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 
@@ -99,6 +101,7 @@ protected:
   Eigen::Matrix<double, 6, 6> covariance_;
   bool use_fixed_covariance_{false};
   RegistrationMap& map_ = RegistrationMap::GetInstance();
+  double covariance_weight_{1.0};
 
   /** This is the prior set on the first scan when fix_first_scan is enabled.
    * NOTE: this can only be set here, not in config. */

@@ -195,10 +195,7 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
 
     // run matcher to get refined cloud pose
     Eigen::Matrix4d T_LIDARREF_LIDARTGT;
-    Eigen::Matrix<double, 6, 6> covariance;
-    if (!MatchScans(*ref_iter, new_scan, T_LIDARREF_LIDARTGT, covariance)) {
-      continue;
-    }
+    if (!MatchScans(*ref_iter, new_scan, T_LIDARREF_LIDARTGT)) { continue; }
 
     // keep track of all results so that we can average the transform for the
     // lidar map
@@ -245,10 +242,10 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
     }
 
     // add measurement to transaction
-    transaction.AddPoseConstraint(ref_iter->Position(), new_scan.Position(),
-                                  ref_iter->Orientation(),
-                                  new_scan.Orientation(), position_relative,
-                                  orientation_relative, covariance, source_);
+    transaction.AddPoseConstraint(
+        ref_iter->Position(), new_scan.Position(), ref_iter->Orientation(),
+        new_scan.Orientation(), position_relative, orientation_relative,
+        covariance_weight_ * covariance_, source_);
 
     num_constraints++;
   }
@@ -455,10 +452,9 @@ MultiScanRegistration::MultiScanRegistration(
                                 disable_lidar_map),
       matcher_(std::move(matcher)) {}
 
-bool MultiScanRegistration::MatchScans(
-    const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
-    Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
-    Eigen::Matrix<double, 6, 6>& covariance) {
+bool MultiScanRegistration::MatchScans(const ScanPose& scan_pose_ref,
+                                       const ScanPose& scan_pose_tgt,
+                                       Eigen::Matrix4d& T_LIDARREF_LIDARTGT) {
   Eigen::Matrix4d T_LidarRefEst_LidarTgt =
       beam::InvertTransform(scan_pose_ref.T_REFFRAME_LIDAR()) *
       scan_pose_tgt.T_REFFRAME_LIDAR();
@@ -494,13 +490,10 @@ bool MultiScanRegistration::MatchScans(
     return false;
   }
 
-  if (use_fixed_covariance_) {
-    covariance = covariance_;
-  } else {
+  if (!use_fixed_covariance_) {
     BEAM_WARN(
         "Automated covariance estimation not tested, use fixed covariance!");
-    matcher_->GetCovariance();
-    covariance = matcher_->GetCovariance();
+    covariance_ = matcher_->GetCovariance();
   }
 
   return true;
@@ -516,8 +509,7 @@ MultiScanLoamRegistration::MultiScanLoamRegistration(
 
 bool MultiScanLoamRegistration::MatchScans(
     const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
-    Eigen::Matrix4d& T_LIDARREF_LIDARTGT,
-    Eigen::Matrix<double, 6, 6>& covariance) {
+    Eigen::Matrix4d& T_LIDARREF_LIDARTGT) {
   Eigen::Matrix4d T_LidarRefEst_LidarTgt =
       beam::InvertTransform(scan_pose_ref.T_REFFRAME_LIDAR()) *
       scan_pose_tgt.T_REFFRAME_LIDAR();
@@ -555,12 +547,7 @@ bool MultiScanLoamRegistration::MatchScans(
     return false;
   }
 
-  if (use_fixed_covariance_) {
-    covariance = covariance_;
-  } else {
-    BEAM_ERROR("Must use fixed covariance for loam registration.");
-    covariance = matcher_->GetCovariance();
-  }
+  if (!use_fixed_covariance_) { covariance_ = matcher_->GetCovariance(); }
 
   return true;
 }

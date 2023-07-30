@@ -62,7 +62,7 @@ void VisualOdometry::onStart() {
   // setup subscribers
   measurement_subscriber_ =
       private_node_handle_.subscribe<CameraMeasurementMsg>(
-          ros::names::resolve(vo_params_.visual_measurement_topic), 100,
+          ros::names::resolve("/local_mapper/visual_feature_tracker/visual_measurements"), 100,
           &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
@@ -216,7 +216,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
   transaction->stamp(timestamp);
 
   // add prior if using a frame initializer
-  if (frame_initializer_ && vo_params_.use_pose_priors) {
+  if (frame_initializer_ && vo_params_.prior_information_weight != 0) {
     auto prior = MakeFrameInitPrior(timestamp, vo_params_.prior_covariance);
     transaction->addConstraint(prior);
   }

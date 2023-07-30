@@ -51,22 +51,36 @@ public:
     // minimum acceptable trajectory length to intialize (if using frame init is
     // given or using LIDAR)
     getParam<double>(nh, "min_trajectory_length_m", min_trajectory_length_m,
-                     2.0);
+                     min_trajectory_length_m);
 
-    // weighting factor of inertial information matrix
-    getParam<double>(nh, "inertial_info_weight", inertial_info_weight, 1.0);
+    // weighting factor on inertial measurements
+    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) * Residuals
+    getParam<double>(nh, "inertial_info_weight", inertial_info_weight,
+                     inertial_info_weight);
 
-    // size of init window in seconds
+    // size of init window in seconds. This controls the data buffers, this
+    // should be larger than the amount of time it takes to produce the min.
+    // traj.
     getParam<double>(nh, "initialization_window_s", initialization_window_s,
-                     2.0);
+                     initialization_window_s);
 
+    // weighting factor on visual measurements
+    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) * Residuals
     getParam<double>(nh, "reprojection_information_weight",
-                     reprojection_information_weight, 1.0);
+                     reprojection_information_weight,
+                     reprojection_information_weight);
+
+    // weighting factor on lidar scan registration measurements
+    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) * Residuals
+    getParam<double>(nh, "lidar_information_weight", lidar_information_weight,
+                     lidar_information_weight);
 
     getParam<double>(nh, "max_triangulation_distance",
-                     max_triangulation_distance, 40.0);
+                     max_triangulation_distance, max_triangulation_distance);
+
     getParam<double>(nh, "max_triangulation_reprojection",
-                     max_triangulation_reprojection, 40.0);
+                     max_triangulation_reprojection,
+                     max_triangulation_reprojection);
 
     std::string matcher_config_rel;
     getParam<std::string>(nh, "matcher_config", matcher_config_rel,
@@ -93,12 +107,13 @@ public:
   std::string matcher_config;
   double max_optimization_s{1.0};
   double inertial_info_weight{0.001};
+  double reprojection_information_weight{1.0};
+  double lidar_information_weight{1.0};
   double min_trajectory_length_m{2.0};
   double frame_init_frequency{0.1};
   double max_triangulation_distance{40.0};
-  double max_triangulation_reprojection{20.0};
-  double initialization_window_s{2.0};
-  double reprojection_information_weight{1.0};
+  double max_triangulation_reprojection{30.0};
+  double initialization_window_s{10.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };
 }} // namespace bs_parameters::models
