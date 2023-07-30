@@ -38,9 +38,14 @@ public:
     getParam<bool>(nh, "output_lidar_points", output_lidar_points,
                    output_lidar_points);
 
-    /** If set to true, it will output all points in the registration map */
-    getParam<bool>(nh, "publish_registration_map", publish_registration_map,
-                   publish_registration_map);
+    /** If set to true, it will output all points in the active submap */
+    getParam<bool>(nh, "publish_active_submap", publish_active_submap,
+                   publish_active_submap);
+
+    /** If set to true, it will output all points in the registration map. This
+     * is the local map for the lidar */
+    getParam<bool>(nh, "publish_local_map", publish_local_map,
+                   publish_local_map);
 
     /** If set to true, it will publish all scan registration results including
      * the initial scan, the aligned to local RegistrationMap and the aligned to
@@ -63,23 +68,35 @@ public:
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           scan_output_directory);
 
-    /** Matcher params for registration. Use path relative to config folder */
-    std::string matcher_config_rel;
-    getParam<std::string>(nh, "matcher_config", matcher_config_rel,
-                          matcher_config_rel);
-    if (!matcher_config_rel.empty()) {
-      matcher_config = beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
-                                          matcher_config_rel);
+    /** Matcher params for local registration. Provide path relative to config
+     * folder */
+    std::string local_matcher_config_rel;
+    getParam<std::string>(nh, "local_matcher_config", local_matcher_config_rel,
+                          local_matcher_config_rel);
+    if (!local_matcher_config_rel.empty()) {
+      local_matcher_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), local_matcher_config_rel);
+    }
+
+    /** Matcher params for global registration.Provide path relative to config
+     * folder */
+    std::string global_matcher_config_rel;
+    getParam<std::string>(nh, "global_matcher_config",
+                          global_matcher_config_rel, global_matcher_config_rel);
+    if (!global_matcher_config_rel.empty()) {
+      global_matcher_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), global_matcher_config_rel);
     }
 
     /** Scan registration config path for local registration.Provide path
      * relative to config folder  */
-    std::string registration_config_rel;
-    getParam<std::string>(nh, "registration_config", registration_config_rel,
-                          registration_config_rel);
-    if (!registration_config_rel.empty()) {
-      registration_config = beam::CombinePaths(
-          bs_common::GetBeamSlamConfigPath(), registration_config_rel);
+    std::string local_registration_config_rel;
+    getParam<std::string>(nh, "local_registration_config",
+                          local_registration_config_rel,
+                          local_registration_config_rel);
+    if (!local_registration_config_rel.empty()) {
+      local_registration_config = beam::CombinePaths(
+          bs_common::GetBeamSlamConfigPath(), local_registration_config_rel);
     }
 
     /**
@@ -118,6 +135,18 @@ public:
     getParam<double>(nh, "lidar_information_weight", lidar_information_weight,
                      lidar_information_weight);
 
+    /** Minimum time between each reloc request. If set to zero, it will not
+     * send any. Relocs are sent each time a scan pose receives its first graph
+     * update, if the elapsed time since the last reloc request is greater than
+     * this min parameter. We want to make sure the reloc request has a good
+     * initial estimate of the scan pose before sending the reloc request
+     * because this pose is used to estimate the transform between the offline
+     * map and the online map. Therefore we don't want to send the reloc request
+     * right when sending the scan pose to the graph. That being said, the reloc
+     * request cannot be at a higher frequency than the optimizer. */
+    getParam<double>(nh, "reloc_request_period", reloc_request_period,
+                     reloc_request_period);
+
     // Prior weight on frame init poses if desired. If set to 0 then no prior
     // will be added. Since we store covariance here, but we want to specify a
     // weight on the sqrt inv covariance to be consistent with other prior
@@ -134,8 +163,9 @@ public:
   }
 
   // Scan Registration Params
-  std::string registration_config;
-  std::string matcher_config;
+  std::string local_registration_config;
+  std::string local_matcher_config;
+  std::string global_matcher_config;
 
   // General params
   std::string input_topic;
@@ -143,12 +173,14 @@ public:
   std::string input_filters_config{""};
   std::string scan_output_directory{""};
 
+  double reloc_request_period;
   double lidar_information_weight{1.0};
   double prior_information_weight{0};
 
   bool output_loam_points{true};
   bool output_lidar_points{true};
-  bool publish_registration_map{false};
+  bool publish_active_submap{false};
+  bool publish_local_map{false};
   bool publish_registration_results{false};
   bool save_graph_updates{false};
   bool save_scan_registration_results{false};

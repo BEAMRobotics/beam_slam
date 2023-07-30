@@ -18,30 +18,32 @@
 #include <bs_models/global_mapping/active_submap.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/scan_registration_base.h>
-#include <bs_parameters/models/lidar_odometry_params.h>
+
+#include "parameters/models/lidar_tracker_params.h"
 
 namespace bs_models {
 
 using namespace beam_matching;
 
 /**
- * @brief todo
+ * @brief THIS CLASS NEEDS TO BE REDONE
  *
- * Initialization: this doesn't start until the first graph update is received.
- * The goal of this is to ensure the slam initializer is always run
+ * This file is just a copy of LidarOdometry before we removed the global
+ * registration stuff. We need to remove all local registration stuff, then test
+ *
  */
-class LidarOdometry : public fuse_core::AsyncSensorModel {
+class LidarTracker : public fuse_core::AsyncSensorModel {
 public:
-  FUSE_SMART_PTR_DEFINITIONS(LidarOdometry);
+  FUSE_SMART_PTR_DEFINITIONS(LidarTracker);
 
-  LidarOdometry();
+  LidarTracker();
 
-  ~LidarOdometry() override = default;
+  ~LidarTracker() override = default;
 
 private:
-  void onInit() override;
-
   void onStart() override;
+
+  void onInit() override;
 
   void onStop() override;
 
@@ -54,15 +56,22 @@ private:
 
   void SetupRegistration();
 
+  fuse_core::Transaction::SharedPtr
+      RegisterScanToGlobalMap(const ScanPose& scan_pose,
+                              Eigen::Matrix4d& T_WORLD_BASELINK);
+
+  void SendRelocRequest(const std::shared_ptr<ScanPose>& scan_pose);
+
   void PublishMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
 
   void SaveMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
 
   void PublishScanRegistrationResults(
-      const fuse_core::Transaction::SharedPtr& transaction,
+      const fuse_core::Transaction::SharedPtr& transaction_lm,
+      const fuse_core::Transaction::SharedPtr& transaction_gm,
       const ScanPose& scan_pose);
 
-  void PublishTfTransform(const Eigen::Matrix4d& T_Child_Parent,
+  void PublishTfTransform(const Eigen::Matrix4d& T_CHILD_PARENT,
                           const std::string& child_frame,
                           const std::string& parent_frame,
                           const ros::Time& time);
@@ -71,9 +80,11 @@ private:
   ros::Subscriber subscriber_;
 
   /** Publishers */
-  ros::Publisher results_publisher_; // for global mapper
+  ros::Publisher results_publisher_;       // for global mapper
+  ros::Publisher reloc_request_publisher_; // for global mapper
   ros::Publisher registration_publisher_init_;
-  ros::Publisher registration_publisher_aligned_;
+  ros::Publisher registration_publisher_aligned_lm_;
+  ros::Publisher registration_publisher_aligned_gm_;
 
   ros::Publisher odom_publisher_smooth_;
   int odom_publisher_smooth_counter_{0};
@@ -97,13 +108,14 @@ private:
 
   /** Get access to the active submap being published by the global mapper if
    * running */
-  //   ActiveSubmap& active_submap_ = ActiveSubmap::GetInstance();
+  ActiveSubmap& active_submap_ = ActiveSubmap::GetInstance();
 
   /** Only needed if using LoamMatcher */
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
 
-  // register scans to map
-  std::unique_ptr<scan_registration::ScanRegistrationBase> scan_registration_;
+  // register scans to local map
+  std::unique_ptr<scan_registration::ScanRegistrationBase>
+      local_scan_registration_;
 
   std::unique_ptr<Matcher<PointCloudPtr>> global_matching_;
   std::unique_ptr<Matcher<LoamPointCloudPtr>> global_loam_matching_;
@@ -116,19 +128,21 @@ private:
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
-  bs_parameters::models::LidarOdometryParams params_;
+  bs_parameters::models::LidarTrackerParams params_;
 
   std::vector<beam_filtering::FilterParamsType> input_filter_params_;
 
   int updates_{0};
-  Eigen::Matrix4d T_World_BaselinkLast_{Eigen::Matrix4d::Identity()};
+  ros::Duration reloc_request_period_;
+  ros::Time last_reloc_request_time_{ros::Time(0)};
+  Eigen::Matrix4d T_WORLD_BASELINKLAST_{Eigen::Matrix4d::Identity()};
   ros::Time last_scan_pose_time_{ros::Time(0)};
   std::string graph_updates_path_;
   std::string marginalized_scans_path_;
   std::string registration_results_path_;
 
   /** Params that can only be updated here: */
-  bool update_registration_map_on_graph_update_{false};
+  bool update_local_map_on_graph_update_{false};
   bool use_frame_init_relative_{true};
 };
 
