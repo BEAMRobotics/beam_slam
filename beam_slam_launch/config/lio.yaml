@@ -45,10 +45,9 @@ slam_initialization:
   lidar_topic: "/lidar_h/velodyne_packets_unpacked"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
-  initialization_window_s: 2.0
   min_trajectory_length_m: 2.0
-  reprojection_information_weight: 1.0
-  inertial_information_weight: 1.0
+  inertial_information_weight: 0.001
+  lidar_information_weight: 1.0
   max_triangulation_distance: 50.0 # vision specific
   max_triangulation_reprojection: 30.0 # vision specific
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
@@ -81,7 +80,6 @@ lidar_odometry:
   publish_registration_results: true
   # frame_initializer_config: 'frame_initializers/path.json'
   frame_initializer_config: "/frame_initializers/io.json"
-  frame_initializer_prior_noise_diagonal: [0,0,0,0,0,0] #[0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
   reloc_request_period: 1
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
   # these are only relevant if scan_output_directory is not empty

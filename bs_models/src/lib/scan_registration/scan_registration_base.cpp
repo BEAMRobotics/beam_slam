@@ -100,7 +100,6 @@ std::unique_ptr<ScanRegistrationBase>
   return std::move(registration);
 }
 
-
 void ScanRegistrationParamsBase::Print(std::ostream& stream) const {
   stream << "ScanRegistrationParamsBase: \n";
   stream << "outlier_threshold_trans_m: " << outlier_threshold_trans_m << "\n";
@@ -204,6 +203,10 @@ bool ScanRegistrationBase::PassedMotionThresholds(
   }
 
   return (passed_trans || passed_rot);
+}
+
+void ScanRegistrationBase::SetInformationWeight(double w) {
+  covariance_weight_ = 1 / (w * w);
 }
 
 }} // namespace bs_models::scan_registration

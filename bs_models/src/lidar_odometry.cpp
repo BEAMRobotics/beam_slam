@@ -279,7 +279,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
 
   // add priors from initializer
   fuse_core::Transaction::SharedPtr prior_transaction;
-  if (params_.use_pose_priors) {
+  if (params_.prior_information_weight != 0) {
     auto p = fuse_variables::Position3DStamped::make_shared(
         current_scan_pose->Position());
     auto o = fuse_variables::Orientation3DStamped::make_shared(
@@ -391,6 +391,9 @@ void LidarOdometry::SetupRegistration() {
           "Invalid global matcher type. Not running global map registration");
     }
   }
+
+  local_scan_registration_->SetInformationWeight(
+      params_.lidar_information_weight);
 }
 
 fuse_core::Transaction::SharedPtr
@@ -475,10 +478,12 @@ fuse_core::Transaction::SharedPtr
   transaction->stamp(scan_pose.Stamp());
   transaction->addVariable(p);
   transaction->addVariable(o);
+  double cov_weight =
+      1 / (params_.lidar_information_weight * params_.lidar_information_weight);
   auto prior =
       std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
           "GLOBALMAPREGISTRATION", *p, *o, mean,
-          global_matching_->GetCovariance());
+          cov_weight * global_matching_->GetCovariance());
   transaction->addConstraint(prior);
   return transaction;
 }

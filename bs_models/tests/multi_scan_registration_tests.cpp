@@ -844,7 +844,6 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
           std::move(matcher), scan_reg_params.GetBaseParams(),
           scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
           scan_reg_params.disable_lidar_map);
-  multi_scan_registration->SetFixedCovariance(covariance_);
 
   // Create the graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
@@ -945,7 +944,6 @@ TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
           std::move(matcher), scan_reg_params.GetBaseParams(),
           scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
           scan_reg_params.disable_lidar_map);
-  multi_scan_registration->SetFixedCovariance(covariance_);
 
   // Create the graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
@@ -1035,7 +1033,6 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
           std::move(matcher), scan_reg_params.GetBaseParams(),
           scan_reg_params.num_neighbors, scan_reg_params.lag_duration,
           scan_reg_params.disable_lidar_map);
-  multi_scan_registration->SetFixedCovariance(covariance_);
 
   // create path
   std::vector<Eigen::Vector3d, beam::AlignVec3d> nodes;

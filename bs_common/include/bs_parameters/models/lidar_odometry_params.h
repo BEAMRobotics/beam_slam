@@ -57,7 +57,8 @@ public:
     getParam<bool>(nh, "save_graph_updates", save_graph_updates,
                    save_graph_updates);
 
-    getParam<bool>(nh, "save_scan_registration_results", save_scan_registration_results,
+    getParam<bool>(nh, "save_scan_registration_results",
+                   save_scan_registration_results,
                    save_scan_registration_results);
 
     getParam<bool>(nh, "save_marginalized_scans", save_marginalized_scans,
@@ -128,7 +129,13 @@ public:
           bs_common::GetBeamSlamConfigPath(), frame_initializer_config_rel);
     }
 
-    /** Minimum time between each reloc reequest. If set to zero, it will not
+    /** Weighting factor on lidar scan registration measurements.
+    This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
+    Residuals */
+    getParam<double>(nh, "lidar_information_weight", lidar_information_weight,
+                     lidar_information_weight);
+
+    /** Minimum time between each reloc request. If set to zero, it will not
      * send any. Relocs are sent each time a scan pose receives its first graph
      * update, if the elapsed time since the last reloc request is greater than
      * this min parameter. We want to make sure the reloc request has a good
@@ -140,23 +147,19 @@ public:
     getParam<double>(nh, "reloc_request_period", reloc_request_period,
                      reloc_request_period);
 
-    /** Use this to specify prior covariance by diagonal. If all diagonal
-     * elements are set to zero, priors will not be added */
-    std::vector<double> prior_diagonal;
-    nh.param("frame_initializer_prior_noise_diagonal", prior_diagonal,
-             prior_diagonal);
-    if (prior_diagonal.size() != 6) {
-      ROS_ERROR("Invalid gm_noise_diagonal params, required 6 params, "
-                "given: %zu. Using default (0.1 for all)",
-                prior_diagonal.size());
-      prior_diagonal = std::vector<double>{0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
+    // Prior weight on frame init poses if desired. If set to 0 then no prior
+    // will be added. Since we store covariance here, but we want to specify a
+    // weight on the sqrt inv covariance to be consistent with other prior
+    // weights, we calculate the equivalent weight according to:
+    //   w sqrt(cov^-1) = sqrt[(w' cov)^-1] => w' = 1/w^2
+    double prior_information_weight;
+    getParam<double>(nh, "prior_information_weight", prior_information_weight,
+                     prior_information_weight);
+    if (prior_information_weight != 0) {
+      double cov_weight =
+          1 / (prior_information_weight * prior_information_weight);
+      prior_covariance = cov_weight * Eigen::Matrix<double, 6, 6>::Identity();
     }
-    if (std::accumulate(prior_diagonal.begin(), prior_diagonal.end(), 0.0) ==
-        0.0) {
-      ROS_INFO("Prior diagonal set to zero, not adding priors");
-      use_pose_priors = false;
-    }
-    for (int i = 0; i < 6; i++) { prior_covariance(i, i) = prior_diagonal[i]; }
   }
 
   // Scan Registration Params
@@ -171,21 +174,21 @@ public:
   std::string scan_output_directory{""};
 
   double reloc_request_period;
+  double lidar_information_weight{1.0};
+  double prior_information_weight{0};
 
   bool output_loam_points{true};
   bool output_lidar_points{true};
   bool publish_active_submap{false};
   bool publish_local_map{false};
   bool publish_registration_results{false};
-  bool use_pose_priors{true};
   bool save_graph_updates{false};
   bool save_scan_registration_results{false};
   bool save_marginalized_scans{true};
 
   LidarType lidar_type{LidarType::VELODYNE};
 
-  Eigen::Matrix<double, 6, 6> prior_covariance{
-      Eigen::Matrix<double, 6, 6>::Identity()};
+  Eigen::Matrix<double, 6, 6> prior_covariance;
 };
 
 }} // namespace bs_parameters::models
