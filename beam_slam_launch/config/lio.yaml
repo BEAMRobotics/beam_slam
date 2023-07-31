@@ -42,7 +42,7 @@ unicycle_3d:
 
 slam_initialization:
   imu_topic: "/imu/data"
-  lidar_topic: "/lidar_h/velodyne_packets_unpacked"
+  lidar_topic: "/lidar_h/velodyne_points"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
@@ -51,7 +51,7 @@ slam_initialization:
   max_triangulation_distance: 50.0 # vision specific
   max_triangulation_reprojection: 30.0 # vision specific
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
+  output_folder: "" #"/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
 
 
 inertial_odometry:
@@ -59,7 +59,7 @@ inertial_odometry:
   constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
 
 lidar_deskewer:
-  input_topic: '/lidar_h/velodyne_packets_unpacked'
+  input_topic: '/lidar_h/velodyne_points'
   lidar_type: 'VELODYNE'
   frame_initializer_config: "frame_initializers/io.json"
 

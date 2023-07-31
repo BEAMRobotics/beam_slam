@@ -14,5 +14,5 @@
 
 # calibrations
 /calibration_params/static_extrinsics: true
-/calibration_params/camera_intrinsics_path: "ig2/F1.json"
+/calibration_params/camera_intrinsics_path: "ig2/F1_DS.json"
 /calibration_params/imu_intrinsics_path: "ig2/imu.json"

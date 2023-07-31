@@ -4,7 +4,7 @@ lag_duration: 7
 solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
-  minimizer_progress_to_stdout: true
+  minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
   max_num_iterations: 10
@@ -33,7 +33,7 @@ publishers:
 #     type: 'bs_publishers::Path3DPublisher'
 
 visual_feature_tracker:
-  image_topic: '/F1/image_raw_debayered'
+  image_topic: '/F1/image'
   descriptor_config: 'vo/orb_descriptor.json'
   detector_config: 'vo/fastssc_detector.json'
   tracker_config: 'vo/tracker.json'
@@ -41,7 +41,7 @@ visual_feature_tracker:
 
 slam_initialization:
   imu_topic: "/imu/data"
-  lidar_topic: "/lidar_h/velodyne_packets_unpacked"
+  lidar_topic: "/lidar_h/velodyne_points"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
@@ -51,7 +51,7 @@ slam_initialization:
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
+  output_folder: "" # "/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
 
 inertial_odometry:
   imu_topic: "/imu/data"

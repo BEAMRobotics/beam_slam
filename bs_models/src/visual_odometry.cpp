@@ -312,7 +312,6 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 
     // add each measurement as a keyframe if its in the graph
     for (const auto& stamp : union_stamps) {
-      std::cout << stamp << std::endl;
       const auto msg = measurement_map.at(stamp);
       Keyframe kf(*msg);
       keyframes_.push_back(kf);
