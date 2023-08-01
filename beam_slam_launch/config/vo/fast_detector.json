@@ -1,8 +1,0 @@
-{
-  "num_features": 100,
-  "threshold": 10,
-  "nonmax_suppression": true,
-  "type": "TYPE_9_16",
-  "grid_cols": 3,
-  "grid_rows": 2
-}
