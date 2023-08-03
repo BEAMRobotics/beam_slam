@@ -45,8 +45,6 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
   scan_registration::ScanToMapLoamRegistration::Params reg_params;
   reg_params.map_size = 10;
   reg_params.store_full_cloud = false;
-  reg_params.outlier_threshold_trans_m = 0.5;
-  reg_params.outlier_threshold_rot_deg = 45;
   reg_params.min_motion_trans_m = 0;
   reg_params.min_motion_rot_deg = 0;
   reg_params.max_motion_trans_m = 10;

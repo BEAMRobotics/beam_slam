@@ -32,8 +32,6 @@ GlobalMapRefinement::Params::Params() {
                              0, 0, 0, 0, 0, loop_cov_diag;
   // clang-format on
 
-  multi_scan_reg_params.outlier_threshold_trans_m = 0.1;
-  multi_scan_reg_params.outlier_threshold_rot_deg = 20;
   multi_scan_reg_params.min_motion_trans_m = 0;
   multi_scan_reg_params.min_motion_rot_deg = 0;
   multi_scan_reg_params.max_motion_trans_m = 5;
@@ -47,8 +45,6 @@ GlobalMapRefinement::Params::Params() {
   // TODO: Do we want this to always be true? What about when we have vision?
   multi_scan_reg_params.fix_first_scan = true;
 
-  scan_to_map_reg_params.outlier_threshold_trans_m = 0.1;
-  scan_to_map_reg_params.outlier_threshold_rot_deg = 20;
   scan_to_map_reg_params.min_motion_trans_m = 0;
   scan_to_map_reg_params.min_motion_rot_deg = 0;
   scan_to_map_reg_params.max_motion_trans_m = 5;
@@ -125,10 +121,6 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   }
 
   nlohmann::json J_multiscanreg = J["multi_scan_registration"];
-  multi_scan_reg_params.outlier_threshold_trans_m =
-      J_multiscanreg["outlier_threshold_trans_m"];
-  multi_scan_reg_params.outlier_threshold_rot_deg =
-      J_multiscanreg["outlier_threshold_rot_deg"];
   multi_scan_reg_params.min_motion_trans_m =
       J_multiscanreg["min_motion_trans_m"];
   multi_scan_reg_params.min_motion_rot_deg =
@@ -138,10 +130,6 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   multi_scan_reg_params.num_neighbors = J_multiscanreg["num_neighbors"];
 
   nlohmann::json J_scantomapreg = J["scan_to_map_registration"];
-  scan_to_map_reg_params.outlier_threshold_trans_m =
-      J_scantomapreg["outlier_threshold_trans_m"];
-  scan_to_map_reg_params.outlier_threshold_rot_deg =
-      J_scantomapreg["outlier_threshold_rot_deg"];
   scan_to_map_reg_params.min_motion_trans_m =
       J_scantomapreg["min_motion_trans_m"];
   scan_to_map_reg_params.min_motion_rot_deg =

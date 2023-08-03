@@ -153,8 +153,6 @@ void ScanToMapLoamRegistration::Params::Print(std::ostream& stream) const {
 ScanRegistrationParamsBase
     ScanToMapLoamRegistration::Params::GetBaseParams() const {
   ScanRegistrationParamsBase base_params{
-      .outlier_threshold_trans_m = outlier_threshold_trans_m,
-      .outlier_threshold_rot_deg = outlier_threshold_rot_deg,
       .min_motion_trans_m = min_motion_trans_m,
       .min_motion_rot_deg = min_motion_rot_deg,
       .max_motion_trans_m = max_motion_trans_m,
@@ -195,17 +193,13 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
   }
   Eigen::Matrix4d T_MAPEST_MAP = matcher_->GetResult().matrix();
 
-  if (!PassedRegThreshold(T_MAPEST_MAP)) {
-    BEAM_WARN("Failed scan matcher transform threshold check for stamp {}.{}. "
-              "Skipping measurement.",
-              scan_pose.Stamp().sec, scan_pose.Stamp().nsec);
-    std::cout << "T_MAPEST_MAP: \n" << T_MAPEST_MAP << "\n";
-    return false;
-  }
-  T_MAP_SCAN = beam::InvertTransform(T_MAPEST_MAP) * T_MAPEST_SCAN;
-
   if (!use_fixed_covariance_) { covariance_ = matcher_->GetCovariance(); }
-  return true;
+
+  if (registration_validation_.Validate(T_MAPEST_MAP, covariance_)) {
+    T_MAP_SCAN = beam::InvertTransform(T_MAPEST_MAP) * T_MAPEST_SCAN;
+    return true;
+  }
+  return false;
 }
 
 void ScanToMapLoamRegistration::AddScanToMap(

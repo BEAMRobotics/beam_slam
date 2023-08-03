@@ -3,6 +3,7 @@
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/registration_map.h>
+#include <bs_models/scan_registration/registration_validation.h>
 
 namespace bs_models { namespace scan_registration {
 
@@ -11,8 +12,6 @@ using TransactionBase =
     bs_constraints::relative_pose::RelativePoseTransactionBase<ConstraintType,
                                                                PriorType>;
 
-static std::string _tmp_string{""};
-
 /**
  * @brief base class for scan registration parameters. These params will be used
  * in most scan regisatration implementations. This struct serves as a way to
@@ -20,16 +19,6 @@ static std::string _tmp_string{""};
  * a params class that inherits from this base class.
  */
 struct ScanRegistrationParamsBase {
-  /** all scan registration methods should check final registration result to
-   * make sure it does not vary from initial guess by more than this amount.
-   * This is an outlier removal methodology. We should be able to set this based
-   * on how good we expect our initials estimates to be. Note that these are
-   * "or" conditions, meaning if translation or rotation are violated, the
-   * registration will be considered a failure. Empty transactions will be
-   * returned if these fail. */
-  double outlier_threshold_trans_m{0.3};
-  double outlier_threshold_rot_deg{20};
-
   /** In some cases, we may not want to register scans that are too close
    * together. Setting these values to something >0 will enforce this
    * constraint. Empty transactions will be returned if they violate this
@@ -90,8 +79,6 @@ public:
 
   RegistrationMap& GetMapMutable();
 
-  bool PassedRegThreshold(const Eigen::Matrix4d& T_measured);
-
   void SetInformationWeight(double w);
 
 protected:
@@ -101,6 +88,7 @@ protected:
   Eigen::Matrix<double, 6, 6> covariance_;
   bool use_fixed_covariance_{false};
   RegistrationMap& map_ = RegistrationMap::GetInstance();
+  RegistrationValidation registration_validation_;
   double covariance_weight_{1.0};
 
   /** This is the prior set on the first scan when fix_first_scan is enabled.

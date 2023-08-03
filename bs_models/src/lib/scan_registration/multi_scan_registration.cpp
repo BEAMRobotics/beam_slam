@@ -59,8 +59,6 @@ void MultiScanRegistrationBase::Params::LoadFromJson(
 
 ScanRegistrationParamsBase MultiScanRegistrationBase::Params::GetBaseParams() {
   ScanRegistrationParamsBase base_params{
-      .outlier_threshold_trans_m = outlier_threshold_trans_m,
-      .outlier_threshold_rot_deg = outlier_threshold_rot_deg,
       .min_motion_trans_m = min_motion_trans_m,
       .min_motion_rot_deg = min_motion_rot_deg,
       .max_motion_trans_m = max_motion_trans_m,
@@ -481,22 +479,13 @@ bool MultiScanRegistration::MatchScans(const ScanPose& scan_pose_ref,
 
   OutputResults(scan_pose_ref, scan_pose_tgt, T_LIDARREF_LIDARTGT, false);
 
-  if (!PassedRegThreshold(T_RefEst_Ref)) {
-    BEAM_WARN(
-        "Failed scan matcher transform threshold check for stamp {}.{}. to "
-        "stamp {}.{}. Skipping measurement.",
-        scan_pose_tgt.Stamp().sec, scan_pose_tgt.Stamp().nsec,
-        scan_pose_ref.Stamp().sec, scan_pose_ref.Stamp().nsec);
-    return false;
-  }
-
   if (!use_fixed_covariance_) {
     BEAM_WARN(
         "Automated covariance estimation not tested, use fixed covariance!");
     covariance_ = matcher_->GetCovariance();
   }
 
-  return true;
+  return registration_validation_.Validate(T_RefEst_Ref, covariance_);
 }
 
 MultiScanLoamRegistration::MultiScanLoamRegistration(
@@ -538,18 +527,9 @@ bool MultiScanLoamRegistration::MatchScans(
 
   OutputResults(scan_pose_ref, scan_pose_tgt, T_LIDARREF_LIDARTGT, true);
 
-  if (!PassedRegThreshold(T_RefEst_Ref)) {
-    BEAM_WARN(
-        "Failed scan matcher transform threshold check for stamp {}.{}. to "
-        "stamp {}.{}. Skipping measurement.",
-        scan_pose_tgt.Stamp().sec, scan_pose_tgt.Stamp().nsec,
-        scan_pose_ref.Stamp().sec, scan_pose_ref.Stamp().nsec);
-    return false;
-  }
-
   if (!use_fixed_covariance_) { covariance_ = matcher_->GetCovariance(); }
 
-  return true;
+  return registration_validation_.Validate(T_RefEst_Ref, covariance_);
 }
 
 }} // namespace bs_models::scan_registration

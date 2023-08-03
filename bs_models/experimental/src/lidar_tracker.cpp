@@ -451,6 +451,7 @@ fuse_core::Transaction::SharedPtr
   }
 
   // check against threshold. Use threshold params from local matcher
+  // NOTE WE HAVE CHANGED TO RegistrationValidation class
   if (!local_scan_registration_->PassedRegThreshold(T_MAPEST_MAP)) {
     ROS_WARN(
         "Failed global scan matcher transform threshold check for stamp %d.%d. "

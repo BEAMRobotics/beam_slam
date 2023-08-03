@@ -42,8 +42,6 @@ public:
     loam_params = std::make_shared<LoamParams>(config_path);
 
     // create scan reg params
-    scan_reg_params.outlier_threshold_trans_m = 1;
-    scan_reg_params.outlier_threshold_rot_deg = 31;
     scan_reg_params.min_motion_trans_m = 0;
     scan_reg_params.min_motion_rot_deg = 0;
     scan_reg_params.fix_first_scan = true;

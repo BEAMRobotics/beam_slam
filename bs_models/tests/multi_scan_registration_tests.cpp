@@ -91,8 +91,6 @@ protected:
     icp_params_.multiscale_steps = 0;
     icp_params_.res = 0;
 
-    scan_reg_params_.outlier_threshold_trans_m = 1;
-    scan_reg_params_.outlier_threshold_rot_deg = 30;
     scan_reg_params_.min_motion_trans_m = 0;
     scan_reg_params_.min_motion_rot_deg = 0;
     scan_reg_params_.fix_first_scan = true;
@@ -399,8 +397,6 @@ TEST_F(MultiScanRegistrationTest, Params) {
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
       std::make_shared<LoamFeatureExtractor>(loam_params);
 
-  double outlier_threshold_trans_m = 0.3123;
-  double outlier_threshold_rot_deg = 20.123;
   double min_motion_trans_m = 0.123;
   double min_motion_rot_deg = 0.456;
   double max_motion_trans_m = 10.123;
@@ -410,8 +406,6 @@ TEST_F(MultiScanRegistrationTest, Params) {
   bool disable_lidar_map = true;
 
   MultiScanRegistrationBase::Params scan_reg_params;
-  scan_reg_params.outlier_threshold_trans_m = outlier_threshold_trans_m;
-  scan_reg_params.outlier_threshold_rot_deg = outlier_threshold_rot_deg;
   scan_reg_params.min_motion_trans_m = min_motion_trans_m;
   scan_reg_params.min_motion_rot_deg = min_motion_rot_deg;
   scan_reg_params.max_motion_trans_m = max_motion_trans_m;
@@ -428,10 +422,6 @@ TEST_F(MultiScanRegistrationTest, Params) {
 
   MultiScanRegistration::Params returned_icp_multi_params =
       multi_scan_icp_registration->GetParams();
-  EXPECT_EQ(returned_icp_multi_params.outlier_threshold_trans_m,
-            outlier_threshold_trans_m);
-  EXPECT_EQ(returned_icp_multi_params.outlier_threshold_rot_deg,
-            outlier_threshold_rot_deg);
   EXPECT_EQ(returned_icp_multi_params.min_motion_trans_m, min_motion_trans_m);
   EXPECT_EQ(returned_icp_multi_params.min_motion_rot_deg, min_motion_rot_deg);
   EXPECT_EQ(returned_icp_multi_params.max_motion_trans_m, max_motion_trans_m);
@@ -448,10 +438,6 @@ TEST_F(MultiScanRegistrationTest, Params) {
 
   MultiScanRegistration::Params returned_loam_multi_params =
       multi_scan_loam_registration->GetParams();
-  EXPECT_EQ(returned_loam_multi_params.outlier_threshold_trans_m,
-            outlier_threshold_trans_m);
-  EXPECT_EQ(returned_loam_multi_params.outlier_threshold_rot_deg,
-            outlier_threshold_rot_deg);
   EXPECT_EQ(returned_loam_multi_params.min_motion_trans_m, min_motion_trans_m);
   EXPECT_EQ(returned_loam_multi_params.min_motion_rot_deg, min_motion_rot_deg);
   EXPECT_EQ(returned_loam_multi_params.max_motion_trans_m, max_motion_trans_m);
@@ -1019,8 +1005,6 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
       std::make_shared<LoamFeatureExtractor>(loam_params);
 
   MultiScanLoamRegistration::Params scan_reg_params;
-  scan_reg_params.outlier_threshold_trans_m = 1;
-  scan_reg_params.outlier_threshold_rot_deg = 30;
   scan_reg_params.min_motion_trans_m = 0;
   scan_reg_params.min_motion_rot_deg = 0;
   scan_reg_params.fix_first_scan = true;

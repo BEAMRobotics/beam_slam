@@ -102,8 +102,6 @@ std::unique_ptr<ScanRegistrationBase>
 
 void ScanRegistrationParamsBase::Print(std::ostream& stream) const {
   stream << "ScanRegistrationParamsBase: \n";
-  stream << "outlier_threshold_trans_m: " << outlier_threshold_trans_m << "\n";
-  stream << "outlier_threshold_rot_deg: " << outlier_threshold_rot_deg << "\n";
   stream << "min_motion_trans_m: " << min_motion_trans_m << "\n";
   stream << "min_motion_rot_deg: " << min_motion_rot_deg << "\n";
   stream << "max_motion_trans_m: " << max_motion_trans_m << "\n";
@@ -129,8 +127,6 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
     return;
   }
 
-  outlier_threshold_trans_m = J["outlier_threshold_trans_m"];
-  outlier_threshold_rot_deg = J["outlier_threshold_rot_deg"];
   min_motion_trans_m = J["min_motion_trans_m"];
   min_motion_rot_deg = J["min_motion_rot_deg"];
   max_motion_trans_m = J["max_motion_trans_m"];
@@ -161,14 +157,6 @@ const RegistrationMap& ScanRegistrationBase::GetMap() const {
 
 RegistrationMap& ScanRegistrationBase::GetMapMutable() {
   return map_;
-}
-
-bool ScanRegistrationBase::PassedRegThreshold(
-    const Eigen::Matrix4d& T_measured) {
-  return beam::PassedMotionThreshold(Eigen::Matrix4d::Identity(), T_measured,
-                                     base_params_.outlier_threshold_rot_deg,
-                                     base_params_.outlier_threshold_trans_m,
-                                     false, true, true);
 }
 
 bool ScanRegistrationBase::PassedMotionThresholds(
