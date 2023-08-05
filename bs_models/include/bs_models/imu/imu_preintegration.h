@@ -180,7 +180,7 @@ private:
       pre_integrator_kj_; // preintegrate between every frame
   Eigen::Vector3d bg_{Eigen::Vector3d::Zero()}; // zero gyroscope bias
   Eigen::Vector3d ba_{Eigen::Vector3d::Zero()}; // zero acceleration bias
-  std::map<uint64_t, bs_common::ImuState>
+  std::unordered_map<uint64_t, bs_common::ImuState>
       window_states_; // state velocities in the window
   double info_weight_{1.0};
 };

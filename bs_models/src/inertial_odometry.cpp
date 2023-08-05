@@ -119,6 +119,7 @@ void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
   Eigen::Vector3d velocity_curr;
   const auto [T_IMUprev_IMUcurr, cov_rel] =
       imu_preint_->GetRelativeMotion(prev_stamp, curr_stamp, velocity_curr);
+
   // publish relative odometry
   T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
   auto odom_msg_rel = bs_common::TransformToOdometryMessage(

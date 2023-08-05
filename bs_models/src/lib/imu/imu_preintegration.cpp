@@ -151,13 +151,12 @@ PoseWithCovariance ImuPreintegration::GetRelativeMotion(
   // integrate to t2
   pre_integrator.Integrate(t2, imu_state_i_.GyroBiasVec(),
                            imu_state_i_.AccelBiasVec(), false, true);
-
   // get state at t2
   bs_common::ImuState imu_state_2 =
       PredictState(pre_integrator, imu_state_1, t2);
 
   // store for potential next t1
-  window_states_[t2.toNSec()] = imu_state_2;
+  window_states_.emplace(t2.toNSec(), imu_state_2);
 
   // get poses at each state
   Eigen::Matrix4d T_WORLD_IMUSTATE2;
@@ -179,7 +178,6 @@ PoseWithCovariance ImuPreintegration::GetRelativeMotion(
 
   // get velocity
   velocity_t2 = imu_state_2.VelocityVec();
-
   return std::make_pair(T_IMUSTATE1_IMUSTATE2, covariance);
 }
 

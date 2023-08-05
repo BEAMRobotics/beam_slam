@@ -26,7 +26,7 @@ void PreIntegrator::Clear(const ros::Time& t) {
   data.erase(it, data.end());
 }
 
-void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
+void PreIntegrator::Increment(const ros::Duration& dt, const IMUData& data,
                               const Eigen::Vector3d& bg,
                               const Eigen::Vector3d& ba, bool compute_jacobian,
                               bool compute_covariance) {
@@ -91,12 +91,12 @@ void PreIntegrator::Increment(ros::Duration dt, const IMUData& data,
   delta.q = (delta.q * q_full).normalized();
 }
 
-bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg,
+bool PreIntegrator::Integrate(const ros::Time& t, const Eigen::Vector3d& bg,
                               const Eigen::Vector3d& ba, bool compute_jacobian,
                               bool compute_covariance) {
   if (data.empty()) return false;
   Reset();
-
+  
   // increment over window such that it is less or equal to the requested time
   for (int i = 0; i < data.size(); i++) {
     const int j = i + 1;
@@ -107,14 +107,15 @@ bool PreIntegrator::Integrate(ros::Time t, const Eigen::Vector3d& bg,
     const auto dt = next.t - cur.t;
     Increment(dt, cur, bg, ba, compute_jacobian, compute_covariance);
   }
-
+  
   // final increment to requested time
   const auto dt = t - data.rbegin()->t;
   if (dt > ros::Duration(0)) {
     Increment(dt, *data.rbegin(), bg, ba, compute_jacobian, compute_covariance);
   }
-
+  
   if (compute_covariance) { ComputeSqrtInvCov(); }
+  
   return true;
 }
 

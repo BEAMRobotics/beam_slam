@@ -94,7 +94,7 @@ public:
    * @param compute_jacobian optionally compute the jacobian
    * @param compute_covariance optionally compute the covariance
    */
-  void Increment(ros::Duration dt, const IMUData& data, const Eigen::Vector3d& bg,
+  void Increment(const ros::Duration& dt, const IMUData& data, const Eigen::Vector3d& bg,
                  const Eigen::Vector3d& ba, bool compute_jacobian, bool compute_covariance);
 
   /**
@@ -106,7 +106,7 @@ public:
    * @param compute_jacobian optionally compute the jacobian
    * @param compute_covariance optionally compute the covariance
    */
-  bool Integrate(ros::Time t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
+  bool Integrate(const ros::Time& t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
                  bool compute_jacobian, bool compute_covariance);
 
   /**
