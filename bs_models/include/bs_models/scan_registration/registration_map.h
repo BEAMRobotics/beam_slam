@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fuse_core/graph.h>
 #include <fuse_core/uuid.h>
 #include <ros/publisher.h>
 
@@ -22,6 +23,14 @@ using namespace beam_matching;
  */
 class RegistrationMap {
 public:
+  struct ScanPoseInMapFrame {
+    Eigen::Matrix4d T_Map_Scan;
+    PointCloud cloud;
+    LoamPointCloud loam_cloud;
+    fuse_core::UUID orientation_uuid;
+    fuse_core::UUID position_uuid;
+  };
+
   /**
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
@@ -45,51 +54,32 @@ public:
   int MapSize() const;
 
   /**
-   * @brief checks if no pointclouds have been added to this map
+   * @brief checks if no scans have been added to this map
    * @return true if no clouds have been added (loam or regular pointclouds)
    */
   bool Empty() const;
 
   /**
-   * @brief return the number of pointclouds currently stored
-   * @return number of pcl pointclouds stored
+   * @brief return the number of scans currently stored
+   * @return number of scans stored
    */
-  int NumPointClouds() const;
-
-  /**
-   * @brief return the number of loam pointclouds currently stored
-   * @return number of loam pointclouds stored
-   */
-  int NumLoamClouds() const;
+  int NumScans() const;
 
   /**
    * @brief add pointcloud and convert to map frame. It will also remove
    * the first (chronologically) scan if the map has reached its max size.
    * @param cloud pointcloud to add (in some scan frame)
+   * @param loam_cloud loam pointcloud to add (in some scan frame)
    * @param stamp timestamp associated with this scan. This is used to queue the
    * clouds in the map, which will remove the oldest maps once the map gets
    * larger than the max size
-   * @param T_MAP_SCAN ransform from scan frame to map frame. This
+   * @param T_Map_Scan ransform from scan frame to map frame. This
    * will be applied to the scan before adding (to reduce computation, assuming
    * we will be frequently asking for the full map). The map frame is usually
    * the world frame.
    */
-  void AddPointCloud(const PointCloud& cloud, const ros::Time& stamp,
-                     const Eigen::Matrix4d& T_MAP_SCAN);
-
-  /**
-   * @brief add loam pointcloud and convert to map frame. It will also remove
-   * the first (chronologically) scan if the map has reached its max size.
-   * @param cloud loam pointcloud to add (in some scan frame)
-   * @param stamp timestamp associated with this scan. This is used to queue the
-   * clouds in the map, which will remove the oldest maps once the map gets
-   * larger than the max size
-   * @param T_MAP_SCAN transform from scan frame to map frame. This
-   * will be applied to the scan before adding (to reduce computation, assuming
-   * we will be frequently asking for the full map).
-   */
-  void AddPointCloud(const LoamPointCloud& cloud, const ros::Time& stamp,
-                     const Eigen::Matrix4d& T_MAP_SCAN);
+  void AddPointCloud(const PointCloud& cloud, const LoamPointCloud& loam_cloud,
+                     const ros::Time& stamp, const Eigen::Matrix4d& T_Map_Scan);
 
   /**
    * @brief returns combined pointcloud in map frame
@@ -111,7 +101,7 @@ public:
    * positions.
    * @param stamp time associated with the scan. This will be used to determine
    * if the scan is current saved in the map or not.
-   * @param T_MAP_SCAN updated scan pose
+   * @param T_Map_Scan updated scan pose
    * @param rotation_threshold_deg scans will only be updated if the new pose
    * has a rotation change greater than this threshold. Note we use the angle
    * part of Eigen::AxisAngle to determine difference in rotation.
@@ -120,7 +110,7 @@ public:
    * @return true if scan was updated. It will return false if the new pose is
    * too similar to the prev, or if the scan doesn't exist
    */
-  bool UpdateScan(const ros::Time& stamp, const Eigen::Matrix4d& T_MAP_SCAN,
+  bool UpdateScan(const ros::Time& stamp, const Eigen::Matrix4d& T_Map_Scan,
                   double rotation_threshold_deg = 0.5,
                   double translation_threshold_m = 0.005);
 
@@ -139,11 +129,10 @@ public:
    * @brief get a scan pose collected at some timestamp. This will check both
    * the loam cloud poses (this takes priority) and regular poses
    * @param stamp when scan was collected
-   * @param T_MAP_SCAN reference to cloud to fill inreference to cloud to fill
-   * inose of the scan
+   * @param T_Map_Scan reference to pose of the scan
    * @return true if scan with this timestamp exists
    */
-  bool GetScanPose(const ros::Time& stamp, Eigen::Matrix4d& T_MAP_SCAN) const;
+  bool GetScanPose(const ros::Time& stamp, Eigen::Matrix4d& T_Map_Scan) const;
 
   /**
    * @brief get a scan collected at some timestamp, with points expressed in the
@@ -173,8 +162,20 @@ public:
    */
   bool GetUUIDStamp(const fuse_core::UUID& uuid, ros::Time& stamp) const;
 
-  ros::Time GetLastLoamPoseStamp() const;
   ros::Time GetLastCloudPoseStamp() const;
+
+  /**
+   * @brief update all scan poses in the map from a graph message. Only the
+   * scans that are in the graph will update their poses
+   */
+  void UpdateScanPosesFromGraphMsg(
+      const fuse_core::Graph::ConstSharedPtr& graph_msg);
+
+  // /**
+  //  * @brief instead of updating each scan pose individually
+  //  */
+  // void RealignMapUsingGraphMsg(
+  //     const fuse_core::Graph::ConstSharedPtr& graph_msg);
 
   /**
    * @brief clears all scans and their associated poses
@@ -213,14 +214,7 @@ private:
   bool publish_updates_{false};
   std::string world_frame_id_;
 
-  std::map<uint64_t, PointCloudPtr> clouds_in_map_frame_;
-  std::map<uint64_t, Eigen::Matrix4d> cloud_poses_;
-  std::map<uint64_t, LoamPointCloudPtr> loam_clouds_in_map_frame_;
-  std::map<uint64_t, Eigen::Matrix4d> loam_cloud_poses_;
-
-  // store maps from uuid of pose variables to timestamp to uuid of pose
-  // variables. This get generated automatically when adding a new scan pose
-  std::unordered_map<fuse_core::UUID, uint64_t> uuid_map_;
+  std::map<uint64_t, ScanPoseInMapFrame> scans_;
 };
 
 }} // namespace bs_models::scan_registration

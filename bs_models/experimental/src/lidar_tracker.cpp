@@ -367,11 +367,7 @@ void LidarTracker::SetupRegistration() {
     // get scan pose
     Eigen::Matrix4d T_MAP_SCAN;
     ros::Time last_stamp;
-    if (local_matcher_type == beam_matching::MatcherType::LOAM) {
-      last_scan_pose_time_ = map.GetLastLoamPoseStamp();
-    } else {
-      last_scan_pose_time_ = map.GetLastCloudPoseStamp();
-    }
+    last_scan_pose_time_ = map.GetLastCloudPoseStamp();
     map.GetScanPose(last_scan_pose_time_, T_MAP_SCAN);
 
     T_WORLD_BASELINKLAST_ =

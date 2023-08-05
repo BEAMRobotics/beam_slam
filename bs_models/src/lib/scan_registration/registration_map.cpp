@@ -38,15 +38,9 @@ bool RegistrationMap::SetParams(int map_size, bool publish_updates) {
     BEAM_WARN(
         "Map parameters already set, overriding and purging extra clouds.");
     // in case the map size decreased and existing scans are here, let's purge
-    while (clouds_in_map_frame_.size() > map_size) {
-      uint64_t first_scan_stamp = clouds_in_map_frame_.begin()->first;
-      clouds_in_map_frame_.erase(first_scan_stamp);
-      cloud_poses_.erase(first_scan_stamp);
-    }
-    while (loam_clouds_in_map_frame_.size() > map_size) {
-      uint64_t first_scan_stamp = loam_clouds_in_map_frame_.begin()->first;
-      loam_clouds_in_map_frame_.erase(first_scan_stamp);
-      loam_cloud_poses_.erase(first_scan_stamp);
+    while (scans_.size() > map_size) {
+      uint64_t first_scan_stamp = scans_.begin()->first;
+      scans_.erase(first_scan_stamp);
     }
   }
 
@@ -60,76 +54,32 @@ int RegistrationMap::MapSize() const {
 }
 
 bool RegistrationMap::Empty() const {
-  return loam_clouds_in_map_frame_.empty() && clouds_in_map_frame_.empty();
+  return scans_.empty();
 }
 
-int RegistrationMap::NumPointClouds() const {
-  return clouds_in_map_frame_.size();
-}
-
-int RegistrationMap::NumLoamClouds() const {
-  return loam_clouds_in_map_frame_.size();
+int RegistrationMap::NumScans() const {
+  return scans_.size();
 }
 
 void RegistrationMap::AddPointCloud(const PointCloud& cloud,
+                                    const LoamPointCloud& loam_cloud,
                                     const ros::Time& stamp,
-                                    const Eigen::Matrix4d& T_MAP_SCAN) {
-  // add cloud to map
-  PointCloudPtr cloud_in_map_frame = std::make_shared<PointCloud>();
-  pcl::transformPointCloud(cloud, *cloud_in_map_frame, T_MAP_SCAN);
-  clouds_in_map_frame_.emplace(stamp.toNSec(), cloud_in_map_frame);
-
-  // add pose
-  cloud_poses_.emplace(stamp.toNSec(), T_MAP_SCAN);
-
-  // generate and add uuids
-  fuse_variables::Position3DStamped dummy_pos;
-  fuse_variables::Orientation3DStamped dummy_or;
-  auto sensor_id = fuse_core::uuid::NIL;
-  uuid_map_.emplace(
-      fuse_core::uuid::generate(dummy_pos.type(), stamp, sensor_id),
-      stamp.toNSec());
-  uuid_map_.emplace(
-      fuse_core::uuid::generate(dummy_or.type(), stamp, sensor_id),
-      stamp.toNSec());
+                                    const Eigen::Matrix4d& T_Map_Scan) {
+  // transform to map
+  scans_.emplace(stamp.toNSec(), ScanPoseInMapFrame());
+  ScanPoseInMapFrame& scan = scans_.at(stamp.toNSec());
+  scan.T_Map_Scan = T_Map_Scan;
+  pcl::transformPointCloud(cloud, scan.cloud, T_Map_Scan);
+  scan.loam_cloud = LoamPointCloud(loam_cloud, T_Map_Scan);
+  scan.orientation_uuid = fuse_core::uuid::generate(
+      "fuse_variables::Orientation3DStamped", stamp, fuse_core::uuid::NIL);
+  scan.position_uuid = fuse_core::uuid::generate(
+      "fuse_variables::Position3DStamped", stamp, fuse_core::uuid::NIL);
 
   // remove cloud & pose if map is greater than max size
-  if (clouds_in_map_frame_.size() > map_size_) {
-    uint64_t first_scan_stamp = clouds_in_map_frame_.begin()->first;
-    clouds_in_map_frame_.erase(first_scan_stamp);
-    cloud_poses_.erase(first_scan_stamp);
-  }
-
-  Publish();
-}
-
-void RegistrationMap::AddPointCloud(const LoamPointCloud& cloud,
-                                    const ros::Time& stamp,
-                                    const Eigen::Matrix4d& T_MAP_SCAN) {
-  // add cloud to map
-  LoamPointCloudPtr cloud_in_map_frame =
-      std::make_shared<LoamPointCloud>(cloud, T_MAP_SCAN);
-  loam_clouds_in_map_frame_.emplace(stamp.toNSec(), cloud_in_map_frame);
-
-  // add pose
-  loam_cloud_poses_.emplace(stamp.toNSec(), T_MAP_SCAN);
-
-  // generate and add uuids
-  fuse_variables::Position3DStamped dummy_pos;
-  fuse_variables::Orientation3DStamped dummy_or;
-  auto sensor_id = fuse_core::uuid::NIL;
-  uuid_map_.emplace(
-      fuse_core::uuid::generate(dummy_pos.type(), stamp, sensor_id),
-      stamp.toNSec());
-  uuid_map_.emplace(
-      fuse_core::uuid::generate(dummy_or.type(), stamp, sensor_id),
-      stamp.toNSec());
-
-  // remove cloud & pose if map is greater than max size
-  if (loam_clouds_in_map_frame_.size() > map_size_) {
-    uint64_t first_scan_stamp = loam_clouds_in_map_frame_.begin()->first;
-    loam_clouds_in_map_frame_.erase(first_scan_stamp);
-    loam_cloud_poses_.erase(first_scan_stamp);
+  if (scans_.size() > map_size_) {
+    uint64_t first_scan_stamp = scans_.begin()->first;
+    scans_.erase(first_scan_stamp);
   }
 
   Publish();
@@ -137,84 +87,47 @@ void RegistrationMap::AddPointCloud(const LoamPointCloud& cloud,
 
 PointCloud RegistrationMap::GetPointCloudMap() const {
   PointCloud cloud;
-  for (auto it = clouds_in_map_frame_.begin(); it != clouds_in_map_frame_.end();
-       it++) {
-    cloud += *(it->second);
+  for (auto it = scans_.begin(); it != scans_.end(); it++) {
+    cloud += it->second.cloud;
   }
   return cloud;
 }
 
 LoamPointCloud RegistrationMap::GetLoamCloudMap() const {
   LoamPointCloud cloud;
-  for (auto it = loam_clouds_in_map_frame_.begin();
-       it != loam_clouds_in_map_frame_.end(); it++) {
-    cloud.Merge(*(it->second));
+  for (auto it = scans_.begin(); it != scans_.end(); it++) {
+    cloud.Merge(it->second.loam_cloud);
   }
   return cloud;
 }
 
 bool RegistrationMap::UpdateScan(const ros::Time& stamp,
-                                 const Eigen::Matrix4d& T_MAP_SCAN,
+                                 const Eigen::Matrix4d& T_Map_Scan,
                                  double rotation_threshold_deg,
                                  double translation_threshold_m) {
   bool scan_found{false};
   uint64_t stamp_nsecs = stamp.toNSec();
 
   // update regular pointclouds
-  auto pose_it = cloud_poses_.find(stamp_nsecs);
-  if (pose_it != cloud_poses_.end()) {
-    scan_found = true;
+  auto it = scans_.find(stamp_nsecs);
+  if (it == scans_.end()) { return false; }
 
-    // check poses are not too similar
-    if (beam::ArePosesEqual(T_MAP_SCAN, pose_it->second, rotation_threshold_deg,
-                            translation_threshold_m)) {
-      return false;
-    }
-
-    // update pointcloud
-    auto cloud_iter = clouds_in_map_frame_.find(stamp_nsecs);
-    if (cloud_iter == clouds_in_map_frame_.end()) {
-      BEAM_ERROR(
-          "Missmatch between clouds and cloud poses. Not updating scan.");
-      return false;
-    }
-    Eigen::Matrix4d T_MAPNEW_MAPOLD =
-        T_MAP_SCAN * beam::InvertTransform(pose_it->second);
-    pcl::transformPointCloud(*(cloud_iter->second), *(cloud_iter->second),
-                             T_MAPNEW_MAPOLD);
-
-    // update pose
-    pose_it->second = T_MAP_SCAN;
+  auto& scan = it->second;
+  // check poses are not too similar
+  if (beam::ArePosesEqual(T_Map_Scan, scan.T_Map_Scan, rotation_threshold_deg,
+                          translation_threshold_m)) {
+    return false;
   }
 
-  // update loam pointclouds
-  auto loam_pose_it = loam_cloud_poses_.find(stamp_nsecs);
-  if (loam_pose_it != loam_cloud_poses_.end()) {
-    scan_found = true;
-
-    // check poses are not too similar
-    if (beam::ArePosesEqual(T_MAP_SCAN, loam_pose_it->second,
-                            rotation_threshold_deg, translation_threshold_m)) {
-      return false;
-    }
-
-    // update loam pointcloud
-    auto cloud_iter = loam_clouds_in_map_frame_.find(stamp_nsecs);
-    if (cloud_iter == loam_clouds_in_map_frame_.end()) {
-      BEAM_ERROR(
-          "Missmatch between clouds and cloud poses. Not updating scan.");
-      return false;
-    }
-    Eigen::Matrix4d T_MAPNEW_MAPOLD =
-        T_MAP_SCAN * beam::InvertTransform(loam_pose_it->second);
-    cloud_iter->second->TransformPointCloud(T_MAPNEW_MAPOLD);
-
-    // update pose
-    loam_pose_it->second = T_MAP_SCAN;
-  }
+  // update pointclouds
+  Eigen::Matrix4d T_MAPNEW_MAPOLD =
+      T_Map_Scan * beam::InvertTransform(scan.T_Map_Scan);
+  pcl::transformPointCloud(scan.cloud, scan.cloud, T_MAPNEW_MAPOLD);
+  scan.loam_cloud.TransformPointCloud(T_MAPNEW_MAPOLD);
+  scan.T_Map_Scan = T_Map_Scan;
 
   Publish();
-  return scan_found;
+  return true;
 }
 
 void RegistrationMap::Save(const std::string& save_path, bool add_frames,
@@ -224,54 +137,61 @@ void RegistrationMap::Save(const std::string& save_path, bool add_frames,
     return;
   }
 
-  if (!loam_clouds_in_map_frame_.empty()) {
-    LoamPointCloud map = GetLoamCloudMap();
-    map.SaveCombined(save_path, "registration_map_loam.pcd");
+  if (scans_.empty()) {
+    BEAM_ERROR("Registration map is empty, not saving map");
+    return;
   }
-  if (!clouds_in_map_frame_.empty()) {
-    PointCloud map = GetPointCloudMap();
-    PointCloudCol map_col = beam::ColorPointCloud(map, r, g, b);
-    PointCloudCol frame = beam::CreateFrameCol();
-    for (auto it = cloud_poses_.begin(); it != cloud_poses_.end(); it++) {
-      const Eigen::Matrix4d& T_MAP_SCAN = it->second;
-      beam::MergeFrameToCloud(map_col, frame, T_MAP_SCAN);
-    }
 
+  LoamPointCloud loam_map = GetLoamCloudMap();
+  if (!loam_map.Empty()) {
+    loam_map.SaveCombined(save_path, "registration_map_loam.pcd");
+  }
+
+  PointCloud map = GetPointCloudMap();
+  std::string error_message;
+  if (!map.empty()) {
+    PointCloudCol map_col = beam::ColorPointCloud(map, r, g, b);
     std::string map_path =
         beam::CombinePaths(save_path, "registration_map.pcd");
-    std::string error_message{};
     if (!beam::SavePointCloud<pcl::PointXYZRGB>(
             map_path, map_col, beam::PointCloudFileType::PCDBINARY,
             error_message)) {
       BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
     }
   }
+
+  pcl::PointCloud<pcl::PointXYZRGBL> poses_cloud;
+  for (const auto& [stamp_ns, scan] : scans_) {
+    ros::Time t;
+    t.fromNSec(stamp_ns);
+    pcl::PointCloud<pcl::PointXYZRGBL> frame = beam::CreateFrameCol(t);
+    beam::MergeFrameToCloud(poses_cloud, frame, scan.T_Map_Scan);
+  }
+
+  std::string poses_path =
+      beam::CombinePaths(save_path, "registration_map_poses.pcd");
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          poses_path, poses_cloud, beam::PointCloudFileType::PCDBINARY,
+          error_message)) {
+    BEAM_ERROR("Unable to registration map poses cloud. Reason: {}",
+               error_message);
+  }
 }
 
 bool RegistrationMap::GetScanPose(const ros::Time& stamp,
-                                  Eigen::Matrix4d& T_MAP_SCAN) const {
-  // check loam poses
-  auto loam_iter = loam_cloud_poses_.find(stamp.toNSec());
-  if (loam_iter != loam_cloud_poses_.end()) {
-    T_MAP_SCAN = loam_iter->second;
-    return true;
-  }
+                                  Eigen::Matrix4d& T_Map_Scan) const {
+  auto iter = scans_.find(stamp.toNSec());
+  if (iter == scans_.end()) { return false; }
 
-  // check other poses
-  auto iter = cloud_poses_.find(stamp.toNSec());
-  if (iter != cloud_poses_.end()) {
-    T_MAP_SCAN = iter->second;
-    return true;
-  }
-
-  return false;
+  T_Map_Scan = iter->second.T_Map_Scan;
+  return true;
 }
 
 bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
                                         PointCloud& cloud) const {
-  auto iter = clouds_in_map_frame_.find(stamp.toNSec());
-  if (iter != clouds_in_map_frame_.end()) {
-    cloud = *(iter->second);
+  auto iter = scans_.find(stamp.toNSec());
+  if (iter != scans_.end()) {
+    cloud = iter->second.cloud;
     return true;
   }
 
@@ -280,9 +200,9 @@ bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
 
 bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
                                         LoamPointCloud& cloud) const {
-  auto iter = loam_clouds_in_map_frame_.find(stamp.toNSec());
-  if (iter != loam_clouds_in_map_frame_.end()) {
-    cloud = *(iter->second);
+  auto iter = scans_.find(stamp.toNSec());
+  if (iter != scans_.end()) {
+    cloud = iter->second.loam_cloud;
     return true;
   }
 
@@ -291,18 +211,17 @@ bool RegistrationMap::GetScanInMapFrame(const ros::Time& stamp,
 
 bool RegistrationMap::GetUUIDStamp(const fuse_core::UUID& uuid,
                                    ros::Time& stamp) const {
-  auto iter = uuid_map_.find(uuid);
-  if (iter == uuid_map_.end()) { return false; }
-  stamp.fromNSec(iter->second);
-  return true;
+  for (const auto& [t, scan] : scans_) {
+    if (scan.position_uuid == uuid || scan.orientation_uuid == uuid) {
+      stamp.fromNSec(t);
+      return true;
+    }
+  }
+  return false;
 }
 
 void RegistrationMap::Clear() {
-  clouds_in_map_frame_.clear();
-  cloud_poses_.clear();
-  loam_clouds_in_map_frame_.clear();
-  loam_cloud_poses_.clear();
-  uuid_map_.clear();
+  scans_.clear();
 }
 
 void RegistrationMap::Publish() {
@@ -331,20 +250,34 @@ void RegistrationMap::Publish() {
 }
 
 ros::Time RegistrationMap::GetLastCloudPoseStamp() const {
-  if (cloud_poses_.empty()) { return {}; }
-  uint64_t t_in_ns = cloud_poses_.rbegin()->first;
+  if (scans_.empty()) { return {}; }
+  uint64_t t_in_ns = scans_.rbegin()->first;
   ros::Time stamp;
   stamp.fromNSec(t_in_ns);
   return stamp;
 }
 
-ros::Time RegistrationMap::GetLastLoamPoseStamp() const {
-  if (loam_cloud_poses_.empty()) { return {}; }
-  uint64_t t_in_ns = loam_cloud_poses_.rbegin()->first;
-  ros::Time stamp;
-  stamp.fromNSec(t_in_ns);
+void RegistrationMap::UpdateScanPosesFromGraphMsg(
+    const fuse_core::Graph::ConstSharedPtr& graph_msg) {
+  for (const auto& [t_in_ns, scan] : scans_) {
+    if (!graph_msg->variableExists(scan.position_uuid) ||
+        !graph_msg->variableExists(scan.orientation_uuid)) {
+      continue;
+    }
 
-  return stamp;
+    ros::Time stamp;
+    stamp.fromNSec(t_in_ns);
+
+    auto position = dynamic_cast<const fuse_variables::Position3DStamped&>(
+        graph_msg->getVariable(scan.position_uuid));
+    auto orientation =
+        dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+            graph_msg->getVariable(scan.orientation_uuid));
+
+    Eigen::Matrix4d T;
+    bs_common::FusePoseToEigenTransform(position, orientation, T);
+    UpdateScan(stamp, T);
+  }
 }
 
 }} // namespace bs_models::scan_registration

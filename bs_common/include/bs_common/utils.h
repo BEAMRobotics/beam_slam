@@ -26,6 +26,8 @@ static const Eigen::Vector3d GRAVITY_WORLD{0.0, 0.0, -GRAVITY_NOMINAL};
 
 namespace bs_common {
 
+void PlotData(const std::vector<double>& x, const std::vector<double>& y, const std::string& save_path);
+
 template <typename T>
 inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
   Eigen::Quaternion<T> dq;

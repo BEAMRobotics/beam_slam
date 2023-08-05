@@ -86,18 +86,10 @@ public:
     Params() = default;
 
     /** constructor that takes in a base params object */
-    Params(const ScanRegistrationParamsBase& base_params, int _map_size,
-           bool _store_full_cloud);
+    Params(const ScanRegistrationParamsBase& base_params, int _map_size);
 
     /** number of prev scans to save in the map */
     int map_size{10};
-
-    /** If set to true, it will extract the loam and regular point cloud from
-     * the scan poses, even though only the loam clouds are used for
-     * registration. The reason for this is that we may want to build a fully
-     * dense map for other purposes, but also build a loam map for registration.
-     */
-    bool store_full_cloud{true};
 
     /** load derived params & base params */
     void LoadFromJson(const std::string& config);
@@ -110,7 +102,7 @@ public:
 
   ScanToMapLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
                             const ScanRegistrationParamsBase& base_params,
-                            int map_size = 10, bool store_full_cloud = true);
+                            int map_size = 10);
 
 private:
   bool RegisterScanToMap(const ScanPose& scan_pose,

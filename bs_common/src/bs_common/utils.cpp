@@ -10,6 +10,12 @@ namespace bs_common {
 // using plt = matplotlibcpp;
 namespace plt = matplotlibcpp;
 
+void PlotData(const std::vector<double>& x, const std::vector<double>& y,
+              const std::string& save_path) {
+  plt::plot(x, y);
+  plt::save(save_path);
+}
+
 void PlotImuBiasesFromGraph(const fuse_core::Graph& graph,
                             const std::string& filepath) {
   const auto var_range = graph.getVariables();

@@ -155,7 +155,7 @@ void MultiScanRegistrationBase::AddFirstScan(
   }
 
   if (!params_.disable_lidar_map) {
-    map_.AddPointCloud(scan.Cloud(), scan.Stamp(), scan.T_REFFRAME_LIDAR());
+    map_.AddPointCloud(scan.Cloud(), scan.LoamCloud(), scan.Stamp(), scan.T_REFFRAME_LIDAR());
   }
 
   return;
@@ -255,7 +255,7 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
   if (!params_.disable_lidar_map) {
     Eigen::Matrix4d T_WORLD_LIDAR_AVG =
         beam::AverageTransforms(lidar_poses_est);
-    map_.AddPointCloud(new_scan.Cloud(), new_scan.Stamp(), T_WORLD_LIDAR_AVG);
+    map_.AddPointCloud(new_scan.Cloud(), new_scan.LoamCloud(), new_scan.Stamp(), T_WORLD_LIDAR_AVG);
   }
 
   return num_constraints;

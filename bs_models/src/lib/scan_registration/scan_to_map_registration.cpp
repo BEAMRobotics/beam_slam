@@ -43,10 +43,7 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
     } else {
       // if map exists, then use the last scan in the map as the previous with a
       // prior
-      ros::Time last_time = map_.GetLastLoamPoseStamp();
-      if (last_time == ros::Time(0)) {
-        last_time = map_.GetLastCloudPoseStamp();
-      }
+      ros::Time last_time = map_.GetLastCloudPoseStamp();
       Eigen::Matrix4d T_MAP_SCAN;
       map_.GetScanPose(last_time, T_MAP_SCAN);
       scan_pose_prev_ = std::make_unique<ScanPose>(
@@ -99,11 +96,9 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
 }
 
 ScanToMapLoamRegistration::Params::Params(
-    const ScanRegistrationParamsBase& base_params, int _map_size,
-    bool _store_full_cloud)
+    const ScanRegistrationParamsBase& base_params, int _map_size)
     : ScanRegistrationParamsBase(base_params),
-      map_size(_map_size),
-      store_full_cloud(_store_full_cloud) {}
+      map_size(_map_size){}
 
 void ScanToMapLoamRegistration::Params::LoadFromJson(
     const std::string& config) {
@@ -140,14 +135,12 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
   file >> J;
 
   map_size = J["map_size"];
-  store_full_cloud = J["store_full_cloud"];
 }
 
 void ScanToMapLoamRegistration::Params::Print(std::ostream& stream) const {
   GetBaseParams().Print(stream);
   stream << "ScanToMapLoamRegistration::Params: \n";
   stream << "map_size: " << map_size << "\n";
-  stream << "store_full_cloud: " << store_full_cloud << "\n";
 }
 
 ScanRegistrationParamsBase
@@ -163,11 +156,10 @@ ScanRegistrationParamsBase
 
 ScanToMapLoamRegistration::ScanToMapLoamRegistration(
     std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
-    const ScanRegistrationParamsBase& base_params, int map_size,
-    bool store_full_cloud)
+    const ScanRegistrationParamsBase& base_params, int map_size)
     : ScanToMapRegistrationBase(base_params),
       matcher_(std::move(matcher)),
-      params_(base_params, map_size, store_full_cloud) {
+      params_(base_params, map_size) {
   map_.SetParams(params_.map_size);
 }
 
@@ -204,10 +196,7 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
 
 void ScanToMapLoamRegistration::AddScanToMap(
     const ScanPose& scan_pose, const Eigen::Matrix4d& T_MAP_SCAN) {
-  map_.AddPointCloud(scan_pose.LoamCloud(), scan_pose.Stamp(), T_MAP_SCAN);
-  if (params_.store_full_cloud) {
-    map_.AddPointCloud(scan_pose.Cloud(), scan_pose.Stamp(), T_MAP_SCAN);
-  }
+  map_.AddPointCloud(scan_pose.Cloud(), scan_pose.LoamCloud(), scan_pose.Stamp(), T_MAP_SCAN);
 }
 
 }} // namespace bs_models::scan_registration

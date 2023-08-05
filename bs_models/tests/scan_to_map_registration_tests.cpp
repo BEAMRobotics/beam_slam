@@ -46,7 +46,6 @@ public:
     scan_reg_params.min_motion_rot_deg = 0;
     scan_reg_params.fix_first_scan = true;
     scan_reg_params.map_size = 3;
-    scan_reg_params.store_full_cloud = false;
 
     // downsample input cloud
     Eigen::Vector3f scan_voxel_size(0.05, 0.05, 0.05);
@@ -140,7 +139,7 @@ TEST_F(ScanToMapLoamRegistrationTest, 2Scans) {
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
       std::make_unique<ScanToMapLoamRegistration>(
           std::move(matcher), scan_reg_params.GetBaseParams(),
-          scan_reg_params.map_size, scan_reg_params.store_full_cloud);
+          scan_reg_params.map_size);
 
   auto transaction1 = scan_registration->RegisterNewScan(SP1).GetTransaction();
   auto transaction2 =
@@ -199,7 +198,7 @@ TEST_F(ScanToMapLoamRegistrationTest, 3Scans) {
   std::unique_ptr<ScanToMapLoamRegistration> scan_registration =
       std::make_unique<ScanToMapLoamRegistration>(
           std::move(matcher), scan_reg_params.GetBaseParams(),
-          scan_reg_params.map_size, scan_reg_params.store_full_cloud);
+          scan_reg_params.map_size);
 
   // Create the graph
   fuse_graphs::HashGraph graph;

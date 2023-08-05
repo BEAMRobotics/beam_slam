@@ -174,6 +174,7 @@ fuse_core::Transaction::SharedPtr LidarOdometry::GenerateTransaction(
         T_World_BaselinkInit, msg->header.stamp,
         extrinsics_.GetBaselinkFrameId(), error_msg);
   }
+
   if (!init_successful) {
     ROS_DEBUG("Could not initialize frame, skipping scan. Reason: %s",
               error_msg.c_str());
@@ -331,11 +332,7 @@ void LidarOdometry::SetupRegistration() {
     // get scan pose
     Eigen::Matrix4d T_MAP_SCAN;
     ros::Time last_stamp;
-    if (matcher_type == beam_matching::MatcherType::LOAM) {
-      last_scan_pose_time_ = map.GetLastLoamPoseStamp();
-    } else {
-      last_scan_pose_time_ = map.GetLastCloudPoseStamp();
-    }
+    last_scan_pose_time_ = map.GetLastCloudPoseStamp();
     map.GetScanPose(last_scan_pose_time_, T_MAP_SCAN);
 
     T_World_BaselinkLast_ =
@@ -353,16 +350,17 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   }
   updates_++;
 
+  // update map
+  if (update_registration_map_on_graph_update_) {
+    scan_registration_->GetMapMutable().UpdateScanPosesFromGraphMsg(graph_msg);
+  }
+  
+  // the remainder just publishes and/or saves results. 
   auto i = active_clouds_.begin();
   while (i != active_clouds_.end()) {
     std::shared_ptr<ScanPose>& scan_pose = *i;
     bool update_successful = scan_pose->UpdatePose(graph_msg);
     if (update_successful) {
-      // update map
-      if (update_registration_map_on_graph_update_) {
-        scan_registration_->GetMapMutable().UpdateScan(
-            scan_pose->Stamp(), scan_pose->T_REFFRAME_LIDAR());
-      }
       ++i;
       continue;
     }
@@ -378,7 +376,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     // from active list
     PublishMarginalizedScanPose(*i);
     if (params_.save_marginalized_scans) {
-      (*i)->SaveCloud(marginalized_scans_path_);
+      scan_pose->SaveCloud(marginalized_scans_path_);
     }
     active_clouds_.erase(i++);
   }
@@ -507,7 +505,6 @@ void LidarOdometry::PublishScanRegistrationResults(
 
   const auto& sc_orientation = scan_pose.Orientation();
   const auto& sc_position = scan_pose.Position();
-  fuse_constraints::AbsolutePose3DStampedConstraint dummy_abs_const;
 
   // get pose of baselink as measured from transaction constraint
   fuse_constraints::RelativePose3DStampedConstraint dummy_rel_pose_const;
@@ -517,7 +514,7 @@ void LidarOdometry::PublishScanRegistrationResults(
   auto added_constraints = transaction->addedConstraints();
   for (auto iter = added_constraints.begin(); iter != added_constraints.end();
        iter++) {
-    if (iter->type() == dummy_rel_pose_const.type()) {
+    if (iter->type() == "fuse_constraints::RelativePose3DStampedConstraint") {
       auto constraint = dynamic_cast<
           const fuse_constraints::RelativePose3DStampedConstraint&>(*iter);
       const fuse_core::Vector7d& mean = constraint.delta();

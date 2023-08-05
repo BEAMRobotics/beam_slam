@@ -49,7 +49,6 @@ GlobalMapRefinement::Params::Params() {
   scan_to_map_reg_params.min_motion_rot_deg = 0;
   scan_to_map_reg_params.max_motion_trans_m = 5;
   scan_to_map_reg_params.map_size = 20;
-  scan_to_map_reg_params.store_full_cloud = false;  // don't need
 
   // TODO: Do we want this to always be true? What about when we have vision?
   scan_to_map_reg_params.fix_first_scan = true;
@@ -268,8 +267,7 @@ bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap) {
   } else if (params_.scan_registration_type == "SCANTOMAP") {
     scan_registration = std::make_unique<sr::ScanToMapLoamRegistration>(
         std::move(matcher), params_.scan_to_map_reg_params.GetBaseParams(),
-        params_.scan_to_map_reg_params.map_size,
-        params_.scan_to_map_reg_params.store_full_cloud);
+        params_.scan_to_map_reg_params.map_size);
     scan_registration->SetFixedCovariance(params_.scan_reg_covariance);
   } else {
     BEAM_ERROR(

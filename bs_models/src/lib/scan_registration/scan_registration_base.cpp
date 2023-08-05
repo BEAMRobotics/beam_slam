@@ -46,8 +46,7 @@ std::unique_ptr<ScanRegistrationBase>
       ScanToMapLoamRegistration::Params params;
       params.LoadFromJson(registration_config);
       registration = std::make_unique<ScanToMapLoamRegistration>(
-          std::move(matcher), params.GetBaseParams(), params.map_size,
-          params.store_full_cloud);
+          std::move(matcher), params.GetBaseParams(), params.map_size);
       return std::move(registration);
     } else if (registration_type == "MULTISCAN") {
       MultiScanRegistrationBase::Params params;

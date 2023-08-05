@@ -44,7 +44,6 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
 
   scan_registration::ScanToMapLoamRegistration::Params reg_params;
   reg_params.map_size = 10;
-  reg_params.store_full_cloud = false;
   reg_params.min_motion_trans_m = 0;
   reg_params.min_motion_rot_deg = 0;
   reg_params.max_motion_trans_m = 10;
@@ -52,8 +51,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
 
   scan_registration_ =
       std::make_unique<scan_registration::ScanToMapLoamRegistration>(
-          std::move(matcher), reg_params.GetBaseParams(), reg_params.map_size,
-          reg_params.store_full_cloud);
+          std::move(matcher), reg_params.GetBaseParams(), reg_params.map_size);
   // scan_registration_->SetFixedCovariance(0.000001);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
 
@@ -284,15 +282,9 @@ void LidarPathInit::UpdateRegistrationMap(
       bool in_map =
           registration_map.UpdateScan(p.Stamp(), p.T_REFFRAME_LIDAR(), 0, 0);
       if (!in_map) {
-        registration_map.AddPointCloud(p.Cloud(), p.Stamp(),
+        registration_map.AddPointCloud(p.Cloud(), p.LoamCloud(), p.Stamp(),
                                        p.T_REFFRAME_LIDAR());
-        registration_map.AddPointCloud(p.LoamCloud(), p.Stamp(),
-                                       p.T_REFFRAME_LIDAR());
-      } else {
-        // just add pointcloud since we've only stored the loam map
-        registration_map.AddPointCloud(p.Cloud(), p.Stamp(),
-                                       p.T_REFFRAME_LIDAR());
-      }
+      } 
     }
   }
 
