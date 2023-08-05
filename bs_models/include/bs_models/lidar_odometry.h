@@ -95,10 +95,6 @@ private:
    * updates */
   std::list<std::shared_ptr<ScanPose>> active_clouds_;
 
-  /** Get access to the active submap being published by the global mapper if
-   * running */
-  //   ActiveSubmap& active_submap_ = ActiveSubmap::GetInstance();
-
   /** Only needed if using LoamMatcher */
   std::shared_ptr<beam_matching::LoamFeatureExtractor> feature_extractor_;
 

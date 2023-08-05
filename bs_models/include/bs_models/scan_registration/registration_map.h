@@ -171,12 +171,6 @@ public:
   void UpdateScanPosesFromGraphMsg(
       const fuse_core::Graph::ConstSharedPtr& graph_msg);
 
-  // /**
-  //  * @brief instead of updating each scan pose individually
-  //  */
-  // void RealignMapUsingGraphMsg(
-  //     const fuse_core::Graph::ConstSharedPtr& graph_msg);
-
   /**
    * @brief clears all scans and their associated poses
    */

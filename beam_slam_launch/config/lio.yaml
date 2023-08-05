@@ -57,6 +57,7 @@ slam_initialization:
 inertial_odometry:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
+  inertial_information_weight: 0.001
 
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_points'
@@ -74,6 +75,7 @@ lidar_odometry:
   publish_active_submap: true
   publish_registration_map: true
   publish_registration_results: true
+  lidar_information_weight: 1.0
   frame_initializer_config: "/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 
