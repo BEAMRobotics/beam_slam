@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include <beam_matching/Matchers.h>
+#include <beam_utils/angles.h>
 #include <beam_utils/filesystem.h>
 
 #include <bs_models/scan_registration/multi_scan_registration.h>

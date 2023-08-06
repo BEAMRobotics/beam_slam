@@ -6,6 +6,7 @@
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_mapping/Poses.h>
 #include <beam_utils/utils.h>
+#include <bs_common/visualization.h>
 #include <bs_models/imu/inertial_alignment.h>
 #include <bs_models/vision/utils.h>
 #include <pluginlib/class_list_macros.h>

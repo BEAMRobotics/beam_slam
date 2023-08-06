@@ -9,6 +9,7 @@
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/extrinsics_lookup_online.h>
 
 namespace bs_models { namespace scan_registration {

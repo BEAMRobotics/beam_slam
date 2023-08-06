@@ -9,7 +9,7 @@
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/filesystem.h>
 
-#include <bs_common/utils.h>
+#include <bs_common/conversions.h>
 
 namespace bs_models { namespace global_mapping {
 

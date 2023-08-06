@@ -13,7 +13,8 @@
 #include <beam_cv/geometry/AbsolutePoseEstimator.h>
 #include <beam_cv/geometry/RelativePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
-#include <bs_common/utils.h>
+#include <bs_common/conversions.h>
+#include <bs_common/graph_access.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::VisualOdometry, fuse_core::SensorModel)
@@ -301,8 +302,8 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
     // find the union between the two
     std::vector<uint64_t> union_stamps;
     std::set_intersection(graph_stamps.begin(), graph_stamps.end(),
-                   measurement_stamps.begin(), measurement_stamps.end(),
-                   std::inserter(union_stamps, union_stamps.begin()));
+                          measurement_stamps.begin(), measurement_stamps.end(),
+                          std::inserter(union_stamps, union_stamps.begin()));
 
     // create a map to access measurements based on stamp
     std::map<uint64_t, CameraMeasurementMsg::ConstPtr> measurement_map;

@@ -10,7 +10,7 @@
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 
-#include <bs_common/utils.h>
+#include <bs_common/conversions.h>
 
 namespace bs_constraints { namespace relative_pose {
 

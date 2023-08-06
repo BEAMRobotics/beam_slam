@@ -9,7 +9,7 @@
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
 
-#include <bs_common/utils.h>
+#include <bs_common/conversions.h>
 
 namespace bs_models {
 

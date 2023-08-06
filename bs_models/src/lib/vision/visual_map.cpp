@@ -1,9 +1,10 @@
-#include <bs_common/utils.h>
 #include <bs_models/vision/visual_map.h>
 
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
 
+#include <bs_common/conversions.h>
+#include <bs_common/graph_access.h>
 #include <bs_constraints/visual/euclidean_reprojection_constraint.h>
 
 namespace bs_models { namespace vision {
@@ -157,7 +158,8 @@ bool VisualMap::AddVisualConstraint(
       auto vis_constraint =
           std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
               "VO", *orientation, *position, *lm, T_cam_baselink_,
-              camera_intrinsic_matrix_, measurement, reprojection_information_weight_);
+              camera_intrinsic_matrix_, measurement,
+              reprojection_information_weight_);
       vis_constraint->loss(loss_function_);
       transaction->addConstraint(vis_constraint);
       return true;

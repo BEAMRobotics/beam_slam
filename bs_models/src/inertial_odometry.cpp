@@ -1,9 +1,10 @@
-#include <bs_common/utils.h>
 #include <bs_models/inertial_odometry.h>
-#include <geometry_msgs/PoseStamped.h>
 
-#include <beam_utils/utils.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <pluginlib/class_list_macros.h>
+
+#include <bs_common/conversions.h>
+#include <bs_common/graph_access.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel);

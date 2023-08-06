@@ -8,7 +8,8 @@
 #include <beam_utils/math.h>
 #include <beam_utils/time.h>
 
-#include <bs_common/utils.h>
+#include <bs_common/conversions.h>
+#include <bs_common/graph_access.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::GlobalMapper, fuse_core::SensorModel)
@@ -30,7 +31,8 @@ void GlobalMapper::ProcessSlamChunk(
   ros::Time stamp = msg->T_WORLD_BASELINK.header.stamp;
 
   Eigen::Matrix4d T_WORLD_BASELINK;
-  bs_common::PoseMsgToTransformationMatrix(msg->T_WORLD_BASELINK, T_WORLD_BASELINK);
+  bs_common::PoseMsgToTransformationMatrix(msg->T_WORLD_BASELINK,
+                                           T_WORLD_BASELINK);
 
   // update extrinsics if necessary
   UpdateExtrinsics();

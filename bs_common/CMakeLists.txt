@@ -92,6 +92,9 @@ add_library(${PROJECT_NAME}
   src/bs_common/pose_lookup.cpp
   src/bs_common/preintegrator.cpp
   src/bs_common/utils.cpp
+  src/bs_common/conversions.cpp
+  src/bs_common/visualization.cpp
+  src/bs_common/graph_access.cpp
   src/bs_common/bs_msgs.cpp
 )
 add_dependencies(${PROJECT_NAME}

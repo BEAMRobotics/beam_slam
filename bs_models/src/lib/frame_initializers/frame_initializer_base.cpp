@@ -1,10 +1,11 @@
 #include <bs_models/frame_initializers/frame_initializer_base.h>
+
 #include <nlohmann/json.hpp>
 
-#include <bs_models/frame_initializers/frame_initializers.h>
-
 #include <beam_utils/filesystem.h>
-#include <bs_common/utils.h>
+
+#include <bs_models/frame_initializers/frame_initializers.h>
+#include <bs_common/conversions.h>
 
 namespace bs_models { namespace frame_initializers {
 

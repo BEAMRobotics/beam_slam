@@ -6,6 +6,8 @@
 #include <boost/filesystem.hpp>
 #include <pcl/conversions.h>
 
+#include <beam_cv/OpenCVConversions.h>
+#include <beam_cv/descriptors/Descriptor.h>
 #include <beam_mapping/Poses.h>
 #include <beam_utils/filesystem.h>
 #include <beam_utils/log.h>
@@ -13,12 +15,9 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/time.h>
 
-#include <bs_common/utils.h>
+#include <bs_common/graph_access.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/reloc/reloc_methods.h>
-
-#include <beam_cv/OpenCVConversions.h>
-#include <beam_cv/descriptors/Descriptor.h>
 
 namespace bs_models { namespace global_mapping {
 

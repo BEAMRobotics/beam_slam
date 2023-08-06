@@ -4,7 +4,7 @@
 
 #include <beam_utils/log.h>
 
-#include <bs_common/utils.h>
+#include <bs_common/conversions.h>
 
 namespace bs_models { namespace frame_initializers {
 
