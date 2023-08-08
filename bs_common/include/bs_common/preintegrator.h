@@ -10,7 +10,14 @@ namespace bs_common {
 /**
  * @brief Enum class representing order of states in covariance matrix
  */
-enum ErrorStateLocation { ES_Q = 0, ES_P = 3, ES_V = 6, ES_BG = 9, ES_BA = 12, ES_SIZE = 15 };
+enum ErrorStateLocation {
+  ES_Q = 0,
+  ES_P = 3,
+  ES_V = 6,
+  ES_BG = 9,
+  ES_BA = 12,
+  ES_SIZE = 15
+};
 
 /**
  * @brief Struct representing a single imu measurement
@@ -94,8 +101,9 @@ public:
    * @param compute_jacobian optionally compute the jacobian
    * @param compute_covariance optionally compute the covariance
    */
-  void Increment(const ros::Duration& dt, const IMUData& data, const Eigen::Vector3d& bg,
-                 const Eigen::Vector3d& ba, bool compute_jacobian, bool compute_covariance);
+  void Increment(const ros::Duration& dt, const IMUData& data,
+                 const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
+                 bool compute_jacobian, bool compute_covariance);
 
   /**
    * @brief IMU Integration Function, integrate current measurements to a
@@ -106,8 +114,9 @@ public:
    * @param compute_jacobian optionally compute the jacobian
    * @param compute_covariance optionally compute the covariance
    */
-  bool Integrate(const ros::Time& t, const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
-                 bool compute_jacobian, bool compute_covariance);
+  bool Integrate(const ros::Time& t, const Eigen::Vector3d& bg,
+                 const Eigen::Vector3d& ba, bool compute_jacobian,
+                 bool compute_covariance);
 
   /**
    * @brief Computes the square-root information matrix from the covariance
@@ -115,8 +124,10 @@ public:
    */
   void ComputeSqrtInvCov();
 
-  double cov_tol{1e-5}; // tolarance on zero covariance matrix for pose and velocity terms
-  double bias_cov_tol{1e-9}; // tolarance on zero covariance matrix for bias terms
+  double cov_tol{
+      1e-5}; // tolarance on zero covariance matrix for pose and velocity terms
+  double bias_cov_tol{
+      1e-9}; // tolarance on zero covariance matrix for bias terms
 
   Eigen::Matrix3d cov_w; // continuous noise covariance
   Eigen::Matrix3d cov_a;
@@ -126,6 +137,9 @@ public:
   Delta delta;
   Jacobian jacobian;
   std::vector<IMUData> data; // vector of imu data (buffer)
+
+  // for when inv covariance calculated has nan or inf
+  double invalid_inv_cov_weight_{1e-4};
 };
 
 } // namespace bs_common
