@@ -64,5 +64,16 @@ std::string GetBeamSlamConfigPath();
  */
 std::string GetBeamSlamCalibrationsPath();
 
+/**
+ * @brief Shannon Entropy: This can be interpreted geometrically as the volume of the
+ * uncertainty. The smaller the Shannon Entropy, the more certain we are.
+ *
+ * H(x) = 0.5 ln[(2 PI e)^N det(cov)]
+ *
+ * Where N is the numer of parameters being estimated
+ *
+ */
+double ShannonEntropyFromPoseCovariance(
+    const Eigen::Matrix<double, 6, 6>& covariance);
 
 } // namespace bs_common

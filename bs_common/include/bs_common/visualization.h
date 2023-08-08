@@ -6,12 +6,16 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
+#include <bs_common/graph_access.h>
 #include <bs_common/imu_state.h>
 
 namespace bs_common {
 
-void PlotData(const std::vector<double>& x, const std::vector<double>& y, const std::string& save_path);
+void PlotData(const std::vector<double>& x, const std::vector<double>& y,
+              const std::string& save_path);
 
+void PlotImuBiases(const std::map<int64_t, ImuBiases>& biases,
+                   const std::string& filepath);
 
 void PlotImuBiasesFromGraph(const fuse_core::Graph& graph,
                             const std::string& filepath);
@@ -31,5 +35,12 @@ pcl::PointCloud<pcl::PointXYZRGBL>
 pcl::PointCloud<pcl::PointXYZRGBL>
     TrajectoryToCloud(const std::map<uint64_t, Eigen::Matrix4d>& trajectory);
 
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GetGraphRelativePoseConstraintsAsCloud(const fuse_core::Graph& graph);
 
+pcl::PointCloud<pcl::PointXYZRGBL> DrawLine(const Eigen::Vector3d& p1,
+                                            const Eigen::Vector3d& p2,
+                                            float label = 0, uint8_t r = 255,
+                                            uint8_t g = 0, uint8_t b = 0,
+                                            double increment = 0.01);
 } // namespace bs_common

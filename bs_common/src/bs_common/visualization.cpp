@@ -1,14 +1,17 @@
 #include <bs_common/visualization.h>
 
+#include <beam_utils/math.h>
 #include <beam_utils/pointclouds.h>
 #include <fuse_constraints/relative_pose_3d_stamped_constraint.h>
 
+#include <bs_common/conversions.h>
+#include <bs_common/graph_access.h>
 #include <bs_common/matplotlibcpp.h>
 #include <bs_common/utils.h>
 
-namespace bs_common {
-
 namespace plt = matplotlibcpp;
+
+namespace bs_common {
 
 void PlotData(const std::vector<double>& x, const std::vector<double>& y,
               const std::string& save_path) {
@@ -16,54 +19,49 @@ void PlotData(const std::vector<double>& x, const std::vector<double>& y,
   plt::save(save_path);
 }
 
-void PlotImuBiasesFromGraph(const fuse_core::Graph& graph,
-                            const std::string& filepath) {
-  const auto var_range = graph.getVariables();
-  std::vector<double> t; // in s
+void PlotImuBiases(const std::map<int64_t, ImuBiases>& biases,
+                   const std::string& filepath) {
+  if (biases.empty()) {
+    BEAM_ERROR("no bias terms in graph, not plotting IMU biases");
+    return;
+  }
+
+  std::vector<double> ts; // in s
   std::vector<double> gx;
   std::vector<double> gy;
   std::vector<double> gz;
   std::vector<double> ax;
   std::vector<double> ay;
   std::vector<double> az;
-  for (auto it = var_range.begin(); it != var_range.end(); it++) {
-    if (it->type() == "bs_variables::GyroscopeBias3DStamped") {
-      auto v = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(*it);
-      gx.push_back(v.x());
-      gy.push_back(v.y());
-      gz.push_back(v.z());
-      if (!t.empty()) {
-        t.push_back(v.stamp().toSec() - t.at(0));
-      } else {
-        t.push_back(v.stamp().toSec());
-      }
-
-    } else if (it->type() == "bs_variables::AccelerationBias3DStamped") {
-      auto v =
-          dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(*it);
-      ax.push_back(v.x());
-      ay.push_back(v.y());
-      az.push_back(v.z());
-    }
-  }
-  if (t.empty()) {
-    BEAM_ERROR("no bias terms in graph, not plotting IMU biases");
-    return;
+  for (const auto& [t, b] : biases) {
+    ts.push_back(t * 1e-9);
+    gx.push_back(b.g_x);
+    gy.push_back(b.g_y);
+    gz.push_back(b.g_z);
+    ax.push_back(b.a_x);
+    ay.push_back(b.a_y);
+    az.push_back(b.a_z);
   }
 
   plt::suptitle("IMU Biases");
   plt::subplot(2, 1, 1);
-  plt::named_plot("gx", t, gx, "r");
-  plt::named_plot("gy", t, gy, "g");
-  plt::named_plot("gz", t, gz, "b");
+  plt::named_plot("gx", ts, gx, "r");
+  plt::named_plot("gy", ts, gy, "g");
+  plt::named_plot("gz", ts, gz, "b");
   plt::legend();
   plt::subplot(2, 1, 2);
-  plt::named_plot("ax", t, ax, "r");
-  plt::named_plot("ay", t, ay, "g");
-  plt::named_plot("az", t, az, "b");
+  plt::named_plot("ax", ts, ax, "r");
+  plt::named_plot("ay", ts, ay, "g");
+  plt::named_plot("az", ts, az, "b");
   plt::legend();
   plt::xlabel("time elapsed (s)");
   plt::save(filepath);
+}
+
+void PlotImuBiasesFromGraph(const fuse_core::Graph& graph,
+                            const std::string& filepath) {
+  std::map<int64_t, ImuBiases> biases = GetImuBiasesFromGraph(graph);
+  PlotImuBiases(biases, filepath);
 }
 
 pcl::PointCloud<pcl::PointXYZRGBL>
@@ -164,4 +162,126 @@ pcl::PointCloud<pcl::PointXYZRGBL>
   }
   return cloud;
 }
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GetGraphRelativePoseConstraintsAsCloud(const fuse_core::Graph& graph) {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  const auto constraints = graph.getConstraints();
+  for (auto it = constraints.begin(); it != constraints.end(); it++) {
+    if (it->type() != "fuse_constraints::RelativePose3DStampedConstraint") {
+      continue;
+    }
+    auto c =
+        dynamic_cast<const fuse_constraints::RelativePose3DStampedConstraint&>(
+            *it);
+    const auto& variable_uuids = c.variables();
+
+    // get all pose variables
+    std::vector<fuse_variables::Position3DStamped> positions;
+    std::vector<fuse_variables::Orientation3DStamped> orientations;
+    for (const auto& variable_uuid : variable_uuids) {
+      if (!graph.variableExists(variable_uuid)) {
+        BEAM_ERROR(
+            "Invalid variable uuid query, uuid {} does not exist in graph",
+            to_string(variable_uuid));
+        throw std::runtime_error{"invalid variable query"};
+      }
+      const auto& var = graph.getVariable(variable_uuid);
+      if (var.type() == "fuse_variables::Position3DStamped") {
+        positions.push_back(
+            dynamic_cast<const fuse_variables::Position3DStamped&>(
+                graph.getVariable(variable_uuid)));
+      } else if (var.type() == "fuse_variables::Orientation3DStamped") {
+        orientations.push_back(
+            dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+                graph.getVariable(variable_uuid)));
+      } else {
+        BEAM_WARN("Unknown variable type: {}", var.type());
+      }
+    }
+
+    if (positions.size() != 2 || orientations.size() != 2) {
+      BEAM_ERROR("Invalid transaction, expecting 2 positions and 2 "
+                 "orientations, received {} and {}, respectively.",
+                 positions.size(), orientations.size());
+      throw std::runtime_error{"invalid constraint"};
+    }
+
+    // sort poses by time
+    fuse_variables::Position3DStamped p1;
+    fuse_variables::Position3DStamped p2;
+    fuse_variables::Orientation3DStamped o1;
+    fuse_variables::Orientation3DStamped o2;
+    if (positions.at(0).stamp() < positions.at(1).stamp()) {
+      p1 = positions.at(0);
+      p2 = positions.at(1);
+    } else {
+      p1 = positions.at(1);
+      p2 = positions.at(0);
+    }
+    if (orientations.at(0).stamp() < orientations.at(1).stamp()) {
+      o1 = orientations.at(0);
+      o2 = orientations.at(1);
+    } else {
+      o1 = orientations.at(1);
+      o2 = orientations.at(0);
+    }
+
+    // draw start variable pose
+    Eigen::Matrix4d T1;
+    bs_common::FusePoseToEigenTransform(p1, o1, T1);
+    pcl::PointCloud<pcl::PointXYZRGBL> frame1 =
+        beam::CreateFrameCol(p1.stamp(), 0.01, 0.15);
+    beam::MergeFrameToCloud(cloud, frame1, T1);
+
+    // draw end variable pose
+    Eigen::Matrix4d T2;
+    bs_common::FusePoseToEigenTransform(p2, o2, T2);
+    pcl::PointCloud<pcl::PointXYZRGBL> frame2 =
+        beam::CreateFrameCol(p2.stamp(), 0.01, 0.15);
+    beam::MergeFrameToCloud(cloud, frame2, T2);
+
+    // draw measured delta
+    fuse_core::Vector7d delta = c.delta();
+    Eigen::Vector3d p_start(p1.x(), p1.y(), p1.z());
+    Eigen::Vector3d p_end(p1.x() + delta[0], p1.y() + delta[1],
+                          p1.z() + delta[2]);
+    uint8_t r = beam::randi(0, 255);
+    uint8_t g = beam::randi(0, 255);
+    uint8_t b = beam::randi(0, 255);
+    double entropy =
+        bs_common::ShannonEntropyFromPoseCovariance(c.covariance());
+    pcl::PointCloud<pcl::PointXYZRGBL> line =
+        DrawLine(p_start, p_end, entropy, r, g, b);
+    beam::MergeFrameToCloud(cloud, line, T2);
+  }
+
+  return cloud;
+}
+
+pcl::PointCloud<pcl::PointXYZRGBL> DrawLine(const Eigen::Vector3d& p1,
+                                            const Eigen::Vector3d& p2,
+                                            float label, uint8_t r, uint8_t g,
+                                            uint8_t b, double increment) {
+  auto diff = p2 - p1;
+  double len = diff.norm();
+  auto dir = diff.normalized();
+  double cur_length = 0;
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  while (cur_length < len) {
+    Eigen::Vector3d p_eig = p1 + cur_length * dir;
+    pcl::PointXYZRGBL p;
+    p.x = p_eig[0];
+    p.y = p_eig[1];
+    p.z = p_eig[2];
+    p.r = r;
+    p.g = g;
+    p.b = b;
+    p.label = label;
+    cloud.push_back(p);
+    cur_length += increment;
+  }
+  return cloud;
+}
+
 } // namespace bs_common
