@@ -49,9 +49,6 @@ private:
 
   void process(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
-  fuse_core::Transaction::SharedPtr
-      GenerateTransaction(const sensor_msgs::PointCloud2::ConstPtr& msg);
-
   void SetupRegistration();
 
   void PublishMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
