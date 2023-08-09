@@ -250,20 +250,7 @@ void SLAMInitialization::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "SLAMInitialization received IMU measurements: " << msg->header.stamp);
   imu_buffer_.push_back(*msg);
-
-  // add measurement to window
-  Eigen::Vector3d lin_acc(msg->linear_acceleration.x,
-                          msg->linear_acceleration.y,
-                          msg->linear_acceleration.z);
-  Eigen::Vector3d ang_vel(msg->angular_velocity.x, msg->angular_velocity.y,
-                          msg->angular_velocity.z);
-  imu_measurement_buffer_[msg->header.stamp.toNSec()] =
-      std::make_pair(lin_acc, ang_vel);
-
   if (imu_buffer_.size() > imu_buffer_size_) { imu_buffer_.pop_front(); }
-  if (imu_measurement_buffer_.size() > imu_buffer_size_) {
-    imu_measurement_buffer_.erase(imu_measurement_buffer_.begin());
-  }
 }
 
 bool SLAMInitialization::Initialize() {
@@ -405,26 +392,10 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     // get linear accel and angular velocity variables
     auto lin_acc =
         fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
-    lin_acc->x() = 0;
-    lin_acc->y() = 0;
-    lin_acc->z() = 0;
     auto ang_vel =
         fuse_variables::VelocityAngular3DStamped::make_shared(timestamp);
-    auto lb = imu_measurement_buffer_.lower_bound(timestamp.toNSec());
-    if (lb != imu_measurement_buffer_.end()) {
-      const auto [lin_acc_data, ang_vel_data] =
-          imu_measurement_buffer_[lb->first];
-      // todo: should i convert raw data from rad to deg?
-      ang_vel->roll() = ang_vel_data.x();
-      ang_vel->pitch() = ang_vel_data.y();
-      ang_vel->yaw() = ang_vel_data.z();
-      // clear buffer up to the current odom
-      imu_measurement_buffer_.erase(imu_measurement_buffer_.begin(), lb);
-    } else {
-      ang_vel->roll() = 0;
-      ang_vel->pitch() = 0;
-      ang_vel->yaw() = 0;
-    }
+    lin_acc->array() = {0.0, 0.0, 0.0};
+    ang_vel->array() = {0.0, 0.0, 0.0};
     transaction->addVariable(lin_acc);
     transaction->addVariable(ang_vel);
 
@@ -653,7 +624,6 @@ void SLAMInitialization::shutdown() {
   imu_buffer_.clear();
   frame_init_buffer_.clear();
   local_graph_->clear();
-  imu_measurement_buffer_.clear();
   frame_initializer_ = nullptr;
   visual_map_ = nullptr;
   imu_preint_ = nullptr;

@@ -1,5 +1,5 @@
-optimization_period: 0.1
-lag_duration: 7
+optimization_period: 0.07
+lag_duration: 10
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -8,11 +8,10 @@ solver_options:
   num_threads: 6
   num_linear_solver_threads: 6
   max_num_iterations: 10
-  max_solver_time_in_seconds: 0.08
+  max_solver_time_in_seconds: 0.06
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
-
 
 sensor_models:
   - name: 'visual_feature_tracker'
@@ -45,9 +44,9 @@ slam_initialization:
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
-  reprojection_information_weight: 0.1
+  reprojection_information_weight: 1.0
   inertial_information_weight: 0.001
-  lidar_information_weight: 1.0
+  lidar_information_weight: 10.0
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
@@ -56,17 +55,17 @@ slam_initialization:
 inertial_odometry:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/visual_odometry/odometry"
-  inertial_information_weight: 1.0
+  inertial_information_weight: 0.001
 
 visual_odometry:
   max_container_size: 300
   frame_initializer_config: "frame_initializers/io.json"
   reloc_request_period: 3.0
-  keyframe_parallax: 30.0
-  keyframe_max_duration: 0.25
+  keyframe_parallax: 15.0
+  keyframe_max_duration: 0.5
   reprojection_information_weight: 1.0
-  max_triangulation_distance: 40.0
-  max_triangulation_reprojection: 15.0
+  max_triangulation_distance: 50.0
+  max_triangulation_reprojection: 30.0
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom

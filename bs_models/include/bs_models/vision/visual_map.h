@@ -120,6 +120,14 @@ public:
       GetPosition(const ros::Time& stamp);
 
   /**
+   * @brief Adds ab asbolute pose prior
+   * @param stamp to add prior on
+   */
+  void AddPosePrior(const ros::Time& stamp,
+                    const Eigen::Matrix<double, 6, 6>& covariance,
+                    fuse_core::Transaction::SharedPtr transaction);
+
+  /**
    * @brief Adds orientation in baselink frame
    * @param stamp associated to orientation
    * @param q_WORLD_BASELINK quaternion representing orientation

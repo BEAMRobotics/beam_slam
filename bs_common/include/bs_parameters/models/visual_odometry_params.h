@@ -67,7 +67,7 @@ public:
                      max_triangulation_reprojection,
                      max_triangulation_reprojection);
 
-    double reprojection_loss_a = 10.0 * reprojection_information_weight;
+    double reprojection_loss_a = 5.0 * reprojection_information_weight;
     // reprojection loss
     reprojection_loss =
         std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);

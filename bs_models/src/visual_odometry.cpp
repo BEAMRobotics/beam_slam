@@ -1,5 +1,6 @@
 #include <bs_models/visual_odometry.h>
 
+#include <bs_constraints/visual/euclidean_reprojection_constraint.h>
 #include <fuse_core/transaction.h>
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
@@ -43,6 +44,7 @@ void VisualOdometry::onInit() {
   // Load camera model and create visua map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
+  cam_intrinsic_matrix_ = cam_model_->GetRectifiedModel()->GetIntrinsicMatrix();
   visual_map_ =
       std::make_shared<VisualMap>(cam_model_, vo_params_.reprojection_loss,
                                   vo_params_.reprojection_information_weight);
@@ -53,7 +55,7 @@ void VisualOdometry::onInit() {
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
 
   // create pose refiner for motion only BA
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(1e-1, true, 0.1);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(0.05, true, 1.0);
 
   // get extrinsics
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
@@ -127,15 +129,15 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   transaction->stamp(timestamp);
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
 
-  // add acceleration and velocity
-  auto lin_acc =
-      fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
-  auto ang_vel =
-      fuse_variables::VelocityAngular3DStamped::make_shared(timestamp);
-  lin_acc->array() = cur_lin_acc_;
-  ang_vel->array() = cur_ang_vel_;
-  transaction->addVariable(lin_acc);
-  transaction->addVariable(ang_vel);
+  // // add acceleration and velocity
+  // auto lin_acc =
+  //     fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
+  // auto ang_vel =
+  //     fuse_variables::VelocityAngular3DStamped::make_shared(timestamp);
+  // lin_acc->array() = {0.0, 0.0, 0.0};
+  // ang_vel->array() = {0.0, 0.0, 0.0};
+  // transaction->addVariable(lin_acc);
+  // transaction->addVariable(ang_vel);
 
   previous_frame_ = timestamp;
   sendTransaction(transaction);
@@ -163,6 +165,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
 bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix4d& T_WORLD_BASELINK) {
+  // todo: change this to use the local graph
   const auto prev_frame_pose = visual_map_->GetBaselinkPose(previous_frame_);
   if (!prev_frame_pose.has_value()) {
     ROS_ERROR("Cannot retrieve previous keyframe pose.");
@@ -170,18 +173,31 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
   }
   const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_frame_pose.value();
 
+  // get estimate from imu
+  Eigen::Matrix4d T_PREVFRAME_CURFRAME;
+  if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
+                                           previous_frame_, timestamp)) {
+    ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
+                    "buffering frame: "
+                    << timestamp);
+    return false;
+  }
+  T_WORLD_BASELINK = T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
+
   // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   GetPixelPointPairs(timestamp, pixels, points);
 
-  if (pixels.size() >= 20) {
-    // perform motion only BA to refine estimate, initialize at previous frame
+  if (pixels.size() >= 30) {
+    // perform motion only BA to refine estimate
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
-        T_WORLD_BASELINKprev * beam::InvertTransform(T_cam_baselink_));
-
+        T_WORLD_BASELINK * beam::InvertTransform(T_cam_baselink_));
+    Eigen::Matrix<double, 6, 6> prior = Eigen::Matrix<double, 6, 6>::Identity();
+    // std::make_shared<Eigen::Matrix<double, 6,6>> prior;
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
-        T_CAMERA_WORLD_est, cam_model_, pixels, points);
+        T_CAMERA_WORLD_est, cam_model_, pixels, points,
+        std::make_shared<Eigen::Matrix<double, 6, 6>>(prior));
     T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
 
@@ -192,20 +208,8 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     //   std::cout << "Visual estimate: \n" << T_WORLD_BASELINK << std::endl;
     //   std::cout << "Inertial estimate: \n" << temp << std::endl;
   } else {
-    // todo: signal to IO that we are losing track
-
     ROS_WARN_STREAM(
-        "Using motion model, not enough points for visual estimation: "
-        << pixels.size());
-    Eigen::Matrix4d T_PREVFRAME_CURFRAME;
-    if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
-                                             previous_frame_, timestamp)) {
-      ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
-                      "buffering frame: "
-                      << timestamp);
-      return false;
-    }
-    T_WORLD_BASELINK = T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
+        "Not enough points for visual refinement: " << pixels.size());
   }
 
   return true;
@@ -219,8 +223,8 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 
   // add prior if using a frame initializer
   if (frame_initializer_ && vo_params_.prior_information_weight != 0) {
-    auto prior = MakeFrameInitPrior(timestamp, vo_params_.prior_covariance);
-    transaction->addConstraint(prior);
+    visual_map_->AddPosePrior(timestamp, vo_params_.prior_covariance,
+                              transaction);
   }
 
   // process each landmark
@@ -267,14 +271,17 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
     }
   }
 
-  // get most recent linear acceleration and angular velocity
-  const auto end_timestamp = *timestamps.rbegin();
-  cur_lin_acc_ =
-      bs_common::GetLinearAcceleration(graph, end_timestamp)->array();
-  cur_ang_vel_ = bs_common::GetAngularVelocity(graph, end_timestamp)->array();
-
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
+
+  // create motion only local copy of graph
+  local_graph_ = graph->clone();
+  for (auto& var : local_graph_->getVariables()) {
+    if (var.type() != "fuse_variables::Orientation3DStamped" &&
+        var.type() != "fuse_variables::Position3DStamped") {
+      local_graph_->holdVariable(var.uuid(), true);
+    }
+  }
 
   // do initial setup
   if (!is_initialized_) {
@@ -349,15 +356,50 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
                                 const Eigen::Matrix4d& T_WORLD_BASELINK) {
   if (keyframes_.empty()) { return true; }
+
   const auto kf_time = keyframes_.back().Stamp();
-  const auto avg_parallax =
-      landmark_container_->ComputeParallax(kf_time, timestamp, false);
-  if (avg_parallax > vo_params_.keyframe_parallax) {
-    return true;
-  } else if ((timestamp - kf_time).toSec() > vo_params_.keyframe_max_duration) {
-    return true;
+  Eigen::Matrix4d T_PREVKF_CURFRAME;
+  if (!frame_initializer_->GetRelativePose(T_PREVKF_CURFRAME, kf_time,
+                                           timestamp)) {
+    ROS_WARN_STREAM(
+        "Unable to retrieve relative pose from last keyframe: " << timestamp);
+    return false;
   }
 
+  Eigen::Matrix3d R_PREVKF_CURFRAME = T_PREVKF_CURFRAME.block<3, 3>(0, 0);
+
+  std::vector<uint64_t> frame1_ids =
+      landmark_container_->GetLandmarkIDsInImage(kf_time);
+  double total_parallax = 0.0;
+  double num_correspondences = 0.0;
+  std::vector<double> parallaxes;
+  for (auto& id : frame1_ids) {
+    try {
+      Eigen::Vector2d p1 = landmark_container_->GetValue(kf_time, id);
+      Eigen::Vector2d p2 = landmark_container_->GetValue(timestamp, id);
+      Eigen::Vector3d bp2;
+      if (!cam_model_->BackProject(p1.cast<int>(), bp2)) { continue; }
+      // rotate pixel from current frame to keyframe
+      Eigen::Vector3d bp2_in_kf = R_PREVKF_CURFRAME * bp2;
+      Eigen::Vector2d bp2_reproj;
+      if (!cam_model_->ProjectPoint(bp2_in_kf, bp2_reproj)) { continue; }
+
+      // add to total parallax
+      double d = beam::distance(p1, bp2_reproj);
+      total_parallax += d;
+      num_correspondences += 1.0;
+    } catch (const std::out_of_range& oor) {}
+  }
+
+  const double avg_parallax = total_parallax / num_correspondences;
+  const double percent_tracked =
+      num_correspondences / (double)frame1_ids.size();
+
+  if (avg_parallax > vo_params_.keyframe_parallax) {
+    return true;
+  } else if (percent_tracked <= 0.5) {
+    return true;
+  }
   return false;
 }
 
@@ -424,19 +466,6 @@ void VisualOdometry::GetPixelPointPairs(
   }
 }
 
-std::shared_ptr<fuse_constraints::AbsolutePose3DStampedConstraint>
-    VisualOdometry::MakeFrameInitPrior(
-        const ros::Time& frame_time,
-        const Eigen::Matrix<double, 6, 6>& covariance) {
-  const auto position = visual_map_->GetPosition(frame_time);
-  const auto orientation = visual_map_->GetOrientation(frame_time);
-  fuse_core::Vector7d mean;
-  mean << position->x(), position->y(), position->z(), orientation->w(),
-      orientation->x(), orientation->y(), orientation->z();
-  return std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-      "FRAMEINITIALIZERPRIOR", *position, *orientation, mean, covariance);
-}
-
 void VisualOdometry::ComputeRelativeOdometry(
     const ros::Time& timestamp, const Eigen::Matrix4d& T_WORLD_BASELINKcur) {
   static uint64_t rel_odom_seq = 0;
@@ -490,6 +519,126 @@ void VisualOdometry::PublishPose(const ros::Time& timestamp,
                                          kf_odom_seq++,
                                          extrinsics_.GetBaselinkFrameId(), msg);
   keyframe_publisher_.publish(msg);
+}
+
+void VisualOdometry::AddLocalCameraPose(
+    const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_BASELINK) {
+  // transform pose into baselink coord space
+  Eigen::Quaterniond q;
+  Eigen::Vector3d p;
+  beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, q, p);
+
+  // construct position variable
+  fuse_variables::Position3DStamped::SharedPtr position =
+      fuse_variables::Position3DStamped::make_shared(stamp);
+  position->x() = p[0];
+  position->y() = p[1];
+  position->z() = p[2];
+  local_graph_->addVariable(position);
+
+  // add orientation variable
+  fuse_variables::Orientation3DStamped::SharedPtr orientation =
+      fuse_variables::Orientation3DStamped::make_shared(stamp);
+  orientation->w() = q.w();
+  orientation->x() = q.x();
+  orientation->y() = q.y();
+  orientation->z() = q.z();
+  local_graph_->addVariable(orientation);
+}
+
+bool VisualOdometry::AddLocalVisualConstraint(const ros::Time& stamp,
+                                              const uint64_t id,
+                                              const Eigen::Vector2d& pixel) {
+  auto position = fuse_variables::Position3DStamped::make_shared();
+  auto position_uuid =
+      fuse_core::uuid::generate(position->type(), stamp, fuse_core::uuid::NIL);
+  *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      local_graph_->getVariable(position_uuid));
+
+  auto orientation = fuse_variables::Orientation3DStamped::make_shared();
+  auto orientation_uuid = fuse_core::uuid::generate(orientation->type(), stamp,
+                                                    fuse_core::uuid::NIL);
+  *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      local_graph_->getVariable(orientation_uuid));
+
+  auto landmark = fuse_variables::Point3DLandmark::make_shared();
+  auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), id);
+  *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(
+      local_graph_->getVariable(landmark_uuid));
+
+  // rectify pixel
+  Eigen::Vector2i rectified_pixel;
+  if (!cam_model_->UndistortPixel(pixel.cast<int>(), rectified_pixel)) {
+    return false;
+  }
+  Eigen::Vector2d measurement = rectified_pixel.cast<double>();
+
+  if (!position || !orientation) { return false; }
+  try {
+    if (landmark) {
+      auto vis_constraint =
+          std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
+              "VO", *orientation, *position, *landmark, T_cam_baselink_,
+              cam_intrinsic_matrix_, measurement,
+              vo_params_.reprojection_information_weight);
+      vis_constraint->loss(vo_params_.reprojection_loss);
+      local_graph_->addConstraint(vis_constraint);
+      return true;
+    }
+  } catch (const std::logic_error& le) {}
+
+  return false;
+}
+
+void VisualOdometry::AddLocalPosePrior(
+    const ros::Time& stamp, const Eigen::Matrix<double, 6, 6>& covariance) {
+  auto position = fuse_variables::Position3DStamped::make_shared();
+  auto position_uuid =
+      fuse_core::uuid::generate(position->type(), stamp, fuse_core::uuid::NIL);
+  *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      local_graph_->getVariable(position_uuid));
+
+  auto orientation = fuse_variables::Orientation3DStamped::make_shared();
+  auto orientation_uuid = fuse_core::uuid::generate(orientation->type(), stamp,
+                                                    fuse_core::uuid::NIL);
+  *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      local_graph_->getVariable(orientation_uuid));
+
+  if (position && orientation) {
+    fuse_core::Vector7d mean;
+    mean << position->x(), position->y(), position->z(), orientation->w(),
+        orientation->x(), orientation->y(), orientation->z();
+
+    auto prior =
+        std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+            "PRIOR", *position, *orientation, mean, covariance);
+    local_graph_->addConstraint(prior);
+  }
+}
+
+beam::opt<Eigen::Matrix4d>
+    VisualOdometry::GetLocalBaselinkPose(const ros::Time& stamp) {
+  auto position = fuse_variables::Position3DStamped::make_shared();
+  auto position_uuid =
+      fuse_core::uuid::generate(position->type(), stamp, fuse_core::uuid::NIL);
+  *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
+      local_graph_->getVariable(position_uuid));
+
+  auto orientation = fuse_variables::Orientation3DStamped::make_shared();
+  auto orientation_uuid = fuse_core::uuid::generate(orientation->type(), stamp,
+                                                    fuse_core::uuid::NIL);
+  *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+      local_graph_->getVariable(orientation_uuid));
+  if (position && orientation) {
+    Eigen::Vector3d p(position->data());
+    Eigen::Quaterniond q(orientation->w(), orientation->x(), orientation->y(),
+                         orientation->z());
+    Eigen::Matrix4d T_WORLD_BASELINK;
+    beam::QuaternionAndTranslationToTransformMatrix(q, p, T_WORLD_BASELINK);
+    return T_WORLD_BASELINK;
+  } else {
+    return {};
+  }
 }
 
 } // namespace bs_models
