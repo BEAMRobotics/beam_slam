@@ -55,7 +55,7 @@ void VisualOdometry::onInit() {
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
 
   // create pose refiner for motion only BA
-  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(0.05, true, 1.0);
+  pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(0.05, true, 0.2);
 
   // get extrinsics
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);

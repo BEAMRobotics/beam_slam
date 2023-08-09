@@ -264,6 +264,8 @@ bool SLAMInitialization::Initialize() {
   while (init_path_.begin()->first < second_imu_msg->header.stamp.toNSec()) {
     init_path_.erase(init_path_.begin()->first);
     // todo: also remove from the lidar initialization
+    ROS_ERROR("STATES IN INITIAL PATH BEING REMOVED - NICK TO ALSO REMOVE FROM "
+              "LIDAR PATH INIT");
   }
 
   if (init_path_.size() < 3) {
