@@ -147,48 +147,41 @@ private:
   /// @param stamp
   beam::opt<Eigen::Matrix4d> GetLocalBaselinkPose(const ros::Time& stamp);
 
+  /// @brief The UUID of this device
   fuse_core::UUID device_id_; //!< The UUID of this device
-  // loadable camera parameters
+  /// @brief loadable camera parameters
   bs_parameters::models::VisualOdometryParams vo_params_;
-
-  // calibration parameters
+  /// @brief calibration parameters
   bs_parameters::models::CalibrationParams calibration_params_;
-
-  // Used to get initial pose estimates
+  /// @brief Used to get initial pose estimates
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
-
-  // subscribers
+  /// @brief subscribers
   ros::Subscriber measurement_subscriber_;
-
-  // publishers
+  /// @brief publishers
   ros::Publisher odometry_publisher_;
   ros::Publisher keyframe_publisher_;
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher reloc_publisher_;
-
+  /// @brief book keeping variables
   bool is_initialized_{false};
-  double pixel_outlier_distance_;
   std::deque<Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
   std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;
   Eigen::Matrix4d T_ODOM_BASELINKprev_{Eigen::Matrix4d::Identity()};
   ros::Time previous_reloc_request_{ros::Time(0)};
   ros::Time previous_frame_;
-
-  // callbacks for messages
+  /// @brief callbacks for messages
   using ThrottledMeasurementCallback =
       fuse_core::ThrottledMessageCallback<CameraMeasurementMsg>;
   ThrottledMeasurementCallback throttled_measurement_callback_;
-
-  // computer vision objects
+  /// @brief computer vision objects
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   Eigen::Matrix3d cam_intrinsic_matrix_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::shared_ptr<VisualMap> visual_map_;
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   fuse_core::Graph::UniquePtr local_graph_;
-
-  // robot extrinsics
+  /// @brief robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();

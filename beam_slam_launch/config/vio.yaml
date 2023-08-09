@@ -62,7 +62,6 @@ visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   reloc_request_period: 3.0
   keyframe_parallax: 15.0
-  keyframe_max_duration: 0.5
   reprojection_information_weight: 1.0
   max_triangulation_distance: 30.0
   max_triangulation_reprojection: 15.0

@@ -49,8 +49,6 @@ void VisualOdometry::onInit() {
       std::make_shared<VisualMap>(cam_model_, vo_params_.reprojection_loss,
                                   vo_params_.reprojection_information_weight);
 
-  pixel_outlier_distance_ = cam_model_->GetWidth() / 40.0;
-
   // Initialize landmark measurement container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
 
@@ -165,7 +163,6 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
 bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix4d& T_WORLD_BASELINK) {
-  // todo: change this to use the local graph
   const auto prev_frame_pose = visual_map_->GetBaselinkPose(previous_frame_);
   if (!prev_frame_pose.has_value()) {
     ROS_ERROR("Cannot retrieve previous keyframe pose.");
@@ -182,34 +179,36 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                     << timestamp);
     return false;
   }
-  T_WORLD_BASELINK = T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
+  const Eigen::Matrix4d T_WORLD_BASELINKcur =
+      T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
 
   // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   GetPixelPointPairs(timestamp, pixels, points);
 
+  // perform motion only BA to refine estimate
   if (pixels.size() >= 30) {
-    // perform motion only BA to refine estimate
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
-        T_WORLD_BASELINK * beam::InvertTransform(T_cam_baselink_));
+        T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
+    // add a prior on the initial imu estimate
     Eigen::Matrix<double, 6, 6> prior = Eigen::Matrix<double, 6, 6>::Identity();
-    // std::make_shared<Eigen::Matrix<double, 6,6>> prior;
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
         T_CAMERA_WORLD_est, cam_model_, pixels, points,
         std::make_shared<Eigen::Matrix<double, 6, 6>>(prior));
     T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
 
-    //   Eigen::Matrix4d T_PREVFRAME_CURFRAME;
-    //   frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
-    //   previous_frame_, timestamp);
-    //   Eigen::Matrix4d temp = T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
-    //   std::cout << "Visual estimate: \n" << T_WORLD_BASELINK << std::endl;
-    //   std::cout << "Inertial estimate: \n" << temp << std::endl;
+    // output the difference between the imu and vo estimates
+    Eigen::Vector3d diff = T_WORLD_BASELINKcur.block<3, 1>(0, 3) -
+                           T_WORLD_BASELINK.block<3, 1>(0, 3);
+    ROS_DEBUG_STREAM("Difference between IMU estimate and VO estimate: ["
+                     << diff.x() << ", " << diff.y() << ", " << diff.z()
+                     << "]");
   } else {
     ROS_WARN_STREAM(
         "Not enough points for visual refinement: " << pixels.size());
+    T_WORLD_BASELINK = T_WORLD_BASELINKcur;
   }
 
   return true;
@@ -366,12 +365,12 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
     return false;
   }
 
+  // compute rotation adjusted parallax
   Eigen::Matrix3d R_PREVKF_CURFRAME = T_PREVKF_CURFRAME.block<3, 3>(0, 0);
-
   std::vector<uint64_t> frame1_ids =
       landmark_container_->GetLandmarkIDsInImage(kf_time);
   double total_parallax = 0.0;
-  double num_correspondences = 0.0;
+  int num_correspondences = 0;
   std::vector<double> parallaxes;
   for (auto& id : frame1_ids) {
     try {
@@ -387,13 +386,14 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
       // add to total parallax
       double d = beam::distance(p1, bp2_reproj);
       total_parallax += d;
-      num_correspondences += 1.0;
+      num_correspondences++;
     } catch (const std::out_of_range& oor) {}
   }
 
-  const double avg_parallax = total_parallax / num_correspondences;
+  const double avg_parallax =
+      total_parallax / static_cast<double>(num_correspondences);
   const double percent_tracked =
-      num_correspondences / (double)frame1_ids.size();
+      num_correspondences / static_cast<double>(frame1_ids.size());
 
   if (avg_parallax > vo_params_.keyframe_parallax) {
     return true;
@@ -521,6 +521,13 @@ void VisualOdometry::PublishPose(const ros::Time& timestamp,
   keyframe_publisher_.publish(msg);
 }
 
+/****************************************************/
+/*                                                  */
+/*                                                  */
+/*              Local Graph Functions               */
+/*                                                  */
+/*                                                  */
+/****************************************************/
 void VisualOdometry::AddLocalCameraPose(
     const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // transform pose into baselink coord space

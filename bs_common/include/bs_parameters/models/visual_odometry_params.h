@@ -56,8 +56,6 @@ public:
     // keyframe decision parameters
     getParam<double>(nh, "keyframe_parallax", keyframe_parallax,
                      keyframe_parallax);
-    getParam<double>(nh, "keyframe_max_duration", keyframe_max_duration,
-                     keyframe_max_duration);
     getParam<double>(nh, "reprojection_information_weight",
                      reprojection_information_weight,
                      reprojection_information_weight);
@@ -79,7 +77,6 @@ public:
   int max_container_size{300};
   double reloc_request_period{1.0};
   double keyframe_parallax{40.0};
-  double keyframe_max_duration{0.5};
   double reprojection_information_weight{1.0};
   double max_triangulation_distance{40.0};
   double max_triangulation_reprojection{40.0};
