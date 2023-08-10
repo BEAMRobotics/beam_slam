@@ -177,6 +177,8 @@ void SLAMInitialization::processCameraMeasurements(
   }
 
   if (mode_ != InitMode::VISUAL) { return; }
+  
+  // todo: use parallax rather than window size
 
   // if we haven't reached window size then return
   if (landmark_container_->NumImages() <

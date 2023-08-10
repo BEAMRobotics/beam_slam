@@ -45,6 +45,12 @@ public:
    */
   void OdometryCallback(const nav_msgs::OdometryConstPtr message);
 
+  /**
+   * @brief Computes the marginal covariance between two states
+   */
+  void GetMarginalCovariance(Eigen::Matrix<double, 6, 6>& cov,
+                             const ros::Time& tA, const ros::Time& tB) override;
+
 private:
   /**
    * @brief Check to see if world frame and baselink frame IDs match those
@@ -56,9 +62,11 @@ private:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   std::shared_ptr<tf2::BufferCore> poses_;
+  std::map<double, Eigen::Matrix<double, 6, 6>> hessians_;
 
   Eigen::Matrix4d T_ORIGINAL_OVERRIDE_{};
 
+  ros::Duration poses_buffer_duration_;
   ros::Subscriber odometry_subscriber_;
   bool check_world_baselink_frames_{true};
   bool override_sensor_frame_id_{false};

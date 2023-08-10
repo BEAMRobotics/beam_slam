@@ -1,5 +1,5 @@
 optimization_period: 0.07
-lag_duration: 10
+lag_duration: 6
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -7,8 +7,8 @@ solver_options:
   minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
-  max_num_iterations: 10
-  max_solver_time_in_seconds: 0.06
+  max_num_iterations: 5
+  max_solver_time_in_seconds: 0.05
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
@@ -23,9 +23,9 @@ sensor_models:
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
 
-publishers:
-    - name: 'graph'
-      type: 'fuse_publishers::SerializedPublisher'
+#  publishers:
+#   - name: 'graph'
+#     type: 'fuse_publishers::SerializedPublisher'
 #   - name: 'odom_pub'
 #     type: 'bs_publishers::Odometry3DPublisher'
 #   - name: 'path_pub'
@@ -47,8 +47,8 @@ slam_initialization:
   reprojection_information_weight: 1.0
   inertial_information_weight: 0.001
   lidar_information_weight: 10.0
-  max_triangulation_distance: 30.0
-  max_triangulation_reprojection: 15.0
+  max_triangulation_distance: 50.0
+  max_triangulation_reprojection: 30.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
   output_folder: "" # "/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
 
@@ -61,10 +61,10 @@ visual_odometry:
   max_container_size: 300
   frame_initializer_config: "frame_initializers/io.json"
   reloc_request_period: 3.0
-  keyframe_parallax: 15.0
+  keyframe_parallax: 20.0
   reprojection_information_weight: 1.0
-  max_triangulation_distance: 30.0
-  max_triangulation_reprojection: 15.0
+  max_triangulation_distance: 50.0
+  max_triangulation_reprojection: 30.0
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom

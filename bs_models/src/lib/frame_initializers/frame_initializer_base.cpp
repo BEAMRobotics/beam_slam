@@ -4,8 +4,8 @@
 
 #include <beam_utils/filesystem.h>
 
-#include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_common/conversions.h>
+#include <bs_models/frame_initializers/frame_initializers.h>
 
 namespace bs_models { namespace frame_initializers {
 
@@ -133,6 +133,12 @@ bool FrameInitializerBase::GetRelativePose(Eigen::Matrix4d& T_A_B,
 
   T_A_B = beam::InvertTransform(T_WORLD_BASELINKA) * T_WORLD_BASELINKB;
   return true;
+}
+
+void FrameInitializerBase::GetMarginalCovariance(
+    Eigen::Matrix<double, 6, 6>& cov, const ros::Time& tA,
+    const ros::Time& tB) {
+  cov = Eigen::Matrix<double, 6, 6>::Identity();
 }
 
 }} // namespace bs_models::frame_initializers
