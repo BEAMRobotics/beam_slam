@@ -53,12 +53,10 @@ void InertialOdometry::onStart() {
       &ThrottledIMUCallback::callback, &throttled_imu_callback_,
       ros::TransportHints().tcpNoDelay(false));
 
-  if (!params_.constraint_odom_topic.empty()) {
-    odom_subscriber_ = private_node_handle_.subscribe<nav_msgs::Odometry>(
-        ros::names::resolve(params_.constraint_odom_topic), 1000,
-        &ThrottledOdomCallback::callback, &throttled_odom_callback_,
-        ros::TransportHints().tcpNoDelay(false));
-  }
+  odom_subscriber_ = private_node_handle_.subscribe<nav_msgs::Odometry>(
+      ros::names::resolve(params_.constraint_odom_topic), 1000,
+      &ThrottledOdomCallback::callback, &throttled_odom_callback_,
+      ros::TransportHints().tcpNoDelay(false));
 
   // setup publishers
   odometry_publisher_ =
@@ -70,32 +68,28 @@ void InertialOdometry::onStart() {
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "InertialOdometry received IMU measurements: " << msg->header.stamp);
-  // push imu message onto buffer
-  imu_buffer_.push(*msg);
 
   // return if its not initialized_
   if (!initialized_) {
+    // push imu message onto buffer
+    imu_buffer_.push(msg);
     ROS_INFO_THROTTLE(
         1, "inertial odometry not yet initialized, waiting on first graph "
            "update before beginning");
     return;
   }
 
-  const auto curr_msg = imu_buffer_.front();
-  const auto curr_stamp = curr_msg.header.stamp;
-
   // process each imu message as it comes in
-  imu_preint_->AddToBuffer(curr_msg);
+  imu_preint_->AddToBuffer(*msg);
 
   // get relative pose and publish
-  ComputeRelativeMotion(prev_stamp_, curr_stamp);
+  ComputeRelativeMotion(prev_stamp_, msg->header.stamp);
 
   // get world pose and publish
-  ComputeAbsolutePose(curr_stamp);
+  ComputeAbsolutePose(msg->header.stamp);
 
   odom_seq_++;
-  prev_stamp_ = curr_stamp;
-  imu_buffer_.pop();
+  prev_stamp_ = msg->header.stamp;
 }
 
 void InertialOdometry::processOdometry(
@@ -140,11 +134,11 @@ void InertialOdometry::ComputeAbsolutePose(const ros::Time& curr_stamp) {
 
 void InertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
-  ROS_INFO_STREAM_ONCE("InertialOdometry recieved initial graph.");
   if (initialized_) {
     imu_preint_->UpdateGraph(graph_msg);
     return;
   }
+  ROS_INFO("InertialOdometry received initial graph.");
   std::set<ros::Time> timestamps = bs_common::CurrentTimestamps(graph_msg);
 
   // publish poses in initial graph as odometry
@@ -174,7 +168,7 @@ void InertialOdometry::onGraphUpdate(
       imu_params_, bg, ba, params_.inertial_info_weight);
 
   // remove measurements before the start
-  while (imu_buffer_.front().header.stamp < most_recent_stamp &&
+  while (imu_buffer_.front()->header.stamp < most_recent_stamp &&
          !imu_buffer_.empty()) {
     imu_buffer_.pop();
   }
@@ -185,9 +179,9 @@ void InertialOdometry::onGraphUpdate(
   // iterate through existing buffer, estimate poses and output
   prev_stamp_ = most_recent_stamp;
   while (!imu_buffer_.empty()) {
-    auto imu_msg = imu_buffer_.front();
-    imu_preint_->AddToBuffer(imu_msg);
-    const auto curr_stamp = imu_msg.header.stamp;
+    const auto& imu_msg = imu_buffer_.front();
+    imu_preint_->AddToBuffer(*imu_msg);
+    const auto& curr_stamp = imu_msg->header.stamp;
 
     // get relative pose and publish
     ComputeRelativeMotion(prev_stamp_, curr_stamp);

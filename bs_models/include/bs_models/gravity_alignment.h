@@ -5,24 +5,19 @@
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
-#include <fuse_graphs/hash_graph.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 
-#include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/frame_initializers/frame_initializers.h>
-#include <bs_models/imu/imu_preintegration.h>
-#include <bs_parameters/models/calibration_params.h>
-#include <bs_parameters/models/inertial_odometry_params.h>
+#include <bs_parameters/models/gravity_alignment_params.h>
 
 namespace bs_models {
 
 using namespace bs_common;
 
-class InertialOdometry : public fuse_core::AsyncSensorModel {
+class GravityAlignment : public fuse_core::AsyncSensorModel {
 public:
-  FUSE_SMART_PTR_DEFINITIONS(InertialOdometry);
+  FUSE_SMART_PTR_DEFINITIONS(GravityAlignment);
 
   /**
    * @brief Default Constructor
@@ -36,8 +31,7 @@ public:
 
 private:
   /**
-   * @brief Callback for imu processing, this will make sure the imu messages
-   * are added to the buffer at the correct time
+   * @brief Callback for imu processing
    * @param[in] msg - The imu msg to process
    */
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
@@ -53,12 +47,6 @@ private:
 
   /**
    * @brief Perform any required initialization for the sensor model
-   *
-   * This could include things like reading from the parameter server or
-   * subscribing to topics. The class's node handles will be properly
-   * initialized before SensorModel::onInit() is called. Spinning of the
-   * callback queue will not begin until after the call to SensorModel::onInit()
-   * completes.
    */
   void onInit() override;
 
@@ -73,50 +61,23 @@ private:
    */
   void onStop() override {}
 
-  /**
-   * @brief Read in graph updates
-   */
-  void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
-
-  /// @brief Computes relative motion and publishes to odometry
-  /// @param prev_stamp
-  /// @param curr_stamp
-  void ComputeRelativeMotion(const ros::Time& prev_stamp,
-                             const ros::Time& curr_stamp);
-
-  /// @brief Computes pose in world frame wrt the graph and published to
-  /// odometry
-  /// @param curr_stamp
-  void ComputeAbsolutePose(const ros::Time& curr_stamp);
+  void AddConstraint(const nav_msgs::Odometry::ConstPtr& msg) const;
 
   fuse_core::UUID device_id_; //!< The UUID of this device
 
-  int odom_seq_ = 0;
-  bool initialized_{false};
-  ros::Time prev_stamp_{0.0};
-  Eigen::Matrix4d T_ODOM_IMUprev_{Eigen::Matrix4d::Identity()};
-  
-  // calibration parameters
-  bs_parameters::models::CalibrationParams calibration_params_;
-
   // loadable parameters
-  bs_parameters::models::InertialOdometryParams params_;
+  bs_parameters::models::GravityAlignmentParams params_;
+  Eigen::Matrix2d covariance_;
 
   // subscribers
   ros::Subscriber imu_subscriber_;
   ros::Subscriber odom_subscriber_;
 
   // publishers
-  ros::Publisher odometry_publisher_;
-  ros::Publisher pose_publisher_;
+  ros::Publisher publisher_;
 
   // data storage
   std::queue<sensor_msgs::Imu::ConstPtr> imu_buffer_;
-
-  // primary odom objects
-  std::shared_ptr<ImuPreintegration> imu_preint_;
-  bs_models::ImuPreintegration::Params imu_params_;
-  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
 
   // extrinsics
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
@@ -131,6 +92,16 @@ private:
   using ThrottledOdomCallback =
       fuse_core::ThrottledMessageCallback<nav_msgs::Odometry>;
   ThrottledOdomCallback throttled_odom_callback_;
+
+  // ------------------------------
+  // Parameters only tuneable here:
+
+  // 5 second window of IMU data to store
+  ros::Duration queue_duration_{5}; 
+
+  // max offset between odom msg and closest IMU msg
+  ros::Duration max_time_offset_{0.1};
+  // ------------------------------
 };
 
 } // namespace bs_models
