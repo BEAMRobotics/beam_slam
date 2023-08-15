@@ -38,7 +38,7 @@ void GravityAlignmentStampedConstraint::print(std::ostream& stream) const {
 }
 
 ceres::CostFunction* GravityAlignmentStampedConstraint::costFunction() const {
-  return new ceres::AutoDiffCostFunction<GravityAlignmentCostFunctor, 4, 4>(
+  return new ceres::AutoDiffCostFunction<GravityAlignmentCostFunctor, 2, 4>(
       new GravityAlignmentCostFunctor(sqrt_information_, qwxyz_Imu_World_));
 }
 

@@ -59,7 +59,8 @@ private:
    */
   void onStop() override {}
 
-  void AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg);
+  void AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg,
+                     const ros::Time& stamp);
 
   // loadable parameters
   bs_parameters::models::GravityAlignmentParams params_;

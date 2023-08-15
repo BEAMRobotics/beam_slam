@@ -106,7 +106,7 @@ void GravityAlignment::processOdometry(
     }
   }
 
-  AddConstraint(imu_buffer_.at(closest_imu_time_ns));
+  AddConstraint(imu_buffer_.at(closest_imu_time_ns), msg->header.stamp);
 
   // clear all IMU messages before constraint time
   while (!imu_buffer_.empty() &&
@@ -115,9 +115,9 @@ void GravityAlignment::processOdometry(
   }
 }
 
-void GravityAlignment::AddConstraint(
-    const sensor_msgs::Imu::ConstPtr& imu_msg) {
-  fuse_variables::Orientation3DStamped o_World_Imu(imu_msg->header.stamp);
+void GravityAlignment::AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg,
+                                     const ros::Time& stamp) {
+  fuse_variables::Orientation3DStamped o_World_Imu(stamp);
   o_World_Imu.w() = imu_msg->orientation.w;
   o_World_Imu.x() = imu_msg->orientation.x;
   o_World_Imu.y() = imu_msg->orientation.y;
