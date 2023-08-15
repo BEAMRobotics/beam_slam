@@ -1,7 +1,5 @@
 #pragma once
 
-#include <queue>
-
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
@@ -22,12 +20,12 @@ public:
   /**
    * @brief Default Constructor
    */
-  InertialOdometry();
+  GravityAlignment();
 
   /**
    * @brief Default Destructor
    */
-  ~InertialOdometry() override = default;
+  ~GravityAlignment() override = default;
 
 private:
   /**
@@ -61,9 +59,7 @@ private:
    */
   void onStop() override {}
 
-  void AddConstraint(const nav_msgs::Odometry::ConstPtr& msg) const;
-
-  fuse_core::UUID device_id_; //!< The UUID of this device
+  void AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg);
 
   // loadable parameters
   bs_parameters::models::GravityAlignmentParams params_;
@@ -76,8 +72,9 @@ private:
   // publishers
   ros::Publisher publisher_;
 
-  // data storage
-  std::queue<sensor_msgs::Imu::ConstPtr> imu_buffer_;
+  // store IMU data up to buffer_duration_ and each time a new odom topic comes
+  // in, we create a constraint and clear all IMU data prior to that timestamp
+  std::map<int64_t, sensor_msgs::Imu::ConstPtr> imu_buffer_;
 
   // extrinsics
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
@@ -95,12 +92,13 @@ private:
 
   // ------------------------------
   // Parameters only tuneable here:
+  std::string source_{"GravityAlignment"};
 
   // 5 second window of IMU data to store
-  ros::Duration queue_duration_{5}; 
+  int64_t buffer_duration_in_ns_{5000000000};
 
   // max offset between odom msg and closest IMU msg
-  ros::Duration max_time_offset_{0.1};
+  int64_t max_time_offset_in_ns_{100000000}; // 0.1s
   // ------------------------------
 };
 

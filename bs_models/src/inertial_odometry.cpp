@@ -13,7 +13,6 @@ namespace bs_models {
 
 InertialOdometry::InertialOdometry()
     : fuse_core::AsyncSensorModel(2),
-      device_id_(fuse_core::uuid::NIL),
       throttled_imu_callback_(std::bind(&InertialOdometry::processIMU, this,
                                         std::placeholders::_1)),
       throttled_odom_callback_(std::bind(&InertialOdometry::processOdometry,
@@ -21,7 +20,6 @@ InertialOdometry::InertialOdometry()
 
 void InertialOdometry::onInit() {
   // Read settings from the parameter sever
-  device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   calibration_params_.loadFromROS();
   params_.loadFromROS(private_node_handle_);
 

@@ -89,8 +89,6 @@ private:
   /// @param curr_stamp
   void ComputeAbsolutePose(const ros::Time& curr_stamp);
 
-  fuse_core::UUID device_id_; //!< The UUID of this device
-
   int odom_seq_ = 0;
   bool initialized_{false};
   ros::Time prev_stamp_{0.0};

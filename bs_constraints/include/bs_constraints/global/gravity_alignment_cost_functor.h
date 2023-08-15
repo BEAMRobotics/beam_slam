@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <ceres/rotation.h>
 #include <fuse_constraints/normal_prior_orientation_3d_cost_functor.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
@@ -36,33 +37,49 @@ public:
 
   GravityAlignmentCostFunctor(
       const Eigen::Matrix<double, 2, 2>& A,
-      const Eigen::Matrix<double, 4, 1>& qwxyz_Imu_World)
-      : A_(A), qwxyz_Imu_World_(qwxyz_Imu_World) {
-    qwxyz_Imu_World_[0] = qwxyz_Imu_World[0];
-    qwxyz_Imu_World_[1] = qwxyz_Imu_World[1];
-    qwxyz_Imu_World_[2] = qwxyz_Imu_World[2];
-    qwxyz_Imu_World_[3] = qwxyz_Imu_World[3];
-    g_nominal_[0] = 0;
-    g_nominal_[1] = 0;
-    g_nominal_[2] = -1;
-  }
+      const Eigen::Matrix<double, 4, 1>& qwxyz_Imu_World);
 
   template <typename T>
-  bool operator()(const T* const qwxyz_World_Imu, T* residual) const {
-    T qwxyz_diff[4];
-    ceres::QuaternionProduct(qwxyz_Imu_World_, qwxyz_World_Imu, qwxyz_diff);
-    T g_diff[3];
-    ceres::QuaternionRotatePoint(qwxyz_diff, g_nominal_, g_diff);
-    residual[0] = A_(0, 0) * g_diff[0] + A_(0, 1) * g_diff[1];
-    residual[1] = A_(1, 0) * g_diff[0] + A_(1, 1) * g_diff[1];
-  }
+  bool operator()(const T* const qwxyz_World_Imu, T* residual) const;
 
 private:
   Eigen::Matrix<double, 2, 2> A_;
   double qwxyz_Imu_World_[4];
   double g_nominal_[4];
-
-  fuse_constraints::NormalPriorOrientation3DCostFunctor orientation_functor_;
 };
+
+GravityAlignmentCostFunctor::GravityAlignmentCostFunctor(
+    const Eigen::Matrix<double, 2, 2>& A,
+    const Eigen::Matrix<double, 4, 1>& qwxyz_Imu_World) {
+  A_ = A;
+  qwxyz_Imu_World_[0] = qwxyz_Imu_World[0];
+  qwxyz_Imu_World_[1] = qwxyz_Imu_World[1];
+  qwxyz_Imu_World_[2] = qwxyz_Imu_World[2];
+  qwxyz_Imu_World_[3] = qwxyz_Imu_World[3];
+  g_nominal_[0] = 0;
+  g_nominal_[1] = 0;
+  g_nominal_[2] = -1;
+}
+
+template <typename T>
+bool GravityAlignmentCostFunctor::operator()(const T* const qwxyz_World_Imu,
+                                             T* residual) const {
+  T q_W_I[4] = {T(qwxyz_World_Imu[0]), T(qwxyz_World_Imu[1]),
+                T(qwxyz_World_Imu[2]), T(qwxyz_World_Imu[3])};
+  T q_I_W[4] = {T(qwxyz_Imu_World_[0]), T(qwxyz_Imu_World_[1]),
+                T(qwxyz_Imu_World_[2]), T(qwxyz_Imu_World_[3])};
+
+  T q_diff[4];
+  ceres::QuaternionProduct(q_I_W, q_W_I, q_diff);
+
+  T g[3] = {T(g_nominal_[0]), T(g_nominal_[1]), T(g_nominal_[2])};
+
+  T g_diff[3];
+  ceres::QuaternionRotatePoint(q_diff, g, g_diff);
+
+  residual[0] = A_(0, 0) * g_diff[0] + A_(0, 1) * g_diff[1];
+  residual[1] = A_(1, 0) * g_diff[0] + A_(1, 1) * g_diff[1];
+  return true;
+}
 
 }} // namespace bs_constraints::global

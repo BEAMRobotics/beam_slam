@@ -7,7 +7,7 @@
 
 namespace bs_parameters { namespace models {
 
-struct InertialOdometryParams : public ParameterBase {
+struct GravityAlignmentParams : public ParameterBase {
 public:
   /**
    * @brief Method for loading parameter values from ROS.

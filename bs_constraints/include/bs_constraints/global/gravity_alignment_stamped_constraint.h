@@ -42,7 +42,7 @@ public:
    */
   GravityAlignmentStampedConstraint(
       const std::string& source,
-      const const fuse_variables::Orientation3DStamped& qwxyz_World_Imu,
+      const fuse_variables::Orientation3DStamped& qwxyz_World_Imu,
       const Eigen::Matrix<double, 2, 2>& covariance);
 
   /**

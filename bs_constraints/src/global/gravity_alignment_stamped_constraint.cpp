@@ -12,13 +12,13 @@ GravityAlignmentStampedConstraint::GravityAlignmentStampedConstraint(
     const std::string& source,
     const fuse_variables::Orientation3DStamped& qwxyz_World_Imu,
     const Eigen::Matrix<double, 2, 2>& covariance)
-    : fuse_core::Constraint(source, {qwxyz_Imu_World_.uuid()}),
+    : fuse_core::Constraint(source, {qwxyz_World_Imu.uuid()}),
       sqrt_information_(covariance.inverse().llt().matrixU()) {
-  auto qwxyz_Imu_World = qwxyz_World_Imu.inverse();
-  qwxyz_Imu_World_[0] = qwxyz_Imu_World.w();
-  qwxyz_Imu_World_[1] = qwxyz_Imu_World.x();
-  qwxyz_Imu_World_[2] = qwxyz_Imu_World.y();
-  qwxyz_Imu_World_[3] = qwxyz_Imu_World.z();
+  // q_inv = [qw, -qx, -qy, -qz]
+  qwxyz_Imu_World_[0] = qwxyz_World_Imu.w();
+  qwxyz_Imu_World_[1] = -qwxyz_World_Imu.x();
+  qwxyz_Imu_World_[2] = -qwxyz_World_Imu.y();
+  qwxyz_Imu_World_[3] = -qwxyz_World_Imu.z();
 }
 
 void GravityAlignmentStampedConstraint::print(std::ostream& stream) const {
@@ -26,8 +26,9 @@ void GravityAlignmentStampedConstraint::print(std::ostream& stream) const {
          << "  source: " << source() << "\n"
          << "  uuid: " << uuid() << "\n"
          << "  Orientation variable: " << variables().at(0) << "\n"
-         << "  ImuState Position variable: " << variables().at(1) << "\n"
-         << "  mean: " << mean().transpose() << "\n"
+         << "  qwxyz_Imu_World_: [" << qwxyz_Imu_World_[0] << ", "
+         << qwxyz_Imu_World_[1] << ", " << qwxyz_Imu_World_[2] << ", "
+         << qwxyz_Imu_World_[3] << "]\n"
          << "  sqrt_info: " << sqrtInformation() << "\n";
 
   if (loss()) {
