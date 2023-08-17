@@ -96,7 +96,7 @@ bool PreIntegrator::Integrate(const ros::Time& t, const Eigen::Vector3d& bg,
                               bool compute_covariance) {
   if (data.empty()) return false;
   Reset();
-  
+
   // increment over window such that it is less or equal to the requested time
   for (int i = 0; i < data.size(); i++) {
     const int j = i + 1;
@@ -107,15 +107,15 @@ bool PreIntegrator::Integrate(const ros::Time& t, const Eigen::Vector3d& bg,
     const auto dt = next.t - cur.t;
     Increment(dt, cur, bg, ba, compute_jacobian, compute_covariance);
   }
-  
+
   // final increment to requested time
   const auto dt = t - data.rbegin()->t;
   if (dt > ros::Duration(0)) {
     Increment(dt, *data.rbegin(), bg, ba, compute_jacobian, compute_covariance);
   }
-  
+
   if (compute_covariance) { ComputeSqrtInvCov(); }
-  
+
   return true;
 }
 
@@ -141,6 +141,11 @@ void PreIntegrator::ComputeSqrtInvCov() {
       Eigen::LLT<Eigen::Matrix<double, ES_SIZE, ES_SIZE>>(delta.cov.inverse())
           .matrixL()
           .transpose();
+  if (!delta.sqrt_inv_cov.allFinite()) {
+    // set to low value
+    delta.sqrt_inv_cov = Eigen::Matrix<double, ES_SIZE, ES_SIZE>::Identity() *
+                         invalid_inv_cov_weight_;
+  }
 }
 
 } // namespace bs_common

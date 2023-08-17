@@ -15,7 +15,12 @@
       Inertial odometry sensor model
     </description>
   </class>
-    <class type="bs_models::VisualOdometry" base_class_type="fuse_core::SensorModel">
+  <class type="bs_models::GravityAlignment" base_class_type="fuse_core::SensorModel">
+    <description>
+      Sensor model for aligning a graph to gravity using IMU orientation estimates
+    </description>
+  </class>
+  <class type="bs_models::VisualOdometry" base_class_type="fuse_core::SensorModel">
     <description>
       Visual odometry sensor model
     </description>

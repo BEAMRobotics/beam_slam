@@ -13,6 +13,8 @@ sensor_models:
     type: 'bs_models::LidarOdometry'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
+  - name: 'gravity_alignment'
+    type: 'bs_models::GravityAlignment'
 
 motion_models:
   - name: 'unicycle_3d'
@@ -55,11 +57,15 @@ slam_initialization:
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
   output_folder: "" #"/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
 
-
 inertial_odometry:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
   inertial_information_weight: 0.001
+
+gravity_alignment:
+  imu_topic: "/imu/data"
+  constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
+  inertial_information_weight: 1
 
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_points'
@@ -88,7 +94,7 @@ lidar_odometry:
 
 graph_visualization:
   publish: true
-  save_path: '/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug/graph_viz'
+  save_path: '/userhome/debug/graph_viz'
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom

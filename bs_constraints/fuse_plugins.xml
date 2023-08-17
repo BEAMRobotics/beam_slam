@@ -12,6 +12,12 @@
     </description>
   </class>
 
+  <class type="bs_constraints::global::GravityAlignmentStampedConstraint" base_class_type="fuse_core::Constraint">
+    <description>
+      A constraint that represents an error on global orientation in roll and pitch (not yaw)
+    </description>
+  </class>
+
   <class type="bs_constraints::Unicycle3DStateKinematicConstraint" base_class_type="fuse_core::Constraint">
     <description>
       A class that represents a kinematic constraint between 3D states at two different times.

@@ -49,9 +49,6 @@ private:
 
   void process(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
-  fuse_core::Transaction::SharedPtr
-      GenerateTransaction(const sensor_msgs::PointCloud2::ConstPtr& msg);
-
   void SetupRegistration();
 
   void PublishMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
@@ -124,7 +121,8 @@ private:
   std::string registration_results_path_;
 
   /** Params that can only be updated here: */
-  bool update_registration_map_on_graph_update_{false};
+  bool update_registration_map_all_scans_{false};
+  bool update_registration_map_in_batch_{true};
   bool use_frame_init_relative_{true};
 };
 
