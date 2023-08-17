@@ -89,8 +89,6 @@ private:
   /// @param curr_stamp
   void ComputeAbsolutePose(const ros::Time& curr_stamp);
 
-  fuse_core::UUID device_id_; //!< The UUID of this device
-
   int odom_seq_ = 0;
   bool initialized_{false};
   ros::Time prev_stamp_{0.0};
@@ -111,7 +109,7 @@ private:
   ros::Publisher pose_publisher_;
 
   // data storage
-  std::queue<sensor_msgs::Imu> imu_buffer_;
+  std::queue<sensor_msgs::Imu::ConstPtr> imu_buffer_;
 
   // primary odom objects
   std::shared_ptr<ImuPreintegration> imu_preint_;
@@ -119,7 +117,6 @@ private:
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
 
   // extrinsics
-  Eigen::Matrix4d T_imu_baselink_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
