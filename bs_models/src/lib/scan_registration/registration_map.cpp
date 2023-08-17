@@ -275,9 +275,59 @@ void RegistrationMap::UpdateScanPosesFromGraphMsg(
         dynamic_cast<const fuse_variables::Orientation3DStamped&>(
             graph_msg->getVariable(scan.orientation_uuid));
 
-    Eigen::Matrix4d T;
-    bs_common::FusePoseToEigenTransform(position, orientation, T);
-    UpdateScan(stamp, T);
+    Eigen::Matrix4d T_World_Baselink;
+    bs_common::FusePoseToEigenTransform(position, orientation,
+                                        T_World_Baselink);
+
+    bs_common::ExtrinsicsLookupOnline& extrinsics =
+        bs_common::ExtrinsicsLookupOnline::GetInstance();
+    Eigen::Matrix4d T_Baselink_Scan;
+    extrinsics.GetT_BASELINK_LIDAR(T_Baselink_Scan);
+    Eigen::Matrix4d T_World_Scan = T_World_Baselink * T_Baselink_Scan;
+    UpdateScan(stamp, T_World_Scan);
+  }
+}
+
+void RegistrationMap::CorrectMapDriftFromGraphMsg(
+    const fuse_core::Graph::ConstSharedPtr& graph_msg) {
+  Eigen::Matrix4d T_WorldCorrected_World;
+  bool success = false;
+  for (auto riter = scans_.rbegin(); riter != scans_.rend(); riter++) {
+    if (!graph_msg->variableExists(riter->second.position_uuid) ||
+        !graph_msg->variableExists(riter->second.orientation_uuid)) {
+      continue;
+    }
+
+    ros::Time stamp;
+    stamp.fromNSec(riter->first);
+
+    auto position = dynamic_cast<const fuse_variables::Position3DStamped&>(
+        graph_msg->getVariable(riter->second.position_uuid));
+    auto orientation =
+        dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+            graph_msg->getVariable(riter->second.orientation_uuid));
+
+    Eigen::Matrix4d T_World_BaselinkCorrected;
+    bs_common::FusePoseToEigenTransform(position, orientation,
+                                        T_World_BaselinkCorrected);
+    bs_common::ExtrinsicsLookupOnline& extrinsics =
+        bs_common::ExtrinsicsLookupOnline::GetInstance();
+    Eigen::Matrix4d T_Baselink_Scan;
+    extrinsics.GetT_BASELINK_LIDAR(T_Baselink_Scan);
+    T_WorldCorrected_World = T_World_BaselinkCorrected * T_Baselink_Scan *
+                             beam::InvertTransform(riter->second.T_Map_Scan);
+    success = true;
+    break;
+  }
+
+  if (!success) {
+    BEAM_ERROR("Cannot update registration map, no scan found in graph msg");
+    return;
+  }
+
+  // update al poses
+  for (auto& [t_in_ns, scan] : scans_) {
+    scan.T_Map_Scan = T_WorldCorrected_World * scan.T_Map_Scan;
   }
 }
 
