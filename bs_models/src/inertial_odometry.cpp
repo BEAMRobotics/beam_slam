@@ -113,6 +113,10 @@ void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
   const auto [T_IMUprev_IMUcurr, cov_rel] =
       imu_preint_->GetRelativeMotion(prev_stamp, curr_stamp, velocity_curr);
 
+  // todo: 
+  // cov_rel is in order: roll,pitch,yaw,x,y,z 
+  // we need x,y,z,roll,pitch,yaw
+  
   // publish relative odometry
   T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
   auto odom_msg_rel = bs_common::TransformToOdometryMessage(
@@ -138,6 +142,12 @@ void InertialOdometry::onGraphUpdate(
   }
   ROS_INFO("InertialOdometry received initial graph.");
   std::set<ros::Time> timestamps = bs_common::CurrentTimestamps(graph_msg);
+
+  // todo:
+  // 1. get every imu constraint in the graph
+  // 2. order it by imu_state_i stamp
+  // 3. publish the position/orientation as odometry
+  // 4. use the preintegrator in it to get the covariance
 
   // publish poses in initial graph as odometry
   for (const auto& stamp : timestamps) {
