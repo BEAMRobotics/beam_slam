@@ -4,6 +4,14 @@
 
 namespace bs_common {
 
+void SaveGraphToTxtFile(fuse_core::Graph::ConstSharedPtr graph,
+                        const std::string& txt_file_save_path) {
+  std::ofstream outFile;
+  outFile.open(txt_file_save_path);
+  graph->print(outFile);
+  outFile.close();
+}
+
 int GetNumberOfConstraints(
     const fuse_core::Transaction::SharedPtr& transaction) {
   if (transaction == nullptr) { return 0; }

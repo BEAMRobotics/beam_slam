@@ -12,8 +12,13 @@
 #  define GRAVITY_NOMINAL 9.80665
 #endif
 
-
 namespace bs_common {
+
+/**
+ * @brief Save graph to text file using the print function
+ */
+void SaveGraphToTxtFile(fuse_core::Graph::ConstSharedPtr graph,
+                        const std::string& txt_file_save_path);
 
 /**
  * @brief Get number of constraints being added by a transaction

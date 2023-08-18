@@ -206,8 +206,10 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   updates_++;
 
   // update map
-  if (update_registration_map_on_graph_update_) {
+  if (update_registration_map_all_scans_) {
     scan_registration_->GetMapMutable().UpdateScanPosesFromGraphMsg(graph_msg);
+  } else if (update_registration_map_in_batch_) {
+    scan_registration_->GetMapMutable().CorrectMapDriftFromGraphMsg(graph_msg);
   }
 
   // the remainder just publishes and/or saves results.

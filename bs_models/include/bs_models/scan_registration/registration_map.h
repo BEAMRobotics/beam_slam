@@ -172,6 +172,15 @@ public:
       const fuse_core::Graph::ConstSharedPtr& graph_msg);
 
   /**
+   * @brief to correct for drift, we take the most recent scan pose in the
+   * registration map that has a pose in the graph, calculate the difference
+   * between the two poses, and apply that correction to all poses in the
+   * registration map
+   */
+  void CorrectMapDriftFromGraphMsg(
+      const fuse_core::Graph::ConstSharedPtr& graph_msg);
+
+  /**
    * @brief clears all scans and their associated poses
    */
   void Clear();
