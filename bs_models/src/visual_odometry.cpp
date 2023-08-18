@@ -471,20 +471,20 @@ void VisualOdometry::GetPixelPointPairs(
 
 void VisualOdometry::ComputeRelativeOdometry(
     const ros::Time& timestamp, const Eigen::Matrix4d& T_WORLD_BASELINKcur) {
-  // todo: fix this, the odom pose is garbage, the normal pose is fine
   static uint64_t rel_odom_seq = 0;
-  const auto prev_frame_pose = visual_map_->GetBaselinkPose(previous_frame_);
-  const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_frame_pose.value();
-  const Eigen::Matrix4d T_PREVKF_CURFRAME =
-      beam::InvertTransform(T_WORLD_BASELINKprev) * T_WORLD_BASELINKcur;
-  const Eigen::Matrix4d T_ODOM_BASELINKcur =
-      T_ODOM_BASELINKprev_ * T_PREVKF_CURFRAME;
+  // todo: fix this, the odom pose is garbage, the normal pose is fine
+  // const auto prev_frame_pose = visual_map_->GetBaselinkPose(previous_frame_);
+  // const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_frame_pose.value();
+  // const Eigen::Matrix4d T_PREVKF_CURFRAME =
+  //     beam::InvertTransform(T_WORLD_BASELINKprev) * T_WORLD_BASELINKcur;
+  // const Eigen::Matrix4d T_ODOM_BASELINKcur =
+  //     T_ODOM_BASELINKprev_ * T_PREVKF_CURFRAME;
   const auto odom_msg = bs_common::TransformToOdometryMessage(
       timestamp, rel_odom_seq++, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetBaselinkFrameId(), T_WORLD_BASELINKcur);
   odometry_publisher_.publish(odom_msg);
-  // update odom pose
-  T_ODOM_BASELINKprev_ = T_ODOM_BASELINKcur;
+  // // update odom pose
+  // T_ODOM_BASELINKprev_ = T_ODOM_BASELINKcur;
 }
 
 void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
