@@ -68,14 +68,13 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     ImuStateToCloudInWorld(const ImuState& imu_state) {
   pcl::PointCloud<pcl::PointXYZRGBL> cloud_in_world;
   Eigen::Matrix3d R_World_Imu = imu_state.OrientationMat();
-  Eigen::Matrix4d T_World_Imu;
+  Eigen::Matrix4d T_World_Imu = Eigen::Matrix4d::Identity();
   T_World_Imu.block(0, 0, 3, 3) = R_World_Imu;
   T_World_Imu.block(0, 3, 3, 1) = imu_state.PositionVec();
 
-  Eigen::Vector3d v_in_imu = imu_state.VelocityVec();
-  Eigen::Vector3d v_in_world = R_World_Imu * v_in_imu;
+  Eigen::Vector3d v_in_world = imu_state.VelocityVec();
   Eigen::Vector3d v_dir_in_world = v_in_world.normalized();
-  double v_mag_in_world = v_in_imu.norm();
+  double v_mag_in_world = v_in_world.norm();
 
   double increment = 0.01;
   double length = 0.3;
