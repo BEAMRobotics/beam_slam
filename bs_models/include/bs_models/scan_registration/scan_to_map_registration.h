@@ -63,7 +63,7 @@ protected:
   virtual void AddScanToMap(const ScanPose& scan_pose,
                             const Eigen::Matrix4d& T_MAP_SCAN) = 0;
 
-  const std::string source_{"SCANTOMAPREGISTRATION"};
+  const std::string source_{"LidarOdometry::ScanToMapRegistration"};
 
   /** This is used for calculating relative pose between scans instead of a
    * global pose for each scan. To create these transactions, we need the actual

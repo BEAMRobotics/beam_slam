@@ -36,7 +36,8 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     TrajectoryToCloud(const std::map<uint64_t, Eigen::Matrix4d>& trajectory);
 
 pcl::PointCloud<pcl::PointXYZRGBL>
-    GetGraphRelativePoseConstraintsAsCloud(const fuse_core::Graph& graph);
+    GetGraphRelativePoseConstraintsAsCloud(const fuse_core::Graph& graph,
+                                           const std::string& source = "");
 
 pcl::PointCloud<pcl::PointXYZRGBL> DrawLine(const Eigen::Vector3d& p1,
                                             const Eigen::Vector3d& p2,

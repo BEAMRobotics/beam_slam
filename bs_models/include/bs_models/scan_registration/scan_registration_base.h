@@ -96,7 +96,7 @@ protected:
   double pose_prior_noise_{1e-9};
 
   /** Source to be added to the transaction */
-  std::string base_source_{"SCANREGISTRATIONBASE"};
+  std::string base_source_{"LidarOdometry::RegistrationBase"};
 };
 
 }} // namespace bs_models::scan_registration

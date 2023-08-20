@@ -40,12 +40,12 @@ void GraphVisualization::onStart() {
     poses_publisher_.publisher =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>("graph_poses",
                                                                  10);
-    relative_pose_constraints_publisher_.publisher =
+    lidar_relative_pose_constraints_publisher_.publisher =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "relative_pose_constraints", 10);
+            "lidar_relative_pose_constraints", 10);
     relative_imu_constraints_publisher_.publisher =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "relative_imu_constraints", 10);
+            "imu_relative_constraints", 10);
     gravity_constraints_publisher_.publisher =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
             "gravity_alignment_constraints", 10);
@@ -68,7 +68,7 @@ void GraphVisualization::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
   current_time_ = ros::Time::now();
   VisualizePoses(graph_msg);
-  VisualizeRelativePoseConstraints(graph_msg);
+  VisualizeLidarRelativePoseConstraints(graph_msg);
   VisualizeImuRelativeConstraints(graph_msg);
   VisualizeImuBiases(graph_msg);
   VisualizeImuGravityConstraints(graph_msg);
@@ -82,11 +82,13 @@ void GraphVisualization::VisualizePoses(
   SaveCloud<pcl::PointXYZRGBL>("graph_poses", cloud);
 }
 
-void GraphVisualization::VisualizeRelativePoseConstraints(
+void GraphVisualization::VisualizeLidarRelativePoseConstraints(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
   pcl::PointCloud<pcl::PointXYZRGBL> cloud =
-      bs_common::GetGraphRelativePoseConstraintsAsCloud(*graph_msg);
-  PublishCloud<pcl::PointXYZRGBL>(relative_pose_constraints_publisher_, cloud);
+      bs_common::GetGraphRelativePoseConstraintsAsCloud(*graph_msg,
+                                                        "LidarOdometry::");
+  PublishCloud<pcl::PointXYZRGBL>(lidar_relative_pose_constraints_publisher_,
+                                  cloud);
   SaveCloud<pcl::PointXYZRGBL>("relative_pose_constraints", cloud);
 }
 
@@ -146,6 +148,7 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     auto c = dynamic_cast<
         const bs_constraints::inertial::RelativeImuState3DStampedConstraint&>(
         *it);
+
     const auto& variable_uuids = c.variables();
 
     // get all pose variables
@@ -198,39 +201,32 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     }
 
     // draw start variable pose
-    Eigen::Matrix4d T1;
-    bs_common::FusePoseToEigenTransform(p1, o1, T1);
+    Eigen::Matrix4d T_World_Baselink1;
+    bs_common::FusePoseToEigenTransform(p1, o1, T_World_Baselink1);
     pcl::PointCloud<pcl::PointXYZRGBL> frame1 =
         beam::CreateFrameCol(p1.stamp(), 0.01, 0.15);
-    beam::MergeFrameToCloud(cloud, frame1, T1);
+    beam::MergeFrameToCloud(cloud, frame1, T_World_Baselink1);
 
     // draw end variable pose
-    Eigen::Matrix4d T2;
-    bs_common::FusePoseToEigenTransform(p2, o2, T2);
+    Eigen::Matrix4d T_World_Baselink2;
+    bs_common::FusePoseToEigenTransform(p2, o2, T_World_Baselink2);
     pcl::PointCloud<pcl::PointXYZRGBL> frame2 =
         beam::CreateFrameCol(p2.stamp(), 0.01, 0.15);
-    beam::MergeFrameToCloud(cloud, frame2, T2);
+    beam::MergeFrameToCloud(cloud, frame2, T_World_Baselink2);
 
     // draw measured delta
-    auto T_S1_S2 = c.getRelativePose();
-    // std::cout << "T_S1_S2: \n" << T_S1_S2 << "\n";
+    Eigen::Matrix4d T_Baselink1_Baselink2_Measured = c.getRelativePose();
+    Eigen::Matrix4d T_World_Baselink2_Measured =
+        T_World_Baselink1 * T_Baselink1_Baselink2_Measured;
     Eigen::Vector3d p_start(p1.x(), p1.y(), p1.z());
-    Eigen::Vector3d p_end(p1.x() + T_S1_S2(0, 3), p1.y() + T_S1_S2(1, 3),
-                          p1.z() + T_S1_S2(2, 3));
-    // Eigen::Vector4d p_start = T1 * Eigen::Vector4d(p1.x(), p1.y(), p1.z(),
-    // 1); Eigen::Vector4d p_end = T1 * Eigen::Vector4d(p1.x() + T_S1_S2(0, 3),
-    // p1.y() + T_S1_S2(1, 3),
-    //                       p1.z() + T_S1_S2(2, 3), 1);
+    Eigen::Vector3d p_end = T_World_Baselink2_Measured.block(0, 3, 3, 1);
+    srand(p1.stamp().toNSec());
     uint8_t r = beam::randi(0, 255);
     uint8_t g = beam::randi(0, 255);
     uint8_t b = beam::randi(0, 255);
     pcl::PointCloud<pcl::PointXYZRGBL> line =
-        DrawLine(p_start, p_end, 0, r, g, b, 0.005);
-    // pcl::PointCloud<pcl::PointXYZRGBL> line =
-    //     DrawLine(p_start.hnormalized(), p_end.hnormalized(), 0, r, g, b,
-    //     0.005);
-    // std::cout << "line size: " << line.size() << "\n";
-    beam::MergeFrameToCloud(cloud, line, T2);
+        DrawLine(p_start, p_end, 0, r, g, b);
+    cloud += line;
   }
 
   return cloud;

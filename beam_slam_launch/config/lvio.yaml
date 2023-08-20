@@ -13,9 +13,9 @@ solver_options:
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
 
-motion_models:
-  - name: 'unicycle_3d'
-    type: 'bs_models::Unicycle3D'
+# motion_models:
+#   - name: 'unicycle_3d'
+#     type: 'bs_models::Unicycle3D'
 
 sensor_models:
   - name: 'visual_feature_tracker'

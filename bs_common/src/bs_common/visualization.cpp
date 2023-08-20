@@ -164,7 +164,8 @@ pcl::PointCloud<pcl::PointXYZRGBL>
 }
 
 pcl::PointCloud<pcl::PointXYZRGBL>
-    GetGraphRelativePoseConstraintsAsCloud(const fuse_core::Graph& graph) {
+    GetGraphRelativePoseConstraintsAsCloud(const fuse_core::Graph& graph,
+                                           const std::string& source) {
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   const auto constraints = graph.getConstraints();
   for (auto it = constraints.begin(); it != constraints.end(); it++) {
@@ -174,6 +175,14 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     auto c =
         dynamic_cast<const fuse_constraints::RelativePose3DStampedConstraint&>(
             *it);
+
+    if (!source.empty()) {
+      std::stringstream ss;
+      c.print(ss);
+      std::string str = ss.str();
+      if (str.find(source) == std::string::npos) { continue; }
+    }
+
     const auto& variable_uuids = c.variables();
 
     // get all pose variables
@@ -228,24 +237,34 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     }
 
     // draw start variable pose
-    Eigen::Matrix4d T1;
-    bs_common::FusePoseToEigenTransform(p1, o1, T1);
+    Eigen::Matrix4d T_World_Baselink1;
+    bs_common::FusePoseToEigenTransform(p1, o1, T_World_Baselink1);
     pcl::PointCloud<pcl::PointXYZRGBL> frame1 =
         beam::CreateFrameCol(p1.stamp(), 0.01, 0.15);
-    beam::MergeFrameToCloud(cloud, frame1, T1);
+    beam::MergeFrameToCloud(cloud, frame1, T_World_Baselink1);
 
     // draw end variable pose
-    Eigen::Matrix4d T2;
-    bs_common::FusePoseToEigenTransform(p2, o2, T2);
+    Eigen::Matrix4d T_World_Baselink2;
+    bs_common::FusePoseToEigenTransform(p2, o2, T_World_Baselink2);
     pcl::PointCloud<pcl::PointXYZRGBL> frame2 =
         beam::CreateFrameCol(p2.stamp(), 0.01, 0.15);
-    beam::MergeFrameToCloud(cloud, frame2, T2);
+    beam::MergeFrameToCloud(cloud, frame2, T_World_Baselink2);
 
     // draw measured delta
     fuse_core::Vector7d delta = c.delta();
+    Eigen::Quaterniond q(delta[3], delta[4], delta[5], delta[6]);
+    Eigen::Matrix3d R_Baselink1_Baselink2(q);
+    Eigen::Matrix4d T_Baselink1_Baselink2_Measured =
+        Eigen::Matrix4d::Identity();
+    T_Baselink1_Baselink2_Measured.block(0, 0, 3, 3) = R_Baselink1_Baselink2;
+    T_Baselink1_Baselink2_Measured(0, 3) = delta[0];
+    T_Baselink1_Baselink2_Measured(1, 3) = delta[1];
+    T_Baselink1_Baselink2_Measured(2, 3) = delta[2];
+    Eigen::Matrix4d T_World_Baselink2_Measured =
+        T_World_Baselink1 * T_Baselink1_Baselink2_Measured;
     Eigen::Vector3d p_start(p1.x(), p1.y(), p1.z());
-    Eigen::Vector3d p_end(p1.x() + delta[0], p1.y() + delta[1],
-                          p1.z() + delta[2]);
+    Eigen::Vector3d p_end = T_World_Baselink2_Measured.block(0, 3, 3, 1);
+    srand(p1.stamp().toNSec());
     uint8_t r = beam::randi(0, 255);
     uint8_t g = beam::randi(0, 255);
     uint8_t b = beam::randi(0, 255);
@@ -253,7 +272,7 @@ pcl::PointCloud<pcl::PointXYZRGBL>
         bs_common::ShannonEntropyFromPoseCovariance(c.covariance());
     pcl::PointCloud<pcl::PointXYZRGBL> line =
         DrawLine(p_start, p_end, entropy, r, g, b);
-    beam::MergeFrameToCloud(cloud, line, T2);
+    cloud += line;
   }
 
   return cloud;

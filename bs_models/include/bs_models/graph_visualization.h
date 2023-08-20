@@ -39,7 +39,7 @@ private:
 
   void VisualizePoses(fuse_core::Graph::ConstSharedPtr graph_msg);
 
-  void VisualizeRelativePoseConstraints(
+  void VisualizeLidarRelativePoseConstraints(
       fuse_core::Graph::ConstSharedPtr graph_msg);
 
   void VisualizeImuRelativeConstraints(
@@ -81,7 +81,7 @@ private:
 
   // publishers
   PublisherWithCounter poses_publisher_;
-  PublisherWithCounter relative_pose_constraints_publisher_;
+  PublisherWithCounter lidar_relative_pose_constraints_publisher_;
   PublisherWithCounter relative_imu_constraints_publisher_;
   PublisherWithCounter gravity_constraints_publisher_;
   ros::Publisher imu_biases_publisher_gx_;
@@ -95,7 +95,6 @@ private:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   std::string save_path_;
   ros::Time current_time_;
-
 };
 
 } // namespace bs_models

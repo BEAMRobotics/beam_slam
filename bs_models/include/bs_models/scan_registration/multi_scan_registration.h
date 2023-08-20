@@ -154,7 +154,7 @@ protected:
 
   Params params_;
 
-  const std::string source_{"MULTISCANREGISTRATION"};
+  const std::string source_{"LidarOdometry::MultiScanRegistration"};
 
   std::string current_scan_path_; // when output dir is set
   PointCloudCol coord_frame_;
