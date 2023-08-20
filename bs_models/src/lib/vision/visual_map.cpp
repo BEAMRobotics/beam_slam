@@ -6,6 +6,7 @@
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
 #include <bs_constraints/visual/euclidean_reprojection_constraint.h>
+#include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 
 namespace bs_models { namespace vision {
 
@@ -300,6 +301,23 @@ bool VisualMap::LandmarkExists(uint64_t landmark_id) {
   if (!graph_) { return false; }
   if (graph_->variableExists(GetLandmarkUUID(landmark_id))) { return true; }
   return false;
+}
+
+void VisualMap::AddPosePrior(const ros::Time& stamp,
+                             const Eigen::Matrix<double, 6, 6>& covariance,
+                             fuse_core::Transaction::SharedPtr transaction) {
+  const auto position = GetPosition(stamp);
+  const auto orientation = GetOrientation(stamp);
+  if (position && orientation) {
+    fuse_core::Vector7d mean;
+    mean << position->x(), position->y(), position->z(), orientation->w(),
+        orientation->x(), orientation->y(), orientation->z();
+
+    auto prior =
+        std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+            "PRIOR", *position, *orientation, mean, covariance);
+    transaction->addConstraint(prior);
+  }
 }
 
 void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {

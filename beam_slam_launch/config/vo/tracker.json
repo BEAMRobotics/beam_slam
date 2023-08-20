@@ -1,5 +1,5 @@
 {
-  "keypoint_resample_percentage": 0.7,
+  "keypoint_resample_percentage": 0.9,
   "win_size_u": 21,
   "win_size_v": 21,
   "max_level": 3,

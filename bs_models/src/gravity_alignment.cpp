@@ -3,6 +3,9 @@
 #include <pluginlib/class_list_macros.h>
 #include <sensor_msgs/PointCloud2.h>
 
+#include <beam_utils/pointclouds.h>
+
+#include <bs_common/conversions.h>
 #include <bs_constraints/global/gravity_alignment_stamped_constraint.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -113,6 +116,8 @@ void GravityAlignment::processOdometry(
          imu_buffer_.begin()->first < closest_imu_time_ns) {
     imu_buffer_.erase(imu_buffer_.begin());
   }
+
+  Publish(imu_buffer_.at(closest_imu_time_ns), msg);
 }
 
 void GravityAlignment::AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg,
@@ -128,6 +133,42 @@ void GravityAlignment::AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg,
   auto transaction = std::make_shared<fuse_core::Transaction>();
   transaction->addConstraint(constraint);
   sendTransaction(transaction);
+}
+
+void GravityAlignment::Publish(
+    const sensor_msgs::Imu::ConstPtr& imu_data,
+    const nav_msgs::Odometry::ConstPtr& odom_data) const {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  auto frame = beam::CreateFrameCol(odom_data->header.stamp);
+
+  Eigen::Matrix4d T_World_Baselink;
+  bs_common::OdometryMsgToTransformationMatrix(*odom_data, T_World_Baselink);
+  beam::MergeFrameToCloud(cloud, frame, T_World_Baselink);
+
+  Eigen::Quaterniond q(imu_data->orientation.w, imu_data->orientation.x,
+                       imu_data->orientation.y, imu_data->orientation.z);
+  Eigen::Matrix3d R_World_Imu = q.toRotationMatrix();
+  Eigen::Vector3d t_World_Baselink = T_World_Baselink.block(0, 3, 3, 1);
+  Eigen::Vector3d g_in_Imu(0, 0, gravity_vector_length_);
+  Eigen::Vector3d g_in_world = R_World_Imu * g_in_Imu + t_World_Baselink;
+  pcl::PointXYZRGBL p1;
+  p1.r = 255;
+  p1.g = 0;
+  p1.b = 255;
+  p1.label = odom_data->header.stamp.toNSec();
+  auto p2 = p1;
+  p1.x = t_World_Baselink[0];
+  p1.y = t_World_Baselink[1];
+  p1.z = t_World_Baselink[2];
+  p2.x = g_in_world[0];
+  p2.y = g_in_world[1];
+  p2.z = g_in_world[2];
+  auto gravity_cloud = beam::DrawLine<pcl::PointXYZRGBL>(p1, p2);
+  cloud += gravity_cloud;
+
+  sensor_msgs::PointCloud2 cloud_msg = beam::PCLToROS<pcl::PointXYZRGBL>(
+      cloud, odom_data->header.stamp, extrinsics_.GetWorldFrameId(), counter_);
+  publisher_.publish(cloud_msg);
 }
 
 } // namespace bs_models

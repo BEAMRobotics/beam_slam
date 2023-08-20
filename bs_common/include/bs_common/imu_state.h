@@ -46,7 +46,8 @@ public:
    * @param preint preintegrator for this state
    */
   ImuState(const ros::Time& time, const Eigen::Quaterniond& orientation,
-           const Eigen::Vector3d& position, const bs_common::PreIntegrator& preint);
+           const Eigen::Vector3d& position,
+           const bs_common::PreIntegrator& preint);
 
   /**
    * @brief constructor when inputting orientation, position, and velocity,
@@ -63,8 +64,8 @@ public:
            const Eigen::Vector3d& gyrobias, const Eigen::Vector3d& accelbias);
 
   /**
-   * @brief update the velocity, pose, gyro bias and accel bias variables of this ImuState given
-   * some graph message
+   * @brief update the velocity, pose, gyro bias and accel bias variables of
+   * this ImuState given some graph message
    * @param graph_msg results from some optimizer which should contain the same
    * variable uuids that are stored herein
    * @return true update was successful (i.e., uuids were in the graph message)
@@ -72,8 +73,8 @@ public:
   bool Update(fuse_core::Graph::ConstSharedPtr graph_msg);
 
   /**
-   * @brief update the velocity, gyro bias and accel bias variables of this ImuState given some
-   * graph message
+   * @brief update the velocity, gyro bias and accel bias variables of this
+   * ImuState given some graph message
    * @param graph_msg results from some optimizer which should contain the same
    * variable uuids that are stored herein
    * @return true update was successful (i.e., uuids were in the graph message)
@@ -163,12 +164,12 @@ public:
   /**
    * @brief get the preintegrator
    */
-  std::shared_ptr<bs_common::PreIntegrator> GetPreintegrator();
+  bs_common::PreIntegrator& GetPreintegratorMutable();
 
   /**
    * @brief get the preintegrator (const reference)
    */
-  const bs_common::PreIntegrator GetConstPreintegrator() const;
+  const bs_common::PreIntegrator GetPreintegratorConst() const;
 
   /**
    * @brief set the preintegrator
@@ -178,7 +179,8 @@ public:
   /**
    * @brief set orientation using double data type
    */
-  void SetOrientation(const double& w, const double& x, const double& y, const double& z);
+  void SetOrientation(const double& w, const double& x, const double& y,
+                      const double& z);
 
   /**
    * @brief set orientation using Eigen::Quaterniond data type
@@ -264,19 +266,14 @@ public:
   ImuState Copy() const;
 
 private:
-  /**
-   * @brief instantiates fuse/beam variables contained in this ImuState
-   */
-  void InstantiateVariables();
-
   int updates_{0};
   ros::Time stamp_;
-  fuse_variables::Orientation3DStamped::SharedPtr orientation_;
-  fuse_variables::Position3DStamped::SharedPtr position_;
-  fuse_variables::VelocityLinear3DStamped::SharedPtr velocity_;
-  bs_variables::GyroscopeBias3DStamped::SharedPtr gyrobias_;
-  bs_variables::AccelerationBias3DStamped::SharedPtr accelbias_;
-  std::shared_ptr<bs_common::PreIntegrator> preint_;
+  fuse_variables::Orientation3DStamped orientation_;
+  fuse_variables::Position3DStamped position_;
+  fuse_variables::VelocityLinear3DStamped velocity_;
+  bs_variables::GyroscopeBias3DStamped gyrobias_;
+  bs_variables::AccelerationBias3DStamped accelbias_;
+  bs_common::PreIntegrator preint_;
 };
 
 } // namespace bs_common

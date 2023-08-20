@@ -32,8 +32,8 @@ public:
    * @return true if pose lookup was successful
    */
   bool GetPose(Eigen::Matrix4d& T_WORLD_SENSOR, const ros::Time& time,
-                        const std::string& sensor_frame_id,
-                        std::string& error_msg = frame_initializer_error_msg);
+               const std::string& sensor_frame_id,
+               std::string& error_msg = frame_initializer_error_msg);
 
   /**
    * @brief Gets relative pose between two timestamps wrt the world frame
@@ -45,6 +45,12 @@ public:
   bool GetRelativePose(Eigen::Matrix4d& T_A_B, const ros::Time& tA,
                        const ros::Time& tB,
                        std::string& error_msg = frame_initializer_error_msg);
+
+  /**
+   * @brief Virtual method for returning the marginal covariance between states
+   */
+  virtual void GetMarginalCovariance(Eigen::Matrix<double, 6, 6>& cov,
+                                     const ros::Time& tA, const ros::Time& tB);
 
   /**
    * @brief Factory method for creating a Frame initializer from a json config

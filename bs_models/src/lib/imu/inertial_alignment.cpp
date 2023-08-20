@@ -74,8 +74,8 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
 
   // lambda to integrate each frame to its time
   auto integrate = [&](auto& imu_frame) {
-    imu_frame.GetPreintegrator()->Integrate(imu_frame.Stamp(), bg, ba, true,
-                                            false);
+    imu_frame.GetPreintegratorMutable().Integrate(imu_frame.Stamp(), bg, ba,
+                                                  true, false);
   };
 
   std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
@@ -113,9 +113,9 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
 double ImuObservability(const std::vector<bs_common::ImuState>& imu_frames) {
   Eigen::Vector3d sum_g;
   for (size_t i = 0; i < imu_frames.size(); ++i) {
-    const double dt = imu_frames[i].GetConstPreintegrator().delta.t.toSec();
+    const double dt = imu_frames[i].GetPreintegratorConst().delta.t.toSec();
     const Eigen::Vector3d tmp_g =
-        imu_frames[i].GetConstPreintegrator().delta.v / dt;
+        imu_frames[i].GetPreintegratorConst().delta.v / dt;
     sum_g += tmp_g;
   }
 
@@ -123,9 +123,9 @@ double ImuObservability(const std::vector<bs_common::ImuState>& imu_frames) {
   aver_g = sum_g * 1.0 / ((int)imu_frames.size() - 1);
   double var = 0;
   for (size_t i = 0; i < imu_frames.size(); ++i) {
-    const double dt = imu_frames[i].GetConstPreintegrator().delta.t.toSec();
+    const double dt = imu_frames[i].GetPreintegratorConst().delta.t.toSec();
     const Eigen::Vector3d tmp_g =
-        imu_frames[i].GetConstPreintegrator().delta.v / dt;
+        imu_frames[i].GetPreintegratorConst().delta.v / dt;
     var += (tmp_g - aver_g).transpose() * (tmp_g - aver_g);
   }
 
@@ -142,9 +142,9 @@ void EstimateGyroBias(const std::vector<bs_common::ImuState>& imu_frames,
   for (size_t j = 1; j < N; ++j) {
     const size_t i = j - 1;
     const Eigen::Quaterniond& dq =
-        imu_frames[j].GetConstPreintegrator().delta.q;
+        imu_frames[j].GetPreintegratorConst().delta.q;
     const Eigen::Matrix3d& dq_dbg =
-        imu_frames[j].GetConstPreintegrator().jacobian.dq_dbg;
+        imu_frames[j].GetPreintegratorConst().jacobian.dq_dbg;
     A += dq_dbg.transpose() * dq_dbg;
 
     Eigen::Quaterniond tmp =
@@ -176,7 +176,7 @@ void EstimateGravityScaleVelocities(
     const size_t i = j - 1;
 
     const bs_common::Delta& delta_ij =
-        imu_frames[j].GetConstPreintegrator().delta;
+        imu_frames[j].GetPreintegratorConst().delta;
 
     A.block<3, 3>(i * 6, 0) = -0.5 * delta_ij.t.toSec() * delta_ij.t.toSec() *
                               Eigen::Matrix3d::Identity();
@@ -219,7 +219,7 @@ void RefineGravityScaleVelocities(
   for (size_t j = 1; j < N; ++j) {
     const size_t i = j - 1;
 
-    const bs_common::Delta& delta = imu_frames[j].GetConstPreintegrator().delta;
+    const bs_common::Delta& delta = imu_frames[j].GetPreintegratorConst().delta;
 
     A.block<3, 2>(i * 6, 0) = -0.5 * delta.t.toSec() * delta.t.toSec() * Tg;
     A.block<3, 1>(i * 6, 2) =

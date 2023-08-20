@@ -62,6 +62,9 @@ private:
   void AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg,
                      const ros::Time& stamp);
 
+  void Publish(const sensor_msgs::Imu::ConstPtr& imu_data,
+               const nav_msgs::Odometry::ConstPtr& odom_data) const;
+
   // loadable parameters
   bs_parameters::models::GravityAlignmentParams params_;
   Eigen::Matrix2d covariance_;
@@ -72,6 +75,7 @@ private:
 
   // publishers
   ros::Publisher publisher_;
+  int counter_{0};
 
   // store IMU data up to buffer_duration_ and each time a new odom topic comes
   // in, we create a constraint and clear all IMU data prior to that timestamp
@@ -100,6 +104,9 @@ private:
 
   // max offset between odom msg and closest IMU msg
   int64_t max_time_offset_in_ns_{100000000}; // 0.1s
+
+  bool publish_results_{true};
+  double gravity_vector_length_{0.75}; // m
   // ------------------------------
 };
 
