@@ -1,8 +1,8 @@
 #include <bs_models/graph_visualization.h>
 
 #include <boost/filesystem.hpp>
-#include <geometry_msgs/Vector3.h>
 #include <pluginlib/class_list_macros.h>
+#include <std_msgs/Float32.h>
 
 #include <beam_utils/filesystem.h>
 #include <beam_utils/time.h>
@@ -49,12 +49,18 @@ void GraphVisualization::onStart() {
     gravity_constraints_publisher_.publisher =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
             "gravity_alignment_constraints", 10);
-    gyro_biases_publisher_ =
-        private_node_handle_.advertise<geometry_msgs::Vector3>("gyro_biases",
-                                                               10);
-    accel_biases_publisher_ =
-        private_node_handle_.advertise<geometry_msgs::Vector3>("accel_biases",
-                                                               10);
+    imu_biases_publisher_gx_ =
+        private_node_handle_.advertise<std_msgs::Float32>("biases/gx", 10);
+    imu_biases_publisher_gy_ =
+        private_node_handle_.advertise<std_msgs::Float32>("biases/gy", 10);
+    imu_biases_publisher_gz_ =
+        private_node_handle_.advertise<std_msgs::Float32>("biases/gz", 10);
+    imu_biases_publisher_ax_ =
+        private_node_handle_.advertise<std_msgs::Float32>("biases/ax", 10);
+    imu_biases_publisher_ay_ =
+        private_node_handle_.advertise<std_msgs::Float32>("biases/ay", 10);
+    imu_biases_publisher_az_ =
+        private_node_handle_.advertise<std_msgs::Float32>("biases/az", 10);
   }
 }
 
@@ -99,32 +105,25 @@ void GraphVisualization::VisualizeImuBiases(
       bs_common::GetImuBiasesFromGraph(*graph_msg);
   if (biases_in_graph.empty()) { return; }
 
-  // combine with all saved
-  for (const auto& [t, biases] : biases_in_graph) {
-    auto it = imu_biases_.find(t);
-    if (it == imu_biases_.end()) {
-      imu_biases_all_.emplace(t, biases);
-    } else {
-      it->second = biases;
-    }
-  }
-
   // publish most recent
-  const bs_common::ImuBiases& biases_recent = imu_biases_all_.rbegin()->second;
-  geometry_msgs::Vector3 ab_msg;
-  ab_msg.x = biases_recent.a_x;
-  ab_msg.y = biases_recent.a_y;
-  ab_msg.z = biases_recent.a_z;
-  accel_biases_publisher_.publish(ab_msg);
-  geometry_msgs::Vector3 gb_msg;
-  gb_msg.x = biases_recent.g_x;
-  gb_msg.y = biases_recent.g_y;
-  gb_msg.z = biases_recent.g_z;
-  gyro_biases_publisher_.publish(gb_msg);
+  const bs_common::ImuBiases& biases_recent = biases_in_graph.rbegin()->second;
+  std_msgs::Float32 ax, ay, az, gx, gy, gz;
+  ax.data = biases_recent.a_x;
+  ay.data = biases_recent.a_y;
+  ax.data = biases_recent.a_z;
+  gx.data = biases_recent.g_x;
+  gy.data = biases_recent.g_y;
+  gz.data = biases_recent.g_z;
+  imu_biases_publisher_gx_.publish(gx);
+  imu_biases_publisher_gy_.publish(gy);
+  imu_biases_publisher_gz_.publish(gz);
+  imu_biases_publisher_ax_.publish(ax);
+  imu_biases_publisher_ay_.publish(ay);
+  imu_biases_publisher_az_.publish(az);
 
   // save window of biases
   SaveImuBiases(biases_in_graph,
-                std::to_string(current_time_.toSec()) + "_imu_biases_in_graph");
+                std::to_string(current_time_.toSec()) + "_imu_biases");
 }
 
 void GraphVisualization::VisualizeImuGravityConstraints(
@@ -136,7 +135,7 @@ void GraphVisualization::VisualizeImuGravityConstraints(
 
 pcl::PointCloud<pcl::PointXYZRGBL>
     GraphVisualization::GetGraphRelativeImuConstraintsAsCloud(
-        const fuse_core::Graph& graph) {
+        const fuse_core::Graph& graph) const {
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   const auto constraints = graph.getConstraints();
   for (auto it = constraints.begin(); it != constraints.end(); it++) {
@@ -235,10 +234,6 @@ pcl::PointCloud<pcl::PointXYZRGBL>
   }
 
   return cloud;
-}
-
-void GraphVisualization::onStop() {
-  SaveImuBiases(imu_biases_all_, "imu_biases_all");
 }
 
 void GraphVisualization::SaveImuBiases(

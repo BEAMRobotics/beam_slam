@@ -35,16 +35,28 @@ public:
 private:
   void onInit() override;
   void onStart() override;
-  void onStop() override;
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
+  void VisualizePoses(fuse_core::Graph::ConstSharedPtr graph_msg);
+
+  void VisualizeRelativePoseConstraints(
+      fuse_core::Graph::ConstSharedPtr graph_msg);
+
+  void VisualizeImuRelativeConstraints(
+      fuse_core::Graph::ConstSharedPtr graph_msg);
+
+  void VisualizeImuBiases(fuse_core::Graph::ConstSharedPtr graph_msg);
+
+  void VisualizeImuGravityConstraints(
+      fuse_core::Graph::ConstSharedPtr graph_msg);
+
   template <typename PointT>
-  void PublishCloud(const PublisherWithCounter& publisher,
+  void PublishCloud(PublisherWithCounter& publisher,
                     const pcl::PointCloud<PointT>& cloud) {
     if (!params_.publish) { return; }
     sensor_msgs::PointCloud2 ros_cloud = beam::PCLToROS<PointT>(
         cloud, current_time_, extrinsics_.GetWorldFrameId(), publisher.counter);
-    poses_publisher_.publish(ros_cloud);
+    publisher.publisher.publish(ros_cloud);
     publisher.counter++;
   }
 
@@ -72,16 +84,18 @@ private:
   PublisherWithCounter relative_pose_constraints_publisher_;
   PublisherWithCounter relative_imu_constraints_publisher_;
   PublisherWithCounter gravity_constraints_publisher_;
-  ros::Publisher gyro_biases_publisher_;
-  ros::Publisher accel_biases_publisher_;
+  ros::Publisher imu_biases_publisher_gx_;
+  ros::Publisher imu_biases_publisher_gy_;
+  ros::Publisher imu_biases_publisher_gz_;
+  ros::Publisher imu_biases_publisher_ax_;
+  ros::Publisher imu_biases_publisher_ay_;
+  ros::Publisher imu_biases_publisher_az_;
 
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   std::string save_path_;
   ros::Time current_time_;
 
-  // data storage
-  std::map<int64_t, bs_common::ImuBiases> imu_biases_all_;
 };
 
 } // namespace bs_models

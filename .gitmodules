@@ -4,3 +4,6 @@
 [submodule "dependencies/fuse"]
 	path = dependencies/fuse
 	url = git@github.com:jakemclaughlin6/fuse.git
+[submodule "dependencies/graph_rviz_plugin"]
+	path = dependencies/graph_rviz_plugin
+	url = https://gitlab.com/InstitutMaupertuis/graph_rviz_plugin.git
