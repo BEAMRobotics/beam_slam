@@ -1,6 +1,7 @@
 #include <bs_models/graph_visualization.h>
 
 #include <boost/filesystem.hpp>
+#include <geometry_msgs/Vector3.h>
 #include <pluginlib/class_list_macros.h>
 
 #include <beam_utils/filesystem.h>
@@ -36,44 +37,101 @@ void GraphVisualization::onInit() {
 void GraphVisualization::onStart() {
   // setup publishers
   if (params_.publish) {
-    poses_publisher_ =
-        private_node_handle_.advertise<sensor_msgs::PointCloud2>("poses", 100);
-    relative_pose_constraints_publisher_ =
+    poses_publisher_.publisher =
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>("graph_poses",
+                                                                 10);
+    relative_pose_constraints_publisher_.publisher =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "relative_pose_constraints", 100);
-    relative_imu_constraints_publisher_ =
+            "relative_pose_constraints", 10);
+    relative_imu_constraints_publisher_.publisher =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "relative_imu_constraints", 100);
+            "relative_imu_constraints", 10);
+    gravity_constraints_publisher_.publisher =
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+            "gravity_alignment_constraints", 10);
+    gyro_biases_publisher_ =
+        private_node_handle_.advertise<geometry_msgs::Vector3>("gyro_biases",
+                                                               10);
+    accel_biases_publisher_ =
+        private_node_handle_.advertise<geometry_msgs::Vector3>("accel_biases",
+                                                               10);
   }
 }
 
 void GraphVisualization::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
-  LoadDataFromGraph(graph_msg);
-  Publish();
-  Save();
+  current_time_ = ros::Time::now();
+  VisualizePoses(graph_msg);
+  VisualizeRelativePoseConstraints(graph_msg);
+  VisualizeImuRelativeConstraints(graph_msg);
+  VisualizeImuBiases(graph_msg);
+  VisualizeImuGravityConstraints(graph_msg);
 }
 
-void GraphVisualization::LoadDataFromGraph(
+void GraphVisualization::VisualizePoses(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
-  graph_poses_ = bs_common::GetGraphPosesAsCloud(*graph_msg);
-  relative_pose_constraints_ =
-      bs_common::GetGraphRelativePoseConstraintsAsCloud(*graph_msg);
-  relative_imu_constraints_ = GetGraphRelativeImuConstraintsAsCloud(*graph_msg);
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud =
+      bs_common::GetGraphPosesAsCloud(*graph_msg);
+  PublishCloud<pcl::PointXYZRGBL>(poses_publisher_, cloud);
+  SaveCloud<pcl::PointXYZRGBL>("graph_poses", cloud);
+}
 
+void GraphVisualization::VisualizeRelativePoseConstraints(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud =
+      bs_common::GetGraphRelativePoseConstraintsAsCloud(*graph_msg);
+  PublishCloud<pcl::PointXYZRGBL>(relative_pose_constraints_publisher_, cloud);
+  SaveCloud<pcl::PointXYZRGBL>("relative_pose_constraints", cloud);
+}
+
+void GraphVisualization::VisualizeImuRelativeConstraints(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud =
+      GetGraphRelativeImuConstraintsAsCloud(*graph_msg);
+  PublishCloud<pcl::PointXYZRGBL>(relative_imu_constraints_publisher_, cloud);
+  SaveCloud<pcl::PointXYZRGBL>("relative_imu_constraints", cloud);
+}
+
+void GraphVisualization::VisualizeImuBiases(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
   // load IMU biases
   std::map<int64_t, bs_common::ImuBiases> biases_in_graph =
       bs_common::GetImuBiasesFromGraph(*graph_msg);
+  if (biases_in_graph.empty()) { return; }
 
   // combine with all saved
   for (const auto& [t, biases] : biases_in_graph) {
     auto it = imu_biases_.find(t);
     if (it == imu_biases_.end()) {
-      imu_biases_.emplace(t, biases);
+      imu_biases_all_.emplace(t, biases);
     } else {
       it->second = biases;
     }
   }
+
+  // publish most recent
+  const bs_common::ImuBiases& biases_recent = imu_biases_all_.rbegin()->second;
+  geometry_msgs::Vector3 ab_msg;
+  ab_msg.x = biases_recent.a_x;
+  ab_msg.y = biases_recent.a_y;
+  ab_msg.z = biases_recent.a_z;
+  accel_biases_publisher_.publish(ab_msg);
+  geometry_msgs::Vector3 gb_msg;
+  gb_msg.x = biases_recent.g_x;
+  gb_msg.y = biases_recent.g_y;
+  gb_msg.z = biases_recent.g_z;
+  gyro_biases_publisher_.publish(gb_msg);
+
+  // save window of biases
+  SaveImuBiases(biases_in_graph,
+                std::to_string(current_time_.toSec()) + "_imu_biases_in_graph");
+}
+
+void GraphVisualization::VisualizeImuGravityConstraints(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
+  // TODO
+  ROS_WARN_STREAM_THROTTLE(5,
+                           "Need to implement: VisualizeImuGravityConstraints");
 }
 
 pcl::PointCloud<pcl::PointXYZRGBL>
@@ -179,47 +237,15 @@ pcl::PointCloud<pcl::PointXYZRGBL>
   return cloud;
 }
 
-void GraphVisualization::Publish() {
-  if (params_.publish) { return; }
-
-  ++counter_;
-
-  sensor_msgs::PointCloud2 graph_poses = beam::PCLToROS<pcl::PointXYZRGBL>(
-      graph_poses_, ros::Time::now(), extrinsics_.GetWorldFrameId(), counter_);
-  poses_publisher_.publish(graph_poses);
-
-  sensor_msgs::PointCloud2 relative_pose_constraints =
-      beam::PCLToROS<pcl::PointXYZRGBL>(
-          relative_pose_constraints_, ros::Time::now(),
-          extrinsics_.GetWorldFrameId(), counter_);
-  poses_publisher_.publish(graph_poses);
-
-  sensor_msgs::PointCloud2 relative_imu_constraints =
-      beam::PCLToROS<pcl::PointXYZRGBL>(
-          relative_imu_constraints_, ros::Time::now(),
-          extrinsics_.GetWorldFrameId(), counter_);
-  poses_publisher_.publish(graph_poses);
+void GraphVisualization::onStop() {
+  SaveImuBiases(imu_biases_all_, "imu_biases_all");
 }
 
-void GraphVisualization::Save() {
-  if (save_path_.empty()) { return; }
-
-  std::string filename;
-  std::string stamp_str = std::to_string(ros::Time::now().toSec());
-  filename = beam::CombinePaths(save_path_, stamp_str + "_graph_poses.pcd");
-  beam::SavePointCloud<pcl::PointXYZRGBL>(filename, graph_poses_);
-
-  filename = beam::CombinePaths(save_path_,
-                                stamp_str + "_relative_pose_constraints.pcd");
-  beam::SavePointCloud<pcl::PointXYZRGBL>(filename, relative_pose_constraints_);
-
-  filename = beam::CombinePaths(save_path_,
-                                stamp_str + "_relative_imu_constraints.pcd");
-  beam::SavePointCloud<pcl::PointXYZRGBL>(filename, relative_imu_constraints_);
-
-  // TODO: get this working and uncomment it
-  // filename = beam::CombinePaths(save_path_, stamp_str + "_imu_bases.pdf");
-  // bs_common::PlotImuBiases(imu_biases_, filename);
+void GraphVisualization::SaveImuBiases(
+    const std::map<int64_t, bs_common::ImuBiases>& biases,
+    const std::string& filename) const {
+  // TODO
+  ROS_WARN_STREAM_THROTTLE(5, "Need to implement SaveImuBiases");
 }
 
 } // namespace bs_models

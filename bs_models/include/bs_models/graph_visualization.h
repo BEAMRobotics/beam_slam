@@ -17,6 +17,11 @@ class GraphVisualization : public fuse_core::AsyncSensorModel {
 public:
   FUSE_SMART_PTR_DEFINITIONS(GraphVisualization);
 
+  struct PublisherWithCounter {
+    ros::Publisher publisher;
+    int counter{0};
+  };
+
   /**
    * @brief Default Constructor
    */
@@ -28,60 +33,55 @@ public:
   ~GraphVisualization() override = default;
 
 private:
-  /**
-   * @brief Perform any required initialization for the sensor model
-   *
-   * This could include things like reading from the parameter server or
-   * subscribing to topics. The class's node handles will be properly
-   * initialized before SensorModel::onInit() is called. Spinning of the
-   * callback queue will not begin until after the call to SensorModel::onInit()
-   * completes.
-   */
   void onInit() override;
-
-  /**
-   * @brief Subscribe to the input topics to start sending transactions to the
-   * optimizer
-   */
   void onStart() override;
-
-  /**
-   * @brief Unsubscribe to the input topics
-   */
-  void onStop() override {}
-
-  /**
-   * @brief Read in graph updates
-   */
+  void onStop() override;
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
-  void LoadDataFromGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
+  template <typename PointT>
+  void PublishCloud(const PublisherWithCounter& publisher,
+                    const pcl::PointCloud<PointT>& cloud) {
+    if (!params_.publish) { return; }
+    sensor_msgs::PointCloud2 ros_cloud = beam::PCLToROS<PointT>(
+        cloud, current_time_, extrinsics_.GetWorldFrameId(), publisher.counter);
+    poses_publisher_.publish(ros_cloud);
+    publisher.counter++;
+  }
 
-  void Publish();
+  template <typename PointT>
+  void SaveCloud(const std::string& cloud_name,
+                 const pcl::PointCloud<PointT>& cloud) {
+    if (save_path_.empty()) { return; }
+    std::string stamp_str = std::to_string(current_time_.toSec());
+    std::string filename =
+        beam::CombinePaths(save_path_, stamp_str + "_" + cloud_name + ".pcd");
+    beam::SavePointCloud<PointT>(filename, cloud);
+  }
 
-  void Save();
+  void SaveImuBiases(const std::map<int64_t, bs_common::ImuBiases>& biases,
+                     const std::string& filename) const;
 
-  pcl::PointCloud<pcl::PointXYZRGBL>
-      GetGraphRelativeImuConstraintsAsCloud(const fuse_core::Graph& graph);
+  pcl::PointCloud<pcl::PointXYZRGBL> GetGraphRelativeImuConstraintsAsCloud(
+      const fuse_core::Graph& graph) const;
 
   // loadable parameters
   bs_parameters::models::GraphVisualizationParams params_;
 
   // publishers
-  ros::Publisher poses_publisher_;
-  ros::Publisher relative_pose_constraints_publisher_;
-  ros::Publisher relative_imu_constraints_publisher_;
+  PublisherWithCounter poses_publisher_;
+  PublisherWithCounter relative_pose_constraints_publisher_;
+  PublisherWithCounter relative_imu_constraints_publisher_;
+  PublisherWithCounter gravity_constraints_publisher_;
+  ros::Publisher gyro_biases_publisher_;
+  ros::Publisher accel_biases_publisher_;
 
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   std::string save_path_;
+  ros::Time current_time_;
 
   // data storage
-  int counter_{0};
-  pcl::PointCloud<pcl::PointXYZRGBL> graph_poses_;
-  pcl::PointCloud<pcl::PointXYZRGBL> relative_pose_constraints_;
-  pcl::PointCloud<pcl::PointXYZRGBL> relative_imu_constraints_;
-  std::map<int64_t, bs_common::ImuBiases> imu_biases_;
+  std::map<int64_t, bs_common::ImuBiases> imu_biases_all_;
 };
 
 } // namespace bs_models
