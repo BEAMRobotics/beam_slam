@@ -11,8 +11,8 @@ sensor_models:
     type: 'bs_models::LidarScanDeskewer'
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
-  # - name: 'gravity_alignment'
-  #   type: 'bs_models::GravityAlignment'
+  - name: 'gravity_alignment'
+    type: 'bs_models::GravityAlignment'
 
 motion_models:
   - name: 'unicycle_3d'

@@ -1,10 +1,10 @@
 optimization_period: 0.1
-lag_duration: 7
+lag_duration: 6
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
-  minimizer_progress_to_stdout: true
+  minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
   max_num_iterations: 10
@@ -27,11 +27,16 @@ sensor_models:
     motion_models: [unicycle_3d]
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
-    motion_models: [unicycle_3d]
+  - name: 'lidar_deskewer'
+    type: 'bs_models::LidarScanDeskewer'
+  - name: 'lidar_odometry'
+    type: 'bs_models::LidarOdometry'
+  - name: 'gravity_alignment'
+    type: 'bs_models::GravityAlignment'
 
-publishers:
-    - name: 'graph'
-      type: 'fuse_publishers::SerializedPublisher'
+# publishers:
+#     - name: 'graph'
+#       type: 'fuse_publishers::SerializedPublisher'
 #   - name: 'odom_pub'
 #     type: 'bs_publishers::Odometry3DPublisher'
 #   - name: 'path_pub'
@@ -46,23 +51,25 @@ unicycle_3d:
   buffer_length: 100000
 
 visual_feature_tracker:
-  image_topic: '/F1/image_raw'
+  image_topic: '/F1/image'
   descriptor_config: 'vo/orb_descriptor.json'
   detector_config: 'vo/fastssc_detector.json'
   tracker_config: 'vo/tracker.json'
-  publish_tracks: false
+  publish_tracks: true
 
 slam_initialization:
   imu_topic: "/imu/data"
   lidar_topic: "/lidar_h/velodyne_points"
   init_mode: "LIDAR"
-  max_optimization_s: 0.5
-  initialization_window_s: 2.0
-  min_trajectory_length_m: 3.0
+  max_optimization_s: 1.0
+  min_trajectory_length_m: 2.0
   reprojection_information_weight: 1.0
   inertial_information_weight: 0.001
+  lidar_information_weight: 10.0
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
+  matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
+  output_folder: "" # "/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
 
 inertial_odometry:
   imu_topic: "/imu/data"
@@ -73,50 +80,37 @@ visual_odometry:
   max_container_size: 300
   frame_initializer_config: "frame_initializers/io.json"
   reloc_request_period: 3.0
-  keyframe_parallax: 15.0
+  keyframe_parallax: 20.0
   reprojection_information_weight: 1.0
-  max_triangulation_distance: 40.0
-  max_triangulation_reprojection: 15.0
+  max_triangulation_distance: 50.0
+  max_triangulation_reprojection: 30.0
+
+gravity_alignment:
+  imu_topic: "/imu/data"
+  constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
+  inertial_information_weight: 1
+
+lidar_deskewer:
+  input_topic: '/lidar_h/velodyne_points'
+  lidar_type: 'VELODYNE'
+  frame_initializer_config: "frame_initializers/io.json"
 
 lidar_odometry:
-  # Local scan registration
-  local_registration_type: 'MAPLOAM'
-  local_registration_config_path: 'DEFAULT_PATH'
-  local_matcher_params_path: 'matchers/loam_vlp16.json'
-  local_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-  # global scan registration
-  global_registration_type: 'LOAM'
-  global_matcher_params_path: 'matchers/loam_vlp16.json'
-  global_registration_noise_diagonal: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-  # general params
+  registration_config: 'registration/scan_to_map_loam.json'
+  matcher_config: 'matchers/loam_vlp16.json'
   lidar_type: 'VELODYNE'
-  input_filters_config_path: 'DEFAULT_PATH'
-  input_topic: '/local_mapper/lidar_aggregation/points_undistorted'
+  input_filters_config:  '' # 'lidar_filters/input_filters.json'
+  input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true
   output_lidar_points: true
   publish_active_submap: true
-  publish_local_map: true
+  publish_registration_map: true
   publish_registration_results: true
-  frame_initializer_config: 'frame_initializers/io.json'
-  frame_initializer_prior_noise_diagonal: [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
-  reloc_request_period: 1
-  scan_output_directory: ''
+  lidar_information_weight: 1.0
+  frame_initializer_config: "/frame_initializers/io.json"
+  scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 
-path_pub:
-  frame_id: 'world' # Stored in pose header. Default: odom
-  path_topic: 'path' # Default: path
-  pose_array_topic: 'pose_array' # Default: pose_array
-
-odom_pub:
-  publish_tf: false # Default: true
-  predict_to_current_time: false # Default: false
-  tf_publish_frequency: 10 # Default: 10
-  tf_cache_time: 10 # Default: 10
-  tf_timeout: 0.1 # Default: 0.1
-  queue_size: 1 # Publisher queue size. Default: 1
-  map_frame_id: 'map' # Default: map
-  odom_frame_id: 'world' # Default: odom
-  base_link_frame_id: 'imu' # Default: base_link
-  base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
-  world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
-  topic: '/local_mapper/optimized_odometry' # Output odometry topic
+  # these are only relevant if scan_output_directory is not empty
+  save_graph_updates: true
+  save_marginalized_scans: true
+  save_scan_registration_results: true

@@ -141,7 +141,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   sendTransaction(transaction);
 
   if (IsKeyframe(timestamp, T_WORLD_BASELINK)) {
-    ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
+    ROS_DEBUG_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
     Keyframe kf(*msg);
     keyframes_.push_back(kf);
     ExtendMap(timestamp, T_WORLD_BASELINK);
