@@ -4,6 +4,47 @@
 
 namespace bs_common {
 
+std::map<int64_t, ImuBiases>
+    GetImuBiasesFromGraph(const fuse_core::Graph& graph) {
+  std::map<int64_t, ImuBiases> biases;
+  const auto var_range = graph.getVariables();
+  for (auto it = var_range.begin(); it != var_range.end(); it++) {
+    if (it->type() == "bs_variables::GyroscopeBias3DStamped") {
+      auto v = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(*it);
+      int64_t t_ns = v.stamp().toNSec();
+      auto iter = biases.find(t_ns);
+      if (iter == biases.end()) {
+        ImuBiases b;
+        b.g_x = v.x();
+        b.g_y = v.y();
+        b.g_z = v.z();
+        biases.emplace(t_ns, b);
+      } else {
+        iter->second.g_x = v.x();
+        iter->second.g_y = v.y();
+        iter->second.g_z = v.z();
+      }
+    } else if (it->type() == "bs_variables::AccelerationBias3DStamped") {
+      auto v =
+          dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(*it);
+      int64_t t_ns = v.stamp().toNSec();
+      auto iter = biases.find(t_ns);
+      if (iter == biases.end()) {
+        ImuBiases b;
+        b.a_x = v.x();
+        b.a_y = v.y();
+        b.a_z = v.z();
+        biases.emplace(t_ns, b);
+      } else {
+        iter->second.a_x = v.x();
+        iter->second.a_y = v.y();
+        iter->second.a_z = v.z();
+      }
+    }
+  }
+  return biases;
+}
+
 void SaveGraphToTxtFile(fuse_core::Graph::ConstSharedPtr graph,
                         const std::string& txt_file_save_path) {
   std::ofstream outFile;

@@ -76,6 +76,11 @@ public:
    */
   ceres::CostFunction* costFunction() const override;
 
+  /**
+   * @brief get relative pose between two IMU states
+  */
+  Eigen::Matrix4d getRelativePose() const;
+
 protected:
   bs_common::ImuState imu_state_i_;
   bs_common::ImuState imu_state_j_;

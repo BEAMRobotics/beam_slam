@@ -79,6 +79,7 @@ add_library(
   src/slam_initialization.cpp
   src/visual_feature_tracker.cpp
   src/global_mapper.cpp
+  src/graph_visualization.cpp
   ## vision helpers
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp

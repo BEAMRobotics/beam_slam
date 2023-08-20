@@ -52,6 +52,19 @@ ceres::CostFunction* RelativeImuState3DStampedConstraint::costFunction() const {
                                            info_weight_));
 }
 
+Eigen::Matrix4d RelativeImuState3DStampedConstraint::getRelativePose() const {
+  Eigen::Matrix4d T_W_S1 = Eigen::Matrix4d::Identity();
+  T_W_S1.block(0, 0, 3, 3) = imu_state_i_.OrientationMat();
+  T_W_S1.block(0, 3, 3, 1) = imu_state_i_.PositionVec();
+
+  Eigen::Matrix4d T_W_S2 = Eigen::Matrix4d::Identity();
+  T_W_S2.block(0, 0, 3, 3) = imu_state_j_.OrientationMat();
+  T_W_S2.block(0, 3, 3, 1) = imu_state_j_.PositionVec();
+
+  Eigen::Matrix4d T_S1_S2 = beam::InvertTransform(T_W_S1) * T_W_S2;
+  return T_S1_S2;
+}
+
 }} // namespace bs_constraints::inertial
 
 BOOST_CLASS_EXPORT_IMPLEMENT(

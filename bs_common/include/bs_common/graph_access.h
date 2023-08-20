@@ -14,6 +14,18 @@
 
 namespace bs_common {
 
+struct ImuBiases {
+  double a_x;
+  double a_y;
+  double a_z;
+  double g_x;
+  double g_y;
+  double g_z;
+};
+
+std::map<int64_t, ImuBiases>
+    GetImuBiasesFromGraph(const fuse_core::Graph& graph);
+
 /**
  * @brief Save graph to text file using the print function
  */

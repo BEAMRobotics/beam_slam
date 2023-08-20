@@ -67,4 +67,11 @@ std::string GetBeamSlamCalibrationsPath() {
   return calibration_root_location;
 }
 
+double ShannonEntropyFromPoseCovariance(
+    const Eigen::Matrix<double, 6, 6>& covariance) {
+  double k = pow(2.0 * M_PI * std::exp(1.0), covariance.rows());
+  double h = 0.5 * std::log(k * covariance.determinant());
+  return h;
+}
+
 } // namespace bs_common

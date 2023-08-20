@@ -11,8 +11,12 @@ sensor_models:
     type: 'bs_models::LidarScanDeskewer'
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
+  - name: 'graph_visualization'
+    type: 'bs_models::GraphVisualization'
   - name: 'gravity_alignment'
     type: 'bs_models::GravityAlignment'
+  - name: 'graph_visualization'
+    type: 'bs_models::GraphVisualization'
 
 motion_models:
   - name: 'unicycle_3d'
@@ -89,6 +93,10 @@ lidar_odometry:
   save_graph_updates: true
   save_marginalized_scans: true
   save_scan_registration_results: true
+
+graph_visualization:
+  publish: true
+  save_path: '/userhome/debug/graph_viz'
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom

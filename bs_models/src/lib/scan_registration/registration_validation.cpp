@@ -4,6 +4,8 @@
 
 #include <beam_utils/log.h>
 
+#include <bs_common/utils.h>
+
 namespace bs_models { namespace scan_registration {
 
 bool RegistrationValidation::Validate(
@@ -14,9 +16,8 @@ bool RegistrationValidation::Validate(
   RegistrationMetrics m;
   m.r = aa.angle();
   m.t = T_measured.block(0, 3, 3, 1).norm();
+  m.entropy = bs_common::ShannonEntropyFromPoseCovariance(covariance);
 
-  double k = pow(2.0 * M_PI * std::exp(1.0), covariance.rows());
-  m.entropy = 0.5 * std::log(k * covariance.determinant());
   metrics_.push_back(m);
 
   if (metrics_.size() > list_size_) {
@@ -111,4 +112,5 @@ bool RegistrationValidation::CheckMetricInitial(
 
   return true;
 }
+
 }} // namespace bs_models::scan_registration
