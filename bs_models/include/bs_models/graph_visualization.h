@@ -95,6 +95,11 @@ private:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   std::string save_path_;
   ros::Time current_time_;
+
+  // parameters only tunable here
+  double frame_size_{0.15}
+  double point_spacing_{0.01}
+  double g_length_{0.25};
 };
 
 } // namespace bs_models

@@ -130,9 +130,10 @@ void GraphVisualization::VisualizeImuBiases(
 
 void GraphVisualization::VisualizeImuGravityConstraints(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
-  // TODO
-  ROS_WARN_STREAM_THROTTLE(5,
-                           "Need to implement: VisualizeImuGravityConstraints");
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud =
+      GetGraphGravityConstraintsAsCloud(*graph_msg);
+  PublishCloud<pcl::PointXYZRGBL>(gravity_constraints_publisher_, cloud);
+  SaveCloud<pcl::PointXYZRGBL>("gravity_constraints", cloud);
 }
 
 pcl::PointCloud<pcl::PointXYZRGBL>
@@ -204,14 +205,14 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     Eigen::Matrix4d T_World_Baselink1;
     bs_common::FusePoseToEigenTransform(p1, o1, T_World_Baselink1);
     pcl::PointCloud<pcl::PointXYZRGBL> frame1 =
-        beam::CreateFrameCol(p1.stamp(), 0.01, 0.15);
+        beam::CreateFrameCol(p1.stamp(), point_spacing_, frame_size_);
     beam::MergeFrameToCloud(cloud, frame1, T_World_Baselink1);
 
     // draw end variable pose
     Eigen::Matrix4d T_World_Baselink2;
     bs_common::FusePoseToEigenTransform(p2, o2, T_World_Baselink2);
     pcl::PointCloud<pcl::PointXYZRGBL> frame2 =
-        beam::CreateFrameCol(p2.stamp(), 0.01, 0.15);
+        beam::CreateFrameCol(p2.stamp(), point_spacing_, frame_size_);
     beam::MergeFrameToCloud(cloud, frame2, T_World_Baselink2);
 
     // draw measured delta
@@ -235,8 +236,98 @@ pcl::PointCloud<pcl::PointXYZRGBL>
 void GraphVisualization::SaveImuBiases(
     const std::map<int64_t, bs_common::ImuBiases>& biases,
     const std::string& filename) const {
-  // TODO
-  ROS_WARN_STREAM_THROTTLE(5, "Need to implement SaveImuBiases");
+  std::string save_path = beam::CombinePaths(save_path_, filename + ".csv");
+  std::ofstream file;
+  file.open(save_path);
+  file << "#timestamp[Ns],AccelBiasX[m/s2],AccelBiasY[m/s2],AccelBiasZ[m/"
+          "s2],GyroBiasX[raw/s],GyroBiasY[raw/s],GyroBiasZ[raw/s]";
+  for (const auto& [t, bias] : biases) {
+    file << t << "," << bias.a_x << "," << bias.a_y << "," << bias.a_z << ","
+         << bias.g_x << "," << bias.g_y << "," << bias.g_z << "\n";
+  }
+  file.close();
+}
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GraphVisualization::GetGraphGravityConstraintsAsCloud(
+        const fuse_core::Graph& graph) const {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  const auto constraints = graph.getConstraints();
+  for (auto it = constraints.begin(); it != constraints.end(); it++) {
+    if (it->type() !=
+        "bs_constraints::global::GravityAlignmentStampedConstraint") {
+      continue;
+    }
+    auto c = dynamic_cast<
+        const bs_constraints::global::GravityAlignmentStampedConstraint&>(*it);
+
+    const auto& variable_uuids = c.variables();
+    if (variable_uuids.size() != 1) {
+      BEAM_ERROR("Invalid number of variables returned for "
+                 "GravityAlignmentStampedConstraint");
+      throw std::runtime_error{"invalid constraint"};
+    }
+    const auto& variable_uuid = variable_uuids.at(0);
+    if (!graph.variableExists(variable_uuid)) {
+      BEAM_ERROR("Invalid variable uuid query, uuid {} does not exist in graph",
+                 to_string(variable_uuid));
+      throw std::runtime_error{"invalid variable query"};
+    }
+    const auto& o_var = graph.getVariable(variable_uuid);
+    if (o_var.type() != "fuse_variables::Orientation3DStamped") {
+      BEAM_ERROR("Invalid variable type returned for "
+                 "GravityAlignmentStampedConstraint");
+      throw std::runtime_error{"invalid constraint"};
+    }
+
+    fuse_variables::Orientation3DStamped o =
+        dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+            graph.getVariable(variable_uuid));
+
+    // find the pose variable in the graph
+    fuse_variables::Position3DStamped p(o.stamp(), fuse_core::uuid::NIL);
+    if (!graph.variableExists(p.uuid())) {
+      BEAM_ERROR("no position variable associated with orientation");
+      throw std::runtime_error{"invalid variable query"};
+    }
+    const auto& p_var = graph.getVariable(p.uuid());
+    fuse_variables::Position3DStamped p =
+        dynamic_cast<const fuse_variables::Position3DStamped&>(
+            graph.getVariable(p.uuid()));
+
+    // draw pose
+    Eigen::Matrix4d T_World_Baselink;
+    bs_common::FusePoseToEigenTransform(p, o, T_World_Baselink);
+    pcl::PointCloud<pcl::PointXYZRGBL> frame =
+        beam::CreateFrameCol(p.stamp(), point_spacing_, frame_size_);
+    beam::MergeFrameToCloud(cloud, frame, T_World_Baselink);
+    Eigen::Matrix3d R_World_Baselink_Estimated =
+        T_World_Baselink.block(0, 0, 3, 3);
+
+    // get pose of constraint
+    // Eigen::Quaterniond q_Baselink_World = c.qwxyz_Imu_World();
+    // Eigen::Matrix3d R_World_Baselink_Measured(q_Imu_World.inverse());
+
+    // // draw measured delta
+    // Eigen::Vector3d g_in_Baselink(0, 0, g_length_); // same as imu frame
+    // Eigen::Vector3d g_in_World_Estimated = R_World_Baselink_Estimated * g_in_Baselink;
+    // Eigen::Vector3d g_in_World_Measured = R_World_Baselink_Measured * g_in_Baselink;
+    //  Eigen::Matrix4d T_Baselink1_Baselink2_Measured =
+    //     c.getRelativePose();
+    // Eigen::Matrix4d T_World_Baselink2_Measured =
+    //     T_World_Baselink1 * T_Baselink1_Baselink2_Measured;
+    // Eigen::Vector3d p_start(p1.x(), p1.y(), p1.z());
+    // Eigen::Vector3d p_end = T_World_Baselink2_Measured.block(0, 3, 3, 1);
+    // srand(p1.stamp().toNSec());
+    // uint8_t r = beam::randi(0, 255);
+    // uint8_t g = beam::randi(0, 255);
+    // uint8_t b = beam::randi(0, 255);
+    // pcl::PointCloud<pcl::PointXYZRGBL> line =
+    //     DrawLine(p_start, p_end, 0, r, g, b);
+    // cloud += line;
+  }
+
+  return cloud;
 }
 
 } // namespace bs_models
