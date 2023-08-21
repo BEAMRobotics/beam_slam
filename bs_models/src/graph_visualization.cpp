@@ -112,7 +112,7 @@ void GraphVisualization::VisualizeImuBiases(
   std_msgs::Float32 ax, ay, az, gx, gy, gz;
   ax.data = biases_recent.a_x;
   ay.data = biases_recent.a_y;
-  ax.data = biases_recent.a_z;
+  az.data = biases_recent.a_z;
   gx.data = biases_recent.g_x;
   gy.data = biases_recent.g_y;
   gz.data = biases_recent.g_z;
