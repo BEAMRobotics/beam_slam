@@ -149,7 +149,7 @@ void GravityAlignment::Publish(
                        imu_data->orientation.y, imu_data->orientation.z);
   Eigen::Matrix3d R_World_Imu = q.toRotationMatrix();
   Eigen::Vector3d t_World_Baselink = T_World_Baselink.block(0, 3, 3, 1);
-  Eigen::Vector3d g_in_Imu(0, 0, gravity_vector_length_);
+  Eigen::Vector3d g_in_Imu = gravity_vector_length_ * params_.gravity_nominal;
   Eigen::Vector3d g_in_world = R_World_Imu * g_in_Imu + t_World_Baselink;
   pcl::PointXYZRGBL p1;
   p1.r = 255;
