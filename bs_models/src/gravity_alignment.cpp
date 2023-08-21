@@ -122,14 +122,21 @@ void GravityAlignment::processOdometry(
 
 void GravityAlignment::AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg,
                                      const ros::Time& stamp) {
+  auto orientation_uuid = fuse_core::uuid::generate(
+      "fuse_variables::Orientation3DStamped", stamp, fuse_core::uuid::NIL);
+  Eigen::Quaterniond q_World_Imu(imu_msg->orientation.w, imu_msg->orientation.x,
+                                 imu_msg->orientation.y,
+                                 imu_msg->orientation.z);
+  Eigen::Matrix3d R_Imu_World = q_World_Imu.inverse().toRotationMatrix();
+  Eigen::Matrix4d T_Baselink_Imu;
+  extrinsics_.GetT_BASELINK_IMU(T_Baselink_Imu);
+  Eigen::Matrix3d R_Baselink_World =
+      T_Baselink_Imu.block(0, 0, 3, 3) * R_Imu_World;
+  Eigen::Vector3d g_in_Baselink = R_Baselink_World * g_in_World_;
   fuse_variables::Orientation3DStamped o_World_Imu(stamp);
-  o_World_Imu.w() = imu_msg->orientation.w;
-  o_World_Imu.x() = imu_msg->orientation.x;
-  o_World_Imu.y() = imu_msg->orientation.y;
-  o_World_Imu.z() = imu_msg->orientation.z;
   auto constraint =
       bs_constraints::global::GravityAlignmentStampedConstraint::make_shared(
-          source_, o_World_Imu, covariance_);
+          source_, orientation_uuid, g_in_Baselink, covariance_);
   auto transaction = std::make_shared<fuse_core::Transaction>();
   transaction->addConstraint(constraint);
   sendTransaction(transaction);

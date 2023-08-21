@@ -10,6 +10,7 @@
 #include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 #include <bs_common/visualization.h>
+#include <bs_constraints/global/gravity_alignment_stamped_constraint.h>
 #include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -285,15 +286,16 @@ pcl::PointCloud<pcl::PointXYZRGBL>
             graph.getVariable(variable_uuid));
 
     // find the pose variable in the graph
-    fuse_variables::Position3DStamped p(o.stamp(), fuse_core::uuid::NIL);
-    if (!graph.variableExists(p.uuid())) {
+    auto position_uuid = fuse_core::uuid::generate(
+        "fuse_variables::Position3DStamped", o.stamp(), fuse_core::uuid::NIL);
+    if (!graph.variableExists(position_uuid)) {
       BEAM_ERROR("no position variable associated with orientation");
       throw std::runtime_error{"invalid variable query"};
     }
-    const auto& p_var = graph.getVariable(p.uuid());
+    const auto& p_var = graph.getVariable(position_uuid);
     fuse_variables::Position3DStamped p =
         dynamic_cast<const fuse_variables::Position3DStamped&>(
-            graph.getVariable(p.uuid()));
+            graph.getVariable(position_uuid));
 
     // draw pose
     Eigen::Matrix4d T_World_Baselink;
@@ -301,30 +303,23 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     pcl::PointCloud<pcl::PointXYZRGBL> frame =
         beam::CreateFrameCol(p.stamp(), point_spacing_, frame_size_);
     beam::MergeFrameToCloud(cloud, frame, T_World_Baselink);
-    Eigen::Matrix3d R_World_Baselink_Estimated =
+    Eigen::Matrix3d R_World_Baselink_Measured =
         T_World_Baselink.block(0, 0, 3, 3);
 
     // get pose of constraint
-    // Eigen::Quaterniond q_Baselink_World = c.qwxyz_Imu_World();
-    // Eigen::Matrix3d R_World_Baselink_Measured(q_Imu_World.inverse());
+    Eigen::Vector3d g_in_Baselink_Measured =
+        g_length_ * c.gravity_in_baselink().normalized();
+    Eigen::Vector3d g_in_World_Measured =
+        R_World_Baselink_Measured * g_in_Baselink_Measured;
+    Eigen::Vector3d g_in_World_True = g_length_ * g_in_World_True_;
+    Eigen::Vector3d p_start = T_World_Baselink.block(0, 3, 3, 1);
 
-    // // draw measured delta
-    // Eigen::Vector3d g_in_Baselink(0, 0, g_length_); // same as imu frame
-    // Eigen::Vector3d g_in_World_Estimated = R_World_Baselink_Estimated * g_in_Baselink;
-    // Eigen::Vector3d g_in_World_Measured = R_World_Baselink_Measured * g_in_Baselink;
-    //  Eigen::Matrix4d T_Baselink1_Baselink2_Measured =
-    //     c.getRelativePose();
-    // Eigen::Matrix4d T_World_Baselink2_Measured =
-    //     T_World_Baselink1 * T_Baselink1_Baselink2_Measured;
-    // Eigen::Vector3d p_start(p1.x(), p1.y(), p1.z());
-    // Eigen::Vector3d p_end = T_World_Baselink2_Measured.block(0, 3, 3, 1);
-    // srand(p1.stamp().toNSec());
-    // uint8_t r = beam::randi(0, 255);
-    // uint8_t g = beam::randi(0, 255);
-    // uint8_t b = beam::randi(0, 255);
-    // pcl::PointCloud<pcl::PointXYZRGBL> line =
-    //     DrawLine(p_start, p_end, 0, r, g, b);
-    // cloud += line;
+    pcl::PointCloud<pcl::PointXYZRGBL> line1 =
+        DrawLine(p_start, p_start + g_in_World_Measured, 0, 255, 100, 0);
+    pcl::PointCloud<pcl::PointXYZRGBL> line2 =
+        DrawLine(p_start, p_start + g_in_World_True, 0, 255, 255, 0);
+    cloud += line1;
+    cloud += line2;
   }
 
   return cloud;

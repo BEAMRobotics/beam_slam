@@ -37,12 +37,13 @@ public:
    * @brief Create a constraint using a measurement of orientation wrt IMU frame
    * @param source the name of the sensor or motion model that generated this
    * constraint
-   * @param qwxyz_World_Imu the orientation
+   * @param orientation_uuid uid of the orientation variable to constrain
+   * @param gravity_in_baselink measured gravity in the baselink frame
    * @param covariance the measurement covariance (2x2 matrix: ex, ey)
    */
   GravityAlignmentStampedConstraint(
-      const std::string& source,
-      const fuse_variables::Orientation3DStamped& qwxyz_World_Imu,
+      const std::string& source, const fuse_core::UUID& orientation_uuid,
+      const Eigen::Vector3d& gravity_in_baselink,
       const Eigen::Matrix<double, 2, 2>& covariance);
 
   /**
@@ -53,8 +54,8 @@ public:
   /**
    * @brief Read-only access to the measured orientation vector
    */
-  const Eigen::Matrix<double, 4, 1>& qwxyz_Imu_World() const {
-    return qwxyz_Imu_World_;
+  const Eigen::Vector3d& gravity_in_baselink() const {
+    return gravity_in_baselink_;
   }
 
   /**
@@ -92,7 +93,7 @@ public:
   ceres::CostFunction* costFunction() const override;
 
 protected:
-  Eigen::Matrix<double, 4, 1> qwxyz_Imu_World_;
+  Eigen::Vector3d gravity_in_baselink_;
   Eigen::Matrix<double, 2, 2> sqrt_information_;
 
 private:
@@ -109,7 +110,7 @@ private:
   template <class Archive>
   void serialize(Archive& archive, const unsigned int /* version */) {
     archive& boost::serialization::base_object<fuse_core::Constraint>(*this);
-    archive& qwxyz_Imu_World_;
+    archive& gravity_in_baselink_;
     archive& sqrt_information_;
   }
 };

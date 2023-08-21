@@ -29,15 +29,15 @@ public:
     // nominal direction of gravity as measured by the IMU. This is usually
     // positive or negative Z so we have implemented those two options as: '+Z'
     // or '-Z'
-    getParamRequired<std::string>(nh, "nominal_gravity_direction",
-                                  nominal_gravity_direction);
+    getParam<std::string>(nh, "nominal_gravity_direction",
+                          nominal_gravity_direction, nominal_gravity_direction);
     if (nominal_gravity_direction == "+Z") {
       gravity_nominal = {0, 0, 1};
     } else if (nominal_gravity_direction == "-Z") {
       gravity_nominal = {0, 0, -1};
     } else {
       BEAM_ERROR("Invalid nominal_gravity_direction param, supported options "
-                 "are: +Z, =Z");
+                 "are: +Z, -Z");
       throw std::invalid_argument{"invalid nominal_gravity_direction param"};
     }
   }

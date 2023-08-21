@@ -107,6 +107,7 @@ private:
 
   bool publish_results_{true};
   double gravity_vector_length_{0.75}; // m
+  Eigen::Vector3d g_in_World_{0, 0, -1};
   // ------------------------------
 };
 

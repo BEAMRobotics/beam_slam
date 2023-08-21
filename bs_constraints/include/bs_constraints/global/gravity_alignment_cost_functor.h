@@ -22,12 +22,10 @@ namespace bs_constraints { namespace global {
  * where, the matrix A is the sqrt inv cov which weighs the residuals, and the
  * residuals are defined as follows:
  *
- * |e_x| = [ (R_W_I')^(-1) * R'_W_I * g' ]
+ * |e_x| = [ R_W_B * gravity_in_baselink ]
  * |e_y|
  *
- * g' is the nominal gravity vector [0,0,-1], R'_W_I is the measured
- * rotation from IMU to World, and R_W_I is the current estimate of rotation
- * from IMU to World. Note we ignore the z term since we only care about the
+ * Note we ignore the z term since we only care about the
  * deviation in x and y directions (roll & pitch)
  *
  */
@@ -37,48 +35,49 @@ public:
 
   GravityAlignmentCostFunctor(
       const Eigen::Matrix<double, 2, 2>& A,
-      const Eigen::Matrix<double, 4, 1>& qwxyz_Imu_World);
+      const Eigen::Matrix<double, 3, 1>& gravity_in_baselink);
 
   template <typename T>
-  bool operator()(const T* const qwxyz_World_Imu, T* residual) const;
+  bool operator()(const T* const qwxyz_World_Baselink, T* residual) const;
 
 private:
   Eigen::Matrix<double, 2, 2> A_;
-  double qwxyz_Imu_World_[4];
-  double g_nominal_[4];
+  Eigen::Matrix<double, 3, 1> gravity_in_baselink_;
 };
 
 GravityAlignmentCostFunctor::GravityAlignmentCostFunctor(
     const Eigen::Matrix<double, 2, 2>& A,
-    const Eigen::Matrix<double, 4, 1>& qwxyz_Imu_World) {
-  A_ = A;
-  qwxyz_Imu_World_[0] = qwxyz_Imu_World[0];
-  qwxyz_Imu_World_[1] = qwxyz_Imu_World[1];
-  qwxyz_Imu_World_[2] = qwxyz_Imu_World[2];
-  qwxyz_Imu_World_[3] = qwxyz_Imu_World[3];
-  g_nominal_[0] = 0;
-  g_nominal_[1] = 0;
-  g_nominal_[2] = -1;
-}
+    const Eigen::Matrix<double, 3, 1>& gravity_in_baselink)
+    : A_(A), gravity_in_baselink_(gravity_in_baselink) {}
 
 template <typename T>
-bool GravityAlignmentCostFunctor::operator()(const T* const qwxyz_World_Imu,
-                                             T* residual) const {
-  T q_W_I[4] = {T(qwxyz_World_Imu[0]), T(qwxyz_World_Imu[1]),
-                T(qwxyz_World_Imu[2]), T(qwxyz_World_Imu[3])};
-  T q_I_W[4] = {T(qwxyz_Imu_World_[0]), T(qwxyz_Imu_World_[1]),
-                T(qwxyz_Imu_World_[2]), T(qwxyz_Imu_World_[3])};
+bool GravityAlignmentCostFunctor::operator()(
+    const T* const qwxyz_World_Baselink, T* residual) const {
+  T g_in_B[3] = {T(gravity_in_baselink_[0]), T(gravity_in_baselink_[1]),
+                 T(gravity_in_baselink_[2])};
+  T q_W_B[4] = {T(qwxyz_World_Baselink[0]), T(qwxyz_World_Baselink[1]),
+                T(qwxyz_World_Baselink[2]), T(qwxyz_World_Baselink[3])};
+  T g_in_W_est[3];
+  ceres::QuaternionRotatePoint(q_W_B, g_in_B, g_in_W_est);
 
-  T q_diff[4];
-  ceres::QuaternionProduct(q_I_W, q_W_I, q_diff);
+  residual[0] = A_(0, 0) * g_in_W_est[0] + A_(0, 1) * g_in_W_est[1];
+  residual[1] = A_(1, 0) * g_in_W_est[0] + A_(1, 1) * g_in_W_est[1];
 
-  T g[3] = {T(g_nominal_[0]), T(g_nominal_[1]), T(g_nominal_[2])};
+  // // T q_W_I[4] = {T(qwxyz_World_Imu[0]), T(qwxyz_World_Imu[1]),
+  // //               T(qwxyz_World_Imu[2]), T(qwxyz_World_Imu[3])};
+  // // T q_I_W[4] = {T(qwxyz_Imu_World_[0]), T(qwxyz_Imu_World_[1]),
+  // //               T(qwxyz_Imu_World_[2]), T(qwxyz_Imu_World_[3])};
 
-  T g_diff[3];
-  ceres::QuaternionRotatePoint(q_diff, g, g_diff);
+  // // T q_diff[4];
+  // // ceres::QuaternionProduct(q_I_W, q_W_I, q_diff);
 
-  residual[0] = A_(0, 0) * g_diff[0] + A_(0, 1) * g_diff[1];
-  residual[1] = A_(1, 0) * g_diff[0] + A_(1, 1) * g_diff[1];
+  // // T g[3] = {T(g_nominal_[0]), T(g_nominal_[1]), T(g_nominal_[2])};
+
+  // // T g_diff[3];
+  // // ceres::QuaternionRotatePoint(q_diff, g, g_diff);
+
+  // residual[0] = A_(0, 0) * g_diff[0] + A_(0, 1) * g_diff[1];
+  // residual[1] = A_(1, 0) * g_diff[0] + A_(1, 1) * g_diff[1];
   return true;
 }
 

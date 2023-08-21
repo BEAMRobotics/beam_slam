@@ -76,6 +76,9 @@ private:
   pcl::PointCloud<pcl::PointXYZRGBL> GetGraphRelativeImuConstraintsAsCloud(
       const fuse_core::Graph& graph) const;
 
+  pcl::PointCloud<pcl::PointXYZRGBL>
+      GetGraphGravityConstraintsAsCloud(const fuse_core::Graph& graph) const;
+
   // loadable parameters
   bs_parameters::models::GraphVisualizationParams params_;
 
@@ -97,9 +100,10 @@ private:
   ros::Time current_time_;
 
   // parameters only tunable here
-  double frame_size_{0.15}
-  double point_spacing_{0.01}
+  double frame_size_{0.15};
+  double point_spacing_{0.01};
   double g_length_{0.25};
+  Eigen::Vector3d g_in_World_True_{0, 0, -1};
 };
 
 } // namespace bs_models
