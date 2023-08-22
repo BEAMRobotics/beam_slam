@@ -162,6 +162,9 @@ private:
   ros::Publisher keyframe_publisher_;
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher reloc_publisher_;
+  ros::Publisher imu_constraint_trigger_publisher_;
+  int imu_constraint_trigger_counter_{0};
+  
   /// @brief book keeping variables
   bool is_initialized_{false};
   std::deque<Keyframe> keyframes_;

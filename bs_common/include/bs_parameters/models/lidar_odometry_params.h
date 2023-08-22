@@ -59,6 +59,11 @@ public:
     getParam<bool>(nh, "save_marginalized_scans", save_marginalized_scans,
                    save_marginalized_scans);
 
+    // send a trigger to IO to set IMU relative state constraint
+    getParam<bool>(nh, "trigger_inertial_odom_constraints",
+                   trigger_inertial_odom_constraints,
+                   trigger_inertial_odom_constraints);
+
     /** Outputs scans as PCD files IFF not empty */
     getParam<std::string>(nh, "scan_output_directory", scan_output_directory,
                           scan_output_directory);
@@ -146,6 +151,7 @@ public:
   double lidar_information_weight{1.0};
   double prior_information_weight{0};
 
+  bool trigger_inertial_odom_constraints{true};
   bool output_loam_points{true};
   bool output_lidar_points{true};
   bool publish_registration_map{false};

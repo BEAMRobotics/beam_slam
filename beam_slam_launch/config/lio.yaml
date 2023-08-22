@@ -16,10 +16,6 @@ sensor_models:
   - name: 'gravity_alignment'
     type: 'bs_models::GravityAlignment'
 
-# motion_models:
-#   - name: 'unicycle_3d'
-#     type: 'bs_models::Unicycle3D'
-
 publishers:
     - name: 'graph'
       type: 'fuse_publishers::SerializedPublisher'
@@ -59,7 +55,6 @@ slam_initialization:
 
 inertial_odometry:
   imu_topic: "/imu/data"
-  constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
   inertial_information_weight: 0.001
 
 gravity_alignment:
@@ -76,6 +71,7 @@ lidar_odometry:
   registration_config: 'registration/scan_to_map_loam.json'
   matcher_config: 'matchers/loam_vlp16.json'
   lidar_type: 'VELODYNE'
+  trigger_inertial_odom_constraints: true
   input_filters_config:  '' # 'lidar_filters/input_filters.json'
   input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true

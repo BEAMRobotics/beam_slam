@@ -24,7 +24,7 @@ public:
     getParam<std::string>(nh, "save_path", save_path, save_path);
   }
 
-  std::string save_path{false};
+  std::string save_path;
   bool publish{true};
 };
 

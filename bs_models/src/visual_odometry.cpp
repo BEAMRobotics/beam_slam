@@ -6,6 +6,7 @@
 #include <fuse_variables/velocity_angular_3d_stamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <pluginlib/class_list_macros.h>
+#include <std_msgs/Time.h>
 
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/Utils.h>
@@ -74,6 +75,9 @@ void VisualOdometry::onStart() {
       private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
   keyframe_publisher_ =
       private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 100);
+  imu_constraint_trigger_publisher_ =
+      private_node_handle_.advertise<std_msgs::Time>(
+          "/local_mapper/inertial_odometry/trigger", 10);
   slam_chunk_publisher_ =
       private_node_handle_.advertise<bs_common::SlamChunkMsg>(
           "/local_mapper/slam_results", 100);
@@ -145,6 +149,14 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
     Keyframe kf(*msg);
     keyframes_.push_back(kf);
     ExtendMap(timestamp, T_WORLD_BASELINK);
+
+    // send IO trigger
+    if (vo_params_.trigger_inertial_odom_constraints) {
+      std_msgs::Time time_msg;
+      time_msg.data = timestamp;
+      imu_constraint_trigger_publisher_.publish(time_msg);
+      imu_constraint_trigger_counter_++;
+    }
 
     // publish keyframe pose
     PublishPose(timestamp, T_WORLD_BASELINK);

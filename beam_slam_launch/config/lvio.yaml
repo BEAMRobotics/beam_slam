@@ -13,10 +13,6 @@ solver_options:
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
 
-motion_models:
-  - name: 'unicycle_3d'
-    type: 'bs_models::Unicycle3D'
-
 sensor_models:
   - name: 'visual_feature_tracker'
     type: 'bs_models::VisualFeatureTracker'
@@ -24,7 +20,6 @@ sensor_models:
     type: 'bs_models::SLAMInitialization'
   - name: 'inertial_odometry'
     type: 'bs_models::InertialOdometry'
-    motion_models: [unicycle_3d]
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
   - name: 'lidar_deskewer'
@@ -75,7 +70,6 @@ slam_initialization:
 
 inertial_odometry:
   imu_topic: "/imu/data"
-  constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
   inertial_information_weight: 0.001
 
 visual_odometry:
@@ -86,6 +80,7 @@ visual_odometry:
   reprojection_information_weight: 100
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
+  trigger_inertial_odom_constraints: true
 
 gravity_alignment:
   imu_topic: "/imu/data"
@@ -101,6 +96,7 @@ lidar_odometry:
   registration_config: 'registration/scan_to_map_loam.json'
   matcher_config: 'matchers/loam_vlp16.json'
   lidar_type: 'VELODYNE'
+  trigger_inertial_odom_constraints: true
   input_filters_config:  '' # 'lidar_filters/input_filters.json'
   input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true

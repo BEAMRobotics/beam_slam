@@ -53,6 +53,11 @@ public:
     getParam<double>(nh, "reloc_request_period", reloc_request_period,
                      reloc_request_period);
 
+    // send a trigger to IO to set IMU relative state constraint
+    getParam<bool>(nh, "trigger_inertial_odom_constraints",
+                   trigger_inertial_odom_constraints,
+                   trigger_inertial_odom_constraints);
+
     // keyframe decision parameters
     getParam<double>(nh, "keyframe_parallax", keyframe_parallax,
                      keyframe_parallax);
@@ -74,6 +79,7 @@ public:
   std::string frame_initializer_config{};
   Eigen::Matrix<double, 6, 6> prior_covariance;
 
+  bool trigger_inertial_odom_constraints{true};
   int max_container_size{300};
   double reloc_request_period{1.0};
   double keyframe_parallax{40.0};

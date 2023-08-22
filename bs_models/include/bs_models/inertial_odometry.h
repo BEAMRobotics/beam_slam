@@ -8,6 +8,7 @@
 #include <fuse_graphs/hash_graph.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
+#include <std_msgs/Time.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
@@ -43,13 +44,11 @@ private:
   void processIMU(const sensor_msgs::Imu::ConstPtr& msg);
 
   /**
-   * @brief Perform any required initialization for the sensor model
-   * (Load parameters from yaml files and read in imu intrinsics)
-   * @brief Callback for processing odometry messages, these messages are meant
-   * to be poses in which we add constraints to
-   * @param[in] msg - The odom msg to process
+   * @brief Callback for processing a Time message which serves as a trigger to
+   * add IMU constraints
+   * @param[in] msg - The time msg to process
    */
-  void processOdometry(const nav_msgs::Odometry::ConstPtr& msg);
+  void processTrigger(const std_msgs::Time::ConstPtr& msg);
 
   /**
    * @brief Perform any required initialization for the sensor model
@@ -93,7 +92,7 @@ private:
   bool initialized_{false};
   ros::Time prev_stamp_{0.0};
   Eigen::Matrix4d T_ODOM_IMUprev_{Eigen::Matrix4d::Identity()};
-  
+
   // calibration parameters
   bs_parameters::models::CalibrationParams calibration_params_;
 
@@ -102,7 +101,7 @@ private:
 
   // subscribers
   ros::Subscriber imu_subscriber_;
-  ros::Subscriber odom_subscriber_;
+  ros::Subscriber trigger_subscriber_;
 
   // publishers
   ros::Publisher odometry_publisher_;
@@ -126,9 +125,9 @@ private:
   ThrottledIMUCallback throttled_imu_callback_;
 
   // throttle callback for odometry
-  using ThrottledOdomCallback =
-      fuse_core::ThrottledMessageCallback<nav_msgs::Odometry>;
-  ThrottledOdomCallback throttled_odom_callback_;
+  using ThrottledTriggerCallback =
+      fuse_core::ThrottledMessageCallback<std_msgs::Time>;
+  ThrottledTriggerCallback throttled_trigger_callback_;
 };
 
 } // namespace bs_models

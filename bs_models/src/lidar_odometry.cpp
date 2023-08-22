@@ -3,6 +3,7 @@
 #include <boost/filesystem.hpp>
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
+#include <std_msgs/Time.h>
 
 #include <beam_utils/filesystem.h>
 
@@ -130,6 +131,9 @@ void LidarOdometry::onStart() {
   odom_publisher_marginalized_ =
       private_node_handle_.advertise<nav_msgs::Odometry>("odom/marginalized",
                                                          100);
+  imu_constraint_trigger_publisher_ =
+      private_node_handle_.advertise<std_msgs::Time>(
+          "/local_mapper/inertial_odometry/trigger", 10);
 }
 
 void LidarOdometry::onStop() {
@@ -360,6 +364,14 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
             "FRAMEINITIALIZERPRIOR", *p, *o, mean, params_.prior_covariance);
     prior_transaction->addConstraint(prior);
     sendTransaction(prior_transaction);
+  }
+
+  // send IO trigger
+  if (params_.trigger_inertial_odom_constraints) {
+    std_msgs::Time time_msg;
+    time_msg.data = current_scan_pose->Stamp();
+    imu_constraint_trigger_publisher_.publish(time_msg);
+    imu_constraint_trigger_counter_++;
   }
 
   PublishScanRegistrationResults(transaction, *current_scan_pose);

@@ -78,6 +78,8 @@ private:
   int odom_publisher_global_counter_{0};
   ros::Publisher odom_publisher_marginalized_;
   int odom_publisher_marginalized_counter_{0};
+  ros::Publisher imu_constraint_trigger_publisher_;
+  int imu_constraint_trigger_counter_{0};
 
   tf::TransformBroadcaster tf_broadcaster_;
 

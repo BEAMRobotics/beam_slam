@@ -58,7 +58,6 @@ slam_initialization:
 
 inertial_odometry:
   imu_topic: "/imu/data"
-  constraint_odom_topic: "/local_mapper/visual_odometry/odometry"
   inertial_information_weight: 0.001
 
 visual_odometry:
@@ -69,6 +68,7 @@ visual_odometry:
   reprojection_information_weight: 1.0
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
+  trigger_inertial_odom_constraints: true
 
 gravity_alignment:
   imu_topic: "/imu/data"

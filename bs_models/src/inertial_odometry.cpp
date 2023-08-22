@@ -15,21 +15,13 @@ InertialOdometry::InertialOdometry()
     : fuse_core::AsyncSensorModel(2),
       throttled_imu_callback_(std::bind(&InertialOdometry::processIMU, this,
                                         std::placeholders::_1)),
-      throttled_odom_callback_(std::bind(&InertialOdometry::processOdometry,
-                                         this, std::placeholders::_1)) {}
+      throttled_trigger_callback_(std::bind(&InertialOdometry::processTrigger,
+                                            this, std::placeholders::_1)) {}
 
 void InertialOdometry::onInit() {
   // Read settings from the parameter sever
   calibration_params_.loadFromROS();
   params_.loadFromROS(private_node_handle_);
-
-  // check for non empty odom topic
-  if (params_.constraint_odom_topic.empty()) {
-    ROS_ERROR("Constraint odom topic cannot be empty, must be a valid odometry "
-              "topic.");
-    throw std::invalid_argument{"Constraint odom topic cannot be empty, must "
-                                "be a valid odometry topic."};
-  }
 
   // read imu parameters
   nlohmann::json J;
@@ -51,9 +43,9 @@ void InertialOdometry::onStart() {
       &ThrottledIMUCallback::callback, &throttled_imu_callback_,
       ros::TransportHints().tcpNoDelay(false));
 
-  odom_subscriber_ = private_node_handle_.subscribe<nav_msgs::Odometry>(
-      ros::names::resolve(params_.constraint_odom_topic), 1000,
-      &ThrottledOdomCallback::callback, &throttled_odom_callback_,
+  trigger_subscriber_ = private_node_handle_.subscribe<std_msgs::Time>(
+      ros::names::resolve("/local_mapper/inertial_odometry/trigger"), 10,
+      &ThrottledTriggerCallback::callback, &throttled_trigger_callback_,
       ros::TransportHints().tcpNoDelay(false));
 
   // setup publishers
@@ -90,17 +82,12 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   prev_stamp_ = msg->header.stamp;
 }
 
-void InertialOdometry::processOdometry(
-    const nav_msgs::Odometry::ConstPtr& msg) {
-  ROS_INFO_STREAM_ONCE(
-      "InertialOdometry received Odometry measurements: " << msg->header.stamp);
-
+void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
   // return if its not initialized_
   if (!initialized_) { return; }
 
   // add constraint at time
-  auto transaction =
-      imu_preint_->RegisterNewImuPreintegratedFactor(msg->header.stamp);
+  auto transaction = imu_preint_->RegisterNewImuPreintegratedFactor(msg->data);
 
   if (!transaction) { return; }
 
@@ -113,10 +100,10 @@ void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
   const auto [T_IMUprev_IMUcurr, cov_rel] =
       imu_preint_->GetRelativeMotion(prev_stamp, curr_stamp, velocity_curr);
 
-  // todo: 
-  // cov_rel is in order: roll,pitch,yaw,x,y,z 
+  // todo:
+  // cov_rel is in order: roll,pitch,yaw,x,y,z
   // we need x,y,z,roll,pitch,yaw
-  
+
   // publish relative odometry
   T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
   auto odom_msg_rel = bs_common::TransformToOdometryMessage(
