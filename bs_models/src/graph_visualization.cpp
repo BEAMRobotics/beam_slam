@@ -12,6 +12,7 @@
 #include <bs_common/visualization.h>
 #include <bs_constraints/global/gravity_alignment_stamped_constraint.h>
 #include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>
+#include <bs_constraints/visual/euclidean_reprojection_constraint.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::GraphVisualization, fuse_core::SensorModel);
@@ -50,6 +51,9 @@ void GraphVisualization::onStart() {
     gravity_constraints_publisher_.publisher =
         private_node_handle_.advertise<sensor_msgs::PointCloud2>(
             "gravity_alignment_constraints", 10);
+    camera_landmarks_publisher_.publisher =
+        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+            "camera_landmarks", 10);
     imu_biases_publisher_gx_ =
         private_node_handle_.advertise<std_msgs::Float32>("biases/gx", 10);
     imu_biases_publisher_gy_ =
@@ -73,6 +77,7 @@ void GraphVisualization::onGraphUpdate(
   VisualizeImuRelativeConstraints(graph_msg);
   VisualizeImuBiases(graph_msg);
   VisualizeImuGravityConstraints(graph_msg);
+  VisualizeCameraLandmarks(graph_msg);
 }
 
 void GraphVisualization::VisualizePoses(
@@ -135,6 +140,14 @@ void GraphVisualization::VisualizeImuGravityConstraints(
       GetGraphGravityConstraintsAsCloud(*graph_msg);
   PublishCloud<pcl::PointXYZRGBL>(gravity_constraints_publisher_, cloud);
   SaveCloud<pcl::PointXYZRGBL>("gravity_constraints", cloud);
+}
+
+void GraphVisualization::VisualizeCameraLandmarks(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud =
+      GetGraphCameraLandmarksAsCloud(*graph_msg);
+  PublishCloud<pcl::PointXYZRGBL>(camera_landmarks_publisher_, cloud);
+  SaveCloud<pcl::PointXYZRGBL>("camera_landmarks", cloud);
 }
 
 pcl::PointCloud<pcl::PointXYZRGBL>
@@ -320,6 +333,40 @@ pcl::PointCloud<pcl::PointXYZRGBL>
         DrawLine(p_start, p_start + g_in_World_True, 0, 255, 255, 0);
     cloud += line1;
     cloud += line2;
+  }
+
+  return cloud;
+}
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GraphVisualization::GetGraphCameraLandmarksAsCloud(
+        const fuse_core::Graph& graph) const {
+  pcl::PointCloud<pcl::PointXYZRGBL> cloud;
+  const auto constraints = graph.getConstraints();
+  for (auto it = constraints.begin(); it != constraints.end(); it++) {
+    if (it->type() != "bs_constraints::EuclideanReprojectionConstraint") {
+      continue;
+    }
+    auto c =
+        dynamic_cast<const bs_constraints::EuclideanReprojectionConstraint&>(
+            *it);
+    for (const auto& variable_uuid : c.variables()) {
+      const auto& var = graph.getVariable(variable_uuid);
+      if (var.type() != "fuse_variables::Point3DLandmark") { continue; }
+      fuse_variables::Point3DLandmark P_World =
+          dynamic_cast<const fuse_variables::Point3DLandmark&>(
+              graph.getVariable(variable_uuid));
+      pcl::PointXYZRGBL p;
+      p.x = P_World.x();
+      p.y = P_World.y();
+      p.z = P_World.z();
+      p.label = P_World.id();
+      srand(P_World.id());
+      p.r = beam::randi(0, 255);
+      p.g = beam::randi(0, 255);
+      p.b = beam::randi(0, 255);
+      cloud.push_back(p);
+    }
   }
 
   return cloud;

@@ -1,4 +1,4 @@
-optimization_period: 0.1
+optimization_period: 0.07
 lag_duration: 6
 
 solver_options:
@@ -33,6 +33,8 @@ sensor_models:
     type: 'bs_models::LidarOdometry'
   - name: 'gravity_alignment'
     type: 'bs_models::GravityAlignment'
+  - name: 'graph_visualization'
+    type: 'bs_models::GraphVisualization'
 
 # publishers:
 #     - name: 'graph'
@@ -73,7 +75,7 @@ slam_initialization:
 
 inertial_odometry:
   imu_topic: "/imu/data"
-  constraint_odom_topic: "/local_mapper/visual_odometry/odometry"
+  constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
   inertial_information_weight: 0.001
 
 visual_odometry:
@@ -81,14 +83,14 @@ visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   reloc_request_period: 3.0
   keyframe_parallax: 20.0
-  reprojection_information_weight: 1.0
+  reprojection_information_weight: 100
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
 
 gravity_alignment:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
-  inertial_information_weight: 1
+  inertial_information_weight: 10
 
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_points'
@@ -106,7 +108,7 @@ lidar_odometry:
   publish_active_submap: true
   publish_registration_map: true
   publish_registration_results: true
-  lidar_information_weight: 1.0
+  lidar_information_weight: 1000
   frame_initializer_config: "/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 

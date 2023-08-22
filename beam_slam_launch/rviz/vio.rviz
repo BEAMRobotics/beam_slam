@@ -4,6 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /IO1/Shape1
         - /VO1/Shape1
       Splitter Ratio: 0.5
     Tree Height: 280
@@ -78,9 +79,9 @@ Visualization Manager:
       Class: rviz/Axes
       Enabled: true
       Length: 1
-      Name: Axes
+      Name: World
       Radius: 0.029999999329447746
-      Reference Frame: <Fixed Frame>
+      Reference Frame: world
       Show Trail: false
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -107,8 +108,8 @@ Visualization Manager:
       Queue Size: 10
       Shape:
         Alpha: 1
-        Axes Length: 0.30000001192092896
-        Axes Radius: 0.029999999329447746
+        Axes Length: 0.20000000298023224
+        Axes Radius: 0.019999999552965164
         Color: 255; 25; 0
         Head Length: 0.30000001192092896
         Head Radius: 0.10000000149011612
@@ -153,6 +154,62 @@ Visualization Manager:
       Topic: /local_mapper/visual_odometry/odometry
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: GraphLandmarks
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.05000000074505806
+      Style: Flat Squares
+      Topic: /local_mapper/graph_visualization/camera_landmarks
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: GraphPoses
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic: /local_mapper/graph_visualization/graph_poses
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -181,7 +238,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 16.065879821777344
+      Distance: 9.89139175415039
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -189,17 +246,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 3.585963249206543
-        Y: -3.0448458194732666
-        Z: -0.2980036437511444
+        X: 2.2846391201019287
+        Y: -2.967876672744751
+        Z: 0.11570452898740768
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7102031111717224
+      Pitch: 1.0547971725463867
       Target Frame: <Fixed Frame>
-      Yaw: 1.8616886138916016
+      Yaw: 0.5066888332366943
     Saved: ~
 Window Geometry:
   Displays:

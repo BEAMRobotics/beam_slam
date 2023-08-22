@@ -50,6 +50,8 @@ private:
   void VisualizeImuGravityConstraints(
       fuse_core::Graph::ConstSharedPtr graph_msg);
 
+  void VisualizeCameraLandmarks(fuse_core::Graph::ConstSharedPtr graph_msg);
+
   template <typename PointT>
   void PublishCloud(PublisherWithCounter& publisher,
                     const pcl::PointCloud<PointT>& cloud) {
@@ -79,6 +81,9 @@ private:
   pcl::PointCloud<pcl::PointXYZRGBL>
       GetGraphGravityConstraintsAsCloud(const fuse_core::Graph& graph) const;
 
+  pcl::PointCloud<pcl::PointXYZRGBL>
+      GetGraphCameraLandmarksAsCloud(const fuse_core::Graph& graph) const;
+      
   // loadable parameters
   bs_parameters::models::GraphVisualizationParams params_;
 
@@ -87,6 +92,7 @@ private:
   PublisherWithCounter lidar_relative_pose_constraints_publisher_;
   PublisherWithCounter relative_imu_constraints_publisher_;
   PublisherWithCounter gravity_constraints_publisher_;
+  PublisherWithCounter camera_landmarks_publisher_;
   ros::Publisher imu_biases_publisher_gx_;
   ros::Publisher imu_biases_publisher_gy_;
   ros::Publisher imu_biases_publisher_gz_;

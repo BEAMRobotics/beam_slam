@@ -22,6 +22,10 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
+  - name: 'graph_visualization'
+    type: 'bs_models::GraphVisualization'
+  # - name: 'gravity_alignment'
+  #   type: 'bs_models::GravityAlignment'
 
 #  publishers:
 #   - name: 'graph'
@@ -65,6 +69,11 @@ visual_odometry:
   reprojection_information_weight: 1.0
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
+
+gravity_alignment:
+  imu_topic: "/imu/data"
+  constraint_odom_topic: "/local_mapper/visual_odometry/odometry"
+  gravity_info_weight: 10
 
 path_pub:
   frame_id: 'world' # Stored in pose header. Default: odom
