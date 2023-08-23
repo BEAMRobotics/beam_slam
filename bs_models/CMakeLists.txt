@@ -110,10 +110,14 @@ add_library(
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/transform_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
+  ## experimental
+  experimental/src/lidar_aggregation
+  experimental/src/lib/lidar/lidar_aggregator
 )
 
 include_directories(
   include
+  experimental/include
   ${OpenCV_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
 )

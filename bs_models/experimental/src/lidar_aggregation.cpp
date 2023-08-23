@@ -36,7 +36,6 @@ void LidarAggregation::onInit() {
 }
 
 void LidarAggregation::onStart() {
-  ROS_DEBUG("Starting subscribers");
   pointcloud_subscriber_ =
       private_node_handle_.subscribe<sensor_msgs::PointCloud2>(
           ros::names::resolve(params_.pointcloud_topic),
@@ -48,24 +47,19 @@ void LidarAggregation::onStart() {
       aggregation_time_subscriber_queue_size_, &ThrottledCallbackTime::callback,
       &throttled_callback_time_, ros::TransportHints().tcpNoDelay(false));
 
-  ROS_DEBUG("Starting publisher");
   aggregate_publisher_ =
       private_node_handle_.advertise<sensor_msgs::PointCloud2>(
           "points_undistorted", aggregate_publisher_queue_size_);
-  ROS_DEBUG("Done start routine");
 }
 
 void LidarAggregation::onStop() {
-  ROS_DEBUG("Shutting down publishers and subscribers");
   aggregation_time_subscriber_.shutdown();
   pointcloud_subscriber_.shutdown();
-  ROS_DEBUG("Done shutdown routine");
 }
 
 void LidarAggregation::ProcessPointcloud(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   if (params_.lidar_type == LidarType::VELODYNE) {
-    ROS_DEBUG("Processing Velodyne poincloud message");
     pcl::PointCloud<PointXYZIRT> cloud;
     beam::ROSToPCL(cloud, *msg);
     std::map<uint64_t, pcl::PointCloud<PointXYZIRT>> sorted_clouds =
@@ -78,10 +72,8 @@ void LidarAggregation::ProcessPointcloud(
       velodyne_lidar_aggregator_->Add(lidar_chunk);
     }
   } else if (params_.lidar_type == LidarType::OUSTER) {
-    ROS_DEBUG("Processing Ouster poincloud message");
     pcl::PointCloud<PointXYZITRRNR> cloud;
     beam::ROSToPCL(cloud, *msg);
-    ROS_DEBUG("Sorting clouds by timestamps");
     std::map<uint64_t, pcl::PointCloud<PointXYZITRRNR>> sorted_clouds =
         SeparateTimeStamps<PointXYZITRRNR>(cloud, msg->header.stamp);
     for (auto iter = sorted_clouds.begin(); iter != sorted_clouds.end();
@@ -93,40 +85,9 @@ void LidarAggregation::ProcessPointcloud(
     }
   }
 
-  if (!params_.use_trigger && msg->header.stamp - last_published_cloud_stamp_ >=
-                                  max_aggregation_duration_) {
-    last_published_cloud_stamp_ = msg->header.stamp;
-    if (params_.lidar_type == LidarType::VELODYNE) {
-      velodyne_lidar_aggregator_->Aggregate();
-      std::vector<LidarAggregate<PointXYZIRT>> aggregates =
-          velodyne_lidar_aggregator_->Get();
-      for (const auto& aggregate : aggregates) {
-        sensor_msgs::PointCloud2 cloud_msg = beam::PCLToROS<PointXYZIRT>(
-            aggregate.cloud, aggregate.time, extrinsics_.GetLidarFrameId(),
-            counter_);
-        ROS_DEBUG("Publishing result");
-        aggregate_publisher_.publish(cloud_msg);
-      }
-    } else if (params_.lidar_type == LidarType::OUSTER) {
-      ouster_lidar_aggregator_->Aggregate();
-      std::vector<LidarAggregate<PointXYZITRRNR>> aggregates =
-          ouster_lidar_aggregator_->Get();
-      for (const auto& aggregate : aggregates) {
-        sensor_msgs::PointCloud2 cloud_msg = beam::PCLToROS<PointXYZITRRNR>(
-            aggregate.cloud, aggregate.time, extrinsics_.GetLidarFrameId(),
-            counter_);
-        ROS_DEBUG("Publishing result");
-        aggregate_publisher_.publish(cloud_msg);
-      }
-    }
-    counter_++;
-  }
 }
 
 void LidarAggregation::ProcessTimeTrigger(const std_msgs::Time::ConstPtr& msg) {
-  if (!params_.use_trigger) { return; }
-
-  ROS_DEBUG("Processing time trigger");
   if (params_.lidar_type == LidarType::VELODYNE) {
     velodyne_lidar_aggregator_->Aggregate(msg->data);
     std::vector<LidarAggregate<PointXYZIRT>> aggregates =
@@ -135,7 +96,6 @@ void LidarAggregation::ProcessTimeTrigger(const std_msgs::Time::ConstPtr& msg) {
       sensor_msgs::PointCloud2 cloud_msg =
           beam::PCLToROS<PointXYZIRT>(aggregate.cloud, aggregate.time,
                                       extrinsics_.GetLidarFrameId(), counter_);
-      ROS_DEBUG("Publishing result");
       aggregate_publisher_.publish(cloud_msg);
     }
   } else if (params_.lidar_type == LidarType::OUSTER) {
@@ -146,7 +106,6 @@ void LidarAggregation::ProcessTimeTrigger(const std_msgs::Time::ConstPtr& msg) {
       sensor_msgs::PointCloud2 cloud_msg = beam::PCLToROS<PointXYZITRRNR>(
           aggregate.cloud, aggregate.time, extrinsics_.GetLidarFrameId(),
           counter_);
-      ROS_DEBUG("Publishing result");
       aggregate_publisher_.publish(cloud_msg);
     }
   }

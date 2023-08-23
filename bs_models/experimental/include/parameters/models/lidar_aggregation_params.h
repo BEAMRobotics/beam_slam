@@ -24,8 +24,8 @@ public:
   void loadFromROS(const ros::NodeHandle& nh) final {
     /** This topic publishes the times that we want to motion compensate lidar
      * data to */
-    getParamRequired<std::string>(nh, "aggregation_time_topic",
-                                  aggregation_time_topic);
+    getParam<std::string>(nh, "aggregation_time_topic", aggregation_time_topic,
+                          aggregation_time_topic);
 
     /** Input lidar topic (distorted) */
     getParamRequired<std::string>(nh, "pointcloud_topic", pointcloud_topic);
@@ -59,17 +59,12 @@ public:
     getParam<double>(nh, "max_aggregation_time_seconds",
                      max_aggregation_time_seconds,
                      max_aggregation_time_seconds);
-
-    /** If set to false, we will aggregate whenever the max_aggregation_time is
-     * reached. Default: true*/
-    getParam<bool>(nh, "use_trigger", use_trigger, use_trigger);
   }
 
-  std::string aggregation_time_topic;
+  std::string aggregation_time_topic{"/local_mapper/inertial_odometry/trigger"};
   std::string pointcloud_topic;
   LidarType lidar_type{LidarType::VELODYNE};
   double max_aggregation_time_seconds{0.1};
-  bool use_trigger{true};
 
   std::string frame_initializer_config{""};
 };
