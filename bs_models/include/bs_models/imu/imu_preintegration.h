@@ -46,7 +46,8 @@ public:
    * @brief Constructor
    * @param params all input params optional. See struct above
    */
-  ImuPreintegration(const Params& params, const double info_weight = 1.0);
+  ImuPreintegration(const Params& params, const double info_weight = 1.0,
+                    bool add_prior_on_first_window = true);
 
   /**
    * @brief Constructor
@@ -56,7 +57,8 @@ public:
    */
   ImuPreintegration(const Params& params, const Eigen::Vector3d& init_bg,
                     const Eigen::Vector3d& init_ba,
-                    const double info_weight = 1.0);
+                    const double info_weight = 1.0,
+                    bool add_prior_on_first_window = true);
 
   /**
    * @brief Destructor
@@ -171,6 +173,7 @@ private:
 
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
+  bool add_prior_on_first_window_{true};
 
   bs_common::ImuState imu_state_i_; // current key frame
   bs_common::ImuState imu_state_k_; // intermediate frame

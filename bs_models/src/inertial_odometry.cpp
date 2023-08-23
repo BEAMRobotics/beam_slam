@@ -127,6 +127,7 @@ void InertialOdometry::onGraphUpdate(
     imu_preint_->UpdateGraph(graph_msg);
     return;
   }
+
   ROS_INFO("InertialOdometry received initial graph.");
   std::set<ros::Time> timestamps = bs_common::CurrentTimestamps(graph_msg);
 
@@ -160,7 +161,7 @@ void InertialOdometry::onGraphUpdate(
   Eigen::Vector3d ba(accel_bias->x(), accel_bias->y(), accel_bias->z());
   Eigen::Vector3d bg(gyro_bias->x(), gyro_bias->y(), gyro_bias->z());
   imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(
-      imu_params_, bg, ba, params_.inertial_info_weight);
+      imu_params_, bg, ba, params_.inertial_info_weight, false);
 
   // remove measurements before the start
   while (imu_buffer_.front()->header.stamp < most_recent_stamp &&

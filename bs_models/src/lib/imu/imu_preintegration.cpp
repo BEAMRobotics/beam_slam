@@ -12,36 +12,37 @@ namespace bs_models {
 bool ImuPreintegration::Params::LoadFromJSON(const std::string& path) {
   nlohmann::json J;
   beam::ReadJson(path, J);
-  try {
-    cov_gyro_noise = Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
-  } catch (...) {
+  if (!J.contains("cov_gyro_noise")) {
     BEAM_ERROR("Missing or misspelt parameter: 'cov_gryo_noise'");
     return false;
   }
-  try {
-    cov_accel_noise = Eigen::Matrix3d::Identity() * J["cov_accel_noise"];
-  } catch (...) {
+  if (!J.contains("cov_accel_noise")) {
     BEAM_ERROR("Missing or misspelt parameter: 'cov_accel_noise'");
     return false;
   }
-  try {
-    cov_gyro_bias = Eigen::Matrix3d::Identity() * J["cov_gyro_bias"];
-  } catch (...) {
+  if (!J.contains("cov_gyro_bias")) {
     BEAM_ERROR("Missing or misspelt parameter: 'cov_gyro_bias'");
     return false;
   }
-  try {
-    cov_accel_bias = Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
-  } catch (...) {
+  if (!J.contains("cov_accel_bias")) {
     BEAM_ERROR("Missing or misspelt parameter: 'cov_accel_bias'");
     return false;
   }
+
+  cov_gyro_noise = Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
+  cov_accel_noise = Eigen::Matrix3d::Identity() * J["cov_accel_noise"];
+  cov_gyro_bias = Eigen::Matrix3d::Identity() * J["cov_gyro_bias"];
+  cov_accel_bias = Eigen::Matrix3d::Identity() * J["cov_accel_bias"];
+
   return true;
 }
 
 ImuPreintegration::ImuPreintegration(const Params& params,
-                                     const double info_weight)
-    : params_(params), info_weight_(info_weight) {
+                                     const double info_weight,
+                                     bool add_prior_on_first_window)
+    : params_(params),
+      info_weight_(info_weight),
+      add_prior_on_first_window_(add_prior_on_first_window) {
   CheckParameters();
   SetPreintegrator();
 }
@@ -49,8 +50,13 @@ ImuPreintegration::ImuPreintegration(const Params& params,
 ImuPreintegration::ImuPreintegration(const Params& params,
                                      const Eigen::Vector3d& init_bg,
                                      const Eigen::Vector3d& init_ba,
-                                     const double info_weight)
-    : params_(params), bg_(init_bg), ba_(init_ba), info_weight_(info_weight) {
+                                     const double info_weight,
+                                     bool add_prior_on_first_window)
+    : params_(params),
+      bg_(init_bg),
+      ba_(init_ba),
+      info_weight_(info_weight),
+      add_prior_on_first_window_(add_prior_on_first_window) {
   CheckParameters();
   SetPreintegrator();
 }
@@ -251,13 +257,13 @@ fuse_core::Transaction::SharedPtr
   }
 
   // generate prior constraint at start
-  if (first_window_) {
+  if (first_window_ && add_prior_on_first_window_) {
     Eigen::Matrix<double, 15, 15> prior_covariance =
         params_.cov_prior_noise * Eigen::Matrix<double, 15, 15>::Identity();
 
     // Add relative constraints and variables for first key frame
     transaction.AddPriorImuStateConstraint(imu_state_i_, prior_covariance,
-                                           "FIRST_IMU_STATE_PRIOR");
+                                           "ImuPreintegration");
     transaction.AddImuStateVariables(imu_state_i_);
     first_window_ = false;
   }
