@@ -32,14 +32,6 @@ solver_options:
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
 
-unicycle_3d:
-  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2]
-  buffer_length: 100000
-
 slam_initialization:
   imu_topic: "/imu/data"
   lidar_topic: "/lidar_h/velodyne_points"
@@ -51,7 +43,7 @@ slam_initialization:
   max_triangulation_distance: 50.0 # vision specific
   max_triangulation_reprojection: 30.0 # vision specific
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "" #"/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
+  output_folder: "/home/nick/debug/slam_init"
 
 inertial_odometry:
   imu_topic: "/imu/data"

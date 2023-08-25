@@ -39,13 +39,6 @@ sensor_models:
 #   - name: 'path_pub'
 #     type: 'bs_publishers::Path3DPublisher'
 
-unicycle_3d:
-  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2]
-  buffer_length: 100000
 
 visual_feature_tracker:
   image_topic: '/F1/image'
@@ -66,7 +59,7 @@ slam_initialization:
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "" # "/home/nick/data/2021_10_27_16_21_54_ConestogoBridge/debug/slam_init"
+  output_folder: "" #"/home/nick/debug/slam_init"
 
 inertial_odometry:
   imu_topic: "/imu/data"
