@@ -7,11 +7,6 @@
 
 namespace bs_models { namespace scan_registration {
 
-template <typename ConstraintType, typename PriorType>
-using TransactionBase =
-    bs_constraints::relative_pose::RelativePoseTransactionBase<ConstraintType,
-                                                               PriorType>;
-
 /**
  * @brief base class for scan registration parameters. These params will be used
  * in most scan regisatration implementations. This struct serves as a way to

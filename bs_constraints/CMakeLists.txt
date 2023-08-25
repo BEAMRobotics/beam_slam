@@ -47,7 +47,6 @@ catkin_package(
 # fuse_constraints library
 add_library(${PROJECT_NAME}
   src/relative_pose/relative_constraints.cpp
-  src/relative_pose/relative_pose_transaction_base.cpp
   src/relative_pose/pose_3d_stamped_transaction.cpp
 
   src/inertial/imu_state_3d_stamped_transaction.cpp
