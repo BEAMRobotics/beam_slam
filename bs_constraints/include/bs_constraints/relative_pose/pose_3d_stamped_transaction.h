@@ -32,12 +32,6 @@ public:
     return transaction_;
   }
 
-  void AddConstraint(
-      const fuse_constraints::RelativePose3DStampedConstraint::SharedPtr&
-          constraint) {
-    transaction_->addConstraint(constraint, override_constraints_);
-  }
-
   void AddPoseConstraint(
       const Eigen::Matrix4d& T_WORLD_FRAME1,
       const Eigen::Matrix4d& T_WORLD_FRAME2, const ros::Time& stamp1,
@@ -92,12 +86,6 @@ public:
             source, position1, orientation1, position2, orientation2,
             pose_relative_mean, covariance);
     transaction_->addConstraint(constraint, override_constraints_);
-  }
-
-  void AddPrior(
-      const fuse_constraints::AbsolutePose3DStampedConstraint::SharedPtr&
-          prior) {
-    transaction_->addConstraint(prior, override_constraints_);
   }
 
   void AddPosePrior(const fuse_variables::Position3DStamped& position,
