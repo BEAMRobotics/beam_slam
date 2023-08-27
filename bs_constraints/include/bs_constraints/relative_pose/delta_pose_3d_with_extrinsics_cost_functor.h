@@ -39,10 +39,10 @@ public:
   template <typename T>
   bool operator()(const T* const p_World_Baselink1_ptr,
                   const T* const o_World_Baselink1_ptr,
-                  const T* const p_World_Baselink1_ptr,
+                  const T* const p_World_Baselink2_ptr,
                   const T* const o_World_Baselink2_ptr,
                   const T* const p_Baselink_Sensor_ptr,
-                  const T* const o_Baselink_Sensor, T* residual) const;
+                  const T* const o_Baselink_Sensor_ptr, T* residual) const;
 
 private:
   /** The square root information matrix used as the residual weighting matrix
@@ -75,22 +75,23 @@ DeltaPose3DWithExtrinsicsCostFunctor::DeltaPose3DWithExtrinsicsCostFunctor(
 
 template <typename T>
 bool DeltaPose3DWithExtrinsicsCostFunctor::operator()(
-    const T* const t_World_Baselink1_ptr, const T* const q_World_Baselink1_ptr,
-    const T* const t_World_Baselink1_ptr, const T* const q_World_Baselink2_ptr,
-    const T* const t_Baselink_Sensor_ptr, const T* const q_Baselink_Sensor_ptr,
+    const T* const p_World_Baselink1_ptr, const T* const o_World_Baselink1_ptr,
+    const T* const p_World_Baselink2_ptr, const T* const o_World_Baselink2_ptr,
+    const T* const p_Baselink_Sensor_ptr, const T* const o_Baselink_Sensor_ptr,
     T* residual) const {
-  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_WB1(t_World_Baselink1_ptr);
-  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_WB2(t_World_Baselink2_ptr);
-  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_BS(t_Baselink_Sensor_ptr);
-
-  Eigen::Map<const Eigen::Quaternion<T>> q_WB1(q_World_Baselink1_ptr);
-  Eigen::Map<const Eigen::Quaternion<T>> q_WB2(q_World_Baselink2_ptr);
-  Eigen::Map<const Eigen::Quaternion<T>> q_BS(q_Baselink_Sensor_ptr);
-
+      
+  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_WB1(p_World_Baselink1_ptr);
+  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_WB2(p_World_Baselink2_ptr);
+  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_BS(p_Baselink_Sensor_ptr);
+  
+  Eigen::Map<const Eigen::Quaternion<T>> q_WB1(o_World_Baselink1_ptr);
+  Eigen::Map<const Eigen::Quaternion<T>> q_WB2(o_World_Baselink2_ptr);
+  Eigen::Map<const Eigen::Quaternion<T>> q_BS(o_Baselink_Sensor_ptr);
+  
   Eigen::Matrix<T, 4, 4> T_BS = Eigen::Matrix<T, 4, 4>::Identity();
   T_BS.block(0, 0, 3, 3) = q_BS.toRotationMatrix();
   T_BS.block(0, 3, 3, 1) = t_BS;
-
+  
   Eigen::Matrix<T, 4, 4> T_WB1 = Eigen::Matrix<T, 4, 4>::Identity();
   T_WB1.block(0, 0, 3, 3) = q_WB1.toRotationMatrix();
   T_WB1.block(0, 3, 3, 1) = t_WB1;
@@ -98,28 +99,29 @@ bool DeltaPose3DWithExtrinsicsCostFunctor::operator()(
   Eigen::Matrix<T, 4, 4> T_WB2 = Eigen::Matrix<T, 4, 4>::Identity();
   T_WB2.block(0, 0, 3, 3) = q_WB2.toRotationMatrix();
   T_WB2.block(0, 3, 3, 1) = t_WB2;
-
+  
   Eigen::Matrix<T, 4, 4> T_S1_S2_Estimated =
       InvertTransform<T>(T_BS) * InvertTransform<T>(T_WB1) * T_WB2 * T_BS;
 
   Eigen::Matrix<T, 4, 4> T_diff =
       T_S1_S2_Estimated * T_Sensor2_Sensor1_Measured_.cast<T>();
-
+  
   // Compute the first three residual terms as (position_delta - b)
-  residual[0] = T_diff[0];
-  residual[1] = T_diff[1];
-  residual[2] = T_diff[2];
-
+  residual[0] = T_diff(0,3);
+  residual[1] = T_diff(1,3);
+  residual[2] = T_diff(2,3);
+  
   // compute the angle axis of the difference and set that to orientation
   // residuals
-  Eigen::AngleAxis<T> aa(T_diff.block(0, 0, 3, 3));
+  Eigen::Matrix<T, 3, 3> R_diff = T_diff.block(0, 0, 3, 3);
+  Eigen::AngleAxis<T> aa(R_diff);
   residual[3] = aa.axis()[0];
   residual[4] = aa.axis()[1];
   residual[5] = aa.axis()[2];
-
+  
   // Map it to Eigen, and weight it
   Eigen::Map<Eigen::Matrix<T, 6, 1>> residual_map(residual);
-  residual_map.applyOnTheLeft(A_.template cast<T>());
+  residual_map.applyOnTheLeft(sqrt_info_.template cast<T>());
 
   return true;
 }
@@ -131,7 +133,7 @@ Eigen::Matrix<T, 4, 4> DeltaPose3DWithExtrinsicsCostFunctor::InvertTransform(
   T_inv.block(0, 0, 3, 3) = Transform.block(0, 0, 3, 3).transpose();
   T_inv.block(0, 3, 3, 1) =
       -Transform.block(0, 0, 3, 3).transpose() * Transform.block(0, 3, 3, 1);
-  return T_inv
+  return T_inv;
 }
 
 } // namespace bs_constraints
