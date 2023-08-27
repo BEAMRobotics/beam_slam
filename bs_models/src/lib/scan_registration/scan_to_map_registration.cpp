@@ -5,6 +5,7 @@
 
 #include <beam_matching/Matchers.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/scan_registration/registration_map.h>

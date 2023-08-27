@@ -15,6 +15,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/time.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/reloc/reloc_methods.h>

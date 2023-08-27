@@ -5,6 +5,7 @@
 
 #include <beam_matching/Matchers.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 
@@ -79,8 +80,7 @@ MultiScanRegistrationBase::MultiScanRegistrationBase(
 bs_constraints::Pose3DStampedTransaction
     MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   // create empty transaction
-  bs_constraints::Pose3DStampedTransaction transaction(
-      new_scan.Stamp());
+  bs_constraints::Pose3DStampedTransaction transaction(new_scan.Stamp());
 
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
@@ -155,7 +155,8 @@ void MultiScanRegistrationBase::AddFirstScan(
   }
 
   if (!params_.disable_lidar_map) {
-    map_.AddPointCloud(scan.Cloud(), scan.LoamCloud(), scan.Stamp(), scan.T_REFFRAME_LIDAR());
+    map_.AddPointCloud(scan.Cloud(), scan.LoamCloud(), scan.Stamp(),
+                       scan.T_REFFRAME_LIDAR());
   }
 
   return;
@@ -255,7 +256,8 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
   if (!params_.disable_lidar_map) {
     Eigen::Matrix4d T_WORLD_LIDAR_AVG =
         beam::AverageTransforms(lidar_poses_est);
-    map_.AddPointCloud(new_scan.Cloud(), new_scan.LoamCloud(), new_scan.Stamp(), T_WORLD_LIDAR_AVG);
+    map_.AddPointCloud(new_scan.Cloud(), new_scan.LoamCloud(), new_scan.Stamp(),
+                       T_WORLD_LIDAR_AVG);
   }
 
   return num_constraints;

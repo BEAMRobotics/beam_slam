@@ -16,7 +16,6 @@ static bool _tmp_bool{true};
 namespace bs_models { namespace scan_registration {
 
 using namespace beam_matching;
-using namespace bs_common;
 
 class MultiScanRegistrationBase : public ScanRegistrationBase {
 public:

@@ -8,6 +8,7 @@
 #include <beam_utils/filesystem.h>
 
 #include <bs_common/bs_msgs.h>
+#include <bs_common/conversions.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
@@ -110,8 +111,9 @@ void LidarOdometry::onStart() {
       ros::TransportHints().tcpNoDelay(false));
 
   if (params_.output_loam_points || params_.output_lidar_points) {
-    results_publisher_ = private_node_handle_.advertise<SlamChunkMsg>(
-        "/local_mapper/slam_results", 100);
+    results_publisher_ =
+        private_node_handle_.advertise<bs_common::SlamChunkMsg>(
+            "/local_mapper/slam_results", 100);
   }
 
   if (params_.publish_registration_results) {
@@ -423,7 +425,7 @@ void LidarOdometry::PublishMarginalizedScanPose(
   if (!params_.output_loam_points && !params_.output_lidar_points) { return; }
 
   // output to global mapper
-  SlamChunkMsg slam_chunk_msg;
+  bs_common::SlamChunkMsg slam_chunk_msg;
   static uint64_t seq = 0;
   geometry_msgs::PoseStamped pose_stamped;
   bs_common::EigenTransformToPoseStamped(
