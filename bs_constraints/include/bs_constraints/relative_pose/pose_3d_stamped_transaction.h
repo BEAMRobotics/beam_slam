@@ -6,13 +6,13 @@
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/transaction.h>
-#include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 
-#include <bs_common/conversions.h>
+#include <bs_variables/orientation_3d.h>
+#include <bs_variables/position_3d.h>
 
-namespace bs_constraints { namespace relative_pose {
+namespace bs_constraints {
 
 class Pose3DStampedTransaction {
 public:
@@ -134,4 +134,4 @@ protected:
   bool override_variables_;
 };
 
-}} // namespace bs_constraints::relative_pose
+} // namespace bs_constraints

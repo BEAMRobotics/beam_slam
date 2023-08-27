@@ -415,7 +415,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
 
   const SubmapPtr& current_submap =
       online_submaps_.at(online_submaps_.size() - 1);
-  bs_constraints::relative_pose::Pose3DStampedTransaction new_transaction(
+  bs_constraints::Pose3DStampedTransaction new_transaction(
       current_submap->Stamp());
   new_transaction.AddPoseVariables(current_submap->Position(),
                                    current_submap->Orientation(),

@@ -38,8 +38,7 @@ fuse_core::Transaction::SharedPtr RelocRefinementLoam::GenerateTransaction(
   }
 
   // create transaction
-  bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
-      query_submap->Stamp());
+  bs_constraints::Pose3DStampedTransaction transaction(query_submap->Stamp());
   transaction.AddPoseConstraint(matched_submap->T_WORLD_SUBMAP(),
                                 query_submap->T_WORLD_SUBMAP(),
                                 matched_submap->Stamp(), query_submap->Stamp(),

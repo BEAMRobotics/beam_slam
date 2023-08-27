@@ -14,7 +14,7 @@
 #include <fuse_core/serialization.h>
 #include <fuse_core/uuid.h>
 
-namespace bs_constraints { namespace global {
+namespace bs_constraints {
 
 /**
  * @brief A constraint that aligns some pose to the absolute gravity direction
@@ -115,7 +115,6 @@ private:
   }
 };
 
-}} // namespace bs_constraints::global
+} // namespace bs_constraints
 
-BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::global::GravityAlignmentStampedConstraint);
+BOOST_CLASS_EXPORT_KEY(bs_constraints::GravityAlignmentStampedConstraint);

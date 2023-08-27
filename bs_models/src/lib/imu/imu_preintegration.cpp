@@ -242,7 +242,7 @@ fuse_core::Transaction::SharedPtr
         fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
         fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
         fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
-  bs_constraints::inertial::ImuState3DStampedTransaction transaction(t_now);
+  bs_constraints::ImuState3DStampedTransaction transaction(t_now);
 
   // check requested time
   if (pre_integrator_ij_.data.empty()) {

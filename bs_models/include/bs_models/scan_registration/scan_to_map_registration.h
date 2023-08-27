@@ -46,7 +46,7 @@ public:
    * previous, unless the map is empty then the transaction will only contain a
    * prior constraint on this pose
    */
-  bs_constraints::relative_pose::Pose3DStampedTransaction
+  bs_constraints::Pose3DStampedTransaction
       RegisterNewScan(const ScanPose& new_scan) override;
 
 protected:

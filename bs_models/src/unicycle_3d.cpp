@@ -115,12 +115,12 @@ void Unicycle3D::generateMotionModel(
   // If the nearest state we had was before the beginning stamp, we need to
   // project that state to the beginning stamp
   if (base_time != beginning_stamp) {
-    bs_constraints::motion::predict(
-        base_state.pose, base_state.velocity_linear,
-        base_state.velocity_angular, base_state.acceleration_linear,
-        (beginning_stamp - base_time).toSec(), state1.pose,
-        state1.velocity_linear, state1.velocity_angular,
-        state1.acceleration_linear);
+    bs_constraints::predict(base_state.pose, base_state.velocity_linear,
+                            base_state.velocity_angular,
+                            base_state.acceleration_linear,
+                            (beginning_stamp - base_time).toSec(), state1.pose,
+                            state1.velocity_linear, state1.velocity_angular,
+                            state1.acceleration_linear);
   } else {
     state1 = base_state;
   }
@@ -128,10 +128,10 @@ void Unicycle3D::generateMotionModel(
   const double dt = (ending_stamp - beginning_stamp).toSec();
 
   // Now predict to get an initial guess for the state at the ending stamp
-  bs_constraints::motion::predict(
-      state1.pose, state1.velocity_linear, state1.velocity_angular,
-      state1.acceleration_linear, dt, state2.pose, state2.velocity_linear,
-      state2.velocity_angular, state2.acceleration_linear);
+  bs_constraints::predict(state1.pose, state1.velocity_linear,
+                          state1.velocity_angular, state1.acceleration_linear,
+                          dt, state2.pose, state2.velocity_linear,
+                          state2.velocity_angular, state2.acceleration_linear);
 
   // Define the fuse variables required for this constraint
   auto position1 = fuse_variables::Position3DStamped::make_shared(
@@ -254,7 +254,7 @@ void Unicycle3D::generateMotionModel(
 
   // Create the constraints for this motion model segment
   auto constraint =
-      bs_constraints::motion::Unicycle3DStateKinematicConstraint::make_shared(
+      bs_constraints::Unicycle3DStateKinematicConstraint::make_shared(
           name(), *position1, *orientation1, *velocity_linear1,
           *velocity_angular1, *acceleration_linear1, *position2, *orientation2,
           *velocity_linear2, *velocity_angular2, *acceleration_linear2,
@@ -359,7 +359,7 @@ void Unicycle3D::updateStateHistoryEstimates(
       // have been corrected (or one of its predecessors may have been), so we
       // can use that corrected value, along with our prediction logic, to
       // provide a more accurate update to this state.
-      bs_constraints::motion::predict(
+      bs_constraints::predict(
           previous_state.pose, previous_state.velocity_linear,
           previous_state.velocity_angular, previous_state.acceleration_linear,
           (current_stamp - previous_stamp).toSec(), current_state.pose,

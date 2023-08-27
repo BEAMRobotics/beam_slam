@@ -55,7 +55,7 @@ public:
 
   ~MultiScanRegistrationBase() = default;
 
-  bs_constraints::relative_pose::Pose3DStampedTransaction
+  bs_constraints::Pose3DStampedTransaction
       RegisterNewScan(const ScanPose& new_scan) override;
 
   // The following public functions are not in the RegistrationBase class so
@@ -79,9 +79,8 @@ protected:
    * @param scan new scan pose to add to map and get prior for
    * @param transaction reference to a transaction for adding a prior
    */
-  void AddFirstScan(
-      const ScanPose& scan,
-      bs_constraints::relative_pose::Pose3DStampedTransaction& transaction);
+  void AddFirstScan(const ScanPose& scan,
+                    bs_constraints::Pose3DStampedTransaction& transaction);
 
   /**
    * @brief Add scan to list of reference scans, while keeping times sorted. It
@@ -97,7 +96,7 @@ protected:
    */
   int RegisterScanToReferences(
       const ScanPose& new_scan,
-      bs_constraints::relative_pose::Pose3DStampedTransaction& transaction);
+      bs_constraints::Pose3DStampedTransaction& transaction);
 
   /**
    * @brief pure virtual function that must be overridden in each derived multi

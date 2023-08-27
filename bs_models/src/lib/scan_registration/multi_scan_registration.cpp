@@ -76,10 +76,10 @@ MultiScanRegistrationBase::MultiScanRegistrationBase(
   params_.disable_lidar_map = disable_lidar_map;
 }
 
-bs_constraints::relative_pose::Pose3DStampedTransaction
+bs_constraints::Pose3DStampedTransaction
     MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   // create empty transaction
-  bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
+  bs_constraints::Pose3DStampedTransaction transaction(
       new_scan.Stamp());
 
   // if first scan, add to list then exit
@@ -139,7 +139,7 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
 
 void MultiScanRegistrationBase::AddFirstScan(
     const ScanPose& scan,
-    bs_constraints::relative_pose::Pose3DStampedTransaction& transaction) {
+    bs_constraints::Pose3DStampedTransaction& transaction) {
   ROS_DEBUG("Adding first scan to reference scans.");
   // BEAM_DEBUG("Adding first scan to reference scans.");
   reference_clouds_.push_front(scan);
@@ -163,7 +163,7 @@ void MultiScanRegistrationBase::AddFirstScan(
 
 int MultiScanRegistrationBase::RegisterScanToReferences(
     const ScanPose& new_scan,
-    bs_constraints::relative_pose::Pose3DStampedTransaction& transaction) {
+    bs_constraints::Pose3DStampedTransaction& transaction) {
   if (!params_.GetBaseParams().save_path.empty()) {
     current_scan_path_ =
         beam::CombinePaths(params_.GetBaseParams().save_path,

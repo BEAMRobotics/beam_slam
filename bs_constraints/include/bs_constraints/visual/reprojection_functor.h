@@ -1,5 +1,4 @@
-#ifndef FUSE_MODELS_VISUAL_COST_FUNCTOR_H
-#define FUSE_MODELS_VISUAL_COST_FUNCTOR_H
+#pragma once
 
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
@@ -68,7 +67,7 @@ public:
 
     // compute the reprojection residual
     Eigen::Matrix<T, 2, 1> result;
-    result = A_.cast<T>() * (b_.cast<T>() - reproj); 
+    result = A_.cast<T>() * (b_.cast<T>() - reproj);
 
     // fill residual
     residual[0] = result[0];
@@ -84,5 +83,3 @@ private:
 };
 
 } // namespace bs_constraints
-
-#endif // FUSE_MODELS_VISUAL_COST_FUNCTOR_H

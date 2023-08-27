@@ -2,27 +2,25 @@
 
 #include <map>
 
-#include <ros/time.h>
 #include <fuse_core/transaction.h>
+#include <ros/time.h>
 
-#include <beam_utils/pointclouds.h>
-#include <beam_matching/Matchers.h>
 #include <beam_filtering/Utils.h>
+#include <beam_matching/Matchers.h>
+#include <beam_utils/pointclouds.h>
 
-#include <bs_models/reloc/reloc_refinement_base.h>
-#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_common/utils.h>
+#include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
+#include <bs_models/reloc/reloc_refinement_base.h>
 
-namespace bs_models {
-
-namespace reloc {
+namespace bs_models { namespace reloc {
 
 /**
  * @brief Templated class for reloc refinement with lidar scan matching
  */
 template <typename MatcherType, typename ParamsType>
 class RelocRefinementScanRegistration : public RelocRefinementBase {
- public:
+public:
   /**
    * @brief constructor requiring only a path to a config file
    * @param config full path to config json
@@ -45,9 +43,10 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
    * @param T_MATCH_QUERY_EST estimated transform between the two submaps. This
    * is determined with a class derived from RelocCandidateSearchBase
    */
-  fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const SubmapPtr& matched_submap, const SubmapPtr& query_submap,
-      const Eigen::Matrix4d& T_MATCH_QUERY_EST) override {
+  fuse_core::Transaction::SharedPtr
+      GenerateTransaction(const SubmapPtr& matched_submap,
+                          const SubmapPtr& query_submap,
+                          const Eigen::Matrix4d& T_MATCH_QUERY_EST) override {
     // extract and filter clouds from matched submap
     PointCloud matched_submap_world = beam_filtering::FilterPointCloud(
         matched_submap->GetLidarPointsInWorldFrameCombined(), filter_params_);
@@ -73,8 +72,7 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
     }
 
     // create transaction
-    bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
-        query_submap->Stamp());
+    bs_constraints::Pose3DStampedTransaction transaction(query_submap->Stamp());
     transaction.AddPoseConstraint(
         matched_submap->T_WORLD_SUBMAP(), query_submap->T_WORLD_SUBMAP(),
         matched_submap->Stamp(), query_submap->Stamp(), T_MATCH_QUERY_OPT,
@@ -120,15 +118,13 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
     return true;
   }
 
- private:
+private:
   /**
    * @brief Method for loading a config json file.
    */
   void LoadConfig() {
     std::string read_path = config_path_;
-    if (read_path.empty()) {
-      return;
-    }
+    if (read_path.empty()) { return; }
 
     if (read_path == "DEFAULT_PATH") {
       read_path = bs_common::GetBeamSlamConfigPath() +
@@ -145,18 +141,16 @@ class RelocRefinementScanRegistration : public RelocRefinementBase {
     try {
       matcher_config_ = J["matcher_config"];
     } catch (...) {
-      BEAM_ERROR(
-          "Missing one or more parameter, using default reloc "
-          "refinement params");
+      BEAM_ERROR("Missing one or more parameter, using default reloc "
+                 "refinement params");
     }
 
     nlohmann::json J_filters;
     try {
       J_filters = J["filters"];
     } catch (...) {
-      ROS_ERROR(
-          "Missing 'filters' param in reloc config file. Not using "
-          "filters.");
+      ROS_ERROR("Missing 'filters' param in reloc config file. Not using "
+                "filters.");
       return;
     }
     filter_params_ = beam_filtering::LoadFilterParamsVector(J_filters);
@@ -248,6 +242,4 @@ using RelocRefinementGicp =
 using RelocRefinementNdt =
     RelocRefinementScanRegistration<NdtMatcher, NdtMatcher::Params>;
 
-}  // namespace reloc
-
-}  // namespace bs_models
+}} // namespace bs_models::reloc

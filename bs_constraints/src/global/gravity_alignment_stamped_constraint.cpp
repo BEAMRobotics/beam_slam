@@ -6,7 +6,7 @@
 #include <ceres/autodiff_cost_function.h>
 #include <pluginlib/class_list_macros.h>
 
-namespace bs_constraints { namespace global {
+namespace bs_constraints {
 
 GravityAlignmentStampedConstraint::GravityAlignmentStampedConstraint(
     const std::string& source, const fuse_core::UUID& orientation_uuid,
@@ -36,10 +36,8 @@ ceres::CostFunction* GravityAlignmentStampedConstraint::costFunction() const {
       new GravityAlignmentCostFunctor(sqrt_information_, gravity_in_baselink_));
 }
 
-}} // namespace bs_constraints::global
+} // namespace bs_constraints
 
-BOOST_CLASS_EXPORT_IMPLEMENT(
-    bs_constraints::global::GravityAlignmentStampedConstraint);
-PLUGINLIB_EXPORT_CLASS(
-    bs_constraints::global::GravityAlignmentStampedConstraint,
-    fuse_core::Constraint);
+BOOST_CLASS_EXPORT_IMPLEMENT(bs_constraints::GravityAlignmentStampedConstraint);
+PLUGINLIB_EXPORT_CLASS(bs_constraints::GravityAlignmentStampedConstraint,
+                       fuse_core::Constraint);

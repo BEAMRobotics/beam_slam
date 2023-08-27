@@ -208,7 +208,7 @@ void Odometry3DPublisher::tfPublishTimerCallback(const ros::TimerEvent& event) {
     tf2::Vector3 unused_acc;
     tf2::Vector3 unused_angular_vel;
 
-    bs_constraints::motion::predict(
+    bs_constraints::predict(
         pose, velocity_linear, velocity_angular, unused_acc,
         event.current_real.toSec() - odom_output_.header.stamp.toSec(), pose,
         velocity_linear, unused_angular_vel, unused_acc);

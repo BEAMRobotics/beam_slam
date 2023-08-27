@@ -156,13 +156,11 @@ pcl::PointCloud<pcl::PointXYZRGBL>
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   const auto constraints = graph.getConstraints();
   for (auto it = constraints.begin(); it != constraints.end(); it++) {
-    if (it->type() !=
-        "bs_constraints::inertial::RelativeImuState3DStampedConstraint") {
+    if (it->type() != "bs_constraints::RelativeImuState3DStampedConstraint") {
       continue;
     }
     auto c = dynamic_cast<
-        const bs_constraints::inertial::RelativeImuState3DStampedConstraint&>(
-        *it);
+        const bs_constraints::RelativeImuState3DStampedConstraint&>(*it);
 
     const auto& variable_uuids = c.variables();
 
@@ -268,12 +266,12 @@ pcl::PointCloud<pcl::PointXYZRGBL>
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   const auto constraints = graph.getConstraints();
   for (auto it = constraints.begin(); it != constraints.end(); it++) {
-    if (it->type() !=
-        "bs_constraints::global::GravityAlignmentStampedConstraint") {
+    if (it->type() != "bs_constraints::GravityAlignmentStampedConstraint") {
       continue;
     }
-    auto c = dynamic_cast<
-        const bs_constraints::global::GravityAlignmentStampedConstraint&>(*it);
+    auto c =
+        dynamic_cast<const bs_constraints::GravityAlignmentStampedConstraint&>(
+            *it);
 
     const auto& variable_uuids = c.variables();
     if (variable_uuids.size() != 1) {

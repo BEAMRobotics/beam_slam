@@ -7,10 +7,10 @@
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/util.h>
 
-namespace bs_constraints { namespace global {
+namespace bs_constraints {
 
 /**
- * @brief Create an absolute constraint on orienation to align with gravity.
+ * @brief Create an absolute constraint on orientation to align with gravity.
  * This constrains 2DOF including roll and pitch, but not yaw which cannot be
  * observed from IMU alone (excluding magnetometer which we do not trust).
  *
@@ -81,4 +81,4 @@ bool GravityAlignmentCostFunctor::operator()(
   return true;
 }
 
-}} // namespace bs_constraints::global
+} // namespace bs_constraints

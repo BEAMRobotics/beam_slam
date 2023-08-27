@@ -18,10 +18,9 @@ ScanToMapRegistrationBase::ScanToMapRegistrationBase(
     const ScanRegistrationParamsBase& base_params)
     : ScanRegistrationBase(base_params) {}
 
-bs_constraints::relative_pose::Pose3DStampedTransaction
+bs_constraints::Pose3DStampedTransaction
     ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
-  bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
-      new_scan.Stamp());
+  bs_constraints::Pose3DStampedTransaction transaction(new_scan.Stamp());
   // add pose variables for new scan
   transaction.AddPoseVariables(new_scan.Position(), new_scan.Orientation(),
                                new_scan.Stamp());
@@ -34,7 +33,8 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
       AddScanToMap(new_scan, T_MAP_SCAN);
       if (base_params_.fix_first_scan) {
         transaction.AddPosePrior(new_scan.Position(), new_scan.Orientation(),
-                                 pose_prior_noise_, "FIRSTSCANPRIOR");
+                                 pose_prior_noise_,
+                                 "ScanToMapRegistrationBase");
       }
       scan_pose_prev_ = std::make_unique<ScanPose>(
           new_scan.Stamp(), new_scan.T_REFFRAME_BASELINK(),
@@ -50,17 +50,16 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
           last_time, T_MAP_SCAN * new_scan.T_LIDAR_BASELINK(),
           new_scan.T_BASELINK_LIDAR());
       if (base_params_.fix_first_scan) {
-        transaction.AddPosePrior(scan_pose_prev_->Position(),
-                                 scan_pose_prev_->Orientation(),
-                                 pose_prior_noise_, "FIRSTSCANPRIOR");
+        transaction.AddPosePrior(
+            scan_pose_prev_->Position(), scan_pose_prev_->Orientation(),
+            pose_prior_noise_, "ScanToMapRegistrationBase");
       }
     }
   }
 
   Eigen::Matrix4d T_MAP_SCAN;
   if (!RegisterScanToMap(new_scan, T_MAP_SCAN)) {
-    return bs_constraints::relative_pose::Pose3DStampedTransaction(
-        new_scan.Stamp());
+    return bs_constraints::Pose3DStampedTransaction(new_scan.Stamp());
   }
 
   /**
@@ -97,8 +96,7 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
 
 ScanToMapLoamRegistration::Params::Params(
     const ScanRegistrationParamsBase& base_params, int _map_size)
-    : ScanRegistrationParamsBase(base_params),
-      map_size(_map_size){}
+    : ScanRegistrationParamsBase(base_params), map_size(_map_size) {}
 
 void ScanToMapLoamRegistration::Params::LoadFromJson(
     const std::string& config) {
@@ -196,7 +194,8 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
 
 void ScanToMapLoamRegistration::AddScanToMap(
     const ScanPose& scan_pose, const Eigen::Matrix4d& T_MAP_SCAN) {
-  map_.AddPointCloud(scan_pose.Cloud(), scan_pose.LoamCloud(), scan_pose.Stamp(), T_MAP_SCAN);
+  map_.AddPointCloud(scan_pose.Cloud(), scan_pose.LoamCloud(),
+                     scan_pose.Stamp(), T_MAP_SCAN);
 }
 
 }} // namespace bs_models::scan_registration

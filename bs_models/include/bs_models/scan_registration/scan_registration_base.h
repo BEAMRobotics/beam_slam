@@ -67,7 +67,7 @@ public:
    * uneccesary data conversions) and then the relative poses are transformed to
    * relative baselink poses given the extrinsics
    */
-  virtual bs_constraints::relative_pose::Pose3DStampedTransaction
+  virtual bs_constraints::Pose3DStampedTransaction
       RegisterNewScan(const ScanPose& new_scan) = 0;
 
   const RegistrationMap& GetMap() const;
