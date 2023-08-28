@@ -134,10 +134,28 @@ void Pose3DStampedTransaction::AddExtrinsicVariablesForFrame(
     return;
   }
 
+  Eigen::Matrix4d T_Baselink_Lidar;
+  if (!extrinsics.GetT_BASELINK_LIDAR(T_Baselink_Lidar, ros::Time::now())) {
+    BEAM_ERROR("Cannot get Lidar extrinsics");
+    throw std::runtime_error{"extrinsics lookup error"};
+  }
+  Eigen::Matrix3d R = T_Baselink_Lidar.block(0, 0, 3, 3);
+  Eigen::Quaterniond q(R);
+
   auto p = bs_variables::Position3D::make_shared(extrinsics.GetWorldFrameId(),
                                                  frame_id);
   auto o = bs_variables::Orientation3D::make_shared(
       extrinsics.GetWorldFrameId(), frame_id);
+
+  p->x() = T_Baselink_Lidar(0, 3);
+  p->y() = T_Baselink_Lidar(1, 3);
+  p->z() = T_Baselink_Lidar(2, 3);
+
+  o->w() = q.w();
+  o->x() = q.x();
+  o->y() = q.y();
+  o->z() = q.z();
+
   transaction_->addVariable(p, override_variables_);
   transaction_->addVariable(o, override_variables_);
 }

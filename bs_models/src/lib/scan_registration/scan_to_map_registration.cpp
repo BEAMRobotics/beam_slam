@@ -28,6 +28,8 @@ bs_constraints::Pose3DStampedTransaction
 
   // if this is the first scan, we need to treat it differently
   if (scan_pose_prev_ == nullptr) {
+    transaction.AddExtrinsicVariablesForFrame(extrinsics_.GetLidarFrameId());
+
     // if registration map is empty, then just add prior, add to map and return
     if (map_.Empty()) {
       Eigen::Matrix4d T_MAP_SCAN = new_scan.T_REFFRAME_LIDAR();
@@ -35,7 +37,7 @@ bs_constraints::Pose3DStampedTransaction
       if (base_params_.fix_first_scan) {
         transaction.AddPosePrior(new_scan.Position(), new_scan.Orientation(),
                                  pose_prior_noise_,
-                                 "ScanToMapRegistrationBase");
+                                 "LidarOdometry::ScanToMapRegistration");
       }
       scan_pose_prev_ = std::make_unique<ScanPose>(
           new_scan.Stamp(), new_scan.T_REFFRAME_BASELINK(),
@@ -53,7 +55,7 @@ bs_constraints::Pose3DStampedTransaction
       if (base_params_.fix_first_scan) {
         transaction.AddPosePrior(
             scan_pose_prev_->Position(), scan_pose_prev_->Orientation(),
-            pose_prior_noise_, "ScanToMapRegistrationBase");
+            pose_prior_noise_, "LidarOdometry::ScanToMapRegistration");
       }
     }
   }
@@ -63,25 +65,16 @@ bs_constraints::Pose3DStampedTransaction
     return bs_constraints::Pose3DStampedTransaction(new_scan.Stamp());
   }
 
-  /**
-   * We need to convert the relative poses measurements from lidar (or cloud)
-   * frames to baselink frames:
-   *
-   * T_BASELINKPREV_BASELINKNEW = inv(T_MAP_BASELINKPREV) * T_MAP_BASELINKNEW
-   */
-  Eigen::Matrix4d T_BASELINKPREV_MAP =
-      beam::InvertTransform(scan_pose_prev_->T_REFFRAME_BASELINK());
-  Eigen::Matrix4d T_MAP_BASELINKNEW = T_MAP_SCAN * new_scan.T_LIDAR_BASELINK();
-  Eigen::Matrix4d T_BASELINKPREV_BASELINKNEW =
-      T_BASELINKPREV_MAP * T_MAP_BASELINKNEW;
+  Eigen::Matrix4d T_ScanPrev_Map =
+      beam::InvertTransform(scan_pose_prev_->T_REFFRAME_LIDAR());
+  Eigen::Matrix4d T_LidarPrev_LidarNew = T_ScanPrev_Map * T_MAP_SCAN;
 
   // add measurement to transaction
   transaction.AddPoseConstraint(
       scan_pose_prev_->Position(), new_scan.Position(),
       scan_pose_prev_->Orientation(), new_scan.Orientation(),
-      bs_common::TransformMatrixToVectorWithQuaternion(
-          T_BASELINKPREV_BASELINKNEW),
-      covariance_weight_ * covariance_, source_);
+      bs_common::TransformMatrixToVectorWithQuaternion(T_LidarPrev_LidarNew),
+      covariance_weight_ * covariance_, source_, extrinsics_.GetLidarFrameId());
 
   // add new registered scan and then trim the map
   AddScanToMap(new_scan, T_MAP_SCAN);

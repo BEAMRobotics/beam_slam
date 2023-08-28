@@ -1,5 +1,6 @@
 #pragma once
 
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/registration_map.h>
@@ -83,6 +84,8 @@ protected:
   Eigen::Matrix<double, 6, 6> covariance_;
   bool use_fixed_covariance_{false};
   RegistrationMap& map_ = RegistrationMap::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
   RegistrationValidation registration_validation_;
   double covariance_weight_{1.0};
 

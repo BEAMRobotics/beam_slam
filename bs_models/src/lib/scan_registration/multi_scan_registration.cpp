@@ -85,6 +85,7 @@ bs_constraints::Pose3DStampedTransaction
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
     AddFirstScan(new_scan, transaction);
+    transaction.AddExtrinsicVariablesForFrame(extrinsics_.GetLidarFrameId());
     return transaction;
   }
 
@@ -205,19 +206,11 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
       lidar_poses_est.push_back(T_WORLD_LIDARCURRENT);
     }
 
-    /**
-     * We need to convert the relative poses measurements from lidar (or cloud)
-     * frames to baselink frames:
-     *
-     * T_BASELINKREF_BASELINKNEW =
-     *    T_BASELINKREF_LIDARREF * T_LIDARREF_LIDARNEW * T_LIDARNEW_BASELINKNEW
-     */
-    Eigen::Matrix4d T_BASELINKREF_BASELINKNEW = ref_iter->T_BASELINK_LIDAR() *
-                                                T_LIDARREF_LIDARTGT *
-                                                new_scan.T_LIDAR_BASELINK();
-
     if (!params_.GetBaseParams().save_path.empty()) {
       // calculate measured pose of target (new scan)
+      Eigen::Matrix4d T_BASELINKREF_BASELINKNEW = ref_iter->T_BASELINK_LIDAR() *
+                                                  T_LIDARREF_LIDARTGT *
+                                                  new_scan.T_LIDAR_BASELINK();
       Eigen::Matrix4d T_REFFRAME_BASELINKNEW =
           ref_iter->T_REFFRAME_BASELINK() * T_BASELINKREF_BASELINKNEW;
 
@@ -240,9 +233,9 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
     transaction.AddPoseConstraint(
         ref_iter->Position(), new_scan.Position(), ref_iter->Orientation(),
         new_scan.Orientation(),
-        bs_common::TransformMatrixToVectorWithQuaternion(
-            T_BASELINKREF_BASELINKNEW),
-        covariance_weight_ * covariance_, source_);
+        bs_common::TransformMatrixToVectorWithQuaternion(T_LIDARREF_LIDARTGT),
+        covariance_weight_ * covariance_, source_,
+        extrinsics_.GetLidarFrameId());
 
     num_constraints++;
   }
