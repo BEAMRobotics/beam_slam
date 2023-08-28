@@ -12,6 +12,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/se3.h>
 
+#include <bs_common/visualization.h>
 #include <bs_constraints/global/absolute_constraint.h>
 #include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
 #include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>

@@ -16,6 +16,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/se3.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
 
@@ -24,6 +25,7 @@
 using namespace bs_models;
 using namespace scan_registration;
 using namespace bs_common;
+using namespace beam_matching;
 
 class ScanToMapLoamRegistrationTest : public ::testing::Test {
 public:
@@ -211,8 +213,8 @@ TEST_F(ScanToMapLoamRegistrationTest, 3Scans) {
   //
   scan_registration->GetMap().Save(
       "/userhome/tmp/loam_scan_registration/maps/1/");
-  EXPECT_EQ(scan_registration->GetMap().NumLoamClouds(), 1);
-  EXPECT_EQ(scan_registration->GetMap().NumPointClouds(), 0);
+  EXPECT_EQ(scan_registration->GetMap().MapSize(), 1);
+  EXPECT_EQ(scan_registration->GetMap().MapSize(), 0);
 
   auto transaction2 =
       scan_registration->RegisterNewScan(SP2_pert).GetTransaction();
@@ -220,8 +222,8 @@ TEST_F(ScanToMapLoamRegistrationTest, 3Scans) {
   //
   scan_registration->GetMap().Save(
       "/userhome/tmp/loam_scan_registration/maps/2/");
-  EXPECT_EQ(scan_registration->GetMap().NumLoamClouds(), 2);
-  EXPECT_EQ(scan_registration->GetMap().NumPointClouds(), 0);
+  EXPECT_EQ(scan_registration->GetMap().MapSize(), 2);
+  EXPECT_EQ(scan_registration->GetMap().MapSize(), 0);
 
   auto transaction3 =
       scan_registration->RegisterNewScan(SP3_pert).GetTransaction();
@@ -229,8 +231,8 @@ TEST_F(ScanToMapLoamRegistrationTest, 3Scans) {
   //
   scan_registration->GetMap().Save(
       "/userhome/tmp/loam_scan_registration/maps/3/");
-  EXPECT_EQ(scan_registration->GetMap().NumLoamClouds(), 3);
-  EXPECT_EQ(scan_registration->GetMap().NumPointClouds(), 0);
+  EXPECT_EQ(scan_registration->GetMap().MapSize(), 3);
+  EXPECT_EQ(scan_registration->GetMap().MapSize(), 0);
 
   graph.update(*transaction1);
   graph.update(*transaction2);
