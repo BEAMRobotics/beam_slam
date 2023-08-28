@@ -437,14 +437,11 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   Eigen::Matrix4d T_PREVIOUS_CURRENT =
       beam::InvertTransform(previous_submap->T_WORLD_SUBMAP()) *
       current_submap->T_WORLD_SUBMAP();
-
-  fuse_variables::Position3DStamped p_diff(current_submap->Stamp());
-  fuse_variables::Orientation3DStamped o_diff(current_submap->Stamp());
-  bs_common::EigenTransformToFusePose(T_PREVIOUS_CURRENT, p_diff, o_diff);
   new_transaction.AddPoseConstraint(
       previous_submap->Position(), current_submap->Position(),
-      previous_submap->Orientation(), current_submap->Orientation(), p_diff,
-      o_diff, params_.local_mapper_covariance, "GlobalMap");
+      previous_submap->Orientation(), current_submap->Orientation(),
+      bs_common::TransformMatrixToVectorWithQuaternion(T_PREVIOUS_CURRENT),
+      params_.local_mapper_covariance, "GlobalMap");
 
   ROS_DEBUG("Returning submap pose prior");
   return new_transaction.GetTransaction();

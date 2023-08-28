@@ -6,6 +6,15 @@
 
 namespace bs_common {
 
+Eigen::Matrix<double, 7, 1>
+    TransformMatrixToVectorWithQuaternion(const Eigen::Matrix4d& T) {
+  Eigen::Matrix3d R = T.block(0, 0, 3, 3);
+  Eigen::Quaterniond q(R);
+  Eigen::Matrix<double, 7, 1> v;
+  v << T(0, 3), T(1, 3), T(2, 3), q.w(), q.x(), q.y(), q.z();
+  return v;
+}
+
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                               fuse_variables::Position3DStamped& p,
                               fuse_variables::Orientation3DStamped& o) {

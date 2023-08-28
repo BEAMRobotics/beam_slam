@@ -11,6 +11,10 @@
 
 namespace bs_common {
 
+// returns [tx, ty, tz, qw, qx, qy, qz]^T
+Eigen::Matrix<double, 7, 1>
+    TransformMatrixToVectorWithQuaternion(const Eigen::Matrix4d& T);
+
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                               fuse_variables::Position3DStamped& p,
                               fuse_variables::Orientation3DStamped& o);

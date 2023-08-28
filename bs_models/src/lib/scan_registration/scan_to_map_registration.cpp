@@ -74,16 +74,14 @@ bs_constraints::Pose3DStampedTransaction
   Eigen::Matrix4d T_MAP_BASELINKNEW = T_MAP_SCAN * new_scan.T_LIDAR_BASELINK();
   Eigen::Matrix4d T_BASELINKPREV_BASELINKNEW =
       T_BASELINKPREV_MAP * T_MAP_BASELINKNEW;
-  fuse_variables::Position3DStamped position_relative;
-  fuse_variables::Orientation3DStamped orientation_relative;
-  bs_common::EigenTransformToFusePose(T_BASELINKPREV_BASELINKNEW,
-                                      position_relative, orientation_relative);
 
   // add measurement to transaction
   transaction.AddPoseConstraint(
       scan_pose_prev_->Position(), new_scan.Position(),
-      scan_pose_prev_->Orientation(), new_scan.Orientation(), position_relative,
-      orientation_relative, covariance_weight_ * covariance_, source_);
+      scan_pose_prev_->Orientation(), new_scan.Orientation(),
+      bs_common::TransformMatrixToVectorWithQuaternion(
+          T_BASELINKPREV_BASELINKNEW),
+      covariance_weight_ * covariance_, source_);
 
   // add new registered scan and then trim the map
   AddScanToMap(new_scan, T_MAP_SCAN);

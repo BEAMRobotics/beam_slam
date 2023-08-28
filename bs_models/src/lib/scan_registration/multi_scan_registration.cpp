@@ -215,10 +215,6 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
     Eigen::Matrix4d T_BASELINKREF_BASELINKNEW = ref_iter->T_BASELINK_LIDAR() *
                                                 T_LIDARREF_LIDARTGT *
                                                 new_scan.T_LIDAR_BASELINK();
-    fuse_variables::Position3DStamped position_relative;
-    fuse_variables::Orientation3DStamped orientation_relative;
-    bs_common::EigenTransformToFusePose(
-        T_BASELINKREF_BASELINKNEW, position_relative, orientation_relative);
 
     if (!params_.GetBaseParams().save_path.empty()) {
       // calculate measured pose of target (new scan)
@@ -243,7 +239,9 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
     // add measurement to transaction
     transaction.AddPoseConstraint(
         ref_iter->Position(), new_scan.Position(), ref_iter->Orientation(),
-        new_scan.Orientation(), position_relative, orientation_relative,
+        new_scan.Orientation(),
+        bs_common::TransformMatrixToVectorWithQuaternion(
+            T_BASELINKREF_BASELINKNEW),
         covariance_weight_ * covariance_, source_);
 
     num_constraints++;

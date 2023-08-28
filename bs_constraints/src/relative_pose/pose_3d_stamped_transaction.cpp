@@ -1,6 +1,8 @@
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 
 #include <bs_common/conversions.h>
+#include <bs_common/extrinsics_lookup_online.h>
+#include <bs_constraints/relative_pose/relative_pose_3d_stamped_with_extrinsics_constraint.h>
 #include <bs_variables/orientation_3d.h>
 #include <bs_variables/position_3d.h>
 
@@ -26,21 +28,50 @@ void Pose3DStampedTransaction::AddPoseConstraint(
     const fuse_variables::Position3DStamped& position2,
     const fuse_variables::Orientation3DStamped& orientation1,
     const fuse_variables::Orientation3DStamped& orientation2,
-    const fuse_variables::Position3DStamped& position2_relative,
-    const fuse_variables::Orientation3DStamped& orientation2_relative,
-    const Eigen::Matrix<double, 6, 6>& covariance, const std::string& source) {
-  // convert relative pose to vector
-  fuse_core::Vector7d pose_relative_mean;
-  pose_relative_mean << position2_relative.x(), position2_relative.y(),
-      position2_relative.z(), orientation2_relative.w(),
-      orientation2_relative.x(), orientation2_relative.y(),
-      orientation2_relative.z();
+    const Eigen::Matrix<double, 7, 1>& diff_Frame1_Frame2,
+    const Eigen::Matrix<double, 6, 6>& covariance, const std::string& source,
+    const std::string& frame_id) {
+  // add regular relative pose constraint if no frame id is provided
+  if (frame_id.empty()) {
+    auto constraint =
+        fuse_constraints::RelativePose3DStampedConstraint::make_shared(
+            source, position1, orientation1, position2, orientation2,
+            diff_Frame1_Frame2, covariance);
+    transaction_->addConstraint(constraint, override_constraints_);
+    return;
+  }
 
-  // build and add constraint
+  bs_common::ExtrinsicsLookupOnline& extrinsics =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  // add regular relative pose constraint if frame id provided is the baselink
+  // frame id
+  if (frame_id == extrinsics.GetBaselinkFrameId()) {
+    auto constraint =
+        fuse_constraints::RelativePose3DStampedConstraint::make_shared(
+            source, position1, orientation1, position2, orientation2,
+            diff_Frame1_Frame2, covariance);
+    transaction_->addConstraint(constraint, override_constraints_);
+    return;
+  }
+
+  if (frame_id != extrinsics.GetLidarFrameId() &&
+      frame_id != extrinsics.GetCameraFrameId()) {
+    BEAM_ERROR(
+        "Invalid frame Id: {}, not adding extrinsics variables to the graph",
+        frame_id);
+    return;
+  }
+
+  // add pose constraint with extrinsics
+  bs_variables::Position3D p_extrinsics(extrinsics.GetWorldFrameId(), frame_id);
+  bs_variables::Orientation3D o_extrinsics(extrinsics.GetWorldFrameId(),
+                                           frame_id);
   auto constraint =
-      fuse_constraints::RelativePose3DStampedConstraint::make_shared(
-          source, position1, orientation1, position2, orientation2,
-          pose_relative_mean, covariance);
+      bs_constraints::RelativePose3DStampedWithExtrinsicsConstraint::
+          make_shared(source, position1, orientation1, position2, orientation2,
+                      p_extrinsics, o_extrinsics, diff_Frame1_Frame2,
+                      covariance);
   transaction_->addConstraint(constraint, override_constraints_);
 }
 
@@ -83,6 +114,32 @@ void Pose3DStampedTransaction::AddPoseVariables(
   transaction_->addVariable(
       fuse_variables::Orientation3DStamped::make_shared(orientation),
       override_variables_);
+}
+
+void Pose3DStampedTransaction::AddExtrinsicVariablesForFrame(
+    const std::string& frame_id) {
+  bs_common::ExtrinsicsLookupOnline& extrinsics =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  if (frame_id == extrinsics.GetBaselinkFrameId()) {
+    BEAM_WARN("Cannot add extrinsics calibration for baselink frame");
+    return;
+  }
+
+  if (frame_id != extrinsics.GetLidarFrameId() &&
+      frame_id != extrinsics.GetCameraFrameId()) {
+    BEAM_ERROR(
+        "Invalid frame Id: {}, not adding extrinsics variables to the graph",
+        frame_id);
+    return;
+  }
+
+  auto p = bs_variables::Position3D::make_shared(extrinsics.GetWorldFrameId(),
+                                                 frame_id);
+  auto o = bs_variables::Orientation3D::make_shared(
+      extrinsics.GetWorldFrameId(), frame_id);
+  transaction_->addVariable(p, override_variables_);
+  transaction_->addVariable(o, override_variables_);
 }
 
 } // namespace bs_constraints
