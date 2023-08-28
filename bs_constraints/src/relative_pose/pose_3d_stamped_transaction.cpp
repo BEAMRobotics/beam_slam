@@ -22,37 +22,6 @@ fuse_core::Transaction::SharedPtr
 }
 
 void Pose3DStampedTransaction::AddPoseConstraint(
-    const Eigen::Matrix4d& T_WORLD_FRAME1,
-    const Eigen::Matrix4d& T_WORLD_FRAME2, const ros::Time& stamp1,
-    const ros::Time& stamp2, const Eigen::Matrix4d& T_FRAME1_FRAME2,
-    const Eigen::Matrix<double, 6, 6>& covariance, const std::string& source,
-    const fuse_core::UUID& device_id) {
-  // convert pose from Eigen to fuse
-  auto p1 = fuse_variables::Position3DStamped::make_shared(stamp1, device_id);
-  auto o1 =
-      fuse_variables::Orientation3DStamped::make_shared(stamp1, device_id);
-  bs_common::EigenTransformToFusePose(T_WORLD_FRAME1, *p1, *o1);
-
-  auto p2 = fuse_variables::Position3DStamped::make_shared(stamp2, device_id);
-  auto o2 =
-      fuse_variables::Orientation3DStamped::make_shared(stamp2, device_id);
-  bs_common::EigenTransformToFusePose(T_WORLD_FRAME2, *p2, *o2);
-
-  // convert relative pose from Eigen to fuse
-  Eigen::Matrix3d R = T_FRAME1_FRAME2.block(0, 0, 3, 3);
-  Eigen::Quaterniond q(R);
-  fuse_core::Vector7d pose_relative_mean;
-  pose_relative_mean << T_FRAME1_FRAME2(0, 3), T_FRAME1_FRAME2(1, 3),
-      T_FRAME1_FRAME2(2, 3), q.w(), q.x(), q.y(), q.z();
-
-  // build and add constraint
-  auto constraint =
-      fuse_constraints::RelativePose3DStampedConstraint::make_shared(
-          source, *p1, *o1, *p2, *o2, pose_relative_mean, covariance);
-  transaction_->addConstraint(constraint, override_constraints_);
-}
-
-void Pose3DStampedTransaction::AddPoseConstraint(
     const fuse_variables::Position3DStamped& position1,
     const fuse_variables::Position3DStamped& position2,
     const fuse_variables::Orientation3DStamped& orientation1,

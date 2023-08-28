@@ -426,7 +426,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   if (online_submaps_.size() == 1) {
     new_transaction.AddPosePrior(current_submap->Position(),
                                  current_submap->Orientation(),
-                                 pose_prior_noise_, "FIRSTSUBMAPPRIOR");
+                                 pose_prior_noise_, "GlobalMap");
     return new_transaction.GetTransaction();
   }
 
@@ -438,11 +438,13 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
       beam::InvertTransform(previous_submap->T_WORLD_SUBMAP()) *
       current_submap->T_WORLD_SUBMAP();
 
-  std::string source = "LOCALMAPPER";
+  fuse_variables::Position3DStamped p_diff(current_submap->Stamp());
+  fuse_variables::Orientation3DStamped o_diff(current_submap->Stamp());
+  bs_common::EigenTransformToFusePose(T_PREVIOUS_CURRENT, p_diff, o_diff);
   new_transaction.AddPoseConstraint(
-      previous_submap->T_WORLD_SUBMAP(), current_submap->T_WORLD_SUBMAP(),
-      previous_submap->Stamp(), current_submap->Stamp(), T_PREVIOUS_CURRENT,
-      params_.local_mapper_covariance, source);
+      previous_submap->Position(), current_submap->Position(),
+      previous_submap->Orientation(), current_submap->Orientation(), p_diff,
+      o_diff, params_.local_mapper_covariance, "GlobalMap");
 
   ROS_DEBUG("Returning submap pose prior");
   return new_transaction.GetTransaction();

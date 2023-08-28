@@ -22,14 +22,6 @@ public:
   fuse_core::Transaction::SharedPtr GetTransaction() const;
 
   void AddPoseConstraint(
-      const Eigen::Matrix4d& T_WORLD_FRAME1,
-      const Eigen::Matrix4d& T_WORLD_FRAME2, const ros::Time& stamp1,
-      const ros::Time& stamp2, const Eigen::Matrix4d& T_FRAME1_FRAME2,
-      const Eigen::Matrix<double, 6, 6>& covariance,
-      const std::string& source = "NULL",
-      const fuse_core::UUID& device_id = fuse_core::uuid::NIL);
-
-  void AddPoseConstraint(
       const fuse_variables::Position3DStamped& position1,
       const fuse_variables::Position3DStamped& position2,
       const fuse_variables::Orientation3DStamped& orientation1,

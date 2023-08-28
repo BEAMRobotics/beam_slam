@@ -9,6 +9,7 @@
 #include <beam_matching/Matchers.h>
 #include <beam_utils/pointclouds.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/reloc/reloc_refinement_base.h>
@@ -73,10 +74,13 @@ public:
 
     // create transaction
     bs_constraints::Pose3DStampedTransaction transaction(query_submap->Stamp());
+    fuse_variables::Position3DStamped p_diff(query_submap->Stamp());
+    fuse_variables::Orientation3DStamped o_diff(query_submap->Stamp());
+    bs_common::EigenTransformToFusePose(T_MATCH_QUERY_OPT, p_diff, o_diff);
     transaction.AddPoseConstraint(
-        matched_submap->T_WORLD_SUBMAP(), query_submap->T_WORLD_SUBMAP(),
-        matched_submap->Stamp(), query_submap->Stamp(), T_MATCH_QUERY_OPT,
-        reloc_covariance_, source_);
+        matched_submap->Position(), query_submap->Position(),
+        matched_submap->Orientation(), query_submap->Orientation(), p_diff,
+        o_diff, reloc_covariance_, source_);
 
     return transaction.GetTransaction();
   }
@@ -232,7 +236,7 @@ private:
   std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
   Eigen::Matrix<double, 6, 6> reloc_covariance_;
   std::vector<beam_filtering::FilterParamsType> filter_params_;
-  std::string source_{"SCANREGRELOC"};
+  std::string source_{"RelocRefinementScanRegistration"};
 };
 
 using RelocRefinementIcp =

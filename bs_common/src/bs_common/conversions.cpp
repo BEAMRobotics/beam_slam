@@ -23,18 +23,6 @@ void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
   o.w() = q.w();
 }
 
-void EigenTransformToFusePose(
-    const Eigen::Matrix4d& T_WORLD_SENSOR,
-    fuse_variables::Position3DStamped::SharedPtr& p,
-    fuse_variables::Orientation3DStamped::SharedPtr& o) {
-  fuse_variables::Position3DStamped p_tmp;
-  fuse_variables::Orientation3DStamped o_tmp;
-  EigenTransformToFusePose(T_WORLD_SENSOR, p_tmp, o_tmp);
-
-  p = fuse_variables::Position3DStamped::make_shared(p_tmp);
-  o = fuse_variables::Orientation3DStamped::make_shared(o_tmp);
-}
-
 void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                               const fuse_variables::Orientation3DStamped& o,
                               Eigen::Matrix4d& T_WORLD_SENSOR) {
