@@ -89,8 +89,8 @@ public:
   double reloc_request_period{1.0};
   double keyframe_parallax{20.0};
   double reprojection_information_weight{1.0};
-  double max_triangulation_distance{50.0};
-  double max_triangulation_reprojection{30.0};
+  double max_triangulation_distance{30.0};
+  double max_triangulation_reprojection{80.0};
   double prior_information_weight{0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };

@@ -126,8 +126,8 @@ public:
   double min_trajectory_length_m{2.0};
   double min_visual_parallax{40.0};
   double frame_init_frequency{0.1};
-  double max_triangulation_distance{50.0};
-  double max_triangulation_reprojection{30.0};
+  double max_triangulation_distance{30.0};
+  double max_triangulation_reprojection{80.0};
   double initialization_window_s{10.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };
