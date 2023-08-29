@@ -304,6 +304,7 @@ bool SLAMInitialization::Initialize() {
 
   if (!params_.output_folder.empty()) {
     graph_poses_before_opt_ = bs_common::GetGraphPosesAsCloud(*local_graph_);
+    local_graph_->print(graph_before_opt_);
   }
 
   if (params_.max_optimization_s > 0.0) {
@@ -574,12 +575,18 @@ void SLAMInitialization::OutputResults() {
   boost::filesystem::create_directory(save_path);
 
   // output graph
-  std::string graph_txt_path = beam::CombinePaths({save_path, "graph.txt"});
+  std::string graph_txt_path =
+      beam::CombinePaths({save_path, "graph_initial.txt"});
   std::ofstream out_graph_file;
   out_graph_file.open(graph_txt_path);
-  std::stringstream ss;
-  local_graph_->print(ss);
-  out_graph_file << ss.rdbuf();
+  out_graph_file << graph_before_opt_.rdbuf();
+  out_graph_file.close();
+
+  graph_txt_path = beam::CombinePaths({save_path, "graph_optimized.txt"});
+  out_graph_file.open(graph_txt_path);
+  std::stringstream ss2;
+  local_graph_->print(ss2);
+  out_graph_file << ss2.rdbuf();
   out_graph_file.close();
 
   // output trajectory
