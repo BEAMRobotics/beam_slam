@@ -2,14 +2,15 @@
 
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
+#include <pluginlib/class_list_macros.h>
 
 #include <beam_cv/geometry/Triangulation.h>
-#include <beam_mapping/Poses.h>
 #include <beam_utils/utils.h>
+
 #include <bs_common/visualization.h>
+#include <bs_models/graph_visualization.h>
 #include <bs_models/imu/inertial_alignment.h>
 #include <bs_models/vision/utils.h>
-#include <pluginlib/class_list_macros.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::SLAMInitialization, fuse_core::SensorModel);
@@ -177,7 +178,7 @@ void SLAMInitialization::processCameraMeasurements(
   }
 
   if (mode_ != InitMode::VISUAL) { return; }
-  
+
   // todo: use parallax rather than window size
 
   // if we haven't reached window size then return
@@ -619,6 +620,33 @@ void SLAMInitialization::OutputResults() {
   std::string imu_biases_plot =
       beam::CombinePaths({save_path, "imu_biases_optimized.pdf"});
   bs_common::PlotImuBiasesFromGraph(*local_graph_, imu_biases_plot);
+
+  // draw graph
+  auto imu_constraints =
+      graph_visualization::GetGraphRelativeImuConstraintsAsCloud(*local_graph_,
+                                                                 0.01, 0.15);
+  auto lidar_constraints = bs_common::GetGraphRelativePoseConstraintsAsCloud(
+      *local_graph_, "LidarOdometry::");
+  if (lidar_constraints.empty()) {
+    lidar_constraints = graph_visualization::
+        GetGraphRelativePoseWithExtrinsicsConstraintsAsCloud(*local_graph_,
+                                                             "LidarOdometry::");
+  }
+  std::string imu_constraints_path =
+      beam::CombinePaths({save_path, "imu_constraints.pcd"});
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          imu_constraints_path, imu_constraints,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+
+  std::string lidar_constraints_path =
+      beam::CombinePaths({save_path, "lidar_constraints.pcd"});
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          lidar_constraints_path, lidar_constraints,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
 }
 
 void SLAMInitialization::shutdown() {
