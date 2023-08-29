@@ -82,9 +82,6 @@ void SLAMInitialization::onInit() {
 
   // set init mode
   if (params_.init_mode == "VISUAL") {
-    // TODO for Jake
-    throw std::runtime_error{
-        "VISUAL MODE DISABLED - JAKE TO SWITCH TO PARALLAX INSTEAD OF TIME"};
     mode_ = InitMode::VISUAL;
   } else if (params_.init_mode == "LIDAR") {
     mode_ = InitMode::LIDAR;
@@ -177,15 +174,14 @@ void SLAMInitialization::processCameraMeasurements(
   }
 
   if (mode_ != InitMode::VISUAL) { return; }
-  
-  // todo: use parallax rather than window size
 
-  // if we haven't reached window size then return
-  if (landmark_container_->NumImages() <
-      max_landmark_container_size_ - calibration_params_.camera_hz / 2) {
-    return;
-  }
+  // return if the min parallax hasn't been reached
+  auto parallax = landmark_container_->ComputeParallax(
+      landmark_container_->FrontTimestamp(),
+      landmark_container_->BackTimestamp());
+  if (parallax < params_.min_visual_parallax) { return; }
 
+  // return if cant get the extrinsic
   if (!extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_)) {
     ROS_ERROR("Unable to get camera to baselink transform.");
     return;

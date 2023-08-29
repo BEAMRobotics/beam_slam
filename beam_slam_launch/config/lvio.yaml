@@ -52,7 +52,7 @@ slam_initialization:
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
-  reprojection_information_weight: 100.0
+  reprojection_information_weight: 1.0
   inertial_information_weight: 0.001
   lidar_information_weight: 10.0
   max_triangulation_distance: 50.0
@@ -69,7 +69,7 @@ visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   reloc_request_period: 3.0
   keyframe_parallax: 20.0
-  reprojection_information_weight: 100
+  reprojection_information_weight: 1.0
   max_triangulation_distance: 50.0
   max_triangulation_reprojection: 30.0
   trigger_inertial_odom_constraints: true
@@ -96,7 +96,7 @@ lidar_odometry:
   publish_active_submap: true
   publish_registration_map: true
   publish_registration_results: true
-  lidar_information_weight: 1000
+  lidar_information_weight: 10.0
   frame_initializer_config: "/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 
