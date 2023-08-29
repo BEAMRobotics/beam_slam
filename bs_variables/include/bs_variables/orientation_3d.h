@@ -2,7 +2,9 @@
 
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/serialization.h>
+#include <fuse_core/util.h>
 #include <fuse_variables/fixed_size_variable.h>
+#include <fuse_variables/orientation_3d_stamped.h>
 
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/base_object.hpp>
@@ -99,12 +101,41 @@ public:
   const std::string& parent() const { return parent_frame_; }
 
   /**
+   * @brief Read-only access to quaternion's Euler roll angle component
+   */
+  double roll() { return fuse_core::getRoll(w(), x(), y(), z()); }
+
+  /**
+   * @brief Read-only access to quaternion's Euler pitch angle component
+   */
+  double pitch() { return fuse_core::getPitch(w(), x(), y(), z()); }
+
+  /**
+   * @brief Read-only access to quaternion's Euler yaw angle component
+   */
+  double yaw() { return fuse_core::getYaw(w(), x(), y(), z()); }
+
+  /**
    * @brief Print a human-readable description of the variable to the provided
    * stream.
    *
    * @param[out] stream The stream to write to. Defaults to stdout.
    */
   void print(std::ostream& stream = std::cout) const override;
+
+  /**
+   * @brief Provides a Ceres local parameterization for the quaternion
+   *
+   * @return A pointer to a local parameterization object that indicates how to
+   * "add" increments to the quaternion
+   */
+  fuse_core::LocalParameterization* localParameterization() const override;
+
+  /**
+   * @brief Specifies if the value of the variable should not be changed during
+   * optimization
+   */
+  bool holdConstant() const override;
 
 private:
   // Allow Boost Serialization access to private methods

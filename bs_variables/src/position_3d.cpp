@@ -31,6 +31,10 @@ void Position3D::print(std::ostream& stream) const {
          << "  - z: " << z() << "\n";
 }
 
+bool Position3D::holdConstant() const {
+  return false;
+}
+
 } // namespace bs_variables
 
 BOOST_CLASS_EXPORT_IMPLEMENT(bs_variables::Position3D);

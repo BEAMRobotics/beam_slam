@@ -64,8 +64,9 @@ void Pose3DStampedTransaction::AddPoseConstraint(
   }
 
   // add pose constraint with extrinsics
-  bs_variables::Position3D p_extrinsics(extrinsics.GetWorldFrameId(), frame_id);
-  bs_variables::Orientation3D o_extrinsics(extrinsics.GetWorldFrameId(),
+  bs_variables::Position3D p_extrinsics(extrinsics.GetBaselinkFrameId(),
+                                        frame_id);
+  bs_variables::Orientation3D o_extrinsics(extrinsics.GetBaselinkFrameId(),
                                            frame_id);
   auto constraint =
       bs_constraints::RelativePose3DStampedWithExtrinsicsConstraint::
@@ -142,10 +143,10 @@ void Pose3DStampedTransaction::AddExtrinsicVariablesForFrame(
   Eigen::Matrix3d R = T_Baselink_Lidar.block(0, 0, 3, 3);
   Eigen::Quaterniond q(R);
 
-  auto p = bs_variables::Position3D::make_shared(extrinsics.GetWorldFrameId(),
-                                                 frame_id);
+  auto p = bs_variables::Position3D::make_shared(
+      extrinsics.GetBaselinkFrameId(), frame_id);
   auto o = bs_variables::Orientation3D::make_shared(
-      extrinsics.GetWorldFrameId(), frame_id);
+      extrinsics.GetBaselinkFrameId(), frame_id);
 
   p->x() = T_Baselink_Lidar(0, 3);
   p->y() = T_Baselink_Lidar(1, 3);

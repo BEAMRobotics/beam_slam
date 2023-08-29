@@ -94,6 +94,12 @@ public:
    */
   void print(std::ostream& stream = std::cout) const override;
 
+  /**
+   * @brief Specifies if the value of the variable should not be changed during
+   * optimization
+   */
+  bool holdConstant() const override;
+
 private:
   // Allow Boost Serialization access to private methods
   friend class boost::serialization::access;

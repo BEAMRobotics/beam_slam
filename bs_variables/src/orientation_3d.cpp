@@ -1,5 +1,6 @@
 #include <bs_variables/orientation_3d.h>
 
+#include <fuse_core/local_parameterization.h>
 #include <fuse_core/uuid.h>
 #include <fuse_core/variable.h>
 #include <fuse_variables/fixed_size_variable.h>
@@ -29,6 +30,14 @@ void Orientation3D::print(std::ostream& stream) const {
          << "  - x: " << x() << "\n"
          << "  - y: " << y() << "\n"
          << "  - z: " << z() << "\n";
+}
+
+fuse_core::LocalParameterization* Orientation3D::localParameterization() const {
+  return new fuse_variables::Orientation3DLocalParameterization();
+}
+
+bool Orientation3D::holdConstant() const {
+  return false;
 }
 
 } // namespace bs_variables
