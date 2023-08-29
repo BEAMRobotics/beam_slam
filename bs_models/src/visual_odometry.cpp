@@ -58,6 +58,11 @@ void VisualOdometry::onInit() {
 
   // get extrinsics
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
+
+  // compute the max container size
+  double lag_duration;
+  ros::param::get("lag_duration", lag_duration);
+  max_container_size_ = calibration_params_.camera_hz * (lag_duration + 1);
 }
 
 void VisualOdometry::onStart() {
@@ -74,7 +79,7 @@ void VisualOdometry::onStart() {
   odometry_publisher_ =
       private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
   keyframe_publisher_ =
-      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 100);
+      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 10);
   imu_constraint_trigger_publisher_ =
       private_node_handle_.advertise<std_msgs::Time>(
           "/local_mapper/inertial_odometry/trigger", 10);
@@ -111,7 +116,7 @@ void VisualOdometry::processMeasurements(
   }
 
   // remove measurements from container if we are over the limit
-  while (landmark_container_->NumImages() > vo_params_.max_container_size) {
+  while (landmark_container_->NumImages() > max_container_size_) {
     landmark_container_->PopFront();
   }
 }
