@@ -110,6 +110,7 @@ private:
   ros::Publisher imu_biases_publisher_ay_;
   ros::Publisher imu_biases_publisher_az_;
 
+  /// @brief vo visualization things
   ros::Subscriber feature_track_subscriber_;
   ros::Subscriber image_subscriber_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;

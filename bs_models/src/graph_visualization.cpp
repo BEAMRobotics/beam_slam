@@ -54,14 +54,14 @@ void GraphVisualization::onInit() {
 void GraphVisualization::onStart() {
   feature_track_subscriber_ =
       private_node_handle_.subscribe<CameraMeasurementMsg>(
-          ros::names::resolve(
-              "/local_mapper/visual_feature_tracker/visual_measurements"),
-          100, &ThrottledMeasurementCallback::callback,
+          "/local_mapper/visual_feature_tracker/visual_measurements", 100,
+          &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
 
+  // todo: hardcoded topic, we need to reference raw topics globally
   image_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Image>(
-      ros::names::resolve("/F1/image"), 10, &ThrottledImageCallback::callback,
+      "/F1/image/", 10, &ThrottledImageCallback::callback,
       &throttled_image_callback_, ros::TransportHints().tcpNoDelay(false));
 
   // setup publishers
