@@ -393,16 +393,6 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     auto transaction = fuse_core::Transaction::make_shared();
     transaction->stamp(timestamp);
 
-    // // get linear accel and angular velocity variables
-    // auto lin_acc =
-    //     fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
-    // auto ang_vel =
-    //     fuse_variables::VelocityAngular3DStamped::make_shared(timestamp);
-    // lin_acc->array() = {0.0, 0.0, 0.0};
-    // ang_vel->array() = {0.0, 0.0, 0.0};
-    // transaction->addVariable(lin_acc);
-    // transaction->addVariable(ang_vel);
-
     // add imu data to preint for this frame
     while (imu_buffer_.front().header.stamp < timestamp &&
            !imu_buffer_.empty()) {

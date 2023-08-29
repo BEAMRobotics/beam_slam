@@ -123,30 +123,7 @@ private:
   /// @param T_WORLD_BASELINK
   void PublishPose(const ros::Time& timestamp,
                    const Eigen::Matrix4d& T_WORLD_BASELINK);
-
-  // /// @brief
-  // /// @param stamp
-  // /// @param T_WORLD_BASELINK
-  // void AddLocalCameraPose(const ros::Time& stamp,
-  //                         const Eigen::Matrix4d& T_WORLD_BASELINK);
-
-  // /// @brief
-  // /// @param stamp
-  // /// @param id
-  // /// @param pixel
-  // bool AddLocalVisualConstraint(const ros::Time& stamp, const uint64_t id,
-  //                               const Eigen::Vector2d& pixel);
-
-  // /// @brief
-  // /// @param stamp
-  // /// @param covariance
-  // void AddLocalPosePrior(const ros::Time& stamp,
-  //                        const Eigen::Matrix<double, 6, 6>& covariance);
-
-  // /// @brief
-  // /// @param stamp
-  // beam::opt<Eigen::Matrix4d> GetLocalBaselinkPose(const ros::Time& stamp);
-
+  
   /// @brief The UUID of this device
   fuse_core::UUID device_id_; //!< The UUID of this device
   /// @brief loadable camera parameters

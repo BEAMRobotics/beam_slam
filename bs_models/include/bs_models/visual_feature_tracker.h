@@ -78,7 +78,6 @@ private:
 
   // publishers
   ros::Publisher measurement_publisher_;
-  ros::Publisher tracked_image_publisher_;
 
   // extrinsics object
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =

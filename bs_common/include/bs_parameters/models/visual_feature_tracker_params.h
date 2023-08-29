@@ -41,7 +41,6 @@ public:
 
     getParam<int>(nh, "sensor_id", sensor_id, 0);
     getParam<int>(nh, "visual_window_size", visual_window_size, 10);
-    getParam<bool>(nh, "publish_tracks", publish_tracks, false);
   }
 
   // subscribing topics
@@ -51,7 +50,6 @@ public:
   std::string descriptor_config{};
   std::string detector_config{};
   std::string tracker_config{};
-  bool publish_tracks{false};
 
   int sensor_id{0};
   int visual_window_size{100};

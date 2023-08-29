@@ -45,7 +45,6 @@ visual_feature_tracker:
   descriptor_config: 'vo/orb_descriptor.json'
   detector_config: 'vo/fastssc_detector.json'
   tracker_config: 'vo/tracker.json'
-  publish_tracks: true
 
 slam_initialization:
   imu_topic: "/imu/data"
@@ -53,7 +52,7 @@ slam_initialization:
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
-  reprojection_information_weight: 1.0
+  reprojection_information_weight: 100.0
   inertial_information_weight: 0.001
   lidar_information_weight: 10.0
   max_triangulation_distance: 50.0
