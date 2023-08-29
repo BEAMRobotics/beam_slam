@@ -192,4 +192,15 @@ std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph) {
   return ids;
 }
 
+fuse_variables::Point3DLandmark::SharedPtr
+    GetLandmark(fuse_core::Graph::ConstSharedPtr graph, const uint64_t id) {
+  auto lm = fuse_variables::Point3DLandmark::make_shared();
+  auto lm_uuid = fuse_core::uuid::generate(lm->type(), id);
+  try {
+    *lm = dynamic_cast<const fuse_variables::Point3DLandmark&>(
+        graph->getVariable(lm_uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
+  return lm;
+}
+
 } // namespace bs_common

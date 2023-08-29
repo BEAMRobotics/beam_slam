@@ -2,9 +2,15 @@
 
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/fuse_macros.h>
+#include <fuse_core/throttled_callback.h>
 
+#include <opencv2/core.hpp>
+
+#include <beam_calibration/CameraModel.h>
+#include <beam_containers/LandmarkContainer.h>
 #include <beam_utils/pointclouds.h>
 
+#include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_common/graph_access.h>
 #include <bs_parameters/models/graph_visualization_params.h>
@@ -83,7 +89,11 @@ private:
 
   pcl::PointCloud<pcl::PointXYZRGBL>
       GetGraphCameraLandmarksAsCloud(const fuse_core::Graph& graph) const;
-      
+
+  void processImage(const sensor_msgs::Image::ConstPtr& msg);
+
+  void processMeasurements(const CameraMeasurementMsg::ConstPtr& msg);
+
   // loadable parameters
   bs_parameters::models::GraphVisualizationParams params_;
 
@@ -99,6 +109,21 @@ private:
   ros::Publisher imu_biases_publisher_ax_;
   ros::Publisher imu_biases_publisher_ay_;
   ros::Publisher imu_biases_publisher_az_;
+
+  ros::Subscriber feature_track_subscriber_;
+  ros::Subscriber image_subscriber_;
+  std::shared_ptr<beam_calibration::CameraModel> cam_model_;
+  std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
+  std::map<uint64_t, sensor_msgs::Image> image_buffer_;
+  ros::Publisher image_publisher_;
+
+  using ThrottledMeasurementCallback =
+      fuse_core::ThrottledMessageCallback<CameraMeasurementMsg>;
+  ThrottledMeasurementCallback throttled_measurement_callback_;
+
+  using ThrottledImageCallback =
+      fuse_core::ThrottledMessageCallback<sensor_msgs::Image>;
+  ThrottledImageCallback throttled_image_callback_;
 
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();

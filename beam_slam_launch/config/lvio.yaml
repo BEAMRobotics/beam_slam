@@ -45,7 +45,6 @@ visual_feature_tracker:
   descriptor_config: 'vo/orb_descriptor.json'
   detector_config: 'vo/fastssc_detector.json'
   tracker_config: 'vo/tracker.json'
-  publish_tracks: true
 
 slam_initialization:
   imu_topic: "/imu/data"

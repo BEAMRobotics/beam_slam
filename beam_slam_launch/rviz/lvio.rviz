@@ -4,6 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /TrackedIm1
         - /IO1/Shape1
         - /VO1/Shape1
         - /LO1/Shape1
@@ -66,7 +67,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /local_mapper/visual_feature_tracker/tracked_image
+      Image Topic: /local_mapper/graph_visualization/tracked_image
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -370,5 +371,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1684
-  X: 1992
-  Y: 27
+  X: 689
+  Y: 99
