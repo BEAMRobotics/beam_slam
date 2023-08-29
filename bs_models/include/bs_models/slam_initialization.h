@@ -203,6 +203,7 @@ private:
 
   // save for plotting
   pcl::PointCloud<pcl::PointXYZRGBL> graph_poses_before_opt_;
+  std::stringstream graph_before_opt_;
 
   // throttled callbacks for messages
   using ThrottledMeasurementCallback =
