@@ -80,20 +80,6 @@ void OdometryFrameInitializer::OdometryCallback(
     const nav_msgs::OdometryConstPtr message) {
   if (check_world_baselink_frames_) { CheckOdometryFrameIDs(message); }
 
-  // add the covariance to the hessian queue
-  boost::array<double, 36> cov_vector = message->pose.covariance;
-  Eigen::Matrix<double, 6, 6> covariance;
-  for (double v : cov_vector) { covariance << v; }
-  hessians_[message->header.stamp.toSec()] =
-      covariance.cast<double>().inverse();
-
-  // clear the hessian queue if we are at the limit
-  ros::Time start(hessians_.begin()->first);
-  ros::Time current = message->header.stamp;
-  if (current - start > poses_buffer_duration_) {
-    hessians_.erase(hessians_.begin());
-  }
-
   // if sensor_frame is already baselink, then we can directly copy
   if (sensor_frame_id_ == extrinsics_.GetBaselinkFrameId()) {
     geometry_msgs::TransformStamped tf_stamped;
@@ -127,30 +113,6 @@ void OdometryFrameInitializer::OdometryCallback(
     BEAM_WARN("Skipping odometry message.");
     return;
   }
-}
-
-// todo: test that this works
-void OdometryFrameInitializer::GetMarginalCovariance(
-    Eigen::Matrix<double, 6, 6>& cov, const ros::Time& tA,
-    const ros::Time& tB) {
-  double t1 = tA.toSec();
-  double t2 = tB.toSec();
-
-  auto lb = hessians_.lower_bound(t1);
-  auto ub = hessians_.upper_bound(t2);
-  if (lb == hessians_.end() || ub == hessians_.end() || lb->first == t1) {
-    cov = Eigen::Matrix<double, 6, 6>::Identity();
-  }
-  lb = std::prev(lb);
-
-  Eigen::Matrix<double, 6, 6> summed_hessian;
-
-  auto it = lb;
-  while (it != ub) {
-    summed_hessian += it->second;
-    it = std::next(it);
-  }
-  cov = summed_hessian.inverse();
 }
 
 }} // namespace bs_models::frame_initializers

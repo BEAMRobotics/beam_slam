@@ -5,6 +5,7 @@
 
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
+#include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel);
@@ -100,15 +101,19 @@ void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
   const auto [T_IMUprev_IMUcurr, cov_rel] =
       imu_preint_->GetRelativeMotion(prev_stamp, curr_stamp, velocity_curr);
 
-  // todo:
-  // cov_rel is in order: roll,pitch,yaw,x,y,z
-  // we need x,y,z,roll,pitch,yaw
+  // reorder covariance from: roll,pitch,yaw,x,y,z to x,y,z,roll,pitch,yaw
+  Eigen::Matrix<double, 6, 6> cov_reordered =
+      Eigen::Matrix<double, 6, 6>::Zero();
+  cov_reordered.block<3, 3>(0, 0) = cov_rel.block<3, 3>(3, 3);
+  cov_reordered.block<3, 3>(0, 3) = cov_rel.block<3, 3>(3, 0);
+  cov_reordered.block<3, 3>(3, 0) = cov_rel.block<3, 3>(0, 3);
+  cov_reordered.block<3, 3>(3, 3) = cov_rel.block<3, 3>(0, 0);
 
   // publish relative odometry
   T_ODOM_IMUprev_ = T_ODOM_IMUprev_ * T_IMUprev_IMUcurr;
   auto odom_msg_rel = bs_common::TransformToOdometryMessage(
       curr_stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov_rel);
+      extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov_reordered);
   odometry_publisher_.publish(odom_msg_rel);
 }
 
@@ -131,12 +136,6 @@ void InertialOdometry::onGraphUpdate(
   ROS_INFO("InertialOdometry received initial graph.");
   std::set<ros::Time> timestamps = bs_common::CurrentTimestamps(graph_msg);
 
-  // todo:
-  // 1. get every imu constraint in the graph
-  // 2. order it by imu_state_i stamp
-  // 3. publish the position/orientation as odometry
-  // 4. use the preintegrator in it to get the covariance
-
   // publish poses in initial graph as odometry
   for (const auto& stamp : timestamps) {
     T_ODOM_IMUprev_ =
@@ -145,7 +144,7 @@ void InertialOdometry::onGraphUpdate(
     auto odom_msg = bs_common::TransformToOdometryMessage(
         stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
         extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_,
-        Eigen::Matrix<double, 6, 6>::Identity());
+        Eigen::Matrix<double, 6, 6>::Identity() * 1e-5);
     odometry_publisher_.publish(odom_msg);
   }
 

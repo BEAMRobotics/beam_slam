@@ -47,12 +47,6 @@ public:
                        std::string& error_msg = frame_initializer_error_msg);
 
   /**
-   * @brief Virtual method for returning the marginal covariance between states
-   */
-  virtual void GetMarginalCovariance(Eigen::Matrix<double, 6, 6>& cov,
-                                     const ros::Time& tA, const ros::Time& tB);
-
-  /**
    * @brief Factory method for creating a Frame initializer from a json config
    * @param config_path path to json config
    * @return unique ptr to a frame initializer
