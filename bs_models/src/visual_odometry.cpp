@@ -199,7 +199,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
     // add a prior on the initial imu estimate
     Eigen::Matrix<double, 6, 6> prior =
-        0.0001 * Eigen::Matrix<double, 6, 6>::Identity();
+        1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
         T_CAMERA_WORLD_est, cam_model_, pixels, points,
         std::make_shared<Eigen::Matrix<double, 6, 6>>(prior));

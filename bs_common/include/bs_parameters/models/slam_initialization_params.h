@@ -106,7 +106,6 @@ public:
       ROS_ERROR("Cannot read input VO Params, using default.");
     } else {
       max_triangulation_distance = J["max_triangulation_distance"];
-      max_triangulation_reprojection = J["max_triangulation_reprojection"];
     }
   }
 
@@ -127,7 +126,6 @@ public:
   double min_visual_parallax{40.0};
   double frame_init_frequency{0.1};
   double max_triangulation_distance{30.0};
-  double max_triangulation_reprojection{80.0};
   double initialization_window_s{10.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };

@@ -520,8 +520,7 @@ beam::opt<Eigen::Vector3d>
   }
   if (T_cam_world_v.size() >= 3) {
     return beam_cv::Triangulation::TriangulatePoint(
-        cam_model_, T_cam_world_v, pixels, params_.max_triangulation_distance,
-        params_.max_triangulation_reprojection);
+        cam_model_, T_cam_world_v, pixels, params_.max_triangulation_distance);
   }
   return {};
 }
