@@ -1,4 +1,4 @@
-#include <bs_variables/gyro_bias_3d_stamped.h>
+#include <bs_variables/inverse_depth_landmark.h>
 
 #include <ostream>
 
@@ -12,10 +12,19 @@
 namespace bs_variables {
 
 InverseDepthLandmark::InverseDepthLandmark(const uint64_t& id,
-                                           const ros::Time& anchor_time)
+                                           const Eigen::Vector3d& bearing,
+                                           const ros::Time& anchor_stamp)
     : FixedSizeVariable(fuse_core::uuid::generate(detail::type(), id)),
       id_(id),
-      anchor_stamp_(anchor_time) {}
+      anchor_stamp_(anchor_stamp) {
+  mx_ = bearing[0];
+  my_ = bearing[1];
+  if (bearing[2] != 1.0) {
+    ROS_FATAL("Invalid bearing vector, 3rd component must equal 1.0.");
+    throw std::runtime_error(
+        "Invalid bearing vector, 3rd component must equal 1.0.");
+  }
+}
 
 void InverseDepthLandmark::print(std::ostream& stream) const {
   stream << type() << ":\n"
@@ -25,8 +34,8 @@ void InverseDepthLandmark::print(std::ostream& stream) const {
          << "  size: " << size() << "\n"
          << "  data:\n"
          << "  - rho: " << rho() << "\n"
-         << "  - mx: " << bearing()[0] << "\n"
-         << "  - my: " << bearing()[1] << "\n";
+         << "  - mx: " << mx_ << "\n"
+         << "  - my: " << my_ << "\n";
 }
 
 } // namespace bs_variables

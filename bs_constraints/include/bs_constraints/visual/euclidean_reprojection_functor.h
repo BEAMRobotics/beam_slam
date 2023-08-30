@@ -7,14 +7,13 @@
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_cv/Utils.h>
-#include <beam_optimization/CamPoseReprojectionCost.h>
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
 #include <ceres/rotation.h>
 
 namespace bs_constraints {
 
-class ReprojectionFunctor {
+class EuclideanReprojectionFunctor {
 public:
   FUSE_MAKE_ALIGNED_OPERATOR_NEW();
 
@@ -24,7 +23,7 @@ public:
    * @param[in] pixel_measurement The pixel location of feature in the image
    * @param[in] cam_model The camera intrinsics for projection
    */
-  ReprojectionFunctor(const Eigen::Matrix2d& A, const Eigen::Vector2d& b,
+  EuclideanReprojectionFunctor(const Eigen::Matrix2d& A, const Eigen::Vector2d& b,
                       const Eigen::Matrix3d& intrinsic_matrix,
                       const Eigen::Matrix4d& T_cam_baselink)
       : A_(A),

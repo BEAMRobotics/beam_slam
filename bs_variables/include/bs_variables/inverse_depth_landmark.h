@@ -30,10 +30,11 @@ public:
    * @brief Construct an inverse depth landmark.
    *
    * @param[in] id of landmark
-   * @param[in] anchor_time timestamp of the anchor pose to this landmark
+   * @param[in] anchor_stamp timestamp of the anchor pose to this landmark
    */
   explicit InverseDepthLandmark(const uint64_t& id,
-                                const ros::Time& anchor_time);
+                                const Eigen::Vector3d& bearing,
+                                const ros::Time& anchor_stamp);
 
   /**
    * @brief Read-write access to the inverse depth
@@ -68,7 +69,7 @@ public:
   /**
    * @brief Read-only access to the id
    */
-  const ros::Time& anchorStamp() const { return anchor_time_; }
+  const ros::Time& anchorStamp() const { return anchor_stamp_; }
 
   /**
    * @brief Print a human-readable description of the variable to the provided
@@ -82,7 +83,7 @@ private:
   double mx_;
   double my_;
   uint64_t id_{0};
-  ros::Time anchor_time_;
+  ros::Time anchor_stamp_;
 
   // Allow Boost Serialization access to private methods
   friend class boost::serialization::access;
@@ -99,10 +100,9 @@ private:
   template <class Archive>
   void serialize(Archive& archive, const unsigned int /* version */) {
     archive& boost::serialization::base_object<FixedSizeVariable<SIZE>>(*this);
-    archive& boost::serialization::base_object<Stamped>(*this);
   }
 };
 
 } // namespace bs_variables
 
-BOOST_CLASS_EXPORT_KEY(bs_variables::GyroscopeBias3DStamped);
+BOOST_CLASS_EXPORT_KEY(bs_variables::InverseDepthLandmark);
