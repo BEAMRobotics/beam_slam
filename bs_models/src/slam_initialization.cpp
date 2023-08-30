@@ -305,6 +305,12 @@ bool SLAMInitialization::Initialize() {
   if (!params_.output_folder.empty()) {
     graph_poses_before_opt_ = bs_common::GetGraphPosesAsCloud(*local_graph_);
     local_graph_->print(graph_before_opt_);
+    lidar_constraints_before_opt_ = graph_visualization::
+        GetGraphRelativePoseWithExtrinsicsConstraintsAsCloud(*local_graph_,
+                                                             "LidarOdometry::");
+    imu_constraints_before_opt_ =
+        graph_visualization::GetGraphRelativeImuConstraintsAsCloud(
+            *local_graph_, 0.01, 0.15);
   }
 
   if (params_.max_optimization_s > 0.0) {
@@ -640,7 +646,15 @@ void SLAMInitialization::OutputResults() {
                                                              "LidarOdometry::");
   }
   std::string imu_constraints_path =
-      beam::CombinePaths({save_path, "imu_constraints.pcd"});
+      beam::CombinePaths({save_path, "imu_constraints_initial.pcd"});
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          imu_constraints_path, imu_constraints_before_opt_,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+
+  imu_constraints_path =
+      beam::CombinePaths({save_path, "imu_constraints_opt.pcd"});
   if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
           imu_constraints_path, imu_constraints,
           beam::PointCloudFileType::PCDBINARY, error_message)) {
@@ -648,9 +662,17 @@ void SLAMInitialization::OutputResults() {
   }
 
   std::string lidar_constraints_path =
-      beam::CombinePaths({save_path, "lidar_constraints.pcd"});
+      beam::CombinePaths({save_path, "lidar_constraints_opt.pcd"});
   if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
           lidar_constraints_path, lidar_constraints,
+          beam::PointCloudFileType::PCDBINARY, error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+  }
+
+  lidar_constraints_path =
+      beam::CombinePaths({save_path, "lidar_constraints_initial.pcd"});
+  if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
+          lidar_constraints_path, lidar_constraints_before_opt_,
           beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }

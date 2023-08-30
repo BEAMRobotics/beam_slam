@@ -204,6 +204,8 @@ private:
   // save for plotting
   pcl::PointCloud<pcl::PointXYZRGBL> graph_poses_before_opt_;
   std::stringstream graph_before_opt_;
+  pcl::PointCloud<pcl::PointXYZRGBL> lidar_constraints_before_opt_;
+  pcl::PointCloud<pcl::PointXYZRGBL> imu_constraints_before_opt_;
 
   // throttled callbacks for messages
   using ThrottledMeasurementCallback =
