@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include <fuse_loss/cauchy_loss.h>
 #include <ros/node_handle.h>
 #include <ros/param.h>
@@ -53,8 +55,14 @@ public:
     getParam<double>(nh, "min_trajectory_length_m", min_trajectory_length_m,
                      min_trajectory_length_m);
 
+    // minimum acceptable parallax to intialize (if using frame init is
+    // given or using VISUAL)
+    getParam<double>(nh, "min_visual_parallax", min_visual_parallax,
+                     min_visual_parallax);
+
     // weighting factor on inertial measurements
-    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) * Residuals
+    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
+    // Residuals
     getParam<double>(nh, "inertial_info_weight", inertial_info_weight,
                      inertial_info_weight);
 
@@ -65,22 +73,17 @@ public:
                      initialization_window_s);
 
     // weighting factor on visual measurements
-    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) * Residuals
+    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
+    // Residuals
     getParam<double>(nh, "reprojection_information_weight",
                      reprojection_information_weight,
                      reprojection_information_weight);
 
     // weighting factor on lidar scan registration measurements
-    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) * Residuals
+    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
+    // Residuals
     getParam<double>(nh, "lidar_information_weight", lidar_information_weight,
                      lidar_information_weight);
-
-    getParam<double>(nh, "max_triangulation_distance",
-                     max_triangulation_distance, max_triangulation_distance);
-
-    getParam<double>(nh, "max_triangulation_reprojection",
-                     max_triangulation_reprojection,
-                     max_triangulation_reprojection);
 
     std::string matcher_config_rel;
     getParam<std::string>(nh, "matcher_config", matcher_config_rel,
@@ -94,6 +97,16 @@ public:
     // reprojection loss
     reprojection_loss =
         std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
+
+    // read vo params
+    std::string vo_params = beam::CombinePaths(
+        bs_common::GetBeamSlamConfigPath(), "vo/vo_params.json");
+    nlohmann::json J;
+    if (!beam::ReadJson(vo_params, J)) {
+      ROS_ERROR("Cannot read input VO Params, using default.");
+    } else {
+      max_triangulation_distance = J["max_triangulation_distance"];
+    }
   }
 
   std::string visual_measurement_topic{
@@ -110,9 +123,9 @@ public:
   double reprojection_information_weight{1.0};
   double lidar_information_weight{1.0};
   double min_trajectory_length_m{2.0};
+  double min_visual_parallax{40.0};
   double frame_init_frequency{0.1};
-  double max_triangulation_distance{40.0};
-  double max_triangulation_reprojection{30.0};
+  double max_triangulation_distance{30.0};
   double initialization_window_s{10.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };

@@ -45,10 +45,6 @@ public:
       prior_covariance = cov_weight * Eigen::Matrix<double, 6, 6>::Identity();
     }
 
-    // feature tracker container size
-    getParam<int>(nh, "max_container_size", max_container_size,
-                  max_container_size);
-
     // period in which to perform reloc requests
     getParam<double>(nh, "reloc_request_period", reloc_request_period,
                      reloc_request_period);
@@ -58,34 +54,43 @@ public:
                    trigger_inertial_odom_constraints,
                    trigger_inertial_odom_constraints);
 
-    // keyframe decision parameters
+    // keyframe parallax (rotation adjusted as in vins mono)
     getParam<double>(nh, "keyframe_parallax", keyframe_parallax,
                      keyframe_parallax);
+
+    // weighting factor on visual measurements
+    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
+    // Residuals
     getParam<double>(nh, "reprojection_information_weight",
                      reprojection_information_weight,
                      reprojection_information_weight);
-    getParam<double>(nh, "max_triangulation_distance",
-                     max_triangulation_distance, max_triangulation_distance);
-    getParam<double>(nh, "max_triangulation_reprojection",
-                     max_triangulation_reprojection,
-                     max_triangulation_reprojection);
 
     double reprojection_loss_a = 5.0 * reprojection_information_weight;
     // reprojection loss
     reprojection_loss =
         std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
+
+    // read vo params
+    std::string vo_params = beam::CombinePaths(
+        bs_common::GetBeamSlamConfigPath(), "vo/vo_params.json");
+    nlohmann::json J;
+    if (!beam::ReadJson(vo_params, J)) {
+      ROS_ERROR("Cannot read input VO Params, using default.");
+    } else {
+      max_triangulation_distance = J["max_triangulation_distance"];
+      max_triangulation_reprojection = J["max_triangulation_reprojection"];
+    }
   }
 
   std::string frame_initializer_config{};
   Eigen::Matrix<double, 6, 6> prior_covariance;
 
   bool trigger_inertial_odom_constraints{true};
-  int max_container_size{300};
   double reloc_request_period{1.0};
-  double keyframe_parallax{40.0};
+  double keyframe_parallax{20.0};
   double reprojection_information_weight{1.0};
-  double max_triangulation_distance{40.0};
-  double max_triangulation_reprojection{40.0};
+  double max_triangulation_distance{30.0};
+  double max_triangulation_reprojection{80.0};
   double prior_information_weight{0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };

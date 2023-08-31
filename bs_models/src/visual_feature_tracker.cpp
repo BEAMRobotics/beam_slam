@@ -51,8 +51,6 @@ void VisualFeatureTracker::onStart() {
 
   measurement_publisher_ = private_node_handle_.advertise<CameraMeasurementMsg>(
       "visual_measurements", 5);
-  tracked_image_publisher_ =
-      private_node_handle_.advertise<sensor_msgs::Image>("tracked_image", 5);
 }
 
 /************************************************************
@@ -74,18 +72,6 @@ void VisualFeatureTracker::processImage(
 
   const auto measurement_msg = BuildCameraMeasurement(prev_time_, *msg);
   measurement_publisher_.publish(measurement_msg);
-
-  if (params_.publish_tracks) {
-    if (prev_time_ - prev_track_publish > ros::Duration(0.1)) {
-      cv::Mat track_image =
-          tracker_->DrawTracks(tracker_->GetTracks(prev_time_), image);
-      sensor_msgs::Image out_msg = beam_cv::OpenCVConversions::MatToRosImg(
-          track_image, msg->header, "rgb8");
-      tracked_image_publisher_.publish(out_msg);
-      prev_track_publish = prev_time_;
-    }
-  }
-
   prev_time_ = msg->header.stamp;
 }
 

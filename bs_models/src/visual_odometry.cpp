@@ -58,6 +58,11 @@ void VisualOdometry::onInit() {
 
   // get extrinsics
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
+
+  // compute the max container size
+  double lag_duration;
+  ros::param::get("lag_duration", lag_duration);
+  max_container_size_ = calibration_params_.camera_hz * (lag_duration + 1);
 }
 
 void VisualOdometry::onStart() {
@@ -74,7 +79,7 @@ void VisualOdometry::onStart() {
   odometry_publisher_ =
       private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
   keyframe_publisher_ =
-      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 100);
+      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 10);
   imu_constraint_trigger_publisher_ =
       private_node_handle_.advertise<std_msgs::Time>(
           "/local_mapper/inertial_odometry/trigger", 10);
@@ -111,7 +116,7 @@ void VisualOdometry::processMeasurements(
   }
 
   // remove measurements from container if we are over the limit
-  while (landmark_container_->NumImages() > vo_params_.max_container_size) {
+  while (landmark_container_->NumImages() > max_container_size_) {
     landmark_container_->PopFront();
   }
 }
@@ -130,17 +135,6 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(timestamp);
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
-
-  // // add acceleration and velocity
-  // auto lin_acc =
-  //     fuse_variables::AccelerationLinear3DStamped::make_shared(timestamp);
-  // auto ang_vel =
-  //     fuse_variables::VelocityAngular3DStamped::make_shared(timestamp);
-  // lin_acc->array() = {0.0, 0.0, 0.0};
-  // ang_vel->array() = {0.0, 0.0, 0.0};
-  // transaction->addVariable(lin_acc);
-  // transaction->addVariable(ang_vel);
-
   previous_frame_ = timestamp;
   sendTransaction(transaction);
 
@@ -205,7 +199,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
     // add a prior on the initial imu estimate
     Eigen::Matrix<double, 6, 6> prior =
-        0.0001 * Eigen::Matrix<double, 6, 6>::Identity();
+        1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
         T_CAMERA_WORLD_est, cam_model_, pixels, points,
         std::make_shared<Eigen::Matrix<double, 6, 6>>(prior));
@@ -425,7 +419,6 @@ void VisualOdometry::AddMeasurementsToContainer(
   if (times.find(msg->header.stamp) != times.end()) { return; }
 
   // put all measurements into landmark container
-  beam::HighResolutionTimer timer;
   for (const auto& lm : msg->landmarks) {
     Eigen::Vector2d landmark(static_cast<double>(lm.pixel_u),
                              static_cast<double>(lm.pixel_v));
@@ -536,139 +529,5 @@ void VisualOdometry::PublishPose(const ros::Time& timestamp,
                                          extrinsics_.GetBaselinkFrameId(), msg);
   keyframe_publisher_.publish(msg);
 }
-
-/****************************************************/
-/*                                                  */
-/*                                                  */
-/*              Local Graph Functions               */
-/*                                                  */
-/*                                                  */
-/****************************************************/
-// void VisualOdometry::AddLocalCameraPose(
-//     const ros::Time& stamp, const Eigen::Matrix4d& T_WORLD_BASELINK) {
-//   // transform pose into baselink coord space
-//   Eigen::Quaterniond q;
-//   Eigen::Vector3d p;
-//   beam::TransformMatrixToQuaternionAndTranslation(T_WORLD_BASELINK, q, p);
-
-//   // construct position variable
-//   fuse_variables::Position3DStamped::SharedPtr position =
-//       fuse_variables::Position3DStamped::make_shared(stamp);
-//   position->x() = p[0];
-//   position->y() = p[1];
-//   position->z() = p[2];
-//   local_graph_->addVariable(position);
-
-//   // add orientation variable
-//   fuse_variables::Orientation3DStamped::SharedPtr orientation =
-//       fuse_variables::Orientation3DStamped::make_shared(stamp);
-//   orientation->w() = q.w();
-//   orientation->x() = q.x();
-//   orientation->y() = q.y();
-//   orientation->z() = q.z();
-//   local_graph_->addVariable(orientation);
-// }
-
-// bool VisualOdometry::AddLocalVisualConstraint(const ros::Time& stamp,
-//                                               const uint64_t id,
-//                                               const Eigen::Vector2d& pixel) {
-//   auto position = fuse_variables::Position3DStamped::make_shared();
-//   auto position_uuid =
-//       fuse_core::uuid::generate(position->type(), stamp,
-//       fuse_core::uuid::NIL);
-//   *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
-//       local_graph_->getVariable(position_uuid));
-
-//   auto orientation = fuse_variables::Orientation3DStamped::make_shared();
-//   auto orientation_uuid = fuse_core::uuid::generate(orientation->type(),
-//   stamp,
-//                                                     fuse_core::uuid::NIL);
-//   *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-//       local_graph_->getVariable(orientation_uuid));
-
-//   auto landmark = fuse_variables::Point3DLandmark::make_shared();
-//   auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), id);
-//   *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(
-//       local_graph_->getVariable(landmark_uuid));
-
-//   // rectify pixel
-//   Eigen::Vector2i rectified_pixel;
-//   if (!cam_model_->UndistortPixel(pixel.cast<int>(), rectified_pixel)) {
-//     return false;
-//   }
-//   Eigen::Vector2d measurement = rectified_pixel.cast<double>();
-
-//   if (!position || !orientation) { return false; }
-//   try {
-//     if (landmark) {
-//       auto vis_constraint =
-//           std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
-//               "VO", *orientation, *position, *landmark, T_cam_baselink_,
-//               cam_intrinsic_matrix_, measurement,
-//               vo_params_.reprojection_information_weight);
-//       vis_constraint->loss(vo_params_.reprojection_loss);
-//       local_graph_->addConstraint(vis_constraint);
-//       return true;
-//     }
-//   } catch (const std::logic_error& le) {}
-
-//   return false;
-// }
-
-// void VisualOdometry::AddLocalPosePrior(
-//     const ros::Time& stamp, const Eigen::Matrix<double, 6, 6>& covariance) {
-//   auto position = fuse_variables::Position3DStamped::make_shared();
-//   auto position_uuid =
-//       fuse_core::uuid::generate(position->type(), stamp,
-//       fuse_core::uuid::NIL);
-//   *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
-//       local_graph_->getVariable(position_uuid));
-
-//   auto orientation = fuse_variables::Orientation3DStamped::make_shared();
-//   auto orientation_uuid = fuse_core::uuid::generate(orientation->type(),
-//   stamp,
-//                                                     fuse_core::uuid::NIL);
-//   *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-//       local_graph_->getVariable(orientation_uuid));
-
-//   if (position && orientation) {
-//     fuse_core::Vector7d mean;
-//     mean << position->x(), position->y(), position->z(), orientation->w(),
-//         orientation->x(), orientation->y(), orientation->z();
-
-//     auto prior =
-//         std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-//             "PRIOR", *position, *orientation, mean, covariance);
-//     local_graph_->addConstraint(prior);
-//   }
-// }
-
-// beam::opt<Eigen::Matrix4d>
-//     VisualOdometry::GetLocalBaselinkPose(const ros::Time& stamp) {
-//   auto position = fuse_variables::Position3DStamped::make_shared();
-//   auto position_uuid =
-//       fuse_core::uuid::generate(position->type(), stamp,
-//       fuse_core::uuid::NIL);
-//   *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
-//       local_graph_->getVariable(position_uuid));
-
-//   auto orientation = fuse_variables::Orientation3DStamped::make_shared();
-//   auto orientation_uuid = fuse_core::uuid::generate(orientation->type(),
-//   stamp,
-//                                                     fuse_core::uuid::NIL);
-//   *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-//       local_graph_->getVariable(orientation_uuid));
-//   if (position && orientation) {
-//     Eigen::Vector3d p(position->data());
-//     Eigen::Quaterniond q(orientation->w(), orientation->x(),
-//     orientation->y(),
-//                          orientation->z());
-//     Eigen::Matrix4d T_WORLD_BASELINK;
-//     beam::QuaternionAndTranslationToTransformMatrix(q, p, T_WORLD_BASELINK);
-//     return T_WORLD_BASELINK;
-//   } else {
-//     return {};
-//   }
-// }
 
 } // namespace bs_models

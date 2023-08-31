@@ -1,0 +1,6 @@
+{
+  "max_triangulation_distance": 30.0,
+  "max_triangulation_reprojection": 20.0,
+  "reprojection_information_weight": 1.0,
+  "min_track_length": 5
+}

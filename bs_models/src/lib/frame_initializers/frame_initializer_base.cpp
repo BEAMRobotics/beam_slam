@@ -135,10 +135,4 @@ bool FrameInitializerBase::GetRelativePose(Eigen::Matrix4d& T_A_B,
   return true;
 }
 
-void FrameInitializerBase::GetMarginalCovariance(
-    Eigen::Matrix<double, 6, 6>& cov, const ros::Time& tA,
-    const ros::Time& tB) {
-  cov = Eigen::Matrix<double, 6, 6>::Identity();
-}
-
 }} // namespace bs_models::frame_initializers
