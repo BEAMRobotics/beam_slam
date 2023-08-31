@@ -68,25 +68,21 @@ public:
     T_BASELINKm_WORLD.block(0, 3, 3, 1) =
         -R_WORLD_BASELINKm.transpose() * t_WORLD_BASELINKm;
 
-    // get poses wrt camera frame
-    Eigen::Matrix<T, 4, 4> T_WORLD_CAMERAa = T_WORLD_BASELINKa * T_BASELINK_CAM;
-    Eigen::Matrix<T, 4, 4> T_CAMERAm_WORLD = T_CAM_BASELINK * T_BASELINKm_WORLD;
-
     // get relative pose between anchor and measurement
     Eigen::Matrix<T, 4, 4> T_CAMERAm_CAMERAa =
-        T_CAMERAm_WORLD * T_WORLD_CAMERAa;
+        T_CAM_BASELINK * T_BASELINKm_WORLD * T_WORLD_BASELINKa * T_BASELINK_CAM;
 
     // create projection matrix
     const Eigen::Matrix<T, 3, 4> projection_matrix =
         intrinsic_matrix_.cast<T>() * T_CAMERAm_CAMERAa.block(0, 0, 3, 4);
 
     // compute the inverse depth and bearing vector (mx, my, 1, rho)
-    Eigen::Matrix<T, 4, 1> InverseDepth;
-    InverseDepth << bearing_.cast<T>(), rho;
+    Eigen::Matrix<T, 4, 1> bearing_and_inversedepth;
+    bearing_and_inversedepth << bearing_.cast<T>(), rho;
 
     // project into measurement image
     Eigen::Matrix<T, 2, 1> reproj =
-        (projection_matrix * InverseDepth).hnormalized();
+        (projection_matrix * bearing_and_inversedepth).hnormalized();
 
     Eigen::Matrix<T, 2, 1> E = A_.cast<T>() * (b_.cast<T>() - reproj);
     residual[0] = E[0];
