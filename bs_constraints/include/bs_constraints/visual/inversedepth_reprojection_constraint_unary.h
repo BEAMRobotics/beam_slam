@@ -21,26 +21,24 @@
 
 namespace bs_constraints {
 
-class InverseDepthReprojectionConstraint : public fuse_core::Constraint {
+class InverseDepthReprojectionConstraintUnary : public fuse_core::Constraint {
 public:
-  FUSE_CONSTRAINT_DEFINITIONS(InverseDepthReprojectionConstraint);
+  FUSE_CONSTRAINT_DEFINITIONS(InverseDepthReprojectionConstraintUnary);
 
   /**
    * @brief Default constructor
    */
-  InverseDepthReprojectionConstraint() = default;
+  InverseDepthReprojectionConstraintUnary() = default;
 
   /**
    * @brief Create a constraint using landmark location, camera pose and
    * measured pixel location
    *
    */
-  InverseDepthReprojectionConstraint(
+  InverseDepthReprojectionConstraintUnary(
       const std::string& source,
       const fuse_variables::Orientation3DStamped& R_WORLD_BASELINKa,
       const fuse_variables::Position3DStamped& t_WORLD_BASELINKa,
-      const fuse_variables::Orientation3DStamped& R_WORLD_BASELINKm,
-      const fuse_variables::Position3DStamped& t_WORLD_BASELINKm,
       const bs_variables::InverseDepthLandmark& idp,
       const Eigen::Matrix4d& T_cam_baselink,
       const Eigen::Matrix3d& intrinsic_matrix,
@@ -50,7 +48,7 @@ public:
   /**
    * @brief Destructor
    */
-  virtual ~InverseDepthReprojectionConstraint() = default;
+  virtual ~InverseDepthReprojectionConstraintUnary() = default;
 
   /**
    * @brief Read-only access to the measured pixel value
@@ -108,4 +106,4 @@ private:
 
 } // namespace bs_constraints
 
-BOOST_CLASS_EXPORT_KEY(bs_constraints::InverseDepthReprojectionConstraint);
+BOOST_CLASS_EXPORT_KEY(bs_constraints::InverseDepthReprojectionConstraintUnary);

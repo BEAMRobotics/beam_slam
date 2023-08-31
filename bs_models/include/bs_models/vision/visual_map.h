@@ -118,7 +118,7 @@ public:
    * @param transaction to add to
    */
   void AddInverseDepthLandmark(
-      fuse_variables::InverseDepthLandmark::SharedPtr landmark,
+      bs_variables::InverseDepthLandmark::SharedPtr landmark,
       fuse_core::Transaction::SharedPtr transaction);
 
   /**
@@ -138,6 +138,13 @@ public:
    * @param landmark_id to retrieve
    */
   fuse_variables::Point3DLandmark::SharedPtr GetLandmark(uint64_t landmark_id);
+
+  /**
+   * @brief Helper function to get a landmark by id
+   * @param landmark_id to retrieve
+   */
+  bs_variables::InverseDepthLandmark::SharedPtr
+      GetInverseDepthLandmark(uint64_t landmark_id);
 
   /**
    * @brief Retrieves q_WORLD_BASELINK
@@ -257,6 +264,8 @@ protected:
   std::map<uint64_t, fuse_variables::Position3DStamped::SharedPtr> positions_;
   std::map<uint64_t, fuse_variables::Point3DLandmark::SharedPtr>
       landmark_positions_;
+  std::map<uint64_t, bs_variables::InverseDepthLandmark::SharedPtr>
+      inversedepth_landmark_positions_;
 
   // copy of the current graph
   fuse_core::Graph::ConstSharedPtr graph_;

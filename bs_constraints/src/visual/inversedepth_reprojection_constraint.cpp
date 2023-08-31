@@ -1,6 +1,5 @@
-// #include <bs_constraints/visual/inversedepth_reprojection_function.h>
-#include <bs_constraints/visual/inversedepth_reprojection_functor.h>
 #include <bs_constraints/visual/inversedepth_reprojection_constraint.h>
+#include <bs_constraints/visual/inversedepth_reprojection_functor.h>
 
 #include <pluginlib/class_list_macros.h>
 
@@ -42,13 +41,11 @@ void InverseDepthReprojectionConstraint::print(std::ostream& stream) const {
 }
 
 ceres::CostFunction* InverseDepthReprojectionConstraint::costFunction() const {
-  // return new InverseDepthReprojection(sqrt_information_, pixel_,
-  //                                     intrinsic_matrix_, T_cam_baselink_);
   return new ceres::AutoDiffCostFunction<InverseDepthReprojectionFunctor, 2, 4,
                                          3, 4, 3, 1>(
       new InverseDepthReprojectionFunctor(sqrt_information_, pixel_,
-                                         intrinsic_matrix_, T_cam_baselink_,
-                                         bearing_));
+                                          intrinsic_matrix_, T_cam_baselink_,
+                                          bearing_));
 }
 
 } // namespace bs_constraints

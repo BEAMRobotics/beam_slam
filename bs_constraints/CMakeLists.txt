@@ -61,6 +61,7 @@ add_library(${PROJECT_NAME}
 
   src/visual/euclidean_reprojection_constraint.cpp
   src/visual/inversedepth_reprojection_constraint.cpp
+  src/visual/inversedepth_reprojection_constraint_unary.cpp
   
   src/jacobians.cpp
 )

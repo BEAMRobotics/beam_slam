@@ -1,11 +1,9 @@
-#ifndef FUSE_MODELS_VISUAL_COST_FUNCTOR_H
-#define FUSE_MODELS_VISUAL_COST_FUNCTOR_H
+#pragma once
 
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/util.h>
 
-#include <beam_calibration/CameraModel.h>
 #include <beam_cv/Utils.h>
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
@@ -106,5 +104,3 @@ private:
 };
 
 } // namespace bs_constraints
-
-#endif // FUSE_MODELS_VISUAL_COST_FUNCTOR_H

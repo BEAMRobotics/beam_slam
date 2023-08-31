@@ -2,6 +2,8 @@
 
 #include <fuse_variables/point_3d_landmark.h>
 
+#include <bs_variables/inverse_depth_landmark.h>
+
 namespace bs_common {
 
 std::map<int64_t, ImuBiases>
@@ -185,9 +187,16 @@ std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph) {
   std::set<uint64_t> ids;
   for (auto& var : graph->getVariables()) {
     auto landmark = fuse_variables::Point3DLandmark::make_shared();
-    if (var.type() != landmark->type()) { continue; }
-    *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(var);
-    ids.insert(landmark->id());
+    auto inversedepth_landmark =
+        bs_variables::InverseDepthLandmark::make_shared();
+    if (var.type() == landmark->type()) {
+      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(var);
+      ids.insert(landmark->id());
+    } else if (var.type() == inversedepth_landmark->type()) {
+      *inversedepth_landmark =
+          dynamic_cast<const bs_variables::InverseDepthLandmark&>(var);
+      ids.insert(inversedepth_landmark->id());
+    }
   }
   return ids;
 }

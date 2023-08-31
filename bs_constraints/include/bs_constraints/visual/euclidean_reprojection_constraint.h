@@ -9,8 +9,6 @@
 #include <fuse_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
-#include <beam_calibration/CameraModel.h>
-
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/export.hpp>

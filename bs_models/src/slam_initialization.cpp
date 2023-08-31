@@ -475,15 +475,51 @@ void SLAMInitialization::AddVisualConstraints() {
     // triangulate and add landmark
     const auto initial_point = TriangulateLandmark(id);
     if (!initial_point.has_value()) { return; }
-    visual_map_->AddLandmark(initial_point.value(), id, landmark_transaction);
+
+    // find the first keyframe that has seen the landmark and use it as the
+    // anchor
+    auto track = landmark_container_->GetTrack(id);
+    ros::Time anchor_time;
+    beam_containers::LandmarkMeasurement anchor_measurement;
+    for (auto m : track) {
+      if (kf_times.find(m.time_point) != kf_times.end()) {
+        anchor_measurement = m;
+        anchor_time = m.time_point;
+        break;
+      }
+    }
+
+    // get the bearing vector to the measurement
+    Eigen::Vector3d bearing;
+    Eigen::Vector2i rectified_pixel;
+    if (!cam_model_->UndistortPixel(anchor_measurement.value.cast<int>(),
+                                    rectified_pixel)) {
+      return;
+    }
+    if (!cam_model_->GetRectifiedModel()->BackProject(rectified_pixel,
+                                                      bearing)) {
+      return;
+    }
+
+    // find the inverse depth of the point
+    auto T_WORLD_CAMERA = visual_map_->GetCameraPose(anchor_time);
+    if (!T_WORLD_CAMERA.has_value()) { return; }
+    Eigen::Vector3d camera_t_point =
+        (beam::InvertTransform(T_WORLD_CAMERA.value()) *
+         initial_point.value().homogeneous())
+            .hnormalized();
+    double rho = 1.0 / camera_t_point.z();
+
+    visual_map_->AddInverseDepthLandmark(bearing, rho, id, anchor_time,
+                                         landmark_transaction);
     num_landmarks++;
 
     // add constraints to keyframes that view it
     for (const auto& stamp : kf_times) {
       try {
         Eigen::Vector2d pixel = landmark_container_->GetValue(stamp, id);
-        visual_map_->AddVisualConstraint(stamp, id, pixel,
-                                         landmark_transaction);
+        visual_map_->AddInverseDepthVisualConstraint(stamp, id, pixel,
+                                                     landmark_transaction);
       } catch (const std::out_of_range& oor) { continue; }
     }
   };

@@ -7,6 +7,7 @@
 #include <bs_common/graph_access.h>
 #include <bs_constraints/visual/euclidean_reprojection_constraint.h>
 #include <bs_constraints/visual/inversedepth_reprojection_constraint.h>
+#include <bs_constraints/visual/inversedepth_reprojection_constraint_unary.h>
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 
 namespace bs_models { namespace vision {
@@ -58,6 +59,32 @@ beam::opt<Eigen::Matrix4d> VisualMap::GetBaselinkPose(const ros::Time& stamp) {
   } else {
     return {};
   }
+}
+
+bs_variables::InverseDepthLandmark::SharedPtr
+    VisualMap::GetInverseDepthLandmark(uint64_t landmark_id) {
+  bs_variables::InverseDepthLandmark::SharedPtr landmark =
+      bs_variables::InverseDepthLandmark::make_shared();
+  auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
+  if (graph_) {
+    try {
+      *landmark = dynamic_cast<const bs_variables::InverseDepthLandmark&>(
+          graph_->getVariable(landmark_uuid));
+      return landmark;
+    } catch (const std::out_of_range& oor) {
+      if (inversedepth_landmark_positions_.find(landmark_id) ==
+          inversedepth_landmark_positions_.end()) {
+        return nullptr;
+      } else {
+        return inversedepth_landmark_positions_[landmark_id];
+      }
+    }
+  } else if (inversedepth_landmark_positions_.find(landmark_id) !=
+             inversedepth_landmark_positions_.end()) {
+    return inversedepth_landmark_positions_[landmark_id];
+  }
+
+  return nullptr;
 }
 
 fuse_variables::Point3DLandmark::SharedPtr
@@ -271,9 +298,8 @@ void VisualMap::AddInverseDepthLandmark(
     const ros::Time& anchor_time,
     fuse_core::Transaction::SharedPtr transaction) {
   // construct landmark variable
-  fuse_variables::InverseDepthLandmark::SharedPtr landmark =
-      fuse_variables::InverseDepthLandmark::make_shared(id, bearing,
-                                                        anchor_time);
+  bs_variables::InverseDepthLandmark::SharedPtr landmark =
+      bs_variables::InverseDepthLandmark::make_shared(id, bearing, anchor_time);
   landmark->rho() = rho;
 
   // add fuse landmark variable
@@ -281,11 +307,11 @@ void VisualMap::AddInverseDepthLandmark(
 }
 
 void VisualMap::AddInverseDepthLandmark(
-    fuse_variables::InverseDepthLandmark::SharedPtr landmark,
+    bs_variables::InverseDepthLandmark::SharedPtr landmark,
     fuse_core::Transaction::SharedPtr transaction) {
   // add to transaction
   transaction->addVariable(landmark);
-  landmark_positions_[landmark->id()] = landmark;
+  inversedepth_landmark_positions_[landmark->id()] = landmark;
 }
 
 bool VisualMap::AddInverseDepthVisualConstraint(
@@ -293,7 +319,8 @@ bool VisualMap::AddInverseDepthVisualConstraint(
     const Eigen::Vector2d& pixel,
     fuse_core::Transaction::SharedPtr transaction) {
   // get landmark
-  fuse_variables::InverseDepthLandmark::SharedPtr lm = GetLandmark(lm_id);
+  bs_variables::InverseDepthLandmark::SharedPtr lm =
+      GetInverseDepthLandmark(lm_id);
 
   // get measurement robot pose
   fuse_variables::Position3DStamped::SharedPtr position_m =
@@ -319,13 +346,23 @@ bool VisualMap::AddInverseDepthVisualConstraint(
   }
   try {
     if (lm) {
-      auto vis_constraint =
-          std::make_shared<bs_constraints::InverseDepthReprojectionConstraint>(
-              "VO", *orientation_a, *position_a, *orientation_, , *position_m,
-              *lm, T_cam_baselink_, camera_intrinsic_matrix_, measurement,
-              reprojection_information_weight_);
-      vis_constraint->loss(loss_function_);
-      transaction->addConstraint(vis_constraint);
+      if (lm->anchorStamp() == measurement_stamp) {
+        auto vis_constraint = std::make_shared<
+            bs_constraints::InverseDepthReprojectionConstraintUnary>(
+            "VO", *orientation_a, *position_a, *lm, T_cam_baselink_,
+            camera_intrinsic_matrix_, measurement,
+            reprojection_information_weight_);
+        vis_constraint->loss(loss_function_);
+        transaction->addConstraint(vis_constraint);
+      } else {
+        auto vis_constraint = std::make_shared<
+            bs_constraints::InverseDepthReprojectionConstraint>(
+            "VO", *orientation_a, *position_a, *orientation_m, *position_m, *lm,
+            T_cam_baselink_, camera_intrinsic_matrix_, measurement,
+            reprojection_information_weight_);
+        vis_constraint->loss(loss_function_);
+        transaction->addConstraint(vis_constraint);
+      }
       return true;
     }
   } catch (const std::logic_error& le) {}
@@ -413,13 +450,24 @@ void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
       lms_to_remove.push_back(id);
     }
   }
+  for (const auto [id, position] : inversedepth_landmark_positions_) {
+    if (graph_lm_ids.find(id) != graph_lm_ids.end()) {
+      lms_to_remove.push_back(id);
+    }
+  }
+
   for (const auto& id : lms_to_remove) { landmark_positions_.erase(id); }
+  for (const auto& id : lms_to_remove) {
+    inversedepth_landmark_positions_.erase(id);
+  }
 }
 
 void VisualMap::Clear() {
   orientations_.clear();
   positions_.clear();
   landmark_positions_.clear();
+
+  inversedepth_landmark_positions_.clear();
   if (graph_) { graph_ = nullptr; }
 }
 

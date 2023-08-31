@@ -264,11 +264,11 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
       // get the bearing vector to the measurement
       Eigen::Vector3d bearing;
       Eigen::Vector2i rectified_pixel;
-      if (!cam_model_->UndistortPixel(m.value.cast<int>(), rectified_pixel)) {
-        return false;
+      if (!cam_model_->UndistortPixel(anchor_measurement.value.cast<int>(),
+                                      rectified_pixel)) {
+        return;
       }
-      Eigen::Vector2d measurement = rectified_pixel.cast<double>();
-      if (!cam_model_->GetRectifiedModel()->BackProject(measurement.cast<int>(),
+      if (!cam_model_->GetRectifiedModel()->BackProject(rectified_pixel,
                                                         bearing)) {
         return;
       }
@@ -277,7 +277,9 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
       auto T_WORLD_CAMERA = visual_map_->GetCameraPose(anchor_time);
       if (!T_WORLD_CAMERA.has_value()) { return; }
       Eigen::Vector3d camera_t_point =
-          beam::InvertTransform(T_WORLD_CAMERA.value()) * initial_point.value();
+          (beam::InvertTransform(T_WORLD_CAMERA.value()) *
+           initial_point.value().homogeneous())
+              .hnormalized();
       double rho = 1.0 / camera_t_point.z();
 
       visual_map_->AddInverseDepthLandmark(bearing, rho, id, anchor_time,
@@ -511,7 +513,8 @@ void VisualOdometry::GetPixelPointPairs(
       Eigen::Vector3d camera_t_point = lm->camera_t_point();
       auto T_WORLD_CAMERA = visual_map_->GetCameraPose(lm->anchorStamp());
       if (!T_WORLD_CAMERA.has_value()) { continue; }
-      Eigen::Vector3d world_t_point = T_WORLD_CAMERA.value() * camera_t_point;
+      Eigen::Vector3d world_t_point =
+          (T_WORLD_CAMERA.value() * camera_t_point.homogeneous()).hnormalized();
       Eigen::Vector2i pixel =
           landmark_container_->GetValue(timestamp, id).cast<int>();
       points.push_back(world_t_point);
