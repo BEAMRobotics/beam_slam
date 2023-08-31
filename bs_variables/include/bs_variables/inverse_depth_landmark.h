@@ -49,7 +49,7 @@ public:
   /**
    * @brief Access to the point in the anchor camera frame
    */
-  Eigen::Vector3d camera_cv_point() const {
+  Eigen::Vector3d camera_t_point() const {
     double depth = 1 / data_[0];
     double x = depth * mx_;
     double y = depth * my_;

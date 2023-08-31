@@ -6,6 +6,7 @@
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
 #include <bs_constraints/visual/euclidean_reprojection_constraint.h>
+#include <bs_constraints/visual/inversedepth_reprojection_constraint.h>
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 
 namespace bs_models { namespace vision {
@@ -263,6 +264,73 @@ void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
   // add to transaction
   transaction->addVariable(landmark);
   landmark_positions_[landmark->id()] = landmark;
+}
+
+void VisualMap::AddInverseDepthLandmark(
+    const Eigen::Vector3d& bearing, const double rho, const uint64_t id,
+    const ros::Time& anchor_time,
+    fuse_core::Transaction::SharedPtr transaction) {
+  // construct landmark variable
+  fuse_variables::InverseDepthLandmark::SharedPtr landmark =
+      fuse_variables::InverseDepthLandmark::make_shared(id, bearing,
+                                                        anchor_time);
+  landmark->rho() = rho;
+
+  // add fuse landmark variable
+  AddInverseDepthLandmark(landmark, transaction);
+}
+
+void VisualMap::AddInverseDepthLandmark(
+    fuse_variables::InverseDepthLandmark::SharedPtr landmark,
+    fuse_core::Transaction::SharedPtr transaction) {
+  // add to transaction
+  transaction->addVariable(landmark);
+  landmark_positions_[landmark->id()] = landmark;
+}
+
+bool VisualMap::AddInverseDepthVisualConstraint(
+    const ros::Time& measurement_stamp, uint64_t lm_id,
+    const Eigen::Vector2d& pixel,
+    fuse_core::Transaction::SharedPtr transaction) {
+  // get landmark
+  fuse_variables::InverseDepthLandmark::SharedPtr lm = GetLandmark(lm_id);
+
+  // get measurement robot pose
+  fuse_variables::Position3DStamped::SharedPtr position_m =
+      GetPosition(measurement_stamp);
+  fuse_variables::Orientation3DStamped::SharedPtr orientation_m =
+      GetOrientation(measurement_stamp);
+
+  // get anchor robot pose
+  fuse_variables::Position3DStamped::SharedPtr position_a =
+      GetPosition(lm->anchorStamp());
+  fuse_variables::Orientation3DStamped::SharedPtr orientation_a =
+      GetOrientation(lm->anchorStamp());
+
+  // rectify pixel
+  Eigen::Vector2i rectified_pixel;
+  if (!cam_model_->UndistortPixel(pixel.cast<int>(), rectified_pixel)) {
+    return false;
+  }
+  Eigen::Vector2d measurement = rectified_pixel.cast<double>();
+
+  if (!position_a || !orientation_a || !position_m || !orientation_m) {
+    return false;
+  }
+  try {
+    if (lm) {
+      auto vis_constraint =
+          std::make_shared<bs_constraints::InverseDepthReprojectionConstraint>(
+              "VO", *orientation_a, *position_a, *orientation_, , *position_m,
+              *lm, T_cam_baselink_, camera_intrinsic_matrix_, measurement,
+              reprojection_information_weight_);
+      vis_constraint->loss(loss_function_);
+      transaction->addConstraint(vis_constraint);
+      return true;
+    }
+  } catch (const std::logic_error& le) {}
+
+  return false;
 }
 
 fuse_core::UUID VisualMap::GetLandmarkUUID(uint64_t landmark_id) {

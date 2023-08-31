@@ -123,7 +123,7 @@ private:
   /// @param T_WORLD_BASELINK
   void PublishPose(const ros::Time& timestamp,
                    const Eigen::Matrix4d& T_WORLD_BASELINK);
-  
+
   /// @brief The UUID of this device
   fuse_core::UUID device_id_; //!< The UUID of this device
 
@@ -146,10 +146,11 @@ private:
   ros::Publisher reloc_publisher_;
   ros::Publisher imu_constraint_trigger_publisher_;
   int imu_constraint_trigger_counter_{0};
-  
+
   /// @brief book keeping variables
   bool is_initialized_{false};
   std::deque<Keyframe> keyframes_;
+  std::set<ros::Time> keyframe_times_;
   uint32_t added_since_kf_{0};
   std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;
   Eigen::Matrix4d T_ODOM_BASELINKprev_{Eigen::Matrix4d::Identity()};
