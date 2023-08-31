@@ -44,9 +44,8 @@ public:
     // get anchor pose as 4x4 matrix
     T Ra[9];
     ceres::QuaternionToRotation(q_anchor, Ra);
-    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINKa;
-    R_WORLD_BASELINKa << Ra[0], Ra[1], Ra[2], Ra[3], Ra[4], Ra[5], Ra[6], Ra[7],
-        Ra[8];
+    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINKa =
+        Eigen::Map<Eigen::Matrix<T, 3, 3> >(Ra, 3, 3);
     Eigen::Matrix<T, 3, 1> t_WORLD_BASELINKa(t_anchor[0], t_anchor[1],
                                              t_anchor[2]);
     Eigen::Matrix<T, 4, 4> T_WORLD_BASELINKa =
@@ -57,9 +56,8 @@ public:
     // get measurement pose as 4x4 matrix
     T Rm[9];
     ceres::QuaternionToRotation(q_measurement, Rm);
-    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINKm;
-    R_WORLD_BASELINKm << Rm[0], Rm[1], Rm[2], Rm[3], Rm[4], Rm[5], Rm[6], Rm[7],
-        Rm[8];
+    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINKm =
+        Eigen::Map<Eigen::Matrix<T, 3, 3> >(Rm, 3, 3);
     Eigen::Matrix<T, 3, 1> t_WORLD_BASELINKm(t_measurement[0], t_measurement[1],
                                              t_measurement[2]);
     Eigen::Matrix<T, 4, 4> T_BASELINKm_WORLD =

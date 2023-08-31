@@ -21,9 +21,10 @@ public:
    * @param[in] pixel_measurement The pixel location of feature in the image
    * @param[in] cam_model The camera intrinsics for projection
    */
-  EuclideanReprojectionFunctor(const Eigen::Matrix2d& A, const Eigen::Vector2d& b,
-                      const Eigen::Matrix3d& intrinsic_matrix,
-                      const Eigen::Matrix4d& T_cam_baselink)
+  EuclideanReprojectionFunctor(const Eigen::Matrix2d& A,
+                               const Eigen::Vector2d& b,
+                               const Eigen::Matrix3d& intrinsic_matrix,
+                               const Eigen::Matrix4d& T_cam_baselink)
       : A_(A),
         b_(b),
         intrinsic_matrix_(intrinsic_matrix),
@@ -37,9 +38,8 @@ public:
 
     T R[9];
     ceres::QuaternionToRotation(q, R);
-
-    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINK;
-    R_WORLD_BASELINK << R[0], R[1], R[2], R[3], R[4], R[5], R[6], R[7], R[8];
+    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINK =
+        Eigen::Map<Eigen::Matrix<T, 3, 3> >(R, 3, 3);
     Eigen::Matrix<T, 3, 1> t_WORLD_BASELINK(t[0], t[1], t[2]);
     Eigen::Matrix<T, 3, 1> P_WORLD(P[0], P[1], P[2]);
 
