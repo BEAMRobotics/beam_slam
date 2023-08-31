@@ -143,6 +143,8 @@ private:
   double frame_size_{0.15};
   double point_spacing_{0.01};
   double g_length_{0.25};
+  int keypoints_circle_radius_{2};
+  int keypoints_line_thickness_{3};
 };
 
 } // namespace bs_models

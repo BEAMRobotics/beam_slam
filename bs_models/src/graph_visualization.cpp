@@ -205,10 +205,10 @@ void GraphVisualization::VisualizeCameraLandmarks(
   Eigen::Matrix4d T_CAM_BASELINK;
   extrinsics_.GetT_CAMERA_BASELINK(T_CAM_BASELINK);
 
-  cv::Scalar green(0, 255, 0);
-  cv::Scalar blue(255, 0, 0);
-  cv::Scalar red(0, 0, 255);
-  cv::Scalar yellow(0, 255, 255);
+  static cv::Scalar green(0, 255, 0);
+  static cv::Scalar blue(255, 0, 0);
+  static cv::Scalar red(0, 0, 255);
+  static cv::Scalar yellow(0, 255, 255);
 
   // get most recent timestamp in graph that has associated image
   for (auto itr = timestamps.rbegin(); itr != timestamps.rend(); itr++) {
@@ -240,13 +240,16 @@ void GraphVisualization::VisualizeCameraLandmarks(
         if (cam_model_->ProjectPoint(point, projected)) {
           // draw pixel-point pair in image
           cv::Point e(projected[0], projected[1]);
-          cv::circle(image_out, m, 2, green, 1);
-          cv::circle(image_out, e, 1, blue, 2);
-          cv::line(image_out, m, e, green, 1, 8);
+          cv::circle(image_out, m, keypoints_circle_radius_, green,
+                     keypoints_line_thickness_);
+          cv::circle(image_out, e, keypoints_circle_radius_, blue,
+                     keypoints_line_thickness_);
+          cv::line(image_out, m, e, green, keypoints_circle_radius_, 8);
         }
       } else {
         // draw just the pixel in yellow
-        cv::circle(image_out, m, 2, yellow, 1);
+        cv::circle(image_out, m, keypoints_circle_radius_, yellow,
+                   keypoints_line_thickness_);
       }
     }
 
