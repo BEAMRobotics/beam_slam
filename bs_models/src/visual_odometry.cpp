@@ -237,6 +237,10 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
   const auto landmarks = landmark_container_->GetLandmarkIDsInImage(timestamp);
   auto process_landmark = [&](const auto& id) {
     if (visual_map_->GetLandmark(id)) {
+      // todo:
+      // 1. get anchor timestamp from landmark variable
+      // 2. add new idp constraint (function in visual map)
+      // 2.1 the function takes in anchor time, measurement time, id and pixel
       try {
         Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
         visual_map_->AddVisualConstraint(timestamp, id, pixel, transaction);
@@ -245,6 +249,12 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
       // triangulate and add landmark
       const auto initial_point = TriangulateLandmark(id);
       if (!initial_point.has_value()) { return; }
+      // todo:
+      // 1. find the earliest keyframe that has seen this landmark
+      // 2. set that as the anchor time, get the bearing from that, as well as
+      // the inverse depth
+      // 3. add constraints to every keyframe that views it (including the
+      // anchor frame)
       visual_map_->AddLandmark(initial_point.value(), id, transaction);
 
       // add constraints to keyframes that view its
@@ -445,6 +455,7 @@ beam::opt<Eigen::Vector3d>
       T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
     }
   }
+  // todo: must have >=2 keyframes that see it too
   if (T_cam_world_v.size() >= 5) {
     return beam_cv::Triangulation::TriangulatePoint(
         cam_model_, T_cam_world_v, pixels,
@@ -464,6 +475,7 @@ void VisualOdometry::GetPixelPointPairs(
   for (auto& id : landmarks) {
     fuse_variables::Point3DLandmark::SharedPtr lm =
         visual_map_->GetLandmark(id);
+    // todo: get the 3d location from the inverse depth and anchor frame
     if (lm) {
       Eigen::Vector3d point = lm->point();
       Eigen::Vector2i pixel =
