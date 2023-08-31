@@ -479,7 +479,7 @@ void SLAMInitialization::AddVisualConstraints() {
     // find the first keyframe that has seen the landmark and use it as the
     // anchor
     auto track = landmark_container_->GetTrack(id);
-    ros::Time anchor_time;
+    ros::Time anchor_time(0.0);
     beam_containers::LandmarkMeasurement anchor_measurement;
     for (auto m : track) {
       if (kf_times.find(m.time_point) != kf_times.end()) {
@@ -488,6 +488,7 @@ void SLAMInitialization::AddVisualConstraints() {
         break;
       }
     }
+    if (anchor_time == ros::Time(0.0)) { return; }
 
     // get the bearing vector to the measurement
     Eigen::Vector3d bearing;

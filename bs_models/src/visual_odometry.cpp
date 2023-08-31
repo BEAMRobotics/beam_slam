@@ -133,10 +133,20 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
   // add pose to graph
   auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(timestamp);
+  // ! stamp the transaction slightly before actual timestamp to ensure this
+  // ! gets processed first
+  transaction->stamp(timestamp - ros::Duration(1e-7));
   visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
   previous_frame_ = timestamp;
   sendTransaction(transaction);
+
+  // send IO trigger
+  if (vo_params_.trigger_inertial_odom_constraints) {
+    std_msgs::Time time_msg;
+    time_msg.data = timestamp;
+    imu_constraint_trigger_publisher_.publish(time_msg);
+    imu_constraint_trigger_counter_++;
+  }
 
   if (IsKeyframe(timestamp, T_WORLD_BASELINK)) {
     ROS_DEBUG_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
@@ -144,14 +154,6 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
     keyframes_.push_back(kf);
     keyframe_times_.insert(timestamp);
     ExtendMap(timestamp, T_WORLD_BASELINK);
-
-    // send IO trigger
-    if (vo_params_.trigger_inertial_odom_constraints) {
-      std_msgs::Time time_msg;
-      time_msg.data = timestamp;
-      imu_constraint_trigger_publisher_.publish(time_msg);
-      imu_constraint_trigger_counter_++;
-    }
 
     // publish keyframe pose
     PublishPose(timestamp, T_WORLD_BASELINK);
@@ -248,8 +250,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
       // triangulate and add landmark
       const auto initial_point = TriangulateLandmark(id);
       if (!initial_point.has_value()) { return; }
-      // find the first keyframe that has seen the landmark and use it as the
-      // anchor
+      // use the first keyframe that sees the landmark as the anchor frame
       auto track = landmark_container_->GetTrack(id);
       ros::Time anchor_time;
       beam_containers::LandmarkMeasurement anchor_measurement;
@@ -490,8 +491,8 @@ beam::opt<Eigen::Vector3d>
       T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
     }
   }
-  // must have at least 2 keyframes that have seen the landmark
-  if (keyframe_observations >= 2) {
+  // must have at least 3 keyframes that have seen the landmark
+  if (keyframe_observations >= 3) {
     return beam_cv::Triangulation::TriangulatePoint(
         cam_model_, T_cam_world_v, pixels,
         vo_params_.max_triangulation_distance,
