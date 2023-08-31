@@ -19,7 +19,7 @@ using Vector15d = Eigen::Matrix<double, 15, 1>;
 
 } // namespace fuse_core
 
-namespace bs_constraints { namespace motion {
+namespace bs_constraints {
 
 /**
  * @brief A class that represents a kinematic constraint between 3D states at
@@ -156,7 +156,6 @@ private:
   }
 };
 
-}} // namespace bs_constraints::motion
+} // namespace bs_constraints
 
-BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::motion::Unicycle3DStateKinematicConstraint);
+BOOST_CLASS_EXPORT_KEY(bs_constraints::Unicycle3DStateKinematicConstraint);

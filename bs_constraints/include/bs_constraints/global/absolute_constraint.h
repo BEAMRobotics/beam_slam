@@ -9,7 +9,6 @@
 #include <bs_variables/gyro_bias_3d_stamped.h>
 
 namespace bs_constraints {
-namespace global {
 
 // Define unique names for the different variations of the absolute constraint
 using AbsoluteVelocityAngular3DStampedConstraint =
@@ -27,19 +26,16 @@ using AbsoluteAccelBias3DStampedConstraint =
     fuse_constraints::AbsoluteConstraint<
         bs_variables::AccelerationBias3DStamped>;
 
-}  // namespace global
-}  // namespace bs_constraints
+} // namespace bs_constraints
 
 // Include the template implementation
 #include <bs_constraints/global/absolute_constraint_impl.h>
 
 BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::global::AbsoluteVelocityAngular3DStampedConstraint);
+    bs_constraints::AbsoluteVelocityAngular3DStampedConstraint);
 BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::global::AbsoluteVelocityLinear3DStampedConstraint);
+    bs_constraints::AbsoluteVelocityLinear3DStampedConstraint);
 BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::global::AbsoluteAccelerationLinear3DStampedConstraint);
-BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::global::AbsoluteGyroBias3DStampedConstraint);
-BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::global::AbsoluteAccelBias3DStampedConstraint);
+    bs_constraints::AbsoluteAccelerationLinear3DStampedConstraint);
+BOOST_CLASS_EXPORT_KEY(bs_constraints::AbsoluteGyroBias3DStampedConstraint);
+BOOST_CLASS_EXPORT_KEY(bs_constraints::AbsoluteAccelBias3DStampedConstraint);

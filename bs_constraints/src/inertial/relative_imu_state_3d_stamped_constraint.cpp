@@ -8,7 +8,7 @@
 
 #include <bs_constraints/inertial/normal_delta_imu_state_3d_cost_functor.h>
 
-namespace bs_constraints { namespace inertial {
+namespace bs_constraints {
 
 RelativeImuState3DStampedConstraint::RelativeImuState3DStampedConstraint(
     const std::string& source, const bs_common::ImuState& imu_state_i,
@@ -65,10 +65,9 @@ Eigen::Matrix4d RelativeImuState3DStampedConstraint::getRelativePose() const {
   return T_S1_S2;
 }
 
-}} // namespace bs_constraints::inertial
+} // namespace bs_constraints
 
 BOOST_CLASS_EXPORT_IMPLEMENT(
-    bs_constraints::inertial::RelativeImuState3DStampedConstraint);
-PLUGINLIB_EXPORT_CLASS(
-    bs_constraints::inertial::RelativeImuState3DStampedConstraint,
-    fuse_core::Constraint);
+    bs_constraints::RelativeImuState3DStampedConstraint);
+PLUGINLIB_EXPORT_CLASS(bs_constraints::RelativeImuState3DStampedConstraint,
+                       fuse_core::Constraint);

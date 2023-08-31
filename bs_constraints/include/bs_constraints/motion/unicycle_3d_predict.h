@@ -9,7 +9,7 @@ using Matrix15d = Eigen::Matrix<double, 15, 15, Eigen::RowMajor>;
 using Vector15d = Eigen::Matrix<double, 15, 1>;
 } // namespace fuse_core
 
-namespace bs_constraints { namespace motion {
+namespace bs_constraints {
 
 /**
  * @brief Given a state and time delta, predicts a new state
@@ -255,4 +255,4 @@ inline void predict(const tf2::Transform& pose1,
   acc_linear2.setZ(acc_linear_z_pred);
 };
 
-}} // namespace bs_constraints::motion
+} // namespace bs_constraints

@@ -16,7 +16,7 @@
 
 #include <bs_common/imu_state.h>
 
-namespace bs_constraints { namespace inertial {
+namespace bs_constraints {
 
 /**
  * @brief A constraint that represents either prior information about an IMU
@@ -121,7 +121,6 @@ private:
   }
 };
 
-}} // namespace bs_constraints::inertial
+} // namespace bs_constraints
 
-BOOST_CLASS_EXPORT_KEY(
-    bs_constraints::inertial::AbsoluteImuState3DStampedConstraint);
+BOOST_CLASS_EXPORT_KEY(bs_constraints::AbsoluteImuState3DStampedConstraint);

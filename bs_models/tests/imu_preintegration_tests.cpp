@@ -12,6 +12,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/se3.h>
 
+#include <bs_common/visualization.h>
 #include <bs_constraints/global/absolute_constraint.h>
 #include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
 #include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>
@@ -205,10 +206,8 @@ int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
   int counter{0};
 
   // instantiate dummy constraints
-  bs_constraints::inertial::RelativeImuState3DStampedConstraint
-      dummy_relative_constraint;
-  bs_constraints::inertial::AbsoluteImuState3DStampedConstraint
-      dummy_absolute_constraint;
+  bs_constraints::RelativeImuState3DStampedConstraint dummy_relative_constraint;
+  bs_constraints::AbsoluteImuState3DStampedConstraint dummy_absolute_constraint;
 
   // add constraints from transaction to hashgraph
   auto added_constraints = transaction->addedConstraints();
@@ -216,18 +215,18 @@ int AddConstraints(const fuse_core::Transaction::SharedPtr& transaction,
        iter++) {
     if (iter->type() == dummy_relative_constraint.type()) {
       auto constraint = dynamic_cast<
-          const bs_constraints::inertial::RelativeImuState3DStampedConstraint&>(
-          *iter);
-      auto constraint_ptr = bs_constraints::inertial::
-          RelativeImuState3DStampedConstraint::make_shared(constraint);
+          const bs_constraints::RelativeImuState3DStampedConstraint&>(*iter);
+      auto constraint_ptr =
+          bs_constraints::RelativeImuState3DStampedConstraint::make_shared(
+              constraint);
       graph.addConstraint(constraint_ptr);
       counter++;
     } else if (iter->type() == dummy_absolute_constraint.type()) {
       auto constraint = dynamic_cast<
-          const bs_constraints::inertial::AbsoluteImuState3DStampedConstraint&>(
-          *iter);
-      auto constraint_ptr = bs_constraints::inertial::
-          AbsoluteImuState3DStampedConstraint::make_shared(constraint);
+          const bs_constraints::AbsoluteImuState3DStampedConstraint&>(*iter);
+      auto constraint_ptr =
+          bs_constraints::AbsoluteImuState3DStampedConstraint::make_shared(
+              constraint);
       graph.addConstraint(constraint_ptr);
       counter++;
     } else {
@@ -360,18 +359,18 @@ TEST(ImuPreintegration, Simple2StateFG) {
   vel_mean_origin << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d vel_cov_origin = fuse_core::Matrix3d::Identity();
   auto prior_vel =
-      bs_constraints::global::AbsoluteVelocityLinear3DStampedConstraint::
-          make_shared("test", *v1, vel_mean_origin, vel_cov_origin);
+      bs_constraints::AbsoluteVelocityLinear3DStampedConstraint::make_shared(
+          "test", *v1, vel_mean_origin, vel_cov_origin);
 
   // Create absolute bias constraint at zero
   fuse_core::Vector3d bias_mean_origin;
   bias_mean_origin << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d bias_cov_origin = fuse_core::Matrix3d::Identity();
   auto prior_bg =
-      bs_constraints::global::AbsoluteGyroBias3DStampedConstraint::make_shared(
+      bs_constraints::AbsoluteGyroBias3DStampedConstraint::make_shared(
           "test", *bg1, bias_mean_origin, bias_cov_origin);
   auto prior_ba =
-      bs_constraints::global::AbsoluteAccelBias3DStampedConstraint::make_shared(
+      bs_constraints::AbsoluteAccelBias3DStampedConstraint::make_shared(
           "test", *ba1, bias_mean_origin, bias_cov_origin);
 
   // Create a relative pose constraint for 1m in the x direction
@@ -387,19 +386,19 @@ TEST(ImuPreintegration, Simple2StateFG) {
   vel_mean_delta << 1.0, 0.0, 0.0;
   fuse_core::Matrix3d vel_cov_delta = fuse_core::Matrix3d::Identity();
   auto relative_vel =
-      bs_constraints::relative_pose::RelativeVelocityLinear3DStampedConstraint::
-          make_shared("test", *v1, *v2, vel_mean_delta, vel_cov_delta);
+      bs_constraints::RelativeVelocityLinear3DStampedConstraint::make_shared(
+          "test", *v1, *v2, vel_mean_delta, vel_cov_delta);
 
   // Create relative bias constraints for 0.001 in the x direction
   fuse_core::Vector3d bias_mean_delta;
   bias_mean_delta << 0.001, 0.0, 0.0;
   fuse_core::Matrix3d bias_cov_delta = fuse_core::Matrix3d::Identity();
   auto relative_bg =
-      bs_constraints::relative_pose::RelativeGyroBias3DStampedConstraint::
-          make_shared("test", *bg1, *bg2, bias_mean_delta, bias_cov_delta);
+      bs_constraints::RelativeGyroBias3DStampedConstraint::make_shared(
+          "test", *bg1, *bg2, bias_mean_delta, bias_cov_delta);
   auto relative_ba =
-      bs_constraints::relative_pose::RelativeAccelBias3DStampedConstraint::
-          make_shared("test", *ba1, *ba2, bias_mean_delta, bias_cov_delta);
+      bs_constraints::RelativeAccelBias3DStampedConstraint::make_shared(
+          "test", *ba1, *ba2, bias_mean_delta, bias_cov_delta);
 
   // get means
   Eigen::Matrix<double, 16, 1> mean_origin;
@@ -919,7 +918,8 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias, MultipleTransactions) {
     IS_predicted.Update(g);
 
     // check is approx. close to ground truth
-    // bs_models::test::ExpectImuStateNear(IS_predicted, IS_ground_truth_vec.at(i),
+    // bs_models::test::ExpectImuStateNear(IS_predicted,
+    // IS_ground_truth_vec.at(i),
     //                                     tol);
   }
 
@@ -1187,7 +1187,8 @@ TEST_F(ImuPreintegration_ProccessNoiseConstantBias,
     IS_optimized_vec.push_back(IS_optimized);
 
     // check is approx. close to ground truth
-    // bs_models::test::ExpectImuStateNear(IS_optimized, IS_ground_truth_vec.at(i),
+    // bs_models::test::ExpectImuStateNear(IS_optimized,
+    // IS_ground_truth_vec.at(i),
     //                                     tol);
   }
 

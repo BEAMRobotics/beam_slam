@@ -14,6 +14,8 @@
 
 namespace bs_models { namespace scan_registration {
 
+using namespace beam_matching;
+
 RegistrationMap::RegistrationMap() {
   bs_common::ExtrinsicsLookupOnline& extrinsics_online =
       bs_common::ExtrinsicsLookupOnline::GetInstance();

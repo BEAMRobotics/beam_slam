@@ -6,7 +6,7 @@
 
 #include <bs_constraints/motion/unicycle_3d_state_cost_functor.h>
 
-namespace bs_constraints { namespace motion {
+namespace bs_constraints {
 
 Unicycle3DStateKinematicConstraint::Unicycle3DStateKinematicConstraint(
     const std::string& source,
@@ -77,9 +77,9 @@ ceres::CostFunction* Unicycle3DStateKinematicConstraint::costFunction() const {
       new Unicycle3DStateCostFunctor(dt_, sqrt_information_));
 }
 
-}} // namespace bs_constraints::motion
+} // namespace bs_constraints
 
 BOOST_CLASS_EXPORT_IMPLEMENT(
-    bs_constraints::motion::Unicycle3DStateKinematicConstraint);
-PLUGINLIB_EXPORT_CLASS(bs_constraints::motion::Unicycle3DStateKinematicConstraint,
+    bs_constraints::Unicycle3DStateKinematicConstraint);
+PLUGINLIB_EXPORT_CLASS(bs_constraints::Unicycle3DStateKinematicConstraint,
                        fuse_core::Constraint);

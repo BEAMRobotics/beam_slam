@@ -5,6 +5,7 @@
 
 #include <beam_matching/Matchers.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/scan_registration/registration_map.h>
@@ -18,23 +19,25 @@ ScanToMapRegistrationBase::ScanToMapRegistrationBase(
     const ScanRegistrationParamsBase& base_params)
     : ScanRegistrationBase(base_params) {}
 
-bs_constraints::relative_pose::Pose3DStampedTransaction
+bs_constraints::Pose3DStampedTransaction
     ScanToMapRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
-  bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
-      new_scan.Stamp());
+  bs_constraints::Pose3DStampedTransaction transaction(new_scan.Stamp());
   // add pose variables for new scan
   transaction.AddPoseVariables(new_scan.Position(), new_scan.Orientation(),
                                new_scan.Stamp());
 
   // if this is the first scan, we need to treat it differently
   if (scan_pose_prev_ == nullptr) {
+    transaction.AddExtrinsicVariablesForFrame(extrinsics_.GetLidarFrameId());
+
     // if registration map is empty, then just add prior, add to map and return
     if (map_.Empty()) {
       Eigen::Matrix4d T_MAP_SCAN = new_scan.T_REFFRAME_LIDAR();
       AddScanToMap(new_scan, T_MAP_SCAN);
       if (base_params_.fix_first_scan) {
         transaction.AddPosePrior(new_scan.Position(), new_scan.Orientation(),
-                                 pose_prior_noise_, "FIRSTSCANPRIOR");
+                                 pose_prior_noise_,
+                                 "LidarOdometry::ScanToMapRegistration");
       }
       scan_pose_prev_ = std::make_unique<ScanPose>(
           new_scan.Stamp(), new_scan.T_REFFRAME_BASELINK(),
@@ -50,40 +53,28 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
           last_time, T_MAP_SCAN * new_scan.T_LIDAR_BASELINK(),
           new_scan.T_BASELINK_LIDAR());
       if (base_params_.fix_first_scan) {
-        transaction.AddPosePrior(scan_pose_prev_->Position(),
-                                 scan_pose_prev_->Orientation(),
-                                 pose_prior_noise_, "FIRSTSCANPRIOR");
+        transaction.AddPosePrior(
+            scan_pose_prev_->Position(), scan_pose_prev_->Orientation(),
+            pose_prior_noise_, "LidarOdometry::ScanToMapRegistration");
       }
     }
   }
 
   Eigen::Matrix4d T_MAP_SCAN;
   if (!RegisterScanToMap(new_scan, T_MAP_SCAN)) {
-    return bs_constraints::relative_pose::Pose3DStampedTransaction(
-        new_scan.Stamp());
+    return bs_constraints::Pose3DStampedTransaction(new_scan.Stamp());
   }
 
-  /**
-   * We need to convert the relative poses measurements from lidar (or cloud)
-   * frames to baselink frames:
-   *
-   * T_BASELINKPREV_BASELINKNEW = inv(T_MAP_BASELINKPREV) * T_MAP_BASELINKNEW
-   */
-  Eigen::Matrix4d T_BASELINKPREV_MAP =
-      beam::InvertTransform(scan_pose_prev_->T_REFFRAME_BASELINK());
-  Eigen::Matrix4d T_MAP_BASELINKNEW = T_MAP_SCAN * new_scan.T_LIDAR_BASELINK();
-  Eigen::Matrix4d T_BASELINKPREV_BASELINKNEW =
-      T_BASELINKPREV_MAP * T_MAP_BASELINKNEW;
-  fuse_variables::Position3DStamped position_relative;
-  fuse_variables::Orientation3DStamped orientation_relative;
-  bs_common::EigenTransformToFusePose(T_BASELINKPREV_BASELINKNEW,
-                                      position_relative, orientation_relative);
+  Eigen::Matrix4d T_ScanPrev_Map =
+      beam::InvertTransform(scan_pose_prev_->T_REFFRAME_LIDAR());
+  Eigen::Matrix4d T_LidarPrev_LidarNew = T_ScanPrev_Map * T_MAP_SCAN;
 
   // add measurement to transaction
   transaction.AddPoseConstraint(
       scan_pose_prev_->Position(), new_scan.Position(),
-      scan_pose_prev_->Orientation(), new_scan.Orientation(), position_relative,
-      orientation_relative, covariance_weight_ * covariance_, source_);
+      scan_pose_prev_->Orientation(), new_scan.Orientation(),
+      bs_common::TransformMatrixToVectorWithQuaternion(T_LidarPrev_LidarNew),
+      covariance_weight_ * covariance_, source_, extrinsics_.GetLidarFrameId());
 
   // add new registered scan and then trim the map
   AddScanToMap(new_scan, T_MAP_SCAN);
@@ -97,8 +88,7 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
 
 ScanToMapLoamRegistration::Params::Params(
     const ScanRegistrationParamsBase& base_params, int _map_size)
-    : ScanRegistrationParamsBase(base_params),
-      map_size(_map_size){}
+    : ScanRegistrationParamsBase(base_params), map_size(_map_size) {}
 
 void ScanToMapLoamRegistration::Params::LoadFromJson(
     const std::string& config) {
@@ -196,7 +186,8 @@ bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,
 
 void ScanToMapLoamRegistration::AddScanToMap(
     const ScanPose& scan_pose, const Eigen::Matrix4d& T_MAP_SCAN) {
-  map_.AddPointCloud(scan_pose.Cloud(), scan_pose.LoamCloud(), scan_pose.Stamp(), T_MAP_SCAN);
+  map_.AddPointCloud(scan_pose.Cloud(), scan_pose.LoamCloud(),
+                     scan_pose.Stamp(), T_MAP_SCAN);
 }
 
 }} // namespace bs_models::scan_registration

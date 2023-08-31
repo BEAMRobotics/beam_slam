@@ -3,11 +3,10 @@
 #include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
 #include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>
 
-namespace bs_constraints { namespace inertial {
+namespace bs_constraints {
 
-using ConstraintType =
-    bs_constraints::inertial::RelativeImuState3DStampedConstraint;
-using PriorType = bs_constraints::inertial::AbsoluteImuState3DStampedConstraint;
+using ConstraintType = bs_constraints::RelativeImuState3DStampedConstraint;
+using PriorType = bs_constraints::AbsoluteImuState3DStampedConstraint;
 
 ImuState3DStampedTransaction::ImuState3DStampedTransaction(
     const ros::Time& transaction_stamp) {
@@ -77,4 +76,4 @@ void ImuState3DStampedTransaction::AddImuStateVariables(
       bs_variables::AccelerationBias3DStamped::make_shared(ba));
 }
 
-}} // namespace bs_constraints::inertial
+} // namespace bs_constraints

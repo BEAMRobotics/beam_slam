@@ -6,6 +6,15 @@
 
 namespace bs_common {
 
+Eigen::Matrix<double, 7, 1>
+    TransformMatrixToVectorWithQuaternion(const Eigen::Matrix4d& T) {
+  Eigen::Matrix3d R = T.block(0, 0, 3, 3);
+  Eigen::Quaterniond q(R);
+  Eigen::Matrix<double, 7, 1> v;
+  v << T(0, 3), T(1, 3), T(2, 3), q.w(), q.x(), q.y(), q.z();
+  return v;
+}
+
 void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                               fuse_variables::Position3DStamped& p,
                               fuse_variables::Orientation3DStamped& o) {
@@ -21,18 +30,6 @@ void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
   o.y() = q.y();
   o.z() = q.z();
   o.w() = q.w();
-}
-
-void EigenTransformToFusePose(
-    const Eigen::Matrix4d& T_WORLD_SENSOR,
-    fuse_variables::Position3DStamped::SharedPtr& p,
-    fuse_variables::Orientation3DStamped::SharedPtr& o) {
-  fuse_variables::Position3DStamped p_tmp;
-  fuse_variables::Orientation3DStamped o_tmp;
-  EigenTransformToFusePose(T_WORLD_SENSOR, p_tmp, o_tmp);
-
-  p = fuse_variables::Position3DStamped::make_shared(p_tmp);
-  o = fuse_variables::Orientation3DStamped::make_shared(o_tmp);
 }
 
 void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,

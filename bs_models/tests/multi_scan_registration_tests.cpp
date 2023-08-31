@@ -17,6 +17,7 @@
 #include <beam_utils/se3.h>
 #include <beam_utils/simple_path_generator.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 
@@ -25,6 +26,7 @@
 using namespace bs_models;
 using namespace scan_registration;
 using namespace bs_common;
+using namespace beam_matching;
 
 Eigen::Matrix4d PerturbPoseRandom(const Eigen::Matrix4d& T, double max_trans,
                                   double max_rot) {
@@ -875,8 +877,8 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
   //   RegistrationMap& map = RegistrationMap::GetInstance();
   //   map.Save("/userhome/tmp/loam_scan_registration/lidar_map/");
 
-  //   EXPECT_TRUE(map.NumPointClouds() == 3);
-  EXPECT_TRUE(multi_scan_registration->GetMap().NumPointClouds() == 3);
+  //   EXPECT_TRUE(map.MapSize() == 3);
+  EXPECT_TRUE(multi_scan_registration->GetMap().MapSize() == 3);
 
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, T_WORLD_S1_, 1, 0.005, true));
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S2_mea, T_WORLD_S2_, 1, 0.05, true));
@@ -977,7 +979,7 @@ TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
   Eigen::Matrix4d T_WORLD_S2_mea = bs_common::FusePoseToEigenTransform(p2, o2);
   Eigen::Matrix4d T_WORLD_S3_mea = bs_common::FusePoseToEigenTransform(p3, o3);
 
-  EXPECT_TRUE(multi_scan_registration->GetMap().NumPointClouds() == 3);
+  EXPECT_TRUE(multi_scan_registration->GetMap().MapSize() == 3);
 
   EXPECT_TRUE(beam::ArePosesEqual(T_WORLD_S1_mea, T_WORLD_S1_, 1, 0.005, true));
   EXPECT_TRUE(

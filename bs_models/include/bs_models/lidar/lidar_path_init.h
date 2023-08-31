@@ -16,8 +16,7 @@
 
 namespace bs_models {
 
-using LidarTransactionType =
-    bs_constraints::relative_pose::Pose3DStampedTransaction;
+using LidarTransactionType = bs_constraints::Pose3DStampedTransaction;
 
 class LidarPathInit {
 public:

@@ -10,7 +10,7 @@
 #include <bs_common/preintegrator.h>
 #include <bs_common/utils.h>
 
-namespace bs_constraints { namespace inertial {
+namespace bs_constraints {
 
 /// @brief
 class ImuState3DStampedTransaction {
@@ -53,4 +53,4 @@ protected:
   fuse_core::Transaction::SharedPtr transaction_;
 };
 
-}} // namespace bs_constraints::inertial
+} // namespace bs_constraints

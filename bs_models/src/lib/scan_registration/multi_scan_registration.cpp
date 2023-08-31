@@ -5,6 +5,7 @@
 
 #include <beam_matching/Matchers.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 
@@ -76,15 +77,15 @@ MultiScanRegistrationBase::MultiScanRegistrationBase(
   params_.disable_lidar_map = disable_lidar_map;
 }
 
-bs_constraints::relative_pose::Pose3DStampedTransaction
+bs_constraints::Pose3DStampedTransaction
     MultiScanRegistrationBase::RegisterNewScan(const ScanPose& new_scan) {
   // create empty transaction
-  bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
-      new_scan.Stamp());
+  bs_constraints::Pose3DStampedTransaction transaction(new_scan.Stamp());
 
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
     AddFirstScan(new_scan, transaction);
+    transaction.AddExtrinsicVariablesForFrame(extrinsics_.GetLidarFrameId());
     return transaction;
   }
 
@@ -139,7 +140,7 @@ bs_constraints::relative_pose::Pose3DStampedTransaction
 
 void MultiScanRegistrationBase::AddFirstScan(
     const ScanPose& scan,
-    bs_constraints::relative_pose::Pose3DStampedTransaction& transaction) {
+    bs_constraints::Pose3DStampedTransaction& transaction) {
   ROS_DEBUG("Adding first scan to reference scans.");
   // BEAM_DEBUG("Adding first scan to reference scans.");
   reference_clouds_.push_front(scan);
@@ -155,7 +156,8 @@ void MultiScanRegistrationBase::AddFirstScan(
   }
 
   if (!params_.disable_lidar_map) {
-    map_.AddPointCloud(scan.Cloud(), scan.LoamCloud(), scan.Stamp(), scan.T_REFFRAME_LIDAR());
+    map_.AddPointCloud(scan.Cloud(), scan.LoamCloud(), scan.Stamp(),
+                       scan.T_REFFRAME_LIDAR());
   }
 
   return;
@@ -163,7 +165,7 @@ void MultiScanRegistrationBase::AddFirstScan(
 
 int MultiScanRegistrationBase::RegisterScanToReferences(
     const ScanPose& new_scan,
-    bs_constraints::relative_pose::Pose3DStampedTransaction& transaction) {
+    bs_constraints::Pose3DStampedTransaction& transaction) {
   if (!params_.GetBaseParams().save_path.empty()) {
     current_scan_path_ =
         beam::CombinePaths(params_.GetBaseParams().save_path,
@@ -204,23 +206,11 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
       lidar_poses_est.push_back(T_WORLD_LIDARCURRENT);
     }
 
-    /**
-     * We need to convert the relative poses measurements from lidar (or cloud)
-     * frames to baselink frames:
-     *
-     * T_BASELINKREF_BASELINKNEW =
-     *    T_BASELINKREF_LIDARREF * T_LIDARREF_LIDARNEW * T_LIDARNEW_BASELINKNEW
-     */
-    Eigen::Matrix4d T_BASELINKREF_BASELINKNEW = ref_iter->T_BASELINK_LIDAR() *
-                                                T_LIDARREF_LIDARTGT *
-                                                new_scan.T_LIDAR_BASELINK();
-    fuse_variables::Position3DStamped position_relative;
-    fuse_variables::Orientation3DStamped orientation_relative;
-    bs_common::EigenTransformToFusePose(
-        T_BASELINKREF_BASELINKNEW, position_relative, orientation_relative);
-
     if (!params_.GetBaseParams().save_path.empty()) {
       // calculate measured pose of target (new scan)
+      Eigen::Matrix4d T_BASELINKREF_BASELINKNEW = ref_iter->T_BASELINK_LIDAR() *
+                                                  T_LIDARREF_LIDARTGT *
+                                                  new_scan.T_LIDAR_BASELINK();
       Eigen::Matrix4d T_REFFRAME_BASELINKNEW =
           ref_iter->T_REFFRAME_BASELINK() * T_BASELINKREF_BASELINKNEW;
 
@@ -242,8 +232,10 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
     // add measurement to transaction
     transaction.AddPoseConstraint(
         ref_iter->Position(), new_scan.Position(), ref_iter->Orientation(),
-        new_scan.Orientation(), position_relative, orientation_relative,
-        covariance_weight_ * covariance_, source_);
+        new_scan.Orientation(),
+        bs_common::TransformMatrixToVectorWithQuaternion(T_LIDARREF_LIDARTGT),
+        covariance_weight_ * covariance_, source_,
+        extrinsics_.GetLidarFrameId());
 
     num_constraints++;
   }
@@ -255,7 +247,8 @@ int MultiScanRegistrationBase::RegisterScanToReferences(
   if (!params_.disable_lidar_map) {
     Eigen::Matrix4d T_WORLD_LIDAR_AVG =
         beam::AverageTransforms(lidar_poses_est);
-    map_.AddPointCloud(new_scan.Cloud(), new_scan.LoamCloud(), new_scan.Stamp(), T_WORLD_LIDAR_AVG);
+    map_.AddPointCloud(new_scan.Cloud(), new_scan.LoamCloud(), new_scan.Stamp(),
+                       T_WORLD_LIDAR_AVG);
   }
 
   return num_constraints;

@@ -15,6 +15,7 @@
 #include <beam_utils/pointclouds.h>
 #include <beam_utils/time.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/reloc/reloc_methods.h>
@@ -415,7 +416,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
 
   const SubmapPtr& current_submap =
       online_submaps_.at(online_submaps_.size() - 1);
-  bs_constraints::relative_pose::Pose3DStampedTransaction new_transaction(
+  bs_constraints::Pose3DStampedTransaction new_transaction(
       current_submap->Stamp());
   new_transaction.AddPoseVariables(current_submap->Position(),
                                    current_submap->Orientation(),
@@ -425,7 +426,7 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   if (online_submaps_.size() == 1) {
     new_transaction.AddPosePrior(current_submap->Position(),
                                  current_submap->Orientation(),
-                                 pose_prior_noise_, "FIRSTSUBMAPPRIOR");
+                                 pose_prior_noise_, "GlobalMap");
     return new_transaction.GetTransaction();
   }
 
@@ -436,12 +437,11 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
   Eigen::Matrix4d T_PREVIOUS_CURRENT =
       beam::InvertTransform(previous_submap->T_WORLD_SUBMAP()) *
       current_submap->T_WORLD_SUBMAP();
-
-  std::string source = "LOCALMAPPER";
   new_transaction.AddPoseConstraint(
-      previous_submap->T_WORLD_SUBMAP(), current_submap->T_WORLD_SUBMAP(),
-      previous_submap->Stamp(), current_submap->Stamp(), T_PREVIOUS_CURRENT,
-      params_.local_mapper_covariance, source);
+      previous_submap->Position(), current_submap->Position(),
+      previous_submap->Orientation(), current_submap->Orientation(),
+      bs_common::TransformMatrixToVectorWithQuaternion(T_PREVIOUS_CURRENT),
+      params_.local_mapper_covariance, "GlobalMap");
 
   ROS_DEBUG("Returning submap pose prior");
   return new_transaction.GetTransaction();

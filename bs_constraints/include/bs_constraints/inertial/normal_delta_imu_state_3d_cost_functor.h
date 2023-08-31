@@ -9,7 +9,7 @@
 #include <bs_common/preintegrator.h>
 #include <bs_common/utils.h>
 
-namespace bs_constraints { namespace inertial {
+namespace bs_constraints {
 
 /**
  * @brief Implements a cost function that models a difference between 3D
@@ -93,7 +93,7 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
 
   // map gravity to templated
   Eigen::Matrix<T, 3, 1> G = GRAVITY_WORLD.cast<T>();
-  
+
   Eigen::Matrix<T, 3, 1> q_tmp = dq_dbg * dbg;
   Eigen::Quaternion<T> q_corrected = dq * bs_common::DeltaQ(q_tmp);
   Eigen::Matrix<T, 3, 1> p_corrected = dp + dp_dbg * dbg + dp_dba * dba;
@@ -140,4 +140,4 @@ bool NormalDeltaImuState3DCostFunctor::operator()(
   return true;
 }
 
-}} // namespace bs_constraints::inertial
+} // namespace bs_constraints
