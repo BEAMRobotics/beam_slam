@@ -135,7 +135,7 @@ void GravityAlignment::AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg,
   Eigen::Vector3d g_in_Baselink = R_Baselink_World * g_in_World_;
   fuse_variables::Orientation3DStamped o_World_Imu(stamp);
   auto constraint =
-      bs_constraints::global::GravityAlignmentStampedConstraint::make_shared(
+      bs_constraints::GravityAlignmentStampedConstraint::make_shared(
           source_, orientation_uuid, g_in_Baselink, covariance_);
   auto transaction = std::make_shared<fuse_core::Transaction>();
   transaction->addConstraint(constraint);

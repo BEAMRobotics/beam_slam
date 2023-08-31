@@ -16,7 +16,7 @@
 #include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
 
 class Data {
- public:
+public:
   Data() {
     // generate measurements on IMU state
     Eigen::Quaterniond q_quat(0.952, 0.038, -0.189, 0.239);
@@ -52,16 +52,16 @@ class Data {
            1.4, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1,  1.2,  1.3,  1.4,  1.5,  15.0;
     // clang-format on
 
-    absolute_imu_state_constraint = std::make_shared<
-        bs_constraints::inertial::AbsoluteImuState3DStampedConstraint>(
-        "test", imu_state, mean, cov);
+    absolute_imu_state_constraint =
+        std::make_shared<bs_constraints::AbsoluteImuState3DStampedConstraint>(
+            "test", imu_state, mean, cov);
   }
 
   bs_common::ImuState imu_state;
   Eigen::Matrix<double, 16, 1> mean;
   Eigen::Matrix<double, 15, 15> cov;
 
-  bs_constraints::inertial::AbsoluteImuState3DStampedConstraint::SharedPtr
+  bs_constraints::AbsoluteImuState3DStampedConstraint::SharedPtr
       absolute_imu_state_constraint;
 };
 
@@ -107,7 +107,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
 
   // Create an absolute pose constraint
   auto constraint =
-      bs_constraints::inertial::AbsoluteImuState3DStampedConstraint::make_shared(
+      bs_constraints::AbsoluteImuState3DStampedConstraint::make_shared(
           "test", data_.imu_state, data_.mean, data_.cov);
 
   // Build the problem
@@ -131,7 +131,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
                             accel_bias_variable->size(),
                             accel_bias_variable->localParameterization());
 
-  std::vector<double *> parameter_blocks;
+  std::vector<double*> parameter_blocks;
   parameter_blocks.push_back(orientation_variable->data());
   parameter_blocks.push_back(position_variable->data());
   parameter_blocks.push_back(velocity_variable->data());
@@ -165,7 +165,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
   EXPECT_NEAR(data_.mean[15], accel_bias_variable->z(), 1.0e-5);
 
   // Compute the covariance
-  std::vector<std::pair<const double *, const double *>> covariance_blocks;
+  std::vector<std::pair<const double*, const double*>> covariance_blocks;
   covariance_blocks.emplace_back(orientation_variable->data(),
                                  orientation_variable->data());
   covariance_blocks.emplace_back(orientation_variable->data(),
@@ -299,7 +299,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Optimization) {
 
 TEST(AbsoluteImuState3DStampedConstraint, Serialization) {
   // Construct a constraint
-  bs_constraints::inertial::AbsoluteImuState3DStampedConstraint expected(
+  bs_constraints::AbsoluteImuState3DStampedConstraint expected(
       "test", data_.imu_state, data_.mean, data_.cov);
 
   // Serialize the constraint into an archive
@@ -310,7 +310,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Serialization) {
   }
 
   // Deserialize a new constraint from that same stream
-  bs_constraints::inertial::AbsoluteImuState3DStampedConstraint actual;
+  bs_constraints::AbsoluteImuState3DStampedConstraint actual;
   {
     fuse_core::TextInputArchive archive(stream);
     actual.deserialize(archive);
@@ -323,7 +323,7 @@ TEST(AbsoluteImuState3DStampedConstraint, Serialization) {
   EXPECT_MATRIX_EQ(expected.sqrtInformation(), actual.sqrtInformation());
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

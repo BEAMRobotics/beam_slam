@@ -6,7 +6,7 @@
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/util.h>
 
-namespace bs_constraints { namespace inertial {
+namespace bs_constraints {
 
 /**
  * @brief Create a prior cost function on the 3D imu state at once.
@@ -89,4 +89,4 @@ bool NormalPriorImuState3DCostFunctor::operator()(const T* const orientation,
   return true;
 }
 
-}} // namespace bs_constraints::inertial
+} // namespace bs_constraints

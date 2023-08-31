@@ -1,16 +1,12 @@
 #pragma once
 
+#include <bs_common/extrinsics_lookup_online.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/registration_map.h>
 #include <bs_models/scan_registration/registration_validation.h>
 
 namespace bs_models { namespace scan_registration {
-
-template <typename ConstraintType, typename PriorType>
-using TransactionBase =
-    bs_constraints::relative_pose::RelativePoseTransactionBase<ConstraintType,
-                                                               PriorType>;
 
 /**
  * @brief base class for scan registration parameters. These params will be used
@@ -72,7 +68,7 @@ public:
    * uneccesary data conversions) and then the relative poses are transformed to
    * relative baselink poses given the extrinsics
    */
-  virtual bs_constraints::relative_pose::Pose3DStampedTransaction
+  virtual bs_constraints::Pose3DStampedTransaction
       RegisterNewScan(const ScanPose& new_scan) = 0;
 
   const RegistrationMap& GetMap() const;
@@ -88,6 +84,8 @@ protected:
   Eigen::Matrix<double, 6, 6> covariance_;
   bool use_fixed_covariance_{false};
   RegistrationMap& map_ = RegistrationMap::GetInstance();
+  bs_common::ExtrinsicsLookupOnline& extrinsics_ =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
   RegistrationValidation registration_validation_;
   double covariance_weight_{1.0};
 

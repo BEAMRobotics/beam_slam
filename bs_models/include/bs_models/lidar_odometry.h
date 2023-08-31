@@ -13,7 +13,6 @@
 #include <beam_utils/pointclouds.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_constraints/relative_pose/relative_pose_transaction_base.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/global_mapping/active_submap.h>
 #include <bs_models/lidar/scan_pose.h>

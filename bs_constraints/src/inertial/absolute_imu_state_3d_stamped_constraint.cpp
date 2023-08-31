@@ -8,7 +8,7 @@
 #include <ceres/autodiff_cost_function.h>
 #include <pluginlib/class_list_macros.h>
 
-namespace bs_constraints { namespace inertial {
+namespace bs_constraints {
 
 AbsoluteImuState3DStampedConstraint::AbsoluteImuState3DStampedConstraint(
     const std::string& source, const bs_common::ImuState& imu_state,
@@ -45,10 +45,9 @@ ceres::CostFunction* AbsoluteImuState3DStampedConstraint::costFunction() const {
       new NormalPriorImuState3DCostFunctor(sqrt_information_, mean_));
 }
 
-}} // namespace bs_constraints::inertial
+} // namespace bs_constraints
 
 BOOST_CLASS_EXPORT_IMPLEMENT(
-    bs_constraints::inertial::AbsoluteImuState3DStampedConstraint);
-PLUGINLIB_EXPORT_CLASS(
-    bs_constraints::inertial::AbsoluteImuState3DStampedConstraint,
-    fuse_core::Constraint);
+    bs_constraints::AbsoluteImuState3DStampedConstraint);
+PLUGINLIB_EXPORT_CLASS(bs_constraints::AbsoluteImuState3DStampedConstraint,
+                       fuse_core::Constraint);

@@ -4,6 +4,7 @@
 
 #include <beam_utils/filesystem.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 
 namespace bs_models { namespace reloc {
@@ -38,12 +39,12 @@ fuse_core::Transaction::SharedPtr RelocRefinementLoam::GenerateTransaction(
   }
 
   // create transaction
-  bs_constraints::relative_pose::Pose3DStampedTransaction transaction(
-      query_submap->Stamp());
-  transaction.AddPoseConstraint(matched_submap->T_WORLD_SUBMAP(),
-                                query_submap->T_WORLD_SUBMAP(),
-                                matched_submap->Stamp(), query_submap->Stamp(),
-                                T_MATCH_QUERY_OPT, reloc_covariance_, source_);
+  bs_constraints::Pose3DStampedTransaction transaction(query_submap->Stamp());
+  transaction.AddPoseConstraint(
+      matched_submap->Position(), query_submap->Position(),
+      matched_submap->Orientation(), query_submap->Orientation(),
+      bs_common::TransformMatrixToVectorWithQuaternion(T_MATCH_QUERY_OPT),
+      reloc_covariance_, source_);
 
   return transaction.GetTransaction();
 }

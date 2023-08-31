@@ -108,7 +108,7 @@ void LidarPathInit::ProcessLidar(
                              T_WORLD_BASELINK_EST, T_BASELINK_LIDAR_,
                              feature_extractor_);
   ROS_DEBUG("Time to build scan pose: %.5f", timer.elapsedAndRestart());
-  bs_constraints::relative_pose::Pose3DStampedTransaction transaction =
+  bs_constraints::Pose3DStampedTransaction transaction =
       scan_registration_->RegisterNewScan(current_scan_pose);
   registration_times_.insert(timer.elapsed());
   ROS_DEBUG("Time to register scan : %.5f", timer.elapsedAndRestart());
@@ -284,7 +284,7 @@ void LidarPathInit::UpdateRegistrationMap(
       if (!in_map) {
         registration_map.AddPointCloud(p.Cloud(), p.LoamCloud(), p.Stamp(),
                                        p.T_REFFRAME_LIDAR());
-      } 
+      }
     }
   }
 

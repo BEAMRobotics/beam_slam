@@ -1,5 +1,4 @@
-#ifndef FUSE_MODELS_EUCLIDEAN_REPROJECTION_FUNCTION_H
-#define FUSE_MODELS_EUCLIDEAN_REPROJECTION_FUNCTION_H
+#pragma once 
 
 #include <ceres/sized_cost_function.h>
 
@@ -167,5 +166,3 @@ private:
 };
 
 } // namespace bs_constraints
-
-#endif // FUSE_MODELS_EUCLIDEAN_REPROJECTION_FUNCTION_H

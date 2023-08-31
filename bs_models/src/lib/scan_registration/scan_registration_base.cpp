@@ -6,6 +6,7 @@
 #include <beam_utils/angles.h>
 #include <beam_utils/filesystem.h>
 
+#include <bs_common/conversions.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
 

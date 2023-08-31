@@ -13,9 +13,6 @@
 
 namespace bs_models { namespace scan_registration {
 
-using namespace beam_matching;
-using namespace bs_common;
-
 /**
  * @brief Base class that defines the interface for ScanToMapRegistration
  * classes. Differnt classes may have slightly different implementations based
@@ -46,7 +43,7 @@ public:
    * previous, unless the map is empty then the transaction will only contain a
    * prior constraint on this pose
    */
-  bs_constraints::relative_pose::Pose3DStampedTransaction
+  bs_constraints::Pose3DStampedTransaction
       RegisterNewScan(const ScanPose& new_scan) override;
 
 protected:
@@ -100,9 +97,10 @@ public:
     ScanRegistrationParamsBase GetBaseParams() const;
   };
 
-  ScanToMapLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
-                            const ScanRegistrationParamsBase& base_params,
-                            int map_size = 10);
+  ScanToMapLoamRegistration(
+      std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
+          matcher,
+      const ScanRegistrationParamsBase& base_params, int map_size = 10);
 
 private:
   bool RegisterScanToMap(const ScanPose& scan_pose,
@@ -111,7 +109,8 @@ private:
   void AddScanToMap(const ScanPose& scan_pose,
                     const Eigen::Matrix4d& T_MAP_SCAN) override;
 
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher_;
+  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
+      matcher_;
   Params params_;
 };
 

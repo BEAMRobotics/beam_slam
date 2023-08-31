@@ -5,7 +5,7 @@
 
 #include <bs_constraints/motion/unicycle_3d_predict.h>
 
-namespace bs_constraints { namespace motion {
+namespace bs_constraints {
 
 /**
  * @brief Create a cost function for a 3D state vector
@@ -67,13 +67,13 @@ Unicycle3DStateCostFunctor::Unicycle3DStateCostFunctor(
     : dt_(dt), A_(A) {}
 
 template <typename T>
-bool Unicycle3DStateCostFunctor::
-    operator()(const T* const position1, const T* const orientation1,
-               const T* const vel_linear1, const T* const vel_angular1,
-               const T* const acc_linear1, const T* const position2,
-               const T* const orientation2, const T* const vel_linear2,
-               const T* const vel_angular2, const T* const acc_linear2,
-               T* residual) const {
+bool Unicycle3DStateCostFunctor::operator()(
+    const T* const position1, const T* const orientation1,
+    const T* const vel_linear1, const T* const vel_angular1,
+    const T* const acc_linear1, const T* const position2,
+    const T* const orientation2, const T* const vel_linear2,
+    const T* const vel_angular2, const T* const acc_linear2,
+    T* residual) const {
   T roll2 = fuse_core::getRoll(orientation2[0], orientation2[1],
                                orientation2[2], orientation2[3]);
   T pitch2 = fuse_core::getPitch(orientation2[0], orientation2[1],
@@ -124,4 +124,4 @@ bool Unicycle3DStateCostFunctor::
   return true;
 }
 
-}} // namespace bs_constraints::motion
+} // namespace bs_constraints

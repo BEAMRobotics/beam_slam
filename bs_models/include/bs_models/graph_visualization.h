@@ -19,6 +19,36 @@ namespace bs_models {
 
 using namespace bs_common;
 
+namespace graph_visualization {
+
+template <typename PointT>
+void SaveCloud(const std::string& save_path, const std::string& cloud_name,
+               const pcl::PointCloud<PointT>& cloud) {
+  if (save_path.empty()) { return; }
+  std::string filename = beam::CombinePaths(save_path, cloud_name + ".pcd");
+  beam::SavePointCloud<PointT>(filename, cloud);
+}
+
+void SaveImuBiases(const std::map<int64_t, bs_common::ImuBiases>& biases,
+                   const std::string& save_path, const std::string& filename);
+
+pcl::PointCloud<pcl::PointXYZRGBL> GetGraphRelativeImuConstraintsAsCloud(
+    const fuse_core::Graph& graph, double point_spacing, double frame_size);
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GetGraphGravityConstraintsAsCloud(const fuse_core::Graph& graph,
+                                      double point_spacing, double frame_size,
+                                      double g_length);
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GetGraphCameraLandmarksAsCloud(const fuse_core::Graph& graph);
+
+pcl::PointCloud<pcl::PointXYZRGBL>
+    GetGraphRelativePoseWithExtrinsicsConstraintsAsCloud(
+        const fuse_core::Graph& graph, const std::string& source);
+
+} // namespace graph_visualization
+
 class GraphVisualization : public fuse_core::AsyncSensorModel {
 public:
   FUSE_SMART_PTR_DEFINITIONS(GraphVisualization);
@@ -68,28 +98,6 @@ private:
     publisher.counter++;
   }
 
-  template <typename PointT>
-  void SaveCloud(const std::string& cloud_name,
-                 const pcl::PointCloud<PointT>& cloud) {
-    if (save_path_.empty()) { return; }
-    std::string stamp_str = std::to_string(current_time_.toSec());
-    std::string filename =
-        beam::CombinePaths(save_path_, stamp_str + "_" + cloud_name + ".pcd");
-    beam::SavePointCloud<PointT>(filename, cloud);
-  }
-
-  void SaveImuBiases(const std::map<int64_t, bs_common::ImuBiases>& biases,
-                     const std::string& filename) const;
-
-  pcl::PointCloud<pcl::PointXYZRGBL> GetGraphRelativeImuConstraintsAsCloud(
-      const fuse_core::Graph& graph) const;
-
-  pcl::PointCloud<pcl::PointXYZRGBL>
-      GetGraphGravityConstraintsAsCloud(const fuse_core::Graph& graph) const;
-
-  pcl::PointCloud<pcl::PointXYZRGBL>
-      GetGraphCameraLandmarksAsCloud(const fuse_core::Graph& graph) const;
-
   void processImage(const sensor_msgs::Image::ConstPtr& msg);
 
   void processMeasurements(const CameraMeasurementMsg::ConstPtr& msg);
@@ -135,7 +143,8 @@ private:
   double frame_size_{0.15};
   double point_spacing_{0.01};
   double g_length_{0.25};
-  Eigen::Vector3d g_in_World_True_{0, 0, -1};
+  int keypoints_circle_radius_{2};
+  int keypoints_line_thickness_{3};
 };
 
 } // namespace bs_models

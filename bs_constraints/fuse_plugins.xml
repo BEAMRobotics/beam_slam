@@ -1,18 +1,18 @@
 <library path="lib/libbs_constraints">
 
-  <class type="bs_constraints::relative_pose::RelativeImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
+  <class type="bs_constraints::RelativeImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
     <description>
       A constraint that represents a measurement on the difference between two 3D imu states
     </description>
   </class>
 
-  <class type="bs_constraints::global::AbsoluteImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
+  <class type="bs_constraints::AbsoluteImuState3DStampedConstraint" base_class_type="fuse_core::Constraint">
     <description>
       A constraint that represents either prior information about a 3D imu state, or a direct measurement of the 3D imu state.
     </description>
   </class>
 
-  <class type="bs_constraints::global::GravityAlignmentStampedConstraint" base_class_type="fuse_core::Constraint">
+  <class type="bs_constraints::GravityAlignmentStampedConstraint" base_class_type="fuse_core::Constraint">
     <description>
       A constraint that represents an error on global orientation in roll and pitch (not yaw)
     </description>

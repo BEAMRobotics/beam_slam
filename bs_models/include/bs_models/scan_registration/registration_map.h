@@ -9,8 +9,6 @@
 
 namespace bs_models { namespace scan_registration {
 
-using namespace beam_matching;
-
 /**
  * @brief class for building, maintaining, and storing a lidar map. This class
  * is implemented as a singleton because there should only be one lidar map
@@ -26,7 +24,7 @@ public:
   struct ScanPoseInMapFrame {
     Eigen::Matrix4d T_Map_Scan;
     PointCloud cloud;
-    LoamPointCloud loam_cloud;
+    beam_matching::LoamPointCloud loam_cloud;
     fuse_core::UUID orientation_uuid;
     fuse_core::UUID position_uuid;
   };
@@ -78,7 +76,8 @@ public:
    * we will be frequently asking for the full map). The map frame is usually
    * the world frame.
    */
-  void AddPointCloud(const PointCloud& cloud, const LoamPointCloud& loam_cloud,
+  void AddPointCloud(const PointCloud& cloud,
+                     const beam_matching::LoamPointCloud& loam_cloud,
                      const ros::Time& stamp, const Eigen::Matrix4d& T_Map_Scan);
 
   /**
@@ -91,7 +90,7 @@ public:
    * @brief returns combined loam pointcloud in map frame
    * @return LoamPointCloud
    */
-  LoamPointCloud GetLoamCloudMap() const;
+  beam_matching::LoamPointCloud GetLoamCloudMap() const;
 
   /**
    * @brief Updates all points in a scan if that scan is currently saved in the
@@ -150,7 +149,8 @@ public:
    * @param cloud reference to loam cloud to fill in
    * @return true if scan with thi stimestamp exists
    */
-  bool GetScanInMapFrame(const ros::Time& stamp, LoamPointCloud& cloud) const;
+  bool GetScanInMapFrame(const ros::Time& stamp,
+                         beam_matching::LoamPointCloud& cloud) const;
 
   /**
    * @brief get the timestamp associated with a fuse uuid of position or
