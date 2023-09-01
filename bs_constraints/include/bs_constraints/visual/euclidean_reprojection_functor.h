@@ -4,6 +4,8 @@
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/util.h>
 
+#include <bs_constraints/helpers.h>
+
 #include <beam_cv/Utils.h>
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
@@ -42,24 +44,14 @@ public:
     // transform point from world frame into camera frame
     Eigen::Matrix<T, 4, 4> T_CAM_BASELINK = T_cam_baselink_.cast<T>();
 
-    T R[9];
-    ceres::QuaternionToRotation(o_WORLD_BASELINK, R);
-    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINK =
-        Eigen::Map<Eigen::Matrix<T, 3, 3> >(R, 3, 3);
-    Eigen::Matrix<T, 3, 1> t_WORLD_BASELINK(
-        p_WORLD_BASELINK[0], p_WORLD_BASELINK[1], p_WORLD_BASELINK[2]);
     Eigen::Matrix<T, 3, 1> P_WORLD(P[0], P[1], P[2]);
 
     Eigen::Matrix<T, 4, 4> T_WORLD_BASELINK =
-        Eigen::Matrix<T, 4, 4>::Identity();
-    T_WORLD_BASELINK.block(0, 0, 3, 3) = R_WORLD_BASELINK;
-    T_WORLD_BASELINK.block(0, 3, 3, 1) = t_WORLD_BASELINK;
+        bs_constraints::OrientationAndPositionToTransformationMatrix(
+            o_WORLD_BASELINK, p_WORLD_BASELINK);
 
     Eigen::Matrix<T, 4, 4> T_BASELINK_WORLD =
-        Eigen::Matrix<T, 4, 4>::Identity();
-    T_BASELINK_WORLD.block(0, 0, 3, 3) = R_WORLD_BASELINK.transpose();
-    T_BASELINK_WORLD.block(0, 3, 3, 1) =
-        -R_WORLD_BASELINK.transpose() * t_WORLD_BASELINK;
+        bs_constraints::InvertTransform(T_WORLD_BASELINK);
 
     // transform world point into camera frame
     Eigen::Matrix<T, 3, 1> P_CAMERA =

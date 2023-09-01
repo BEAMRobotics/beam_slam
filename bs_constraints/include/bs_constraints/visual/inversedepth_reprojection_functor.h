@@ -4,10 +4,11 @@
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/util.h>
 
+#include <bs_constraints/helpers.h>
+
 #include <beam_cv/Utils.h>
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
-#include <ceres/rotation.h>
 
 namespace bs_constraints {
 
@@ -49,8 +50,8 @@ public:
    *
    * This transformation can be done by finding the relative transform between
    * anchor and measurement frame and constructing a projection matrix:
-   * P = [K]*[R|t], where [R|t] is the 3x4 matrix representing the transformation
-   * from the anchor frame to the measurement frame.
+   * P = [K]*[R|t], where [R|t] is the 3x4 matrix representing the
+   * transformation from the anchor frame to the measurement frame.
    */
   template <typename T>
   bool operator()(const T* const o_WORLD_BASELINKa,
@@ -59,38 +60,22 @@ public:
                   const T* const p_WORLD_BASELINKm,
                   const T* const inverse_depth, T* residual) const {
     // get extrinsic
-    Eigen::Matrix<T, 4, 4> T_BASELINK_CAM =
-        beam::InvertTransform(T_cam_baselink_).cast<T>();
     Eigen::Matrix<T, 4, 4> T_CAM_BASELINK = T_cam_baselink_.cast<T>();
 
     // get anchor pose as 4x4 matrix
-    T Ra[9];
-    ceres::QuaternionToRotation(o_WORLD_BASELINKa, Ra);
-    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINKa =
-        Eigen::Map<Eigen::Matrix<T, 3, 3> >(Ra, 3, 3);
-    Eigen::Matrix<T, 3, 1> t_WORLD_BASELINKa(
-        p_WORLD_BASELINKa[0], p_WORLD_BASELINKa[1], p_WORLD_BASELINKa[2]);
     Eigen::Matrix<T, 4, 4> T_WORLD_BASELINKa =
-        Eigen::Matrix<T, 4, 4>::Identity();
-    T_WORLD_BASELINKa.block(0, 0, 3, 3) = R_WORLD_BASELINKa;
-    T_WORLD_BASELINKa.block(0, 3, 3, 1) = t_WORLD_BASELINKa;
+        bs_constraints::OrientationAndPositionToTransformationMatrix(
+            o_WORLD_BASELINKa, p_WORLD_BASELINKa);
 
     // get measurement pose as 4x4 matrix
-    T Rm[9];
-    ceres::QuaternionToRotation(o_WORLD_BASELINKm, Rm);
-    Eigen::Matrix<T, 3, 3> R_WORLD_BASELINKm =
-        Eigen::Map<Eigen::Matrix<T, 3, 3> >(Rm, 3, 3);
-    Eigen::Matrix<T, 3, 1> t_WORLD_BASELINKm(
-        p_WORLD_BASELINKm[0], p_WORLD_BASELINKm[1], p_WORLD_BASELINKm[2]);
-    Eigen::Matrix<T, 4, 4> T_BASELINKm_WORLD =
-        Eigen::Matrix<T, 4, 4>::Identity();
-    T_BASELINKm_WORLD.block(0, 0, 3, 3) = R_WORLD_BASELINKm.transpose();
-    T_BASELINKm_WORLD.block(0, 3, 3, 1) =
-        -R_WORLD_BASELINKm.transpose() * t_WORLD_BASELINKm;
+    Eigen::Matrix<T, 4, 4> T_WORLD_BASELINKm =
+        bs_constraints::OrientationAndPositionToTransformationMatrix(
+            o_WORLD_BASELINKm, p_WORLD_BASELINKm);
 
     // get relative pose between anchor and measurement
     Eigen::Matrix<T, 4, 4> T_CAMERAm_CAMERAa =
-        T_CAM_BASELINK * T_BASELINKm_WORLD * T_WORLD_BASELINKa * T_BASELINK_CAM;
+        T_CAM_BASELINK * bs_constraints::InvertTransform(T_WORLD_BASELINKm) *
+        T_WORLD_BASELINKa * bs_constraints::InvertTransform(T_CAM_BASELINK);
 
     // create projection matrix
     const Eigen::Matrix<T, 3, 4> projection_matrix =

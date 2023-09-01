@@ -250,6 +250,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
       // triangulate and add landmark
       const auto initial_point = TriangulateLandmark(id);
       if (!initial_point.has_value()) { return; }
+      
       // use the first keyframe that sees the landmark as the anchor frame
       auto track = landmark_container_->GetTrack(id);
       ros::Time anchor_time;
@@ -283,10 +284,11 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
               .hnormalized();
       double inverse_depth = 1.0 / camera_t_point.z();
 
-      visual_map_->AddInverseDepthLandmark(bearing, inverse_depth, id, anchor_time,
-                                           transaction);
+      // add landmark to transaction
+      visual_map_->AddInverseDepthLandmark(bearing, inverse_depth, id,
+                                           anchor_time, transaction);
 
-      // add constraints to keyframes that view its
+      // add constraints to keyframes that view it
       for (const auto& kf : keyframes_) {
         const auto kf_stamp = kf.Stamp();
         try {
