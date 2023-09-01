@@ -12,6 +12,37 @@ PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel);
 
 namespace bs_models {
 
+ImuBuffer::ImuBuffer(double buffer_length_s) {
+  buffer_length_ns_ = static_cast<int64_t>(buffer_length_s * 1e9);
+}
+
+void ImuBuffer::Add(const sensor_msgs::Imu::ConstPtr& msg) {
+  // TODO
+
+  CleanOverflow()
+}
+
+void ImuBuffer::CleanOverflow() {
+  if (!imu_buffer_.empty()) {
+    while (imu_buffer_.rbegin()->first - imu_buffer_.begin()->first >
+           buffer_length_ns_) {
+      imu_buffer_.erase(imu_buffer_.begin());
+    }
+  }
+
+  if (!transactions_buffer_.empty()) {
+    while (transactions_buffer_.rbegin()->first -
+               transactions_buffer_.begin()->first >
+           buffer_length_ns_) {
+      transactions_buffer_.erase(transactions_buffer_.begin());
+    }
+  }
+}
+
+int64_t ImuBuffer::GetLastTransactionTime() const {
+  return transactions_buffer_.rbegin()->first;
+}
+
 InertialOdometry::InertialOdometry()
     : fuse_core::AsyncSensorModel(2),
       throttled_imu_callback_(std::bind(&InertialOdometry::processIMU, this,
@@ -87,12 +118,31 @@ void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
   // return if its not initialized_
   if (!initialized_) { return; }
 
-  // add constraint at time
-  auto transaction = imu_preint_->RegisterNewImuPreintegratedFactor(msg->data);
+  int64_t ts_ns = msg->data.toNSec();
+  if (ts_ns >= imu_buffer_.GetLastConstraintTime()) {
+    auto trans = imu_preint_->RegisterNewImuPreintegratedFactor(msg->data);
+    if (!trans) { return; }
+    sendTransaction(trans);
+    auto added_constraints_range = trans->addedConstraints();
+    // TODO: check that only one was added
+    fuse_core::UUID constaint_uuid = added_constraints_range.begin()->uuid();
+    imu_buffer_.SetConstraint(ts_ns, constaint_uuid);
+  } else {
+    int64_t prior_constraint_ts_ns = imu_buffer_.GetPriorConstraintTime(ts_ns);
+    std::vector<ImuConstraintData> imu_constraint_data =
+        imu_buffer_.ExtractConstraintDataAfterTime(prior_constraint_ts_ns);
+    // TODO create these functions
+    ImuConstraintData constraint_data_before;
+    std::vector<ImuConstraintData> constraint_data_after;
+    BreakupConstraintData(imu_constraint_data, constraint_data_before,
+                          constraint_data_after);
 
-  if (!transaction) { return; }
-
-  sendTransaction(transaction);
+    // TODO:
+    // 1. create new transaction with new constraints (2+ new constraints)
+    // 2. remove previous constraints and add to transaction
+    // 3. send transaction to graph
+    // 4. add contraint data to imu_buffer using AddConstraintData
+  }
 }
 
 void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,

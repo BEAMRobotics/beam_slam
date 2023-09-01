@@ -19,6 +19,51 @@
 
 namespace bs_models {
 
+struct ImuConstraintData {
+  fuse_core::UUID constraint_uuid;
+  std::vector<sensor_msgs::Imu::ConstPtr> imu_data;
+};
+
+/**
+ * Store all unused IMU data in an IMU buffer and when a constraint gets added,
+ * we move that data to the constraint buffer.
+ */
+class ImuBuffer {
+public:
+  explicit ImuBuffer(double buffer_length_s = 5);
+
+  // add IMU data to raw IMU buffer
+  void AddData(const sensor_msgs::Imu::ConstPtr& msg);
+
+  // move data from raw IMU buffer to constraint buffer up until time_ns
+  void SetConstraint(int64_t time_ns, const fuse_core::UUID& constraint_uuid);
+
+  // directly add constraint data to the constraint buffer
+  void AddConstraintData(int64_t time_ns, ImuConstraintData);
+
+  // extract all imu constraint data after a specific time. This will remove it
+  // from the constraint buffer and therefore will need to be re-added
+  std::vector<ImuConstraintData>
+      ExtractConstraintDataAfterTime(int64_t time_ns) const;
+
+  int64_t GetPriorConstraintTime(int64_t time_ns) const;
+
+  int64_t GetNextConstraintTime(int64_t time_ns) const;
+
+  int64_t GetLastConstraintTime() const;
+
+private:
+  void CleanOverflow();
+
+  // maps constraint timestamp to constraint data. Constraint timestamp
+  // should match the end of the IMU data in the constraint
+  std::map<int64_t, ImuConstraintData> constraint_buffer_;
+
+  // raw IMU data not added to the constraint buffer
+  std::map<int64_t, sensor_msgs::Imu::ConstPtr> imu_buffer_;
+  int64_t buffer_length_ns_;
+};
+
 class InertialOdometry : public fuse_core::AsyncSensorModel {
 public:
   FUSE_SMART_PTR_DEFINITIONS(InertialOdometry);
