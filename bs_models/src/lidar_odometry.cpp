@@ -19,6 +19,7 @@ PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry, fuse_core::SensorModel)
 namespace bs_models {
 
 using namespace scan_registration;
+using namespace beam_matching;
 
 LidarOdometry::LidarOdometry()
     : fuse_core::AsyncSensorModel(1),

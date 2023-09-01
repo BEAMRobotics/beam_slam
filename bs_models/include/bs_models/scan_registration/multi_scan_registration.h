@@ -13,9 +13,7 @@
 
 static bool _tmp_bool{true};
 
-namespace bs_models { namespace scan_registration {
-
-using namespace beam_matching;
+namespace bs_models::scan_registration {
 
 class MultiScanRegistrationBase : public ScanRegistrationBase {
 public:
@@ -164,7 +162,7 @@ public:
 
   MultiScanLoamRegistration() = delete;
 
-  MultiScanLoamRegistration(std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
+  MultiScanLoamRegistration(std::unique_ptr<LoamMatcher> matcher,
                             const ScanRegistrationParamsBase& base_params,
                             int num_neighbors = 10, double lag_duration = 0,
                             bool disable_lidar_map = false);
@@ -173,7 +171,7 @@ private:
   bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
                   Eigen::Matrix4d& T_LIDARREF_LIDARTGT) override;
 
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher_;
+  std::unique_ptr<LoamMatcher> matcher_;
 };
 
 class MultiScanRegistration : public MultiScanRegistrationBase {
@@ -182,7 +180,7 @@ public:
 
   MultiScanRegistration() = delete;
 
-  MultiScanRegistration(std::unique_ptr<Matcher<PointCloudPtr>> matcher,
+  MultiScanRegistration(std::unique_ptr<PointcloudMatcher> matcher,
                         const ScanRegistrationParamsBase& base_params,
                         int num_neighbors = 10, double lag_duration = 0,
                         bool disable_lidar_map = false);
@@ -191,7 +189,7 @@ private:
   bool MatchScans(const ScanPose& scan_pose_ref, const ScanPose& scan_pose_tgt,
                   Eigen::Matrix4d& T_LIDARREF_LIDARTGT) override;
 
-  std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
+  std::unique_ptr<PointcloudMatcher> matcher_;
 };
 
-}} // namespace bs_models::scan_registration
+} // namespace bs_models::scan_registration

@@ -258,8 +258,8 @@ public:
    * be in baselink_frame_ already
    */
   fuse_core::Transaction::SharedPtr
-      AddMeasurement(const CameraMeasurementMsg& cam_measurement,
-                     const LidarMeasurementMsg& lid_measurement,
+      AddMeasurement(const bs_common::CameraMeasurementMsg& cam_measurement,
+                     const bs_common::LidarMeasurementMsg& lid_measurement,
                      const nav_msgs::Path& traj_measurement,
                      const Eigen::Matrix4d& T_WORLD_BASELINK,
                      const ros::Time& stamp);
@@ -473,7 +473,8 @@ private:
    * @param T transform to apply to all points (lidar_points, loam_points,
    * keypoints) to get them into the local mapper's world frame
    */
-  void FillSubmapMsg(SubmapMsg& submap_msg, const PointCloud& lidar_points,
+  void FillSubmapMsg(bs_common::SubmapMsg& submap_msg,
+                     const PointCloud& lidar_points,
                      const beam_matching::LoamPointCloud& loam_points,
                      const PointCloud& keypoints,
                      const std::vector<std::vector<float>>& words,

@@ -11,8 +11,6 @@
 
 namespace bs_models {
 
-using namespace bs_common;
-
 class GravityAlignment : public fuse_core::AsyncSensorModel {
 public:
   FUSE_SMART_PTR_DEFINITIONS(GravityAlignment);

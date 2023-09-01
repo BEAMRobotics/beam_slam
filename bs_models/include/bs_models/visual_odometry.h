@@ -21,9 +21,6 @@
 
 namespace bs_models {
 
-using namespace bs_common;
-using namespace vision;
-
 class VisualOdometry : public fuse_core::AsyncSensorModel {
 public:
   SMART_PTR_DEFINITIONS(VisualOdometry);
@@ -38,7 +35,8 @@ private:
   /// @brief Callback for image processing, this callback will add visual
   /// constraints and triangulate new landmarks when required
   /// @param msg The visual measurements to process
-  void processMeasurements(const CameraMeasurementMsg::ConstPtr& msg);
+  void
+      processMeasurements(const bs_common::CameraMeasurementMsg::ConstPtr& msg);
 
   /// @brief Perform any required initialization for the sensor model
   /// This could include things like reading from the parameter server or
@@ -62,7 +60,8 @@ private:
   /// @brief Localizes image and extends our visual map if its a keyframe
   /// @param msg visual measurements
   /// @return whether it succeeded in localizing
-  bool ComputeOdometryAndExtendMap(const CameraMeasurementMsg::ConstPtr& msg);
+  bool ComputeOdometryAndExtendMap(
+      const bs_common::CameraMeasurementMsg::ConstPtr& msg);
 
   /// @brief Localizes a given frame using the tracker and the current visual
   /// map
@@ -88,7 +87,8 @@ private:
 
   /// @brief Adds visual measurements to the landmark container
   /// @param msg
-  void AddMeasurementsToContainer(const CameraMeasurementMsg::ConstPtr& msg);
+  void AddMeasurementsToContainer(
+      const bs_common::CameraMeasurementMsg::ConstPtr& msg);
 
   /// @brief Triangulates a landmark of the given id
   /// @param id of landmark
@@ -112,18 +112,18 @@ private:
 
   /// @brief Publishes a keyframe object as a slam chunk
   /// @param keyframe
-  void PublishSlamChunk(const Keyframe& keyframe);
+  void PublishSlamChunk(const vision::Keyframe& keyframe);
 
   /// @brief Publishes a keyframe object as a reloc request
   /// @param keyframe
-  void PublishRelocRequest(const Keyframe& keyframe);
+  void PublishRelocRequest(const vision::Keyframe& keyframe);
 
   /// @brief
   /// @param timestamp
   /// @param T_WORLD_BASELINK
   void PublishPose(const ros::Time& timestamp,
                    const Eigen::Matrix4d& T_WORLD_BASELINK);
-  
+
   /// @brief The UUID of this device
   fuse_core::UUID device_id_; //!< The UUID of this device
 
@@ -146,12 +146,13 @@ private:
   ros::Publisher reloc_publisher_;
   ros::Publisher imu_constraint_trigger_publisher_;
   int imu_constraint_trigger_counter_{0};
-  
+
   /// @brief book keeping variables
   bool is_initialized_{false};
-  std::deque<Keyframe> keyframes_;
+  std::deque<vision::Keyframe> keyframes_;
   uint32_t added_since_kf_{0};
-  std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;
+  std::deque<bs_common::CameraMeasurementMsg::ConstPtr>
+      visual_measurement_buffer_;
   Eigen::Matrix4d T_ODOM_BASELINKprev_{Eigen::Matrix4d::Identity()};
   ros::Time previous_reloc_request_{ros::Time(0)};
   ros::Time previous_frame_;
@@ -159,14 +160,14 @@ private:
 
   /// @brief callbacks for messages
   using ThrottledMeasurementCallback =
-      fuse_core::ThrottledMessageCallback<CameraMeasurementMsg>;
+      fuse_core::ThrottledMessageCallback<bs_common::CameraMeasurementMsg>;
   ThrottledMeasurementCallback throttled_measurement_callback_;
 
   /// @brief computer vision objects
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   Eigen::Matrix3d cam_intrinsic_matrix_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
-  std::shared_ptr<VisualMap> visual_map_;
+  std::shared_ptr<vision::VisualMap> visual_map_;
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
   fuse_core::Graph::UniquePtr local_graph_;
 

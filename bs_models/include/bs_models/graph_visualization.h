@@ -17,8 +17,6 @@
 
 namespace bs_models {
 
-using namespace bs_common;
-
 namespace graph_visualization {
 
 template <typename PointT>
@@ -100,7 +98,8 @@ private:
 
   void processImage(const sensor_msgs::Image::ConstPtr& msg);
 
-  void processMeasurements(const CameraMeasurementMsg::ConstPtr& msg);
+  void
+      processMeasurements(const bs_common::CameraMeasurementMsg::ConstPtr& msg);
 
   // loadable parameters
   bs_parameters::models::GraphVisualizationParams params_;
@@ -127,7 +126,7 @@ private:
   ros::Publisher image_publisher_;
 
   using ThrottledMeasurementCallback =
-      fuse_core::ThrottledMessageCallback<CameraMeasurementMsg>;
+      fuse_core::ThrottledMessageCallback<bs_common::CameraMeasurementMsg>;
   ThrottledMeasurementCallback throttled_measurement_callback_;
 
   using ThrottledImageCallback =

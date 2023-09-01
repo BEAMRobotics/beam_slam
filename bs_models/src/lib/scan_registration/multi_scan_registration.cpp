@@ -482,7 +482,7 @@ bool MultiScanRegistration::MatchScans(const ScanPose& scan_pose_ref,
 }
 
 MultiScanLoamRegistration::MultiScanLoamRegistration(
-    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
+    std::unique_ptr<LoamMatcher> matcher,
     const ScanRegistrationParamsBase& base_params, int num_neighbors,
     double lag_duration, bool disable_lidar_map)
     : MultiScanRegistrationBase(base_params, num_neighbors, lag_duration,

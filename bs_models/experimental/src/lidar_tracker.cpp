@@ -17,6 +17,7 @@ PLUGINLIB_EXPORT_CLASS(bs_models::LidarTracker, fuse_core::SensorModel)
 namespace bs_models {
 
 using namespace scan_registration;
+using namespace beam_matching;
 
 LidarTracker::LidarTracker()
     : fuse_core::AsyncSensorModel(1),

@@ -24,9 +24,6 @@
 
 namespace bs_models {
 
-using namespace bs_common;
-using namespace vision;
-
 enum class InitMode { VISUAL = 0, LIDAR };
 
 class SLAMInitialization : public fuse_core::AsyncSensorModel {
@@ -49,7 +46,8 @@ private:
    * constraints and triangulate new landmarks when required
    * @param[in] msg - The image to process
    */
-  void processCameraMeasurements(const CameraMeasurementMsg::ConstPtr& msg);
+  void processCameraMeasurements(
+      const bs_common::CameraMeasurementMsg::ConstPtr& msg);
 
   /**
    * @brief Callback for imu processing, this will make sure the imu messages
@@ -187,7 +185,7 @@ private:
 
   // objects for intializing
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
-  std::shared_ptr<VisualMap> visual_map_;
+  std::shared_ptr<vision::VisualMap> visual_map_;
   std::shared_ptr<ImuPreintegration> imu_preint_;
   std::unique_ptr<LidarPathInit> lidar_path_init_;
   bs_models::ImuPreintegration::Params imu_params_;
@@ -209,7 +207,7 @@ private:
 
   // throttled callbacks for messages
   using ThrottledMeasurementCallback =
-      fuse_core::ThrottledMessageCallback<CameraMeasurementMsg>;
+      fuse_core::ThrottledMessageCallback<bs_common::CameraMeasurementMsg>;
   ThrottledMeasurementCallback throttled_measurement_callback_;
   using ThrottledIMUCallback =
       fuse_core::ThrottledMessageCallback<sensor_msgs::Imu>;

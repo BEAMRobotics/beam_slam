@@ -44,7 +44,7 @@ Submap::Submap(
       extrinsics_(extrinsics) {
   // convert to eigen transform
   Eigen::Matrix4d T_WORLD_SUBMAP;
-  FusePoseToEigenTransform(position_, orientation_, T_WORLD_SUBMAP);
+  bs_common::FusePoseToEigenTransform(position_, orientation_, T_WORLD_SUBMAP);
 
   // store initial transforms
   T_WORLD_SUBMAP_ = T_WORLD_SUBMAP;
@@ -127,7 +127,7 @@ const std::map<uint64_t, cv::Mat>& Submap::GetKeyframeMap() {
 }
 
 void Submap::AddCameraMeasurement(
-    const CameraMeasurementMsg& camera_measurement,
+    const bs_common::CameraMeasurementMsg& camera_measurement,
     const Eigen::Matrix4d& T_WORLDLM_BASELINK) {
   const auto stamp = camera_measurement.header.stamp;
   cv::Mat image;
@@ -255,7 +255,8 @@ bool Submap::UpdatePose(fuse_core::Graph::ConstSharedPtr graph_msg) {
     orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
         graph_msg->getVariable(orientation_.uuid()));
     graph_updates_++;
-    FusePoseToEigenTransform(position_, orientation_, T_WORLD_SUBMAP_);
+    bs_common::FusePoseToEigenTransform(position_, orientation_,
+                                        T_WORLD_SUBMAP_);
     return true;
   }
   return false;

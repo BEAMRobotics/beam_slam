@@ -49,8 +49,9 @@ void VisualFeatureTracker::onStart() {
       &ThrottledImageCallback::callback, &throttled_image_callback_,
       ros::TransportHints().tcpNoDelay(false));
 
-  measurement_publisher_ = private_node_handle_.advertise<CameraMeasurementMsg>(
-      "visual_measurements", 5);
+  measurement_publisher_ =
+      private_node_handle_.advertise<bs_common::CameraMeasurementMsg>(
+          "visual_measurements", 5);
 }
 
 /************************************************************
@@ -75,15 +76,15 @@ void VisualFeatureTracker::processImage(
   prev_time_ = msg->header.stamp;
 }
 
-CameraMeasurementMsg VisualFeatureTracker::BuildCameraMeasurement(
+bs_common::CameraMeasurementMsg VisualFeatureTracker::BuildCameraMeasurement(
     const ros::Time& timestamp, const sensor_msgs::Image& image) {
   static uint64_t measurement_id = 0;
   // build landmark measurements msg
-  std::vector<LandmarkMeasurementMsg> landmarks;
+  std::vector<bs_common::LandmarkMeasurementMsg> landmarks;
   std::vector<uint64_t> landmark_ids =
       tracker_->GetLandmarkIDsInImage(timestamp);
   for (auto& id : landmark_ids) {
-    LandmarkMeasurementMsg lm;
+    bs_common::LandmarkMeasurementMsg lm;
     lm.landmark_id = id;
     const cv::Mat descriptor = tracker_->GetDescriptor(timestamp, id);
     lm.descriptor.descriptor_type = descriptor_->GetTypeString();
@@ -96,7 +97,7 @@ CameraMeasurementMsg VisualFeatureTracker::BuildCameraMeasurement(
   }
 
   // build camera measurement msg
-  CameraMeasurementMsg camera_measurement;
+  bs_common::CameraMeasurementMsg camera_measurement;
   camera_measurement.header.seq = measurement_id++;
   camera_measurement.header.stamp = timestamp;
   camera_measurement.header.frame_id = extrinsics_.GetCameraFrameId();

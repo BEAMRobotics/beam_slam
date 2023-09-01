@@ -7,9 +7,7 @@
 #include <beam_utils/pointclouds.h>
 #include <bs_models/reloc/reloc_candidate_search_base.h>
 
-namespace bs_models { namespace reloc {
-
-using namespace global_mapping;
+namespace bs_models::reloc {
 
 /**
  * @brief This class implements a reloc candidate search class. To
@@ -53,7 +51,7 @@ public:
    * frame
    */
   void FindRelocCandidates(
-      const std::vector<SubmapPtr>& submaps,
+      const std::vector<global_mapping::SubmapPtr>& submaps,
       const Eigen::Matrix4d& T_WORLD_QUERY,
       const std::vector<cv::Mat>& query_images,
       std::vector<int>& matched_indices,
@@ -70,4 +68,4 @@ private:
   double distance_threshold_m_{5};
 };
 
-}} // namespace bs_models::reloc
+} // namespace bs_models::reloc

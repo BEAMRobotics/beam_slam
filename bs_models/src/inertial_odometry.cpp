@@ -138,9 +138,9 @@ void InertialOdometry::onGraphUpdate(
 
   // publish poses in initial graph as odometry
   for (const auto& stamp : timestamps) {
-    T_ODOM_IMUprev_ =
-        FusePoseToEigenTransform(*bs_common::GetPosition(graph_msg, stamp),
-                                 *bs_common::GetOrientation(graph_msg, stamp));
+    T_ODOM_IMUprev_ = bs_common::FusePoseToEigenTransform(
+        *bs_common::GetPosition(graph_msg, stamp),
+        *bs_common::GetOrientation(graph_msg, stamp));
     auto odom_msg = bs_common::TransformToOdometryMessage(
         stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
         extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_,

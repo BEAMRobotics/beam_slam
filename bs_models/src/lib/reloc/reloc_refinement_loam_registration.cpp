@@ -9,6 +9,9 @@
 
 namespace bs_models { namespace reloc {
 
+using namespace global_mapping;
+using namespace beam_matching;
+
 RelocRefinementLoam::RelocRefinementLoam(
     const Eigen::Matrix<double, 6, 6>& reloc_covariance,
     const std::string& config)
@@ -95,7 +98,7 @@ void RelocRefinementLoam::LoadConfig() {
 
 void RelocRefinementLoam::Setup() {
   // load matcher
-  LoamParams matcher_params(matcher_config_);
+  beam_matching::LoamParams matcher_params(matcher_config_);
   matcher_ = std::make_unique<LoamMatcher>(matcher_params);
 }
 

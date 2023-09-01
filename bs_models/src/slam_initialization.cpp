@@ -96,7 +96,7 @@ void SLAMInitialization::onInit() {
 void SLAMInitialization::onStart() {
   // subscribe to topics
   visual_measurement_subscriber_ =
-      private_node_handle_.subscribe<CameraMeasurementMsg>(
+      private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
           ros::names::resolve(params_.visual_measurement_topic), 200,
           &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
@@ -147,7 +147,7 @@ void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
 }
 
 void SLAMInitialization::processCameraMeasurements(
-    const CameraMeasurementMsg::ConstPtr& msg) {
+    const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "SLAMInitialization received VISUAL measurements: " << msg->header.stamp);
   // put measurements into landmark container

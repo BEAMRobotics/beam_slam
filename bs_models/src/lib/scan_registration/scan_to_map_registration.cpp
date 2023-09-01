@@ -145,7 +145,7 @@ ScanRegistrationParamsBase
 }
 
 ScanToMapLoamRegistration::ScanToMapLoamRegistration(
-    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher,
+    std::unique_ptr<LoamMatcher> matcher,
     const ScanRegistrationParamsBase& base_params, int map_size)
     : ScanToMapRegistrationBase(base_params),
       matcher_(std::move(matcher)),

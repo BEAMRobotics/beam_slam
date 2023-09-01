@@ -8,9 +8,7 @@
 #include <beam_utils/pointclouds.h>
 #include <bs_models/global_mapping/submap.h>
 
-namespace bs_models { namespace reloc {
-
-using namespace global_mapping;
+namespace bs_models::reloc {
 
 /**
  * @brief Reloc candidate search finds candidate relocs within submaps
@@ -51,7 +49,7 @@ public:
    * frame
    */
   virtual void FindRelocCandidates(
-      const std::vector<SubmapPtr>& submaps,
+      const std::vector<global_mapping::SubmapPtr>& submaps,
       const Eigen::Matrix4d& T_WORLD_QUERY,
       const std::vector<cv::Mat>& query_images,
       std::vector<int>& matched_indices,
@@ -67,4 +65,4 @@ protected:
   std::string config_path_;
 };
 
-}} // namespace bs_models::reloc
+} // namespace bs_models::reloc

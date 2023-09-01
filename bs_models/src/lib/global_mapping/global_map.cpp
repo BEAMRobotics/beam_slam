@@ -265,12 +265,11 @@ void GlobalMap::Setup() {
   }
 }
 
-fuse_core::Transaction::SharedPtr
-    GlobalMap::AddMeasurement(const CameraMeasurementMsg& cam_measurement,
-                              const LidarMeasurementMsg& lid_measurement,
-                              const nav_msgs::Path& traj_measurement,
-                              const Eigen::Matrix4d& T_WORLD_BASELINK,
-                              const ros::Time& stamp) {
+fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
+    const bs_common::CameraMeasurementMsg& cam_measurement,
+    const bs_common::LidarMeasurementMsg& lid_measurement,
+    const nav_msgs::Path& traj_measurement,
+    const Eigen::Matrix4d& T_WORLD_BASELINK, const ros::Time& stamp) {
   fuse_core::Transaction::SharedPtr new_transaction = nullptr;
 
   int submap_id = GetSubmapId(T_WORLD_BASELINK);
@@ -356,7 +355,7 @@ fuse_core::Transaction::SharedPtr
     std::vector<ros::Time> stamps;
     for (const auto& pose : traj_measurement.poses) {
       Eigen::Matrix4d T_KEYFRAME_FRAME;
-      PoseMsgToTransformationMatrix(pose, T_KEYFRAME_FRAME);
+      bs_common::PoseMsgToTransformationMatrix(pose, T_KEYFRAME_FRAME);
       poses.push_back(T_KEYFRAME_FRAME);
       stamps.push_back(pose.header.stamp);
     }
@@ -510,8 +509,9 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   return transaction;
 }
 
-bool GlobalMap::ProcessRelocRequest(const RelocRequestMsg& reloc_request_msg,
-                                    SubmapMsg& submap_msg) {
+bool GlobalMap::ProcessRelocRequest(
+    const bs_common::RelocRequestMsg& reloc_request_msg,
+    bs_common::SubmapMsg& submap_msg) {
   // load pose
   ros::Time stamp = reloc_request_msg.T_WORLD_BASELINK.header.stamp;
   Eigen::Matrix4d T_WORLDLM_QUERY;
@@ -1176,7 +1176,7 @@ void GlobalMap::AddNewRosScan(const PointCloud& cloud,
   while (ros_new_scans_.size() > max_num_new_scans_) { ros_new_scans_.pop(); }
 }
 
-void GlobalMap::FillSubmapMsg(SubmapMsg& submap_msg,
+void GlobalMap::FillSubmapMsg(bs_common::SubmapMsg& submap_msg,
                               const PointCloud& lidar_points,
                               const beam_matching::LoamPointCloud& loam_points,
                               const PointCloud& keypoints,

@@ -22,8 +22,6 @@
 
 namespace bs_models {
 
-using namespace beam_matching;
-
 /**
  * @brief THIS CLASS NEEDS TO BE REDONE
  *
@@ -116,8 +114,8 @@ private:
   std::unique_ptr<scan_registration::ScanRegistrationBase>
       local_scan_registration_;
 
-  std::unique_ptr<Matcher<PointCloudPtr>> global_matching_;
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> global_loam_matching_;
+  std::unique_ptr<PointcloudMatcher> global_matching_;
+  std::unique_ptr<LoamMatcher> global_loam_matching_;
 
   fuse_core::UUID device_id_; //!< The UUID of this device
 

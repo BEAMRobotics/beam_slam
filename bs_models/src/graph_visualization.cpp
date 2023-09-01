@@ -56,7 +56,7 @@ void GraphVisualization::onInit() {
 
 void GraphVisualization::onStart() {
   feature_track_subscriber_ =
-      private_node_handle_.subscribe<CameraMeasurementMsg>(
+      private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
           "/local_mapper/visual_feature_tracker/visual_measurements", 100,
           &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
@@ -377,7 +377,7 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     uint8_t g = beam::randi(0, 255);
     uint8_t b = beam::randi(0, 255);
     pcl::PointCloud<pcl::PointXYZRGBL> line =
-        DrawLine(p_start, p_end, 0, r, g, b);
+        bs_common::DrawLine(p_start, p_end, 0, r, g, b);
     cloud += line;
   }
 
@@ -465,10 +465,10 @@ pcl::PointCloud<pcl::PointXYZRGBL>
         R_World_Baselink_Measured * g_in_Baselink_Measured;
     Eigen::Vector3d p_start = T_World_Baselink.block(0, 3, 3, 1);
 
-    pcl::PointCloud<pcl::PointXYZRGBL> line1 =
-        DrawLine(p_start, p_start + g_in_World_Measured, 0, 255, 100, 0);
-    pcl::PointCloud<pcl::PointXYZRGBL> line2 =
-        DrawLine(p_start, p_start + g_length * g_in_World_True, 0, 255, 255, 0);
+    pcl::PointCloud<pcl::PointXYZRGBL> line1 = bs_common::DrawLine(
+        p_start, p_start + g_in_World_Measured, 0, 255, 100, 0);
+    pcl::PointCloud<pcl::PointXYZRGBL> line2 = bs_common::DrawLine(
+        p_start, p_start + g_length * g_in_World_True, 0, 255, 255, 0);
     cloud += line1;
     cloud += line2;
   }
@@ -640,7 +640,7 @@ pcl::PointCloud<pcl::PointXYZRGBL>
     double entropy =
         bs_common::ShannonEntropyFromPoseCovariance(c.covariance());
     pcl::PointCloud<pcl::PointXYZRGBL> line =
-        DrawLine(p_start, p_end, entropy, r, g, b);
+        bs_common::DrawLine(p_start, p_end, entropy, r, g, b);
     cloud += line;
   }
 
@@ -652,7 +652,7 @@ void GraphVisualization::processImage(const sensor_msgs::Image::ConstPtr& msg) {
 }
 
 void GraphVisualization::processMeasurements(
-    const CameraMeasurementMsg::ConstPtr& msg) {
+    const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
   // check that message hasnt already been added to container
   const auto times = landmark_container_->GetMeasurementTimes();
   if (times.find(msg->header.stamp) != times.end()) { return; }

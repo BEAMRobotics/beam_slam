@@ -39,7 +39,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
       std::thread::hardware_concurrency() / 2;
   matcher_params->optimizer_params = ceres_params;
 
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
+  std::unique_ptr<LoamMatcher> matcher =
       std::make_unique<LoamMatcher>(*matcher_params);
 
   scan_registration::ScanToMapLoamRegistration::Params reg_params;
