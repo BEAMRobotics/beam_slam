@@ -138,19 +138,19 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   previous_frame_ = timestamp;
   sendTransaction(transaction);
 
+  // send IO trigger
+  if (vo_params_.trigger_inertial_odom_constraints) {
+    std_msgs::Time time_msg;
+    time_msg.data = timestamp;
+    imu_constraint_trigger_publisher_.publish(time_msg);
+    imu_constraint_trigger_counter_++;
+  }
+
   if (IsKeyframe(timestamp, T_WORLD_BASELINK)) {
     ROS_DEBUG_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
     Keyframe kf(*msg);
     keyframes_.push_back(kf);
     ExtendMap(timestamp, T_WORLD_BASELINK);
-
-    // send IO trigger
-    if (vo_params_.trigger_inertial_odom_constraints) {
-      std_msgs::Time time_msg;
-      time_msg.data = timestamp;
-      imu_constraint_trigger_publisher_.publish(time_msg);
-      imu_constraint_trigger_counter_++;
-    }
 
     // publish keyframe pose
     PublishPose(timestamp, T_WORLD_BASELINK);
