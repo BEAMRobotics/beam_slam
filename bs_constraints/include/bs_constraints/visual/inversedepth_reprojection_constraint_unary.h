@@ -37,8 +37,8 @@ public:
    */
   InverseDepthReprojectionConstraintUnary(
       const std::string& source,
-      const fuse_variables::Orientation3DStamped& R_WORLD_BASELINKa,
-      const fuse_variables::Position3DStamped& t_WORLD_BASELINKa,
+      const fuse_variables::Orientation3DStamped& o_WORLD_BASELINKa,
+      const fuse_variables::Position3DStamped& p_WORLD_BASELINKa,
       const bs_variables::InverseDepthLandmark& idp,
       const Eigen::Matrix4d& T_cam_baselink,
       const Eigen::Matrix3d& intrinsic_matrix,

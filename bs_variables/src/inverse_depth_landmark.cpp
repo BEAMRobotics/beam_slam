@@ -33,7 +33,7 @@ void InverseDepthLandmark::print(std::ostream& stream) const {
          << "  anchor stamp: " << anchorStamp() << "\n"
          << "  size: " << size() << "\n"
          << "  data:\n"
-         << "  - rho: " << rho() << "\n"
+         << "  - inverse_depth: " << inverse_depth() << "\n"
          << "  - mx: " << mx_ << "\n"
          << "  - my: " << my_ << "\n";
 }

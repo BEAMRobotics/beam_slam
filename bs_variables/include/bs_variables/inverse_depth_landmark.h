@@ -14,8 +14,10 @@
 namespace bs_variables {
 
 /**
- * @brief Variable representing IMU gyroscopic bias (Bgx, Bgy, Bgz) at a
- * specific time and for a specific piece of hardware (e.g., robot)
+ * @brief Variable representing an Inverse depth landmark. An Inverse depth
+ * landmark is defined by the inverse depth (1/Z) the landmark is from an
+ * "Anchor" pose. It is also defined by the bearing vector from that pose
+ * (T_WORLD_CAMERA), however only the inverse depth is optimized.
  */
 class InverseDepthLandmark : public fuse_variables::FixedSizeVariable<1> {
 public:
@@ -30,6 +32,8 @@ public:
    * @brief Construct an inverse depth landmark.
    *
    * @param[in] id of landmark
+   * @param[in] bearing bearing vector from anchor pose in the camera frame 
+   * [mx, my, 1]
    * @param[in] anchor_stamp timestamp of the anchor pose to this landmark
    */
   explicit InverseDepthLandmark(const uint64_t& id,
@@ -39,12 +43,12 @@ public:
   /**
    * @brief Read-write access to the inverse depth
    */
-  double& rho() { return data_[0]; }
+  double& inverse_depth() { return data_[0]; }
 
   /**
    * @brief Read-only access to the inverse depth
    */
-  const double& rho() const { return data_[0]; }
+  const double& inverse_depth() const { return data_[0]; }
 
   /**
    * @brief Access to the point in the anchor camera frame

@@ -18,29 +18,36 @@ public:
   /**
    * @brief Construct a cost function instance
    *
-   * @param[in] pixel_measurement The pixel location of feature in the image
-   * @param[in] cam_model The camera intrinsics for projection
+   * @param[in] information_matrix Residual weighting matrix
+   * @param[in] pixel_measurement Pixel measurement
+   * @param[in] intrinsic_matrix Camera intrinsic matrix (K):
+   * [fx, 0, cx]
+   * [0, fy, cy]
+   * [0,  0,  1]
+   * @param[in] T_cam_baselink Camera extrinsic
    */
-  EuclideanReprojectionFunctor(const Eigen::Matrix2d& A,
-                               const Eigen::Vector2d& b,
+  EuclideanReprojectionFunctor(const Eigen::Matrix2d& information_matrix,
+                               const Eigen::Vector2d& pixel_measurement,
                                const Eigen::Matrix3d& intrinsic_matrix,
                                const Eigen::Matrix4d& T_cam_baselink)
-      : A_(A),
-        b_(b),
+      : information_matrix_(information_matrix),
+        pixel_measurement_(pixel_measurement),
         intrinsic_matrix_(intrinsic_matrix),
         T_cam_baselink_(T_cam_baselink) {}
 
   template <typename T>
-  bool operator()(const T* const q, const T* const t, const T* const P,
+  bool operator()(const T* const o_WORLD_BASELINK,
+                  const T* const p_WORLD_BASELINK, const T* const P,
                   T* residual) const {
     // transform point from world frame into camera frame
     Eigen::Matrix<T, 4, 4> T_CAM_BASELINK = T_cam_baselink_.cast<T>();
 
     T R[9];
-    ceres::QuaternionToRotation(q, R);
+    ceres::QuaternionToRotation(o_WORLD_BASELINK, R);
     Eigen::Matrix<T, 3, 3> R_WORLD_BASELINK =
         Eigen::Map<Eigen::Matrix<T, 3, 3> >(R, 3, 3);
-    Eigen::Matrix<T, 3, 1> t_WORLD_BASELINK(t[0], t[1], t[2]);
+    Eigen::Matrix<T, 3, 1> t_WORLD_BASELINK(
+        p_WORLD_BASELINK[0], p_WORLD_BASELINK[1], p_WORLD_BASELINK[2]);
     Eigen::Matrix<T, 3, 1> P_WORLD(P[0], P[1], P[2]);
 
     Eigen::Matrix<T, 4, 4> T_WORLD_BASELINK =
@@ -65,7 +72,8 @@ public:
 
     // compute the reprojection residual
     Eigen::Matrix<T, 2, 1> result;
-    result = A_.cast<T>() * (b_.cast<T>() - reproj);
+    result =
+        information_matrix_.cast<T>() * (pixel_measurement_.cast<T>() - reproj);
 
     // fill residual
     residual[0] = result[0];
@@ -74,8 +82,8 @@ public:
   }
 
 private:
-  Eigen::Matrix2d A_; //!< The residual weighting matrix
-  Eigen::Vector2d b_; //!< The measured pixel value
+  Eigen::Matrix2d information_matrix_; //!< The residual weighting matrix
+  Eigen::Vector2d pixel_measurement_;  //!< The measured pixel value
   Eigen::Matrix3d intrinsic_matrix_;
   Eigen::Matrix4d T_cam_baselink_;
 };

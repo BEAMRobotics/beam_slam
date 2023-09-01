@@ -281,9 +281,9 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
           (beam::InvertTransform(T_WORLD_CAMERA.value()) *
            initial_point.value().homogeneous())
               .hnormalized();
-      double rho = 1.0 / camera_t_point.z();
+      double inverse_depth = 1.0 / camera_t_point.z();
 
-      visual_map_->AddInverseDepthLandmark(bearing, rho, id, anchor_time,
+      visual_map_->AddInverseDepthLandmark(bearing, inverse_depth, id, anchor_time,
                                            transaction);
 
       // add constraints to keyframes that view its

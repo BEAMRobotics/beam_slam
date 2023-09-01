@@ -294,13 +294,13 @@ void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
 }
 
 void VisualMap::AddInverseDepthLandmark(
-    const Eigen::Vector3d& bearing, const double rho, const uint64_t id,
+    const Eigen::Vector3d& bearing, const double inverse_depth, const uint64_t id,
     const ros::Time& anchor_time,
     fuse_core::Transaction::SharedPtr transaction) {
   // construct landmark variable
   bs_variables::InverseDepthLandmark::SharedPtr landmark =
       bs_variables::InverseDepthLandmark::make_shared(id, bearing, anchor_time);
-  landmark->rho() = rho;
+  landmark->inverse_depth() = inverse_depth;
 
   // add fuse landmark variable
   AddInverseDepthLandmark(landmark, transaction);

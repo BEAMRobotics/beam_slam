@@ -103,11 +103,11 @@ public:
    * @brief Helper function to add a new inverse depth landmark variable to a
    * transaction or graph
    * @param bearing
-   * @param rho
+   * @param inverse_depth
    * @param id
    * @param anchor_time
    */
-  void AddInverseDepthLandmark(const Eigen::Vector3d& bearing, const double rho,
+  void AddInverseDepthLandmark(const Eigen::Vector3d& bearing, const double inverse_depth,
                                const uint64_t id, const ros::Time& anchor_time,
                                fuse_core::Transaction::SharedPtr transaction);
 

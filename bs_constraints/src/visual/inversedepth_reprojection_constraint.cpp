@@ -14,17 +14,17 @@ namespace bs_constraints {
 
 InverseDepthReprojectionConstraint::InverseDepthReprojectionConstraint(
     const std::string& source,
-    const fuse_variables::Orientation3DStamped& R_WORLD_BASELINKa,
-    const fuse_variables::Position3DStamped& t_WORLD_BASELINKa,
-    const fuse_variables::Orientation3DStamped& R_WORLD_BASELINKm,
-    const fuse_variables::Position3DStamped& t_WORLD_BASELINKm,
+    const fuse_variables::Orientation3DStamped& o_WORLD_BASELINKa,
+    const fuse_variables::Position3DStamped& p_WORLD_BASELINKa,
+    const fuse_variables::Orientation3DStamped& o_WORLD_BASELINKm,
+    const fuse_variables::Position3DStamped& p_WORLD_BASELINKm,
     const bs_variables::InverseDepthLandmark& idp,
     const Eigen::Matrix4d& T_cam_baselink,
     const Eigen::Matrix3d& intrinsic_matrix, const Eigen::Vector2d& measurement,
     const double reprojection_information_weight)
     : fuse_core::Constraint(source,
-                            {R_WORLD_BASELINKa.uuid(), t_WORLD_BASELINKa.uuid(),
-                             R_WORLD_BASELINKm.uuid(), t_WORLD_BASELINKm.uuid(),
+                            {o_WORLD_BASELINKa.uuid(), p_WORLD_BASELINKa.uuid(),
+                             o_WORLD_BASELINKm.uuid(), p_WORLD_BASELINKm.uuid(),
                              idp.uuid()}),
       T_cam_baselink_(T_cam_baselink),
       intrinsic_matrix_(intrinsic_matrix),
