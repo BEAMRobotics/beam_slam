@@ -36,32 +36,33 @@ public:
   void AddData(const sensor_msgs::Imu::ConstPtr& msg);
 
   // move data from raw IMU buffer to constraint buffer up until time_ns
-  void SetConstraint(int64_t time_ns, const fuse_core::UUID& constraint_uuid);
+  void SetConstraint(const ros::Time& time,
+                     const fuse_core::UUID& constraint_uuid);
 
   // directly add constraint data to the constraint buffer
-  void AddConstraintData(int64_t time_ns, ImuConstraintData);
+  void AddConstraintData(const ros::Time& time,
+                         const ImuConstraintData& constraint_data);
 
-  // extract all imu constraint data after a specific time. This will remove it
-  // from the constraint buffer and therefore will need to be re-added
-  std::vector<ImuConstraintData>
-      ExtractConstraintDataAfterTime(int64_t time_ns) const;
+  // extract imu constraint data that contains a specific time stamp. This will
+  // remove it from the constraint buffer and therefore will need to be re-added
+  ImuConstraintData ExtractConstraintContainingTime(const ros::Time& time);
 
-  int64_t GetPriorConstraintTime(int64_t time_ns) const;
+  const ros::Time& GetLastConstraintTime() const;
 
-  int64_t GetNextConstraintTime(int64_t time_ns) const;
+  void ClearImuMsgs();
 
-  int64_t GetLastConstraintTime() const;
+  const std::map<ros::Time, sensor_msgs::Imu::ConstPtr>& GetImuMsgs() const;
 
 private:
   void CleanOverflow();
 
   // maps constraint timestamp to constraint data. Constraint timestamp
   // should match the end of the IMU data in the constraint
-  std::map<int64_t, ImuConstraintData> constraint_buffer_;
+  std::map<ros::Time, ImuConstraintData> constraint_buffer_;
 
   // raw IMU data not added to the constraint buffer
-  std::map<int64_t, sensor_msgs::Imu::ConstPtr> imu_buffer_;
-  int64_t buffer_length_ns_;
+  std::map<ros::Time, sensor_msgs::Imu::ConstPtr> imu_msgs_;
+  ros::Duration buffer_length_;
 };
 
 class InertialOdometry : public fuse_core::AsyncSensorModel {
@@ -131,6 +132,8 @@ private:
   /// @param curr_stamp
   void ComputeAbsolutePose(const ros::Time& curr_stamp);
 
+  void Initialize(fuse_core::Graph::ConstSharedPtr graph_msg);
+
   int odom_seq_ = 0;
   bool initialized_{false};
   ros::Time prev_stamp_{0.0};
@@ -151,7 +154,8 @@ private:
   ros::Publisher pose_publisher_;
 
   // data storage
-  std::queue<sensor_msgs::Imu::ConstPtr> imu_buffer_;
+  ImuBuffer imu_buffer_;
+  std::map<ros::Time, ImuConstraintData> constraints_to_replace_;
 
   // primary odom objects
   std::shared_ptr<ImuPreintegration> imu_preint_;

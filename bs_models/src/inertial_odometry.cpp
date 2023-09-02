@@ -13,34 +13,72 @@ PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel);
 namespace bs_models {
 
 ImuBuffer::ImuBuffer(double buffer_length_s) {
-  buffer_length_ns_ = static_cast<int64_t>(buffer_length_s * 1e9);
+  buffer_length_ = ros::Duration(buffer_length_s * 1e9);
 }
 
-void ImuBuffer::Add(const sensor_msgs::Imu::ConstPtr& msg) {
-  // TODO
-
-  CleanOverflow()
+void ImuBuffer::AddData(const sensor_msgs::Imu::ConstPtr& msg) {
+  imu_msgs_.emplace(msg->header.stamp, msg);
+  CleanOverflow();
 }
 
 void ImuBuffer::CleanOverflow() {
-  if (!imu_buffer_.empty()) {
-    while (imu_buffer_.rbegin()->first - imu_buffer_.begin()->first >
-           buffer_length_ns_) {
-      imu_buffer_.erase(imu_buffer_.begin());
+  if (!imu_msgs_.empty()) {
+    while (imu_msgs_.rbegin()->first - imu_msgs_.begin()->first >
+           buffer_length_) {
+      imu_msgs_.erase(imu_msgs_.begin());
     }
   }
 
-  if (!transactions_buffer_.empty()) {
-    while (transactions_buffer_.rbegin()->first -
-               transactions_buffer_.begin()->first >
-           buffer_length_ns_) {
-      transactions_buffer_.erase(transactions_buffer_.begin());
+  if (!constraint_buffer_.empty()) {
+    while (constraint_buffer_.rbegin()->first -
+               constraint_buffer_.begin()->first >
+           buffer_length_) {
+      constraint_buffer_.erase(constraint_buffer_.begin());
     }
   }
 }
 
-int64_t ImuBuffer::GetLastTransactionTime() const {
-  return transactions_buffer_.rbegin()->first;
+void ImuBuffer::SetConstraint(const ros::Time& time,
+                              const fuse_core::UUID& constraint_uuid) {
+  ImuConstraintData data;
+  data.constraint_uuid = constraint_uuid;
+  constraint_buffer_.emplace(time, data);
+  auto it = constraint_buffer_.find(time);
+  for (const auto& [_, msg] : imu_msgs_) { it->second.imu_data.push_back(msg); }
+  imu_msgs_.clear();
+}
+
+void ImuBuffer::AddConstraintData(const ros::Time& time,
+                                  const ImuConstraintData& constraint_data) {
+  constraint_buffer_.emplace(time, constraint_data);
+}
+
+ImuConstraintData
+    ImuBuffer::ExtractConstraintContainingTime(const ros::Time& time) {
+  for (auto riter = constraint_buffer_.rbegin();
+       riter != constraint_buffer_.rend(); riter++) {
+    const auto& first_msg_in_constraint = *(riter->second.imu_data.begin());
+    if (first_msg_in_constraint->header.stamp <= time) {
+      ImuConstraintData extracted_data = riter->second;
+      constraint_buffer_.erase(riter->first);
+      return extracted_data;
+    }
+  }
+  BEAM_ERROR("no constraint contains the query time: {} s", time.toSec());
+  throw std::runtime_error{"cannot extract constraint"};
+}
+
+const ros::Time& ImuBuffer::GetLastConstraintTime() const {
+  return constraint_buffer_.rbegin()->first;
+}
+
+void ImuBuffer::ClearImuMsgs() {
+  imu_msgs_.clear();
+}
+
+const std::map<ros::Time, sensor_msgs::Imu::ConstPtr>&
+    ImuBuffer::GetImuMsgs() const {
+  return imu_msgs_;
 }
 
 InertialOdometry::InertialOdometry()
@@ -90,11 +128,10 @@ void InertialOdometry::onStart() {
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "InertialOdometry received IMU measurements: " << msg->header.stamp);
+  imu_buffer_.AddData(msg);
 
   // return if its not initialized_
   if (!initialized_) {
-    // push imu message onto buffer
-    imu_buffer_.push(msg);
     ROS_INFO_THROTTLE(
         1, "inertial odometry not yet initialized, waiting on first graph "
            "update before beginning");
@@ -118,30 +155,25 @@ void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
   // return if its not initialized_
   if (!initialized_) { return; }
 
-  int64_t ts_ns = msg->data.toNSec();
-  if (ts_ns >= imu_buffer_.GetLastConstraintTime()) {
-    auto trans = imu_preint_->RegisterNewImuPreintegratedFactor(msg->data);
+  const ros::Time& time = msg->data;
+  if (time == imu_buffer_.GetLastConstraintTime()) {
+    return;
+  } else if (time > imu_buffer_.GetLastConstraintTime()) {
+    auto trans = imu_preint_->RegisterNewImuPreintegratedFactor(time);
     if (!trans) { return; }
     sendTransaction(trans);
     auto added_constraints_range = trans->addedConstraints();
-    // TODO: check that only one was added
-    fuse_core::UUID constaint_uuid = added_constraints_range.begin()->uuid();
-    imu_buffer_.SetConstraint(ts_ns, constaint_uuid);
+    // check that only one was added
+    if (std::next(added_constraints_range.begin()) !=
+        added_constraints_range.end()) {
+      BEAM_ERROR("invalid number of constraints added to graph from IMU data");
+      return;
+    }
+    imu_buffer_.SetConstraint(time, added_constraints_range.begin()->uuid());
   } else {
-    int64_t prior_constraint_ts_ns = imu_buffer_.GetPriorConstraintTime(ts_ns);
-    std::vector<ImuConstraintData> imu_constraint_data =
-        imu_buffer_.ExtractConstraintDataAfterTime(prior_constraint_ts_ns);
-    // TODO create these functions
-    ImuConstraintData constraint_data_before;
-    std::vector<ImuConstraintData> constraint_data_after;
-    BreakupConstraintData(imu_constraint_data, constraint_data_before,
-                          constraint_data_after);
-
-    // TODO:
-    // 1. create new transaction with new constraints (2+ new constraints)
-    // 2. remove previous constraints and add to transaction
-    // 3. send transaction to graph
-    // 4. add contraint data to imu_buffer using AddConstraintData
+    // this means we have to remove a constraint and replace it with two
+    constraints_to_replace_.emplace(
+        time, imu_buffer_.ExtractConstraintContainingTime(time));
   }
 }
 
@@ -178,11 +210,72 @@ void InertialOdometry::ComputeAbsolutePose(const ros::Time& curr_stamp) {
 
 void InertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
-  if (initialized_) {
-    imu_preint_->UpdateGraph(graph_msg);
+  if (!initialized_) {
+    Initialize(graph_msg);
     return;
   }
 
+  imu_preint_->UpdateGraph(graph_msg);
+
+  // process all constraints that need to be replaced due to delayed triggers
+  auto transaction = fuse_core::Transaction::make_shared();
+  transaction->stamp(ros::Time::now());
+  while (!constraints_to_replace_.empty()) {
+    const ros::Time& new_trigger_time = constraints_to_replace_.begin()->first;
+    const ImuConstraintData& constraint_data =
+        constraints_to_replace_.begin()->second;
+    transaction->removeConstraint(constraint_data.constraint_uuid);
+
+    ros::Time start_time = (*constraint_data.imu_data.begin())->header.stamp;
+    ros::Time end_time = (*constraint_data.imu_data.rbegin())->header.stamp;
+
+    auto velocity = bs_common::GetVelocity(graph_msg, start_time);
+    auto position = bs_common::GetPosition(graph_msg, start_time);
+    auto orientation = bs_common::GetOrientation(graph_msg, start_time);
+
+    imu_preint_->SetStart(start_time, orientation, position, velocity);
+
+    // add first half
+    auto imu_msg_iter = constraint_data.imu_data.begin();
+    ImuConstraintData constraint_data_first_half;
+    while ((*imu_msg_iter)->header.stamp <= new_trigger_time) {
+      imu_preint_->AddToBuffer(*(*imu_msg_iter));
+      constraint_data_first_half.imu_data.push_back(*imu_msg_iter);
+      imu_msg_iter++;
+    }
+    auto imu_trans1 =
+        imu_preint_->RegisterNewImuPreintegratedFactor(new_trigger_time);
+    if (!imu_trans1) {
+      throw std::runtime_error{"unable to add IMU preintegration factor"};
+    }
+    constraint_data_first_half.constraint_uuid =
+        imu_trans1->addedConstraints().begin()->uuid();
+    imu_buffer_.AddConstraintData(new_trigger_time, constraint_data_first_half);
+    transaction->merge(*imu_trans1);
+
+    // add second half
+    ImuConstraintData constraint_data_second_half;
+    while ((*imu_msg_iter)->header.stamp <= end_time) {
+      imu_preint_->AddToBuffer(*(*imu_msg_iter));
+      constraint_data_second_half.imu_data.push_back(*imu_msg_iter);
+      imu_msg_iter++;
+    }
+    auto imu_trans2 = imu_preint_->RegisterNewImuPreintegratedFactor(end_time);
+    if (!imu_trans2) {
+      throw std::runtime_error{"unable to add IMU preintegration factor"};
+    }
+    constraint_data_second_half.constraint_uuid =
+        imu_trans2->addedConstraints().begin()->uuid();
+    imu_buffer_.AddConstraintData(end_time, constraint_data_second_half);
+    transaction->merge(*imu_trans2);
+
+    constraints_to_replace_.erase(constraints_to_replace_.begin());
+  }
+
+  if (!transaction->empty()) { sendTransaction(transaction); }
+}
+
+void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
   ROS_INFO("InertialOdometry received initial graph.");
   std::set<ros::Time> timestamps = bs_common::CurrentTimestamps(graph_msg);
 
@@ -212,21 +305,14 @@ void InertialOdometry::onGraphUpdate(
   imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(
       imu_params_, bg, ba, params_.inertial_info_weight, false);
 
-  // remove measurements before the start
-  while (imu_buffer_.front()->header.stamp < most_recent_stamp &&
-         !imu_buffer_.empty()) {
-    imu_buffer_.pop();
-  }
-
   // set the start
   imu_preint_->SetStart(most_recent_stamp, orientation, position, velocity);
 
   // iterate through existing buffer, estimate poses and output
   prev_stamp_ = most_recent_stamp;
-  while (!imu_buffer_.empty()) {
-    const auto& imu_msg = imu_buffer_.front();
+  for (const auto& [curr_stamp, imu_msg] : imu_buffer_.GetImuMsgs()) {
+    if (curr_stamp < most_recent_stamp) { continue; }
     imu_preint_->AddToBuffer(*imu_msg);
-    const auto& curr_stamp = imu_msg->header.stamp;
 
     // get relative pose and publish
     ComputeRelativeMotion(prev_stamp_, curr_stamp);
@@ -236,8 +322,8 @@ void InertialOdometry::onGraphUpdate(
 
     odom_seq_++;
     prev_stamp_ = curr_stamp;
-    imu_buffer_.pop();
   }
+  imu_buffer_.ClearImuMsgs();
 
   initialized_ = true;
 }
