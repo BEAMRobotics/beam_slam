@@ -47,7 +47,7 @@ public:
   // remove it from the constraint buffer and therefore will need to be re-added
   ImuConstraintData ExtractConstraintContainingTime(const ros::Time& time);
 
-  const ros::Time& GetLastConstraintTime() const;
+  ros::Time GetLastConstraintTime() const;
 
   void ClearImuMsgs();
 
@@ -134,6 +134,9 @@ private:
 
   void Initialize(fuse_core::Graph::ConstSharedPtr graph_msg);
 
+  void BreakupConstraint(const ros::Time& new_trigger_time,
+                         const ImuConstraintData& constraint_data);
+
   int odom_seq_ = 0;
   bool initialized_{false};
   ros::Time prev_stamp_{0.0};
@@ -155,7 +158,7 @@ private:
 
   // data storage
   ImuBuffer imu_buffer_;
-  std::map<ros::Time, ImuConstraintData> constraints_to_replace_;
+  fuse_core::Graph::ConstSharedPtr most_recent_graph_msg_;
 
   // primary odom objects
   std::shared_ptr<ImuPreintegration> imu_preint_;

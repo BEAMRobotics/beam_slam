@@ -36,6 +36,8 @@ inline Eigen::Quaternion<T> DeltaQ(const Eigen::Matrix<T, 3, 1>& theta) {
   return dq;
 }
 
+std::string ToString(const ros::Time& time);
+
 void InterpolateTransformFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Matrix4d& T_WORLD_SENSOR);
@@ -65,8 +67,8 @@ std::string GetBeamSlamConfigPath();
 std::string GetBeamSlamCalibrationsPath();
 
 /**
- * @brief Shannon Entropy: This can be interpreted geometrically as the volume of the
- * uncertainty. The smaller the Shannon Entropy, the more certain we are.
+ * @brief Shannon Entropy: This can be interpreted geometrically as the volume
+ * of the uncertainty. The smaller the Shannon Entropy, the more certain we are.
  *
  * H(x) = 0.5 ln[(2 PI e)^N det(cov)]
  *
