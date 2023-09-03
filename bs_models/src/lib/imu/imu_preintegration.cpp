@@ -83,8 +83,8 @@ void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
 }
 
 void ImuPreintegration::AddToBuffer(const bs_common::IMUData& imu_data) {
-  pre_integrator_ij_.data.push_back(imu_data);
-  pre_integrator_kj_.data.push_back(imu_data);
+  pre_integrator_ij_.data.emplace(imu_data.t, imu_data);
+  pre_integrator_kj_.data.emplace(imu_data.t, imu_data);
 }
 
 PoseWithCovariance ImuPreintegration::GetPose(const ros::Time& t_now) {
@@ -127,11 +127,11 @@ PoseWithCovariance ImuPreintegration::GetRelativeMotion(
   } else if (t1 < imu_state_i_.Stamp()) {
     throw std::runtime_error{
         "Requested time is before current window of measurements."};
-  } else if (t1 > pre_integrator_ij_.data.back().t) {
+  } else if (t1 > pre_integrator_ij_.data.rbegin()->first) {
     throw std::runtime_error{
         "Requested start time is after the end of the current window of imu "
         "measurements."};
-  } else if (t2 < pre_integrator_ij_.data.front().t) {
+  } else if (t2 < pre_integrator_ij_.data.begin()->first) {
     throw std::runtime_error{
         "Requested end time is before the start of the current window of imu "
         "measurements."};
@@ -249,7 +249,7 @@ fuse_core::Transaction::SharedPtr
     ROS_WARN("Cannot register IMU factor, no imu data is available.");
     return nullptr;
   }
-  if (t_now < pre_integrator_ij_.data.front().t) {
+  if (t_now < pre_integrator_ij_.data.begin()->first) {
     ROS_WARN(
         "Cannot register IMU factor, requested time is prior to the front "
         "of the window. Request a pose at a timestamp >= the previous call.");
@@ -270,7 +270,7 @@ fuse_core::Transaction::SharedPtr
 
   // if current time is equal to the first imu time, then we can't add a
   // relative constraint
-  if (t_now == pre_integrator_ij_.data.front().t) {
+  if (t_now == pre_integrator_ij_.data.begin()->first) {
     return transaction.GetTransaction();
   }
 
@@ -335,8 +335,8 @@ void ImuPreintegration::Clear() {
 
 std::string ImuPreintegration::PrintBuffer() {
   std::string str;
-  for (const auto& d : pre_integrator_ij_.data) {
-    str += "IMU time: " + std::to_string(d.t.toSec()) + "\n";
+  for (const auto& [t, _] : pre_integrator_ij_.data) {
+    str += "IMU time: " + std::to_string(t.toSec()) + "\n";
   }
   return str;
 }

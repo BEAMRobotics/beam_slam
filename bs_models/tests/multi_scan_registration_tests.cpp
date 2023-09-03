@@ -394,7 +394,7 @@ TEST_F(MultiScanRegistrationTest, Params) {
       std::make_unique<beam_matching::IcpMatcher>(icp_params_);
 
   std::shared_ptr<LoamParams> loam_params = std::make_shared<LoamParams>();
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> loam_matcher =
+  std::unique_ptr<LoamMatcher> loam_matcher =
       std::make_unique<LoamMatcher>(*loam_params);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
       std::make_shared<LoamFeatureExtractor>(loam_params);
@@ -750,8 +750,8 @@ TEST_F(MultiScanRegistrationTest, RegistrationCases) {
 
 TEST_F(MultiScanRegistrationTest, 2Scans) {
   // init scan registration
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
-  matcher = std::make_unique<LoamMatcher>(*loam_params_);
+  std::unique_ptr<LoamMatcher> matcher =
+      std::make_unique<LoamMatcher>(*loam_params_);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
       std::make_shared<LoamFeatureExtractor>(loam_params_);
 
@@ -806,7 +806,7 @@ TEST_F(MultiScanRegistrationTest, 2Scans) {
 
 TEST_F(MultiScanRegistrationTest, 3Scans) {
   // init scan registration
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
+  std::unique_ptr<LoamMatcher> matcher;
   matcher = std::make_unique<LoamMatcher>(*loam_params_);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
       std::make_shared<LoamFeatureExtractor>(loam_params_);
@@ -887,8 +887,8 @@ TEST_F(MultiScanRegistrationTest, 3Scans) {
 
 TEST_F(MultiScanRegistrationTest, BaselinkLidarExtrinsics) {
   // init scan registration
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
-  matcher = std::make_unique<LoamMatcher>(*loam_params_);
+  std::unique_ptr<LoamMatcher> matcher =
+      std::make_unique<LoamMatcher>(*loam_params_);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
       std::make_shared<LoamFeatureExtractor>(loam_params_);
 
@@ -1001,8 +1001,8 @@ TEST_F(MultiScanRegistrationTest, NScansWNoise) {
   loam_params->optimizer_params =
       beam_optimization::CeresParams(test_path_ + "data/ceres_config.json");
 
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
-  matcher = std::make_unique<LoamMatcher>(*loam_params);
+  std::unique_ptr<LoamMatcher> matcher =
+      std::make_unique<LoamMatcher>(*loam_params);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
       std::make_shared<LoamFeatureExtractor>(loam_params);
 

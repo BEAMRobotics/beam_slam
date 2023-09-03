@@ -65,7 +65,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /local_mapper/visual_feature_tracker/tracked_image
+      Image Topic: /local_mapper/graph_visualization/tracked_image
       Max Value: 1
       Median window: 5
       Min Value: 0

@@ -134,7 +134,8 @@ public:
 
   Delta delta;
   Jacobian jacobian;
-  std::vector<IMUData> data; // vector of imu data (buffer)
+  std::map<ros::Time, IMUData> data;
+  // std::vector<IMUData> data;
 
   // for when inv covariance calculated has nan or inf
   double invalid_inv_cov_weight_{1e-4};
