@@ -125,7 +125,7 @@ public:
 
 TEST_F(ScanToMapLoamRegistrationTest, 2Scans) {
   // init scan registration
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
+  std::unique_ptr<LoamMatcher> matcher;
   matcher = std::make_unique<LoamMatcher>(*loam_params);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
       std::make_shared<LoamFeatureExtractor>(loam_params);
@@ -176,8 +176,8 @@ TEST_F(ScanToMapLoamRegistrationTest, 2Scans) {
 
 TEST_F(ScanToMapLoamRegistrationTest, 3Scans) {
   // init scan registration
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher;
-  matcher = std::make_unique<LoamMatcher>(*loam_params);
+  std::unique_ptr<LoamMatcher> matcher =
+      std::make_unique<LoamMatcher>(*loam_params);
   std::shared_ptr<LoamFeatureExtractor> feature_extractor =
       std::make_shared<LoamFeatureExtractor>(loam_params);
 
