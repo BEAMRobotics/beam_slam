@@ -20,7 +20,8 @@ void PreIntegrator::Reset() {
 }
 
 void PreIntegrator::Clear(const ros::Time& t) {
-  while (data.begin()->first < t) { data.erase(data.begin()); }
+  if (data.empty()) { return; }
+  while (!data.empty() && data.begin()->first < t) { data.erase(data.begin()); }
 }
 
 void PreIntegrator::Increment(const ros::Duration& dt, const IMUData& data,
@@ -115,7 +116,7 @@ bool PreIntegrator::Integrate(const ros::Time& t, const Eigen::Vector3d& bg,
 }
 
 void PreIntegrator::ComputeSqrtInvCov() {
-  // Ensure covariance non-zero (within pre-defined tolarance) to avoid
+  // Ensure covariance non-zero (within pre-defined tolerance) to avoid
   // ill-conditioned matrix during optimization
 
   // upper left

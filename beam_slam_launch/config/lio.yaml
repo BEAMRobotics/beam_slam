@@ -43,7 +43,7 @@ slam_initialization:
   max_triangulation_distance: 50.0 # vision specific
   max_triangulation_reprojection: 30.0 # vision specific
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "/home/nick/debug/slam_init"
+  output_folder: "" # "/userhome/debug/slam_init"
 
 inertial_odometry:
   imu_topic: "/imu/data"
