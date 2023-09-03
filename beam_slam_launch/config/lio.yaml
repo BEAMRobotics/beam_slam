@@ -1,6 +1,6 @@
 # optimization params
-optimization_period: 0.1
-lag_duration: 7
+optimization_period: 0.07
+lag_duration: 6
 
 sensor_models:
   - name: 'slam_initialization'
@@ -22,11 +22,11 @@ publishers:
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
-  linear_solver_type: 'SPARSE_SCHUR'
+  linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
   minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
-  max_num_iterations: 20
+  max_num_iterations: 10
   max_solver_time_in_seconds: 0.08
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
