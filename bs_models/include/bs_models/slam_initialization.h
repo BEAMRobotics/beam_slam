@@ -1,6 +1,6 @@
 #pragma once
 
-#include <queue>
+#include <list>
 
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/fuse_macros.h>
@@ -170,9 +170,9 @@ private:
   double scale_;
 
   // data storage
-  std::deque<sensor_msgs::Imu> imu_buffer_;
+  std::list<sensor_msgs::Imu> imu_buffer_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
-  std::deque<ros::Time> frame_init_buffer_;
+  std::list<ros::Time> frame_init_buffer_;
   double last_lidar_scan_time_s_{0};
 
   // measurement buffer sizes
