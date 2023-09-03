@@ -20,7 +20,6 @@ void PreIntegrator::Reset() {
 }
 
 void PreIntegrator::Clear(const ros::Time& t) {
-  if (data.empty()) { return; }
   while (!data.empty() && data.begin()->first < t) { data.erase(data.begin()); }
 }
 
