@@ -2,7 +2,7 @@
 
 namespace bs_models { namespace imu {
 void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
-                        const std::deque<sensor_msgs::Imu>& imu_buffer,
+                        const std::list<sensor_msgs::Imu>& imu_buffer,
                         const bs_models::ImuPreintegration::Params& params,
                         Eigen::Vector3d& gravity, Eigen::Vector3d& bg,
                         Eigen::Vector3d& ba,
@@ -17,7 +17,7 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
   std::vector<std::pair<uint64_t, Eigen::Vector3d>> velocities_vec;
 
   // make copy of imu buffer
-  std::deque<sensor_msgs::Imu> imu_buffer_copy = imu_buffer;
+  std::list<sensor_msgs::Imu> imu_buffer_copy = imu_buffer;
 
   // check for invalid input
   auto second_imu_msg = std::next(imu_buffer_copy.begin());
@@ -42,7 +42,8 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
     preintegrator.cov_ba = params.cov_accel_bias;
     while (imu_buffer_copy.front().header.stamp < stamp &&
            !imu_buffer_copy.empty()) {
-      preintegrator.data.push_back(imu_buffer_copy.front());
+      preintegrator.data.emplace(imu_buffer_copy.front().header.stamp,
+                                 imu_buffer_copy.front());
       imu_buffer_copy.pop_front();
     }
 
