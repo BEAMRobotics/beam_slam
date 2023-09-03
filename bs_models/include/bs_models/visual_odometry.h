@@ -149,13 +149,11 @@ private:
 
   /// @brief book keeping variables
   bool is_initialized_{false};
-  std::deque<Keyframe> keyframes_;
-  std::set<ros::Time> keyframe_times_;
-  uint32_t added_since_kf_{0};
+  std::map<ros::Time, Keyframe> keyframes_;
   std::deque<CameraMeasurementMsg::ConstPtr> visual_measurement_buffer_;
   Eigen::Matrix4d T_ODOM_BASELINKprev_{Eigen::Matrix4d::Identity()};
   ros::Time previous_reloc_request_{ros::Time(0)};
-  ros::Time previous_frame_;
+  ros::Time previous_keyframe_;
   size_t max_container_size_;
 
   /// @brief callbacks for messages
@@ -169,7 +167,6 @@ private:
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::shared_ptr<VisualMap> visual_map_;
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
-  fuse_core::Graph::UniquePtr local_graph_;
 
   /// @brief robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;

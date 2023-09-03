@@ -57,7 +57,7 @@ slam_initialization:
   inertial_information_weight: 0.001
   lidar_information_weight: 10.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "" #"/home/nick/debug/slam_init"
+  output_folder: "/home/jake/results/init_results" #"/home/nick/debug/slam_init"
 
 inertial_odometry:
   imu_topic: "/imu/data"
