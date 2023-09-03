@@ -20,10 +20,7 @@ void PreIntegrator::Reset() {
 }
 
 void PreIntegrator::Clear(const ros::Time& t) {
-  auto leq_time = [&](const auto& d) { return d.t < t; };
-  auto it = std::remove_if(data.begin(), data.end(), leq_time);
-  auto r = std::distance(it, data.end());
-  data.erase(it, data.end());
+  while (data.begin()->first < t) { data.erase(data.begin()); }
 }
 
 void PreIntegrator::Increment(const ros::Duration& dt, const IMUData& data,
@@ -98,20 +95,18 @@ bool PreIntegrator::Integrate(const ros::Time& t, const Eigen::Vector3d& bg,
   Reset();
 
   // increment over window such that it is less or equal to the requested time
-  for (int i = 0; i < data.size(); i++) {
-    const int j = i + 1;
-    if (j >= data.size()) { break; }
-    const auto cur = data[i];
-    const auto next = data[j];
-    if (next.t > t) { break; }
-    const auto dt = next.t - cur.t;
-    Increment(dt, cur, bg, ba, compute_jacobian, compute_covariance);
+  for (auto iter = data.begin(); std::next(iter) != data.end(); iter++) {
+    const auto& next = std::next(iter);
+    if (next->first > t) { break; }
+    const auto dt = next->first - iter->first;
+    Increment(dt, iter->second, bg, ba, compute_jacobian, compute_covariance);
   }
 
   // final increment to requested time
-  const auto dt = t - data.rbegin()->t;
+  const auto dt = t - data.rbegin()->first;
   if (dt > ros::Duration(0)) {
-    Increment(dt, *data.rbegin(), bg, ba, compute_jacobian, compute_covariance);
+    Increment(dt, data.rbegin()->second, bg, ba, compute_jacobian,
+              compute_covariance);
   }
 
   if (compute_covariance) { ComputeSqrtInvCov(); }
