@@ -38,37 +38,46 @@ void ImuBuffer::CleanOverflow() {
   }
 }
 
-void ImuBuffer::SetConstraint(const ros::Time& time,
+void ImuBuffer::AddConstraint(const ros::Time& start_time,
+                              const ros::Time& end_time,
                               const fuse_core::UUID& constraint_uuid) {
   ImuConstraintData data;
   data.constraint_uuid = constraint_uuid;
-  constraint_buffer_.emplace(time, data);
-  auto it = constraint_buffer_.find(time);
-  for (const auto& [_, msg] : imu_msgs_) { it->second.imu_data.push_back(msg); }
-  imu_msgs_.clear();
+  data.start_time = start_time;
+  data.end_time = end_time;
+  constraint_buffer_.emplace(end_time, data);
 }
 
-void ImuBuffer::AddConstraintData(const ros::Time& time,
-                                  const ImuConstraintData& constraint_data) {
-  constraint_buffer_.emplace(time, constraint_data);
+std::map<ros::Time, sensor_msgs::Imu::ConstPtr>
+    ImuBuffer::GetImuData(const ros::Time& start_time,
+                          const ros::Time& end_time) const {
+  if (imu_msgs_.empty()) { return {}; }
+  auto iter_start = imu_msgs_.lower_bound(start_time);
+  if (iter_start == imu_msgs_.end()) { return {}; }
+  std::map<ros::Time, sensor_msgs::Imu::ConstPtr> data;
+  for (auto it = iter_start; it != imu_msgs_.end(); it++) {
+    if (it->first > end_time) { break; }
+    data.insert(*it);
+  }
+  return data;
 }
 
-ImuConstraintData
+std::optional<ImuConstraintData>
     ImuBuffer::ExtractConstraintContainingTime(const ros::Time& time) {
+  if (constraint_buffer_.empty()) { return {}; }
   for (auto riter = constraint_buffer_.rbegin();
        riter != constraint_buffer_.rend(); riter++) {
-    const auto& first_msg_in_constraint = *(riter->second.imu_data.begin());
-    BEAM_ERROR("first_msg_in_constraint->header.stamp: {}",
-               bs_common::ToString(first_msg_in_constraint->header.stamp));
-    if (first_msg_in_constraint->header.stamp <= time) {
-      ImuConstraintData extracted_data = riter->second;
+    const ImuConstraintData& constraint_data = riter->second;
+    if (constraint_data.start_time <= time &&
+        constraint_data.end_time >= time) {
+      std::optional<ImuConstraintData> constraint_data_copy = constraint_data;
       constraint_buffer_.erase(riter->first);
-      return extracted_data;
+      return constraint_data_copy;
     }
   }
-  BEAM_ERROR("no constraint contains the query time: {} s",
-             bs_common::ToString(time));
-  throw std::runtime_error{"cannot extract constraint"};
+  BEAM_WARN("No IMU constraint contains the query time: {} s",
+            bs_common::ToString(time));
+  return {};
 }
 
 ros::Time ImuBuffer::GetLastConstraintTime() const {
@@ -156,23 +165,13 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
-  // return if its not initialized_
   if (!initialized_) { return; }
 
-  BEAM_ERROR("processing trig");
-  // std::cout << msg->data << "\n";
   const ros::Time& time(msg->data);
-  // std::cout << time.toSec() << "\n";
-  // std::cout << "TEST0\n";
   ros::Time last_constraint_time = imu_buffer_.GetLastConstraintTime();
-  // std::cout << "TEST1\n";
   if (time == last_constraint_time) {
-    BEAM_ERROR("trigger time is equal to last constraint time");
     return;
   } else if (time > last_constraint_time) {
-    BEAM_ERROR("trigger time ({}) is greater than last constraint time ({})",
-               bs_common::ToString(time),
-               bs_common::ToString(last_constraint_time));
     auto trans = imu_preint_->RegisterNewImuPreintegratedFactor(time);
     if (!trans) { return; }
     sendTransaction(trans);
@@ -183,14 +182,17 @@ void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
       BEAM_ERROR("invalid number of constraints added to graph from IMU data");
       return;
     }
-    imu_buffer_.SetConstraint(time, added_constraints_range.begin()->uuid());
+    imu_buffer_.AddConstraint(last_trigger_time_, time,
+                              added_constraints_range.begin()->uuid());
   } else {
-    BEAM_ERROR("trigger time ({}) is less than last constraint time ({})",
-               bs_common::ToString(time),
-               bs_common::ToString(last_constraint_time));
     // this means we have to remove a constraint and replace it with two
-    BreakupConstraint(time, imu_buffer_.ExtractConstraintContainingTime(time));
+    std::optional<ImuConstraintData> maybeConstraintData =
+        imu_buffer_.ExtractConstraintContainingTime(time);
+    if (maybeConstraintData) {
+      BreakupConstraint(time, maybeConstraintData.value());
+    }
   }
+  last_trigger_time_ = time;
 }
 
 void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
@@ -269,6 +271,7 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
   // iterate through existing buffer, estimate poses and output
   prev_stamp_ = most_recent_stamp;
+  last_trigger_time_ = prev_stamp_;
   for (const auto& [curr_stamp, imu_msg] : imu_buffer_.GetImuMsgs()) {
     if (curr_stamp < most_recent_stamp) { continue; }
     imu_preint_->AddToBuffer(*imu_msg);
@@ -292,61 +295,72 @@ void InertialOdometry::BreakupConstraint(
     const ImuConstraintData& constraint_data) {
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(ros::Time::now());
-  transaction->removeConstraint(constraint_data.constraint_uuid);
 
-  ros::Time start_time = (*constraint_data.imu_data.begin())->header.stamp;
-  ros::Time end_time = (*constraint_data.imu_data.rbegin())->header.stamp;
-
-  BEAM_ERROR("start_time: {}", bs_common::ToString(start_time));
-  BEAM_ERROR("end_time: {}", bs_common::ToString(end_time));
-  BEAM_ERROR("new_trigger_time: {}", bs_common::ToString(new_trigger_time));
-  auto velocity = bs_common::GetVelocity(most_recent_graph_msg_, start_time);
-  auto position = bs_common::GetPosition(most_recent_graph_msg_, start_time);
-  auto orientation =
-      bs_common::GetOrientation(most_recent_graph_msg_, start_time);
-
-  imu_preint_->SetStart(start_time, orientation, position, velocity);
+  auto velocity = bs_common::GetVelocity(most_recent_graph_msg_,
+                                         constraint_data.start_time);
+  auto position = bs_common::GetPosition(most_recent_graph_msg_,
+                                         constraint_data.start_time);
+  auto orientation = bs_common::GetOrientation(most_recent_graph_msg_,
+                                               constraint_data.start_time);
+  imu_preint_->SetStart(constraint_data.start_time, orientation, position,
+                        velocity);
 
   // add first half
-  auto imu_msg_iter = constraint_data.imu_data.begin();
-  ImuConstraintData constraint_data_first_half;
-  while ((*imu_msg_iter)->header.stamp <= new_trigger_time) {
-    imu_preint_->AddToBuffer(*(*imu_msg_iter));
-    constraint_data_first_half.imu_data.push_back(*imu_msg_iter);
-    imu_msg_iter++;
+  bool first_successful = false;
+  std::map<ros::Time, sensor_msgs::Imu::ConstPtr> imu_data1 =
+      imu_buffer_.GetImuData(constraint_data.start_time, new_trigger_time);
+  if (!imu_data1.empty()) {
+    for (const auto& [t, imu_msg] : imu_data1) {
+      imu_preint_->AddToBuffer(*imu_msg);
+    }
+    auto imu_trans1 =
+        imu_preint_->RegisterNewImuPreintegratedFactor(new_trigger_time);
+    if (!imu_trans1) {
+      BEAM_ERROR(
+          "cannot add constraint for first half of constraint being "
+          "broken up. Constraint start time: {}, constraint end time: {}. "
+          "ImuPreintegration buffer: ",
+          bs_common::ToString(constraint_data.start_time),
+          bs_common::ToString(new_trigger_time));
+      std::cout << imu_preint_->PrintBuffer() << "\n";
+    } else {
+      imu_buffer_.AddConstraint(constraint_data.start_time, new_trigger_time,
+                                imu_trans1->addedConstraints().begin()->uuid());
+      transaction->merge(*imu_trans1);
+      first_successful = true;
+    }
   }
-  auto imu_trans1 =
-      imu_preint_->RegisterNewImuPreintegratedFactor(new_trigger_time);
-  if (!imu_trans1) {
-    BEAM_ERROR("cannot add constraint for first half of constraint being "
-               "broken up. ImuPreintegration buffer: ");
-    std::cout << imu_preint_->PrintBuffer() << "\n";
-    throw std::runtime_error{"unable to add IMU preintegration factor"};
-  }
-  constraint_data_first_half.constraint_uuid =
-      imu_trans1->addedConstraints().begin()->uuid();
-  imu_buffer_.AddConstraintData(new_trigger_time, constraint_data_first_half);
-  transaction->merge(*imu_trans1);
 
   // add second half
-  ImuConstraintData constraint_data_second_half;
-  while ((*imu_msg_iter)->header.stamp <= end_time) {
-    imu_preint_->AddToBuffer(*(*imu_msg_iter));
-    constraint_data_second_half.imu_data.push_back(*imu_msg_iter);
-    imu_msg_iter++;
+  bool second_successful = false;
+  std::map<ros::Time, sensor_msgs::Imu::ConstPtr> imu_data2 =
+      imu_buffer_.GetImuData(new_trigger_time, constraint_data.end_time);
+  if (!imu_data1.empty()) {
+    for (const auto& [t, imu_msg] : imu_data2) {
+      imu_preint_->AddToBuffer(*imu_msg);
+    }
+    auto imu_trans2 = imu_preint_->RegisterNewImuPreintegratedFactor(
+        constraint_data.end_time);
+    if (!imu_trans2) {
+      BEAM_ERROR(
+          "cannot add constraint for second half of constraint being "
+          "broken up. Constraint start time: {}, constraint end time: {}. "
+          "ImuPreintegration buffer: ",
+          bs_common::ToString(new_trigger_time),
+          bs_common::ToString(constraint_data.end_time));
+      std::cout << imu_preint_->PrintBuffer() << "\n";
+    } else {
+      imu_buffer_.AddConstraint(new_trigger_time, constraint_data.end_time,
+                                imu_trans2->addedConstraints().begin()->uuid());
+      transaction->merge(*imu_trans2);
+      second_successful = true;
+    }
   }
-  auto imu_trans2 = imu_preint_->RegisterNewImuPreintegratedFactor(end_time);
-  if (!imu_trans2) {
-    BEAM_ERROR("cannot add constraint for second half of constraint being "
-               "broken up. ImuPreintegration buffer: ");
-    std::cout << imu_preint_->PrintBuffer() << "\n";
-    throw std::runtime_error{"unable to add IMU preintegration factor"};
-  }
-  constraint_data_second_half.constraint_uuid =
-      imu_trans2->addedConstraints().begin()->uuid();
-  imu_buffer_.AddConstraintData(end_time, constraint_data_second_half);
-  transaction->merge(*imu_trans2);
 
+  // only remove original if both are successful
+  if (second_successful && first_successful) {
+    transaction->removeConstraint(constraint_data.constraint_uuid);
+  }
   sendTransaction(transaction);
 }
 

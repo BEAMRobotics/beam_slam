@@ -21,7 +21,8 @@ namespace bs_models {
 
 struct ImuConstraintData {
   fuse_core::UUID constraint_uuid;
-  std::vector<sensor_msgs::Imu::ConstPtr> imu_data;
+  ros::Time start_time;
+  ros::Time end_time;
 };
 
 /**
@@ -35,17 +36,18 @@ public:
   // add IMU data to raw IMU buffer
   void AddData(const sensor_msgs::Imu::ConstPtr& msg);
 
-  // move data from raw IMU buffer to constraint buffer up until time_ns
-  void SetConstraint(const ros::Time& time,
+  // add to the constraint buffer
+  void AddConstraint(const ros::Time& start_time, const ros::Time& end_time,
                      const fuse_core::UUID& constraint_uuid);
-
-  // directly add constraint data to the constraint buffer
-  void AddConstraintData(const ros::Time& time,
-                         const ImuConstraintData& constraint_data);
 
   // extract imu constraint data that contains a specific time stamp. This will
   // remove it from the constraint buffer and therefore will need to be re-added
-  ImuConstraintData ExtractConstraintContainingTime(const ros::Time& time);
+  // remove it from the constraint buffer and therefore will need to be re-added
+  std::optional<ImuConstraintData>
+      ExtractConstraintContainingTime(const ros::Time& time);
+
+  std::map<ros::Time, sensor_msgs::Imu::ConstPtr>
+      GetImuData(const ros::Time& start_time, const ros::Time& end_time) const;
 
   ros::Time GetLastConstraintTime() const;
 
@@ -157,6 +159,7 @@ private:
   ros::Publisher pose_publisher_;
 
   // data storage
+  ros::Time last_trigger_time_;
   ImuBuffer imu_buffer_;
   fuse_core::Graph::ConstSharedPtr most_recent_graph_msg_;
 
