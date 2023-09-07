@@ -9,6 +9,9 @@
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 
+#include <bs_variables/orientation_3d.h>
+#include <bs_variables/position_3d.h>
+
 namespace bs_constraints {
 
 /**
@@ -89,6 +92,12 @@ public:
    * a transform between frame_id and the baselink frame id
    */
   void AddExtrinsicVariablesForFrame(const std::string& frame_id);
+
+  void AddExtrinsicPrior(const bs_variables::Position3D& position,
+                         const bs_variables::Orientation3D& orientation,
+                         const fuse_core::Matrix6d& prior_covariance,
+                         const std::string& prior_source,
+                         bool override_prior = true);
 
 protected:
   fuse_core::Transaction::SharedPtr transaction_;
