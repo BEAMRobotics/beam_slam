@@ -12,6 +12,8 @@
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
+#include <bs_variables/orientation_3d.h>
+#include <bs_variables/position_3d.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry, fuse_core::SensorModel)
@@ -137,6 +139,15 @@ void LidarOdometry::onStart() {
   imu_constraint_trigger_publisher_ =
       private_node_handle_.advertise<std_msgs::Time>(
           "/local_mapper/inertial_odometry/trigger", 10);
+
+  std::string baselink_frame = extrinsics_.GetBaselinkFrameId();
+  std::string lidar_frame = extrinsics_.GetLidarFrameId();
+  bs_variables::Position3D p_tmp;
+  extrinsics_position_uuid_ =
+      fuse_core::uuid::generate(p_tmp.type(), baselink_frame + lidar_frame);
+  bs_variables::Orientation3D o_tmp;
+  extrinsics_orientation_uuid_ =
+      fuse_core::uuid::generate(o_tmp.type(), baselink_frame + lidar_frame);
 }
 
 void LidarOdometry::onStop() {
@@ -211,6 +222,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     SetupRegistration();
   }
   updates_++;
+  PublishExtrinsics(graph_msg);
 
   // update map
   if (update_registration_map_all_scans_) {
@@ -586,6 +598,29 @@ void LidarOdometry::PublishTfTransform(const Eigen::Matrix4d& T_Child_Parent,
   transform.setRotation(q_tf);
   tf_broadcaster_.sendTransform(
       tf::StampedTransform(transform, time, parent_frame, child_frame));
+}
+
+void LidarOdometry::PublishExtrinsics(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
+  const auto var_range = graph_msg->getVariables();
+  if (!graph_msg->variableExists(extrinsics_position_uuid_) ||
+      !graph_msg->variableExists(extrinsics_orientation_uuid_)) {
+    ROS_WARN_THROTTLE(5, "No extrinsics variables found for Lidar.");
+    return;
+  }
+
+  auto p = dynamic_cast<const bs_variables::Position3D&>(
+      graph_msg->getVariable(extrinsics_position_uuid_));
+  auto o = dynamic_cast<const bs_variables::Orientation3D&>(
+      graph_msg->getVariable(extrinsics_orientation_uuid_));
+
+  tf::Transform transform;
+  transform.setOrigin(tf::Vector3(p.x(), p.y(), p.z()));
+  tf::Quaternion q(o.x(), o.y(), o.z(), o.w());
+  transform.setRotation(q);
+  tf_broadcaster_.sendTransform(tf::StampedTransform(
+      transform, ros::Time::now(), extrinsics_.GetLidarFrameId(),
+      extrinsics_.GetBaselinkFrameId()));
 }
 
 } // namespace bs_models
