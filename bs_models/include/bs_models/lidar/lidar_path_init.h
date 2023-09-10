@@ -46,7 +46,7 @@ public:
    * registrations against the map
    * @return map timestamp in NS -> transaction
    */
-  std::unordered_map<uint64_t, LidarTransactionType> GetTransactions() const;
+  std::map<uint64_t, LidarTransactionType> GetTransactions() const;
 
   /**
    * @brief Save three types of scans to separate folders:
@@ -68,21 +68,22 @@ public:
    */
   void UpdateRegistrationMap(fuse_core::Graph::ConstSharedPtr graph_msg);
 
+  /**
+   * @brief Removes all frames prior to start_time (unless it's not set), sets
+   * the first scan pose in the keyframes list to identity, and adjusts all
+   * subsequent poses to reflect this start change. The reason for this is that
+   * the initial scan pose will be calculated with respect to the first
+   * keyframe. Since we often rejects frames at the start that are stationary,
+   * the post of the first kept keyframe likely won't be identity and is likely
+   * to have drifted.
+   */
+  void SetTrajectoryStart(const ros::Time& start_time = ros::Time(0));
+
   double GetMaxRegistrationTimeInS();
   double GetMedianRegistrationTimeInS();
   double GetMeanRegistrationTimeInS();
 
 private:
-  /**
-   * @brief Sets the first scan pose in the keyframes list to identity, and
-   * adjusts all subsequent poses to reflect this start change. The reason for
-   * this is that the initial scan pose will be calculated with respect to the
-   * first keyframe. Since we often rejects frames at the start that are
-   * stationary, the post of the first kept keyframe likely won't be identity
-   * and is likely to have drifted.
-   */
-  void SetTrajectoryStart();
-
   bool InitExtrinsics(const ros::Time& stamp);
 
   Eigen::Matrix4d Get_T_WORLD_BASELINKEST(const ros::Time& stamp);
@@ -100,7 +101,7 @@ private:
 
   // store map from current keyframe timestamps in Ns to registration
   // transaction
-  std::unordered_map<uint64_t, LidarTransactionType> keyframe_transactions_;
+  std::map<uint64_t, LidarTransactionType> keyframe_transactions_;
 
   // how many lidar scans to keep in the list of keyframes for calculating
   // length

@@ -15,6 +15,10 @@ sensor_models:
     type: 'bs_models::GraphVisualization'
   - name: 'gravity_alignment'
     type: 'bs_models::GravityAlignment'
+  # - name: 'odom_pub'
+  #   type: 'bs_publishers::Odometry3DPublisher'
+  # - name: 'path_pub'
+  #   type: 'bs_publishers::Path3DPublisher'
 
 publishers:
     - name: 'graph'
@@ -94,7 +98,7 @@ odom_pub:
   queue_size: 1 # Publisher queue size. Default: 1
   map_frame_id: 'map' # Default: map
   odom_frame_id: 'world' # Default: odom
-  base_link_frame_id: 'imu' # Default: base_link
-  base_link_output_frame_id: 'imu' # Stored in odometry.child_frame_id Default: base_link_frame_id
+  base_link_frame_id: 'imu_link' # Default: base_link
+  base_link_output_frame_id: 'imu_link' # Stored in odometry.child_frame_id Default: base_link_frame_id
   world_frame_id: 'world' # Stored in odometry.header.frame_id. Default: odom_frame_id
   topic: '/local_mapper/optimized_odometry' # Output odometry topic

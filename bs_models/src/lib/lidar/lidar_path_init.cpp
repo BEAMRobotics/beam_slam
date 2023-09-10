@@ -168,7 +168,14 @@ bool LidarPathInit::InitExtrinsics(const ros::Time& stamp) {
   return true;
 }
 
-void LidarPathInit::SetTrajectoryStart() {
+void LidarPathInit::SetTrajectoryStart(const ros::Time& start_time) {
+  if (start_time != ros::Time(0)) {
+    while (keyframes_.front().Stamp() < start_time) { keyframes_.pop_front(); }
+    while (keyframe_transactions_.begin()->first < start_time.toNSec()) {
+      keyframe_transactions_.erase(keyframe_transactions_.begin());
+    }
+  }
+
   auto iter = keyframes_.begin();
   const Eigen::Matrix4d& T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_KEYFRAME0_WORLDOLD =
@@ -251,7 +258,7 @@ std::map<uint64_t, Eigen::Matrix4d> LidarPathInit::GetPath() const {
   return path;
 }
 
-std::unordered_map<uint64_t, LidarTransactionType>
+std::map<uint64_t, LidarTransactionType>
     LidarPathInit::GetTransactions() const {
   return keyframe_transactions_;
 }
