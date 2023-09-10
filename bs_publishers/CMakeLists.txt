@@ -1,7 +1,20 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(bs_publishers)
 
-set(build_depends
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+
+
+set(CMAKE_BUILD_TYPE "release")
+
+find_package(
+  beam REQUIRED 
+  COMPONENTS 
+  utils
+)
+
+set(catkin_build_depends
   fuse_core
   fuse_variables
   geometry_msgs
@@ -10,37 +23,39 @@ set(build_depends
   roscpp
   bs_common
   bs_constraints
-  )
+)
 
-set(CMAKE_BUILD_TYPE "release")
 
-find_package(catkin REQUIRED COMPONENTS
-  ${build_depends}
-  )
+find_package(
+  catkin REQUIRED 
+  COMPONENTS
+    ${catkin_build_depends}
+)
 
 catkin_package(
   INCLUDE_DIRS
-  include
+    include
   LIBRARIES
-  ${PROJECT_NAME}
+    ${PROJECT_NAME}
   CATKIN_DEPENDS
-  ${build_depends}
+    ${catkin_build_depends}
 )
 
 ###########
 ## Build ##
 ###########
 
-add_compile_options(-std=c++14)
-
 # bs_publishers library
-add_library(${PROJECT_NAME}
+add_library(
+  ${PROJECT_NAME}
   src/path_3d_publisher.cpp
   src/odometry_3d_publisher.cpp
-  )
+)
+
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
-  )
+)
+
 target_include_directories(${PROJECT_NAME}
   PUBLIC
     include
@@ -48,7 +63,11 @@ target_include_directories(${PROJECT_NAME}
     ${catkin_INCLUDE_DIRS}
     ${CERES_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIRS}
+    ${beam_INCLUDE_DIRS}
 )
-target_link_libraries(${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  )
+
+target_link_libraries(
+  ${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+    beam::utils
+)

@@ -39,6 +39,8 @@ public:
    */
   void onInit() override;
 
+  void onStart() override;
+
   /**
    * @brief Notify the publisher about variables that have been added or removed
    *

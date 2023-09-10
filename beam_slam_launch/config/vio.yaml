@@ -71,7 +71,6 @@ gravity_alignment:
   gravity_info_weight: 10
 
 path_publisher:
-  frame_id: 'world' # Stored in pose header. Default: odom
   path_topic: 'path' # Default: path
   pose_array_topic: 'pose_array' # Default: pose_array
 

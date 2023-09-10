@@ -83,6 +83,5 @@ lidar_odometry:
   save_scan_registration_results: true
 
 path_publisher:
-  frame_id: 'world' # Stored in pose header. Default: odom
   path_topic: 'path' # Default: path
   pose_array_topic: 'pose_array' # Default: pose_array
