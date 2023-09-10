@@ -88,7 +88,7 @@ private:
 
   Eigen::Matrix4d Get_T_WORLD_BASELINKEST(const ros::Time& stamp);
 
-  void RemoveTransactionsWithStamp(const ros::Time& start_time);
+  void RemoveTransactionsWithStamp(const ros::Time& stamp);
 
   // scan registration objects
   std::unique_ptr<scan_registration::ScanToMapLoamRegistration>
