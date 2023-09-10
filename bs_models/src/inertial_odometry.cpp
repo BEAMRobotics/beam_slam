@@ -3,6 +3,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <pluginlib/class_list_macros.h>
 
+#include <beam_utils/filesystem.h>
+
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
 #include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>
