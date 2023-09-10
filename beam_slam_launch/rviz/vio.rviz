@@ -5,7 +5,6 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /IO1/Shape1
-        - /VO1/Shape1
       Splitter Ratio: 0.5
     Tree Height: 280
   - Class: rviz/Selection
@@ -183,33 +182,22 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: RGB8
-      Decay Time: 0
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Min Color: 0; 0; 0
-      Name: GraphPoses
-      Position Transformer: XYZ
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.4000000059604645
+      Axes Radius: 0.009999999776482582
+      Class: rviz/PoseArray
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.07000000029802322
+      Head Radius: 0.029999999329447746
+      Name: PoseArray
       Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.009999999776482582
-      Style: Flat Squares
-      Topic: /local_mapper/graph_visualization/graph_poses
+      Shaft Length: 0.23000000417232513
+      Shaft Radius: 0.009999999776482582
+      Shape: Axes
+      Topic: /local_mapper/path_publisher/pose_array
       Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -238,7 +226,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 9.89139175415039
+      Distance: 13.896693229675293
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -254,9 +242,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0547971725463867
+      Pitch: 1.054797887802124
       Target Frame: <Fixed Frame>
-      Yaw: 0.5066888332366943
+      Yaw: 0.5216890573501587
     Saved: ~
 Window Geometry:
   Displays:

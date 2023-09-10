@@ -31,13 +31,9 @@ sensor_models:
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
 
-# publishers:
-#     - name: 'graph'
-#       type: 'fuse_publishers::SerializedPublisher'
-#   - name: 'odom_pub'
-#     type: 'bs_publishers::Odometry3DPublisher'
-#   - name: 'path_pub'
-#     type: 'bs_publishers::Path3DPublisher'
+publishers:
+  - name: 'path_publisher'
+    type: 'bs_publishers::Path3DPublisher'
 
 
 visual_feature_tracker:
@@ -100,3 +96,9 @@ lidar_odometry:
   save_graph_updates: true
   save_marginalized_scans: true
   save_scan_registration_results: true
+
+
+path_publisher:
+  frame_id: 'world' # Stored in pose header. Default: odom
+  path_topic: 'path' # Default: path
+  pose_array_topic: 'pose_array' # Default: pose_array

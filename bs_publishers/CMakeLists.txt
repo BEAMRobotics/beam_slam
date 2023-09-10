@@ -8,7 +8,6 @@ set(build_depends
   nav_msgs
   pluginlib
   roscpp
-  bs_models
   bs_common
   bs_constraints
   )

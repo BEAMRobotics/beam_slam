@@ -33,6 +33,7 @@
   <depend>bs_common</depend>
   <depend>bs_constraints</depend>
 	<depend>bs_variables</depend>
+  <depend>bs_publishers</depend>
 
   <build_depend>message_generation</build_depend>
 
