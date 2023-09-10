@@ -261,7 +261,7 @@ bool SLAMInitialization::Initialize() {
   // prune poses in path at start that don't have >= imu messages before it
   auto second_imu_msg = std::next(imu_buffer_.begin());
   if (lidar_path_init_) {
-    lidar_path_init_->SetTrajectoryStart(second_imu_msg->header.stamp);
+    lidar_path_init_->SetTrajectoryStart(imu_buffer_.begin()->header.stamp);
   }
 
   while (init_path_.begin()->first < second_imu_msg->header.stamp.toNSec()) {

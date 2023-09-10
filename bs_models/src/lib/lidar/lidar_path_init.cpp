@@ -168,11 +168,25 @@ bool LidarPathInit::InitExtrinsics(const ros::Time& stamp) {
   return true;
 }
 
+void LidarPathInit::RemoveTransactionsWithStamp(const ros::Time& stamp) {
+  std::vector<uint64_t> transactions_to_remove;
+  for (const auto& [t, transaction] : keyframe_transactions_) {
+    const fuse_core::Transaction::SharedPtr trans =
+        transaction.GetTransaction();
+    for (const auto& it : trans->involvedStamps()) {
+      if (it == stamp) { transactions_to_remove.push_back(t); }
+    }
+  }
+  for (const auto& t : transactions_to_remove) {
+    keyframe_transactions_.erase(t);
+  }
+}
+
 void LidarPathInit::SetTrajectoryStart(const ros::Time& start_time) {
   if (start_time != ros::Time(0)) {
-    while (keyframes_.front().Stamp() < start_time) { keyframes_.pop_front(); }
-    while (keyframe_transactions_.begin()->first < start_time.toNSec()) {
-      keyframe_transactions_.erase(keyframe_transactions_.begin());
+    while (keyframes_.front().Stamp() < start_time) {
+      RemoveTransactionsWithStamp(keyframes_.front().Stamp());
+      keyframes_.pop_front();
     }
   }
 
