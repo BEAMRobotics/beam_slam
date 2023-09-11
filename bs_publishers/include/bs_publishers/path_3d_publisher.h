@@ -54,7 +54,8 @@ public:
 
 protected:
   fuse_core::UUID device_id_;     //!< The UUID of the device to be published
-  std::string frame_id_;          //!< The name of the frame for this path
+  std::string world_frame_id_;    //!< Frame name for the header of the path msg
+  std::string baselink_frame_id_; //!< Frame name in the header of pose messages
   ros::Publisher path_publisher_; //!< The publisher that sends the entire robot
                                   //!< trajectory as a path
   ros::Publisher pose_array_publisher_; //!< The publisher that sends the entire
