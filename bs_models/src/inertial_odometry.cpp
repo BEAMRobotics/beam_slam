@@ -250,6 +250,10 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
   auto position = bs_common::GetPosition(graph_msg, first_stamp);
   auto orientation = bs_common::GetOrientation(graph_msg, first_stamp);
 
+  // init odom frame
+  T_ODOM_IMUprev_ =
+      bs_common::FusePoseToEigenTransform(*position, *orientation);
+
   // create imu preint object
   Eigen::Vector3d ba(accel_bias->x(), accel_bias->y(), accel_bias->z());
   Eigen::Vector3d bg(gyro_bias->x(), gyro_bias->y(), gyro_bias->z());
@@ -260,16 +264,10 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
   imu_preint_->SetStart(first_stamp, orientation, position, velocity);
 
   prev_stamp_ = first_stamp;
-  last_trigger_time_ = first_stamp;
-  const ros::Time last_stamp = *timestamps.crbegin();
-
   // integrate imu messages between existing states and publish odometry
   for (auto cur = timestamps.begin(); cur != timestamps.end(); cur++) {
-    // get the current stamp and the next stamp
-    auto next = std::next(cur);
-    if (next == timestamps.end()) { break; }
+    // get the current stamp
     auto cur_stamp = *cur;
-    auto next_stamp = *next;
 
     // get the current state
     auto ab = bs_common::GetAccelBias(graph_msg, cur_stamp);
@@ -280,11 +278,16 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
     imu_preint_->UpdateState(*p, *o, *v, *gb, *ab);
     prev_stamp_ = p->stamp();
 
+    // get the next stamp
+    auto next = std::next(cur);
+    if (next == timestamps.end()) { break; }
+    auto next_stamp = *next;
+
     // for each imu message between cur_stamp and next_stamp, integrate
     for (const auto& [imu_stamp, imu_msg] : imu_buffer_.GetImuMsgs()) {
       if (imu_stamp < cur_stamp) {
         continue;
-      } else if (imu_stamp < next_stamp) {
+      } else if (imu_stamp <= next_stamp) {
         imu_preint_->AddToBuffer(*imu_msg);
         // get relative pose and publish
         ComputeRelativeMotion(prev_stamp_, imu_stamp);
@@ -298,7 +301,9 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
     }
     imu_preint_->Clear();
   }
-  
+
+  const ros::Time last_stamp = *timestamps.crbegin();
+  last_trigger_time_ = last_stamp;
   // integrate remaining imu messages
   for (const auto& [imu_stamp, imu_msg] : imu_buffer_.GetImuMsgs()) {
     if (imu_stamp <= last_stamp) { continue; }
