@@ -199,6 +199,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
 
   // perform motion only BA to refine estimate
   if (pixels.size() >= 20) {
+    if (track_lost) { track_lost = false; }
     // get initial estimate in camera frame
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
         T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
@@ -222,6 +223,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     ROS_WARN_STREAM(
         "Not enough points for visual refinement: " << pixels.size());
     T_WORLD_BASELINK = T_WORLD_BASELINKcur;
+    track_lost = true;
   }
 
   return true;
@@ -467,6 +469,12 @@ void VisualOdometry::AddMeasurementsToContainer(
         landmark, landmark_descriptor);
     landmark_container_->Insert(lm_measurement);
   }
+
+  // todo: filter outliers using essential matrix estimation + ransac
+  // 1. get all measurements from the current msg and the previous msg
+  // 2. undistort them
+  // 3. attempt ransac essential matrix estimation
+  // 4. remove any outliers using the landmark_container_->Erase() function
 }
 
 beam::opt<Eigen::Vector3d>
@@ -485,10 +493,16 @@ beam::opt<Eigen::Vector3d>
   }
   // must have at least 3 keyframes that have seen the landmark
   if (T_cam_world_v.size() >= 3) {
-    return beam_cv::Triangulation::TriangulatePoint(
-        cam_model_, T_cam_world_v, pixels,
-        vo_params_.max_triangulation_distance,
-        vo_params_.max_triangulation_reprojection);
+    // if we've lost track, ease the requirements on new landmarks
+    if (track_lost) {
+      return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+                                                      pixels);
+    } else {
+      return beam_cv::Triangulation::TriangulatePoint(
+          cam_model_, T_cam_world_v, pixels,
+          vo_params_.max_triangulation_distance,
+          vo_params_.max_triangulation_reprojection);
+    }
   }
   return {};
 }

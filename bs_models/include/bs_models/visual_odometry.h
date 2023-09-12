@@ -155,6 +155,7 @@ private:
   ros::Time previous_reloc_request_{ros::Time(0)};
   ros::Time previous_keyframe_;
   size_t max_container_size_;
+  bool track_lost{false};
 
   /// @brief callbacks for messages
   using ThrottledMeasurementCallback =
