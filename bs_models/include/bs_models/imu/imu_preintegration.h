@@ -151,6 +151,20 @@ public:
   void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
 
   /**
+   * @brief Updates state i with the given variables
+   * @param position
+   * @param orientation
+   * @param velocity
+   * @param gyro_bias
+   * @param accel_bias
+   */
+  void UpdateState(const fuse_variables::Position3DStamped position,
+                   const fuse_variables::Orientation3DStamped orientation,
+                   const fuse_variables::VelocityLinear3DStamped velocity,
+                   const bs_variables::GyroscopeBias3DStamped gyro_bias,
+                   const bs_variables::AccelerationBias3DStamped accel_bias);
+
+  /**
    * @brief Creates a string representation of the data in the buffer
    */
   std::string PrintBuffer();

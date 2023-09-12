@@ -326,6 +326,20 @@ void ImuPreintegration::UpdateGraph(
   window_states_.clear();
 }
 
+void ImuPreintegration::UpdateState(
+    const fuse_variables::Position3DStamped position,
+    const fuse_variables::Orientation3DStamped orientation,
+    const fuse_variables::VelocityLinear3DStamped velocity,
+    const bs_variables::GyroscopeBias3DStamped gyro_bias,
+    const bs_variables::AccelerationBias3DStamped accel_bias) {
+  imu_state_i_.SetStamp(position.stamp());
+  imu_state_i_.SetPosition(position);
+  imu_state_i_.SetOrientation(orientation);
+  imu_state_i_.SetVelocity(velocity);
+  imu_state_i_.SetGyroBias(gyro_bias);
+  imu_state_i_.SetAccelBias(accel_bias);
+}
+
 void ImuPreintegration::Clear() {
   pre_integrator_kj_.data.clear();
   pre_integrator_kj_.Reset();

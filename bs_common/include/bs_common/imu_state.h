@@ -96,6 +96,11 @@ public:
   ros::Time Stamp() const;
 
   /**
+   * @brief Set the timestamp of this state
+   */
+  void SetStamp(const ros::Time stamp);
+
+  /**
    * @brief return the current estimate of the orientation
    * @return orientation fuse variable
    */
@@ -193,6 +198,11 @@ public:
   void SetOrientation(const double* orientation);
 
   /**
+   * @brief set orientation using fuse variable
+   */
+  void SetOrientation(const fuse_variables::Orientation3DStamped orientation);
+
+  /**
    * @brief set position using double data type
    */
   void SetPosition(const double& x, const double& y, const double& z);
@@ -206,6 +216,11 @@ public:
    * @brief set position using c-style array
    */
   void SetPosition(const double* position);
+
+  /**
+   * @brief set position using fuse variable
+   */
+  void SetPosition(const fuse_variables::Position3DStamped position);
 
   /**
    * @brief set velocity using double data type
@@ -223,6 +238,11 @@ public:
   void SetVelocity(const double* velocity);
 
   /**
+   * @brief set velocity using fuse variable
+   */
+  void SetVelocity(const fuse_variables::VelocityLinear3DStamped velocity);
+
+  /**
    * @brief set gyroscope bias using double data type
    */
   void SetGyroBias(const double& x, const double& y, const double& z);
@@ -238,6 +258,11 @@ public:
   void SetGyroBias(const double* gyrobias);
 
   /**
+   * @brief set gyroscope bias using fuse variable
+   */
+  void SetGyroBias(const bs_variables::GyroscopeBias3DStamped gyrobias);
+
+  /**
    * @brief set acceleration bias using double data type
    */
   void SetAccelBias(const double& x, const double& y, const double& z);
@@ -251,6 +276,11 @@ public:
    * @brief set acceleration bias using c-style array
    */
   void SetAccelBias(const double* accelbias);
+
+  /**
+   * @brief set acceleration bias using fuse variable
+   */
+  void SetAccelBias(const bs_variables::AccelerationBias3DStamped accelbias);
 
   /**
    * @brief print relevant information about what is currently contained in this
