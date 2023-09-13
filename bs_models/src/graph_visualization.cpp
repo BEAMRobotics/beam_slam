@@ -221,11 +221,10 @@ void GraphVisualization::VisualizeCameraLandmarks(
     cv::Mat image_out = beam_cv::OpenCVConversions::RosImgToMat(img_msg);
 
     // get pose
-    Eigen::Matrix4d T_WORLD_BASELINK;
     const auto position = bs_common::GetPosition(graph_msg, timestamp);
     const auto orientation = bs_common::GetOrientation(graph_msg, timestamp);
-    bs_common::FusePoseToEigenTransform(*position, *orientation,
-                                        T_WORLD_BASELINK);
+    Eigen::Matrix4d T_WORLD_BASELINK =
+        bs_common::FusePoseToEigenTransform(*position, *orientation);
 
     // get landmarks in image
     auto lm_ids = landmark_container_->GetLandmarkIDsInImage(timestamp);
@@ -244,20 +243,15 @@ void GraphVisualization::VisualizeCameraLandmarks(
                   .hnormalized();
         } else if (idp_lm_variable) {
           Eigen::Vector3d anchor_t_point = idp_lm_variable->camera_t_point();
-
-          Eigen::Matrix4d T_WORLD_BASELINKanchor;
           const auto p =
               bs_common::GetPosition(graph_msg, idp_lm_variable->anchorStamp());
           const auto o = bs_common::GetOrientation(
               graph_msg, idp_lm_variable->anchorStamp());
           if (!o || !p) { continue; }
-          bs_common::FusePoseToEigenTransform(*p, *o, T_WORLD_BASELINKanchor);
-
           Eigen::Matrix4d T_WORLD_CAMERAmeasurement =
               T_WORLD_BASELINK * T_BASELINK_CAM;
           Eigen::Matrix4d T_WORLD_CAMERAanchor =
-              T_WORLD_BASELINKanchor * T_BASELINK_CAM;
-
+              bs_common::FusePoseToEigenTransform(*p, *o) * T_BASELINK_CAM;
           Eigen::Matrix4d T_CAMERAmeasurement_CAMERAanchor =
               beam::InvertTransform(T_WORLD_CAMERAmeasurement) *
               T_WORLD_CAMERAanchor;

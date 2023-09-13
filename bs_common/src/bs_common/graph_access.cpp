@@ -2,6 +2,7 @@
 
 #include <fuse_variables/point_3d_landmark.h>
 
+#include <bs_common/conversions.h>
 #include <bs_variables/inverse_depth_landmark.h>
 
 namespace bs_common {
@@ -222,6 +223,45 @@ bs_variables::InverseDepthLandmark::SharedPtr
         graph->getVariable(lm_uuid));
   } catch (const std::out_of_range& oor) { return nullptr; }
   return lm;
+}
+
+bs_variables::Position3D::SharedPtr
+    GetPositionExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
+                         const std::string& child_frame,
+                         const std::string& parent_frame) {
+  auto p = bs_variables::Position3D::make_shared();
+  auto uuid = fuse_core::uuid::generate(p->type(), child_frame + parent_frame);
+  try {
+    *p = dynamic_cast<const bs_variables::Position3D&>(
+        graph->getVariable(uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
+  return p;
+}
+
+bs_variables::Orientation3D::SharedPtr
+    GetOrientationExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
+                            const std::string& child_frame,
+                            const std::string& parent_frame) {
+  auto o = bs_variables::Orientation3D::make_shared();
+  auto uuid = fuse_core::uuid::generate(o->type(), child_frame + parent_frame);
+  try {
+    *o = dynamic_cast<const bs_variables::Orientation3D&>(
+        graph->getVariable(uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
+  return o;
+}
+
+beam::opt<Eigen::Matrix4d> GetExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
+                                        const std::string& child_frame,
+                                        const std::string& parent_frame) {
+  const auto p = GetPositionExtrinsic(graph, child_frame, parent_frame);
+  const auto o = GetOrientationExtrinsic(graph, child_frame, parent_frame);
+  if (!p || !o) {
+    return {};
+  } else {
+    Eigen::Matrix4d T = FusePoseToEigenTransform(*p, *o);
+    return T;
+  }
 }
 
 } // namespace bs_common

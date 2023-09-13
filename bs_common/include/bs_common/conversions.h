@@ -6,6 +6,8 @@
 #include <nav_msgs/Path.h>
 #include <tf/transform_datatypes.h>
 
+#include <bs_variables/orientation_3d.h>
+#include <bs_variables/position_3d.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 
@@ -25,6 +27,13 @@ void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
 Eigen::Matrix4d
     FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                              const fuse_variables::Orientation3DStamped& o);
+
+void FusePoseToEigenTransform(const bs_variables::Position3D& p,
+                              const bs_variables::Orientation3D& o,
+                              Eigen::Matrix4d& T_WORLD_SENSOR);
+
+Eigen::Matrix4d FusePoseToEigenTransform(const bs_variables::Position3D& p,
+                                         const bs_variables::Orientation3D& o);
 
 void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
                                    Eigen::Matrix4d& T_WORLD_SENSOR);
