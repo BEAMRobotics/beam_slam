@@ -88,9 +88,6 @@ void VisualOdometry::onStart() {
           "/local_mapper/slam_results", 100);
   reloc_publisher_ = private_node_handle_.advertise<bs_common::RelocRequestMsg>(
       "/local_mapper/reloc_request", 100);
-  // image_publisher_ =
-  //     private_node_handle_.advertise<sensor_msgs::Image>("tracked_image",
-  //     10);
 }
 
 void VisualOdometry::processMeasurements(
@@ -472,23 +469,7 @@ void VisualOdometry::AddMeasurementsToContainer(
       }
     }
   }
-
   prev_frame_ = msg->header.stamp;
-
-  // // visualize tracks
-  // cv::Mat image_out = beam_cv::OpenCVConversions::RosImgToMat(msg->image);
-  // auto lm_ids =
-  // landmark_container_->GetLandmarkIDsInImage(msg->header.stamp); for (const
-  // auto id : lm_ids) {
-  //   Eigen::Vector2d pixel =
-  //       landmark_container_->GetValue(msg->header.stamp, id);
-  //   cv::Point m(pixel[0], pixel[1]);
-  //   static cv::Scalar yellow(0, 255, 255);
-  //   cv::circle(image_out, m, 2, yellow, 3);
-  // }
-  // sensor_msgs::Image out_msg = beam_cv::OpenCVConversions::MatToRosImg(
-  //     image_out, msg->header, "bgr8");
-  // image_publisher_.publish(out_msg);
 }
 
 beam::opt<Eigen::Vector3d>

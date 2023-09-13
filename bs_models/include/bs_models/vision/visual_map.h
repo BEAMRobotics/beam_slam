@@ -107,8 +107,9 @@ public:
    * @param id
    * @param anchor_time
    */
-  void AddInverseDepthLandmark(const Eigen::Vector3d& bearing, const double inverse_depth,
-                               const uint64_t id, const ros::Time& anchor_time,
+  void AddInverseDepthLandmark(const Eigen::Vector3d& bearing,
+                               const double inverse_depth, const uint64_t id,
+                               const ros::Time& anchor_time,
                                fuse_core::Transaction::SharedPtr transaction);
 
   /**
