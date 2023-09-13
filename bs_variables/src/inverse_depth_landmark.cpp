@@ -17,12 +17,12 @@ InverseDepthLandmark::InverseDepthLandmark(const uint64_t& id,
     : FixedSizeVariable(fuse_core::uuid::generate(detail::type(), id)),
       id_(id),
       anchor_stamp_(anchor_stamp) {
-  mx_ = bearing[0];
-  my_ = bearing[1];
-  if (bearing[2] != 1.0) {
-    ROS_FATAL("Invalid bearing vector, 3rd component must equal 1.0.");
-    throw std::runtime_error(
-        "Invalid bearing vector, 3rd component must equal 1.0.");
+  bearing_ = bearing;
+  const double norm = bearing_.norm();
+  if (norm < 1.0 - 1e-10 || norm > 1.0 + 1e-10) {
+    ROS_FATAL_STREAM(
+        "Invalid bearing vector, norm must equal 1.0, instead it is: " << norm);
+    throw std::runtime_error("Invalid bearing vector, norm must equal 1.0.");
   }
 }
 
@@ -34,8 +34,8 @@ void InverseDepthLandmark::print(std::ostream& stream) const {
          << "  size: " << size() << "\n"
          << "  data:\n"
          << "  - inverse_depth: " << inverse_depth() << "\n"
-         << "  - mx: " << mx_ << "\n"
-         << "  - my: " << my_ << "\n";
+         << "  - bearing: \n"
+         << bearing() << "\n";
 }
 
 } // namespace bs_variables

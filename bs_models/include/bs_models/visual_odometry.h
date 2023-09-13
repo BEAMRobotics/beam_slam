@@ -57,7 +57,7 @@ private:
 
   /// @brief Callback for when a newly optimized graph is available
   /// @param graph_msg incoming grpah
-  void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
+  void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) override;
 
   /// @brief Localizes image and extends our visual map if its a keyframe
   /// @param msg visual measurements
@@ -124,6 +124,10 @@ private:
   void PublishPose(const ros::Time& timestamp,
                    const Eigen::Matrix4d& T_WORLD_BASELINK);
 
+  /// @brief Performs all initial setup after slam initialization succeeds
+  /// @param graph initial graph
+  void Initialize(fuse_core::Graph::ConstSharedPtr graph);
+
   /// @brief The UUID of this device
   fuse_core::UUID device_id_; //!< The UUID of this device
 
@@ -145,6 +149,7 @@ private:
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher reloc_publisher_;
   ros::Publisher imu_constraint_trigger_publisher_;
+  // ros::Publisher image_publisher_;
   int imu_constraint_trigger_counter_{0};
 
   /// @brief book keeping variables
@@ -156,6 +161,7 @@ private:
   ros::Time previous_keyframe_;
   size_t max_container_size_;
   bool track_lost{false};
+  ros::Time prev_frame_{ros::Time(0)};
 
   /// @brief callbacks for messages
   using ThrottledMeasurementCallback =

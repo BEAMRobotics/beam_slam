@@ -46,22 +46,32 @@ public:
     Eigen::Matrix<T, 4, 4> T_CAMERAm_CAMERAa =
         Eigen::Matrix<T, 4, 4>::Identity();
 
+    // ! Method 1:
+    // const T depth = static_cast<T>(1.0) / inverse_depth[0];
+    // Eigen::Matrix<T, 3, 1> anchor_camera_t_point = depth *
+    // bearing_.cast<T>();
+
+    // // project into measurement image
+    // Eigen::Matrix<T, 2, 1> reproj =
+    //     (intrinsic_matrix_.cast<T>() * anchor_camera_t_point).hnormalized();
+
+    // ! Method 2:
     // create projection matrix
     const Eigen::Matrix<T, 3, 4> projection_matrix =
         intrinsic_matrix_.cast<T>() * T_CAMERAm_CAMERAa.block(0, 0, 3, 4);
 
-    // compute the inverse depth and bearing vector (mx, my, 1, 1/Z)
+    // compute the inverse depth and bearing vector (mx, my, mz, 1/d)
     Eigen::Matrix<T, 4, 1> bearing_and_inversedepth;
-    bearing_and_inversedepth << bearing_.cast<T>(), inverse_depth;
+    bearing_and_inversedepth << bearing_.cast<T>(), inverse_depth[0];
 
     // project into measurement image
     Eigen::Matrix<T, 2, 1> reproj =
         (projection_matrix * bearing_and_inversedepth).hnormalized();
 
-    Eigen::Matrix<T, 2, 1> E =
-        information_matrix_.cast<T>() * (pixel_measurement_.cast<T>() - reproj);
-    residual[0] = E[0];
-    residual[1] = E[1];
+    residual[0] = static_cast<T>(pixel_measurement_[0]) - reproj[0];
+    residual[1] = static_cast<T>(pixel_measurement_[1]) - reproj[1];
+    Eigen::Map<Eigen::Matrix<T, 2, 1>> residual_map(residual);
+    residual_map.applyOnTheLeft(information_matrix_.template cast<T>());
 
     return true;
   }

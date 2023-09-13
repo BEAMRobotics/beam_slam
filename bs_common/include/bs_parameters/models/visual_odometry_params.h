@@ -58,13 +58,6 @@ public:
     getParam<double>(nh, "keyframe_parallax", keyframe_parallax,
                      keyframe_parallax);
 
-    // weighting factor on visual measurements
-    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
-    // Residuals
-    getParam<double>(nh, "reprojection_information_weight",
-                     reprojection_information_weight,
-                     reprojection_information_weight);
-
     double reprojection_loss_a = 5.0 * reprojection_information_weight;
     // reprojection loss
     reprojection_loss =
@@ -77,8 +70,27 @@ public:
     if (!beam::ReadJson(vo_params, J)) {
       ROS_ERROR("Cannot read input VO Params, using default.");
     } else {
-      max_triangulation_distance = J["max_triangulation_distance"];
-      max_triangulation_reprojection = J["max_triangulation_reprojection"];
+      try {
+        max_triangulation_distance = J["max_triangulation_distance"];
+      } catch (...) {
+        ROS_ERROR("Missing 'max_triangulation_distance' param in vo config "
+                  "file. Using default: 30.0.");
+      }
+
+      try {
+        max_triangulation_reprojection = J["max_triangulation_reprojection"];
+      } catch (...) {
+        ROS_ERROR("Missing 'max_triangulation_reprojection' param in vo config "
+                  "file. Using default: 80.0.");
+      }
+
+      try {
+        reprojection_information_weight = J["reprojection_information_weight"];
+      } catch (...) {
+        ROS_ERROR(
+            "Missing 'reprojection_information_weight' param in vo config "
+            "file. Using default: 1.0.");
+      }
     }
   }
 

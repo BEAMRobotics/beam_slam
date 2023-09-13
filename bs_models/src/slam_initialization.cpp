@@ -470,7 +470,7 @@ void SLAMInitialization::AddVisualConstraints() {
   const auto end = beam::NSecToRos(init_path_.rbegin()->first);
   size_t num_landmarks = 0;
   auto landmark_transaction = fuse_core::Transaction::make_shared();
-  landmark_transaction->stamp(end);
+  landmark_transaction->stamp(start);
   auto process_landmark = [&](const auto& id) {
     // triangulate and add landmark
     const auto initial_point = TriangulateLandmark(id);
@@ -479,14 +479,16 @@ void SLAMInitialization::AddVisualConstraints() {
     // find the first keyframe that has seen the landmark and use it as the
     // anchor
     auto track = landmark_container_->GetTrack(id);
+    bool found_anchor = false;
     beam_containers::LandmarkMeasurement anchor_measurement;
     for (auto m : track) {
       if (kf_times.find(m.time_point) != kf_times.end()) {
         anchor_measurement = m;
+        found_anchor = true;
         break;
       }
     }
-    if (anchor_measurement.time_point == ros::Time(0.0)) { return; }
+    if (!found_anchor) { return; }
 
     // get the bearing vector to the measurement
     Eigen::Vector3d bearing;
@@ -499,18 +501,21 @@ void SLAMInitialization::AddVisualConstraints() {
                                                       bearing)) {
       return;
     }
+    bearing.normalize();
 
     // find the inverse depth of the point
-    auto T_WORLD_CAMERA = visual_map_->GetCameraPose(anchor_measurement.time_point);
+    auto T_WORLD_CAMERA =
+        visual_map_->GetCameraPose(anchor_measurement.time_point);
     if (!T_WORLD_CAMERA.has_value()) { return; }
     Eigen::Vector3d camera_t_point =
         (beam::InvertTransform(T_WORLD_CAMERA.value()) *
          initial_point.value().homogeneous())
             .hnormalized();
-    double inverse_depth = 1.0 / camera_t_point.z();
+    double inverse_depth = 1.0 / camera_t_point.norm();
 
     visual_map_->AddInverseDepthLandmark(bearing, inverse_depth, id,
-                                         anchor_measurement.time_point, landmark_transaction);
+                                         anchor_measurement.time_point,
+                                         landmark_transaction);
     num_landmarks++;
 
     // add constraints to keyframes that view it

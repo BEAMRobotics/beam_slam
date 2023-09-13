@@ -15,7 +15,7 @@ namespace bs_variables {
 
 /**
  * @brief Variable representing an Inverse depth landmark. An Inverse depth
- * landmark is defined by the inverse depth (1/Z) the landmark is from an
+ * landmark is defined by the inverse depth (1/d) the landmark is from an
  * "Anchor" pose. It is also defined by the bearing vector from that pose
  * (T_WORLD_CAMERA), however only the inverse depth is optimized.
  */
@@ -32,8 +32,7 @@ public:
    * @brief Construct an inverse depth landmark.
    *
    * @param[in] id of landmark
-   * @param[in] bearing bearing vector from anchor pose in the camera frame 
-   * [mx, my, 1]
+   * @param[in] bearing unit bearing vector from anchor pose in the camera frame
    * @param[in] anchor_stamp timestamp of the anchor pose to this landmark
    */
   explicit InverseDepthLandmark(const uint64_t& id,
@@ -55,15 +54,14 @@ public:
    */
   Eigen::Vector3d camera_t_point() const {
     double depth = 1 / data_[0];
-    double x = depth * mx_;
-    double y = depth * my_;
-    return Eigen::Vector3d(x, y, depth);
+    Eigen::Vector3d point = depth * bearing();
+    return point;
   }
 
   /**
    * @brief Access to the bearing vector from the anchor frame
    */
-  Eigen::Vector3d bearing() const { return Eigen::Vector3d(mx_, my_, 1); }
+  Eigen::Vector3d bearing() const { return bearing_; }
 
   /**
    * @brief Read-only access to the id
@@ -84,8 +82,7 @@ public:
   void print(std::ostream& stream = std::cout) const override;
 
 private:
-  double mx_;
-  double my_;
+  Eigen::Vector3d bearing_;
   uint64_t id_{0};
   ros::Time anchor_stamp_;
 

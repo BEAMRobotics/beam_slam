@@ -3,6 +3,8 @@
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
 
+#include <bs_constraints/helpers.h>
+
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
 #include <bs_constraints/visual/euclidean_reprojection_constraint.h>
@@ -28,18 +30,12 @@ VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
 }
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time& stamp) {
-  fuse_variables::Position3DStamped::SharedPtr p = GetPosition(stamp);
-  fuse_variables::Orientation3DStamped::SharedPtr q = GetOrientation(stamp);
-  if (p && q) {
-    Eigen::Vector3d position(p->data());
-    Eigen::Quaterniond orientation(q->w(), q->x(), q->y(), q->z());
-    Eigen::Matrix4d T_WORLD_BASELINK;
-    beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
-                                                    T_WORLD_BASELINK);
-
+  const auto& baselink_pose = GetBaselinkPose(stamp);
+  if (baselink_pose.has_value()) {
+    Eigen::Matrix4d T_WORLD_BASELINK = baselink_pose.value();
     // transform pose from baselink coord space to camera coord space
     Eigen::Matrix4d T_WORLD_CAMERA =
-        T_WORLD_BASELINK * T_cam_baselink_.inverse();
+        T_WORLD_BASELINK * beam::InvertTransform(T_cam_baselink_);
     return T_WORLD_CAMERA;
   } else {
     return {};
@@ -294,8 +290,8 @@ void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
 }
 
 void VisualMap::AddInverseDepthLandmark(
-    const Eigen::Vector3d& bearing, const double inverse_depth, const uint64_t id,
-    const ros::Time& anchor_time,
+    const Eigen::Vector3d& bearing, const double inverse_depth,
+    const uint64_t id, const ros::Time& anchor_time,
     fuse_core::Transaction::SharedPtr transaction) {
   // construct landmark variable
   bs_variables::InverseDepthLandmark::SharedPtr landmark =
