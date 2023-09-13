@@ -135,9 +135,9 @@ void InertialOdometry::onStart() {
 
   // setup publishers
   odometry_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 1000);
   pose_publisher_ =
-      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 100);
+      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 1000);
 }
 
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -242,25 +242,17 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
   ROS_INFO("InertialOdometry received initial graph.");
   std::set<ros::Time> timestamps = bs_common::CurrentTimestamps(graph_msg);
 
-  // publish poses in initial graph as odometry
-  for (const auto& stamp : timestamps) {
-    T_ODOM_IMUprev_ = bs_common::FusePoseToEigenTransform(
-        *bs_common::GetPosition(graph_msg, stamp),
-        *bs_common::GetOrientation(graph_msg, stamp));
-    auto odom_msg = bs_common::TransformToOdometryMessage(
-        stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
-        extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_,
-        Eigen::Matrix<double, 6, 6>::Identity() * 1e-5);
-    odometry_publisher_.publish(odom_msg);
-  }
+  // get first state in the graph
+  const ros::Time first_stamp = *timestamps.cbegin();
+  auto accel_bias = bs_common::GetAccelBias(graph_msg, first_stamp);
+  auto gyro_bias = bs_common::GetGryoscopeBias(graph_msg, first_stamp);
+  auto velocity = bs_common::GetVelocity(graph_msg, first_stamp);
+  auto position = bs_common::GetPosition(graph_msg, first_stamp);
+  auto orientation = bs_common::GetOrientation(graph_msg, first_stamp);
 
-  // get most recent variables in graph to initialize imu preintegrator
-  const ros::Time most_recent_stamp = *timestamps.crbegin();
-  auto accel_bias = bs_common::GetAccelBias(graph_msg, most_recent_stamp);
-  auto gyro_bias = bs_common::GetGryoscopeBias(graph_msg, most_recent_stamp);
-  auto velocity = bs_common::GetVelocity(graph_msg, most_recent_stamp);
-  auto position = bs_common::GetPosition(graph_msg, most_recent_stamp);
-  auto orientation = bs_common::GetOrientation(graph_msg, most_recent_stamp);
+  // init odom frame
+  T_ODOM_IMUprev_ =
+      bs_common::FusePoseToEigenTransform(*position, *orientation);
 
   // create imu preint object
   Eigen::Vector3d ba(accel_bias->x(), accel_bias->y(), accel_bias->z());
@@ -269,24 +261,61 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
       imu_params_, bg, ba, params_.inertial_info_weight, false);
 
   // set the start
-  imu_preint_->SetStart(most_recent_stamp, orientation, position, velocity);
+  imu_preint_->SetStart(first_stamp, orientation, position, velocity);
 
-  // iterate through existing buffer, estimate poses and output
-  prev_stamp_ = most_recent_stamp;
-  last_trigger_time_ = prev_stamp_;
-  for (const auto& [curr_stamp, imu_msg] : imu_buffer_.GetImuMsgs()) {
-    if (curr_stamp < most_recent_stamp) { continue; }
-    imu_preint_->AddToBuffer(*imu_msg);
+  prev_stamp_ = first_stamp;
+  // integrate imu messages between existing states and publish odometry
+  for (auto cur = timestamps.begin(); cur != timestamps.end(); cur++) {
+    // get the current stamp
+    auto cur_stamp = *cur;
 
-    // get relative pose and publish
-    ComputeRelativeMotion(prev_stamp_, curr_stamp);
+    // get the current state
+    auto ab = bs_common::GetAccelBias(graph_msg, cur_stamp);
+    auto gb = bs_common::GetGryoscopeBias(graph_msg, cur_stamp);
+    auto v = bs_common::GetVelocity(graph_msg, cur_stamp);
+    auto p = bs_common::GetPosition(graph_msg, cur_stamp);
+    auto o = bs_common::GetOrientation(graph_msg, cur_stamp);
+    imu_preint_->UpdateState(*p, *o, *v, *gb, *ab);
+    prev_stamp_ = p->stamp();
 
-    // get world pose and publish
-    ComputeAbsolutePose(curr_stamp);
+    // get the next stamp
+    auto next = std::next(cur);
+    if (next == timestamps.end()) { break; }
+    auto next_stamp = *next;
 
-    odom_seq_++;
-    prev_stamp_ = curr_stamp;
+    // for each imu message between cur_stamp and next_stamp, integrate
+    for (const auto& [imu_stamp, imu_msg] : imu_buffer_.GetImuMsgs()) {
+      if (imu_stamp < cur_stamp) {
+        continue;
+      } else if (imu_stamp <= next_stamp) {
+        imu_preint_->AddToBuffer(*imu_msg);
+        // get relative pose and publish
+        ComputeRelativeMotion(prev_stamp_, imu_stamp);
+        // get world pose and publish
+        ComputeAbsolutePose(imu_stamp);
+        odom_seq_++;
+        prev_stamp_ = imu_stamp;
+      } else {
+        break;
+      }
+    }
+    imu_preint_->Clear();
   }
+
+  const ros::Time last_stamp = *timestamps.crbegin();
+  last_trigger_time_ = last_stamp;
+  // integrate remaining imu messages
+  for (const auto& [imu_stamp, imu_msg] : imu_buffer_.GetImuMsgs()) {
+    if (imu_stamp <= last_stamp) { continue; }
+    imu_preint_->AddToBuffer(*imu_msg);
+    // get relative pose and publish
+    ComputeRelativeMotion(prev_stamp_, imu_stamp);
+    // get world pose and publish
+    ComputeAbsolutePose(imu_stamp);
+    odom_seq_++;
+    prev_stamp_ = imu_stamp;
+  }
+
   imu_buffer_.ClearImuMsgs();
 
   initialized_ = true;
