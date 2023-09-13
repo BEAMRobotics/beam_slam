@@ -212,4 +212,16 @@ fuse_variables::Point3DLandmark::SharedPtr
   return lm;
 }
 
+bs_variables::InverseDepthLandmark::SharedPtr
+    GetInverseDepthLandmark(fuse_core::Graph::ConstSharedPtr graph,
+                            const uint64_t id) {
+  auto lm = bs_variables::InverseDepthLandmark::make_shared();
+  auto lm_uuid = fuse_core::uuid::generate(lm->type(), id);
+  try {
+    *lm = dynamic_cast<const bs_variables::InverseDepthLandmark&>(
+        graph->getVariable(lm_uuid));
+  } catch (const std::out_of_range& oor) { return nullptr; }
+  return lm;
+}
+
 } // namespace bs_common
