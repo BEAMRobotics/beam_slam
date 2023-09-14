@@ -96,8 +96,6 @@ private:
     publisher.counter++;
   }
 
-  void processImage(const sensor_msgs::Image::ConstPtr& msg);
-
   void
       processMeasurements(const bs_common::CameraMeasurementMsg::ConstPtr& msg);
 

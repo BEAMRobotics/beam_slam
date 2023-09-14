@@ -25,13 +25,10 @@ namespace bs_models {
 using namespace graph_visualization;
 
 GraphVisualization::GraphVisualization()
-    : fuse_core::AsyncSensorModel(2),
+    : fuse_core::AsyncSensorModel(1),
       throttled_measurement_callback_(
           std::bind(&GraphVisualization::processMeasurements, this,
-                    std::placeholders::_1)),
-      throttled_image_callback_(std::bind(&GraphVisualization::processImage,
-                                          this, std::placeholders::_1),
-                                nullptr, ros::Duration(0.25)) {}
+                    std::placeholders::_1)) {}
 
 void GraphVisualization::onInit() {
   // Read settings from the parameter sever
