@@ -140,22 +140,20 @@ void Submap::AddCameraMeasurement(
   const auto d_type = beam_cv::Descriptor::StringToDescriptorType(
       camera_measurement.descriptor_type);
   if (!d_type.has_value()) {
-    BEAM_WARN("Using default: 'ORB'.");
-    descriptor_type_ = "ORB";
-  } else if (d_type.has_value() && !descriptor_type_.empty()) {
-    descriptor_type_ = camera_measurement.descriptor_type;
-  } else if (camera_measurement.descriptor_type != descriptor_type_) {
-    BEAM_WARN("Current camera measurement has a different descriptor type. "
-              "Changing type in submap to {}",
-              camera_measurement.descriptor_type);
-    descriptor_type_ = camera_measurement.descriptor_type;
+    BEAM_WARN("Empty descriptor type in camera measurement message!");
+    throw std::runtime_error(
+        "Empty descriptor type in camera measurement message!");
+  } else if (camera_measurement.descriptor_type != "ORB") {
+    BEAM_WARN("Invalid descriptor type in camera measurement message, only ORB "
+              "accepted.");
+    throw std::runtime_error("Invalid descriptor type in camera measurement "
+                             "message, only ORB accepted.");
   }
 
   Eigen::Matrix4d T_SUBMAP_BASELINK =
       T_SUBMAP_WORLD_initial_ * T_WORLDLM_BASELINK;
 
   camera_keyframe_poses_.emplace(stamp.toNSec(), T_SUBMAP_BASELINK);
-
   keyframe_images_.emplace(stamp.toNSec(), image);
 
   const auto landmarks = camera_measurement.landmarks;
@@ -570,8 +568,6 @@ bool Submap::LoadData(const std::string& input_dir,
     T_WORLD_SUBMAP_initial_ =
         beam::VectorToEigenTransform(T_WORLD_SUBMAP_initial_vec);
     T_SUBMAP_WORLD_initial_ = beam::InvertTransform(T_WORLD_SUBMAP_initial_);
-
-    descriptor_type_ = J_submap["descriptor_type"];
   } catch (...) {
     BEAM_ERROR("Cannot load submap json, invalid data. Input: {}",
                input_dir + "submap.json");
@@ -741,7 +737,6 @@ void Submap::SaveData(const std::string& output_dir) {
       {"num_subframes", subframe_poses_.size()},
       {"num_landmarks", landmarks_.size()},
       {"device_id", fuse_core::uuid::to_string(position_.uuid())},
-      {"descriptor_type", descriptor_type_},
       {"position_xyz", {position_.x(), position_.y(), position_.z()}},
       {"orientation_xyzw",
        {orientation_.x(), orientation_.y(), orientation_.z(),

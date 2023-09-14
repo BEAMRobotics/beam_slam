@@ -95,7 +95,6 @@ public:
    * @param submap submap that we think the query pose is inside
    * @param lidar_cloud_in_query_frame
    * @param loam_cloud_in_query_frame not used in this implementation
-   * @param image not used in this implementation
    * @return true if successful, false otherwise
    */
   bool GetRefinedPose(Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
@@ -103,8 +102,7 @@ public:
                       const global_mapping::SubmapPtr& submap,
                       const PointCloud& lidar_cloud_in_query_frame,
                       const beam_matching::LoamPointCloudPtr&
-                          loam_cloud_in_query_frame = nullptr,
-                      const cv::Mat& image = cv::Mat()) override {
+                          loam_cloud_in_query_frame = nullptr) override {
     // extract and filter clouds from match submap
     PointCloud submap_cloud_world = beam_filtering::FilterPointCloud(
         submap->GetLidarPointsInWorldFrameCombined(), filter_params_);

@@ -4,8 +4,8 @@
 
 #include <beam_cv/descriptors/Descriptor.h>
 #include <beam_utils/math.h>
-#include <beam_utils/se3.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/se3.h>
 
 namespace bs_models {
 
@@ -40,21 +40,9 @@ void ActiveSubmap::ActiveSubmapCallback(
   updates_counter_++;
   update_time_ = ros::Time::now();
 
-  visual_words_.clear();
   word_ids_.clear();
   visual_map_points_->clear();
   lidar_map_points_->clear();
-
-  // add all descriptors to list
-  for (auto& d : msg->visual_map_words) {
-    if (d.descriptor_type != msg->descriptor_type) {
-      BEAM_WARN("Descriptor mismatch in submap message, using type defined in "
-                "SubmapMsg.");
-    }
-    cv::Mat desc = beam_cv::Descriptor::VectorDescriptorToCvMat(
-        d.data, msg->descriptor_type);
-    visual_words_.push_back(desc);
-  }
 
   // add all descriptors to list
   for (auto& id : msg->visual_map_word_ids) { word_ids_.push_back(id); }
@@ -128,10 +116,6 @@ const PointCloudPtr ActiveSubmap::GetVisualMapPoints() const {
   return visual_map_points_;
 }
 
-const std::vector<cv::Mat>& ActiveSubmap::GetDescriptors() const {
-  return visual_words_;
-}
-
 const PointCloudPtr ActiveSubmap::GetLidarMap() const {
   return lidar_map_points_;
 }
@@ -142,7 +126,7 @@ const beam_matching::LoamPointCloudPtr ActiveSubmap::GetLoamMapPtr() const {
 
 void ActiveSubmap::RemoveVisualMapPoint(size_t index) {
   visual_map_points_->erase(visual_map_points_->begin() + index);
-  visual_words_.erase(visual_words_.begin() + index);
+  word_ids_.erase(word_ids_.begin() + index);
 }
 
 void ActiveSubmap::Publish() const {

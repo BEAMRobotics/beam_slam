@@ -128,7 +128,6 @@ GlobalMap::GlobalMap(
     const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
     const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics)
     : camera_model_(camera_model), extrinsics_(extrinsics) {
-  online_image_database_ = std::make_shared<beam_cv::ImageDatabase>();
   Setup();
 }
 
@@ -137,7 +136,6 @@ GlobalMap::GlobalMap(
     const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics,
     const Params& params)
     : camera_model_(camera_model), params_(params), extrinsics_(extrinsics) {
-  online_image_database_ = std::make_shared<beam_cv::ImageDatabase>();
   Setup();
 }
 
@@ -146,7 +144,6 @@ GlobalMap::GlobalMap(
     const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& extrinsics,
     const std::string& config_path)
     : camera_model_(camera_model), extrinsics_(extrinsics) {
-  online_image_database_ = std::make_shared<beam_cv::ImageDatabase>();
   params_.LoadJson(config_path);
   Setup();
 }
@@ -167,32 +164,12 @@ std::vector<SubmapPtr> GlobalMap::GetOfflineSubmaps() {
   return offline_submaps_;
 }
 
-const std::shared_ptr<beam_cv::ImageDatabase>&
-    GlobalMap::GetOnlineImageDatabase() {
-  return online_image_database_;
-}
-
-const std::shared_ptr<beam_cv::ImageDatabase>&
-    GlobalMap::GetOfflineImageDatabase() {
-  return offline_image_database_;
-}
-
 void GlobalMap::SetOnlineSubmaps(std::vector<SubmapPtr>& submaps) {
   online_submaps_ = submaps;
 }
 
 void GlobalMap::SetOfflineSubmaps(std::vector<SubmapPtr>& submaps) {
   offline_submaps_ = submaps;
-}
-
-void GlobalMap::SetOnlineImageDatabase(
-    std::shared_ptr<beam_cv::ImageDatabase> image_db) {
-  online_image_database_ = image_db;
-}
-
-void GlobalMap::SetOfflineImageDatabase(
-    std::shared_ptr<beam_cv::ImageDatabase> image_db) {
-  offline_image_database_ = image_db;
 }
 
 void GlobalMap::SetStoreNewSubmaps(bool store_new_submaps) {
@@ -234,9 +211,6 @@ void GlobalMap::Setup() {
   if (params_.reloc_candidate_search_type == "EUCDIST") {
     reloc_candidate_search_ = std::make_unique<RelocCandidateSearchEucDist>(
         params_.reloc_candidate_search_config);
-  } else if (params_.reloc_candidate_search_type == "VISUAL") {
-    reloc_candidate_search_ =
-        std::make_unique<RelocCandidateSearchVisual>(online_image_database_);
   } else {
     BEAM_ERROR("Invalid reloc candidate search type. Using default: EUCDIST. "
                "Input: {}",
@@ -290,13 +264,6 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
 
     if (store_newly_completed_submaps_ && online_submaps_.size() > 1) {
       AddRosSubmap(online_submaps_.size() - 2);
-      // add submap images to database only once submap is done being built
-      const auto keyframes = online_submaps_.at(submap_id)->GetKeyframeMap();
-      for (const auto& [time, image] : keyframes) {
-        ros::Time stamp;
-        stamp.fromNSec(time);
-        online_image_database_->AddImage(image, stamp);
-      }
     }
   }
 
@@ -455,15 +422,10 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   const Eigen::Matrix4d& T_WORLD_QUERY =
       online_submaps_.at(query_index)->T_WORLD_SUBMAP();
 
-  std::vector<cv::Mat> query_images =
-      online_submaps_.at(query_index)->GetKeyframeVector();
-  // TODO: subsample the query images to use from the submap (dont use all)
-
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
   reloc_candidate_search_->FindRelocCandidates(online_submaps_, T_WORLD_QUERY,
-                                               query_images, matched_indices,
-                                               Ts_MATCH_QUERY);
+                                               matched_indices, Ts_MATCH_QUERY);
 
   // remove candidate if it is equal to the query submap, or one before
   std::vector<int> matched_indices_filtered;
@@ -545,13 +507,6 @@ bool GlobalMap::ProcessRelocRequest(
     }
   }
 
-  // load image
-  cv::Mat query_image;
-  if (!reloc_request_msg.camera_measurement.image.data.empty()) {
-    query_image = beam_cv::OpenCVConversions::RosImgToMat(
-        reloc_request_msg.camera_measurement.image);
-  }
-
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_SUBMAPCANDIDATE_QUERY;
 
@@ -562,7 +517,7 @@ bool GlobalMap::ProcessRelocRequest(
         beam::InvertTransform(T_WORLDLM_WORLDOFF_) * T_WORLDLM_QUERY;
     ROS_DEBUG("Looking for reloc submap candidates in offline maps.");
     reloc_candidate_search_->FindRelocCandidates(
-        offline_submaps_, T_WORLDOFF_QUERY, {query_image}, matched_indices,
+        offline_submaps_, T_WORLDOFF_QUERY, matched_indices,
         Ts_SUBMAPCANDIDATE_QUERY);
     ROS_DEBUG("Found %zu submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
 
@@ -585,8 +540,7 @@ bool GlobalMap::ProcessRelocRequest(
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
       if (reloc_refinement_->GetRefinedPose(
               T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
-              lidar_cloud_in_query_frame, loam_cloud_in_query_frame,
-              query_image)) {
+              lidar_cloud_in_query_frame, loam_cloud_in_query_frame)) {
         ROS_DEBUG("Found refined reloc pose.");
         // calculate transform from offline map world frame to the local mapper
         // world frame if not already calculated
@@ -609,20 +563,14 @@ bool GlobalMap::ProcessRelocRequest(
             submap->GetKeypointsInWorldFrame(false);
 
         // get descriptors
-        std::vector<std::vector<float>> words;
         std::vector<uint32_t> word_ids;
-        if (submap->DescriptorType() == "ORB") {
-          // TODO: for each landmark id, get all its measurements and compute
-          // its word from the vocab fill the word as the sole descriptor in the
-          // descriptors vector, make sure theyre in the same order as the 3d
-          // points
-          // only possible for ORB
-        }
+        // TODO: for each landmark id, get all its measurements and get the
+        // associated word id for it
 
         // add submap data to submap msg
         FillSubmapMsg(submap_msg, lidar_cloud_in_woff_frame,
-                      loam_cloud_in_woff_frame, keypoints_in_woff_frame, words,
-                      word_ids, submap->DescriptorType(), T_WORLDLM_WORLDOFF_);
+                      loam_cloud_in_woff_frame, keypoints_in_woff_frame,
+                      word_ids, T_WORLDLM_WORLDOFF_);
 
         // set current submap
         active_submap_id_ = submap_index;
@@ -640,7 +588,7 @@ bool GlobalMap::ProcessRelocRequest(
     // search for candidate relocs
     ROS_DEBUG("Looking for reloc submap candidates in online maps.");
     reloc_candidate_search_->FindRelocCandidates(
-        online_submaps_, T_WORLDLM_QUERY, {query_image}, matched_indices,
+        online_submaps_, T_WORLDLM_QUERY, matched_indices,
         Ts_SUBMAPCANDIDATE_QUERY, 2, true);
     ROS_DEBUG("Found %zu submap candidates.", Ts_SUBMAPCANDIDATE_QUERY.size());
 
@@ -667,8 +615,7 @@ bool GlobalMap::ProcessRelocRequest(
       Eigen::Matrix4d T_SUBMAP_QUERY_refined;
       if (reloc_refinement_->GetRefinedPose(
               T_SUBMAP_QUERY_refined, T_SUBMAP_QUERY_initial, submap,
-              lidar_cloud_in_query_frame, loam_cloud_in_query_frame,
-              query_image)) {
+              lidar_cloud_in_query_frame, loam_cloud_in_query_frame)) {
         ROS_DEBUG("Found refined reloc pose.");
 
         // get all required submap data
@@ -680,20 +627,13 @@ bool GlobalMap::ProcessRelocRequest(
             submap->GetKeypointsInWorldFrame(true);
 
         // get descriptors
-        std::vector<std::vector<float>> words;
         std::vector<uint32_t> word_ids;
-        if (submap->DescriptorType() == "ORB") {
-          // TODO: for each landmark id, get all its measurements and compute
-          // its word from the vocab fill the word as the sole descriptor in the
-          // descriptors vector, make sure theyre in the same order as the 3d
-          // points
-          // only possible for ORB
-        }
+        // TODO: for each landmark id, get all its measurements and get the
+        // associated word id for it
 
         // add submap data to submap msg
         FillSubmapMsg(submap_msg, lidar_cloud_in_wlm_frame,
-                      loam_cloud_in_wlm_frame, keypoints_in_wlm_frame, words,
-                      word_ids, submap->DescriptorType(),
+                      loam_cloud_in_wlm_frame, keypoints_in_wlm_frame, word_ids,
                       Eigen::Matrix4d::Identity());
 
         // set current submap
@@ -735,9 +675,6 @@ void GlobalMap::SaveData(const std::string& output_path) {
   BEAM_INFO("Saving full global map to: {}", output_path);
   params_.SaveJson(output_path + "params.json");
   camera_model_->WriteJSON(output_path + "camera_model.json");
-  online_image_database_->SaveDatabase(output_path + "image_database.dbow3",
-                                       output_path +
-                                           "image_db_timestamps.json");
   extrinsics_->SaveExtrinsicsToJson(output_path + "extrinsics.json");
   extrinsics_->SaveFrameIdsToJson(output_path + "frame_ids.json");
   for (uint16_t i = 0; i < online_submaps_.size(); i++) {
@@ -784,16 +721,6 @@ bool GlobalMap::Load(const std::string& root_directory) {
   // load extrinsics
   extrinsics_ = std::make_shared<bs_common::ExtrinsicsLookupBase>(
       root_directory + "frame_ids.json", root_directory + "extrinsics.json");
-
-  // load image database
-  if (!boost::filesystem::exists(root_directory + "image_database.dbow3") ||
-      !boost::filesystem::exists(root_directory + "image_db_timestamps.json")) {
-    online_image_database_ = std::make_shared<beam_cv::ImageDatabase>();
-  } else {
-    online_image_database_ = std::make_shared<beam_cv::ImageDatabase>(
-        root_directory + "image_database.dbow3",
-        root_directory + "image_db_timestamps.json");
-  }
 
   // setup general stuff
   Setup();
@@ -1180,9 +1107,7 @@ void GlobalMap::FillSubmapMsg(bs_common::SubmapMsg& submap_msg,
                               const PointCloud& lidar_points,
                               const beam_matching::LoamPointCloud& loam_points,
                               const PointCloud& keypoints,
-                              const std::vector<std::vector<float>>& words,
                               const std::vector<uint32_t> word_ids,
-                              const std::string& descriptor_type,
                               const Eigen::Matrix4d& T) const {
   PointCloud lidar_points_in_wlm_frame;
   pcl::transformPointCloud(lidar_points, lidar_points_in_wlm_frame, T);
@@ -1256,16 +1181,7 @@ void GlobalMap::FillSubmapMsg(bs_common::SubmapMsg& submap_msg,
   submap_msg.visual_map_points = points_vec;
 
   // add descriptors
-  std::vector<bs_common::DescriptorMsg> descriptor_msgs;
-  for (const auto& descriptor : words) {
-    bs_common::DescriptorMsg descriptor_msg;
-    descriptor_msg.descriptor_type = descriptor_type;
-    descriptor_msg.data = descriptor;
-    descriptor_msgs.push_back(descriptor_msg);
-  }
-  submap_msg.visual_map_words = descriptor_msgs;
   submap_msg.visual_map_word_ids = word_ids;
-  submap_msg.descriptor_type = descriptor_type;
 }
 
 }} // namespace bs_models::global_mapping
