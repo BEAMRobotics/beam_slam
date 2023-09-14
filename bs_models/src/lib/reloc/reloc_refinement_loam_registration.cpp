@@ -56,7 +56,7 @@ bool RelocRefinementLoam::GetRefinedPose(
     Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
     const Eigen::Matrix4d& T_SUBMAP_QUERY_initial, const SubmapPtr& submap,
     const PointCloud& lidar_cloud_in_query_frame,
-    const LoamPointCloudPtr& loam_cloud_in_query_frame, const cv::Mat& image) {
+    const LoamPointCloudPtr& loam_cloud_in_query_frame) {
   // extract and filter clouds from match submap
   LoamPointCloud submap_in_submap_frame(
       submap->GetLidarLoamPointsInWorldFrame(),

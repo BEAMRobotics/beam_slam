@@ -476,7 +476,7 @@ private:
   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;    // <id, position>
   std::map<uint64_t, cv::Mat> keyframe_images_;               // <time, image>
   beam_containers::LandmarkContainer landmarks_;
-  std::string descriptor_type_{""}; // see beam_cv/descriptors/Descriptor.h
+  const std::string descriptor_type_{"ORB"}; // see beam_cv/descriptors/Descriptor.h
 
   // subframe trajectory measurements, where poses are T_KEYFRAME_FRAME
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;

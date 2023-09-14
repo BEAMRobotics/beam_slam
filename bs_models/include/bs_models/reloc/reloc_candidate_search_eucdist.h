@@ -53,7 +53,6 @@ public:
   void FindRelocCandidates(
       const std::vector<global_mapping::SubmapPtr>& submaps,
       const Eigen::Matrix4d& T_WORLD_QUERY,
-      const std::vector<cv::Mat>& query_images,
       std::vector<int>& matched_indices,
       std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
       size_t ignore_last_n_submaps = 0,

@@ -163,6 +163,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
       PublishRelocRequest(kf);
     }
   }
+  // todo: if not keyframe -> add to keyframe sub trajectory
 
   return true;
 }
@@ -505,6 +506,7 @@ void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
   slam_chunk_msg.T_WORLD_BASELINK = pose_stamped;
   slam_chunk_msg.camera_measurement = keyframe.MeasurementMessage();
   slam_chunk_publisher_.publish(slam_chunk_msg);
+  // todo: get sub trajectory and publish
 }
 
 void VisualOdometry::PublishRelocRequest(const Keyframe& keyframe) {
