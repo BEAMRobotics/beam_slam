@@ -55,6 +55,7 @@ add_library(${PROJECT_NAME}
   src/inertial/relative_imu_state_3d_stamped_constraint.cpp
 
   src/global/absolute_constraint.cpp
+  src/global/absolute_pose_3d_constraint.cpp
   src/global/gravity_alignment_stamped_constraint.cpp
 
   src/motion/unicycle_3d_state_kinematic_constraint.cpp

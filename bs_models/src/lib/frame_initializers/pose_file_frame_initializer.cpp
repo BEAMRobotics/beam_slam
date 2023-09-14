@@ -56,9 +56,9 @@ PoseFileFrameInitializer::PoseFileFrameInitializer(
     throw std::runtime_error{"Cannot lookup extrinsics."};
   }
 
-  std::vector<Eigen::Matrix4d, beam::AlignMat4d> transforms =
+  const std::vector<Eigen::Matrix4d, beam::AlignMat4d>& transforms =
       poses_reader.GetPoses();
-  std::vector<ros::Time> timestamps = poses_reader.GetTimeStamps();
+  const std::vector<ros::Time>& timestamps = poses_reader.GetTimeStamps();
 
   // create buffer core with cache time slightly larger than the difference
   // between the min and max timestamps. Also include a minimum

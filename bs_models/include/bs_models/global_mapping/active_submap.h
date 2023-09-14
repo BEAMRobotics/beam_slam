@@ -102,12 +102,6 @@ class ActiveSubmap {
   const PointCloudPtr GetVisualMapPoints() const;
 
   /**
-   * @brief Gets a list of descriptors
-   * @return list of descriptors
-   */
-  const std::vector<cv::Mat>& GetDescriptors() const;
-
-  /**
    * @brief Gets the lidar submap as a const pointcloud ptr
    * @return pointcloud ptr
    */
@@ -141,7 +135,6 @@ class ActiveSubmap {
   PointCloudPtr lidar_map_points_;
   beam_matching::LoamPointCloudPtr loam_cloud_;
   PointCloudPtr visual_map_points_;
-  std::vector<cv::Mat> visual_words_;
   std::vector<uint32_t> word_ids_;
   ros::Subscriber submap_subscriber_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_online_ =

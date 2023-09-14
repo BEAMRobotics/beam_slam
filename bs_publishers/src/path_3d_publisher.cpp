@@ -10,15 +10,15 @@
 #include <tf2/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include <bs_common/extrinsics_lookup_online.h>
+
 // Register this publisher with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_publishers::Path3DPublisher, fuse_core::Publisher);
 
 namespace bs_publishers {
 
 Path3DPublisher::Path3DPublisher()
-    : fuse_core::AsyncPublisher(1),
-      device_id_(fuse_core::uuid::NIL),
-      frame_id_("map") {}
+    : fuse_core::AsyncPublisher(1), device_id_(fuse_core::uuid::NIL) {}
 
 void Path3DPublisher::onInit() {
   // Configure the publisher
@@ -27,9 +27,6 @@ void Path3DPublisher::onInit() {
     device_id_ = fuse_core::uuid::from_string(device_str);
   } else if (private_node_handle_.getParam("device_name", device_str)) {
     device_id_ = fuse_core::uuid::generate(device_str);
-  }
-  if (!private_node_handle_.getParam("frame_id", frame_id_)) {
-    frame_id_ = "odom";
   }
   std::string path_topic;
   if (!private_node_handle_.getParam("path_topic", path_topic)) {
@@ -46,6 +43,13 @@ void Path3DPublisher::onInit() {
   pose_array_publisher_ =
       private_node_handle_.advertise<geometry_msgs::PoseArray>(pose_array_topic,
                                                                1);
+}
+
+void Path3DPublisher::onStart() {
+  bs_common::ExtrinsicsLookupOnline& extrinsics =
+      bs_common::ExtrinsicsLookupOnline::GetInstance();
+  baselink_frame_id_ = extrinsics.GetBaselinkFrameId();
+  world_frame_id_ = extrinsics.GetWorldFrameId();
 }
 
 void Path3DPublisher::notifyCallback(
@@ -71,7 +75,7 @@ void Path3DPublisher::notifyCallback(
           &graph->getVariable(position_uuid));
       geometry_msgs::PoseStamped pose;
       pose.header.stamp = stamp;
-      pose.header.frame_id = frame_id_;
+      pose.header.frame_id = baselink_frame_id_;
       pose.pose.position.x = position->x();
       pose.pose.position.y = position->y();
       pose.pose.position.z = position->z();
@@ -95,7 +99,7 @@ void Path3DPublisher::notifyCallback(
   // Define the header for the aggregate message
   std_msgs::Header header;
   header.stamp = poses.back().header.stamp;
-  header.frame_id = frame_id_;
+  header.frame_id = world_frame_id_;
 
   // Convert the sorted poses into a Path msg
   if (path_publisher_.getNumSubscribers() > 0) {

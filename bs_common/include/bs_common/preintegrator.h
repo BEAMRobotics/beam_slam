@@ -124,10 +124,8 @@ public:
    */
   void ComputeSqrtInvCov();
 
-  double cov_tol{
-      1e-5}; // tolarance on zero covariance matrix for pose and velocity terms
-  double bias_cov_tol{
-      1e-9}; // tolarance on zero covariance matrix for bias terms
+  double cov_tol{1e-5}; // tolerance on zero cov matrix for pose & vel terms
+  double bias_cov_tol{1e-9}; // tolerance on zero cov matrix for bias terms
 
   Eigen::Matrix3d cov_w; // continuous noise covariance
   Eigen::Matrix3d cov_a;
@@ -136,7 +134,8 @@ public:
 
   Delta delta;
   Jacobian jacobian;
-  std::vector<IMUData> data; // vector of imu data (buffer)
+  std::map<ros::Time, IMUData> data;
+  // std::vector<IMUData> data;
 
   // for when inv covariance calculated has nan or inf
   double invalid_inv_cov_weight_{1e-4};

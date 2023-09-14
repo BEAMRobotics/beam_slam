@@ -309,4 +309,32 @@ ImuState ImuState::Copy() const {
   return state;
 }
 
+void ImuState::SetOrientation(
+    const fuse_variables::Orientation3DStamped orientation) {
+  orientation_ = orientation;
+}
+
+void ImuState::SetPosition(const fuse_variables::Position3DStamped position) {
+  position_ = position;
+}
+
+void ImuState::SetVelocity(
+    const fuse_variables::VelocityLinear3DStamped velocity) {
+  velocity_ = velocity;
+}
+
+void ImuState::SetGyroBias(
+    const bs_variables::GyroscopeBias3DStamped gyrobias) {
+  gyrobias_ = gyrobias;
+}
+
+void ImuState::SetAccelBias(
+    const bs_variables::AccelerationBias3DStamped accelbias) {
+  accelbias_ = accelbias;
+}
+
+void ImuState::SetStamp(const ros::Time stamp) {
+  stamp_ = stamp;
+}
+
 } // namespace bs_common

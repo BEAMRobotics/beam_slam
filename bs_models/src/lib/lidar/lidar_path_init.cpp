@@ -39,7 +39,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
       std::thread::hardware_concurrency() / 2;
   matcher_params->optimizer_params = ceres_params;
 
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
+  std::unique_ptr<LoamMatcher> matcher =
       std::make_unique<LoamMatcher>(*matcher_params);
 
   scan_registration::ScanToMapLoamRegistration::Params reg_params;
@@ -168,7 +168,28 @@ bool LidarPathInit::InitExtrinsics(const ros::Time& stamp) {
   return true;
 }
 
-void LidarPathInit::SetTrajectoryStart() {
+void LidarPathInit::RemoveTransactionsWithStamp(const ros::Time& stamp) {
+  std::vector<uint64_t> transactions_to_remove;
+  for (const auto& [t, transaction] : keyframe_transactions_) {
+    const fuse_core::Transaction::SharedPtr trans =
+        transaction.GetTransaction();
+    for (const auto& it : trans->involvedStamps()) {
+      if (it == stamp) { transactions_to_remove.push_back(t); }
+    }
+  }
+  for (const auto& t : transactions_to_remove) {
+    keyframe_transactions_.erase(t);
+  }
+}
+
+void LidarPathInit::SetTrajectoryStart(const ros::Time& start_time) {
+  if (start_time != ros::Time(0)) {
+    while (keyframes_.front().Stamp() < start_time) {
+      RemoveTransactionsWithStamp(keyframes_.front().Stamp());
+      keyframes_.pop_front();
+    }
+  }
+
   auto iter = keyframes_.begin();
   const Eigen::Matrix4d& T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_KEYFRAME0_WORLDOLD =
@@ -251,7 +272,7 @@ std::map<uint64_t, Eigen::Matrix4d> LidarPathInit::GetPath() const {
   return path;
 }
 
-std::unordered_map<uint64_t, LidarTransactionType>
+std::map<uint64_t, LidarTransactionType>
     LidarPathInit::GetTransactions() const {
   return keyframe_transactions_;
 }

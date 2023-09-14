@@ -7,7 +7,6 @@
 #include <fuse_core/transaction.h>
 #include <sensor_msgs/PointCloud2.h>
 
-#include <beam_cv/ImageDatabase.h>
 #include <beam_filtering/Utils.h>
 #include <beam_utils/pointclouds.h>
 
@@ -169,18 +168,6 @@ public:
   std::vector<SubmapPtr> GetOfflineSubmaps();
 
   /**
-   * @brief get access online image database
-   * @return pointer to the image database
-   */
-  const std::shared_ptr<beam_cv::ImageDatabase>& GetOnlineImageDatabase();
-
-  /**
-   * @brief get access offline image database
-   * @return pointer to the image database
-   */
-  const std::shared_ptr<beam_cv::ImageDatabase>& GetOfflineImageDatabase();
-
-  /**
    * @brief set online the submaps vector
    * @param submaps vector of pointers to submaps to be stored in this global
    * map
@@ -193,19 +180,6 @@ public:
    * map
    */
   void SetOfflineSubmaps(std::vector<SubmapPtr>& submaps);
-
-  /**
-   * @brief set online image database
-   * @param image_db pointer to image database object
-   */
-  void SetOnlineImageDatabase(std::shared_ptr<beam_cv::ImageDatabase> image_db);
-
-  /**
-   * @brief set offline image database
-   * @param image_db pointer to image database object
-   */
-  void
-      SetOfflineImageDatabase(std::shared_ptr<beam_cv::ImageDatabase> image_db);
 
   /**
    * @brief Sets store_newly_completed_submaps_ param. See description below for
@@ -258,8 +232,8 @@ public:
    * be in baselink_frame_ already
    */
   fuse_core::Transaction::SharedPtr
-      AddMeasurement(const CameraMeasurementMsg& cam_measurement,
-                     const LidarMeasurementMsg& lid_measurement,
+      AddMeasurement(const bs_common::CameraMeasurementMsg& cam_measurement,
+                     const bs_common::LidarMeasurementMsg& lid_measurement,
                      const nav_msgs::Path& traj_measurement,
                      const Eigen::Matrix4d& T_WORLD_BASELINK,
                      const ros::Time& stamp);
@@ -317,7 +291,6 @@ public:
    * mapping sessions. Format will be as follows:
    *
    *  /output_path/
-   *    image_database.dbow3
    *    image_db_timestamps.json
    *    params.json
    *    camera_model.json
@@ -467,18 +440,15 @@ private:
    * @param lidar_points lidar points to add (in any frame)
    * @param loam_points loam pointcloud to add (in any frame)
    * @param keypoints 3D keypoint locations (in any frame) to add
-   * @param words visual words for each visual keypoint
    * @param word_ids id of the corresponding visual words
-   * @param descriptor_type string representation of descriptor type
    * @param T transform to apply to all points (lidar_points, loam_points,
    * keypoints) to get them into the local mapper's world frame
    */
-  void FillSubmapMsg(SubmapMsg& submap_msg, const PointCloud& lidar_points,
+  void FillSubmapMsg(bs_common::SubmapMsg& submap_msg,
+                     const PointCloud& lidar_points,
                      const beam_matching::LoamPointCloud& loam_points,
                      const PointCloud& keypoints,
-                     const std::vector<std::vector<float>>& words,
                      const std::vector<uint32_t> word_ids,
-                     const std::string& descriptor_type,
                      const Eigen::Matrix4d& T) const;
 
   Params params_;
@@ -512,18 +482,6 @@ private:
 
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
-
-  /** The online image database is either loaded from a previous session to
-   * continue when a global mpa is loaded in the constructor, or is initialized
-   * as an empty one
-   */
-  std::shared_ptr<beam_cv::ImageDatabase> online_image_database_;
-
-  /** The offline image database can only be pre loaded using
-   * SetOfflineImageDatabase(). It is an image database from a previous map that
-   * will only be used for RelocRequests and no new images will be added to it.
-   */
-  std::shared_ptr<beam_cv::ImageDatabase> offline_image_database_;
 
   /** online submaps are the submaps that are being build when AddMeasurement is
    * called, or when a previous global map is loaded in the constructor. It also

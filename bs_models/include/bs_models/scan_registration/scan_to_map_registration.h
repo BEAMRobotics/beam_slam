@@ -97,10 +97,9 @@ public:
     ScanRegistrationParamsBase GetBaseParams() const;
   };
 
-  ScanToMapLoamRegistration(
-      std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
-          matcher,
-      const ScanRegistrationParamsBase& base_params, int map_size = 10);
+  ScanToMapLoamRegistration(std::unique_ptr<LoamMatcher> matcher,
+                            const ScanRegistrationParamsBase& base_params,
+                            int map_size = 10);
 
 private:
   bool RegisterScanToMap(const ScanPose& scan_pose,
@@ -109,8 +108,7 @@ private:
   void AddScanToMap(const ScanPose& scan_pose,
                     const Eigen::Matrix4d& T_MAP_SCAN) override;
 
-  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
-      matcher_;
+  std::unique_ptr<LoamMatcher> matcher_;
   Params params_;
 };
 

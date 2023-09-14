@@ -41,7 +41,7 @@ std::unique_ptr<ScanRegistrationBase>
 
   // treat loam different
   if (matcher_type == beam_matching::MatcherType::LOAM) {
-    std::unique_ptr<Matcher<LoamPointCloudPtr>> matcher =
+    std::unique_ptr<LoamMatcher> matcher =
         std::make_unique<LoamMatcher>(LoamParams(matcher_config));
 
     if (registration_type == "SCANTOMAP") {

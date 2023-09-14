@@ -20,7 +20,8 @@
 #include <bs_models/imu/imu_preintegration.h>
 #include <test_utils.h>
 
-std::string save_path_ = "/home/nick/debug/imu_tests";
+// std::string save_path_ = "/userhome/debug/imu_tests";
+std::string save_path_ = "";
 
 void OutputImuStates(const std::string& output_pcd,
                      const std::vector<bs_common::ImuState>& imu_states) {

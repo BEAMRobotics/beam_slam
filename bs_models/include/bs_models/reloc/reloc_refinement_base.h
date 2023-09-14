@@ -2,20 +2,15 @@
 
 #include <map>
 
-#include <ros/time.h>
 #include <fuse_core/transaction.h>
+#include <ros/time.h>
 
 #include <beam_utils/pointclouds.h>
-#include <bs_models/global_mapping/submap.h>
-#include <bs_common/SubmapMsg.h>
 #include <bs_common/RelocRequestMsg.h>
+#include <bs_common/SubmapMsg.h>
+#include <bs_models/global_mapping/submap.h>
 
-namespace bs_models {
-
-namespace reloc {
-
-using namespace beam_matching;
-using namespace global_mapping;
+namespace bs_models::reloc {
 
 /**
  * @brief A reloc refinement step that takes an estimated pose
@@ -27,7 +22,7 @@ using namespace global_mapping;
  * query pose to refine relative to the submap.
  */
 class RelocRefinementBase {
- public:
+public:
   /**
    * @brief constructor with an optional path to a json config
    * @param config path to json config file. If empty, it will use default
@@ -47,10 +42,10 @@ class RelocRefinementBase {
    * @param matched_submap
    * @param query_submap
    */
-  virtual fuse_core::Transaction::SharedPtr GenerateTransaction(
-      const SubmapPtr& matched_submap,
-      const SubmapPtr& query_submap,
-      const Eigen::Matrix4d& T_MATCH_QUERY_EST) = 0;
+  virtual fuse_core::Transaction::SharedPtr
+      GenerateTransaction(const global_mapping::SubmapPtr& matched_submap,
+                          const global_mapping::SubmapPtr& query_submap,
+                          const Eigen::Matrix4d& T_MATCH_QUERY_EST) = 0;
 
   /**
    * @brief Pure virtual function that gets a refined pose from a candidate
@@ -62,26 +57,22 @@ class RelocRefinementBase {
    * @param submap submap that we think the query pose is inside
    * @param lidar_cloud_in_query_frame
    * @param loam_cloud_in_query_frame
-   * @param image
    * @return true if successful, false otherwise
    */
   virtual bool GetRefinedPose(
       Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
       const Eigen::Matrix4d& T_SUBMAP_QUERY_initial,
-      const SubmapPtr& submap,
+      const global_mapping::SubmapPtr& submap,
       const PointCloud& lidar_cloud_in_query_frame,
-      const LoamPointCloudPtr& loam_cloud_in_query_frame,
-      const cv::Mat& image) = 0;
+      const beam_matching::LoamPointCloudPtr& loam_cloud_in_query_frame) = 0;
 
- protected:
+protected:
   std::string config_path_;
 
   /* Debugging tools that can only be set here */
   bool output_results_{false};
-  std::string debug_output_path_{"/userhome/results/beam_slam/reloc/"};
-  std::string output_path_stamped_;  // to be created in implementation
+  std::string debug_output_path_{"/userhome/debug/reloc/"};
+  std::string output_path_stamped_; // to be created in implementation
 };
 
-}  // namespace reloc
-
-}  // namespace bs_models
+} // namespace bs_models::reloc

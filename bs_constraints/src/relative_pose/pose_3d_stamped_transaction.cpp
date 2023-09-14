@@ -2,6 +2,7 @@
 
 #include <bs_common/conversions.h>
 #include <bs_common/extrinsics_lookup_online.h>
+#include <bs_constraints/global/absolute_pose_3d_constraint.h>
 #include <bs_constraints/relative_pose/relative_pose_3d_stamped_with_extrinsics_constraint.h>
 #include <bs_variables/orientation_3d.h>
 #include <bs_variables/position_3d.h>
@@ -159,6 +160,25 @@ void Pose3DStampedTransaction::AddExtrinsicVariablesForFrame(
 
   transaction_->addVariable(p, override_variables_);
   transaction_->addVariable(o, override_variables_);
+
+  double prior_cov_diag = 1e-6;
+  fuse_core::Matrix6d prior =
+      Eigen::Matrix<double, 6, 6>::Identity() * prior_cov_diag;
+  AddExtrinsicPrior(*p, *o, prior, "Pose3DStampedTransaction");
+}
+
+void Pose3DStampedTransaction::AddExtrinsicPrior(
+    const bs_variables::Position3D& position,
+    const bs_variables::Orientation3D& orientation,
+    const fuse_core::Matrix6d& prior_covariance,
+    const std::string& prior_source, bool override_prior) {
+  fuse_core::Vector7d mean;
+  mean << position.x(), position.y(), position.z(), orientation.w(),
+      orientation.x(), orientation.y(), orientation.z();
+
+  auto prior = std::make_shared<bs_constraints::AbsolutePose3DConstraint>(
+      prior_source, position, orientation, mean, prior_covariance);
+  transaction_->addConstraint(prior, override_prior);
 }
 
 } // namespace bs_constraints

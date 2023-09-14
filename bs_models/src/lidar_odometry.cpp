@@ -12,6 +12,8 @@
 #include <bs_models/frame_initializers/frame_initializers.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
+#include <bs_variables/orientation_3d.h>
+#include <bs_variables/position_3d.h>
 
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry, fuse_core::SensorModel)
@@ -19,6 +21,7 @@ PLUGINLIB_EXPORT_CLASS(bs_models::LidarOdometry, fuse_core::SensorModel)
 namespace bs_models {
 
 using namespace scan_registration;
+using namespace beam_matching;
 
 LidarOdometry::LidarOdometry()
     : fuse_core::AsyncSensorModel(1),
@@ -126,16 +129,22 @@ void LidarOdometry::onStart() {
   }
 
   // odometry publishers
-  odom_publisher_smooth_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odom/smooth", 100);
-  odom_publisher_global_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odom/global", 100);
+  odom_publisher_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
   odom_publisher_marginalized_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odom/marginalized",
-                                                         100);
+      private_node_handle_.advertise<nav_msgs::Odometry>("marginalized", 100);
   imu_constraint_trigger_publisher_ =
       private_node_handle_.advertise<std_msgs::Time>(
           "/local_mapper/inertial_odometry/trigger", 10);
+
+  std::string baselink_frame = extrinsics_.GetBaselinkFrameId();
+  std::string lidar_frame = extrinsics_.GetLidarFrameId();
+  bs_variables::Position3D p_tmp;
+  extrinsics_position_uuid_ =
+      fuse_core::uuid::generate(p_tmp.type(), baselink_frame + lidar_frame);
+  bs_variables::Orientation3D o_tmp;
+  extrinsics_orientation_uuid_ =
+      fuse_core::uuid::generate(o_tmp.type(), baselink_frame + lidar_frame);
 }
 
 void LidarOdometry::onStop() {
@@ -210,6 +219,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     SetupRegistration();
   }
   updates_++;
+  PublishExtrinsics(graph_msg);
 
   // update map
   if (update_registration_map_all_scans_) {
@@ -379,31 +389,15 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
   PublishScanRegistrationResults(transaction, *current_scan_pose);
   active_clouds_.push_back(current_scan_pose);
 
-  // publish global odom
-  nav_msgs::Odometry odom_msg_global;
+  // publish odom
+  nav_msgs::Odometry odom_msg;
   bs_common::EigenTransformToOdometryMsg(
       T_World_BaselinkCurrent, current_scan_pose->Stamp(),
-      odom_publisher_global_counter_, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetBaselinkFrameId(), odom_msg_global);
-  odom_publisher_global_.publish(odom_msg_global);
-  odom_publisher_global_counter_++;
+      odom_publisher_counter_, extrinsics_.GetWorldFrameId(),
+      extrinsics_.GetBaselinkFrameId(), odom_msg);
+  odom_publisher_.publish(odom_msg);
+  odom_publisher_counter_++;
   PublishTfTransform(T_World_BaselinkCurrent, "lidar_world",
-                     extrinsics_.GetBaselinkFrameId(),
-                     current_scan_pose->Stamp());
-
-  // publish smooth odom
-  nav_msgs::Odometry odom_msg_smooth;
-  Eigen::Matrix4d T_BaselinkLast_BaselinkCurrent =
-      beam::InvertTransform(T_World_BaselinkLast_) * T_World_BaselinkCurrent;
-  Eigen::Matrix4d T_WORLD_BASELINKSMOOTH =
-      T_World_BaselinkLast_ * T_BaselinkLast_BaselinkCurrent;
-  bs_common::EigenTransformToOdometryMsg(
-      T_WORLD_BASELINKSMOOTH, current_scan_pose->Stamp(),
-      odom_publisher_smooth_counter_, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetBaselinkFrameId(), odom_msg_smooth);
-  odom_publisher_smooth_.publish(odom_msg_smooth);
-  odom_publisher_smooth_counter_++;
-  PublishTfTransform(T_WORLD_BASELINKSMOOTH, "lidar_world_smooth",
                      extrinsics_.GetBaselinkFrameId(),
                      current_scan_pose->Stamp());
 
@@ -585,6 +579,29 @@ void LidarOdometry::PublishTfTransform(const Eigen::Matrix4d& T_Child_Parent,
   transform.setRotation(q_tf);
   tf_broadcaster_.sendTransform(
       tf::StampedTransform(transform, time, parent_frame, child_frame));
+}
+
+void LidarOdometry::PublishExtrinsics(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
+  const auto var_range = graph_msg->getVariables();
+  if (!graph_msg->variableExists(extrinsics_position_uuid_) ||
+      !graph_msg->variableExists(extrinsics_orientation_uuid_)) {
+    ROS_WARN_THROTTLE(5, "No extrinsics variables found for Lidar.");
+    return;
+  }
+
+  auto p = dynamic_cast<const bs_variables::Position3D&>(
+      graph_msg->getVariable(extrinsics_position_uuid_));
+  auto o = dynamic_cast<const bs_variables::Orientation3D&>(
+      graph_msg->getVariable(extrinsics_orientation_uuid_));
+
+  tf::Transform transform;
+  transform.setOrigin(tf::Vector3(p.x(), p.y(), p.z()));
+  tf::Quaternion q(o.x(), o.y(), o.z(), o.w());
+  transform.setRotation(q);
+  tf_broadcaster_.sendTransform(tf::StampedTransform(
+      transform, ros::Time::now(), extrinsics_.GetLidarFrameId(),
+      extrinsics_.GetBaselinkFrameId()));
 }
 
 } // namespace bs_models

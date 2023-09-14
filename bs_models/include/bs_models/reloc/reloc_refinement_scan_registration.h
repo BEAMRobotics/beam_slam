@@ -13,6 +13,7 @@
 #include <bs_common/utils.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/reloc/reloc_refinement_base.h>
+#include <bs_models/scan_registration/scan_registration_base.h>
 
 namespace bs_models { namespace reloc {
 
@@ -45,8 +46,8 @@ public:
    * is determined with a class derived from RelocCandidateSearchBase
    */
   fuse_core::Transaction::SharedPtr
-      GenerateTransaction(const SubmapPtr& matched_submap,
-                          const SubmapPtr& query_submap,
+      GenerateTransaction(const global_mapping::SubmapPtr& matched_submap,
+                          const global_mapping::SubmapPtr& query_submap,
                           const Eigen::Matrix4d& T_MATCH_QUERY_EST) override {
     // extract and filter clouds from matched submap
     PointCloud matched_submap_world = beam_filtering::FilterPointCloud(
@@ -94,15 +95,14 @@ public:
    * @param submap submap that we think the query pose is inside
    * @param lidar_cloud_in_query_frame
    * @param loam_cloud_in_query_frame not used in this implementation
-   * @param image not used in this implementation
    * @return true if successful, false otherwise
    */
-  bool GetRefinedPose(
-      Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
-      const Eigen::Matrix4d& T_SUBMAP_QUERY_initial, const SubmapPtr& submap,
-      const PointCloud& lidar_cloud_in_query_frame,
-      const LoamPointCloudPtr& loam_cloud_in_query_frame = nullptr,
-      const cv::Mat& image = cv::Mat()) override {
+  bool GetRefinedPose(Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
+                      const Eigen::Matrix4d& T_SUBMAP_QUERY_initial,
+                      const global_mapping::SubmapPtr& submap,
+                      const PointCloud& lidar_cloud_in_query_frame,
+                      const beam_matching::LoamPointCloudPtr&
+                          loam_cloud_in_query_frame = nullptr) override {
     // extract and filter clouds from match submap
     PointCloud submap_cloud_world = beam_filtering::FilterPointCloud(
         submap->GetLidarPointsInWorldFrameCombined(), filter_params_);
@@ -231,17 +231,20 @@ private:
   }
 
   std::string matcher_config_;
-  std::unique_ptr<Matcher<PointCloudPtr>> matcher_;
+  std::unique_ptr<PointcloudMatcher> matcher_;
   Eigen::Matrix<double, 6, 6> reloc_covariance_;
   std::vector<beam_filtering::FilterParamsType> filter_params_;
   std::string source_{"RelocRefinementScanRegistration"};
 };
 
 using RelocRefinementIcp =
-    RelocRefinementScanRegistration<IcpMatcher, IcpMatcher::Params>;
+    RelocRefinementScanRegistration<beam_matching::IcpMatcher,
+                                    beam_matching::IcpMatcher::Params>;
 using RelocRefinementGicp =
-    RelocRefinementScanRegistration<GicpMatcher, GicpMatcher::Params>;
+    RelocRefinementScanRegistration<beam_matching::GicpMatcher,
+                                    beam_matching::GicpMatcher::Params>;
 using RelocRefinementNdt =
-    RelocRefinementScanRegistration<NdtMatcher, NdtMatcher::Params>;
+    RelocRefinementScanRegistration<beam_matching::NdtMatcher,
+                                    beam_matching::NdtMatcher::Params>;
 
 }} // namespace bs_models::reloc

@@ -9,6 +9,9 @@
 
 namespace bs_models { namespace reloc {
 
+using namespace global_mapping;
+using namespace beam_matching;
+
 RelocRefinementLoam::RelocRefinementLoam(
     const Eigen::Matrix<double, 6, 6>& reloc_covariance,
     const std::string& config)
@@ -53,7 +56,7 @@ bool RelocRefinementLoam::GetRefinedPose(
     Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
     const Eigen::Matrix4d& T_SUBMAP_QUERY_initial, const SubmapPtr& submap,
     const PointCloud& lidar_cloud_in_query_frame,
-    const LoamPointCloudPtr& loam_cloud_in_query_frame, const cv::Mat& image) {
+    const LoamPointCloudPtr& loam_cloud_in_query_frame) {
   // extract and filter clouds from match submap
   LoamPointCloud submap_in_submap_frame(
       submap->GetLidarLoamPointsInWorldFrame(),
@@ -95,7 +98,7 @@ void RelocRefinementLoam::LoadConfig() {
 
 void RelocRefinementLoam::Setup() {
   // load matcher
-  LoamParams matcher_params(matcher_config_);
+  beam_matching::LoamParams matcher_params(matcher_config_);
   matcher_ = std::make_unique<LoamMatcher>(matcher_params);
 }
 

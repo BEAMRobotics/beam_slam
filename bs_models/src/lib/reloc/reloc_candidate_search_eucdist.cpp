@@ -47,8 +47,8 @@ void RelocCandidateSearchEucDist::LoadConfig() {
 }
 
 void RelocCandidateSearchEucDist::FindRelocCandidates(
-    const std::vector<SubmapPtr>& submaps, const Eigen::Matrix4d& T_WORLD_QUERY,
-    const std::vector<cv::Mat>& query_images, std::vector<int>& matched_indices,
+    const std::vector<global_mapping::SubmapPtr>& submaps,
+    const Eigen::Matrix4d& T_WORLD_QUERY, std::vector<int>& matched_indices,
     std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
     size_t ignore_last_n_submaps, bool use_initial_poses) {
   if (submaps.size() <= ignore_last_n_submaps) { return; }

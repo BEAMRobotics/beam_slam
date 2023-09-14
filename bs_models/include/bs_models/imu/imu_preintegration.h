@@ -37,7 +37,7 @@ public:
     Eigen::Matrix3d cov_accel_noise{Eigen::Matrix3d::Identity() * 1e-3};
     Eigen::Matrix3d cov_gyro_bias{Eigen::Matrix3d::Identity() * 1e-6};
     Eigen::Matrix3d cov_accel_bias{Eigen::Matrix3d::Identity() * 1e-4};
-    std::string source{"IMUPREINTEGRATION"};
+    std::string source{"ImuPreintegration"};
 
     bool LoadFromJSON(const std::string& path);
   };
@@ -149,6 +149,20 @@ public:
    * @param graph_msg graph to update with
    */
   void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
+
+  /**
+   * @brief Updates state i with the given variables
+   * @param position
+   * @param orientation
+   * @param velocity
+   * @param gyro_bias
+   * @param accel_bias
+   */
+  void UpdateState(const fuse_variables::Position3DStamped position,
+                   const fuse_variables::Orientation3DStamped orientation,
+                   const fuse_variables::VelocityLinear3DStamped velocity,
+                   const bs_variables::GyroscopeBias3DStamped gyro_bias,
+                   const bs_variables::AccelerationBias3DStamped accel_bias);
 
   /**
    * @brief Creates a string representation of the data in the buffer

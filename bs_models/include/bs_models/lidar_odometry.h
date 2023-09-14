@@ -21,8 +21,6 @@
 
 namespace bs_models {
 
-using namespace beam_matching;
-
 /**
  * @brief todo
  *
@@ -63,6 +61,8 @@ private:
                           const std::string& parent_frame,
                           const ros::Time& time);
 
+  void PublishExtrinsics(fuse_core::Graph::ConstSharedPtr graph_msg);
+
   /** subscribe to lidar data */
   ros::Subscriber subscriber_;
 
@@ -71,10 +71,8 @@ private:
   ros::Publisher registration_publisher_init_;
   ros::Publisher registration_publisher_aligned_;
 
-  ros::Publisher odom_publisher_smooth_;
-  int odom_publisher_smooth_counter_{0};
-  ros::Publisher odom_publisher_global_;
-  int odom_publisher_global_counter_{0};
+  ros::Publisher odom_publisher_;
+  int odom_publisher_counter_{0};
   ros::Publisher odom_publisher_marginalized_;
   int odom_publisher_marginalized_counter_{0};
   ros::Publisher imu_constraint_trigger_publisher_;
@@ -99,10 +97,9 @@ private:
   // register scans to map
   std::unique_ptr<scan_registration::ScanRegistrationBase> scan_registration_;
 
-  std::unique_ptr<Matcher<PointCloudPtr>> global_matching_;
-  std::unique_ptr<Matcher<LoamPointCloudPtr>> global_loam_matching_;
-
   fuse_core::UUID device_id_; //!< The UUID of this device
+  fuse_core::UUID extrinsics_position_uuid_;
+  fuse_core::UUID extrinsics_orientation_uuid_;
 
   /** Used to get initial pose estimates */
   std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;

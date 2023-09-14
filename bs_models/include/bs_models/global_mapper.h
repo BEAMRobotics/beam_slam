@@ -108,7 +108,6 @@ private:
   std::unique_ptr<global_mapping::GlobalMap> global_map_;
 
   std::vector<global_mapping::SubmapPtr> offline_submaps_;
-  std::shared_ptr<beam_cv::ImageDatabase> offline_image_database_;
 
   /** subscribe to slam chunk data */
   using ThrottledCallbackSlamChunk =

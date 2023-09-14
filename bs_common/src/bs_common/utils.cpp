@@ -4,6 +4,12 @@
 
 namespace bs_common {
 
+std::string ToString(const ros::Time& time) {
+  std::string nsec = std::to_string(time.nsec);
+  while (nsec.size() < 9) { nsec = "0" + nsec; }
+  return std::to_string(time.sec) + "." + nsec;
+}
+
 void EstimateVelocityFromPath(
     const std::vector<geometry_msgs::PoseStamped>& poses, const ros::Time& time,
     Eigen::Vector3d& velocity) {

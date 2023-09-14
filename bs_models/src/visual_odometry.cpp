@@ -68,7 +68,7 @@ void VisualOdometry::onInit() {
 void VisualOdometry::onStart() {
   // setup subscribers
   measurement_subscriber_ =
-      private_node_handle_.subscribe<CameraMeasurementMsg>(
+      private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
           ros::names::resolve(
               "/local_mapper/visual_feature_tracker/visual_measurements"),
           100, &ThrottledMeasurementCallback::callback,
@@ -91,7 +91,7 @@ void VisualOdometry::onStart() {
 }
 
 void VisualOdometry::processMeasurements(
-    const CameraMeasurementMsg::ConstPtr& msg) {
+    const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "VisualOdometry received VISUAL measurements: " << msg->header.stamp);
 
@@ -124,7 +124,7 @@ void VisualOdometry::processMeasurements(
 }
 
 bool VisualOdometry::ComputeOdometryAndExtendMap(
-    const CameraMeasurementMsg::ConstPtr& msg) {
+    const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
   const auto timestamp = msg->header.stamp;
   // estimate pose of frame wrt current graph
   Eigen::Matrix4d T_WORLD_BASELINK;
@@ -169,6 +169,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
       PublishRelocRequest(kf);
     }
   }
+  // todo: if not keyframe -> add to keyframe sub trajectory
 
   return true;
 }
@@ -394,7 +395,7 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
 }
 
 void VisualOdometry::AddMeasurementsToContainer(
-    const CameraMeasurementMsg::ConstPtr& msg) {
+    const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
   // check that message hasnt already been added to container
   const auto times = landmark_container_->GetMeasurementTimes();
   if (times.find(msg->header.stamp) != times.end()) { return; }
@@ -545,7 +546,7 @@ void VisualOdometry::ComputeRelativeOdometry(
   odometry_publisher_.publish(odom_msg);
 }
 
-void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
+void VisualOdometry::PublishSlamChunk(const vision::Keyframe& keyframe) {
   static uint64_t slam_chunk_seq = 0;
   const Eigen::Matrix4d T_WORLD_BASELINK =
       visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
@@ -557,9 +558,10 @@ void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
   slam_chunk_msg.T_WORLD_BASELINK = pose_stamped;
   slam_chunk_msg.camera_measurement = keyframe.MeasurementMessage();
   slam_chunk_publisher_.publish(slam_chunk_msg);
+  // todo: get sub trajectory and publish
 }
 
-void VisualOdometry::PublishRelocRequest(const Keyframe& keyframe) {
+void VisualOdometry::PublishRelocRequest(const vision::Keyframe& keyframe) {
   static uint64_t reloc_seq = 0;
   const Eigen::Matrix4d T_WORLD_BASELINK =
       visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
@@ -613,7 +615,7 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
                         std::inserter(union_stamps, union_stamps.begin()));
 
   // create a map to access measurements based on stamp
-  std::map<uint64_t, CameraMeasurementMsg::ConstPtr> measurement_map;
+  std::map<uint64_t, bs_common::CameraMeasurementMsg::ConstPtr> measurement_map;
   std::for_each(
       visual_measurement_buffer_.begin(), visual_measurement_buffer_.end(),
       [&](auto msg) { measurement_map[msg->header.stamp.toNSec()] = msg; });
@@ -621,7 +623,7 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
   // add each measurement as a keyframe if its in the graph
   for (const auto& stamp : union_stamps) {
     const auto msg = measurement_map.at(stamp);
-    Keyframe kf(*msg);
+    vision::Keyframe kf(*msg);
     keyframes_.insert({msg->header.stamp, kf});
     previous_keyframe_ = msg->header.stamp;
     T_ODOM_BASELINKprev_ =

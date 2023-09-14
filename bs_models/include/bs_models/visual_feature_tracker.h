@@ -15,8 +15,6 @@
 
 namespace bs_models {
 
-using namespace bs_common;
-
 class VisualFeatureTracker : public fuse_core::AsyncSensorModel {
 public:
   FUSE_SMART_PTR_DEFINITIONS(VisualFeatureTracker);
@@ -66,8 +64,9 @@ private:
    * @param timestamp of image to build measurements for
    * @param image current image
    */
-  CameraMeasurementMsg BuildCameraMeasurement(const ros::Time& timestamp,
-                                              const sensor_msgs::Image& image);
+  bs_common::CameraMeasurementMsg
+      BuildCameraMeasurement(const ros::Time& timestamp,
+                             const sensor_msgs::Image& image);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
   // loadable camera parameters

@@ -1,12 +1,17 @@
 #pragma once
 
+#include <beam_matching/Matchers.h>
+
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/registration_map.h>
 #include <bs_models/scan_registration/registration_validation.h>
 
-namespace bs_models { namespace scan_registration {
+using PointcloudMatcher = beam_matching::Matcher<PointCloudPtr>;
+using LoamMatcher = beam_matching::LoamMatcher;
+
+namespace bs_models::scan_registration {
 
 /**
  * @brief base class for scan registration parameters. These params will be used
@@ -97,4 +102,4 @@ protected:
   std::string base_source_{"LidarOdometry::RegistrationBase"};
 };
 
-}} // namespace bs_models::scan_registration
+} // namespace bs_models::scan_registration

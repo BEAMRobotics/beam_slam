@@ -54,78 +54,96 @@ int GetNumberOfConstraints(
  */
 int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction);
 
-/// @brief Gets a pointer to a gryo bias variable if it exists (nullptr
-/// otherwise)
-/// @param graph graph to look in
-/// @param stamp of variable to get
-/// @return pointer to variable
+/**
+ * @brief Gets a pointer to a gryo bias variable if it exists (nullptr
+ * otherwise)
+ * @param graph graph to look in
+ * @param stamp of variable to get
+ * @return pointer to variable
+ */
 bs_variables::GyroscopeBias3DStamped::SharedPtr
     GetGryoscopeBias(fuse_core::Graph::ConstSharedPtr graph,
                      const ros::Time& stamp);
 
-/// @brief Gets a pointer to an accel bias variable if it exists (nullptr
-/// otherwise)
-/// @param graph graph to look in
-/// @param stamp of variable to get
-/// @return pointer to variable
+/**
+ * @brief Gets a pointer to an accel bias variable if it exists (nullptr
+ * otherwise)
+ * @param graph graph to look in
+ * @param stamp of variable to get
+ * @return pointer to variable
+ */
 bs_variables::AccelerationBias3DStamped::SharedPtr
     GetAccelBias(fuse_core::Graph::ConstSharedPtr graph,
                  const ros::Time& stamp);
 
-/// @brief Gets a pointer to a position variable if it exists (nullptr
-/// otherwise)
-/// @param graph graph to look in
-/// @param stamp of variable to get
-/// @return pointer to variable
+/**
+ * @brief Gets a pointer to a position variable if it exists (nullptr
+ * otherwise)
+ * @param graph graph to look in
+ * @param stamp of variable to get
+ * @return pointer to variable
+ */
 fuse_variables::Position3DStamped::SharedPtr
     GetPosition(fuse_core::Graph::ConstSharedPtr graph, const ros::Time& stamp);
 
-/// @brief Gets a pointer to an orientation variable if it exists (nullptr
-/// otherwise)
-/// @param graph graph to look in
-/// @param stamp of variable to get
-/// @return pointer to variable
+/**
+ * @brief Gets a pointer to an orientation variable if it exists (nullptr
+ * otherwise)
+ * @param graph graph to look in
+ * @param stamp of variable to get
+ * @return pointer to variable
+ */
 fuse_variables::Orientation3DStamped::SharedPtr
     GetOrientation(fuse_core::Graph::ConstSharedPtr graph,
                    const ros::Time& stamp);
 
-/// @brief Gets a pointer to a velocity variable if it exists (nullptr
-/// otherwise)
-/// @param graph graph to look in
-/// @param stamp of variable to get
-/// @return pointer to variable
+/**
+ * @brief Gets a pointer to a velocity variable if it exists (nullptr
+ * otherwise)
+ * @param graph graph to look in
+ * @param stamp of variable to get
+ * @return pointer to variable
+ */
 fuse_variables::VelocityLinear3DStamped::SharedPtr
     GetVelocity(fuse_core::Graph::ConstSharedPtr graph, const ros::Time& stamp);
 
-/// @brief Gets a pointer to an angular velocity variable if it exists (nullptr
-/// otherwise)
-/// @param graph graph to look in
-/// @param stamp of variable to get
-/// @return pointer to variable
+/**
+ * @brief Gets a pointer to an angular velocity variable if it exists (nullptr
+ * otherwise)
+ * @param graph graph to look in
+ * @param stamp of variable to get
+ * @return pointer to variable
+ */
 fuse_variables::VelocityAngular3DStamped::SharedPtr
     GetAngularVelocity(fuse_core::Graph::ConstSharedPtr graph,
                        const ros::Time& stamp);
 
-/// @brief Gets a pointer to a linear acceleration variable if it exists
-/// (nullptr otherwise)
-/// @param graph graph to look in
-/// @param stamp of variable to get
-/// @return pointer to variable
+/**
+ * @brief Gets a pointer to a linear acceleration variable if it exists
+ * (nullptr otherwise)
+ * @param graph graph to look in
+ * @param stamp of variable to get
+ * @return pointer to variable
+ */
 fuse_variables::AccelerationLinear3DStamped::SharedPtr
     GetLinearAcceleration(fuse_core::Graph::ConstSharedPtr graph,
                           const ros::Time& stamp);
 
-/// @brief Gets all timestamps in the given graph
-/// @param graph to search in
-/// @return set of timestamps
+/**
+ * @brief Gets all timestamps in the given graph
+ * @param graph to search in
+ * @return set of timestamps
+ */
 std::set<ros::Time> CurrentTimestamps(fuse_core::Graph::ConstSharedPtr graph);
 
-/// @brief Gets all landmark id's in the given graph
-/// @param graph to search in
-/// @return set of landmark ids
+/**
+ * @brief Gets all landmark id's in the given graph
+ * @param graph to search in
+ * @return set of landmark ids
+ */
 std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph);
 
-/// @brief Gets ladnmark variable from graph
+/// @brief Gets landmark variable from graph
 /// @param graph to search in
 /// @return set of landmark ids
 fuse_variables::Point3DLandmark::SharedPtr

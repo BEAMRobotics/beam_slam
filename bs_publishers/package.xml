@@ -22,7 +22,6 @@
 
   <depend>fuse_core</depend>
   <depend>fuse_variables</depend>
-  <depend>bs_models</depend>
   <depend>bs_common</depend>
   <depend>bs_constraints</depend>
 

@@ -18,9 +18,7 @@
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/lidar/scan_pose.h>
 
-namespace bs_models { namespace global_mapping {
-
-using namespace bs_common;
+namespace bs_models::global_mapping {
 
 /**
  * @brief class for holding and performing operation on locally consistent SLAM
@@ -229,8 +227,9 @@ public:
    * @param camera_measurement camera measurement
    * @param T_WORLDLM_BASELINK pose of baselink at this camera measurement time.
    */
-  void AddCameraMeasurement(const CameraMeasurementMsg& camera_measurement,
-                            const Eigen::Matrix4d& T_WORLD_BASELINK);
+  void AddCameraMeasurement(
+      const bs_common::CameraMeasurementMsg& camera_measurement,
+      const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /**
    * @brief add a set of lidar measurements associated with one scan
@@ -477,7 +476,7 @@ private:
   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;    // <id, position>
   std::map<uint64_t, cv::Mat> keyframe_images_;               // <time, image>
   beam_containers::LandmarkContainer landmarks_;
-  std::string descriptor_type_{""}; // see beam_cv/descriptors/Descriptor.h
+  const std::string descriptor_type_{"ORB"}; // see beam_cv/descriptors/Descriptor.h
 
   // subframe trajectory measurements, where poses are T_KEYFRAME_FRAME
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;
@@ -487,4 +486,4 @@ private:
 
 using SubmapPtr = std::shared_ptr<Submap>;
 
-}} // namespace bs_models::global_mapping
+} // namespace bs_models::global_mapping
