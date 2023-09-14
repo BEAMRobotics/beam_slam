@@ -125,7 +125,7 @@ void VisualOdometry::processMeasurements(
 
 bool VisualOdometry::ComputeOdometryAndExtendMap(
     const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
-  const auto timestamp = msg->header.stamp;
+  const ros::Time timestamp = msg->header.stamp;
   // estimate pose of frame wrt current graph
   Eigen::Matrix4d T_WORLD_BASELINK;
   if (!LocalizeFrame(timestamp, T_WORLD_BASELINK)) { return false; }
@@ -168,8 +168,14 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
       previous_reloc_request_ = timestamp;
       PublishRelocRequest(kf);
     }
+  } else {
+    // if not keyframe -> add to keyframe sub trajectory
+    Eigen::Matrix4d T_WORLD_BASELINKprevkf =
+        visual_map_->GetBaselinkPose(previous_keyframe_).value();
+    Eigen::Matrix4d T_KEYFRAME_FRAME =
+        beam::InvertTransform(T_WORLD_BASELINKprevkf) * T_WORLD_BASELINK;
+    keyframes_.at(previous_keyframe_).AddPose(timestamp, T_KEYFRAME_FRAME);
   }
-  // todo: if not keyframe -> add to keyframe sub trajectory
 
   return true;
 }

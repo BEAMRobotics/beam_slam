@@ -39,11 +39,11 @@ public:
    * @param T_frame_keyframe relative pose from current keyframe to this frame
    */
   void AddPose(const ros::Time& timestamp,
-               const Eigen::Matrix4d& T_frame_keyframe);
+               const Eigen::Matrix4d& T_keyframe_frame);
 
   /**
    * @brief Read only access to this keyframes trajectory
-   * <time, T_frame_keyframe>
+   * <time, T_keyframe_frame)>
    */
   const std::map<uint64_t, Eigen::Matrix4d>& Trajectory() const;
 
