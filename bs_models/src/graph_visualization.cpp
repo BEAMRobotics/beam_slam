@@ -62,11 +62,6 @@ void GraphVisualization::onStart() {
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
 
-  // todo: hardcoded topic, we need to reference raw topics globally
-  image_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Image>(
-      "/F1/image/", 10, &ThrottledImageCallback::callback,
-      &throttled_image_callback_, ros::TransportHints().tcpNoDelay(false));
-
   // setup publishers
   if (params_.publish) {
     poses_publisher_.publisher =
@@ -671,12 +666,9 @@ pcl::PointCloud<pcl::PointXYZRGBL>
   return cloud;
 }
 
-void GraphVisualization::processImage(const sensor_msgs::Image::ConstPtr& msg) {
-  image_buffer_[msg->header.stamp.toNSec()] = *msg;
-}
-
 void GraphVisualization::processMeasurements(
     const CameraMeasurementMsg::ConstPtr& msg) {
+  image_buffer_[msg->header.stamp.toNSec()] = msg->image;
   // check that message hasnt already been added to container
   const auto times = landmark_container_->GetMeasurementTimes();
   if (times.find(msg->header.stamp) != times.end()) { return; }

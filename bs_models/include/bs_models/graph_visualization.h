@@ -120,7 +120,6 @@ private:
 
   /// @brief vo visualization things
   ros::Subscriber feature_track_subscriber_;
-  ros::Subscriber image_subscriber_;
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::map<uint64_t, sensor_msgs::Image> image_buffer_;
