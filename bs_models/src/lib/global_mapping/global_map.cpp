@@ -628,10 +628,8 @@ bool GlobalMap::ProcessRelocRequest(
 
         // get descriptors
         std::vector<uint32_t> word_ids;
-        // TODO: for each landmark id, get all its measurements and compute
-        // its word from the vocab fill the word as the sole descriptor in the
-        // descriptors vector, make sure theyre in the same order as the 3d
-        // points
+        // TODO: for each landmark id, get all its measurements and get the
+        // associated word id for it
 
         // add submap data to submap msg
         FillSubmapMsg(submap_msg, lidar_cloud_in_wlm_frame,
