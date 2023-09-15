@@ -78,6 +78,25 @@ int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction) {
   return counter;
 }
 
+int GetNumberOfConstraints(const fuse_core::Graph& graph) {
+  int counter = 0;
+  auto constraints_range = graph.getConstraints();
+  for (auto iter = constraints_range.begin(); iter != constraints_range.end();
+       iter++) {
+    counter++;
+  }
+  return counter;
+}
+
+int GetNumberOfVariables(const fuse_core::Graph& graph) {
+  int counter = 0;
+  auto vars_range = graph.getVariables();
+  for (auto iter = vars_range.begin(); iter != vars_range.end(); iter++) {
+    counter++;
+  }
+  return counter;
+}
+
 bs_variables::GyroscopeBias3DStamped::SharedPtr
     GetGryoscopeBias(fuse_core::Graph::ConstSharedPtr graph,
                      const ros::Time& stamp) {

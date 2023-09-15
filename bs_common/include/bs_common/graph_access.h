@@ -49,6 +49,20 @@ int GetNumberOfConstraints(
 int GetNumberOfVariables(const fuse_core::Transaction::SharedPtr& transaction);
 
 /**
+ * @brief Get number of constraints in a graph message
+ * @param graph
+ * @return number of constraints
+ */
+int GetNumberOfConstraints(const fuse_core::Graph& graph);
+
+/**
+ * @brief Get number of variables in a graph message
+ * @param graph
+ * @return number of variables
+ */
+int GetNumberOfVariables(const fuse_core::Graph& graph);
+
+/**
  * @brief Gets a pointer to a gryo bias variable if it exists (nullptr
  * otherwise)
  * @param graph graph to look in
