@@ -427,7 +427,6 @@ beam::opt<Eigen::Vector3d>
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   beam_containers::Track track = landmark_container_->GetTrack(id);
-  size_t keyframe_observations = 0;
   for (auto& m : track) {
     const auto T_camera_world = visual_map_->GetCameraPose(m.time_point);
     // check if the pose is in the graph
