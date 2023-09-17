@@ -7,3 +7,6 @@
 [submodule "dependencies/fuse"]
 	path = dependencies/fuse
 	url = git@github.com:locusrobotics/fuse.git
+[submodule "dependencies/basalt-headers-mirror"]
+	path = dependencies/basalt-headers-mirror
+	url = git@github.com:VladyslavUsenko/basalt-headers-mirror.git
