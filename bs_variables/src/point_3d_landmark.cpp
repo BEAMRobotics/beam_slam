@@ -44,7 +44,8 @@
 
 namespace bs_variables {
 Point3DLandmark::Point3DLandmark(const uint64_t& landmark_id)
-    : FixedSizeVariable(fuse_core::uuid::generate(detail::type(), landmark_id)),
+    : fuse_variables::FixedSizeVariable(
+          fuse_core::uuid::generate(detail::type(), landmark_id)),
       id_(landmark_id) {}
 
 void Point3DLandmark::print(std::ostream& stream) const {
