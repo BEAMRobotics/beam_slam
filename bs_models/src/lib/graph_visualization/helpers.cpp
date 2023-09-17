@@ -407,7 +407,7 @@ void ExportGraphVisualization(const std::string& output_directory,
   // save imu constraints
   pcl::PointCloud<pcl::PointXYZRGBL> imu_constraints =
       GetGraphRelativeImuConstraintsAsCloud(graph, point_spacing, frame_size);
-  SaveCloud<pcl::PointXYZRGBL>(output_directory, "lo_constraints",
+  SaveCloud<pcl::PointXYZRGBL>(output_directory, "imu_constraints",
                                imu_constraints);
 
   // save imu biases
