@@ -4,11 +4,11 @@ lag_duration: 6
 solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
-  minimizer_progress_to_stdout: false
+  minimizer_progress_to_stdout: true
   num_threads: 6
   num_linear_solver_threads: 6
   max_num_iterations: 10
-  max_solver_time_in_seconds: 0.08
+  max_solver_time_in_seconds: 0.05
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
@@ -49,11 +49,10 @@ slam_initialization:
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
   min_visual_parallax: 40.0
-  reprojection_information_weight: 1.0
   inertial_information_weight: 0.001
   lidar_information_weight: 10.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "" #"/home/nick/debug/slam_init"
+  output_folder: "/userhome/results/init_results" #"/userhome/results/init_results"
 
 inertial_odometry:
   imu_topic: "/imu/data"
@@ -63,7 +62,6 @@ visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   reloc_request_period: 3.0
   keyframe_parallax: 20.0
-  reprojection_information_weight: 1.0
   trigger_inertial_odom_constraints: true
 
 gravity_alignment:

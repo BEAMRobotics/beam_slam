@@ -3,9 +3,13 @@
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
 
+#include <bs_constraints/helpers.h>
+
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
 #include <bs_constraints/visual/euclidean_reprojection_constraint.h>
+#include <bs_constraints/visual/inversedepth_reprojection_constraint.h>
+#include <bs_constraints/visual/inversedepth_reprojection_constraint_unary.h>
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 
 namespace bs_models { namespace vision {
@@ -26,18 +30,12 @@ VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
 }
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time& stamp) {
-  fuse_variables::Position3DStamped::SharedPtr p = GetPosition(stamp);
-  fuse_variables::Orientation3DStamped::SharedPtr q = GetOrientation(stamp);
-  if (p && q) {
-    Eigen::Vector3d position(p->data());
-    Eigen::Quaterniond orientation(q->w(), q->x(), q->y(), q->z());
-    Eigen::Matrix4d T_WORLD_BASELINK;
-    beam::QuaternionAndTranslationToTransformMatrix(orientation, position,
-                                                    T_WORLD_BASELINK);
-
+  const auto& baselink_pose = GetBaselinkPose(stamp);
+  if (baselink_pose.has_value()) {
+    Eigen::Matrix4d T_WORLD_BASELINK = baselink_pose.value();
     // transform pose from baselink coord space to camera coord space
     Eigen::Matrix4d T_WORLD_CAMERA =
-        T_WORLD_BASELINK * T_cam_baselink_.inverse();
+        T_WORLD_BASELINK * beam::InvertTransform(T_cam_baselink_);
     return T_WORLD_CAMERA;
   } else {
     return {};
@@ -57,6 +55,32 @@ beam::opt<Eigen::Matrix4d> VisualMap::GetBaselinkPose(const ros::Time& stamp) {
   } else {
     return {};
   }
+}
+
+bs_variables::InverseDepthLandmark::SharedPtr
+    VisualMap::GetInverseDepthLandmark(uint64_t landmark_id) {
+  bs_variables::InverseDepthLandmark::SharedPtr landmark =
+      bs_variables::InverseDepthLandmark::make_shared();
+  auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
+  if (graph_) {
+    try {
+      *landmark = dynamic_cast<const bs_variables::InverseDepthLandmark&>(
+          graph_->getVariable(landmark_uuid));
+      return landmark;
+    } catch (const std::out_of_range& oor) {
+      if (inversedepth_landmark_positions_.find(landmark_id) ==
+          inversedepth_landmark_positions_.end()) {
+        return nullptr;
+      } else {
+        return inversedepth_landmark_positions_[landmark_id];
+      }
+    }
+  } else if (inversedepth_landmark_positions_.find(landmark_id) !=
+             inversedepth_landmark_positions_.end()) {
+    return inversedepth_landmark_positions_[landmark_id];
+  }
+
+  return nullptr;
 }
 
 fuse_variables::Point3DLandmark::SharedPtr
@@ -265,6 +289,83 @@ void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
   landmark_positions_[landmark->id()] = landmark;
 }
 
+void VisualMap::AddInverseDepthLandmark(
+    const Eigen::Vector3d& bearing, const double inverse_depth,
+    const uint64_t id, const ros::Time& anchor_time,
+    fuse_core::Transaction::SharedPtr transaction) {
+  // construct landmark variable
+  bs_variables::InverseDepthLandmark::SharedPtr landmark =
+      bs_variables::InverseDepthLandmark::make_shared(id, bearing, anchor_time);
+  landmark->inverse_depth() = inverse_depth;
+
+  // add fuse landmark variable
+  AddInverseDepthLandmark(landmark, transaction);
+}
+
+void VisualMap::AddInverseDepthLandmark(
+    bs_variables::InverseDepthLandmark::SharedPtr landmark,
+    fuse_core::Transaction::SharedPtr transaction) {
+  // add to transaction
+  transaction->addVariable(landmark);
+  inversedepth_landmark_positions_[landmark->id()] = landmark;
+}
+
+bool VisualMap::AddInverseDepthVisualConstraint(
+    const ros::Time& measurement_stamp, uint64_t lm_id,
+    const Eigen::Vector2d& pixel,
+    fuse_core::Transaction::SharedPtr transaction) {
+  // get landmark
+  bs_variables::InverseDepthLandmark::SharedPtr lm =
+      GetInverseDepthLandmark(lm_id);
+
+  // get measurement robot pose
+  fuse_variables::Position3DStamped::SharedPtr position_m =
+      GetPosition(measurement_stamp);
+  fuse_variables::Orientation3DStamped::SharedPtr orientation_m =
+      GetOrientation(measurement_stamp);
+
+  // get anchor robot pose
+  fuse_variables::Position3DStamped::SharedPtr position_a =
+      GetPosition(lm->anchorStamp());
+  fuse_variables::Orientation3DStamped::SharedPtr orientation_a =
+      GetOrientation(lm->anchorStamp());
+
+  // rectify pixel
+  Eigen::Vector2i rectified_pixel;
+  if (!cam_model_->UndistortPixel(pixel.cast<int>(), rectified_pixel)) {
+    return false;
+  }
+  Eigen::Vector2d measurement = rectified_pixel.cast<double>();
+
+  if (!position_a || !orientation_a || !position_m || !orientation_m) {
+    return false;
+  }
+  try {
+    if (lm) {
+      if (lm->anchorStamp() == measurement_stamp) {
+        auto vis_constraint = std::make_shared<
+            bs_constraints::InverseDepthReprojectionConstraintUnary>(
+            "VO", *orientation_a, *position_a, *lm, T_cam_baselink_,
+            camera_intrinsic_matrix_, measurement,
+            reprojection_information_weight_);
+        vis_constraint->loss(loss_function_);
+        transaction->addConstraint(vis_constraint);
+      } else {
+        auto vis_constraint = std::make_shared<
+            bs_constraints::InverseDepthReprojectionConstraint>(
+            "VO", *orientation_a, *position_a, *orientation_m, *position_m, *lm,
+            T_cam_baselink_, camera_intrinsic_matrix_, measurement,
+            reprojection_information_weight_);
+        vis_constraint->loss(loss_function_);
+        transaction->addConstraint(vis_constraint);
+      }
+      return true;
+    }
+  } catch (const std::logic_error& le) {}
+
+  return false;
+}
+
 fuse_core::UUID VisualMap::GetLandmarkUUID(uint64_t landmark_id) {
   fuse_variables::Point3DLandmark::SharedPtr landmark =
       fuse_variables::Point3DLandmark::make_shared();
@@ -345,13 +446,24 @@ void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
       lms_to_remove.push_back(id);
     }
   }
+  for (const auto [id, position] : inversedepth_landmark_positions_) {
+    if (graph_lm_ids.find(id) != graph_lm_ids.end()) {
+      lms_to_remove.push_back(id);
+    }
+  }
+
   for (const auto& id : lms_to_remove) { landmark_positions_.erase(id); }
+  for (const auto& id : lms_to_remove) {
+    inversedepth_landmark_positions_.erase(id);
+  }
 }
 
 void VisualMap::Clear() {
   orientations_.clear();
   positions_.clear();
   landmark_positions_.clear();
+
+  inversedepth_landmark_positions_.clear();
   if (graph_) { graph_ = nullptr; }
 }
 

@@ -58,6 +58,31 @@ Eigen::Matrix4d
   return T;
 }
 
+void FusePoseToEigenTransform(const bs_variables::Position3D& p,
+                              const bs_variables::Orientation3D& o,
+                              Eigen::Matrix4d& T_WORLD_SENSOR) {
+  T_WORLD_SENSOR = Eigen::Matrix4d::Identity();
+  Eigen::Quaterniond q(o.w(), o.x(), o.y(), o.z());
+  T_WORLD_SENSOR.block(0, 3, 3, 1) = Eigen::Vector3d{p.x(), p.y(), p.z()};
+  T_WORLD_SENSOR.block(0, 0, 3, 3) = q.toRotationMatrix();
+}
+
+Eigen::Matrix4d FusePoseToEigenTransform(const bs_variables::Position3D& p,
+                                         const bs_variables::Orientation3D& o) {
+  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
+
+  // add position
+  T(0, 3) = p.x();
+  T(1, 3) = p.y();
+  T(2, 3) = p.z();
+
+  // add rotation
+  Eigen::Quaterniond q(o.w(), o.x(), o.y(), o.z());
+  Eigen::Matrix3d R = q.toRotationMatrix();
+  T.block(0, 0, 3, 3) = R;
+  return T;
+}
+
 void PoseMsgToTransformationMatrix(const geometry_msgs::PoseStamped& pose,
                                    Eigen::Matrix4d& T_WORLD_SENSOR) {
   Eigen::Vector3d position;

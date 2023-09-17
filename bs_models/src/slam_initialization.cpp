@@ -39,6 +39,7 @@ void SLAMInitialization::onInit() {
   // Load camera model and create map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
+  cam_intrinsic_matrix_ = cam_model_->GetRectifiedModel()->GetIntrinsicMatrix();
   visual_map_ = std::make_shared<vision::VisualMap>(
       cam_model_, params_.reprojection_loss,
       params_.reprojection_information_weight);
@@ -150,17 +151,7 @@ void SLAMInitialization::processCameraMeasurements(
     const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "SLAMInitialization received VISUAL measurements: " << msg->header.stamp);
-  // put measurements into landmark container
-  for (const auto& lm : msg->landmarks) {
-    Eigen::Vector2d landmark(static_cast<double>(lm.pixel_u),
-                             static_cast<double>(lm.pixel_v));
-    cv::Mat landmark_descriptor = beam_cv::Descriptor::VectorDescriptorToCvMat(
-        {lm.descriptor.data}, msg->descriptor_type);
-    beam_containers::LandmarkMeasurement lm_measurement(
-        msg->header.stamp, msg->sensor_id, lm.landmark_id, msg->header.seq,
-        landmark, landmark_descriptor);
-    landmark_container_->Insert(lm_measurement);
-  }
+  AddMeasurementsToContainer(msg);
 
   // remove first image from container if we are over the limit
   if (landmark_container_->NumImages() >
@@ -471,23 +462,78 @@ void SLAMInitialization::AddVisualConstraints() {
   const auto end = beam::NSecToRos(init_path_.rbegin()->first);
   size_t num_landmarks = 0;
   auto landmark_transaction = fuse_core::Transaction::make_shared();
-  landmark_transaction->stamp(end);
+  landmark_transaction->stamp(start);
   auto process_landmark = [&](const auto& id) {
     // triangulate and add landmark
     const auto initial_point = TriangulateLandmark(id);
     if (!initial_point.has_value()) { return; }
-    visual_map_->AddLandmark(initial_point.value(), id, landmark_transaction);
-    num_landmarks++;
 
-    // add constraints to keyframes that view it
-    for (const auto& stamp : kf_times) {
-      try {
-        Eigen::Vector2d pixel = landmark_container_->GetValue(stamp, id);
-        visual_map_->AddVisualConstraint(stamp, id, pixel,
-                                         landmark_transaction);
-      } catch (const std::out_of_range& oor) { continue; }
+    if (!params_.use_idp) {
+      visual_map_->AddLandmark(initial_point.value(), id, landmark_transaction);
+      num_landmarks++;
+
+      // add constraints to keyframes that view it
+      for (const auto& stamp : kf_times) {
+        try {
+          Eigen::Vector2d pixel = landmark_container_->GetValue(stamp, id);
+          visual_map_->AddVisualConstraint(stamp, id, pixel,
+                                           landmark_transaction);
+        } catch (const std::out_of_range& oor) { continue; }
+      }
+    } else {
+      // find the first keyframe that has seen the landmark and use it as the
+      // anchor
+      auto track = landmark_container_->GetTrack(id);
+      bool found_anchor = false;
+      beam_containers::LandmarkMeasurement anchor_measurement;
+      for (auto m : track) {
+        if (kf_times.find(m.time_point) != kf_times.end()) {
+          anchor_measurement = m;
+          found_anchor = true;
+          break;
+        }
+      }
+      if (!found_anchor) { return; }
+
+      // get the bearing vector to the measurement
+      Eigen::Vector3d bearing;
+      Eigen::Vector2i rectified_pixel;
+      if (!cam_model_->UndistortPixel(anchor_measurement.value.cast<int>(),
+                                      rectified_pixel)) {
+        return;
+      }
+      if (!cam_model_->GetRectifiedModel()->BackProject(rectified_pixel,
+                                                        bearing)) {
+        return;
+      }
+      bearing.normalize();
+
+      // find the inverse depth of the point
+      auto T_WORLD_CAMERA =
+          visual_map_->GetCameraPose(anchor_measurement.time_point);
+      if (!T_WORLD_CAMERA.has_value()) { return; }
+      Eigen::Vector3d camera_t_point =
+          (beam::InvertTransform(T_WORLD_CAMERA.value()) *
+           initial_point.value().homogeneous())
+              .hnormalized();
+      double inverse_depth = 1.0 / camera_t_point.norm();
+
+      visual_map_->AddInverseDepthLandmark(bearing, inverse_depth, id,
+                                           anchor_measurement.time_point,
+                                           landmark_transaction);
+      num_landmarks++;
+
+      // add constraints to keyframes that view it
+      for (const auto& stamp : kf_times) {
+        try {
+          Eigen::Vector2d pixel = landmark_container_->GetValue(stamp, id);
+          visual_map_->AddInverseDepthVisualConstraint(stamp, id, pixel,
+                                                       landmark_transaction);
+        } catch (const std::out_of_range& oor) { continue; }
+      }
     }
   };
+  
   // process each landmark
   const auto landmarks =
       landmark_container_->GetLandmarkIDsInWindow(start, end);
@@ -675,6 +721,85 @@ void SLAMInitialization::shutdown() {
   visual_map_ = nullptr;
   imu_preint_ = nullptr;
   lidar_path_init_ = nullptr;
+}
+
+void SLAMInitialization::AddMeasurementsToContainer(
+    const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
+  // check that message hasnt already been added to container
+  const auto times = landmark_container_->GetMeasurementTimes();
+  if (times.find(msg->header.stamp) != times.end()) { return; }
+
+  std::map<uint64_t, Eigen::Vector2d> cur_undistorted_measurements;
+
+  // put all measurements into landmark container
+  for (const auto& lm : msg->landmarks) {
+    Eigen::Vector2d landmark(static_cast<double>(lm.pixel_u),
+                             static_cast<double>(lm.pixel_v));
+    const cv::Mat landmark_descriptor =
+        beam_cv::Descriptor::VectorDescriptorToCvMat({lm.descriptor.data},
+                                                     msg->descriptor_type);
+    beam_containers::LandmarkMeasurement lm_measurement(
+        msg->header.stamp, msg->sensor_id, lm.landmark_id, msg->header.seq,
+        landmark, landmark_descriptor);
+    landmark_container_->Insert(lm_measurement);
+
+    Eigen::Vector2i rectified_pixel;
+    if (cam_model_->UndistortPixel(landmark.cast<int>(), rectified_pixel)) {
+      cur_undistorted_measurements.insert(
+          {lm.landmark_id, rectified_pixel.cast<double>()});
+    }
+  }
+
+  // get previous frame undistorted measurements
+  if (prev_frame_ != ros::Time(0)) {
+    std::map<uint64_t, Eigen::Vector2d> prev_undistorted_measurements;
+    std::vector<uint64_t> landmarks =
+        landmark_container_->GetLandmarkIDsInImage(prev_frame_);
+    for (auto& id : landmarks) {
+      try {
+        const Eigen::Vector2d prev_measurement =
+            landmark_container_->GetValue(prev_frame_, id);
+
+        Eigen::Vector2i rectified_pixel;
+        if (cam_model_->UndistortPixel(prev_measurement.cast<int>(),
+                                       rectified_pixel)) {
+          prev_undistorted_measurements.insert(
+              {id, rectified_pixel.cast<double>()});
+        }
+      } catch (const std::out_of_range& oor) {}
+    }
+
+    // get matches to previous frame
+    std::vector<cv::Point2f> fp1, fp2;
+    std::vector<uint64_t> matched_ids;
+    for (const auto& [id, pixel] : prev_undistorted_measurements) {
+      if (cur_undistorted_measurements.find(id) !=
+          cur_undistorted_measurements.end()) {
+        cv::Point2f p1 =
+            beam_cv::ConvertKeypoint(prev_undistorted_measurements[id]);
+        cv::Point2f p2 =
+            beam_cv::ConvertKeypoint(cur_undistorted_measurements[id]);
+        fp1.push_back(p1);
+        fp2.push_back(p2);
+        matched_ids.push_back(id);
+      }
+    }
+
+    // attempt essential matrix estimation
+    cv::Mat K(3, 3, CV_32F);
+    cv::eigen2cv(cam_intrinsic_matrix_, K);
+    std::vector<uchar> mask;
+    cv::findEssentialMat(fp1, fp2, K, cv::RANSAC, 0.99, 2.0, mask);
+
+    // remove outliers from container
+    for (size_t i = 0; i < mask.size(); i++) {
+      if (mask.at(i) == 0) {
+        const auto id = matched_ids[i];
+        landmark_container_->Erase(msg->header.stamp, id);
+      }
+    }
+  }
+  prev_frame_ = msg->header.stamp;
 }
 
 } // namespace bs_models

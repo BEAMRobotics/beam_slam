@@ -1,12 +1,12 @@
 #pragma once
 
+#include <bs_variables/inverse_depth_landmark.h>
 #include <fuse_core/constraint.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/serialization.h>
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
-#include <fuse_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
 #include <boost/serialization/access.hpp>
@@ -21,25 +21,27 @@
 
 namespace bs_constraints {
 
-class EuclideanReprojectionConstraint : public fuse_core::Constraint {
+class InverseDepthReprojectionConstraint : public fuse_core::Constraint {
 public:
-  FUSE_CONSTRAINT_DEFINITIONS(EuclideanReprojectionConstraint);
+  FUSE_CONSTRAINT_DEFINITIONS(InverseDepthReprojectionConstraint);
 
   /**
    * @brief Default constructor
    */
-  EuclideanReprojectionConstraint() = default;
+  InverseDepthReprojectionConstraint() = default;
 
   /**
    * @brief Create a constraint using landmark location, camera pose and
    * measured pixel location
    *
    */
-  EuclideanReprojectionConstraint(
+  InverseDepthReprojectionConstraint(
       const std::string& source,
-      const fuse_variables::Orientation3DStamped& R_WORLD_BASELINK,
-      const fuse_variables::Position3DStamped& t_WORLD_BASELINK,
-      const fuse_variables::Point3DLandmark& P_WORLD,
+      const fuse_variables::Orientation3DStamped& o_WORLD_BASELINKa,
+      const fuse_variables::Position3DStamped& p_WORLD_BASELINKa,
+      const fuse_variables::Orientation3DStamped& o_WORLD_BASELINKm,
+      const fuse_variables::Position3DStamped& p_WORLD_BASELINKm,
+      const bs_variables::InverseDepthLandmark& idp,
       const Eigen::Matrix4d& T_cam_baselink,
       const Eigen::Matrix3d& intrinsic_matrix,
       const Eigen::Vector2d& measurement,
@@ -48,7 +50,7 @@ public:
   /**
    * @brief Destructor
    */
-  virtual ~EuclideanReprojectionConstraint() = default;
+  virtual ~InverseDepthReprojectionConstraint() = default;
 
   /**
    * @brief Read-only access to the measured pixel value
@@ -79,6 +81,7 @@ public:
 
 protected:
   Eigen::Vector2d pixel_;
+  Eigen::Vector3d bearing_;
   Eigen::Matrix4d T_cam_baselink_;
   Eigen::Matrix3d intrinsic_matrix_;
   Eigen::Matrix2d sqrt_information_;
@@ -105,4 +108,4 @@ private:
 
 } // namespace bs_constraints
 
-BOOST_CLASS_EXPORT_KEY(bs_constraints::EuclideanReprojectionConstraint);
+BOOST_CLASS_EXPORT_KEY(bs_constraints::InverseDepthReprojectionConstraint);

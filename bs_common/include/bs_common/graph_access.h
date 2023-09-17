@@ -1,5 +1,10 @@
 #pragma once
 
+#include <bs_variables/accel_bias_3d_stamped.h>
+#include <bs_variables/gyro_bias_3d_stamped.h>
+#include <bs_variables/inverse_depth_landmark.h>
+#include <bs_variables/orientation_3d.h>
+#include <bs_variables/position_3d.h>
 #include <fuse_core/graph.h>
 #include <fuse_core/transaction.h>
 #include <fuse_core/variable.h>
@@ -7,6 +12,7 @@
 #include <fuse_variables/point_3d_landmark.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
 
+#include <beam_utils/utils.h>
 #include <bs_common/imu_state.h>
 
 #ifndef GRAVITY_NOMINAL
@@ -151,12 +157,37 @@ std::set<ros::Time> CurrentTimestamps(fuse_core::Graph::ConstSharedPtr graph);
  */
 std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph);
 
-/**
- * @brief Gets ladnmark variable from graph
- * @param graph to search in
- * @return set of landmark ids
- */
+/// @brief Gets landmark variable from graph
+/// @param graph to search in
+/// @return set of landmark ids
 fuse_variables::Point3DLandmark::SharedPtr
     GetLandmark(fuse_core::Graph::ConstSharedPtr graph, const uint64_t id);
+
+/// @brief Gets position extrinsic from graph
+/// @param graph to search in
+bs_variables::Position3D::SharedPtr
+    GetPositionExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
+                         const std::string& child_frame,
+                         const std::string& parent_frame);
+
+/// @brief Gets orientation extrinsic from graph
+/// @param graph to search in
+bs_variables::Orientation3D::SharedPtr
+    GetOrientationExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
+                            const std::string& child_frame,
+                            const std::string& parent_frame);
+
+/// @brief Gets extrinsic as 4x4 matrix from graph
+/// @param graph to search in
+beam::opt<Eigen::Matrix4d> GetExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
+                                        const std::string& child_frame,
+                                        const std::string& parent_frame);
+
+/// @brief Gets inverse depth landmark variable from graph
+/// @param graph to search in
+/// @return set of landmark ids
+bs_variables::InverseDepthLandmark::SharedPtr
+    GetInverseDepthLandmark(fuse_core::Graph::ConstSharedPtr graph,
+                            const uint64_t id);
 
 } // namespace bs_common

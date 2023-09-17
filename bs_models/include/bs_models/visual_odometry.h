@@ -55,7 +55,7 @@ private:
 
   /// @brief Callback for when a newly optimized graph is available
   /// @param graph_msg incoming grpah
-  void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
+  void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) override;
 
   /// @brief Localizes image and extends our visual map if its a keyframe
   /// @param msg visual measurements
@@ -124,6 +124,10 @@ private:
   void PublishPose(const ros::Time& timestamp,
                    const Eigen::Matrix4d& T_WORLD_BASELINK);
 
+  /// @brief Performs all initial setup after slam initialization succeeds
+  /// @param graph initial graph
+  void Initialize(fuse_core::Graph::ConstSharedPtr graph);
+
   /// @brief The UUID of this device
   fuse_core::UUID device_id_; //!< The UUID of this device
 
@@ -139,24 +143,42 @@ private:
   /// @brief subscribers
   ros::Subscriber measurement_subscriber_;
 
+  /// @brief Add all required variables and constraints for a specific landmark
+  /// using the IDP parameterization
+  /// @param id of landmark to add
+  /// @param timestamp timestamp of measurement
+  /// @param transaction transaction to ammed to
+  void ProcessLandmarkIDP(const uint64_t id, const ros::Time& timestamp,
+                          fuse_core::Transaction::SharedPtr transaction);
+
+  /// @brief Add all required variables and constraints for a specific landmark
+  /// using the euclidean parameterization
+  /// @param id of landmark to add
+  /// @param timestamp timestamp of measurement
+  /// @param transaction transaction to ammed to
+  void ProcessLandmarkEUC(const uint64_t id, const ros::Time& timestamp,
+                          fuse_core::Transaction::SharedPtr transaction);
+
   /// @brief publishers
   ros::Publisher odometry_publisher_;
   ros::Publisher keyframe_publisher_;
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher reloc_publisher_;
   ros::Publisher imu_constraint_trigger_publisher_;
+  // ros::Publisher image_publisher_;
   int imu_constraint_trigger_counter_{0};
 
   /// @brief book keeping variables
   bool is_initialized_{false};
-  std::deque<vision::Keyframe> keyframes_;
-  uint32_t added_since_kf_{0};
+  std::map<ros::Time, vision::Keyframe> keyframes_;
   std::deque<bs_common::CameraMeasurementMsg::ConstPtr>
       visual_measurement_buffer_;
   Eigen::Matrix4d T_ODOM_BASELINKprev_{Eigen::Matrix4d::Identity()};
   ros::Time previous_reloc_request_{ros::Time(0)};
-  ros::Time previous_frame_;
+  ros::Time previous_keyframe_;
   size_t max_container_size_;
+  bool track_lost{false};
+  ros::Time prev_frame_{ros::Time(0)};
 
   /// @brief callbacks for messages
   using ThrottledMeasurementCallback =
@@ -169,7 +191,6 @@ private:
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::shared_ptr<vision::VisualMap> visual_map_;
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
-  fuse_core::Graph::UniquePtr local_graph_;
 
   /// @brief robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
