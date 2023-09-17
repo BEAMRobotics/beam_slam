@@ -109,6 +109,8 @@ add_library(
   src/lib/frame_initializers/odometry_frame_initializer.cpp
   src/lib/frame_initializers/transform_frame_initializer.cpp
   src/lib/frame_initializers/pose_file_frame_initializer.cpp
+  # graph visualization
+  src/lib/graph_visualization/helpers.cpp
   ## experimental
   experimental/src/lidar_aggregation
   experimental/src/lib/lidar/lidar_aggregator
