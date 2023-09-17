@@ -142,6 +142,11 @@ private:
    */
   void OutputResults();
 
+  /// @brief Adds visual measurements to the landmark container
+  /// @param msg
+  void AddMeasurementsToContainer(
+      const bs_common::CameraMeasurementMsg::ConstPtr& msg);
+
   fuse_core::UUID device_id_; //!< The UUID of this device
 
   // calibration parameters
@@ -173,6 +178,7 @@ private:
   std::list<sensor_msgs::Imu> imu_buffer_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::list<ros::Time> frame_init_buffer_;
+  ros::Time prev_frame_{ros::Time(0)};
   double last_lidar_scan_time_s_{0};
 
   // measurement buffer sizes
@@ -185,6 +191,7 @@ private:
 
   // objects for intializing
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
+    Eigen::Matrix3d cam_intrinsic_matrix_;
   std::shared_ptr<vision::VisualMap> visual_map_;
   std::shared_ptr<ImuPreintegration> imu_preint_;
   std::unique_ptr<LidarPathInit> lidar_path_init_;

@@ -252,69 +252,94 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 
   // process each landmark
   const auto landmarks = landmark_container_->GetLandmarkIDsInImage(timestamp);
+
   auto process_landmark = [&](const auto& id) {
-    auto lm = visual_map_->GetInverseDepthLandmark(id);
-    if (lm) {
-      // if the landmark exists, just add a constraint to the current keyframe
+    if (visual_map_->GetLandmark(id)) {
       try {
         Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
-        visual_map_->AddInverseDepthVisualConstraint(timestamp, id, pixel,
-                                                     transaction);
+        visual_map_->AddVisualConstraint(timestamp, id, pixel, transaction);
       } catch (const std::out_of_range& oor) { return; }
     } else {
-      // if the landmark doesnt exist we try to initialize it
       // triangulate and add landmark
       const auto initial_point = TriangulateLandmark(id);
       if (!initial_point.has_value()) { return; }
+      visual_map_->AddLandmark(initial_point.value(), id, transaction);
 
-      // use the first keyframe that sees the landmark as the anchor frame
-      auto track = landmark_container_->GetTrack(id);
-      beam_containers::LandmarkMeasurement anchor_measurement;
-      for (auto m : track) {
-        if (keyframes_.find(m.time_point) != keyframes_.end()) {
-          anchor_measurement = m;
-          break;
-        }
-      }
-
-      // get the bearing vector to the measurement
-      Eigen::Vector3d bearing;
-      Eigen::Vector2i rectified_pixel;
-      if (!cam_model_->UndistortPixel(anchor_measurement.value.cast<int>(),
-                                      rectified_pixel)) {
-        return;
-      }
-      if (!cam_model_->GetRectifiedModel()->BackProject(rectified_pixel,
-                                                        bearing)) {
-        return;
-      }
-      bearing.normalize();
-
-      // find the inverse depth of the point
-      auto T_WORLD_CAMERA =
-          visual_map_->GetCameraPose(anchor_measurement.time_point);
-      if (!T_WORLD_CAMERA.has_value()) { return; }
-      Eigen::Vector3d camera_t_point =
-          (beam::InvertTransform(T_WORLD_CAMERA.value()) *
-           initial_point.value().homogeneous())
-              .hnormalized();
-      double inverse_depth = 1.0 / camera_t_point.norm();
-
-      // add landmark to transaction
-      visual_map_->AddInverseDepthLandmark(bearing, inverse_depth, id,
-                                           anchor_measurement.time_point,
-                                           transaction);
-
-      // add constraints to keyframes that view it
+      // add constraints to keyframes that view its
       for (const auto& [kf_stamp, kf] : keyframes_) {
         try {
           Eigen::Vector2d pixel = landmark_container_->GetValue(kf_stamp, id);
-          visual_map_->AddInverseDepthVisualConstraint(timestamp, id, pixel,
-                                                       transaction);
+          visual_map_->AddVisualConstraint(kf_stamp, id, pixel, transaction);
         } catch (const std::out_of_range& oor) { continue; }
       }
     }
   };
+
+  // ! For IDP
+  // auto process_landmark = [&](const auto& id) {
+  //   auto lm = visual_map_->GetInverseDepthLandmark(id);
+  //   if (lm) {
+  //     // if the landmark exists, just add a constraint to the current
+  //     keyframe try {
+  //       Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
+  //       visual_map_->AddInverseDepthVisualConstraint(timestamp, id, pixel,
+  //                                                    transaction);
+  //     } catch (const std::out_of_range& oor) { return; }
+  //   } else {
+  //     // if the landmark doesnt exist we try to initialize it
+  //     // triangulate and add landmark
+  //     const auto initial_point = TriangulateLandmark(id);
+  //     if (!initial_point.has_value()) { return; }
+
+  //     // use the first keyframe that sees the landmark as the anchor frame
+  //     auto track = landmark_container_->GetTrack(id);
+  //     beam_containers::LandmarkMeasurement anchor_measurement;
+  //     for (auto m : track) {
+  //       if (keyframes_.find(m.time_point) != keyframes_.end()) {
+  //         anchor_measurement = m;
+  //         break;
+  //       }
+  //     }
+
+  //     // get the bearing vector to the measurement
+  //     Eigen::Vector3d bearing;
+  //     Eigen::Vector2i rectified_pixel;
+  //     if (!cam_model_->UndistortPixel(anchor_measurement.value.cast<int>(),
+  //                                     rectified_pixel)) {
+  //       return;
+  //     }
+  //     if (!cam_model_->GetRectifiedModel()->BackProject(rectified_pixel,
+  //                                                       bearing)) {
+  //       return;
+  //     }
+  //     bearing.normalize();
+
+  //     // find the inverse depth of the point
+  //     auto T_WORLD_CAMERA =
+  //         visual_map_->GetCameraPose(anchor_measurement.time_point);
+  //     if (!T_WORLD_CAMERA.has_value()) { return; }
+  //     Eigen::Vector3d camera_t_point =
+  //         (beam::InvertTransform(T_WORLD_CAMERA.value()) *
+  //          initial_point.value().homogeneous())
+  //             .hnormalized();
+  //     double inverse_depth = 1.0 / camera_t_point.norm();
+
+  //     // add landmark to transaction
+  //     visual_map_->AddInverseDepthLandmark(bearing, inverse_depth, id,
+  //                                          anchor_measurement.time_point,
+  //                                          transaction);
+
+  //     // add constraints to keyframes that view it
+  //     for (const auto& [kf_stamp, kf] : keyframes_) {
+  //       try {
+  //         Eigen::Vector2d pixel = landmark_container_->GetValue(kf_stamp,
+  //         id); visual_map_->AddInverseDepthVisualConstraint(timestamp, id,
+  //         pixel,
+  //                                                      transaction);
+  //       } catch (const std::out_of_range& oor) { continue; }
+  //     }
+  //   }
+  // };
   std::for_each(landmarks.begin(), landmarks.end(), process_landmark);
 
   sendTransaction(transaction);
@@ -517,16 +542,28 @@ void VisualOdometry::GetPixelPointPairs(
   std::vector<uint64_t> landmarks =
       landmark_container_->GetLandmarkIDsInImage(timestamp);
   for (auto& id : landmarks) {
-    auto lm = visual_map_->GetInverseDepthLandmark(id);
+    // ! For IDP
+    //   auto lm = visual_map_->GetInverseDepthLandmark(id);
+    //   if (lm) {
+    //     Eigen::Vector3d camera_t_point = lm->camera_t_point();
+    //     auto T_WORLD_CAMERA = visual_map_->GetCameraPose(lm->anchorStamp());
+    //     if (!T_WORLD_CAMERA.has_value()) { continue; }
+    //     Eigen::Vector3d world_t_point =
+    //         (T_WORLD_CAMERA.value() *
+    //         camera_t_point.homogeneous()).hnormalized();
+    //     Eigen::Vector2i pixel =
+    //         landmark_container_->GetValue(timestamp, id).cast<int>();
+    //     points.push_back(world_t_point);
+    //     pixels.push_back(pixel);
+    //   }
+
+    fuse_variables::Point3DLandmark::SharedPtr lm =
+        visual_map_->GetLandmark(id);
     if (lm) {
-      Eigen::Vector3d camera_t_point = lm->camera_t_point();
-      auto T_WORLD_CAMERA = visual_map_->GetCameraPose(lm->anchorStamp());
-      if (!T_WORLD_CAMERA.has_value()) { continue; }
-      Eigen::Vector3d world_t_point =
-          (T_WORLD_CAMERA.value() * camera_t_point.homogeneous()).hnormalized();
+      Eigen::Vector3d point = lm->point();
       Eigen::Vector2i pixel =
           landmark_container_->GetValue(timestamp, id).cast<int>();
-      points.push_back(world_t_point);
+      points.push_back(point);
       pixels.push_back(pixel);
     }
   }
