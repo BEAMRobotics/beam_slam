@@ -83,14 +83,14 @@ bs_variables::InverseDepthLandmark::SharedPtr
   return nullptr;
 }
 
-fuse_variables::Point3DLandmark::SharedPtr
+bs_variables::Point3DLandmark::SharedPtr
     VisualMap::GetLandmark(uint64_t landmark_id) {
-  fuse_variables::Point3DLandmark::SharedPtr landmark =
-      fuse_variables::Point3DLandmark::make_shared();
+  bs_variables::Point3DLandmark::SharedPtr landmark =
+      bs_variables::Point3DLandmark::make_shared();
   auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
   if (graph_) {
     try {
-      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(
+      *landmark = dynamic_cast<const bs_variables::Point3DLandmark&>(
           graph_->getVariable(landmark_uuid));
       return landmark;
     } catch (const std::out_of_range& oor) {
@@ -163,7 +163,7 @@ bool VisualMap::AddVisualConstraint(
     const ros::Time& stamp, uint64_t lm_id, const Eigen::Vector2d& pixel,
     fuse_core::Transaction::SharedPtr transaction) {
   // get landmark
-  fuse_variables::Point3DLandmark::SharedPtr lm = GetLandmark(lm_id);
+  bs_variables::Point3DLandmark::SharedPtr lm = GetLandmark(lm_id);
 
   // get robot pose
   fuse_variables::Position3DStamped::SharedPtr position = GetPosition(stamp);
@@ -256,8 +256,8 @@ void VisualMap::AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK,
 void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
                             fuse_core::Transaction::SharedPtr transaction) {
   // construct landmark variable
-  fuse_variables::Point3DLandmark::SharedPtr landmark =
-      fuse_variables::Point3DLandmark::make_shared(id);
+  bs_variables::Point3DLandmark::SharedPtr landmark =
+      bs_variables::Point3DLandmark::make_shared(id);
   landmark->x() = position[0];
   landmark->y() = position[1];
   landmark->z() = position[2];
@@ -282,7 +282,7 @@ void VisualMap::AddPosition(
   positions_[position->stamp().toNSec()] = position;
 }
 
-void VisualMap::AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
+void VisualMap::AddLandmark(bs_variables::Point3DLandmark::SharedPtr landmark,
                             fuse_core::Transaction::SharedPtr transaction) {
   // add to transaction
   transaction->addVariable(landmark);
@@ -367,8 +367,8 @@ bool VisualMap::AddInverseDepthVisualConstraint(
 }
 
 fuse_core::UUID VisualMap::GetLandmarkUUID(uint64_t landmark_id) {
-  fuse_variables::Point3DLandmark::SharedPtr landmark =
-      fuse_variables::Point3DLandmark::make_shared();
+  bs_variables::Point3DLandmark::SharedPtr landmark =
+      bs_variables::Point3DLandmark::make_shared();
   auto landmark_uuid = fuse_core::uuid::generate(landmark->type(), landmark_id);
   return landmark_uuid;
 }

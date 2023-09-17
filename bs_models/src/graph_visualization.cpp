@@ -506,9 +506,9 @@ pcl::PointCloud<pcl::PointXYZRGBL>
             *it);
     for (const auto& variable_uuid : c.variables()) {
       const auto& var = graph.getVariable(variable_uuid);
-      if (var.type() != "fuse_variables::Point3DLandmark") { continue; }
-      fuse_variables::Point3DLandmark P_World =
-          dynamic_cast<const fuse_variables::Point3DLandmark&>(
+      if (var.type() != "bs_variables::Point3DLandmark") { continue; }
+      bs_variables::Point3DLandmark P_World =
+          dynamic_cast<const bs_variables::Point3DLandmark&>(
               graph.getVariable(variable_uuid));
       pcl::PointXYZRGBL p;
       p.x = P_World.x();

@@ -9,7 +9,7 @@
 #include <fuse_core/transaction.h>
 #include <fuse_core/variable.h>
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
-#include <fuse_variables/point_3d_landmark.h>
+#include <bs_variables/point_3d_landmark.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
 
 #include <beam_utils/utils.h>
@@ -160,7 +160,7 @@ std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph);
 /// @brief Gets landmark variable from graph
 /// @param graph to search in
 /// @return set of landmark ids
-fuse_variables::Point3DLandmark::SharedPtr
+bs_variables::Point3DLandmark::SharedPtr
     GetLandmark(fuse_core::Graph::ConstSharedPtr graph, const uint64_t id);
 
 /// @brief Gets position extrinsic from graph

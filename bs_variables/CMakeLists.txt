@@ -42,6 +42,7 @@ add_library(${PROJECT_NAME}
   src/accel_bias_3d_stamped.cpp
   src/gyro_bias_3d_stamped.cpp
   src/inverse_depth_landmark.cpp
+  src/point_3d_landmark.cpp
   src/position_3d.cpp
   src/orientation_3d.cpp
 )

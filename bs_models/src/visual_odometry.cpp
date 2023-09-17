@@ -475,7 +475,7 @@ void VisualOdometry::GetPixelPointPairs(
         pixels.push_back(pixel);
       }
     } else {
-      fuse_variables::Point3DLandmark::SharedPtr lm =
+      bs_variables::Point3DLandmark::SharedPtr lm =
           visual_map_->GetLandmark(id);
       if (lm) {
         Eigen::Vector3d point = lm->point();
