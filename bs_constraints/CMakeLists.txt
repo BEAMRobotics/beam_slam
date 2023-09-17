@@ -57,8 +57,13 @@ add_library(${PROJECT_NAME}
   src/global/absolute_constraint.cpp
   src/global/absolute_pose_3d_constraint.cpp
   src/global/gravity_alignment_stamped_constraint.cpp
+
   src/motion/unicycle_3d_state_kinematic_constraint.cpp
+
   src/visual/euclidean_reprojection_constraint.cpp
+  src/visual/inversedepth_reprojection_constraint.cpp
+  src/visual/inversedepth_reprojection_constraint_unary.cpp
+  
   src/jacobians.cpp
 )
 add_dependencies(${PROJECT_NAME}

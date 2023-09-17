@@ -72,13 +72,6 @@ public:
     getParam<double>(nh, "initialization_window_s", initialization_window_s,
                      initialization_window_s);
 
-    // weighting factor on visual measurements
-    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
-    // Residuals
-    getParam<double>(nh, "reprojection_information_weight",
-                     reprojection_information_weight,
-                     reprojection_information_weight);
-
     // weighting factor on lidar scan registration measurements
     // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
     // Residuals
@@ -102,10 +95,38 @@ public:
     std::string vo_params = beam::CombinePaths(
         bs_common::GetBeamSlamConfigPath(), "vo/vo_params.json");
     nlohmann::json J;
+
     if (!beam::ReadJson(vo_params, J)) {
       ROS_ERROR("Cannot read input VO Params, using default.");
     } else {
-      max_triangulation_distance = J["max_triangulation_distance"];
+      try {
+        max_triangulation_distance = J["max_triangulation_distance"];
+      } catch (...) {
+        ROS_ERROR("Missing 'max_triangulation_distance' param in vo config "
+                  "file. Using default: 30.0.");
+      }
+
+      try {
+        max_triangulation_reprojection = J["max_triangulation_reprojection"];
+      } catch (...) {
+        ROS_ERROR("Missing 'max_triangulation_reprojection' param in vo config "
+                  "file. Using default: 80.0.");
+      }
+
+      try {
+        reprojection_information_weight = J["reprojection_information_weight"];
+      } catch (...) {
+        ROS_ERROR(
+            "Missing 'reprojection_information_weight' param in vo config "
+            "file. Using default: 1.0.");
+      }
+
+      try {
+        use_idp = J["use_idp"];
+      } catch (...) {
+        ROS_ERROR(
+            "Missing 'use_idp' param in vo config file. Using default: False.");
+      }
     }
   }
 
@@ -126,6 +147,8 @@ public:
   double min_visual_parallax{40.0};
   double frame_init_frequency{0.1};
   double max_triangulation_distance{30.0};
+  double max_triangulation_reprojection{80.0};
+  bool use_idp{false};
   double initialization_window_s{10.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };

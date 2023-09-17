@@ -26,13 +26,10 @@ namespace bs_models {
 using namespace graph_visualization;
 
 GraphVisualization::GraphVisualization()
-    : fuse_core::AsyncSensorModel(2),
+    : fuse_core::AsyncSensorModel(1),
       throttled_measurement_callback_(
           std::bind(&GraphVisualization::processMeasurements, this,
-                    std::placeholders::_1)),
-      throttled_image_callback_(std::bind(&GraphVisualization::processImage,
-                                          this, std::placeholders::_1),
-                                nullptr, ros::Duration(0.25)) {}
+                    std::placeholders::_1)) {}
 
 void GraphVisualization::onInit() {
   // Read settings from the parameter sever
@@ -62,11 +59,6 @@ void GraphVisualization::onStart() {
           &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
-
-  // todo: hardcoded topic, we need to reference raw topics globally
-  image_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Image>(
-      "/F1/image/", 10, &ThrottledImageCallback::callback,
-      &throttled_image_callback_, ros::TransportHints().tcpNoDelay(false));
 
   // setup publishers
   if (params_.publish) {
@@ -205,6 +197,7 @@ void GraphVisualization::VisualizeCameraLandmarks(
 
   Eigen::Matrix4d T_CAM_BASELINK;
   extrinsics_.GetT_CAMERA_BASELINK(T_CAM_BASELINK);
+  Eigen::Matrix4d T_BASELINK_CAM = beam::InvertTransform(T_CAM_BASELINK);
 
   static cv::Scalar green(0, 255, 0);
   static cv::Scalar blue(255, 0, 0);
@@ -219,12 +212,12 @@ void GraphVisualization::VisualizeCameraLandmarks(
 
     const auto img_msg = image_buffer_[nsec];
     cv::Mat image_out = beam_cv::OpenCVConversions::RosImgToMat(img_msg);
+
     // get pose
-    Eigen::Matrix4d T_WORLD_BASELINK;
     const auto position = bs_common::GetPosition(graph_msg, timestamp);
     const auto orientation = bs_common::GetOrientation(graph_msg, timestamp);
-    bs_common::FusePoseToEigenTransform(*position, *orientation,
-                                        T_WORLD_BASELINK);
+    Eigen::Matrix4d T_WORLD_BASELINK =
+        bs_common::FusePoseToEigenTransform(*position, *orientation);
 
     // get landmarks in image
     auto lm_ids = landmark_container_->GetLandmarkIDsInImage(timestamp);
@@ -232,13 +225,36 @@ void GraphVisualization::VisualizeCameraLandmarks(
       Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
       cv::Point m(pixel[0], pixel[1]);
       const auto lm_variable = bs_common::GetLandmark(graph_msg, id);
-      if (lm_variable) {
-        Eigen::Vector3d point =
-            (T_CAM_BASELINK * beam::InvertTransform(T_WORLD_BASELINK) *
-             lm_variable->point().homogeneous())
-                .hnormalized();
+      const auto idp_lm_variable =
+          bs_common::GetInverseDepthLandmark(graph_msg, id);
+      if (lm_variable || idp_lm_variable) {
+        Eigen::Vector3d camera_t_point;
+        if (lm_variable) {
+          camera_t_point =
+              (T_CAM_BASELINK * beam::InvertTransform(T_WORLD_BASELINK) *
+               lm_variable->point().homogeneous())
+                  .hnormalized();
+        } else if (idp_lm_variable) {
+          Eigen::Vector3d anchor_t_point = idp_lm_variable->camera_t_point();
+          const auto p =
+              bs_common::GetPosition(graph_msg, idp_lm_variable->anchorStamp());
+          const auto o = bs_common::GetOrientation(
+              graph_msg, idp_lm_variable->anchorStamp());
+          if (!o || !p) { continue; }
+          Eigen::Matrix4d T_WORLD_CAMERAmeasurement =
+              T_WORLD_BASELINK * T_BASELINK_CAM;
+          Eigen::Matrix4d T_WORLD_CAMERAanchor =
+              bs_common::FusePoseToEigenTransform(*p, *o) * T_BASELINK_CAM;
+          Eigen::Matrix4d T_CAMERAmeasurement_CAMERAanchor =
+              beam::InvertTransform(T_WORLD_CAMERAmeasurement) *
+              T_WORLD_CAMERAanchor;
+          camera_t_point =
+              (T_CAMERAmeasurement_CAMERAanchor * anchor_t_point.homogeneous())
+                  .hnormalized();
+        }
+
         Eigen::Vector2d projected;
-        if (cam_model_->ProjectPoint(point, projected)) {
+        if (cam_model_->ProjectPoint(camera_t_point, projected)) {
           // draw pixel-point pair in image
           cv::Point e(projected[0], projected[1]);
           cv::circle(image_out, m, keypoints_circle_radius_, green,
@@ -289,12 +305,9 @@ void GraphVisualization::VisualizeCameraLandmarks(
   }
 }
 
-void GraphVisualization::processImage(const sensor_msgs::Image::ConstPtr& msg) {
-  image_buffer_[msg->header.stamp.toNSec()] = *msg;
-}
-
 void GraphVisualization::processMeasurements(
     const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
+  image_buffer_[msg->header.stamp.toNSec()] = msg->image;
   // check that message hasnt already been added to container
   const auto times = landmark_container_->GetMeasurementTimes();
   if (times.find(msg->header.stamp) != times.end()) { return; }

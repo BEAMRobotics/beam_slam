@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <ceres/sized_cost_function.h>
 
@@ -29,11 +29,23 @@ class EuclideanReprojection : public ceres::SizedCostFunction<2, 4, 3, 3> {
 public:
   FUSE_MAKE_ALIGNED_OPERATOR_NEW();
 
-  EuclideanReprojection(const Eigen::Matrix2d& A, const Eigen::Vector2d& b,
+  /**
+   * @brief Construct a cost function instance
+   *
+   * @param[in] information_matrix Residual weighting matrix
+   * @param[in] pixel_measurement Pixel measurement
+   * @param[in] intrinsic_matrix Camera intrinsic matrix (K):
+   * [fx, 0, cx]
+   * [0, fy, cy]
+   * [0,  0,  1]
+   * @param[in] T_cam_baselink Camera extrinsic
+   */
+  EuclideanReprojection(const Eigen::Matrix2d& information_matrix,
+                        const Eigen::Vector2d& pixel_measurement,
                         const Eigen::Matrix3d& intrinsic_matrix,
                         const Eigen::Matrix4d& T_cam_baselink)
-      : A_(A),
-        b_(b),
+      : information_matrix_(information_matrix),
+        pixel_measurement_(pixel_measurement),
         intrinsic_matrix_(intrinsic_matrix),
         T_cam_baselink_(T_cam_baselink) {}
 
@@ -76,7 +88,8 @@ public:
     Eigen::Vector2d reprojection = (intrinsic_matrix_ * P_CAMERA).hnormalized();
 
     // compute weighted reprojection error
-    Eigen::Vector2d E = A_ * (b_ - reprojection);
+    Eigen::Vector2d E =
+        information_matrix_ * (pixel_measurement_ - reprojection);
     residual[0] = E[0];
     residual[1] = E[1];
 
@@ -127,7 +140,7 @@ public:
             d_E_d_q_WORLD_BASELINK(jacobians[0]);
         d_E_d_q_WORLD_BASELINK = d_E_d_P_CAMERA * d_P_CAMERA_d_P_BASELINK *
                                  d_P_BASELINK_D_q_WORLD_BASELINK;
-        d_E_d_q_WORLD_BASELINK.applyOnTheLeft(-A_);
+        d_E_d_q_WORLD_BASELINK.applyOnTheLeft(-information_matrix_);
       }
 
       if (jacobians[1]) {
@@ -140,7 +153,7 @@ public:
             d_E_d_t_WORLD_BASELINK(jacobians[1]);
         d_E_d_t_WORLD_BASELINK = d_E_d_P_CAMERA * d_P_CAMERA_d_P_BASELINK *
                                  d_P_BASELINK_d_t_WORLD_BASELINK;
-        d_E_d_t_WORLD_BASELINK.applyOnTheLeft(-A_);
+        d_E_d_t_WORLD_BASELINK.applyOnTheLeft(-information_matrix_);
       }
 
       if (jacobians[2]) {
@@ -152,15 +165,15 @@ public:
             DPointRotationDPoint(R_BASELINK_WORLD, P_WORLD);
         d_E_D_P_WORLD =
             d_E_d_P_CAMERA * d_P_CAMERA_d_P_BASELINK * d_P_BASELINK_d_P_WORLD;
-        d_E_D_P_WORLD.applyOnTheLeft(-A_);
+        d_E_D_P_WORLD.applyOnTheLeft(-information_matrix_);
       }
     }
     return true;
   }
 
 private:
-  Eigen::Matrix2d A_; //!< The residual weighting matrix
-  Eigen::Vector2d b_; //!< The measured pixel value
+  Eigen::Matrix2d information_matrix_; //!< The residual weighting matrix
+  Eigen::Vector2d pixel_measurement_;  //!< The measured pixel value
   Eigen::Matrix3d intrinsic_matrix_;
   Eigen::Matrix4d T_cam_baselink_;
 };

@@ -64,9 +64,9 @@ TEST(EuclideanReprojectionFunction, Validity) {
 
   // create autodiff cost function
   auto auto_diff_cost_function = std::shared_ptr<ceres::CostFunction>(
-      new ceres::AutoDiffCostFunction<bs_constraints::ReprojectionFunctor, 2, 4,
+      new ceres::AutoDiffCostFunction<bs_constraints::EuclideanReprojectionFunctor, 2, 4,
                                       3, 3>(
-          new bs_constraints::ReprojectionFunctor(Eigen::Matrix2d::Identity(),
+          new bs_constraints::EuclideanReprojectionFunctor(Eigen::Matrix2d::Identity(),
                                                   pixel, K, T_CAM_BASELINK)));
 
   std::vector<int> manual_rows, auto_rows;

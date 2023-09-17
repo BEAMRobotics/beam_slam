@@ -10,7 +10,7 @@
 #include <beam_utils/se3.h>
 #include <bs_constraints/visual/reprojection_functor.h>
 
-TEST(ReprojectionFunctor, TestAccuracy) {
+TEST(EuclideanReprojectionFunctor, TestAccuracy) {
   std::string current_file = "reprojection_test.cpp";
   std::string test_path = __FILE__;
   test_path.erase(test_path.end() - current_file.size(), test_path.end());
@@ -44,8 +44,8 @@ TEST(ReprojectionFunctor, TestAccuracy) {
 
   Eigen::Matrix2d A = Eigen::Matrix2d::Identity();
   Eigen::Vector2d pixeld = pixel.cast<double>();
-  bs_constraints::ReprojectionFunctor reproj =
-      bs_constraints::ReprojectionFunctor(A, pixeld, cam->GetIntrinsicMatrix(),
+  bs_constraints::EuclideanReprojectionFunctor reproj =
+      bs_constraints::EuclideanReprojectionFunctor(A, pixeld, cam->GetIntrinsicMatrix(),
                                           T_imu_cam.inverse());
 
   double t_WORLD_IMU[3];

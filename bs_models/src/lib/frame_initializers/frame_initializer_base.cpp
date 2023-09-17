@@ -121,9 +121,9 @@ bool FrameInitializerBase::GetRelativePose(Eigen::Matrix4d& T_A_B,
                                            const ros::Time& tB,
                                            std::string& error_msg) {
   // get pose at time a
-  Eigen::Matrix4d T_WORLD_BASELINKA;
+  Eigen::Matrix4d p_WORLD_BASELINKa;
   const auto A_success =
-      pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKA, tA, error_msg);
+      pose_lookup_->GetT_WORLD_BASELINK(p_WORLD_BASELINKa, tA, error_msg);
   // get pose at time b
   Eigen::Matrix4d T_WORLD_BASELINKB;
   const auto B_success =
@@ -131,7 +131,7 @@ bool FrameInitializerBase::GetRelativePose(Eigen::Matrix4d& T_A_B,
 
   if (!A_success || !B_success) { return false; }
 
-  T_A_B = beam::InvertTransform(T_WORLD_BASELINKA) * T_WORLD_BASELINKB;
+  T_A_B = beam::InvertTransform(p_WORLD_BASELINKa) * T_WORLD_BASELINKB;
   return true;
 }
 

@@ -71,7 +71,7 @@ void VisualOdometry::onStart() {
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
           ros::names::resolve(
               "/local_mapper/visual_feature_tracker/visual_measurements"),
-          100, &ThrottledMeasurementCallback::callback,
+          10, &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
 
@@ -105,6 +105,7 @@ void VisualOdometry::processMeasurements(
   if (!is_initialized_) { return; }
 
   while (!visual_measurement_buffer_.empty()) {
+    beam::HighResolutionTimer timer;
     // retrieve and process the message at the front of the buffer
     const auto current_msg = visual_measurement_buffer_.front();
     const auto success = ComputeOdometryAndExtendMap(current_msg);
@@ -113,6 +114,7 @@ void VisualOdometry::processMeasurements(
     if (!success) { break; }
 
     visual_measurement_buffer_.pop_front();
+    ROS_INFO_STREAM("Frame processing time: " << timer.elapsed());
   }
 
   // remove measurements from container if we are over the limit
@@ -123,7 +125,7 @@ void VisualOdometry::processMeasurements(
 
 bool VisualOdometry::ComputeOdometryAndExtendMap(
     const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
-  const auto timestamp = msg->header.stamp;
+  const ros::Time timestamp = msg->header.stamp;
   // estimate pose of frame wrt current graph
   Eigen::Matrix4d T_WORLD_BASELINK;
   if (!LocalizeFrame(timestamp, T_WORLD_BASELINK)) { return false; }
@@ -131,18 +133,25 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   // compute and publish relative odometry
   ComputeRelativeOdometry(timestamp, T_WORLD_BASELINK);
 
-  // add pose to graph
-  auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(timestamp);
-  visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
-  previous_frame_ = timestamp;
-  sendTransaction(transaction);
-
+  // check if the frame is a keyframe
   if (IsKeyframe(timestamp, T_WORLD_BASELINK)) {
     ROS_DEBUG_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
+    // create new keyframe
     Keyframe kf(*msg);
-    keyframes_.push_back(kf);
+    keyframes_.insert({timestamp, kf});
+
+    // add pose to graph
+    auto transaction = fuse_core::Transaction::make_shared();
+    transaction->stamp(timestamp - ros::Duration(1e-7));
+    visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
+    previous_keyframe_ = timestamp;
+    sendTransaction(transaction);
+
+    // extend existing map and add constraints
     ExtendMap(timestamp, T_WORLD_BASELINK);
+
+    // publish keyframe pose
+    PublishPose(timestamp, T_WORLD_BASELINK);
 
     // send IO trigger
     if (vo_params_.trigger_inertial_odom_constraints) {
@@ -152,9 +161,6 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
       imu_constraint_trigger_counter_++;
     }
 
-    // publish keyframe pose
-    PublishPose(timestamp, T_WORLD_BASELINK);
-
     // publish reloc request at given rate
     if ((timestamp - previous_reloc_request_).toSec() >
         vo_params_.reloc_request_period) {
@@ -162,25 +168,31 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
       previous_reloc_request_ = timestamp;
       PublishRelocRequest(kf);
     }
+  } else {
+    // if not keyframe -> add to keyframe sub trajectory
+    Eigen::Matrix4d T_WORLD_BASELINKprevkf =
+        visual_map_->GetBaselinkPose(previous_keyframe_).value();
+    Eigen::Matrix4d T_KEYFRAME_FRAME =
+        beam::InvertTransform(T_WORLD_BASELINKprevkf) * T_WORLD_BASELINK;
+    keyframes_.at(previous_keyframe_).AddPose(timestamp, T_KEYFRAME_FRAME);
   }
-  // todo: if not keyframe -> add to keyframe sub trajectory
 
   return true;
 }
 
 bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix4d& T_WORLD_BASELINK) {
-  const auto prev_frame_pose = visual_map_->GetBaselinkPose(previous_frame_);
-  if (!prev_frame_pose.has_value()) {
+  const auto prev_kf_pose = visual_map_->GetBaselinkPose(previous_keyframe_);
+  if (!prev_kf_pose.has_value()) {
     ROS_ERROR("Cannot retrieve previous keyframe pose.");
     throw std::runtime_error{"Cannot retrieve previous keyframe pose."};
   }
-  const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_frame_pose.value();
+  const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_kf_pose.value();
 
-  // get estimate from imu
+  // get estimate from frame initializer
   Eigen::Matrix4d T_PREVFRAME_CURFRAME;
   if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
-                                           previous_frame_, timestamp)) {
+                                           previous_keyframe_, timestamp)) {
     ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
                     "buffering frame: "
                     << timestamp);
@@ -196,11 +208,14 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
 
   // perform motion only BA to refine estimate
   if (pixels.size() >= 20) {
+    if (track_lost) { track_lost = false; }
+    // get initial estimate in camera frame
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
         T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
     // add a prior on the initial imu estimate
     Eigen::Matrix<double, 6, 6> prior =
         1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
+    // perform non-linear pose refinement
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
         T_CAMERA_WORLD_est, cam_model_, pixels, points,
         std::make_shared<Eigen::Matrix<double, 6, 6>>(prior));
@@ -217,6 +232,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     ROS_WARN_STREAM(
         "Not enough points for visual refinement: " << pixels.size());
     T_WORLD_BASELINK = T_WORLD_BASELINKcur;
+    track_lost = true;
   }
 
   return true;
@@ -236,29 +252,13 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 
   // process each landmark
   const auto landmarks = landmark_container_->GetLandmarkIDsInImage(timestamp);
-  auto process_landmark = [&](const auto& id) {
-    if (visual_map_->GetLandmark(id)) {
-      try {
-        Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
-        visual_map_->AddVisualConstraint(timestamp, id, pixel, transaction);
-      } catch (const std::out_of_range& oor) { return; }
+  for (const auto id : landmarks) {
+    if (vo_params_.use_idp) {
+      ProcessLandmarkIDP(id, timestamp, transaction);
     } else {
-      // triangulate and add landmark
-      const auto initial_point = TriangulateLandmark(id);
-      if (!initial_point.has_value()) { return; }
-      visual_map_->AddLandmark(initial_point.value(), id, transaction);
-
-      // add constraints to keyframes that view its
-      for (const auto& kf : keyframes_) {
-        const auto kf_stamp = kf.Stamp();
-        try {
-          Eigen::Vector2d pixel = landmark_container_->GetValue(kf_stamp, id);
-          visual_map_->AddVisualConstraint(kf_stamp, id, pixel, transaction);
-        } catch (const std::out_of_range& oor) { continue; }
-      }
+      ProcessLandmarkEUC(id, timestamp, transaction);
     }
-  };
-  std::for_each(landmarks.begin(), landmarks.end(), process_landmark);
+  }
 
   sendTransaction(transaction);
 }
@@ -266,93 +266,22 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   ROS_INFO_STREAM_ONCE("VisualOdometry received initial graph.");
 
-  // all timestamps in the new graph
-  const auto timestamps = bs_common::CurrentTimestamps(graph);
-
-  // publish marginalized keyframes as slam chunks
+  // publish marginalized keyframes as slam chunks (if we have initialized)
   if (is_initialized_) {
+    // all timestamps in the new graph
+    const auto timestamps = bs_common::CurrentTimestamps(graph);
     while (!keyframes_.empty() &&
-           timestamps.find(keyframes_.front().Stamp()) == timestamps.end()) {
-      PublishSlamChunk(keyframes_.front());
-      keyframes_.pop_front();
+           timestamps.find((*keyframes_.begin()).first) == timestamps.end()) {
+      PublishSlamChunk((*keyframes_.begin()).second);
+      keyframes_.erase((*keyframes_.begin()).first);
     }
   }
 
   // Update graph object in visual map
   visual_map_->UpdateGraph(graph);
 
-  // create motion only local copy of graph
-  local_graph_ = graph->clone();
-  for (auto& var : local_graph_->getVariables()) {
-    if (var.type() != "fuse_variables::Orientation3DStamped" &&
-        var.type() != "fuse_variables::Position3DStamped") {
-      local_graph_->holdVariable(var.uuid(), true);
-    }
-  }
-
   // do initial setup
-  if (!is_initialized_) {
-    const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(graph);
-    if (current_landmark_ids.empty()) {
-      ROS_ERROR("Cannot use Visual Odometry without initializing with visual "
-                "information.");
-      throw std::runtime_error{"Cannot use Visual Odometry without "
-                               "initializing with visual information."};
-    }
-
-    // get measurments as a vector of timestamps
-    std::vector<uint64_t> measurement_stamps;
-    std::for_each(visual_measurement_buffer_.begin(),
-                  visual_measurement_buffer_.end(), [&](const auto& msg) {
-                    measurement_stamps.push_back(msg->header.stamp.toNSec());
-                  });
-
-    // get timestamps in graph as a vector
-    std::vector<uint64_t> graph_stamps;
-    std::for_each(timestamps.begin(), timestamps.end(), [&](const auto& stamp) {
-      graph_stamps.push_back(stamp.toNSec());
-    });
-
-    // find the union between the two
-    std::vector<uint64_t> union_stamps;
-    std::set_intersection(graph_stamps.begin(), graph_stamps.end(),
-                          measurement_stamps.begin(), measurement_stamps.end(),
-                          std::inserter(union_stamps, union_stamps.begin()));
-
-    // create a map to access measurements based on stamp
-    std::map<uint64_t, bs_common::CameraMeasurementMsg::ConstPtr>
-        measurement_map;
-    std::for_each(
-        visual_measurement_buffer_.begin(), visual_measurement_buffer_.end(),
-        [&](auto msg) { measurement_map[msg->header.stamp.toNSec()] = msg; });
-
-    // add each measurement as a keyframe if its in the graph
-    for (const auto& stamp : union_stamps) {
-      const auto msg = measurement_map.at(stamp);
-      Keyframe kf(*msg);
-      keyframes_.push_back(kf);
-      previous_frame_ = msg->header.stamp;
-      T_ODOM_BASELINKprev_ =
-          visual_map_->GetBaselinkPose(msg->header.stamp).value();
-    }
-
-    // remove measurements
-    const uint64_t last_stamp = *union_stamps.rbegin();
-    while (!visual_measurement_buffer_.empty() &&
-           visual_measurement_buffer_.front()->header.stamp.toNSec() <
-               last_stamp) {
-      visual_measurement_buffer_.pop_front();
-    }
-
-    // process visual information in buffer that isn't in the graph yet
-    while (!visual_measurement_buffer_.empty()) {
-      const auto msg = visual_measurement_buffer_.front();
-      if (!ComputeOdometryAndExtendMap(msg)) { break; }
-      visual_measurement_buffer_.pop_front();
-    }
-
-    is_initialized_ = true;
-  }
+  if (!is_initialized_) { Initialize(graph); }
 }
 
 /****************************************************/
@@ -367,7 +296,7 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
                                 const Eigen::Matrix4d& T_WORLD_BASELINK) {
   if (keyframes_.empty()) { return true; }
 
-  const auto kf_time = keyframes_.back().Stamp();
+  const auto kf_time = (*keyframes_.rbegin()).first;
   Eigen::Matrix4d T_PREVKF_CURFRAME;
   if (!frame_initializer_->GetRelativePose(T_PREVKF_CURFRAME, kf_time,
                                            timestamp)) {
@@ -420,6 +349,8 @@ void VisualOdometry::AddMeasurementsToContainer(
   const auto times = landmark_container_->GetMeasurementTimes();
   if (times.find(msg->header.stamp) != times.end()) { return; }
 
+  std::map<uint64_t, Eigen::Vector2d> cur_undistorted_measurements;
+
   // put all measurements into landmark container
   for (const auto& lm : msg->landmarks) {
     Eigen::Vector2d landmark(static_cast<double>(lm.pixel_u),
@@ -431,7 +362,64 @@ void VisualOdometry::AddMeasurementsToContainer(
         msg->header.stamp, msg->sensor_id, lm.landmark_id, msg->header.seq,
         landmark, landmark_descriptor);
     landmark_container_->Insert(lm_measurement);
+
+    Eigen::Vector2i rectified_pixel;
+    if (cam_model_->UndistortPixel(landmark.cast<int>(), rectified_pixel)) {
+      cur_undistorted_measurements.insert(
+          {lm.landmark_id, rectified_pixel.cast<double>()});
+    }
   }
+
+  // get previous frame undistorted measurements
+  if (prev_frame_ != ros::Time(0)) {
+    std::map<uint64_t, Eigen::Vector2d> prev_undistorted_measurements;
+    std::vector<uint64_t> landmarks =
+        landmark_container_->GetLandmarkIDsInImage(prev_frame_);
+    for (auto& id : landmarks) {
+      try {
+        const Eigen::Vector2d prev_measurement =
+            landmark_container_->GetValue(prev_frame_, id);
+
+        Eigen::Vector2i rectified_pixel;
+        if (cam_model_->UndistortPixel(prev_measurement.cast<int>(),
+                                       rectified_pixel)) {
+          prev_undistorted_measurements.insert(
+              {id, rectified_pixel.cast<double>()});
+        }
+      } catch (const std::out_of_range& oor) {}
+    }
+
+    // get matches to previous frame
+    std::vector<cv::Point2f> fp1, fp2;
+    std::vector<uint64_t> matched_ids;
+    for (const auto& [id, pixel] : prev_undistorted_measurements) {
+      if (cur_undistorted_measurements.find(id) !=
+          cur_undistorted_measurements.end()) {
+        cv::Point2f p1 =
+            beam_cv::ConvertKeypoint(prev_undistorted_measurements[id]);
+        cv::Point2f p2 =
+            beam_cv::ConvertKeypoint(cur_undistorted_measurements[id]);
+        fp1.push_back(p1);
+        fp2.push_back(p2);
+        matched_ids.push_back(id);
+      }
+    }
+
+    // attempt essential matrix estimation
+    cv::Mat K(3, 3, CV_32F);
+    cv::eigen2cv(cam_intrinsic_matrix_, K);
+    std::vector<uchar> mask;
+    cv::findEssentialMat(fp1, fp2, K, cv::RANSAC, 0.99, 2.0, mask);
+
+    // remove outliers from container
+    for (size_t i = 0; i < mask.size(); i++) {
+      if (mask.at(i) == 0) {
+        const auto id = matched_ids[i];
+        landmark_container_->Erase(msg->header.stamp, id);
+      }
+    }
+  }
+  prev_frame_ = msg->header.stamp;
 }
 
 beam::opt<Eigen::Vector3d>
@@ -439,6 +427,7 @@ beam::opt<Eigen::Vector3d>
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   beam_containers::Track track = landmark_container_->GetTrack(id);
+  size_t keyframe_observations = 0;
   for (auto& m : track) {
     const auto T_camera_world = visual_map_->GetCameraPose(m.time_point);
     // check if the pose is in the graph
@@ -447,11 +436,18 @@ beam::opt<Eigen::Vector3d>
       T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
     }
   }
-  if (T_cam_world_v.size() >= 5) {
-    return beam_cv::Triangulation::TriangulatePoint(
-        cam_model_, T_cam_world_v, pixels,
-        vo_params_.max_triangulation_distance,
-        vo_params_.max_triangulation_reprojection);
+  // must have at least 3 keyframes that have seen the landmark
+  if (T_cam_world_v.size() >= 3) {
+    // if we've lost track, ease the requirements on new landmarks
+    if (track_lost) {
+      return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
+                                                      pixels);
+    } else {
+      return beam_cv::Triangulation::TriangulatePoint(
+          cam_model_, T_cam_world_v, pixels,
+          vo_params_.max_triangulation_distance,
+          vo_params_.max_triangulation_reprojection);
+    }
   }
   return {};
 }
@@ -464,14 +460,30 @@ void VisualOdometry::GetPixelPointPairs(
   std::vector<uint64_t> landmarks =
       landmark_container_->GetLandmarkIDsInImage(timestamp);
   for (auto& id : landmarks) {
-    fuse_variables::Point3DLandmark::SharedPtr lm =
-        visual_map_->GetLandmark(id);
-    if (lm) {
-      Eigen::Vector3d point = lm->point();
-      Eigen::Vector2i pixel =
-          landmark_container_->GetValue(timestamp, id).cast<int>();
-      points.push_back(point);
-      pixels.push_back(pixel);
+    if (vo_params_.use_idp) {
+      auto lm = visual_map_->GetInverseDepthLandmark(id);
+      if (lm) {
+        Eigen::Vector3d camera_t_point = lm->camera_t_point();
+        auto T_WORLD_CAMERA = visual_map_->GetCameraPose(lm->anchorStamp());
+        if (!T_WORLD_CAMERA.has_value()) { continue; }
+        Eigen::Vector3d world_t_point =
+            (T_WORLD_CAMERA.value() * camera_t_point.homogeneous())
+                .hnormalized();
+        Eigen::Vector2i pixel =
+            landmark_container_->GetValue(timestamp, id).cast<int>();
+        points.push_back(world_t_point);
+        pixels.push_back(pixel);
+      }
+    } else {
+      fuse_variables::Point3DLandmark::SharedPtr lm =
+          visual_map_->GetLandmark(id);
+      if (lm) {
+        Eigen::Vector3d point = lm->point();
+        Eigen::Vector2i pixel =
+            landmark_container_->GetValue(timestamp, id).cast<int>();
+        points.push_back(point);
+        pixels.push_back(pixel);
+      }
     }
   }
 }
@@ -480,21 +492,23 @@ void VisualOdometry::ComputeRelativeOdometry(
     const ros::Time& timestamp, const Eigen::Matrix4d& T_WORLD_BASELINKcur) {
   static uint64_t rel_odom_seq = 0;
   // todo: fix this, the odom pose is garbage, the normal pose is fine
-  // const auto prev_frame_pose = visual_map_->GetBaselinkPose(previous_frame_);
-  // const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_frame_pose.value();
+  // const auto prev_kf_pose = visual_map_->GetBaselinkPose(previous_keyframe_);
+  // const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_kf_pose.value();
   // const Eigen::Matrix4d T_PREVKF_CURFRAME =
   //     beam::InvertTransform(T_WORLD_BASELINKprev) * T_WORLD_BASELINKcur;
   // const Eigen::Matrix4d T_ODOM_BASELINKcur =
   //     T_ODOM_BASELINKprev_ * T_PREVKF_CURFRAME;
+  // // update odom pose
+  // T_ODOM_BASELINKprev_ = T_ODOM_BASELINKcur;
+
+  // publish to odometry topic
   const auto odom_msg = bs_common::TransformToOdometryMessage(
       timestamp, rel_odom_seq++, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetBaselinkFrameId(), T_WORLD_BASELINKcur);
   odometry_publisher_.publish(odom_msg);
-  // // update odom pose
-  // T_ODOM_BASELINKprev_ = T_ODOM_BASELINKcur;
 }
 
-void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
+void VisualOdometry::PublishSlamChunk(const vision::Keyframe& keyframe) {
   static uint64_t slam_chunk_seq = 0;
   const Eigen::Matrix4d T_WORLD_BASELINK =
       visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
@@ -509,7 +523,7 @@ void VisualOdometry::PublishSlamChunk(const Keyframe& keyframe) {
   // todo: get sub trajectory and publish
 }
 
-void VisualOdometry::PublishRelocRequest(const Keyframe& keyframe) {
+void VisualOdometry::PublishRelocRequest(const vision::Keyframe& keyframe) {
   static uint64_t reloc_seq = 0;
   const Eigen::Matrix4d T_WORLD_BASELINK =
       visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
@@ -531,6 +545,158 @@ void VisualOdometry::PublishPose(const ros::Time& timestamp,
                                          kf_odom_seq++,
                                          extrinsics_.GetBaselinkFrameId(), msg);
   keyframe_publisher_.publish(msg);
+}
+
+void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
+  const auto timestamps = bs_common::CurrentTimestamps(graph);
+  const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(graph);
+  if (current_landmark_ids.empty()) {
+    ROS_ERROR("Cannot use Visual Odometry without initializing with visual "
+              "information.");
+    throw std::runtime_error{"Cannot use Visual Odometry without "
+                             "initializing with visual information."};
+  }
+
+  // get measurments as a vector of timestamps
+  std::vector<uint64_t> measurement_stamps;
+  std::for_each(visual_measurement_buffer_.begin(),
+                visual_measurement_buffer_.end(), [&](const auto& msg) {
+                  measurement_stamps.push_back(msg->header.stamp.toNSec());
+                });
+
+  // get timestamps in graph as a vector
+  std::vector<uint64_t> graph_stamps;
+  std::for_each(timestamps.begin(), timestamps.end(), [&](const auto& stamp) {
+    graph_stamps.push_back(stamp.toNSec());
+  });
+
+  // find the union between the two
+  std::vector<uint64_t> union_stamps;
+  std::set_intersection(graph_stamps.begin(), graph_stamps.end(),
+                        measurement_stamps.begin(), measurement_stamps.end(),
+                        std::inserter(union_stamps, union_stamps.begin()));
+
+  // create a map to access measurements based on stamp
+  std::map<uint64_t, bs_common::CameraMeasurementMsg::ConstPtr> measurement_map;
+  std::for_each(
+      visual_measurement_buffer_.begin(), visual_measurement_buffer_.end(),
+      [&](auto msg) { measurement_map[msg->header.stamp.toNSec()] = msg; });
+
+  // add each measurement as a keyframe if its in the graph
+  for (const auto& stamp : union_stamps) {
+    const auto msg = measurement_map.at(stamp);
+    vision::Keyframe kf(*msg);
+    keyframes_.insert({msg->header.stamp, kf});
+    previous_keyframe_ = msg->header.stamp;
+    T_ODOM_BASELINKprev_ =
+        visual_map_->GetBaselinkPose(msg->header.stamp).value();
+  }
+
+  // remove measurements
+  const uint64_t last_stamp = *union_stamps.rbegin();
+  while (!visual_measurement_buffer_.empty() &&
+         visual_measurement_buffer_.front()->header.stamp.toNSec() <
+             last_stamp) {
+    visual_measurement_buffer_.pop_front();
+  }
+
+  // process visual information in buffer that isn't in the graph yet
+  while (!visual_measurement_buffer_.empty()) {
+    const auto msg = visual_measurement_buffer_.front();
+    if (!ComputeOdometryAndExtendMap(msg)) { break; }
+    visual_measurement_buffer_.pop_front();
+  }
+
+  is_initialized_ = true;
+}
+
+void VisualOdometry::ProcessLandmarkIDP(
+    const uint64_t id, const ros::Time& timestamp,
+    fuse_core::Transaction::SharedPtr transaction) {
+  auto lm = visual_map_->GetInverseDepthLandmark(id);
+  if (lm) {
+    // if the landmark exists, just add a constraint to the current keyframe
+    try {
+      Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
+      visual_map_->AddInverseDepthVisualConstraint(timestamp, id, pixel,
+                                                   transaction);
+    } catch (const std::out_of_range& oor) { return; }
+  } else {
+    // if the landmark doesnt exist we try to initialize it
+    // triangulate and add landmark
+    const auto initial_point = TriangulateLandmark(id);
+    if (!initial_point.has_value()) { return; }
+
+    // use the first keyframe that sees the landmark as the anchor frame
+    auto track = landmark_container_->GetTrack(id);
+    beam_containers::LandmarkMeasurement anchor_measurement;
+    for (auto m : track) {
+      if (keyframes_.find(m.time_point) != keyframes_.end()) {
+        anchor_measurement = m;
+        break;
+      }
+    }
+
+    // get the bearing vector to the measurement
+    Eigen::Vector3d bearing;
+    Eigen::Vector2i rectified_pixel;
+    if (!cam_model_->UndistortPixel(anchor_measurement.value.cast<int>(),
+                                    rectified_pixel)) {
+      return;
+    }
+    if (!cam_model_->GetRectifiedModel()->BackProject(rectified_pixel,
+                                                      bearing)) {
+      return;
+    }
+    bearing.normalize();
+
+    // find the inverse depth of the point
+    auto T_WORLD_CAMERA =
+        visual_map_->GetCameraPose(anchor_measurement.time_point);
+    if (!T_WORLD_CAMERA.has_value()) { return; }
+    Eigen::Vector3d camera_t_point =
+        (beam::InvertTransform(T_WORLD_CAMERA.value()) *
+         initial_point.value().homogeneous())
+            .hnormalized();
+    double inverse_depth = 1.0 / camera_t_point.norm();
+
+    // add landmark to transaction
+    visual_map_->AddInverseDepthLandmark(
+        bearing, inverse_depth, id, anchor_measurement.time_point, transaction);
+
+    // add constraints to keyframes that view it
+    for (const auto& [kf_stamp, kf] : keyframes_) {
+      try {
+        Eigen::Vector2d pixel = landmark_container_->GetValue(kf_stamp, id);
+        visual_map_->AddInverseDepthVisualConstraint(timestamp, id, pixel,
+                                                     transaction);
+      } catch (const std::out_of_range& oor) { continue; }
+    }
+  }
+}
+
+void VisualOdometry::ProcessLandmarkEUC(
+    const uint64_t id, const ros::Time& timestamp,
+    fuse_core::Transaction::SharedPtr transaction) {
+  if (visual_map_->GetLandmark(id)) {
+    try {
+      Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
+      visual_map_->AddVisualConstraint(timestamp, id, pixel, transaction);
+    } catch (const std::out_of_range& oor) { return; }
+  } else {
+    // triangulate and add landmark
+    const auto initial_point = TriangulateLandmark(id);
+    if (!initial_point.has_value()) { return; }
+    visual_map_->AddLandmark(initial_point.value(), id, transaction);
+
+    // add constraints to keyframes that view its
+    for (const auto& [kf_stamp, kf] : keyframes_) {
+      try {
+        Eigen::Vector2d pixel = landmark_container_->GetValue(kf_stamp, id);
+        visual_map_->AddVisualConstraint(kf_stamp, id, pixel, transaction);
+      } catch (const std::out_of_range& oor) { continue; }
+    }
+  }
 }
 
 } // namespace bs_models
