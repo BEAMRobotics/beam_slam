@@ -5,13 +5,13 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
+set(CMAKE_BUILD_TYPE "release")
+
 find_package(
   beam REQUIRED 
   COMPONENTS 
     utils
 )
-
-set(CMAKE_BUILD_TYPE "release")
 
 find_package(
   catkin REQUIRED

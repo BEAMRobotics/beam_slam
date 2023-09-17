@@ -27,7 +27,7 @@ To compile everything needed to run SLAM follow these compilations:
 
 ```
 catkin build -j3 calibration_publisher
-catkin build -j3 fuse_optimizers
+catkin build -j3 bs_optimizers
 catkin build -j3 bs_models
 ```
 
@@ -37,7 +37,7 @@ catkin build -j3 bs_models
 2. Create a calibration launch file for these extrinsics, example [here](https://github.com/BEAMRobotics/beam_slam/blob/main/beam_slam_launch/launch/ig2/calibration_publisher_ig2.launch).
 3. Create a calibration parameter file, example [here](https://github.com/BEAMRobotics/beam_slam/blob/add_documentation/beam_slam_launch/config/ig2/calibration_params.yaml).
 4. Create a yaml config for your desired SLAM setup, example [here](https://github.com/BEAMRobotics/beam_slam/blob/main/beam_slam_launch/config/ig2/lvio.yaml). A detailed explanation of each sensor models parameters are found in the README under bs_models.
-5. Create a launch file to run the fuse optimizer of your choice, example [here](https://github.com/BEAMRobotics/beam_slam/blob/main/beam_slam_launch/launch/ig2/lvio_local_mapper.launch), make sure to keep the name as local_mapper as message names depend on this naming convention
+5. Create a launch file to run the fuse optimizer of your choice, example [here](https://github.com/BEAMRobotics/beam_slam/blob/main/beam_slam_launch/launch/ig2/lvio.launch), make sure to keep the name as local_mapper as message names depend on this naming convention
 6. Lastly launch this launch file and run your rosbag with use_sim_time set to true.
 
 ---
@@ -54,9 +54,4 @@ When compiling fuse, if you get the following error:
 collect2: error: ld returned 1 exit status
 make[2]: *** [/userhome/catkin_ws/devel/.private/fuse_optimizers/lib/fuse_optimizers/fixed_lag_smoother_node] Error 1
 ```
-Then add the following line to fuse_optimizer/CMakeLists.txt
-
-```
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-
-```
+Then add the following changes to fuse_optimizer/CMakeLists.txt: https://github.com/locusrobotics/fuse/pull/337

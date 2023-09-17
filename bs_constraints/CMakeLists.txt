@@ -1,5 +1,11 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.14)
 project(bs_constraints)
+
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+
+set(CMAKE_BUILD_TYPE "release")
 
 set(build_depends
   fuse_core
@@ -15,8 +21,6 @@ set(build_depends
   bs_common
   bs_variables
 )
-
-set(CMAKE_BUILD_TYPE "release")
 
 find_package(beam REQUIRED COMPONENTS calibration optimization)
 

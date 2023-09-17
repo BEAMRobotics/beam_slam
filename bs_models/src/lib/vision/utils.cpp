@@ -150,7 +150,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
     std::vector<uint64_t> ids_in_frame;
     for (auto& id : matched_ids) {
-      fuse_variables::Point3DLandmark::SharedPtr lm =
+      bs_variables::Point3DLandmark::SharedPtr lm =
           visual_map->GetLandmark(id);
       if (lm) {
         try {

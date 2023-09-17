@@ -9,4 +9,24 @@
     	Variable representing acceleration bias (Bax, Bay, Baz) at a specific time, with a specific piece of hardware.
     </description>
   </class>
+  <class type="bs_variables::Point3DLandmark" base_class_type="fuse_core::Variable">
+    <description>
+    	Variable representing a 3d landmark location.
+    </description>
+  </class>
+  <class type="bs_variables::InverseDepthLandmark" base_class_type="fuse_core::Variable">
+    <description>
+    	Variable representing a landmark as inverse depth.
+    </description>
+  </class>
+  <class type="bs_variables::Position3D" base_class_type="fuse_core::Variable">
+    <description>
+    	Variable representing an unstamped position.
+    </description>
+  </class>
+  <class type="bs_variables::Orientation3D" base_class_type="fuse_core::Variable">
+    <description>
+    	Variable representing an unstamped orientation.
+    </description>
+  </class>
 </library>

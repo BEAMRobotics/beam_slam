@@ -427,7 +427,6 @@ beam::opt<Eigen::Vector3d>
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   beam_containers::Track track = landmark_container_->GetTrack(id);
-  size_t keyframe_observations = 0;
   for (auto& m : track) {
     const auto T_camera_world = visual_map_->GetCameraPose(m.time_point);
     // check if the pose is in the graph
@@ -475,7 +474,7 @@ void VisualOdometry::GetPixelPointPairs(
         pixels.push_back(pixel);
       }
     } else {
-      fuse_variables::Point3DLandmark::SharedPtr lm =
+      bs_variables::Point3DLandmark::SharedPtr lm =
           visual_map_->GetLandmark(id);
       if (lm) {
         Eigen::Vector3d point = lm->point();

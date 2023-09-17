@@ -12,7 +12,7 @@
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/point_3d_fixed_landmark.h>
-#include <fuse_variables/point_3d_landmark.h>
+#include <bs_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
 #include <beam_calibration/CameraModel.h>
@@ -86,7 +86,7 @@ public:
    * @param landmark to add
    * @param transaction to add to
    */
-  void AddLandmark(fuse_variables::Point3DLandmark::SharedPtr landmark,
+  void AddLandmark(bs_variables::Point3DLandmark::SharedPtr landmark,
                    fuse_core::Transaction::SharedPtr transaction);
 
   /**
@@ -138,7 +138,7 @@ public:
    * @brief Helper function to get a landmark by id
    * @param landmark_id to retrieve
    */
-  fuse_variables::Point3DLandmark::SharedPtr GetLandmark(uint64_t landmark_id);
+  bs_variables::Point3DLandmark::SharedPtr GetLandmark(uint64_t landmark_id);
 
   /**
    * @brief Helper function to get a landmark by id
@@ -263,7 +263,7 @@ protected:
   std::map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;
   std::map<uint64_t, fuse_variables::Position3DStamped::SharedPtr> positions_;
-  std::map<uint64_t, fuse_variables::Point3DLandmark::SharedPtr>
+  std::map<uint64_t, bs_variables::Point3DLandmark::SharedPtr>
       landmark_positions_;
   std::map<uint64_t, bs_variables::InverseDepthLandmark::SharedPtr>
       inversedepth_landmark_positions_;

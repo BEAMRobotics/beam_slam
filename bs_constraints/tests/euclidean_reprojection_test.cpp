@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <fuse_variables/orientation_3d_stamped.h>
-#include <fuse_variables/point_3d_landmark.h>
+#include <bs_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
 #include <bs_common/imu_state.h>
@@ -92,8 +92,8 @@ TEST(EuclideanReprojectionFunction, Validity) {
     position->y() = t_WORLD_BASELINK[1];
     position->z() = t_WORLD_BASELINK[2];
 
-    fuse_variables::Point3DLandmark::SharedPtr landmark =
-        fuse_variables::Point3DLandmark::make_shared(id);
+    bs_variables::Point3DLandmark::SharedPtr landmark =
+        bs_variables::Point3DLandmark::make_shared(id);
     landmark->x() = P_WORLD[0];
     landmark->y() = P_WORLD[1];
     landmark->z() = P_WORLD[2];
@@ -146,8 +146,8 @@ TEST(EuclideanReprojectionFunction, Validity) {
     position->y() = t_WORLD_BASELINK[1];
     position->z() = t_WORLD_BASELINK[2];
 
-    fuse_variables::Point3DLandmark::SharedPtr landmark =
-        fuse_variables::Point3DLandmark::make_shared(id);
+    bs_variables::Point3DLandmark::SharedPtr landmark =
+        bs_variables::Point3DLandmark::make_shared(id);
     landmark->x() = P_WORLD[0];
     landmark->y() = P_WORLD[1];
     landmark->z() = P_WORLD[2];

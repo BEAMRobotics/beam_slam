@@ -17,7 +17,7 @@ EuclideanReprojectionConstraint::EuclideanReprojectionConstraint(
     const std::string& source,
     const fuse_variables::Orientation3DStamped& R_WORLD_BASELINK,
     const fuse_variables::Position3DStamped& t_WORLD_BASELINK,
-    const fuse_variables::Point3DLandmark& P_WORLD,
+    const bs_variables::Point3DLandmark& P_WORLD,
     const Eigen::Matrix4d& T_cam_baselink,
     const Eigen::Matrix3d& intrinsic_matrix, const Eigen::Vector2d& measurement,
     const double reprojection_information_weight)

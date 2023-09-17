@@ -6,7 +6,7 @@
 #include <fuse_core/serialization.h>
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
-#include <fuse_variables/point_3d_landmark.h>
+#include <bs_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
 #include <boost/serialization/access.hpp>
@@ -39,7 +39,7 @@ public:
       const std::string& source,
       const fuse_variables::Orientation3DStamped& R_WORLD_BASELINK,
       const fuse_variables::Position3DStamped& t_WORLD_BASELINK,
-      const fuse_variables::Point3DLandmark& P_WORLD,
+      const bs_variables::Point3DLandmark& P_WORLD,
       const Eigen::Matrix4d& T_cam_baselink,
       const Eigen::Matrix3d& intrinsic_matrix,
       const Eigen::Vector2d& measurement,

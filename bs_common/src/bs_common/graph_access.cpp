@@ -1,6 +1,6 @@
 #include <bs_common/graph_access.h>
 
-#include <fuse_variables/point_3d_landmark.h>
+#include <bs_variables/point_3d_landmark.h>
 
 #include <bs_common/conversions.h>
 #include <bs_variables/inverse_depth_landmark.h>
@@ -206,11 +206,11 @@ std::set<ros::Time> CurrentTimestamps(fuse_core::Graph::ConstSharedPtr graph) {
 std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph) {
   std::set<uint64_t> ids;
   for (auto& var : graph->getVariables()) {
-    auto landmark = fuse_variables::Point3DLandmark::make_shared();
+    auto landmark = bs_variables::Point3DLandmark::make_shared();
     auto inversedepth_landmark =
         bs_variables::InverseDepthLandmark::make_shared();
     if (var.type() == landmark->type()) {
-      *landmark = dynamic_cast<const fuse_variables::Point3DLandmark&>(var);
+      *landmark = dynamic_cast<const bs_variables::Point3DLandmark&>(var);
       ids.insert(landmark->id());
     } else if (var.type() == inversedepth_landmark->type()) {
       *inversedepth_landmark =
@@ -221,12 +221,12 @@ std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph) {
   return ids;
 }
 
-fuse_variables::Point3DLandmark::SharedPtr
+bs_variables::Point3DLandmark::SharedPtr
     GetLandmark(fuse_core::Graph::ConstSharedPtr graph, const uint64_t id) {
-  auto lm = fuse_variables::Point3DLandmark::make_shared();
+  auto lm = bs_variables::Point3DLandmark::make_shared();
   auto lm_uuid = fuse_core::uuid::generate(lm->type(), id);
   try {
-    *lm = dynamic_cast<const fuse_variables::Point3DLandmark&>(
+    *lm = dynamic_cast<const bs_variables::Point3DLandmark&>(
         graph->getVariable(lm_uuid));
   } catch (const std::out_of_range& oor) { return nullptr; }
   return lm;
