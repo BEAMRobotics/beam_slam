@@ -143,6 +143,22 @@ private:
   /// @brief subscribers
   ros::Subscriber measurement_subscriber_;
 
+  /// @brief Add all required variables and constraints for a specific landmark
+  /// using the IDP parameterization
+  /// @param id of landmark to add
+  /// @param timestamp timestamp of measurement
+  /// @param transaction transaction to ammed to
+  void ProcessLandmarkIDP(const uint64_t id, const ros::Time& timestamp,
+                          fuse_core::Transaction::SharedPtr transaction);
+
+  /// @brief Add all required variables and constraints for a specific landmark
+  /// using the euclidean parameterization
+  /// @param id of landmark to add
+  /// @param timestamp timestamp of measurement
+  /// @param transaction transaction to ammed to
+  void ProcessLandmarkEUC(const uint64_t id, const ros::Time& timestamp,
+                          fuse_core::Transaction::SharedPtr transaction);
+
   /// @brief publishers
   ros::Publisher odometry_publisher_;
   ros::Publisher keyframe_publisher_;

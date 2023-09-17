@@ -107,11 +107,25 @@ public:
       }
 
       try {
+        max_triangulation_reprojection = J["max_triangulation_reprojection"];
+      } catch (...) {
+        ROS_ERROR("Missing 'max_triangulation_reprojection' param in vo config "
+                  "file. Using default: 80.0.");
+      }
+
+      try {
         reprojection_information_weight = J["reprojection_information_weight"];
       } catch (...) {
         ROS_ERROR(
             "Missing 'reprojection_information_weight' param in vo config "
             "file. Using default: 1.0.");
+      }
+
+      try {
+        use_idp = J["use_idp"];
+      } catch (...) {
+        ROS_ERROR(
+            "Missing 'use_idp' param in vo config file. Using default: False.");
       }
     }
   }
@@ -133,6 +147,8 @@ public:
   double min_visual_parallax{40.0};
   double frame_init_frequency{0.1};
   double max_triangulation_distance{30.0};
+  double max_triangulation_reprojection{80.0};
+  bool use_idp{false};
   double initialization_window_s{10.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };

@@ -91,6 +91,13 @@ public:
             "Missing 'reprojection_information_weight' param in vo config "
             "file. Using default: 1.0.");
       }
+
+      try {
+        use_idp = J["use_idp"];
+      } catch (...) {
+        ROS_ERROR(
+            "Missing 'use_idp' param in vo config file. Using default: False.");
+      }
     }
   }
 
@@ -98,6 +105,7 @@ public:
   Eigen::Matrix<double, 6, 6> prior_covariance;
 
   bool trigger_inertial_odom_constraints{true};
+  bool use_idp{false};
   double reloc_request_period{1.0};
   double keyframe_parallax{20.0};
   double reprojection_information_weight{1.0};
