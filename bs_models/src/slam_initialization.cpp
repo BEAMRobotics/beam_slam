@@ -8,7 +8,7 @@
 #include <beam_utils/utils.h>
 
 #include <bs_common/visualization.h>
-#include <bs_models/graph_visualization.h>
+#include <bs_models/graph_visualization/helpers.h>
 #include <bs_models/imu/inertial_alignment.h>
 #include <bs_models/vision/utils.h>
 
