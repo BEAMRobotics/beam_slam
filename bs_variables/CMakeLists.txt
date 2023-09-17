@@ -1,15 +1,17 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.14)
 project(bs_variables)
+
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+
+set(CMAKE_BUILD_TYPE "release")
 
 set(build_depends
   fuse_core
   pluginlib
   roscpp
 )
-
-set(CMAKE_BUILD_TYPE "release")
-
-find_package(beam REQUIRED COMPONENTS cv)
 
 find_package(catkin REQUIRED COMPONENTS
   ${build_depends}
@@ -59,7 +61,6 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${CERES_LIBRARIES}
-  beam::cv
 )
 set_target_properties(${PROJECT_NAME}
   PROPERTIES

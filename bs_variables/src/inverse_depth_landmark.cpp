@@ -14,8 +14,7 @@ namespace bs_variables {
 InverseDepthLandmark::InverseDepthLandmark(const uint64_t& id,
                                            const Eigen::Vector3d& bearing,
                                            const ros::Time& anchor_stamp)
-    : fuse_variables::FixedSizeVariable(
-          fuse_core::uuid::generate(detail::type(), id)),
+    : FixedSizeVariable(fuse_core::uuid::generate(detail::type(), id)),
       id_(id),
       anchor_stamp_(anchor_stamp) {
   bearing_ = bearing;
