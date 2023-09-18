@@ -1,6 +1,7 @@
 #include <bs_models/lidar_odometry.h>
 
-#include <boost/filesystem.hpp>
+#include <filesystem>
+
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 #include <std_msgs/Time.h>
@@ -10,6 +11,7 @@
 #include <bs_common/bs_msgs.h>
 #include <bs_common/conversions.h>
 #include <bs_models/frame_initializers/frame_initializers.h>
+#include <bs_models/graph_visualization/helpers.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
 #include <bs_variables/orientation_3d.h>
@@ -74,35 +76,35 @@ void LidarOdometry::onInit() {
     params_.save_graph_updates = false;
     params_.save_scan_registration_results = false;
   } else {
-    if (!boost::filesystem::is_directory(params_.scan_output_directory)) {
-      boost::filesystem::create_directory(params_.scan_output_directory);
+    if (!std::filesystem::is_directory(params_.scan_output_directory)) {
+      std::filesystem::create_directory(params_.scan_output_directory);
     }
 
     if (params_.save_graph_updates) {
       graph_updates_path_ =
           beam::CombinePaths(params_.scan_output_directory, "graph_updates");
-      if (boost::filesystem::is_directory(graph_updates_path_)) {
-        boost::filesystem::remove_all(graph_updates_path_);
+      if (std::filesystem::is_directory(graph_updates_path_)) {
+        std::filesystem::remove_all(graph_updates_path_);
       }
-      boost::filesystem::create_directory(graph_updates_path_);
+      std::filesystem::create_directory(graph_updates_path_);
     }
 
     if (params_.save_scan_registration_results) {
       registration_results_path_ = beam::CombinePaths(
           params_.scan_output_directory, "registration_results");
-      if (boost::filesystem::is_directory(registration_results_path_)) {
-        boost::filesystem::remove_all(registration_results_path_);
+      if (std::filesystem::is_directory(registration_results_path_)) {
+        std::filesystem::remove_all(registration_results_path_);
       }
-      boost::filesystem::create_directory(registration_results_path_);
+      std::filesystem::create_directory(registration_results_path_);
     }
 
     if (params_.save_marginalized_scans) {
       marginalized_scans_path_ = beam::CombinePaths(
           params_.scan_output_directory, "marginalized_scans");
-      if (boost::filesystem::is_directory(marginalized_scans_path_)) {
-        boost::filesystem::remove_all(marginalized_scans_path_);
+      if (std::filesystem::is_directory(marginalized_scans_path_)) {
+        std::filesystem::remove_all(marginalized_scans_path_);
       }
-      boost::filesystem::create_directory(marginalized_scans_path_);
+      std::filesystem::create_directory(marginalized_scans_path_);
     }
   }
 }
@@ -168,7 +170,7 @@ void LidarOdometry::SetupRegistration() {
     const auto& reg_filepath = params_.registration_config;
     const auto& matcher_filepath = params_.matcher_config;
     scan_registration_ = ScanRegistrationBase::Create(
-        reg_filepath, matcher_filepath, registration_results_path_);
+        reg_filepath, matcher_filepath, registration_results_path_, false);
 
     // setup feature extractor if needed
     matcher_type = beam_matching::GetTypeFromConfig(matcher_filepath);
@@ -213,6 +215,14 @@ void LidarOdometry::SetupRegistration() {
 }
 
 void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
+  /////////////////////////////////////
+  // std::string o_path =
+  //     "/userhome/debug/biases_debug/graph" + std::to_string(updates_);
+  // std::filesystem::create_directory(o_path);
+  // graph_visualization::ExportGraphVisualization(o_path, *graph_msg);
+  // if (updates_ > 3) { throw std::runtime_error{"stopping"}; }
+  /////////////////////////////////////
+
   if (updates_ == 0) {
     ROS_INFO("received first graph update, initializing registration and "
              "starting lidar odometry");
@@ -260,7 +270,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     std::string curent_path =
         beam::CombinePaths(graph_updates_path_,
                            "U" + std::to_string(updates_) + "_" + update_time);
-    boost::filesystem::create_directory(curent_path);
+    std::filesystem::create_directory(curent_path);
     for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
          iter++) {
       (*iter)->SaveCloud(curent_path);

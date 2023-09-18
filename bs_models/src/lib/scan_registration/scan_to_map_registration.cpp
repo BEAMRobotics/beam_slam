@@ -28,7 +28,8 @@ bs_constraints::Pose3DStampedTransaction
 
   // if this is the first scan, we need to treat it differently
   if (scan_pose_prev_ == nullptr) {
-    transaction.AddExtrinsicVariablesForFrame(extrinsics_.GetLidarFrameId());
+    transaction.AddExtrinsicVariablesForFrame(extrinsics_.GetLidarFrameId(),
+                                              add_extrinsics_prior_);
 
     // if registration map is empty, then just add prior, add to map and return
     if (map_.Empty()) {

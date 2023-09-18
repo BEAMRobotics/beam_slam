@@ -119,7 +119,7 @@ void Pose3DStampedTransaction::AddPoseVariables(
 }
 
 void Pose3DStampedTransaction::AddExtrinsicVariablesForFrame(
-    const std::string& frame_id) {
+    const std::string& frame_id, bool add_extrinsics_prior) {
   bs_common::ExtrinsicsLookupOnline& extrinsics =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
@@ -161,10 +161,13 @@ void Pose3DStampedTransaction::AddExtrinsicVariablesForFrame(
   transaction_->addVariable(p, override_variables_);
   transaction_->addVariable(o, override_variables_);
 
-  double prior_cov_diag = 1e-6;
-  fuse_core::Matrix6d prior =
-      Eigen::Matrix<double, 6, 6>::Identity() * prior_cov_diag;
-  AddExtrinsicPrior(*p, *o, prior, "Pose3DStampedTransaction");
+  if (add_extrinsics_prior) {
+    BEAM_INFO("adding extrinsics prior for: {}", frame_id);
+    double prior_cov_diag = 1e-6;
+    fuse_core::Matrix6d prior =
+        Eigen::Matrix<double, 6, 6>::Identity() * prior_cov_diag;
+    AddExtrinsicPrior(*p, *o, prior, "Pose3DStampedTransaction");
+  }
 }
 
 void Pose3DStampedTransaction::AddExtrinsicPrior(

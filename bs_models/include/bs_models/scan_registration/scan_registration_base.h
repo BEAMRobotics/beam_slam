@@ -56,14 +56,17 @@ public:
   /**
    * @brief Factory method to create a scan registration object at runtime
    */
-  static std::unique_ptr<ScanRegistrationBase>
-      Create(const std::string& registration_config,
-             const std::string& matcher_config,
-             const std::string& save_path = "");
+  static std::unique_ptr<ScanRegistrationBase> Create(
+      const std::string& registration_config, const std::string& matcher_config,
+      const std::string& save_path = "", bool add_extrinsics_prior = true);
 
   void SetFixedCovariance(const Eigen::Matrix<double, 6, 6>& covariance);
 
   void SetFixedCovariance(double covariance);
+
+  void SetAddExtrinsicsPrior(bool add_extrinsics_prior){
+    add_extrinsics_prior_ = add_extrinsics_prior;
+  }
 
   /**
    * @brief pure virtual function that each derived class must implement. The
@@ -100,6 +103,11 @@ protected:
 
   /** Source to be added to the transaction */
   std::string base_source_{"LidarOdometry::RegistrationBase"};
+
+  /** If set to true, the scan registration add a strong prior to the lidar
+   * extrinsics. This should be done in slam_initialization and not in
+   * lidar_odometry. For that reason, we leave this out of the config file */
+  bool add_extrinsics_prior_;
 };
 
 } // namespace bs_models::scan_registration

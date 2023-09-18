@@ -15,10 +15,9 @@ namespace bs_models { namespace scan_registration {
 using namespace beam_matching;
 using namespace bs_common;
 
-std::unique_ptr<ScanRegistrationBase>
-    ScanRegistrationBase::Create(const std::string& registration_config,
-                                 const std::string& matcher_config,
-                                 const std::string& save_path) {
+std::unique_ptr<ScanRegistrationBase> ScanRegistrationBase::Create(
+    const std::string& registration_config, const std::string& matcher_config,
+    const std::string& save_path, bool add_extrinsics_prior) {
   // get registration type
   if (!boost::filesystem::exists(registration_config)) {
     BEAM_ERROR("invalid file path for matcher config, file path: {}",
@@ -49,6 +48,7 @@ std::unique_ptr<ScanRegistrationBase>
       params.LoadFromJson(registration_config);
       registration = std::make_unique<ScanToMapLoamRegistration>(
           std::move(matcher), params.GetBaseParams(), params.map_size);
+      registration->SetAddExtrinsicsPrior(add_extrinsics_prior);
       return std::move(registration);
     } else if (registration_type == "MULTISCAN") {
       MultiScanRegistrationBase::Params params;
@@ -57,6 +57,7 @@ std::unique_ptr<ScanRegistrationBase>
       registration = std::make_unique<MultiScanLoamRegistration>(
           std::move(matcher), params.GetBaseParams(), params.num_neighbors,
           params.lag_duration, params.disable_lidar_map);
+      registration->SetAddExtrinsicsPrior(add_extrinsics_prior);
       return std::move(registration);
     } else {
       BEAM_ERROR("registration type not yet implemented");
@@ -97,7 +98,7 @@ std::unique_ptr<ScanRegistrationBase>
     BEAM_ERROR("registration type not yet implemented");
     throw std::runtime_error{"function not implemented"};
   }
-
+  registration->SetAddExtrinsicsPrior(add_extrinsics_prior);
   return std::move(registration);
 }
 

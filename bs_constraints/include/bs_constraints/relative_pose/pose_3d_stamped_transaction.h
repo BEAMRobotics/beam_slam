@@ -91,7 +91,8 @@ public:
    * will add the position and orientation as time invariant variables defining
    * a transform between frame_id and the baselink frame id
    */
-  void AddExtrinsicVariablesForFrame(const std::string& frame_id);
+  void AddExtrinsicVariablesForFrame(const std::string& frame_id,
+                                     bool add_extrinsics_prior = true);
 
   void AddExtrinsicPrior(const bs_variables::Position3D& position,
                          const bs_variables::Orientation3D& orientation,

@@ -85,7 +85,8 @@ bs_constraints::Pose3DStampedTransaction
   // if first scan, add to list then exit
   if (reference_clouds_.empty()) {
     AddFirstScan(new_scan, transaction);
-    transaction.AddExtrinsicVariablesForFrame(extrinsics_.GetLidarFrameId());
+    transaction.AddExtrinsicVariablesForFrame(extrinsics_.GetLidarFrameId(),
+                                              add_extrinsics_prior_);
     return transaction;
   }
 
