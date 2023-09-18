@@ -6,29 +6,27 @@ This repo contains beam's lidar-camera-inertial SLAM code. All other SLAM code i
 
 ## Dependencies:
 
-* fuse: https://github.com/locusrobotics/fuse (kinetic-devel branch for ROS Kinetic, devel branch for ROS Melodic)
+* fuse: https://github.com/locusrobotics/fuse
 * tf2_2d: https://github.com/locusrobotics/tf2_2d.git
 * qwt: sudo apt-get install libqwt-dev (for Kinetic or Melodic) or libqwt-qt5-dev (for Noetic)
 * calibration_publisher: https://github.com/BEAMRobotics/beam_robotics/tree/master/calibration/calibration_publisher
 * libbeam: https://github.com/BEAMRobotics/libbeam (globally installed)
+* basalt: https://github.com/BEAMRobotics/basalt-headers-mirror
 
 If you want to run IMU tests, you will also need:
 
-* basalt: https://github.com/BEAMRobotics/basalt-headers-mirror
 * sophus: https://github.com/strasdat/Sophus (tested at commit 936265f)
 
 ## Compiling:
 
-When compiling beam_slam modules on Ubuntu 18.04, specify the number of processors to be at most half of the number of processors (i.e. $(nproc)) available. For example:
+When compiling beam_slam modules on Ubuntu 20.04, specify the number of processors to be at most half of the number of processors (i.e. $(nproc)) available. For example:
 
 `catkin build -j4` if `$(nproc)` is eight or higher
 
-To compile everything needed to run SLAM follow these compilations:
+To compile everything needed to run SLAM follow this compilation:
 
 ```
-catkin build -j3 calibration_publisher
-catkin build -j3 bs_optimizers
-catkin build -j3 bs_models
+catkin build -j4 -DCMAKE_BUILD_TYPE=Release bs_optimizers bs_publishers bs_models calibration_publisher
 ```
 
 ## Running SLAM:
