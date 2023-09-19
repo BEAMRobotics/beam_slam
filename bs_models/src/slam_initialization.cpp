@@ -304,6 +304,8 @@ bool SLAMInitialization::Initialize() {
   if (params_.max_optimization_s > 0.0) {
     ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
     ceres::Solver::Options options;
+    options.minimizer_type = ceres::TRUST_REGION;
+    options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
     options.minimizer_progress_to_stdout = true;
     options.num_threads = std::thread::hardware_concurrency() / 2;
     options.max_num_iterations = 1000;
@@ -573,7 +575,7 @@ beam::opt<Eigen::Vector3d>
       T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
     }
   }
-  if (T_cam_world_v.size() >= 3) {
+  if (T_cam_world_v.size() >= 2) {
     return beam_cv::Triangulation::TriangulatePoint(
         cam_model_, T_cam_world_v, pixels, params_.max_triangulation_distance,
         params_.max_triangulation_reprojection);

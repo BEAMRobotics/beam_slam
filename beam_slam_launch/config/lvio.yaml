@@ -1,4 +1,4 @@
-optimization_period: 0.07
+optimization_period: 0.1
 lag_duration: 6
 
 solver_options:
@@ -52,7 +52,7 @@ slam_initialization:
   inertial_information_weight: 0.001
   lidar_information_weight: 10.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: # "/userhome/results/init_results" 
+  output_folder: "" #"/userhome/results/init_results" 
 
 inertial_odometry:
   imu_topic: "/imu/data"

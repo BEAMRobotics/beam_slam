@@ -108,9 +108,10 @@ public:
 
       try {
         max_triangulation_reprojection = J["max_triangulation_reprojection"];
+        max_triangulation_reprojection *= 2.0;
       } catch (...) {
         ROS_ERROR("Missing 'max_triangulation_reprojection' param in vo config "
-                  "file. Using default: 80.0.");
+                  "file. Using default: 40.0.");
       }
 
       try {
@@ -147,7 +148,7 @@ public:
   double min_visual_parallax{40.0};
   double frame_init_frequency{0.1};
   double max_triangulation_distance{30.0};
-  double max_triangulation_reprojection{80.0};
+  double max_triangulation_reprojection{40.0};
   bool use_idp{false};
   double initialization_window_s{10.0};
   fuse_core::Loss::SharedPtr reprojection_loss;

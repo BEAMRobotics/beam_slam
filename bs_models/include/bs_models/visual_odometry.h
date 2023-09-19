@@ -179,6 +179,7 @@ private:
   size_t max_container_size_;
   bool track_lost{false};
   ros::Time prev_frame_{ros::Time(0)};
+  double lag_duration_;
 
   /// @brief callbacks for messages
   using ThrottledMeasurementCallback =

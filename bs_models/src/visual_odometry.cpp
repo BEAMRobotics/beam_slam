@@ -60,9 +60,8 @@ void VisualOdometry::onInit() {
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
 
   // compute the max container size
-  double lag_duration;
-  ros::param::get("lag_duration", lag_duration);
-  max_container_size_ = calibration_params_.camera_hz * (lag_duration + 1);
+  ros::param::get("lag_duration", lag_duration_);
+  max_container_size_ = calibration_params_.camera_hz * (lag_duration_ + 1);
 }
 
 void VisualOdometry::onStart() {
@@ -332,12 +331,14 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
 
   const double avg_parallax =
       total_parallax / static_cast<double>(num_correspondences);
-  const double percent_tracked =
-      num_correspondences / static_cast<double>(frame1_ids.size());
+  const double percent_tracked = static_cast<double>(num_correspondences) /
+                                 static_cast<double>(frame1_ids.size());
 
   if (avg_parallax > vo_params_.keyframe_parallax) {
     return true;
   } else if (percent_tracked <= 0.5) {
+    return true;
+  } else if ((timestamp - kf_time).toSec() > ((lag_duration_ - 1) / 2)) {
     return true;
   }
   return false;
@@ -436,7 +437,7 @@ beam::opt<Eigen::Vector3d>
     }
   }
   // must have at least 3 keyframes that have seen the landmark
-  if (T_cam_world_v.size() >= 3) {
+  if (T_cam_world_v.size() >= 2) {
     // if we've lost track, ease the requirements on new landmarks
     if (track_lost) {
       return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
