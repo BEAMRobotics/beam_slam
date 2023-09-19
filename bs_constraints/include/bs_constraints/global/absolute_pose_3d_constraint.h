@@ -100,10 +100,16 @@ public:
    */
   ceres::CostFunction* costFunction() const override;
 
+  bs_variables::Position3D getInitialPosition();
+
+  bs_variables::Orientation3D getInitialOrientation();
+
 protected:
   fuse_core::Vector7d
       mean_; //!< The measured/prior mean vector for this variable
   fuse_core::Matrix6d sqrt_information_; //!< The square root information matrix
+  bs_variables::Position3D position_;    // initial input position
+  bs_variables::Orientation3D orientation_; // initial input orientation
 
 private:
   // Allow Boost Serialization access to private methods

@@ -36,6 +36,22 @@ public:
   ~GraphVisualization() override = default;
 
 private:
+  using ConstraintTypeMap =
+      std::unordered_map<fuse_core::UUID, std::string, fuse_core::uuid::hash>;
+
+  // for each position, store map from uuid to constraint type for priors
+  struct VariableConnectivity {
+    ros::Time stamp;
+    ConstraintTypeMap absolute_constraints;
+    ConstraintTypeMap previous_constraints; // constraints to prev position
+    ConstraintTypeMap next_constraints;     // constraints to next position
+    VariableConnectivity(const ros::Time& time) : stamp(time) {}
+  };
+
+  using VariableConnectivityType =
+      std::unordered_map<fuse_core::UUID, VariableConnectivity,
+                         fuse_core::uuid::hash>;
+
   void onInit() override;
   void onStart() override;
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
@@ -55,6 +71,10 @@ private:
 
   void VisualizeCameraLandmarks(fuse_core::Graph::ConstSharedPtr graph_msg);
 
+  void ValidateGraphPriors(fuse_core::Graph::ConstSharedPtr graph_msg);
+
+  void ValidateGraphConnectivity(fuse_core::Graph::ConstSharedPtr graph_msg);
+
   template <typename PointT>
   void PublishCloud(PublisherWithCounter& publisher,
                     const pcl::PointCloud<PointT>& cloud) {
@@ -67,6 +87,14 @@ private:
 
   void
       processMeasurements(const bs_common::CameraMeasurementMsg::ConstPtr& msg);
+
+  bool HasImuConstraint(const ConstraintTypeMap& constraints) const;
+
+  fuse_core::UUID
+      GetLastVariable(const VariableConnectivityType& connectivity) const;
+
+  fuse_core::UUID
+      GetFirstVariable(const VariableConnectivityType& connectivity) const;
 
   // loadable parameters
   bs_parameters::models::GraphVisualizationParams params_;
@@ -103,6 +131,15 @@ private:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   std::string save_path_;
   ros::Time current_time_;
+
+  // graph validation
+  std::unordered_set<fuse_core::UUID, fuse_core::uuid::hash>
+      absolute_imu_constraints_;
+  std::unordered_set<fuse_core::UUID, fuse_core::uuid::hash>
+      absolute_pose_constraints_;
+  std::unordered_map<std::string, fuse_core::UUID>
+      extrinsics_constraints_; // T_child_parent -> uuid
+  bool prior_found_on_first_{false};
 
   // parameters only tunable here
   double frame_size_{0.15};

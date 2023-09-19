@@ -1,6 +1,10 @@
 #include <bs_models/graph_visualization.h>
 
-#include <boost/filesystem.hpp>
+#include <filesystem>
+
+#include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
+#include <fuse_constraints/relative_constraint.h>
+#include <fuse_constraints/relative_pose_3d_stamped_constraint.h>
 #include <pluginlib/class_list_macros.h>
 #include <std_msgs/Float32.h>
 
@@ -12,7 +16,9 @@
 #include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 #include <bs_common/visualization.h>
+#include <bs_constraints/global/absolute_pose_3d_constraint.h>
 #include <bs_constraints/global/gravity_alignment_stamped_constraint.h>
+#include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
 #include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>
 #include <bs_constraints/relative_pose/relative_pose_3d_stamped_with_extrinsics_constraint.h>
 #include <bs_constraints/visual/euclidean_reprojection_constraint.h>
@@ -35,14 +41,14 @@ void GraphVisualization::onInit() {
   // Read settings from the parameter sever
   params_.loadFromROS(private_node_handle_);
   if (!params_.save_path.empty()) {
-    if (!boost::filesystem::exists(params_.save_path)) {
+    if (!std::filesystem::exists(params_.save_path)) {
       BEAM_ERROR("Invalid save path, path must exist: {}", params_.save_path);
       throw std::runtime_error{"invalid save path"};
     }
     std::string time_now =
         beam::ConvertTimeToDate(std::chrono::system_clock::now());
     save_path_ = beam::CombinePaths(params_.save_path, time_now);
-    boost::filesystem::create_directory(save_path_);
+    std::filesystem::create_directory(save_path_);
   }
 
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
@@ -103,6 +109,8 @@ void GraphVisualization::onGraphUpdate(
   VisualizeImuBiases(graph_msg);
   VisualizeImuGravityConstraints(graph_msg);
   VisualizeCameraLandmarks(graph_msg);
+  ValidateGraphPriors(graph_msg);
+  ValidateGraphConnectivity(graph_msg);
 }
 
 void GraphVisualization::VisualizePoses(
@@ -324,6 +332,302 @@ void GraphVisualization::processMeasurements(
         landmark, landmark_descriptor);
     landmark_container_->Insert(lm_measurement);
   }
+}
+
+void GraphVisualization::ValidateGraphPriors(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
+  if (!params_.validate_graph) { return; }
+
+  const auto constraints = graph_msg->getConstraints();
+  for (auto it = constraints.begin(); it != constraints.end(); it++) {
+    if (it->type() == "bs_constraints::AbsoluteImuState3DStampedConstraint") {
+      if (!absolute_imu_constraints_.empty()) {
+        if (absolute_imu_constraints_.find(it->uuid()) ==
+            absolute_imu_constraints_.end()) {
+          ROS_ERROR_ONCE("Detected multiple absolute constraints of type: "
+                         "bs_constraints::AbsoluteImuState3DStampedConstraint");
+        }
+        // else do nothing, this is the same one so it's ok
+      } else {
+        absolute_imu_constraints_.emplace(it->uuid());
+      }
+    } else if (it->type() == "bs_constraints::AbsolutePose3DConstraint") {
+      auto c =
+          dynamic_cast<const bs_constraints::AbsolutePose3DConstraint&>(*it);
+      auto position = c.getInitialPosition();
+      std::string T = "T_" + position.child() + "_" + position.parent();
+      auto iter = extrinsics_constraints_.find(T);
+      if (iter != extrinsics_constraints_.end()) {
+        if (iter->second != it->uuid()) {
+          ROS_ERROR_ONCE(
+              "Detected multiple time-invariant pose priors representing "
+              "the transform: %s",
+              T.c_str());
+        }
+        // else do nothing, this is the same one so it's ok
+      } else {
+        extrinsics_constraints_.emplace(T, it->uuid());
+      }
+    } else if (it->type() ==
+               "fuse_constraints::AbsolutePose3DStampedConstraint") {
+      if (!absolute_pose_constraints_.empty()) {
+        if (absolute_pose_constraints_.find(it->uuid()) ==
+            absolute_pose_constraints_.end()) {
+          ROS_ERROR_ONCE("Detected multiple absolute constraints of type: "
+                         "fuse_constraints::AbsolutePose3DStampedConstraint");
+        }
+        // else do nothing, this is the same one so it's ok
+      } else {
+        absolute_pose_constraints_.emplace(it->uuid());
+      }
+    }
+  }
+
+  if (absolute_imu_constraints_.empty() && absolute_pose_constraints_.empty()) {
+    ROS_ERROR_ONCE("No IMU absolute constraint found in graph");
+  }
+
+  if (!absolute_imu_constraints_.empty() &&
+      !absolute_pose_constraints_.empty()) {
+    ROS_ERROR_ONCE(
+        "Detected an absolute stamped pose constraint, and an IMU "
+        "pose prior constraint. These constrain the same variables!");
+  }
+}
+
+void GraphVisualization::ValidateGraphConnectivity(
+    fuse_core::Graph::ConstSharedPtr graph_msg) {
+  if (!params_.validate_graph) { return; }
+
+  // get all stamped positions
+  VariableConnectivityType varConnectivity;
+  const auto v_range = graph_msg->getVariables();
+  for (auto it = v_range.begin(); it != v_range.end(); it++) {
+    if (it->type() == "fuse_variables::Position3DStamped") {
+      auto v = dynamic_cast<const fuse_variables::Position3DStamped&>(*it);
+      varConnectivity.emplace(it->uuid(), VariableConnectivity(v.stamp()));
+    }
+  }
+  if (varConnectivity.size() < 3) { return; }
+
+  // add connectivity for all constraints attached to position variables
+  const auto c_range = graph_msg->getConstraints();
+  for (auto it = c_range.begin(); it != c_range.end(); it++) {
+    if (it->type() == "bs_constraints::AbsoluteImuState3DStampedConstraint") {
+      auto c = dynamic_cast<
+          const bs_constraints::AbsoluteImuState3DStampedConstraint&>(*it);
+      const auto& pos_uuid = c.variables().at(1);
+      if (varConnectivity.find(pos_uuid) == varConnectivity.end()) {
+        ROS_ERROR_ONCE("no position variable found for constraint: %s",
+                       to_string(c.uuid()).c_str());
+        continue;
+      }
+      varConnectivity.at(pos_uuid).absolute_constraints.emplace(
+          c.uuid(), "bs_constraints::AbsoluteImuState3DStampedConstraint");
+    } else if (it->type() ==
+               "fuse_constraints::AbsolutePose3DStampedConstraint") {
+      auto c = dynamic_cast<
+          const fuse_constraints::AbsolutePose3DStampedConstraint&>(*it);
+      const auto& pos_uuid = c.variables().at(0);
+      if (varConnectivity.find(pos_uuid) == varConnectivity.end()) {
+        ROS_ERROR_ONCE("no position variable found for constraint: %s",
+                       to_string(c.uuid()).c_str());
+        continue;
+      }
+      varConnectivity.at(pos_uuid).absolute_constraints.emplace(
+          c.uuid(), "fuse_constraints::AbsolutePose3DStampedConstraint");
+    } else if (it->type() == "bs_constraints::"
+                             "RelativePose3DStampedWithExtrinsicsConstraint") {
+      auto c = dynamic_cast<
+          const bs_constraints::RelativePose3DStampedWithExtrinsicsConstraint&>(
+          *it);
+      const auto& pos_uuid1 = c.variables().at(0);
+      if (varConnectivity.find(pos_uuid1) == varConnectivity.end()) {
+        ROS_ERROR_ONCE(
+            "no position variable found for first position in constraint: %s",
+            to_string(c.uuid()).c_str());
+      } else {
+        varConnectivity.at(pos_uuid1).next_constraints.emplace(
+            c.uuid(),
+            "bs_constraints::RelativePose3DStampedWithExtrinsicsConstraint");
+      }
+      const auto& pos_uuid2 = c.variables().at(2);
+      if (varConnectivity.find(pos_uuid2) == varConnectivity.end()) {
+        ROS_ERROR_ONCE(
+            "no position variable found for second position in constraint: %s",
+            to_string(c.uuid()).c_str());
+      } else {
+        varConnectivity.at(pos_uuid2).previous_constraints.emplace(
+            c.uuid(),
+            "bs_constraints::RelativePose3DStampedWithExtrinsicsConstraint");
+      }
+    } else if (it->type() ==
+               "fuse_constraints::RelativePose3DStampedConstraint") {
+      auto c = dynamic_cast<
+          const fuse_constraints::RelativePose3DStampedConstraint&>(*it);
+      const auto& pos_uuid1 = c.variables().at(0);
+      if (varConnectivity.find(pos_uuid1) == varConnectivity.end()) {
+        ROS_ERROR_ONCE(
+            "no position variable found for first position in constraint: %s",
+            to_string(c.uuid()).c_str());
+      } else {
+        varConnectivity.at(pos_uuid1).next_constraints.emplace(
+            c.uuid(), "fuse_constraints::RelativePose3DStampedConstraint");
+      }
+      const auto& pos_uuid2 = c.variables().at(2);
+      if (varConnectivity.find(pos_uuid2) == varConnectivity.end()) {
+        ROS_ERROR_ONCE(
+            "no position variable found for second position in constraint: %s",
+            to_string(c.uuid()).c_str());
+      } else {
+        varConnectivity.at(pos_uuid2).previous_constraints.emplace(
+            c.uuid(), "fuse_constraints::RelativePose3DStampedConstraint");
+      }
+    } else if (it->type() ==
+               "bs_constraints::RelativeImuState3DStampedConstraint") {
+      auto c = dynamic_cast<
+          const bs_constraints::RelativeImuState3DStampedConstraint&>(*it);
+      const auto& pos_uuid1 = c.variables().at(1);
+      if (varConnectivity.find(pos_uuid1) == varConnectivity.end()) {
+        ROS_ERROR_ONCE(
+            "no position variable found for first position in constraint: %s",
+            to_string(c.uuid()).c_str());
+      } else {
+        varConnectivity.at(pos_uuid1).next_constraints.emplace(
+            c.uuid(), "bs_constraints::RelativeImuState3DStampedConstraint");
+      }
+      const auto& pos_uuid2 = c.variables().at(6);
+      if (varConnectivity.find(pos_uuid2) == varConnectivity.end()) {
+        ROS_ERROR_ONCE(
+            "no position variable found for second position in constraint: %s",
+            to_string(c.uuid()).c_str());
+      } else {
+        varConnectivity.at(pos_uuid2).previous_constraints.emplace(
+            c.uuid(), "bs_constraints::RelativeImuState3DStampedConstraint");
+      }
+    } else if (it->type() == "bs_constraints::AbsolutePose3DConstraint" ||
+               it->type() == "fuse_constraints::MarginalConstraint" ||
+               it->type() ==
+                   "bs_constraints::EuclideanReprojectionConstraint" ||
+               it->type() ==
+                   "bs_constraints::InverseDepthReprojectionConstraintUnary" ||
+               it->type() ==
+                   "bs_constraints::InverseDepthReprojectionConstraint") {
+      // skip all these types
+    } else {
+      ROS_WARN_ONCE("Unknown constraint type: %s", it->type().c_str());
+    }
+  }
+
+  // go through connectivity map and check
+
+  // check first position:
+  auto first_uuid = GetFirstVariable(varConnectivity);
+  const auto& first_conn = varConnectivity.at(first_uuid);
+  if (!prior_found_on_first_ && first_conn.absolute_constraints.empty()) {
+    ROS_ERROR_ONCE("First position (%s) does not have any priors",
+                   to_string(first_uuid).c_str());
+  } else {
+    prior_found_on_first_ = true;
+  }
+  if (!first_conn.previous_constraints.empty()) {
+    ROS_ERROR_ONCE(
+        "First position (%s) has constraints against previous positions",
+        to_string(first_uuid).c_str());
+  }
+  if (first_conn.next_constraints.empty()) {
+    ROS_ERROR_ONCE(
+        "Position (%s) has no constraints against subsequent positions",
+        to_string(first_uuid).c_str());
+  } else if (!HasImuConstraint(first_conn.next_constraints)) {
+    ROS_ERROR_ONCE(
+        "Position (%s) has no IMU constraints against subsequent positions",
+        to_string(first_uuid).c_str());
+  }
+
+  // check last position
+  auto last_uuid = GetLastVariable(varConnectivity);
+  const auto& last_conn = varConnectivity.at(last_uuid);
+  if (last_conn.previous_constraints.empty()) {
+    ROS_ERROR_ONCE(
+        "Position (%s) has no constraints against previous positions",
+        to_string(last_uuid).c_str());
+  } else if (!HasImuConstraint(last_conn.previous_constraints)) {
+    ROS_ERROR_ONCE(
+        "Position (%s) has no IMU constraints against previous positions",
+        to_string(last_uuid).c_str());
+  }
+
+  // check all intermediate positions:
+  for (const auto& [uuid, var_conn] : varConnectivity) {
+    if (uuid == first_uuid || uuid == last_uuid) { continue; }
+    if (!var_conn.absolute_constraints.empty()) {
+      ROS_ERROR_ONCE(
+          "intermediate position variable with uuid %s has absolute constraint "
+          "with uuid: %s and type %s",
+          to_string(uuid).c_str(),
+          to_string(var_conn.absolute_constraints.begin()->first).c_str(),
+          var_conn.absolute_constraints.begin()->second.c_str());
+    }
+    if (var_conn.previous_constraints.empty()) {
+      ROS_ERROR_ONCE(
+          "variable with uuid %s has no constraints to previous positions",
+          to_string(uuid).c_str());
+    } else if (!HasImuConstraint(var_conn.previous_constraints)) {
+      ROS_ERROR_ONCE(
+          "variable with uuid %s has no IMU constraints to previous positions",
+          to_string(uuid).c_str());
+    }
+    if (var_conn.next_constraints.empty()) {
+      ROS_ERROR_ONCE(
+          "variable with uuid %s has no constraints to previous positions",
+          to_string(uuid).c_str());
+    } else if (!HasImuConstraint(var_conn.next_constraints)) {
+      ROS_ERROR_ONCE(
+          "variable with uuid %s has no IMU constraints to previous positions",
+          to_string(uuid).c_str());
+    }
+  }
+}
+
+fuse_core::UUID GraphVisualization::GetFirstVariable(
+    const VariableConnectivityType& connectivity) const {
+  ros::Time first_time = connectivity.begin()->second.stamp;
+  fuse_core::UUID first_uuid = connectivity.begin()->first;
+
+  for (const auto& [uuid, conn] : connectivity) {
+    if (conn.stamp < first_time) {
+      first_time = conn.stamp;
+      first_uuid = uuid;
+    }
+  }
+
+  return first_uuid;
+}
+
+fuse_core::UUID GraphVisualization::GetLastVariable(
+    const VariableConnectivityType& connectivity) const {
+  ros::Time last_time = connectivity.begin()->second.stamp;
+  fuse_core::UUID last_uuid = connectivity.begin()->first;
+
+  for (const auto& [uuid, conn] : connectivity) {
+    if (conn.stamp > last_time) {
+      last_time = conn.stamp;
+      last_uuid = uuid;
+    }
+  }
+
+  return last_uuid;
+}
+
+bool GraphVisualization::HasImuConstraint(
+    const ConstraintTypeMap& constraints) const {
+  for (const auto& [id, type] : constraints) {
+    if (type == "bs_constraints::RelativeImuState3DStampedConstraint") {
+      return true;
+    }
+  }
+  return false;
 }
 
 } // namespace bs_models

@@ -22,10 +22,16 @@ public:
     /** If not empty, it will output all graph info to this directory, where all
      * content will go in a new folder named using the current timestamp */
     getParam<std::string>(nh, "save_path", save_path, save_path);
+
+    /** If not empty, we will run some checks on the graph such as checking
+     * there aren't any duplicate priors and that the graph is fully connected
+     * via IO constraints */
+    getParam<bool>(nh, "validate_graph", validate_graph, validate_graph);
   }
 
   std::string save_path;
   bool publish{true};
+  bool validate_graph{false};
 };
 
 }} // namespace bs_parameters::models

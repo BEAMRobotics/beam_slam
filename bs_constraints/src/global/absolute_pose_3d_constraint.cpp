@@ -34,6 +34,14 @@ void AbsolutePose3DConstraint::print(std::ostream& stream) const {
   }
 }
 
+bs_variables::Position3D AbsolutePose3DConstraint::getInitialPosition() {
+  return position_;
+}
+
+bs_variables::Orientation3D AbsolutePose3DConstraint::getInitialOrientation() {
+  return orientation_;
+}
+
 ceres::CostFunction* AbsolutePose3DConstraint::costFunction() const {
   return new ceres::AutoDiffCostFunction<
       fuse_constraints::NormalPriorPose3DCostFunctor, 6, 3, 4>(
