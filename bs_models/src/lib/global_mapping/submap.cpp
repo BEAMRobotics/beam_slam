@@ -143,7 +143,7 @@ void Submap::AddCameraMeasurement(
     BEAM_WARN("Empty descriptor type in camera measurement message!");
     throw std::runtime_error(
         "Empty descriptor type in camera measurement message!");
-  } else if (camera_measurement.descriptor_type != "ORB") {
+  } else if (d_type != beam_cv::DescriptorType::ORB) {
     BEAM_WARN("Invalid descriptor type in camera measurement message, only ORB "
               "accepted.");
     throw std::runtime_error("Invalid descriptor type in camera measurement "
