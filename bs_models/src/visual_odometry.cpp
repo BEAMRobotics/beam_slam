@@ -59,7 +59,7 @@ void VisualOdometry::onInit() {
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
 
   // compute the max container size
-  ros::param::get("lag_duration", lag_duration_);
+  ros::param::get("/local_mapper/lag_duration", lag_duration_);
   max_container_size_ = calibration_params_.camera_hz * (lag_duration_ + 1);
 }
 
@@ -133,7 +133,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
   // check if the frame is a keyframe
   if (IsKeyframe(timestamp, T_WORLD_BASELINK)) {
-    ROS_DEBUG_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
+    ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
     // create new keyframe
     Keyframe kf(*msg);
     keyframes_.insert({timestamp, kf});
@@ -327,7 +327,7 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
     return true;
   } else if (percent_tracked <= 0.5) {
     return true;
-  } else if ((timestamp - kf_time).toSec() > ((lag_duration_ - 1) / 2)) {
+  } else if ((timestamp - kf_time).toSec() > ((lag_duration_ / 2.0) - 0.5)) {
     return true;
   }
   return false;

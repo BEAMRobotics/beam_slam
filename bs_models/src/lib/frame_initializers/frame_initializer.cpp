@@ -131,19 +131,24 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
   Eigen::Matrix4d T_BASELINK_SENSOR;
   extrinsics_.GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame_id);
 
-  if (time < (*graph_path_.begin()).first) { return false; }
+  // copy graph path in safe way
+  path_mutex_.lock();
+  Path graph_path_copy = graph_path_;
+  path_mutex_.unlock();
 
-  if (graph_path_.find(time) != graph_path_.end()) {
+  if (time < (*graph_path_copy.begin()).first) { return false; }
+
+  if (graph_path_copy.find(time) != graph_path_copy.end()) {
     // we assume the graph path is in the baselink frame
-    Eigen::Matrix4d T_WORLD_BASELINK = graph_path_.at(time);
+    Eigen::Matrix4d T_WORLD_BASELINK = graph_path_copy.at(time);
     T_WORLD_SENSOR = T_WORLD_BASELINK * T_BASELINK_SENSOR;
   } else {
     // get the graph pose that comes directly before current time (even if its
     // the end)
-    auto lb = graph_path_.lower_bound(time);
-    if (lb != graph_path_.begin()) { lb = std::prev(lb); }
+    auto lb = graph_path_copy.lower_bound(time);
+    lb = std::prev(lb);
     const ros::Time closest_graph_time = lb->first;
-    Eigen::Matrix4d T_WORLD_BASELINKprev = graph_path_.at(closest_graph_time);
+    Eigen::Matrix4d T_WORLD_BASELINKprev = graph_path_copy.at(closest_graph_time);
 
     // compute relative pose between the graph pose and the current time
     Eigen::Matrix4d T_prev_now;
@@ -251,6 +256,7 @@ void FrameInitializer::OdometryCallback(
 }
 
 void FrameInitializer::PathCallback(const nav_msgs::PathConstPtr message) {
+  path_mutex_.lock();
   graph_path_.clear();
   for (const auto& pose : message->poses) {
     const ros::Time stamp = pose.header.stamp;
@@ -258,6 +264,7 @@ void FrameInitializer::PathCallback(const nav_msgs::PathConstPtr message) {
     bs_common::PoseMsgToTransformationMatrix(pose, T);
     graph_path_.insert({stamp, T});
   }
+  path_mutex_.unlock();
 }
 
 void FrameInitializer::InitializeFromPoseFile(const std::string& file_path) {
