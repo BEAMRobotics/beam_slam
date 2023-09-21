@@ -52,9 +52,8 @@ void SLAMInitialization::onInit() {
 
   // create frame initializer if desired
   if (!params_.frame_initializer_config.empty()) {
-    frame_initializer_ =
-        std::make_unique<bs_models::FrameInitializer>(
-            params_.frame_initializer_config);
+    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+        params_.frame_initializer_config);
   }
 
   // read imu parameters
@@ -84,6 +83,7 @@ void SLAMInitialization::onInit() {
 
   // set init mode
   if (params_.init_mode == "VISUAL") {
+    ROS_WARN("JAKE - Visual not working -> gravity and scale estimate is wrong.");
     mode_ = InitMode::VISUAL;
   } else if (params_.init_mode == "LIDAR") {
     mode_ = InitMode::LIDAR;
@@ -195,8 +195,10 @@ void SLAMInitialization::processCameraMeasurements(
 
   ROS_INFO("Visual initialization, failure, clearing buffer and retrying...");
   // if we don't, prune the first second of images
-  for (int i = 0; i < calibration_params_.camera_hz; i++) {
-    landmark_container_->PopFront();
+  if (landmark_container_->NumImages() > calibration_params_.camera_hz) {
+    for (int i = 0; i < calibration_params_.camera_hz; i++) {
+      landmark_container_->PopFront();
+    }
   }
 }
 
