@@ -39,7 +39,7 @@ void VisualOdometry::onInit() {
 
   // create frame initializer (inertial, lidar, constant velocity)
   frame_initializer_ =
-      bs_models::frame_initializers::FrameInitializerBase::Create(
+      std::make_unique<bs_models::FrameInitializer>(
           vo_params_.frame_initializer_config);
 
   // Load camera model and create visua map object
@@ -113,7 +113,7 @@ void VisualOdometry::processMeasurements(
     if (!success) { break; }
 
     visual_measurement_buffer_.pop_front();
-    ROS_INFO_STREAM("Frame processing time: " << timer.elapsed());
+    ROS_DEBUG_STREAM("Frame processing time: " << timer.elapsed());
   }
 
   // remove measurements from container if we are over the limit

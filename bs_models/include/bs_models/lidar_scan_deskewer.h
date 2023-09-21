@@ -6,7 +6,7 @@
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
 
-#include <bs_models/frame_initializers/frame_initializer_base.h>
+#include <bs_models/frame_initializers/frame_initializer.h>
 #include <bs_parameters/models/lidar_scan_deskewer_params.h>
 
 namespace bs_models {
@@ -52,7 +52,7 @@ private:
 
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
-  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
+  std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
 
   using VelodyneCloudWithStamp = std::pair<ros::Time, pcl::PointCloud<PointXYZIRT>>;
   using OusterCloudWithStamp = std::pair<ros::Time, pcl::PointCloud<PointXYZITRRNR>>;

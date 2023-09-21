@@ -9,7 +9,7 @@
 #include <beam_utils/se3.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/frame_initializers/frame_initializer_base.h>
+#include <bs_models/frame_initializers/frame_initializer.h>
 
 namespace bs_models {
 
@@ -52,7 +52,7 @@ public:
       const ros::Duration& max_aggregate_duration = ros::Duration(0.1)) {
     max_aggregate_duration_ = max_aggregate_duration;
     frame_initializer_ =
-        bs_models::frame_initializers::FrameInitializerBase::Create(
+        std::make_unique<bs_models::FrameInitializer>(
             frame_init_config);
   }
 
@@ -156,7 +156,7 @@ public:
 private:
   std::map<uint64_t, LidarChunk<PointT>> lidar_chunks_; // t_nsec -> lidar chunk
   std::vector<LidarAggregate<PointT>> finalized_aggregates_;
-  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
+  std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   std::queue<ros::Time> aggregation_times_;

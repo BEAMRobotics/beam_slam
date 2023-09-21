@@ -7,7 +7,7 @@
 #include <beam_utils/filesystem.h>
 
 #include <bs_common/bs_msgs.h>
-#include <bs_models/frame_initializers/frame_initializers.h>
+#include <bs_models/frame_initializers/frame_initializer.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
 
@@ -44,7 +44,7 @@ void LidarTracker::onInit() {
   // init frame initializer
   if (!params_.frame_initializer_config.empty()) {
     frame_initializer_ =
-        bs_models::frame_initializers::FrameInitializerBase::Create(
+        std::make_unique<bs_models::FrameInitializer>(
             params_.frame_initializer_config);
   }
 
@@ -404,7 +404,7 @@ void LidarTracker::SetupRegistration() {
 
 fuse_core::Transaction::SharedPtr
     LidarTracker::RegisterScanToGlobalMap(const ScanPose& scan_pose,
-                                           Eigen::Matrix4d& T_MAP_BASELINK) {
+                                          Eigen::Matrix4d& T_MAP_BASELINK) {
   Eigen::Matrix4d T_MAPEST_SCAN = scan_pose.T_REFFRAME_LIDAR();
   Eigen::Matrix4d T_MAPEST_MAP;
 
@@ -831,9 +831,9 @@ void LidarTracker::PublishScanRegistrationResults(
 }
 
 void LidarTracker::PublishTfTransform(const Eigen::Matrix4d& T_CHILD_PARENT,
-                                       const std::string& child_frame,
-                                       const std::string& parent_frame,
-                                       const ros::Time& time) {
+                                      const std::string& child_frame,
+                                      const std::string& parent_frame,
+                                      const ros::Time& time) {
   tf::Transform transform;
   transform.setOrigin(tf::Vector3(T_CHILD_PARENT(0, 3), T_CHILD_PARENT(1, 3),
                                   T_CHILD_PARENT(2, 3)));

@@ -13,7 +13,7 @@
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/frame_initializers/frame_initializers.h>
+#include <bs_models/frame_initializers/frame_initializer.h>
 #include <bs_models/vision/keyframe.h>
 #include <bs_models/vision/visual_map.h>
 #include <bs_parameters/models/calibration_params.h>
@@ -138,7 +138,7 @@ private:
   bs_parameters::models::CalibrationParams calibration_params_;
 
   /// @brief Used to get initial pose estimates
-  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
+  std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
 
   /// @brief subscribers
   ros::Subscriber measurement_subscriber_;

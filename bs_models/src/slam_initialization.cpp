@@ -53,7 +53,7 @@ void SLAMInitialization::onInit() {
   // create frame initializer if desired
   if (!params_.frame_initializer_config.empty()) {
     frame_initializer_ =
-        bs_models::frame_initializers::FrameInitializerBase::Create(
+        std::make_unique<bs_models::FrameInitializer>(
             params_.frame_initializer_config);
   }
 

@@ -21,7 +21,7 @@ void LidarScanDeskewer::onInit() {
   ROS_DEBUG("Loaded params");
 
   frame_initializer_ =
-      bs_models::frame_initializers::FrameInitializerBase::Create(
+      std::make_unique<bs_models::FrameInitializer>(
           params_.frame_initializer_config);
 }
 

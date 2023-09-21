@@ -10,7 +10,7 @@
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/conversions.h>
-#include <bs_models/frame_initializers/frame_initializers.h>
+#include <bs_models/frame_initializers/frame_initializer.h>
 #include <bs_models/graph_visualization/helpers.h>
 #include <bs_models/scan_registration/multi_scan_registration.h>
 #include <bs_models/scan_registration/scan_to_map_registration.h>
@@ -37,7 +37,7 @@ void LidarOdometry::onInit() {
   // init frame initializer
   if (!params_.frame_initializer_config.empty()) {
     frame_initializer_ =
-        bs_models::frame_initializers::FrameInitializerBase::Create(
+        std::make_unique<bs_models::FrameInitializer>(
             params_.frame_initializer_config);
   }
 
