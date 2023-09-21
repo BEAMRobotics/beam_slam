@@ -4,20 +4,16 @@
 #include <bs_variables/gyro_bias_3d_stamped.h>
 #include <bs_variables/inverse_depth_landmark.h>
 #include <bs_variables/orientation_3d.h>
+#include <bs_variables/point_3d_landmark.h>
 #include <bs_variables/position_3d.h>
 #include <fuse_core/graph.h>
 #include <fuse_core/transaction.h>
 #include <fuse_core/variable.h>
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
-#include <bs_variables/point_3d_landmark.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
 
 #include <beam_utils/utils.h>
 #include <bs_common/imu_state.h>
-
-#ifndef GRAVITY_NOMINAL
-#  define GRAVITY_NOMINAL 9.80665
-#endif
 
 namespace bs_common {
 
