@@ -17,7 +17,8 @@ namespace bs_models {
 using namespace beam_matching;
 
 LidarPathInit::LidarPathInit(int lidar_buffer_size,
-                             const std::string& matcher_config)
+                             const std::string& matcher_config,
+                             double information_weight)
     : lidar_buffer_size_(lidar_buffer_size) {
   // init scan registration
   std::shared_ptr<LoamParams> matcher_params;
@@ -53,6 +54,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
       std::make_unique<scan_registration::ScanToMapLoamRegistration>(
           std::move(matcher), reg_params.GetBaseParams(), reg_params.map_size);
   // scan_registration_->SetFixedCovariance(0.000001);
+  scan_registration_->SetInformationWeight(information_weight);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
 
   // get filter params

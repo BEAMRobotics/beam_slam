@@ -31,7 +31,8 @@ void AbsoluteImuState3DStampedConstraint::print(std::ostream& stream) const {
          << "  ImuState Gyrobias variable: " << variables().at(3) << "\n"
          << "  ImuState Accelbias variable:: " << variables().at(4) << "\n"
          << "  mean: " << mean().transpose() << "\n"
-         << "  sqrt_info: " << sqrtInformation() << "\n";
+         << "  sqrt_info: \n"
+         << sqrtInformation() << "\n";
 
   if (loss()) {
     stream << "  loss: ";

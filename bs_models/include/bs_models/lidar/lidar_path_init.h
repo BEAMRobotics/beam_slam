@@ -21,7 +21,8 @@ using LidarTransactionType = bs_constraints::Pose3DStampedTransaction;
 class LidarPathInit {
 public:
   explicit LidarPathInit(int lidar_buffer_size,
-                         const std::string& matcher_config);
+                         const std::string& matcher_config,
+                         double information_weight);
 
   void ProcessLidar(const sensor_msgs::PointCloud2::ConstPtr& msg);
 

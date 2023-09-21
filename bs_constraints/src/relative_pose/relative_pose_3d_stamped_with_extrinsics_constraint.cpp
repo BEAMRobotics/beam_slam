@@ -40,7 +40,8 @@ void RelativePose3DStampedWithExtrinsicsConstraint::print(
          << "  extrinsics position variable: " << variables().at(4) << "\n"
          << "  extrinsics orientation variable: " << variables().at(5) << "\n"
          << "  delta: " << d_Sensor1_Sensor2_.transpose() << "\n"
-         << "  sqrt_info: " << sqrtInformation() << "\n";
+         << "  sqrt_info: \n"
+         << sqrtInformation() << "\n";
 }
 
 ceres::CostFunction*
