@@ -1,4 +1,4 @@
-optimization_period: 0.1
+optimization_period: 0.07
 lag_duration: 6
 
 solver_options:
