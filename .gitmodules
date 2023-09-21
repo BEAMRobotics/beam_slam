@@ -1,12 +1,12 @@
 [submodule "dependencies/tf2_2d"]
 	path = dependencies/tf2_2d
 	url = git@github.com:locusrobotics/tf2_2d.git
-[submodule "dependencies/graph_rviz_plugin"]
-	path = dependencies/graph_rviz_plugin
-	url = https://gitlab.com/InstitutMaupertuis/graph_rviz_plugin.git
 [submodule "dependencies/fuse"]
 	path = dependencies/fuse
 	url = git@github.com:locusrobotics/fuse.git
 [submodule "dependencies/basalt-headers-mirror"]
 	path = dependencies/basalt-headers-mirror
 	url = git@github.com:VladyslavUsenko/basalt-headers-mirror.git
+[submodule "dependencies/graph_rviz_plugin"]
+	path = dependencies/graph_rviz_plugin
+	url = git@github.com:flynneva/graph_rviz_plugin.git
