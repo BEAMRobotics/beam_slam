@@ -131,48 +131,48 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   // compute and publish relative odometry
   ComputeRelativeOdometry(timestamp, T_WORLD_BASELINK);
 
-  // check if the frame is a keyframe
-  if (IsKeyframe(timestamp, T_WORLD_BASELINK)) {
-    ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
-    // create new keyframe
-    Keyframe kf(*msg);
-    keyframes_.insert({timestamp, kf});
-
-    // add pose to graph
-    auto transaction = fuse_core::Transaction::make_shared();
-    transaction->stamp(timestamp - ros::Duration(1e-7));
-    visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
-    previous_keyframe_ = timestamp;
-    sendTransaction(transaction);
-
-    // extend existing map and add constraints
-    ExtendMap(timestamp, T_WORLD_BASELINK);
-
-    // publish keyframe pose
-    PublishPose(timestamp, T_WORLD_BASELINK);
-
-    // send IO trigger
-    if (vo_params_.trigger_inertial_odom_constraints) {
-      std_msgs::Time time_msg;
-      time_msg.data = timestamp;
-      imu_constraint_trigger_publisher_.publish(time_msg);
-      imu_constraint_trigger_counter_++;
-    }
-
-    // publish reloc request at given rate
-    if ((timestamp - previous_reloc_request_).toSec() >
-        vo_params_.reloc_request_period) {
-      ROS_INFO_STREAM("Publishing reloc request at: " << timestamp);
-      previous_reloc_request_ = timestamp;
-      PublishRelocRequest(kf);
-    }
-  } else {
-    // if not keyframe -> add to keyframe sub trajectory
+  // if not keyframe -> add to current keyframe sub trajectory
+  if (!IsKeyframe(timestamp, T_WORLD_BASELINK)) {
     Eigen::Matrix4d T_WORLD_BASELINKprevkf =
         visual_map_->GetBaselinkPose(previous_keyframe_).value();
     Eigen::Matrix4d T_KEYFRAME_FRAME =
         beam::InvertTransform(T_WORLD_BASELINKprevkf) * T_WORLD_BASELINK;
     keyframes_.at(previous_keyframe_).AddPose(timestamp, T_KEYFRAME_FRAME);
+    return true;
+  }
+  
+  // create new keyframe
+  ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
+  Keyframe kf(*msg);
+  keyframes_.insert({timestamp, kf});
+
+  // add pose to graph
+  auto transaction = fuse_core::Transaction::make_shared();
+  transaction->stamp(timestamp - ros::Duration(1e-7));
+  visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
+  previous_keyframe_ = timestamp;
+  sendTransaction(transaction);
+
+  // extend existing map and add constraints
+  ExtendMap(timestamp, T_WORLD_BASELINK);
+
+  // publish keyframe pose
+  PublishPose(timestamp, T_WORLD_BASELINK);
+
+  // send IO trigger
+  if (vo_params_.trigger_inertial_odom_constraints) {
+    std_msgs::Time time_msg;
+    time_msg.data = timestamp;
+    imu_constraint_trigger_publisher_.publish(time_msg);
+    imu_constraint_trigger_counter_++;
+  }
+
+  // publish reloc request at given rate
+  if ((timestamp - previous_reloc_request_).toSec() >
+      vo_params_.reloc_request_period) {
+    ROS_INFO_STREAM("Publishing reloc request at: " << timestamp);
+    previous_reloc_request_ = timestamp;
+    PublishRelocRequest(kf);
   }
 
   return true;
