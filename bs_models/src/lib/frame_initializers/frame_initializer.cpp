@@ -3,8 +3,8 @@
 #include <boost/algorithm/string.hpp>
 #include <nlohmann/json.hpp>
 
-#include <beam_utils/filesystem.h>
 #include <beam_mapping/Poses.h>
+#include <beam_utils/filesystem.h>
 
 #include <bs_common/conversions.h>
 
@@ -125,9 +125,29 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
     return pose_lookup_->GetT_WORLD_SENSOR(T_WORLD_SENSOR, sensor_frame_id,
                                            time, error_msg);
   }
-  // get nearest pose in graph path that is before time
-  // compute relative pose between that pose and time
-  // compute full pose wrt the graph
+  Eigen::Matrix4d T_BASELINK_SENSOR;
+  extrinsics_.GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame_id);
+
+  if (graph_path_.find(time) != graph_path_.end()) {
+    // we assume the graph path is in the baselink frame
+    Eigen::Matrix4d T_WORLD_BASELINK = graph_path_.at(time);
+    T_WORLD_SENSOR = T_WORLD_BASELINK * T_BASELINK_SENSOR;
+  } else {
+    // get the graph pose that comes directly before current time
+    auto lb = graph_path_.lower_bound(time);
+    if (lb == graph_path_.end()) { return false; }
+    if (lb != graph_path_.begin()) { lb = std::prev(lb); }
+    const ros::Time closest_graph_time = lb->first;
+    Eigen::Matrix4d T_WORLD_BASELINKprev = graph_path_.at(closest_graph_time);
+
+    // compute relative pose between the graph pose and the current time
+    Eigen::Matrix4d T_prev_now;
+    if (!GetRelativePose(T_prev_now, closest_graph_time, time)) {
+      return false;
+    }
+    Eigen::Matrix4d T_WORLD_BASELINKnow = T_WORLD_BASELINKprev * T_prev_now;
+    T_WORLD_SENSOR = T_WORLD_BASELINKnow * T_BASELINK_SENSOR;
+  }
   return true;
 }
 

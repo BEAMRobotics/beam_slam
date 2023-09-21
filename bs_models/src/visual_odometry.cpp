@@ -38,9 +38,8 @@ void VisualOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // create frame initializer (inertial, lidar, constant velocity)
-  frame_initializer_ =
-      std::make_unique<bs_models::FrameInitializer>(
-          vo_params_.frame_initializer_config);
+  frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+      vo_params_.frame_initializer_config);
 
   // Load camera model and create visua map object
   cam_model_ = beam_calibration::CameraModel::Create(
@@ -181,24 +180,14 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
 bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix4d& T_WORLD_BASELINK) {
-  const auto prev_kf_pose = visual_map_->GetBaselinkPose(previous_keyframe_);
-  if (!prev_kf_pose.has_value()) {
-    ROS_ERROR("Cannot retrieve previous keyframe pose.");
-    throw std::runtime_error{"Cannot retrieve previous keyframe pose."};
-  }
-  const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_kf_pose.value();
-
-  // get estimate from frame initializer
-  Eigen::Matrix4d T_PREVFRAME_CURFRAME;
-  if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
-                                           previous_keyframe_, timestamp)) {
+  Eigen::Matrix4d T_WORLD_BASELINKcur;
+  if (!frame_initializer_->GetPose(T_WORLD_BASELINKcur, timestamp,
+                                   extrinsics_.GetBaselinkFrameId())) {
     ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
                     "buffering frame: "
                     << timestamp);
     return false;
   }
-  const Eigen::Matrix4d T_WORLD_BASELINKcur =
-      T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
 
   // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
