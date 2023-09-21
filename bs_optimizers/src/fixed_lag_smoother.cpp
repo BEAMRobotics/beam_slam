@@ -216,6 +216,19 @@ auto exit_wait_condition = [this]() {
         break;
       }
 
+      // Marginalize variables
+      ROS_DEBUG("Marginalizing graph");
+      preprocessMarginalization(*new_transaction);
+      lag_expiration_ = computeLagExpirationTime();
+      marginal_transaction_ = fuse_constraints::marginalizeVariables(
+        ros::this_node::getName(),
+        computeVariablesToMarginalize(lag_expiration_),
+        *graph_);
+      graph_->update(marginal_transaction_);
+      // Perform any post-marginal cleanup
+      postprocessMarginalization(marginal_transaction_);
+      ROS_DEBUG("Done marginalizing fuse graph");
+
       // Optimize the entire graph
       ROS_DEBUG("Optimizing fuse graph");
       summary_ = graph_->optimize(params_.solver_options);
@@ -231,18 +244,6 @@ auto exit_wait_condition = [this]() {
         break;
       }
 
-      // Marginalize variables
-      ROS_DEBUG("Marginalizing graph");
-      preprocessMarginalization(*new_transaction);
-      lag_expiration_ = computeLagExpirationTime();
-      marginal_transaction_ = fuse_constraints::marginalizeVariables(
-        ros::this_node::getName(),
-        computeVariablesToMarginalize(lag_expiration_),
-        *graph_);
-      graph_->update(marginal_transaction_);
-      // Perform any post-marginal cleanup
-      postprocessMarginalization(marginal_transaction_);
-      ROS_DEBUG("Done marginalizing fuse graph");
       // Log a warning if the optimization took too long
       auto optimization_complete = ros::Time::now();
       if (optimization_complete > optimization_deadline)
