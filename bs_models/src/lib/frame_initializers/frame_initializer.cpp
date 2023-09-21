@@ -96,6 +96,9 @@ FrameInitializer::FrameInitializer(const std::string& config_path) {
     odometry_subscriber_ = n.subscribe<nav_msgs::Odometry>(
         info, queue_size,
         boost::bind(&FrameInitializer::OdometryCallback, this, _1));
+    path_subscriber_ = n.subscribe<nav_msgs::Path>(
+        "/local_mapper/path_publisher/path", queue_size,
+        boost::bind(&FrameInitializer::PathCallback, this, _1));
 
     if (!sensor_frame_id_override.empty()) {
       if (!extrinsics_.IsSensorFrameIdValid(sensor_frame_id_override)) {
@@ -128,14 +131,16 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
   Eigen::Matrix4d T_BASELINK_SENSOR;
   extrinsics_.GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame_id);
 
+  if (time < (*graph_path_.begin()).first) { return false; }
+
   if (graph_path_.find(time) != graph_path_.end()) {
     // we assume the graph path is in the baselink frame
     Eigen::Matrix4d T_WORLD_BASELINK = graph_path_.at(time);
     T_WORLD_SENSOR = T_WORLD_BASELINK * T_BASELINK_SENSOR;
   } else {
-    // get the graph pose that comes directly before current time
+    // get the graph pose that comes directly before current time (even if its
+    // the end)
     auto lb = graph_path_.lower_bound(time);
-    if (lb == graph_path_.end()) { return false; }
     if (lb != graph_path_.begin()) { lb = std::prev(lb); }
     const ros::Time closest_graph_time = lb->first;
     Eigen::Matrix4d T_WORLD_BASELINKprev = graph_path_.at(closest_graph_time);
