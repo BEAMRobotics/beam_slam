@@ -1,26 +1,6 @@
 # optimization params
-optimization_period: 0.07
+optimization_period: 0.1
 lag_duration: 6
-
-sensor_models:
-  - name: 'slam_initialization'
-    type: 'bs_models::SLAMInitialization'
-  - name: 'inertial_odometry'
-    type: 'bs_models::InertialOdometry'
-  - name: 'lidar_deskewer'
-    type: 'bs_models::LidarScanDeskewer'
-  - name: 'lidar_odometry'
-    type: 'bs_models::LidarOdometry'
-  - name: 'graph_visualization'
-    type: 'bs_models::GraphVisualization'
-  - name: 'gravity_alignment'
-    type: 'bs_models::GravityAlignment'
-
-publishers:
-    - name: 'graph'
-      type: 'fuse_publishers::SerializedPublisher'
-    - name: 'path_publisher'
-      type: 'bs_publishers::Path3DPublisher'
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -34,18 +14,35 @@ solver_options:
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
 
+sensor_models:
+  - name: 'slam_initialization'
+    type: 'bs_models::SLAMInitialization'
+  - name: 'inertial_odometry'
+    type: 'bs_models::InertialOdometry'
+  - name: 'lidar_deskewer'
+    type: 'bs_models::LidarScanDeskewer'
+  - name: 'lidar_odometry'
+    type: 'bs_models::LidarOdometry'
+  - name: 'graph_visualization'
+    type: 'bs_models::GraphVisualization'
+  # - name: 'gravity_alignment'
+  #   type: 'bs_models::GravityAlignment'
+
+publishers:
+    - name: 'path_publisher'
+      type: 'bs_publishers::Path3DPublisher'
+
 slam_initialization:
   imu_topic: "/imu/data"
   lidar_topic: "/lidar_h/velodyne_points"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
+  min_visual_parallax: 40.0
   inertial_information_weight: 0.001
-  lidar_information_weight: 1.0
-  max_triangulation_distance: 50.0 # vision specific
-  max_triangulation_reprojection: 30.0 # vision specific
+  lidar_information_weight: 10.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "" # "/userhome/debug/slam_init"
+  output_folder: "" #"/userhome/results/init_results" 
 
 inertial_odometry:
   imu_topic: "/imu/data"
@@ -54,7 +51,7 @@ inertial_odometry:
 gravity_alignment:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
-  gravity_info_weight: 10
+  gravity_information_weight: 10
 
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_points'
@@ -70,10 +67,10 @@ lidar_odometry:
   input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true
   output_lidar_points: true
-  publish_active_submap: true
+  publish_active_submap: false
   publish_registration_map: true
-  publish_registration_results: true
-  lidar_information_weight: 1000.0
+  publish_registration_results: false
+  lidar_information_weight: 10.0
   frame_initializer_config: "/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 

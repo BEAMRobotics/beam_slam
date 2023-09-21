@@ -63,8 +63,8 @@ public:
     // weighting factor on inertial measurements
     // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
     // Residuals
-    getParam<double>(nh, "inertial_info_weight", inertial_info_weight,
-                     inertial_info_weight);
+    getParam<double>(nh, "inertial_information_weight",
+                     inertial_information_weight, inertial_information_weight);
 
     // size of init window in seconds. This controls the data buffers, this
     // should be larger than the amount of time it takes to produce the min.
@@ -141,7 +141,7 @@ public:
 
   std::string matcher_config;
   double max_optimization_s{1.0};
-  double inertial_info_weight{0.001};
+  double inertial_information_weight{1.0};
   double reprojection_information_weight{1.0};
   double lidar_information_weight{1.0};
   double min_trajectory_length_m{2.0};

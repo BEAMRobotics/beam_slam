@@ -19,8 +19,8 @@ public:
     getParamRequired<std::string>(nh, "imu_topic", imu_topic);
 
     // weighting factor of inertial information matrix
-    getParam<double>(nh, "gravity_info_weight", gravity_info_weight,
-                     gravity_info_weight);
+    getParam<double>(nh, "gravity_information_weight",
+                     gravity_information_weight, gravity_information_weight);
 
     // odometry topic for the poses to add constraints to
     getParamRequired<std::string>(nh, "constraint_odom_topic",
@@ -43,7 +43,7 @@ public:
   }
 
   double measurement_buffer_duration{10.0};
-  double gravity_info_weight{1.0};
+  double gravity_information_weight{1.0};
   std::string imu_topic{};
   std::string constraint_odom_topic{};
   std::string nominal_gravity_direction{"+Z"};

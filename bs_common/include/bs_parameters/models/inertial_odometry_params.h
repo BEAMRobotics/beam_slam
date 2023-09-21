@@ -21,12 +21,12 @@ public:
     getParamRequired<std::string>(nh, "imu_topic", imu_topic);
 
     // weighting factor of inertial information matrix
-    getParam<double>(nh, "inertial_info_weight", inertial_info_weight,
-                     inertial_info_weight);
+    getParam<double>(nh, "inertial_information_weight",
+                     inertial_information_weight, inertial_information_weight);
   }
 
   double measurement_buffer_duration{10.0};
-  double inertial_info_weight{1.0};
+  double inertial_information_weight{1.0};
   std::string imu_topic{};
 };
 }} // namespace bs_parameters::models

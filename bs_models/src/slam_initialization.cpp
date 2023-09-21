@@ -283,7 +283,7 @@ bool SLAMInitialization::Initialize() {
   }
 
   imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(
-      imu_params_, bg_, ba_, params_.inertial_info_weight);
+      imu_params_, bg_, ba_, params_.inertial_information_weight);
 
   AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
   InterpolateVisualMeasurements();

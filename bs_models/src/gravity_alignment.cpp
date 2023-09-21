@@ -24,7 +24,8 @@ void GravityAlignment::onInit() {
   // Read settings from the parameter sever
   params_.loadFromROS(private_node_handle_);
   covariance_ = 1 /
-                (params_.gravity_info_weight * params_.gravity_info_weight) *
+                (params_.gravity_information_weight *
+                 params_.gravity_information_weight) *
                 Eigen::Matrix2d::Identity();
   // check for non empty odom topic
   if (params_.constraint_odom_topic.empty()) {

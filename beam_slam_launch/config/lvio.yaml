@@ -4,7 +4,7 @@ lag_duration: 6
 solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
-  minimizer_progress_to_stdout: true
+  minimizer_progress_to_stdout: false
   num_threads: 6
   num_linear_solver_threads: 6
   max_num_iterations: 10
@@ -63,11 +63,12 @@ visual_odometry:
   reloc_request_period: 3.0
   keyframe_parallax: 20.0
   trigger_inertial_odom_constraints: true
+  reprojection_information_weight: 1
 
 gravity_alignment:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/lidar_odometry/odom/global"
-  inertial_information_weight: 10
+  gravity_information_weight: 10
 
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_points'
