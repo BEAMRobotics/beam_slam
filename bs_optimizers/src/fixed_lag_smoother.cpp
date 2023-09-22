@@ -204,9 +204,9 @@ auto exit_wait_condition = [this]() {
       {
         std::ostringstream oss;
         oss << "Graph:\n";
-        graph_->print(oss);
+        // graph_->print(oss);
         oss << "\nTransaction:\n";
-        new_transaction->print(oss);
+        // new_transaction->print(oss);
 
         ROS_FATAL_STREAM("Failed to update graph with transaction: " << ex.what()
                                                                      << "\nLeaving optimization loop and requesting "
@@ -217,15 +217,12 @@ auto exit_wait_condition = [this]() {
       }
 
       // Marginalize variables
-      ROS_DEBUG("----Marginalizing graph");
       preprocessMarginalization(*new_transaction);
       lag_expiration_ = computeLagExpirationTime();
       auto vars_to_marginalize = computeVariablesToMarginalize(lag_expiration_);
       std::vector<fuse_core::UUID> nonlandmark_vars_to_marginalize;
 
       // remove landmark variables since they take too long to marginalize
-      ROS_DEBUG("Removing landmarks");
-      size_t landmarks_removed = 0;
       if(vars_to_marginalize.size() > 1){
         for(const auto uuid: vars_to_marginalize){
           try{
@@ -239,20 +236,19 @@ auto exit_wait_condition = [this]() {
                 graph_->removeConstraint(c.uuid());
               }
               graph_->removeVariable(uuid);
-              landmarks_removed++;
             }
           } catch (const std::exception& ex) {}
         }
       }
-      ROS_DEBUG_STREAM("Done removing landmarks: " << landmarks_removed);
-      ROS_DEBUG_STREAM("Number of variables to marginalize: " << nonlandmark_vars_to_marginalize.size());
-
+      
+      ROS_DEBUG_STREAM("Marginalizing graph, number of variables to marginalize: " 
+                        << nonlandmark_vars_to_marginalize.size());
       marginal_transaction_ = fuse_constraints::marginalizeVariables(
         ros::this_node::getName(), nonlandmark_vars_to_marginalize, *graph_);
       graph_->update(marginal_transaction_);
       // Perform any post-marginal cleanup
       postprocessMarginalization(marginal_transaction_);
-      ROS_INFO("----Done marginalizing fuse graph");
+      ROS_DEBUG("----Done marginalizing fuse graph");
 
       // Optimize the entire graph
       ROS_DEBUG("Optimizing fuse graph");
