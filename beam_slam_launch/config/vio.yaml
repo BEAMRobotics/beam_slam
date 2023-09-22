@@ -45,14 +45,14 @@ slam_initialization:
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
   min_visual_parallax: 40.0
-  inertial_information_weight: 0.001
+  inertial_information_weight: 0.1
   lidar_information_weight: 10.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results" 
 
 inertial_odometry:
   imu_topic: "/imu/data"
-  inertial_information_weight: 0.001
+  inertial_information_weight: 0.1
 
 visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
