@@ -204,14 +204,13 @@ auto exit_wait_condition = [this]() {
       {
         std::ostringstream oss;
         oss << "Graph:\n";
-        // graph_->print(oss);
+        graph_->print(oss);
         oss << "\nTransaction:\n";
-        // new_transaction->print(oss);
-
+        new_transaction->print(oss);
         ROS_FATAL_STREAM("Failed to update graph with transaction: " << ex.what()
                                                                      << "\nLeaving optimization loop and requesting "
-                                                                        "node shutdown...\n"
-                                                                     << oss.str());
+                                                                        "node shutdown...\n");
+        ROS_DEBUG_STREAM(oss.str());
         ros::requestShutdown();
         break;
       }
