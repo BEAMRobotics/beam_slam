@@ -145,13 +145,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
   Keyframe kf(*msg);
   keyframes_.insert({timestamp, kf});
-
-  // add pose to graph
-  auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(timestamp - ros::Duration(1e-7));
-  visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
   previous_keyframe_ = timestamp;
-  sendTransaction(transaction);
 
   // extend existing map and add constraints
   ExtendMap(timestamp, T_WORLD_BASELINK);
@@ -231,6 +225,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
   // create transaction for this keyframe
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(timestamp);
+  visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
 
   // add prior if using a frame initializer
   if (frame_initializer_ && vo_params_.prior_information_weight != 0) {
