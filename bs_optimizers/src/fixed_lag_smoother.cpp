@@ -217,15 +217,14 @@ auto exit_wait_condition = [this]() {
       }
 
       // Marginalize variables
-      std::cout << std::endl;
-      ROS_INFO("----Marginalizing graph");
+      ROS_DEBUG("----Marginalizing graph");
       preprocessMarginalization(*new_transaction);
       lag_expiration_ = computeLagExpirationTime();
       auto vars_to_marginalize = computeVariablesToMarginalize(lag_expiration_);
       std::vector<fuse_core::UUID> nonlandmark_vars_to_marginalize;
 
       // remove landmark variables since they take too long to marginalize
-      ROS_INFO("Removing landmarks");
+      ROS_DEBUG("Removing landmarks");
       size_t landmarks_removed = 0;
       if(vars_to_marginalize.size() > 1){
         for(const auto uuid: vars_to_marginalize){
@@ -245,8 +244,8 @@ auto exit_wait_condition = [this]() {
           } catch (const std::exception& ex) {}
         }
       }
-      ROS_INFO_STREAM("Done removing landmarks: " << landmarks_removed);
-      ROS_INFO_STREAM("Number of variables to marginalize: " << nonlandmark_vars_to_marginalize.size());
+      ROS_DEBUG_STREAM("Done removing landmarks: " << landmarks_removed);
+      ROS_DEBUG_STREAM("Number of variables to marginalize: " << nonlandmark_vars_to_marginalize.size());
 
       marginal_transaction_ = fuse_constraints::marginalizeVariables(
         ros::this_node::getName(), nonlandmark_vars_to_marginalize, *graph_);
