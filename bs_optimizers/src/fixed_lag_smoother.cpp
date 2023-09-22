@@ -196,6 +196,31 @@ auto exit_wait_condition = [this]() {
         continue;
       }
 
+      // ! check if new transaction has added constraints to variables that are to be marginalized
+      std::vector<fuse_core::UUID> faulty_constraints;
+      for(auto& c: new_transaction->addedConstraints())
+      {
+        for(auto var_uuid: c.variables())
+        {
+          for (auto marginal_uuid : marginal_transaction_.removedVariables()) 
+          {
+            if (var_uuid == marginal_uuid) 
+            {
+              faulty_constraints.push_back(c.uuid());
+              break;
+            }
+          }
+        }
+      }
+      if(faulty_constraints.size() > 0)
+      {
+        ROS_WARN_STREAM("Removing invalid constraints.");
+        for(auto& faulty_constraint: faulty_constraints)
+        {
+          new_transaction->removeConstraint(faulty_constraint);
+        }
+      }
+
       // apply new transaction
       try {
         graph_->update(*new_transaction);
@@ -221,7 +246,7 @@ auto exit_wait_condition = [this]() {
       auto vars_to_marginalize = computeVariablesToMarginalize(lag_expiration_);
       std::vector<fuse_core::UUID> nonlandmark_vars_to_marginalize;
 
-      // remove landmark variables since they take too long to marginalize
+      // ! remove landmark variables since they take too long to marginalize
       if(vars_to_marginalize.size() > 1){
         for(const auto uuid: vars_to_marginalize){
           try{
