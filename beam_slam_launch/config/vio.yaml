@@ -24,14 +24,12 @@ sensor_models:
     type: 'bs_models::VisualOdometry'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
-  # - name: 'gravity_alignment'
-  #   type: 'bs_models::GravityAlignment'
+  - name: 'gravity_alignment'
+    type: 'bs_models::GravityAlignment'
 
 publishers:
   - name: 'path_publisher'
     type: 'bs_publishers::Path3DPublisher'
-#   - name: 'graph'
-#     type: 'fuse_publishers::SerializedPublisher'
 
 
 visual_feature_tracker:
@@ -46,12 +44,11 @@ slam_initialization:
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
+  min_visual_parallax: 40.0
   inertial_information_weight: 0.1
   lidar_information_weight: 10.0
-  max_triangulation_distance: 50.0
-  max_triangulation_reprojection: 30.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "" #"/home/nick/debug/slam_init"
+  output_folder: "" #"/userhome/results/init_results" 
 
 inertial_odometry:
   imu_topic: "/imu/data"
@@ -60,7 +57,7 @@ inertial_odometry:
 visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   reloc_request_period: 3.0
-  keyframe_parallax: 20.0
+  keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
 
 gravity_alignment:

@@ -105,10 +105,7 @@ add_library(
   src/lib/scan_registration/registration_map.cpp
   src/lib/scan_registration/registration_validation.cpp
   ## frame initializers
-  src/lib/frame_initializers/frame_initializer_base.cpp
-  src/lib/frame_initializers/odometry_frame_initializer.cpp
-  src/lib/frame_initializers/transform_frame_initializer.cpp
-  src/lib/frame_initializers/pose_file_frame_initializer.cpp
+  src/lib/frame_initializers/frame_initializer.cpp
   # graph visualization
   src/lib/graph_visualization/helpers.cpp
   ## experimental

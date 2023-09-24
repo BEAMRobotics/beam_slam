@@ -1,4 +1,4 @@
-optimization_period: 0.1
+optimization_period: 0.07
 lag_duration: 6
 
 solver_options:
@@ -61,7 +61,7 @@ inertial_odometry:
 visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   reloc_request_period: 3.0
-  keyframe_parallax: 20.0
+  keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
   reprojection_information_weight: 1
 

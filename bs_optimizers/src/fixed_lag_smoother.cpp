@@ -196,6 +196,31 @@ auto exit_wait_condition = [this]() {
         continue;
       }
 
+      // ! check if new transaction has added constraints to variables that are to be marginalized
+      std::vector<fuse_core::UUID> faulty_constraints;
+      for(auto& c: new_transaction->addedConstraints())
+      {
+        for(auto var_uuid: c.variables())
+        {
+          for (auto marginal_uuid : marginal_transaction_.removedVariables()) 
+          {
+            if (var_uuid == marginal_uuid) 
+            {
+              faulty_constraints.push_back(c.uuid());
+              break;
+            }
+          }
+        }
+      }
+      if(faulty_constraints.size() > 0)
+      {
+        ROS_WARN_STREAM("Removing invalid constraints.");
+        for(auto& faulty_constraint: faulty_constraints)
+        {
+          new_transaction->removeConstraint(faulty_constraint);
+        }
+      }
+
       // apply new transaction
       try {
         graph_->update(*new_transaction);
@@ -207,14 +232,47 @@ auto exit_wait_condition = [this]() {
         graph_->print(oss);
         oss << "\nTransaction:\n";
         new_transaction->print(oss);
-
         ROS_FATAL_STREAM("Failed to update graph with transaction: " << ex.what()
                                                                      << "\nLeaving optimization loop and requesting "
-                                                                        "node shutdown...\n"
-                                                                     << oss.str());
+                                                                        "node shutdown...\n");
+        ROS_DEBUG_STREAM(oss.str());
         ros::requestShutdown();
         break;
       }
+
+      // Marginalize variables
+      preprocessMarginalization(*new_transaction);
+      lag_expiration_ = computeLagExpirationTime();
+      auto vars_to_marginalize = computeVariablesToMarginalize(lag_expiration_);
+      std::vector<fuse_core::UUID> nonlandmark_vars_to_marginalize;
+
+      // ! remove landmark variables since they take too long to marginalize
+      if(vars_to_marginalize.size() > 1){
+        for(const auto uuid: vars_to_marginalize){
+          try{
+            auto& var = graph_->getVariable(uuid);
+            if(var.type() != "bs_variables::Point3DLandmark"){
+              nonlandmark_vars_to_marginalize.push_back(uuid);
+            } else {
+              // remove all connected constraints
+              auto constraints = graph_->getConnectedConstraints(uuid);
+              for(const auto& c: constraints){
+                graph_->removeConstraint(c.uuid());
+              }
+              graph_->removeVariable(uuid);
+            }
+          } catch (const std::exception& ex) {}
+        }
+      }
+      
+      ROS_DEBUG_STREAM("Marginalizing graph, number of variables to marginalize: " 
+                        << nonlandmark_vars_to_marginalize.size());
+      marginal_transaction_ = fuse_constraints::marginalizeVariables(
+        ros::this_node::getName(), nonlandmark_vars_to_marginalize, *graph_);
+      graph_->update(marginal_transaction_);
+      // Perform any post-marginal cleanup
+      postprocessMarginalization(marginal_transaction_);
+      ROS_DEBUG("----Done marginalizing fuse graph");
 
       // Optimize the entire graph
       ROS_DEBUG("Optimizing fuse graph");
@@ -231,18 +289,6 @@ auto exit_wait_condition = [this]() {
         break;
       }
 
-      // Marginalize variables
-      ROS_DEBUG("Optimizing marginalizing graph");
-      preprocessMarginalization(*new_transaction);
-      lag_expiration_ = computeLagExpirationTime();
-      marginal_transaction_ = fuse_constraints::marginalizeVariables(
-        ros::this_node::getName(),
-        computeVariablesToMarginalize(lag_expiration_),
-        *graph_);
-      graph_->update(marginal_transaction_);
-      // Perform any post-marginal cleanup
-      postprocessMarginalization(marginal_transaction_);
-      ROS_DEBUG("Done marginalizing fuse graph");
       // Log a warning if the optimization took too long
       auto optimization_complete = ros::Time::now();
       if (optimization_complete > optimization_deadline)

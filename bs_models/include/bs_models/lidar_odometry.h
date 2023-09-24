@@ -13,7 +13,7 @@
 #include <beam_utils/pointclouds.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/frame_initializers/frame_initializers.h>
+#include <bs_models/frame_initializers/frame_initializer.h>
 #include <bs_models/global_mapping/active_submap.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/scan_registration_base.h>
@@ -102,7 +102,7 @@ private:
   fuse_core::UUID extrinsics_orientation_uuid_;
 
   /** Used to get initial pose estimates */
-  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
+  std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
 
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();

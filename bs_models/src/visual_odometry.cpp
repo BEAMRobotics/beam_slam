@@ -38,9 +38,8 @@ void VisualOdometry::onInit() {
   calibration_params_.loadFromROS();
 
   // create frame initializer (inertial, lidar, constant velocity)
-  frame_initializer_ =
-      bs_models::frame_initializers::FrameInitializerBase::Create(
-          vo_params_.frame_initializer_config);
+  frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+      vo_params_.frame_initializer_config);
 
   // Load camera model and create visua map object
   cam_model_ = beam_calibration::CameraModel::Create(
@@ -60,7 +59,7 @@ void VisualOdometry::onInit() {
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
 
   // compute the max container size
-  ros::param::get("lag_duration", lag_duration_);
+  ros::param::get("/local_mapper/lag_duration", lag_duration_);
   max_container_size_ = calibration_params_.camera_hz * (lag_duration_ + 1);
 }
 
@@ -113,7 +112,7 @@ void VisualOdometry::processMeasurements(
     if (!success) { break; }
 
     visual_measurement_buffer_.pop_front();
-    ROS_INFO_STREAM("Frame processing time: " << timer.elapsed());
+    ROS_DEBUG_STREAM("Frame processing time: " << timer.elapsed());
   }
 
   // remove measurements from container if we are over the limit
@@ -132,48 +131,42 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   // compute and publish relative odometry
   ComputeRelativeOdometry(timestamp, T_WORLD_BASELINK);
 
-  // check if the frame is a keyframe
-  if (IsKeyframe(timestamp, T_WORLD_BASELINK)) {
-    ROS_DEBUG_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
-    // create new keyframe
-    Keyframe kf(*msg);
-    keyframes_.insert({timestamp, kf});
-
-    // add pose to graph
-    auto transaction = fuse_core::Transaction::make_shared();
-    transaction->stamp(timestamp - ros::Duration(1e-7));
-    visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
-    previous_keyframe_ = timestamp;
-    sendTransaction(transaction);
-
-    // extend existing map and add constraints
-    ExtendMap(timestamp, T_WORLD_BASELINK);
-
-    // publish keyframe pose
-    PublishPose(timestamp, T_WORLD_BASELINK);
-
-    // send IO trigger
-    if (vo_params_.trigger_inertial_odom_constraints) {
-      std_msgs::Time time_msg;
-      time_msg.data = timestamp;
-      imu_constraint_trigger_publisher_.publish(time_msg);
-      imu_constraint_trigger_counter_++;
-    }
-
-    // publish reloc request at given rate
-    if ((timestamp - previous_reloc_request_).toSec() >
-        vo_params_.reloc_request_period) {
-      ROS_INFO_STREAM("Publishing reloc request at: " << timestamp);
-      previous_reloc_request_ = timestamp;
-      PublishRelocRequest(kf);
-    }
-  } else {
-    // if not keyframe -> add to keyframe sub trajectory
+  // if not keyframe -> add to current keyframe sub trajectory
+  if (!IsKeyframe(timestamp, T_WORLD_BASELINK)) {
     Eigen::Matrix4d T_WORLD_BASELINKprevkf =
         visual_map_->GetBaselinkPose(previous_keyframe_).value();
     Eigen::Matrix4d T_KEYFRAME_FRAME =
         beam::InvertTransform(T_WORLD_BASELINKprevkf) * T_WORLD_BASELINK;
     keyframes_.at(previous_keyframe_).AddPose(timestamp, T_KEYFRAME_FRAME);
+    return true;
+  }
+  
+  // create new keyframe
+  ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
+  Keyframe kf(*msg);
+  keyframes_.insert({timestamp, kf});
+  previous_keyframe_ = timestamp;
+
+  // extend existing map and add constraints
+  ExtendMap(timestamp, T_WORLD_BASELINK);
+
+  // publish keyframe pose
+  PublishPose(timestamp, T_WORLD_BASELINK);
+
+  // send IO trigger
+  if (vo_params_.trigger_inertial_odom_constraints) {
+    std_msgs::Time time_msg;
+    time_msg.data = timestamp;
+    imu_constraint_trigger_publisher_.publish(time_msg);
+    imu_constraint_trigger_counter_++;
+  }
+
+  // publish reloc request at given rate
+  if ((timestamp - previous_reloc_request_).toSec() >
+      vo_params_.reloc_request_period) {
+    ROS_INFO_STREAM("Publishing reloc request at: " << timestamp);
+    previous_reloc_request_ = timestamp;
+    PublishRelocRequest(kf);
   }
 
   return true;
@@ -181,24 +174,14 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
 bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix4d& T_WORLD_BASELINK) {
-  const auto prev_kf_pose = visual_map_->GetBaselinkPose(previous_keyframe_);
-  if (!prev_kf_pose.has_value()) {
-    ROS_ERROR("Cannot retrieve previous keyframe pose.");
-    throw std::runtime_error{"Cannot retrieve previous keyframe pose."};
-  }
-  const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_kf_pose.value();
-
-  // get estimate from frame initializer
-  Eigen::Matrix4d T_PREVFRAME_CURFRAME;
-  if (!frame_initializer_->GetRelativePose(T_PREVFRAME_CURFRAME,
-                                           previous_keyframe_, timestamp)) {
+  Eigen::Matrix4d T_WORLD_BASELINKcur;
+  if (!frame_initializer_->GetPose(T_WORLD_BASELINKcur, timestamp,
+                                   extrinsics_.GetBaselinkFrameId())) {
     ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
                     "buffering frame: "
                     << timestamp);
     return false;
   }
-  const Eigen::Matrix4d T_WORLD_BASELINKcur =
-      T_WORLD_BASELINKprev * T_PREVFRAME_CURFRAME;
 
   // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
@@ -242,6 +225,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
   // create transaction for this keyframe
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(timestamp);
+  visual_map_->AddBaselinkPose(T_WORLD_BASELINK, timestamp, transaction);
 
   // add prior if using a frame initializer
   if (frame_initializer_ && vo_params_.prior_information_weight != 0) {
@@ -338,7 +322,7 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
     return true;
   } else if (percent_tracked <= 0.5) {
     return true;
-  } else if ((timestamp - kf_time).toSec() > ((lag_duration_ - 1) / 2)) {
+  } else if ((timestamp - kf_time).toSec() > ((lag_duration_ / 2.0) - 0.5)) {
     return true;
   }
   return false;

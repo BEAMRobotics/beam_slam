@@ -12,7 +12,7 @@
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
-#include <bs_models/frame_initializers/frame_initializers.h>
+#include <bs_models/frame_initializers/frame_initializer.h>
 #include <bs_models/imu/imu_preintegration.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/inertial_odometry_params.h>
@@ -166,7 +166,7 @@ private:
   // primary odom objects
   std::shared_ptr<ImuPreintegration> imu_preint_;
   bs_models::ImuPreintegration::Params imu_params_;
-  std::unique_ptr<frame_initializers::FrameInitializerBase> frame_initializer_;
+  std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
 
   // extrinsics
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =

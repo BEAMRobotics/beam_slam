@@ -1,14 +1,18 @@
 #pragma once
 
+#include <mutex>
+
 #include <Eigen/Dense>
 #include <ros/ros.h>
 #include <tf2/buffer_core.h>
 
 #include <bs_common/pose_lookup.h>
 
-namespace bs_models { namespace frame_initializers {
+namespace bs_models {
 
 static std::string frame_initializer_error_msg = "";
+
+using Path = std::map<ros::Time, Eigen::Matrix4d>;
 
 /**
  * @brief This base class shows the contract between a FrameInitializer class.
@@ -21,8 +25,14 @@ static std::string frame_initializer_error_msg = "";
  * constructor. The constructor also needs to initialize pose_lookup_ and poses_
  *
  */
-class FrameInitializerBase {
+class FrameInitializer {
 public:
+  /**
+   * @brief Constructor to create frame initializer from a config file
+   * @param config_path path to config file
+   */
+  FrameInitializer(const std::string& config_path);
+
   /**
    * @brief Gets estimated pose of sensor frame wrt world frame using
    * Poselookup.
@@ -47,18 +57,47 @@ public:
                        std::string& error_msg = frame_initializer_error_msg);
 
   /**
-   * @brief Factory method for creating a Frame initializer from a json config
-   * @param config_path path to json config
-   * @return unique ptr to a frame initializer
+   * @brief Converts incoming odometry messages to tf poses and stores them in a
+   * buffercore
+   * @param message odometry message
    */
-  static std::unique_ptr<frame_initializers::FrameInitializerBase>
-      Create(const std::string& config_path);
+  void OdometryCallback(const nav_msgs::OdometryConstPtr message);
 
-protected:
+  /**
+   * @brief Stores the current path published from the graph
+   * @param message path message
+   */
+  void PathCallback(const nav_msgs::PathConstPtr message);
+
+private:
+  /**
+   * @brief Check to see if world frame and baselink frame IDs match those
+   * supplied in odometry messages.
+   */
+  void CheckOdometryFrameIDs(const nav_msgs::OdometryConstPtr message);
+
+  /**
+   * @brief Initializes the class from a pose file
+   */
+  void InitializeFromPoseFile(const std::string& file_path);
+
   std::string authority_;
   std::shared_ptr<bs_common::PoseLookup> pose_lookup_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  std::shared_ptr<tf2::BufferCore> poses_;
+
+  Eigen::Matrix4d T_ORIGINAL_OVERRIDE_{};
+
+  Path graph_path_;
+  ros::Duration poses_buffer_duration_;
+  ros::Subscriber odometry_subscriber_;
+  ros::Subscriber path_subscriber_;
+  bool check_world_baselink_frames_{true};
+  bool override_sensor_frame_id_{false};
+  std::string sensor_frame_id_;
+  std::mutex path_mutex_;
 };
 
-}} // namespace bs_models::frame_initializers
+} // namespace bs_models

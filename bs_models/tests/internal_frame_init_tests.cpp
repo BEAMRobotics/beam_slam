@@ -3,5 +3,5 @@
 
 TEST(InternalFrameInitializer) {
   InternalFrameInitializer fi =
-      bs_models::frame_initializers::InternalFrameInitializer::GetInstance();
+      bs_models::InternalFrameInitializer::GetInstance();
 }
