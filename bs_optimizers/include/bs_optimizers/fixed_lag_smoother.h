@@ -170,6 +170,7 @@ protected:
   std::thread optimization_thread_; //!< Thread used to run the optimizer as a
                                     //!< background process
   ParameterType params_; //!< Configuration settings for this fixed-lag smoother
+  bool use_pseudo_marginalization_;
 
   // Inherently thread-safe
   std::atomic<bool> ignited_; //!< Flag indicating the optimizer has received a

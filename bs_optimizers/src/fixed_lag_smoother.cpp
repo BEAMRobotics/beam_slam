@@ -34,6 +34,7 @@
 #include <bs_optimizers/fixed_lag_smoother.h>
 
 #include <bs_common/imu_state.h>
+#include <bs_parameters/parameter_base.h>
 #include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
 #include <fuse_constraints/marginalize_variables.h>
 #include <fuse_core/graph.h>
@@ -48,8 +49,6 @@
 #include <string>
 #include <thread>
 #include <vector>
-
-constexpr bool USE_PSEUDO_MARGINALIZATION = true;
 
 namespace {
 /**
@@ -88,6 +87,10 @@ FixedLagSmoother::FixedLagSmoother(fuse_core::Graph::UniquePtr graph,
       optimization_running_(true),
       started_(false) {
   params_.loadFromROS(private_node_handle);
+
+  // get additional parameter
+  bs_parameters::getParam(private_node_handle, "pseudo_marginalization",
+                      use_pseudo_marginalization_, false);
 
   // Test for auto-start
   autostart();
@@ -226,13 +229,13 @@ void FixedLagSmoother::optimizationLoop() {
         break;
       }
 
-      // Marginalize variables
+      // Marginalize variable
       ROS_DEBUG("Marginalizing graph.");
       preprocessMarginalization(*new_transaction);
       lag_expiration_ = computeLagExpirationTime();
       auto vars_to_marginalize = computeVariablesToMarginalize(lag_expiration_);
 
-      if (USE_PSEUDO_MARGINALIZATION) {
+      if (use_pseudo_marginalization_) {
         marginal_transaction_ = fuse_core::Transaction();
         if (vars_to_marginalize.size() > 1) {
           // remove variables
@@ -259,8 +262,7 @@ void FixedLagSmoother::optimizationLoop() {
         }
       } else {
         marginal_transaction_ = fuse_constraints::marginalizeVariables(
-            ros::this_node::getName(), vars_to_marginalize,
-            *graph_);
+            ros::this_node::getName(), vars_to_marginalize, *graph_);
       }
 
       graph_->update(marginal_transaction_);

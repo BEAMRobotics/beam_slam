@@ -12,6 +12,10 @@
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel);
 
+void timer_callback(const ros::TimerEvent&) {
+  std::cout << "Inertial odom still running" << std::endl;
+}
+
 namespace bs_models {
 
 ImuBuffer::ImuBuffer(double buffer_length_s) {
@@ -24,19 +28,17 @@ void ImuBuffer::AddData(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 void ImuBuffer::CleanOverflow() {
-  if (!imu_msgs_.empty()) {
-    while (imu_msgs_.rbegin()->first - imu_msgs_.begin()->first >
-           buffer_length_) {
-      imu_msgs_.erase(imu_msgs_.begin());
-    }
+  while (!imu_msgs_.empty() &&
+         imu_msgs_.rbegin()->first - imu_msgs_.begin()->first >
+             buffer_length_) {
+    imu_msgs_.erase(imu_msgs_.begin());
   }
 
-  if (!constraint_buffer_.empty()) {
-    while (constraint_buffer_.rbegin()->first -
-               constraint_buffer_.begin()->first >
-           buffer_length_) {
-      constraint_buffer_.erase(constraint_buffer_.begin());
-    }
+  while (!constraint_buffer_.empty() &&
+         constraint_buffer_.rbegin()->first -
+                 constraint_buffer_.begin()->first >
+             buffer_length_) {
+    constraint_buffer_.erase(constraint_buffer_.begin());
   }
 }
 
@@ -135,9 +137,7 @@ void InertialOdometry::onStart() {
 
   // setup publishers
   odometry_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 1000);
-  pose_publisher_ =
-      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 1000);
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
 }
 
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -155,13 +155,8 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 
   // process each imu message as it comes in
   imu_preint_->AddToBuffer(*msg);
-
   // get relative pose and publish
   ComputeRelativeMotion(prev_stamp_, msg->header.stamp);
-
-  // get world pose and publish
-  ComputeAbsolutePose(msg->header.stamp);
-
   odom_seq_++;
   prev_stamp_ = msg->header.stamp;
 }
@@ -217,15 +212,6 @@ void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
       curr_stamp, odom_seq_, extrinsics_.GetWorldFrameId(),
       extrinsics_.GetImuFrameId(), T_ODOM_IMUprev_, cov_reordered);
   odometry_publisher_.publish(odom_msg_rel);
-}
-
-void InertialOdometry::ComputeAbsolutePose(const ros::Time& curr_stamp) {
-  // get world pose and publish
-  const auto [T_WORLD_IMU, cov_abs] = imu_preint_->GetPose(curr_stamp);
-  geometry_msgs::PoseStamped msg;
-  bs_common::EigenTransformToPoseStamped(T_WORLD_IMU, curr_stamp, odom_seq_,
-                                         extrinsics_.GetImuFrameId(), msg);
-  pose_publisher_.publish(msg);
 }
 
 void InertialOdometry::onGraphUpdate(
@@ -291,8 +277,6 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
         imu_preint_->AddToBuffer(*imu_msg);
         // get relative pose and publish
         ComputeRelativeMotion(prev_stamp_, imu_stamp);
-        // get world pose and publish
-        ComputeAbsolutePose(imu_stamp);
         odom_seq_++;
         prev_stamp_ = imu_stamp;
       } else {
@@ -310,8 +294,6 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
     imu_preint_->AddToBuffer(*imu_msg);
     // get relative pose and publish
     ComputeRelativeMotion(prev_stamp_, imu_stamp);
-    // get world pose and publish
-    ComputeAbsolutePose(imu_stamp);
     odom_seq_++;
     prev_stamp_ = imu_stamp;
   }

@@ -131,10 +131,8 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
   Eigen::Matrix4d T_BASELINK_SENSOR;
   extrinsics_.GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame_id);
 
-  // copy graph path in safe way
-  path_mutex_.lock();
+  // copy graph path
   Path graph_path_copy = graph_path_;
-  path_mutex_.unlock();
 
   if (time < (*graph_path_copy.begin()).first) {
     ROS_ERROR("Frame Initializer requested time is before the graph window.");
@@ -183,7 +181,7 @@ bool FrameInitializer::GetRelativePose(Eigen::Matrix4d& T_A_B,
       pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKB, tB, error2);
 
   if (!A_success || !B_success) {
-    error_msg = "Error 1: " + error1 + "\tError 2: " + error2;
+    error_msg = "\n\tError 1: " + error1 + "\n\tError 2: " + error2;
     return false;
   }
 
@@ -268,15 +266,14 @@ void FrameInitializer::OdometryCallback(
 }
 
 void FrameInitializer::PathCallback(const nav_msgs::PathConstPtr message) {
-  path_mutex_.lock();
-  graph_path_.clear();
+  Path new_path;
   for (const auto& pose : message->poses) {
     const ros::Time stamp = pose.header.stamp;
     Eigen::Matrix4d T;
     bs_common::PoseMsgToTransformationMatrix(pose, T);
-    graph_path_.insert({stamp, T});
+    new_path.insert({stamp, T});
   }
-  path_mutex_.unlock();
+  graph_path_ = new_path;
 }
 
 void FrameInitializer::InitializeFromPoseFile(const std::string& file_path) {

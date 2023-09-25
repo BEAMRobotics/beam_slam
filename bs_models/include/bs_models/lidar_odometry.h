@@ -121,7 +121,7 @@ private:
   /** Params that can only be updated here: */
   bool update_registration_map_all_scans_{false};
   bool update_registration_map_in_batch_{true};
-  bool use_frame_init_relative_{true};
+  bool use_frame_init_relative_{false};
 };
 
 } // namespace bs_models

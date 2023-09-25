@@ -129,10 +129,6 @@ private:
   void ComputeRelativeMotion(const ros::Time& prev_stamp,
                              const ros::Time& curr_stamp);
 
-  /// @brief Computes pose in world frame wrt the graph and published to
-  /// odometry
-  /// @param curr_stamp
-  void ComputeAbsolutePose(const ros::Time& curr_stamp);
 
   void Initialize(fuse_core::Graph::ConstSharedPtr graph_msg);
 
@@ -156,7 +152,6 @@ private:
 
   // publishers
   ros::Publisher odometry_publisher_;
-  ros::Publisher pose_publisher_;
 
   // data storage
   ros::Time last_trigger_time_;
