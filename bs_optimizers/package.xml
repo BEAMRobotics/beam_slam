@@ -8,9 +8,8 @@
     to the optimal state via the publishers.
   </description>
 
-  <maintainer email="swilliams@locusrobotics.com">Stephen Williams</maintainer>
-  <author email="swilliams@locusrobotics.com">Stephen Williams</author>
-  <author email="tmoore@locusrobotics.com">Tom Moore</author>
+  <maintainer email="jake.mclaughlin98@gmail.com">Jake McLaughlin</maintainer>
+  <author email="jake.mclaughlin98@gmail.com">Jake McLaughlin</author>
   <license>BSD</license>
 
   <buildtool_depend>catkin</buildtool_depend>
@@ -20,6 +19,8 @@
   <depend>fuse_core</depend>
   <depend>fuse_graphs</depend>
   <depend>fuse_variables</depend>
+  <depend>bs_constraints</depend>
+  <depend>bs_common</depend>
   <depend>pluginlib</depend>
   <depend>roscpp</depend>
   <depend>std_srvs</depend>

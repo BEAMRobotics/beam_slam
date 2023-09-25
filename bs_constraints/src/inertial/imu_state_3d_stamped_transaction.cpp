@@ -25,11 +25,7 @@ void ImuState3DStampedTransaction::AddPriorImuStateConstraint(
     const Eigen::Matrix<double, 15, 15>& prior_covariance,
     const std::string& prior_source) {
   // populate mean
-  Eigen::Matrix<double, 16, 1> mean;
-  mean << imu_state.OrientationQuat().w(), imu_state.OrientationQuat().x(),
-      imu_state.OrientationQuat().y(), imu_state.OrientationQuat().z(),
-      imu_state.PositionVec(), imu_state.VelocityVec(), imu_state.GyroBiasVec(),
-      imu_state.AccelBiasVec();
+  Eigen::Matrix<double, 16, 1> mean = imu_state.GetStateVector();
 
   // build and add constraint
   auto prior = std::make_shared<PriorType>(prior_source, imu_state, mean,

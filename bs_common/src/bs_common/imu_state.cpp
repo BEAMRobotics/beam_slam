@@ -337,4 +337,12 @@ void ImuState::SetStamp(const ros::Time stamp) {
   stamp_ = stamp;
 }
 
+Eigen::Matrix<double, 16, 1> ImuState::GetStateVector() const {
+  Eigen::Matrix<double, 16, 1> state;
+  state << orientation_.w(), orientation_.x(), orientation_.y(),
+      orientation_.z(), PositionVec(), VelocityVec(), GyroBiasVec(),
+      AccelBiasVec();
+  return state;
+}
+
 } // namespace bs_common

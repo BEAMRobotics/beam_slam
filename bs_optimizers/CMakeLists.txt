@@ -7,6 +7,12 @@ endif()
 
 set(CMAKE_BUILD_TYPE "release")
 
+find_package(
+  beam REQUIRED 
+  COMPONENTS 
+  utils
+)
+
 set(build_depends
   diagnostic_updater
   fuse_optimizers
@@ -17,6 +23,8 @@ set(build_depends
   pluginlib
   roscpp
   std_srvs
+  bs_constraints
+  bs_common
 )
 
 find_package(OpenMP)
@@ -54,6 +62,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${OpenMP_CXX_LIBRARIES}
+  beam::utils
 )
 set_target_properties(${PROJECT_NAME}
   PROPERTIES
@@ -79,6 +88,7 @@ target_include_directories(fixed_lag_smoother_node
 target_link_libraries(fixed_lag_smoother_node
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
+  beam::utils
 )
 set_target_properties(fixed_lag_smoother_node
   PROPERTIES
