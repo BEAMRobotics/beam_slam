@@ -135,7 +135,7 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
   Path graph_path_copy = graph_path_;
 
   if (time < (*graph_path_copy.begin()).first) {
-    ROS_ERROR("Frame Initializer requested time is before the graph window.");
+    error_msg = "Requested time is before the start of the current graph.";
     return false;
   }
 
@@ -156,8 +156,6 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
     std::string error;
     Eigen::Matrix4d T_prev_now;
     if (!GetRelativePose(T_prev_now, closest_graph_time, time, error)) {
-      ROS_ERROR_STREAM(
-          "Frame Initializer cannot compute relative pose: " << error);
       return false;
     }
     Eigen::Matrix4d T_WORLD_BASELINKnow = T_WORLD_BASELINKprev * T_prev_now;

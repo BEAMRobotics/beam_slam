@@ -26,7 +26,7 @@ namespace bs_models {
 using namespace vision;
 
 VisualOdometry::VisualOdometry()
-    : fuse_core::AsyncSensorModel(1),
+    : fuse_core::AsyncSensorModel(3),
       device_id_(fuse_core::uuid::NIL),
       throttled_measurement_callback_(std::bind(
           &VisualOdometry::processMeasurements, this, std::placeholders::_1)) {}
@@ -140,7 +140,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
     keyframes_.at(previous_keyframe_).AddPose(timestamp, T_KEYFRAME_FRAME);
     return true;
   }
-  
+
   // create new keyframe
   ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
   Keyframe kf(*msg);
@@ -174,12 +174,13 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
 bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix4d& T_WORLD_BASELINK) {
+  std::string error;
   Eigen::Matrix4d T_WORLD_BASELINKcur;
   if (!frame_initializer_->GetPose(T_WORLD_BASELINKcur, timestamp,
-                                   extrinsics_.GetBaselinkFrameId())) {
+                                   extrinsics_.GetBaselinkFrameId(), error)) {
     ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
                     "buffering frame: "
-                    << timestamp);
+                    << timestamp << ".\n\tError: " << error);
     return false;
   }
 

@@ -26,7 +26,7 @@ using namespace scan_registration;
 using namespace beam_matching;
 
 LidarOdometry::LidarOdometry()
-    : fuse_core::AsyncSensorModel(1),
+    : fuse_core::AsyncSensorModel(3),
       device_id_(fuse_core::uuid::NIL),
       throttled_callback_(
           std::bind(&LidarOdometry::process, this, std::placeholders::_1)) {}
@@ -311,8 +311,9 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
         extrinsics_.GetBaselinkFrameId(), error_msg);
   }
 
+  // todo: buffer frames if it fails, don't skip
   if (!init_successful) {
-    ROS_DEBUG("Could not initialize frame, skipping scan. Reason: %s",
+    ROS_WARN("Could not initialize frame, skipping scan. Reason: %s",
               error_msg.c_str());
     return;
   }
