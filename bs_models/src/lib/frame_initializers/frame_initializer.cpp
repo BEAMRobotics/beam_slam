@@ -136,7 +136,10 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
   Path graph_path_copy = graph_path_;
   path_mutex_.unlock();
 
-  if (time < (*graph_path_copy.begin()).first) { return false; }
+  if (time < (*graph_path_copy.begin()).first) {
+    ROS_ERROR("Frame Initializer requested time is before the graph window.");
+    return false;
+  }
 
   if (graph_path_copy.find(time) != graph_path_copy.end()) {
     // we assume the graph path is in the baselink frame
@@ -148,11 +151,15 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
     auto lb = graph_path_copy.lower_bound(time);
     lb = std::prev(lb);
     const ros::Time closest_graph_time = lb->first;
-    Eigen::Matrix4d T_WORLD_BASELINKprev = graph_path_copy.at(closest_graph_time);
+    Eigen::Matrix4d T_WORLD_BASELINKprev =
+        graph_path_copy.at(closest_graph_time);
 
     // compute relative pose between the graph pose and the current time
+    std::string error;
     Eigen::Matrix4d T_prev_now;
-    if (!GetRelativePose(T_prev_now, closest_graph_time, time)) {
+    if (!GetRelativePose(T_prev_now, closest_graph_time, time, error)) {
+      ROS_ERROR_STREAM(
+          "Frame Initializer cannot compute relative pose: " << error);
       return false;
     }
     Eigen::Matrix4d T_WORLD_BASELINKnow = T_WORLD_BASELINKprev * T_prev_now;
@@ -165,15 +172,20 @@ bool FrameInitializer::GetRelativePose(Eigen::Matrix4d& T_A_B,
                                        const ros::Time& tA, const ros::Time& tB,
                                        std::string& error_msg) {
   // get pose at time a
+  std::string error1;
   Eigen::Matrix4d p_WORLD_BASELINKa;
   const auto A_success =
-      pose_lookup_->GetT_WORLD_BASELINK(p_WORLD_BASELINKa, tA, error_msg);
+      pose_lookup_->GetT_WORLD_BASELINK(p_WORLD_BASELINKa, tA, error1);
   // get pose at time b
+  std::string error2;
   Eigen::Matrix4d T_WORLD_BASELINKB;
   const auto B_success =
-      pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKB, tB, error_msg);
+      pose_lookup_->GetT_WORLD_BASELINK(T_WORLD_BASELINKB, tB, error2);
 
-  if (!A_success || !B_success) { return false; }
+  if (!A_success || !B_success) {
+    error_msg = "Error 1: " + error1 + "\tError 2: " + error2;
+    return false;
+  }
 
   T_A_B = beam::InvertTransform(p_WORLD_BASELINKa) * T_WORLD_BASELINKB;
   return true;
