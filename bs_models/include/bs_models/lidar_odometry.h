@@ -86,6 +86,7 @@ private:
   using ThrottledCallback =
       fuse_core::ThrottledMessageCallback<sensor_msgs::PointCloud2>;
   ThrottledCallback throttled_callback_;
+  std::deque<sensor_msgs::PointCloud2::ConstPtr> scan_buffer_;
 
   /** Needed for outputing the slam results or saving final clouds or graph
    * updates */

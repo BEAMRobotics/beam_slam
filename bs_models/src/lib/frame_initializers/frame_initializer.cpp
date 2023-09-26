@@ -153,9 +153,8 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
         graph_path_copy.at(closest_graph_time);
 
     // compute relative pose between the graph pose and the current time
-    std::string error;
     Eigen::Matrix4d T_prev_now;
-    if (!GetRelativePose(T_prev_now, closest_graph_time, time, error)) {
+    if (!GetRelativePose(T_prev_now, closest_graph_time, time, error_msg)) {
       return false;
     }
     Eigen::Matrix4d T_WORLD_BASELINKnow = T_WORLD_BASELINKprev * T_prev_now;
