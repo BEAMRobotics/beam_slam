@@ -6,10 +6,10 @@ solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
   minimizer_progress_to_stdout: false
-  num_threads: 8
-  num_linear_solver_threads: 8
+  num_threads: 6
+  num_linear_solver_threads: 6
   max_num_iterations: 5
-  max_solver_time_in_seconds: 0.04
+  max_solver_time_in_seconds: 0.05
   gradient_tolerance: 0.00000015
   parameter_tolerance: 0.00000015
   function_tolerance: 0.00000015
