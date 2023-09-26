@@ -34,8 +34,8 @@
 #include <bs_optimizers/fixed_lag_smoother.h>
 
 #include <bs_common/imu_state.h>
-#include <bs_parameters/parameter_base.h>
 #include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
+#include <bs_parameters/parameter_base.h>
 #include <fuse_constraints/marginalize_variables.h>
 #include <fuse_core/graph.h>
 #include <fuse_core/transaction.h>
@@ -90,7 +90,7 @@ FixedLagSmoother::FixedLagSmoother(fuse_core::Graph::UniquePtr graph,
 
   // get additional parameter
   bs_parameters::getParam(private_node_handle, "pseudo_marginalization",
-                      use_pseudo_marginalization_, false);
+                          use_pseudo_marginalization_, false);
 
   // Test for auto-start
   autostart();
@@ -713,43 +713,47 @@ bs_common::ImuState FixedLagSmoother::GetWindowStartState() {
   }
   bs_common::ImuState first_window_state(first_window_time);
 
-  // get position
-  auto position = fuse_variables::Position3DStamped::make_shared();
-  const auto pos_uuid = fuse_core::uuid::generate(
-      position->type(), first_window_time, fuse_core::uuid::NIL);
-  *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
-      graph_->getVariable(pos_uuid));
-  // get orientation
-  auto orientation = fuse_variables::Orientation3DStamped::make_shared();
-  const auto or_uuid = fuse_core::uuid::generate(
-      orientation->type(), first_window_time, fuse_core::uuid::NIL);
-  *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-      graph_->getVariable(or_uuid));
-  // get velocity
-  auto velocity = fuse_variables::VelocityLinear3DStamped::make_shared();
-  const auto vel_uuid = fuse_core::uuid::generate(
-      velocity->type(), first_window_time, fuse_core::uuid::NIL);
-  *velocity = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
-      graph_->getVariable(vel_uuid));
-  // get accel bias
-  auto accel_bias = bs_variables::AccelerationBias3DStamped::make_shared();
-  const auto ba_uuid = fuse_core::uuid::generate(
-      accel_bias->type(), first_window_time, fuse_core::uuid::NIL);
-  *accel_bias = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
-      graph_->getVariable(ba_uuid));
-  // get gyro bias
-  auto gyro_bias = bs_variables::GyroscopeBias3DStamped::make_shared();
-  const auto bg_uuid = fuse_core::uuid::generate(
-      gyro_bias->type(), first_window_time, fuse_core::uuid::NIL);
-  *gyro_bias = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
-      graph_->getVariable(bg_uuid));
-
-  first_window_state.SetPosition(*position);
-  first_window_state.SetOrientation(*orientation);
-  first_window_state.SetVelocity(*velocity);
-  first_window_state.SetAccelBias(*accel_bias);
-  first_window_state.SetGyroBias(*gyro_bias);
-  return first_window_state;
+  try {
+    // get position
+    auto position = fuse_variables::Position3DStamped::make_shared();
+    const auto pos_uuid = fuse_core::uuid::generate(
+        position->type(), first_window_time, fuse_core::uuid::NIL);
+    *position = dynamic_cast<const fuse_variables::Position3DStamped&>(
+        graph_->getVariable(pos_uuid));
+    // get orientation
+    auto orientation = fuse_variables::Orientation3DStamped::make_shared();
+    const auto or_uuid = fuse_core::uuid::generate(
+        orientation->type(), first_window_time, fuse_core::uuid::NIL);
+    *orientation = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+        graph_->getVariable(or_uuid));
+    // get velocity
+    auto velocity = fuse_variables::VelocityLinear3DStamped::make_shared();
+    const auto vel_uuid = fuse_core::uuid::generate(
+        velocity->type(), first_window_time, fuse_core::uuid::NIL);
+    *velocity = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+        graph_->getVariable(vel_uuid));
+    // get accel bias
+    auto accel_bias = bs_variables::AccelerationBias3DStamped::make_shared();
+    const auto ba_uuid = fuse_core::uuid::generate(
+        accel_bias->type(), first_window_time, fuse_core::uuid::NIL);
+    *accel_bias = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
+        graph_->getVariable(ba_uuid));
+    // get gyro bias
+    auto gyro_bias = bs_variables::GyroscopeBias3DStamped::make_shared();
+    const auto bg_uuid = fuse_core::uuid::generate(
+        gyro_bias->type(), first_window_time, fuse_core::uuid::NIL);
+    *gyro_bias = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
+        graph_->getVariable(bg_uuid));
+    first_window_state.SetPosition(*position);
+    first_window_state.SetOrientation(*orientation);
+    first_window_state.SetVelocity(*velocity);
+    first_window_state.SetAccelBias(*accel_bias);
+    first_window_state.SetGyroBias(*gyro_bias);
+    return first_window_state;
+  } catch (const std::out_of_range& oor) {
+    throw std::out_of_range(
+        "Invalid start state of new graph, not all imu state variables exist.");
+  }
 }
 
 } // namespace bs_optimizers

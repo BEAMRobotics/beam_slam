@@ -301,7 +301,7 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
       Eigen::Vector2d p1 = landmark_container_->GetValue(kf_time, id);
       Eigen::Vector2d p2 = landmark_container_->GetValue(timestamp, id);
       Eigen::Vector3d bp2;
-      if (!cam_model_->BackProject(p1.cast<int>(), bp2)) { continue; }
+      if (!cam_model_->BackProject(p2.cast<int>(), bp2)) { continue; }
       // rotate pixel from current frame to keyframe
       Eigen::Vector3d bp2_in_kf = R_PREVKF_CURFRAME * bp2;
       Eigen::Vector2d bp2_reproj;

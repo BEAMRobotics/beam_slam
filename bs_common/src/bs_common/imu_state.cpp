@@ -73,16 +73,20 @@ bool ImuState::Update(fuse_core::Graph::ConstSharedPtr graph_msg) {
       graph_msg->variableExists(velocity_.uuid()) &&
       graph_msg->variableExists(gyrobias_.uuid()) &&
       graph_msg->variableExists(accelbias_.uuid())) {
-    orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-        graph_msg->getVariable(orientation_.uuid()));
-    position_ = dynamic_cast<const fuse_variables::Position3DStamped&>(
-        graph_msg->getVariable(position_.uuid()));
-    velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
-        graph_msg->getVariable(velocity_.uuid()));
-    gyrobias_ = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
-        graph_msg->getVariable(gyrobias_.uuid()));
-    accelbias_ = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
-        graph_msg->getVariable(accelbias_.uuid()));
+    try {
+      orientation_ = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+          graph_msg->getVariable(orientation_.uuid()));
+      position_ = dynamic_cast<const fuse_variables::Position3DStamped&>(
+          graph_msg->getVariable(position_.uuid()));
+      velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+          graph_msg->getVariable(velocity_.uuid()));
+      gyrobias_ = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
+          graph_msg->getVariable(gyrobias_.uuid()));
+      accelbias_ = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
+          graph_msg->getVariable(accelbias_.uuid()));
+    } catch (const std::out_of_range& oor) {
+      throw std::out_of_range("Imu state update failure.");
+    }
     updates_++;
     return true;
   }
@@ -93,12 +97,16 @@ bool ImuState::UpdateRelative(fuse_core::Graph::ConstSharedPtr graph_msg) {
   if (graph_msg->variableExists(velocity_.uuid()) &&
       graph_msg->variableExists(gyrobias_.uuid()) &&
       graph_msg->variableExists(accelbias_.uuid())) {
-    velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
-        graph_msg->getVariable(velocity_.uuid()));
-    gyrobias_ = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
-        graph_msg->getVariable(gyrobias_.uuid()));
-    accelbias_ = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
-        graph_msg->getVariable(accelbias_.uuid()));
+    try {
+      velocity_ = dynamic_cast<const fuse_variables::VelocityLinear3DStamped&>(
+          graph_msg->getVariable(velocity_.uuid()));
+      gyrobias_ = dynamic_cast<const bs_variables::GyroscopeBias3DStamped&>(
+          graph_msg->getVariable(gyrobias_.uuid()));
+      accelbias_ = dynamic_cast<const bs_variables::AccelerationBias3DStamped&>(
+          graph_msg->getVariable(accelbias_.uuid()));
+    } catch (const std::out_of_range& oor) {
+      throw std::out_of_range("Imu state update failure.");
+    }
     updates_++;
     return true;
   }
