@@ -330,7 +330,7 @@ void InertialOdometry::BreakupConstraint(
     auto imu_trans1 =
         imu_preint_->RegisterNewImuPreintegratedFactor(new_trigger_time);
     if (!imu_trans1) {
-      if ((new_trigger_time - constraint_data.start_time).toSec() < 0.005) {
+      if ((new_trigger_time - constraint_data.start_time).toSec() <= 0.005) {
         ROS_WARN(
             "Attempting to split IMU constraint, but states are too close in "
             "time. Creating relative constraint with assumed zero motion.");
@@ -343,6 +343,9 @@ void InertialOdometry::BreakupConstraint(
         delta << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
         fuse_core::Matrix6d covariance =
             fuse_core::Matrix6d::Identity() * 1e-19;
+
+        // todo: change this to a relative imu constraint, copy biases/velocity
+        // from whichever state actually has them
         auto relative_constraint =
             std::make_shared<fuse_constraints::RelativePose3DStampedConstraint>(
                 "IMUSPLITCONSTRAINT_FAILURE", *position, *orientation,

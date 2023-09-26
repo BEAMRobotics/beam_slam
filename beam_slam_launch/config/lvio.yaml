@@ -26,10 +26,10 @@ sensor_models:
     type: 'bs_models::LidarScanDeskewer'
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
-  - name: 'gravity_alignment'
-    type: 'bs_models::GravityAlignment'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
+  # - name: 'gravity_alignment'
+  #   type: 'bs_models::GravityAlignment'
 
 publishers:
   - name: 'path_publisher'

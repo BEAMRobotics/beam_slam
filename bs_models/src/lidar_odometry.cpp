@@ -320,7 +320,7 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 
     if (!init_successful) {
       ROS_DEBUG("Could not initialize frame, buffering scan. Reason: %s",
-               error_msg.c_str());
+                error_msg.c_str());
       break;
     }
     Eigen::Matrix4d T_Baselink_Lidar;
