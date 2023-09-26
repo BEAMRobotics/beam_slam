@@ -15,6 +15,7 @@ Pose3DStampedTransaction::Pose3DStampedTransaction(
     : override_constraints_(override_constraints),
       override_variables_(override_variables) {
   transaction_ = fuse_core::Transaction::make_shared();
+  loss_function_ = std::make_shared<fuse_loss::CauchyLoss>();
   transaction_->stamp(transaction_stamp);
 }
 
@@ -38,6 +39,7 @@ void Pose3DStampedTransaction::AddPoseConstraint(
         fuse_constraints::RelativePose3DStampedConstraint::make_shared(
             source, position1, orientation1, position2, orientation2,
             diff_Frame1_Frame2, covariance);
+    constraint->loss(loss_function_);
     transaction_->addConstraint(constraint, override_constraints_);
     return;
   }
@@ -52,6 +54,7 @@ void Pose3DStampedTransaction::AddPoseConstraint(
         fuse_constraints::RelativePose3DStampedConstraint::make_shared(
             source, position1, orientation1, position2, orientation2,
             diff_Frame1_Frame2, covariance);
+    constraint->loss(loss_function_);
     transaction_->addConstraint(constraint, override_constraints_);
     return;
   }
@@ -74,6 +77,7 @@ void Pose3DStampedTransaction::AddPoseConstraint(
           make_shared(source, position1, orientation1, position2, orientation2,
                       p_extrinsics, o_extrinsics, diff_Frame1_Frame2,
                       covariance);
+  constraint->loss(loss_function_);
   transaction_->addConstraint(constraint, override_constraints_);
 }
 
