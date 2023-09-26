@@ -22,8 +22,8 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
-  # - name: 'lidar_deskewer'
-  #   type: 'bs_models::LidarScanDeskewer'
+  - name: 'lidar_deskewer'
+    type: 'bs_models::LidarScanDeskewer'
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
   - name: 'gravity_alignment'
@@ -81,7 +81,7 @@ lidar_odometry:
   lidar_type: 'VELODYNE'
   trigger_inertial_odom_constraints: true
   input_filters_config:  '' # 'lidar_filters/input_filters.json'
-  input_topic: '/lidar_h/velodyne_points'
+  input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true
   output_lidar_points: true
   publish_active_submap: true
