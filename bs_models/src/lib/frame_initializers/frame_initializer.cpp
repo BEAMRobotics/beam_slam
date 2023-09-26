@@ -132,7 +132,9 @@ bool FrameInitializer::GetPose(Eigen::Matrix4d& T_WORLD_SENSOR,
   extrinsics_.GetT_BASELINK_SENSOR(T_BASELINK_SENSOR, sensor_frame_id);
 
   // copy graph path
+  path_mutex_.lock();
   Path graph_path_copy = graph_path_;
+  path_mutex_.unlock();
 
   if (time < (*graph_path_copy.begin()).first) {
     error_msg = "Requested time is before the start of the current graph.";
@@ -263,14 +265,15 @@ void FrameInitializer::OdometryCallback(
 }
 
 void FrameInitializer::PathCallback(const nav_msgs::PathConstPtr message) {
-  Path new_path;
+  path_mutex_.lock();
+  graph_path_.clear();
   for (const auto& pose : message->poses) {
     const ros::Time stamp = pose.header.stamp;
     Eigen::Matrix4d T;
     bs_common::PoseMsgToTransformationMatrix(pose, T);
-    new_path.insert({stamp, T});
+    graph_path_.insert({stamp, T});
   }
-  graph_path_ = new_path;
+  path_mutex_.unlock();
 }
 
 void FrameInitializer::InitializeFromPoseFile(const std::string& file_path) {

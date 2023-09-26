@@ -8,6 +8,7 @@
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
 #include <bs_constraints/inertial/relative_imu_state_3d_stamped_constraint.h>
+#include <fuse_constraints/relative_constraint.h>
 #include <fuse_constraints/relative_pose_3d_stamped_constraint.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -330,27 +331,15 @@ void InertialOdometry::BreakupConstraint(
     auto imu_trans1 =
         imu_preint_->RegisterNewImuPreintegratedFactor(new_trigger_time);
     if (!imu_trans1) {
-      if ((new_trigger_time - constraint_data.start_time).toSec() <= 0.005) {
+      auto time_diff = (new_trigger_time - constraint_data.start_time).toSec();
+      if (time_diff <= 0.005) {
         ROS_WARN(
             "Attempting to split IMU constraint, but states are too close in "
             "time. Creating relative constraint with assumed zero motion.");
-        // make relative pose constraint with 0 mean, low covariance
-        auto position2 =
-            bs_common::GetPosition(most_recent_graph_msg_, new_trigger_time);
-        auto orientation2 =
-            bs_common::GetOrientation(most_recent_graph_msg_, new_trigger_time);
-        fuse_core::Vector7d delta;
-        delta << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-        fuse_core::Matrix6d covariance =
-            fuse_core::Matrix6d::Identity() * 1e-19;
-
-        // todo: change this to a relative imu constraint, copy biases/velocity
-        // from whichever state actually has them
-        auto relative_constraint =
-            std::make_shared<fuse_constraints::RelativePose3DStampedConstraint>(
-                "IMUSPLITCONSTRAINT_FAILURE", *position, *orientation,
-                *position2, *orientation2, delta, covariance);
-        transaction->addConstraint(relative_constraint);
+        // todo: make a fake imu relative constraint between
+        // constraint_data.start_time and new_trigger_time
+        // reltive pose constraint + 3 relative constraints between velocity,
+        // and biases
       } else {
         BEAM_ERROR(
             "cannot add constraint for first half of constraint being "
@@ -379,13 +368,24 @@ void InertialOdometry::BreakupConstraint(
     auto imu_trans2 = imu_preint_->RegisterNewImuPreintegratedFactor(
         constraint_data.end_time);
     if (!imu_trans2) {
-      BEAM_ERROR(
-          "cannot add constraint for second half of constraint being "
-          "broken up. Constraint start time: {}, constraint end time: {}. "
-          "ImuPreintegration buffer: ",
-          bs_common::ToString(new_trigger_time),
-          bs_common::ToString(constraint_data.end_time));
-      std::cout << imu_preint_->PrintBuffer() << "\n";
+      auto time_diff = (constraint_data.end_time - new_trigger_time).toSec();
+      if (time_diff <= 0.005) {
+        ROS_WARN(
+            "Attempting to split IMU constraint, but states are too close in "
+            "time. Creating relative constraint with assumed zero motion.");
+        // todo: make a fake imu relative constraint between new_trigger_time
+        // and  constraint_data.end_time
+        // reltive pose constraint + 3 relative constraints between velocity,
+        // and biases
+      } else {
+        BEAM_ERROR(
+            "cannot add constraint for second half of constraint being "
+            "broken up. Constraint start time: {}, constraint end time: {}. "
+            "ImuPreintegration buffer: ",
+            bs_common::ToString(new_trigger_time),
+            bs_common::ToString(constraint_data.end_time));
+        std::cout << imu_preint_->PrintBuffer() << "\n";
+      }
     } else {
       imu_buffer_.AddConstraint(new_trigger_time, constraint_data.end_time,
                                 imu_trans2->addedConstraints().begin()->uuid());
