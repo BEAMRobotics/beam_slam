@@ -149,13 +149,6 @@ private:
   void AddMeasurementsToContainer(
       const bs_common::CameraMeasurementMsg::ConstPtr& msg);
 
-  /**
-   * @brief Creates a fake imu factor between states that are very close in time
-   */
-  void AddSpoofedImuFactor(const bs_common::ImuState& state1,
-                           const bs_common::ImuState& state2,
-                           fuse_core::Transaction::SharedPtr transaction);
-
   fuse_core::UUID device_id_; //!< The UUID of this device
 
   // calibration parameters
