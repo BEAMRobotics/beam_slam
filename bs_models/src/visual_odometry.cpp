@@ -503,8 +503,19 @@ void VisualOdometry::PublishSlamChunk(const vision::Keyframe& keyframe) {
       extrinsics_.GetBaselinkFrameId(), pose_stamped);
   slam_chunk_msg.T_WORLD_BASELINK = pose_stamped;
   slam_chunk_msg.camera_measurement = keyframe.MeasurementMessage();
+
+  nav_msgs::Path sub_keyframe_path;
+  sub_keyframe_path.header.stamp = keyframe.Stamp();
+  sub_keyframe_path.header.frame_id = extrinsics_.GetBaselinkFrameId();
+  for (const auto [stamp, pose] : keyframe.Trajectory()) {
+    geometry_msgs::PoseStamped pose_stamped;
+    bs_common::EigenTransformToPoseStamped(
+        pose, stamp, 0, extrinsics_.GetBaselinkFrameId(), pose_stamped);
+    sub_keyframe_path.poses.push_back(pose_stamped);
+  }
+
+  slam_chunk_msg.trajectory_measurement = sub_keyframe_path;
   slam_chunk_publisher_.publish(slam_chunk_msg);
-  // todo: get sub trajectory and publish
 }
 
 void VisualOdometry::PublishRelocRequest(const vision::Keyframe& keyframe) {
