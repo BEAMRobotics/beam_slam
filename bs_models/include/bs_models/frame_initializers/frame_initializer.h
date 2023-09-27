@@ -1,7 +1,7 @@
 #pragma once
 
-#include <mutex>
 #include <Eigen/Dense>
+#include <mutex>
 #include <ros/ros.h>
 #include <tf2/buffer_core.h>
 
@@ -96,7 +96,7 @@ private:
   bool check_world_baselink_frames_{true};
   bool override_sensor_frame_id_{false};
   std::string sensor_frame_id_;
-    std::mutex path_mutex_;
+  std::mutex path_mutex_;
 };
 
 } // namespace bs_models

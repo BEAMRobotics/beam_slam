@@ -6,6 +6,7 @@
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
 #include <bs_constraints/inertial/imu_state_3d_stamped_transaction.h>
+#include <mutex>
 #include <sensor_msgs/Imu.h>
 
 namespace bs_models {
@@ -200,6 +201,7 @@ private:
   std::unordered_map<uint64_t, bs_common::ImuState>
       window_states_; // state velocities in the window
   double info_weight_{1.0};
+  std::mutex preint_mutex_;
 };
 
 } // namespace bs_models
