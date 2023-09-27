@@ -36,9 +36,8 @@ void LidarOdometry::onInit() {
 
   // init frame initializer
   if (!params_.frame_initializer_config.empty()) {
-    frame_initializer_ =
-        std::make_unique<bs_models::FrameInitializer>(
-            params_.frame_initializer_config);
+    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+        params_.frame_initializer_config);
   }
 
   // get filter params
@@ -317,7 +316,7 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     return;
   }
   Eigen::Matrix4d T_Baselink_Lidar;
-  if (!extrinsics_.GetT_BASELINK_LIDAR(T_Baselink_Lidar, msg->header.stamp)) {
+  if (!extrinsics_.GetT_BASELINK_LIDAR(T_Baselink_Lidar, ros::Time::now())) {
     ROS_ERROR(
         "Cannot get transform from lidar to baselink for stamp: %.8f. Skipping "
         "scan.",

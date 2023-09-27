@@ -45,7 +45,7 @@ bool ExtrinsicsLookupOnline::GetTransform(Eigen::Matrix4d& T,
                                           const ros::Time& time) {
   // if dynamic extrinsics, then we want to lookup the extrinsics now and
   // replace the most recent estimate in ExtrinsicsLookupBase
-  if (!static_extrinsics_) {
+  if (!calibration_params_.static_extrinsics) {
     if (!LookupTransform(T, to_frame, from_frame, time)) { return false; }
     extrinsics_->SetTransform(T, to_frame, from_frame);
     return true;
@@ -205,7 +205,7 @@ std::string ExtrinsicsLookupOnline::GetBaselinkFrameId() const {
 }
 
 bool ExtrinsicsLookupOnline::IsStatic() const {
-  return static_extrinsics_;
+  return calibration_params_.static_extrinsics;
 }
 
 bool ExtrinsicsLookupOnline::IsSensorFrameIdValid(
@@ -229,7 +229,7 @@ bool ExtrinsicsLookupOnline::LookupTransform(Eigen::Matrix4d& T,
     try {
       tf_listener_->lookupTransform(to_frame, from_frame, time, TROS);
     } catch (tf::TransformException& ex) {
-      if (static_extrinsics_) {
+      if (calibration_params_.static_extrinsics) {
         BEAM_WARN("Cannot lookup static extrinsics between frames: {} , {}. "
                   "Reason: {}.",
                   to_frame, from_frame, ex.what());
