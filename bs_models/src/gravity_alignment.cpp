@@ -53,11 +53,13 @@ void GravityAlignment::onStart() {
 }
 
 void GravityAlignment::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
+  gravity_mutex_.lock();
   imu_buffer_.emplace(msg->header.stamp.toNSec(), msg);
   while (imu_buffer_.rbegin()->first - imu_buffer_.begin()->first >
          buffer_duration_in_ns_) {
     imu_buffer_.erase(imu_buffer_.begin());
   }
+  gravity_mutex_.unlock();
 }
 
 void GravityAlignment::processOdometry(
@@ -110,6 +112,7 @@ void GravityAlignment::processOdometry(
     }
   }
 
+  gravity_mutex_.lock();
   AddConstraint(imu_buffer_.at(closest_imu_time_ns), msg->header.stamp);
 
   // clear all IMU messages before constraint time
@@ -119,6 +122,7 @@ void GravityAlignment::processOdometry(
   }
 
   Publish(imu_buffer_.at(closest_imu_time_ns), msg);
+  gravity_mutex_.unlock();
 }
 
 void GravityAlignment::AddConstraint(const sensor_msgs::Imu::ConstPtr& imu_msg,

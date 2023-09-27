@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/throttled_callback.h>
@@ -92,6 +94,7 @@ private:
   using ThrottledOdomCallback =
       fuse_core::ThrottledMessageCallback<nav_msgs::Odometry>;
   ThrottledOdomCallback throttled_odom_callback_;
+  std::mutex gravity_mutex_;
 
   // ------------------------------
   // Parameters only tuneable here:
