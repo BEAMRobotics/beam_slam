@@ -26,7 +26,7 @@ using namespace scan_registration;
 using namespace beam_matching;
 
 LidarOdometry::LidarOdometry()
-    : fuse_core::AsyncSensorModel(1),
+    : fuse_core::AsyncSensorModel(3),
       device_id_(fuse_core::uuid::NIL),
       throttled_callback_(
           std::bind(&LidarOdometry::process, this, std::placeholders::_1)) {}
@@ -285,134 +285,148 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     return;
   }
 
-  // ensure monotonically increasing data
-  if (msg->header.stamp <= last_scan_pose_time_) {
-    ROS_WARN(
-        "detected non-monotonically increasing lidar stamp, skipping scan");
-    return;
+  // buffer the message
+  scan_buffer_.push_back(msg);
+
+  while (!scan_buffer_.empty()) {
+    const auto current_msg = scan_buffer_.front();
+
+    // ensure monotonically increasing data
+    if (current_msg->header.stamp <= last_scan_pose_time_) {
+      ROS_WARN(
+          "detected non-monotonically increasing lidar stamp, skipping scan");
+      scan_buffer_.pop_front();
+      break;
+    }
+
+    Eigen::Matrix4d T_World_BaselinkInit;
+    bool init_successful{true};
+    std::string error_msg;
+
+    if (frame_initializer_ == nullptr) {
+      T_World_BaselinkInit = T_World_BaselinkLast_;
+    } else if (use_frame_init_relative_) {
+      Eigen::Matrix4d T_BaselinkLast_BaselinkCurrent;
+      init_successful = frame_initializer_->GetRelativePose(
+          T_BaselinkLast_BaselinkCurrent, last_scan_pose_time_,
+          current_msg->header.stamp, error_msg);
+      T_World_BaselinkInit =
+          T_World_BaselinkLast_ * T_BaselinkLast_BaselinkCurrent;
+    } else {
+      init_successful = frame_initializer_->GetPose(
+          T_World_BaselinkInit, current_msg->header.stamp,
+          extrinsics_.GetBaselinkFrameId(), error_msg);
+    }
+
+    if (!init_successful) {
+      ROS_DEBUG("Could not initialize frame, buffering scan. Reason: %s",
+                error_msg.c_str());
+      break;
+    }
+    Eigen::Matrix4d T_Baselink_Lidar;
+    if (!extrinsics_.GetT_BASELINK_LIDAR(T_Baselink_Lidar,
+                                         ros::Time::now())) {
+      ROS_ERROR("Cannot get transform from lidar to baselink for stamp: %.8f. "
+                "Buffering scan.",
+                current_msg->header.stamp.toSec());
+      break;
+    }
+
+    std::shared_ptr<ScanPose> current_scan_pose;
+    if (params_.lidar_type == LidarType::VELODYNE) {
+      pcl::PointCloud<PointXYZIRT> cloud_current_unfiltered;
+      beam::ROSToPCL(cloud_current_unfiltered, *msg);
+      pcl::PointCloud<PointXYZIRT> cloud_filtered =
+          beam_filtering::FilterPointCloud<PointXYZIRT>(
+              cloud_current_unfiltered, input_filter_params_);
+      current_scan_pose = std::make_shared<ScanPose>(
+          cloud_filtered, current_msg->header.stamp, T_World_BaselinkInit,
+          T_Baselink_Lidar, feature_extractor_);
+    } else if (params_.lidar_type == LidarType::OUSTER) {
+      pcl::PointCloud<PointXYZITRRNR> cloud_current_unfiltered;
+      beam::ROSToPCL(cloud_current_unfiltered, *msg);
+      pcl::PointCloud<PointXYZITRRNR> cloud_filtered =
+          beam_filtering::FilterPointCloud(cloud_current_unfiltered,
+                                           input_filter_params_);
+      current_scan_pose = std::make_shared<ScanPose>(
+          cloud_filtered, current_msg->header.stamp, T_World_BaselinkInit,
+          T_Baselink_Lidar, feature_extractor_);
+    } else {
+      ROS_ERROR(
+          "Invalid lidar type param. Lidar type may not be implemented yet.");
+      throw std::runtime_error(
+          "Invalid lidar type param. Lidar type may not be implemented yet.");
+    }
+
+    Eigen::Matrix4d T_World_BaselinkCurrent;
+    fuse_core::Transaction::SharedPtr transaction;
+    transaction = scan_registration_->RegisterNewScan(*current_scan_pose)
+                      .GetTransaction();
+
+    Eigen::Matrix4d T_WORLD_LIDAR;
+    scan_registration_->GetMap().GetScanPose(current_scan_pose->Stamp(),
+                                             T_WORLD_LIDAR);
+    T_World_BaselinkCurrent = T_WORLD_LIDAR * T_Baselink_Lidar;
+
+    if (transaction == nullptr) {
+      ROS_WARN("No transaction generated, skipping scan.");
+      scan_buffer_.pop_front();
+      break;
+    }
+    sendTransaction(transaction);
+
+    // add priors from initializer
+    fuse_core::Transaction::SharedPtr prior_transaction;
+    if (params_.prior_information_weight != 0) {
+      auto p = fuse_variables::Position3DStamped::make_shared(
+          current_scan_pose->Position());
+      auto o = fuse_variables::Orientation3DStamped::make_shared(
+          current_scan_pose->Orientation());
+      prior_transaction = fuse_core::Transaction::make_shared();
+      prior_transaction->stamp(current_scan_pose->Stamp());
+      prior_transaction->addVariable(p);
+      prior_transaction->addVariable(o);
+
+      // add prior
+      fuse_core::Vector7d mean;
+      mean << p->x(), p->y(), p->z(), o->w(), o->x(), o->y(), o->z();
+
+      auto prior =
+          std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
+              "FRAMEINITIALIZERPRIOR", *p, *o, mean, params_.prior_covariance);
+      prior_transaction->addConstraint(prior);
+      sendTransaction(prior_transaction);
+    }
+
+    // send IO trigger
+    if (params_.trigger_inertial_odom_constraints) {
+      std_msgs::Time time_msg;
+      time_msg.data = current_scan_pose->Stamp();
+      imu_constraint_trigger_publisher_.publish(time_msg);
+      imu_constraint_trigger_counter_++;
+    }
+
+    PublishScanRegistrationResults(transaction, *current_scan_pose);
+    active_clouds_.push_back(current_scan_pose);
+
+    // publish odom
+    nav_msgs::Odometry odom_msg;
+    bs_common::EigenTransformToOdometryMsg(
+        T_World_BaselinkCurrent, current_scan_pose->Stamp(),
+        odom_publisher_counter_, extrinsics_.GetWorldFrameId(),
+        extrinsics_.GetBaselinkFrameId(), odom_msg);
+    odom_publisher_.publish(odom_msg);
+    odom_publisher_counter_++;
+    PublishTfTransform(T_World_BaselinkCurrent, "lidar_world",
+                       extrinsics_.GetBaselinkFrameId(),
+                       current_scan_pose->Stamp());
+
+    // set current measurements to last
+    T_World_BaselinkLast_ = T_World_BaselinkCurrent;
+    last_scan_pose_time_ = current_scan_pose->Stamp();
+
+    scan_buffer_.pop_front();
   }
-  Eigen::Matrix4d T_World_BaselinkInit;
-  bool init_successful{true};
-  std::string error_msg;
-
-  if (frame_initializer_ == nullptr) {
-    T_World_BaselinkInit = T_World_BaselinkLast_;
-  } else if (use_frame_init_relative_) {
-    Eigen::Matrix4d T_BaselinkLast_BaselinkCurrent;
-    init_successful = frame_initializer_->GetRelativePose(
-        T_BaselinkLast_BaselinkCurrent, last_scan_pose_time_, msg->header.stamp,
-        error_msg);
-    T_World_BaselinkInit =
-        T_World_BaselinkLast_ * T_BaselinkLast_BaselinkCurrent;
-  } else {
-    init_successful = frame_initializer_->GetPose(
-        T_World_BaselinkInit, msg->header.stamp,
-        extrinsics_.GetBaselinkFrameId(), error_msg);
-  }
-
-  if (!init_successful) {
-    ROS_DEBUG("Could not initialize frame, skipping scan. Reason: %s",
-              error_msg.c_str());
-    return;
-  }
-  Eigen::Matrix4d T_Baselink_Lidar;
-  if (!extrinsics_.GetT_BASELINK_LIDAR(T_Baselink_Lidar, ros::Time::now())) {
-    ROS_ERROR(
-        "Cannot get transform from lidar to baselink for stamp: %.8f. Skipping "
-        "scan.",
-        msg->header.stamp.toSec());
-    return;
-  }
-
-  std::shared_ptr<ScanPose> current_scan_pose;
-  if (params_.lidar_type == LidarType::VELODYNE) {
-    pcl::PointCloud<PointXYZIRT> cloud_current_unfiltered;
-    beam::ROSToPCL(cloud_current_unfiltered, *msg);
-    pcl::PointCloud<PointXYZIRT> cloud_filtered =
-        beam_filtering::FilterPointCloud<PointXYZIRT>(cloud_current_unfiltered,
-                                                      input_filter_params_);
-    current_scan_pose = std::make_shared<ScanPose>(
-        cloud_filtered, msg->header.stamp, T_World_BaselinkInit,
-        T_Baselink_Lidar, feature_extractor_);
-  } else if (params_.lidar_type == LidarType::OUSTER) {
-    pcl::PointCloud<PointXYZITRRNR> cloud_current_unfiltered;
-    beam::ROSToPCL(cloud_current_unfiltered, *msg);
-    pcl::PointCloud<PointXYZITRRNR> cloud_filtered =
-        beam_filtering::FilterPointCloud(cloud_current_unfiltered,
-                                         input_filter_params_);
-    current_scan_pose = std::make_shared<ScanPose>(
-        cloud_filtered, msg->header.stamp, T_World_BaselinkInit,
-        T_Baselink_Lidar, feature_extractor_);
-  } else {
-    ROS_ERROR(
-        "Invalid lidar type param. Lidar type may not be implemented yet.");
-  }
-
-  Eigen::Matrix4d T_World_BaselinkCurrent;
-  fuse_core::Transaction::SharedPtr transaction;
-  transaction =
-      scan_registration_->RegisterNewScan(*current_scan_pose).GetTransaction();
-
-  Eigen::Matrix4d T_WORLD_LIDAR;
-  scan_registration_->GetMap().GetScanPose(current_scan_pose->Stamp(),
-                                           T_WORLD_LIDAR);
-  T_World_BaselinkCurrent = T_WORLD_LIDAR * T_Baselink_Lidar;
-
-  if (transaction == nullptr) {
-    ROS_WARN("No transaction generated, skipping scan.");
-    return;
-  }
-  sendTransaction(transaction);
-
-  // add priors from initializer
-  fuse_core::Transaction::SharedPtr prior_transaction;
-  if (params_.prior_information_weight != 0) {
-    auto p = fuse_variables::Position3DStamped::make_shared(
-        current_scan_pose->Position());
-    auto o = fuse_variables::Orientation3DStamped::make_shared(
-        current_scan_pose->Orientation());
-    prior_transaction = fuse_core::Transaction::make_shared();
-    prior_transaction->stamp(current_scan_pose->Stamp());
-    prior_transaction->addVariable(p);
-    prior_transaction->addVariable(o);
-
-    // add prior
-    fuse_core::Vector7d mean;
-    mean << p->x(), p->y(), p->z(), o->w(), o->x(), o->y(), o->z();
-
-    auto prior =
-        std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-            "FRAMEINITIALIZERPRIOR", *p, *o, mean, params_.prior_covariance);
-    prior_transaction->addConstraint(prior);
-    sendTransaction(prior_transaction);
-  }
-
-  // send IO trigger
-  if (params_.trigger_inertial_odom_constraints) {
-    std_msgs::Time time_msg;
-    time_msg.data = current_scan_pose->Stamp();
-    imu_constraint_trigger_publisher_.publish(time_msg);
-    imu_constraint_trigger_counter_++;
-  }
-
-  PublishScanRegistrationResults(transaction, *current_scan_pose);
-  active_clouds_.push_back(current_scan_pose);
-
-  // publish odom
-  nav_msgs::Odometry odom_msg;
-  bs_common::EigenTransformToOdometryMsg(
-      T_World_BaselinkCurrent, current_scan_pose->Stamp(),
-      odom_publisher_counter_, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetBaselinkFrameId(), odom_msg);
-  odom_publisher_.publish(odom_msg);
-  odom_publisher_counter_++;
-  PublishTfTransform(T_World_BaselinkCurrent, "lidar_world",
-                     extrinsics_.GetBaselinkFrameId(),
-                     current_scan_pose->Stamp());
-
-  // set current measurements to last
-  T_World_BaselinkLast_ = T_World_BaselinkCurrent;
-  last_scan_pose_time_ = current_scan_pose->Stamp();
 }
 
 void LidarOdometry::PublishMarginalizedScanPose(

@@ -310,6 +310,7 @@ void GraphVisualization::VisualizeCameraLandmarks(
 
     image_buffer_.clear();
     landmark_container_->clear();
+    break;
   }
 }
 

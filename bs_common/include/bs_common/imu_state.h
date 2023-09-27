@@ -283,6 +283,11 @@ public:
   void SetAccelBias(const bs_variables::AccelerationBias3DStamped accelbias);
 
   /**
+   * @brief gets the full imu state as a vector
+   */
+  Eigen::Matrix<double, 16, 1> GetStateVector() const;
+
+  /**
    * @brief print relevant information about what is currently contained in this
    * ImuState.
    * @param stream input stream

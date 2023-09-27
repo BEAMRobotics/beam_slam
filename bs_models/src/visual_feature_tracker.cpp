@@ -4,6 +4,7 @@
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/descriptors/ORBDescriptor.h>
 #include <beam_cv/detectors/FASTSSCDetector.h>
+#include <beam_cv/Utils.h>
 #include <bs_common/utils.h>
 
 #include <algorithm>
@@ -62,7 +63,8 @@ void VisualFeatureTracker::processImage(
   static ros::Time prev_track_publish(0.0);
   // track features in image
   cv::Mat image = beam_cv::OpenCVConversions::RosImgToMat(*msg);
-  tracker_->AddImage(image, msg->header.stamp);
+  cv::Mat clahe_image = beam_cv::AdaptiveHistogram(image);
+  tracker_->AddImage(clahe_image, msg->header.stamp);
 
   // delay publishing by one image to ensure that the tracks are actually
   // published

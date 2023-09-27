@@ -26,7 +26,7 @@ namespace bs_models {
 using namespace vision;
 
 VisualOdometry::VisualOdometry()
-    : fuse_core::AsyncSensorModel(1),
+    : fuse_core::AsyncSensorModel(3),
       device_id_(fuse_core::uuid::NIL),
       throttled_measurement_callback_(std::bind(
           &VisualOdometry::processMeasurements, this, std::placeholders::_1)) {}
@@ -140,7 +140,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
     keyframes_.at(previous_keyframe_).AddPose(timestamp, T_KEYFRAME_FRAME);
     return true;
   }
-  
+
   // create new keyframe
   ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
   Keyframe kf(*msg);
@@ -174,12 +174,13 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
 
 bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix4d& T_WORLD_BASELINK) {
+  std::string error;
   Eigen::Matrix4d T_WORLD_BASELINKcur;
   if (!frame_initializer_->GetPose(T_WORLD_BASELINKcur, timestamp,
-                                   extrinsics_.GetBaselinkFrameId())) {
+                                   extrinsics_.GetBaselinkFrameId(), error)) {
     ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
                     "buffering frame: "
-                    << timestamp);
+                    << timestamp << ".\n\tError: " << error);
     return false;
   }
 
@@ -300,12 +301,11 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
       Eigen::Vector2d p1 = landmark_container_->GetValue(kf_time, id);
       Eigen::Vector2d p2 = landmark_container_->GetValue(timestamp, id);
       Eigen::Vector3d bp2;
-      if (!cam_model_->BackProject(p1.cast<int>(), bp2)) { continue; }
+      if (!cam_model_->BackProject(p2.cast<int>(), bp2)) { continue; }
       // rotate pixel from current frame to keyframe
       Eigen::Vector3d bp2_in_kf = R_PREVKF_CURFRAME * bp2;
       Eigen::Vector2d bp2_reproj;
       if (!cam_model_->ProjectPoint(bp2_in_kf, bp2_reproj)) { continue; }
-
       // add to total parallax
       double d = beam::distance(p1, bp2_reproj);
       total_parallax += d;

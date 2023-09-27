@@ -1,5 +1,7 @@
+# optimization params
 optimization_period: 0.07
 lag_duration: 6
+pseudo_marginalization: false
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -26,10 +28,10 @@ sensor_models:
     type: 'bs_models::LidarScanDeskewer'
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
-  # - name: 'gravity_alignment'
-  #   type: 'bs_models::GravityAlignment'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
+  # - name: 'gravity_alignment'
+  #   type: 'bs_models::GravityAlignment'
 
 publishers:
   - name: 'path_publisher'

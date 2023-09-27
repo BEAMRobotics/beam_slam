@@ -1,7 +1,5 @@
 #include <bs_common/conversions.h>
 
-#include <Eigen/Dense>
-
 #include <beam_utils/se3.h>
 
 namespace bs_common {
@@ -272,6 +270,13 @@ void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
   pose.pose.orientation.x = orientation.x();
   pose.pose.orientation.y = orientation.y();
   pose.pose.orientation.z = orientation.z();
+}
+
+Eigen::Quaterniond OrientationVariableToEigenQuaternion(
+    const fuse_variables::Orientation3DStamped& orientation) {
+  Eigen::Quaterniond q(orientation.w(), orientation.x(), orientation.y(),
+                       orientation.z());
+  return q;
 }
 
 } // namespace bs_common

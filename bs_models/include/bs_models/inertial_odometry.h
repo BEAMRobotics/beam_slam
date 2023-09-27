@@ -123,19 +123,25 @@ private:
    */
   void onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) override;
 
-  /// @brief Computes relative motion and publishes to odometry
-  /// @param prev_stamp
-  /// @param curr_stamp
+  /**
+   * @brief Computes relative motion and publishes to odometry
+   * @param prev_stamp
+   *  @param curr_stamp
+   */
   void ComputeRelativeMotion(const ros::Time& prev_stamp,
                              const ros::Time& curr_stamp);
 
-  /// @brief Computes pose in world frame wrt the graph and published to
-  /// odometry
-  /// @param curr_stamp
-  void ComputeAbsolutePose(const ros::Time& curr_stamp);
-
+  /**
+   * @brief Performs all initial setup on the first graph udpate
+   * @param graph msg
+   */
   void Initialize(fuse_core::Graph::ConstSharedPtr graph_msg);
 
+  /**
+   * @brief Attempts to split an imu constraint
+   * @param new_trigger_time
+   *  @param constraint_data)
+   */
   void BreakupConstraint(const ros::Time& new_trigger_time,
                          const ImuConstraintData& constraint_data);
 
@@ -156,7 +162,6 @@ private:
 
   // publishers
   ros::Publisher odometry_publisher_;
-  ros::Publisher pose_publisher_;
 
   // data storage
   ros::Time last_trigger_time_;
