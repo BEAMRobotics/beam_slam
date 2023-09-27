@@ -268,8 +268,6 @@ private:
   std::unique_ptr<tf::TransformListener> tf_listener_;
 
   std::shared_ptr<ExtrinsicsLookupBase> extrinsics_;
-
-  bool static_extrinsics_{true};
 };
 
 } // namespace bs_common

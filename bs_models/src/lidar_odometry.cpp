@@ -325,7 +325,7 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     }
     Eigen::Matrix4d T_Baselink_Lidar;
     if (!extrinsics_.GetT_BASELINK_LIDAR(T_Baselink_Lidar,
-                                         current_msg->header.stamp)) {
+                                         ros::Time::now())) {
       ROS_ERROR("Cannot get transform from lidar to baselink for stamp: %.8f. "
                 "Buffering scan.",
                 current_msg->header.stamp.toSec());

@@ -6,6 +6,7 @@
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/transaction.h>
+#include <fuse_loss/cauchy_loss.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>
 
@@ -102,6 +103,7 @@ public:
 
 protected:
   fuse_core::Transaction::SharedPtr transaction_;
+  fuse_loss::CauchyLoss::SharedPtr loss_function_;
   bool override_constraints_;
   bool override_variables_;
 };
