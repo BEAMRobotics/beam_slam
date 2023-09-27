@@ -142,10 +142,19 @@ private:
    */
   void OutputResults();
 
-  /// @brief Adds visual measurements to the landmark container
-  /// @param msg
+  /**
+   * @brief Adds visual measurements to the landmark container
+   * @param msg
+   */
   void AddMeasurementsToContainer(
       const bs_common::CameraMeasurementMsg::ConstPtr& msg);
+
+  /**
+   * @brief Creates a fake imu factor between states that are very close in time
+   */
+  void AddSpoofedImuFactor(const bs_common::ImuState& state1,
+                           const bs_common::ImuState& state2,
+                           fuse_core::Transaction::SharedPtr transaction);
 
   fuse_core::UUID device_id_; //!< The UUID of this device
 
@@ -191,7 +200,7 @@ private:
 
   // objects for intializing
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
-    Eigen::Matrix3d cam_intrinsic_matrix_;
+  Eigen::Matrix3d cam_intrinsic_matrix_;
   std::shared_ptr<vision::VisualMap> visual_map_;
   std::shared_ptr<ImuPreintegration> imu_preint_;
   std::unique_ptr<LidarPathInit> lidar_path_init_;

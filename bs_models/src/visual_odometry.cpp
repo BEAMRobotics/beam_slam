@@ -306,7 +306,6 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
       Eigen::Vector3d bp2_in_kf = R_PREVKF_CURFRAME * bp2;
       Eigen::Vector2d bp2_reproj;
       if (!cam_model_->ProjectPoint(bp2_in_kf, bp2_reproj)) { continue; }
-
       // add to total parallax
       double d = beam::distance(p1, bp2_reproj);
       total_parallax += d;

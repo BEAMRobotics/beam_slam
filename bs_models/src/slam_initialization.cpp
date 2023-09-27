@@ -1,5 +1,7 @@
 #include <bs_models/slam_initialization.h>
 
+#include <fuse_constraints/relative_constraint.h>
+#include <fuse_constraints/relative_pose_3d_stamped_constraint.h>
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
 #include <pluginlib/class_list_macros.h>
@@ -83,7 +85,8 @@ void SLAMInitialization::onInit() {
 
   // set init mode
   if (params_.init_mode == "VISUAL") {
-    ROS_WARN("JAKE - Visual not working -> gravity and scale estimate is wrong.");
+    ROS_FATAL(
+        "JAKE - Visual not working -> gravity and scale estimate is wrong.");
     mode_ = InitMode::VISUAL;
   } else if (params_.init_mode == "LIDAR") {
     mode_ = InitMode::LIDAR;
@@ -423,8 +426,23 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
       return;
     }
 
-    // no imu measurements between states -> dont register an imu factor
-    if (imu_preint_->CurrentBufferSize() == 0) { return; }
+    // no imu measurements between states -> spoof imu factor
+    if (imu_preint_->CurrentBufferSize() == 0) {
+      auto spoof_transaction = fuse_core::Transaction::make_shared();
+      spoof_transaction->stamp(timestamp);
+
+      auto start_state = imu_preint_->GetImuState();
+
+      bs_common::ImuState new_state(
+          timestamp, start_state.OrientationQuat(), start_state.PositionVec(),
+          start_state.VelocityVec(), start_state.GyroBiasVec(),
+          start_state.AccelBiasVec());
+
+      AddSpoofedImuFactor(start_state, new_state, spoof_transaction);
+      local_graph_->update(*spoof_transaction);
+
+      return;
+    }
 
     auto imu_transaction = imu_preint_->RegisterNewImuPreintegratedFactor(
         timestamp, img_orientation, img_position, velocity);
@@ -806,6 +824,61 @@ void SLAMInitialization::AddMeasurementsToContainer(
     }
   }
   prev_frame_ = msg->header.stamp;
+}
+
+void SLAMInitialization::AddSpoofedImuFactor(
+    const bs_common::ImuState& state1, const bs_common::ImuState& state2,
+    fuse_core::Transaction::SharedPtr transaction) {
+  transaction->addVariable(
+      std::make_shared<fuse_variables::Orientation3DStamped>(
+          state2.Orientation()));
+  transaction->addVariable(
+      std::make_shared<fuse_variables::Position3DStamped>(state2.Position()));
+  transaction->addVariable(
+      std::make_shared<fuse_variables::VelocityLinear3DStamped>(
+          state2.Velocity()));
+  transaction->addVariable(
+      std::make_shared<bs_variables::AccelerationBias3DStamped>(
+          state2.AccelBias()));
+  transaction->addVariable(
+      std::make_shared<bs_variables::GyroscopeBias3DStamped>(
+          state2.GyroBias()));
+
+  fuse_core::Vector7d pose_delta;
+  pose_delta << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+  fuse_core::Matrix6d pose_covariance = fuse_core::Matrix6d::Identity() * 1e-10;
+
+  auto relative_pose_constraint =
+      std::make_shared<fuse_constraints::RelativePose3DStampedConstraint>(
+          "SLAMINIT", state1.Position(), state1.Orientation(),
+          state2.Position(), state2.Orientation(), pose_delta, pose_covariance);
+  transaction->addConstraint(relative_pose_constraint);
+
+  fuse_core::Vector3d relative_delta;
+  relative_delta << 0.0, 0.0, 0.0;
+  fuse_core::Matrix3d relative_covariance =
+      fuse_core::Matrix3d::Identity() * 1e-10;
+
+  auto relative_vel_constraint =
+      std::make_shared<fuse_constraints::RelativeConstraint<
+          fuse_variables::VelocityLinear3DStamped>>(
+          "SLAMINIT", state1.Velocity(), state2.Velocity(), relative_delta,
+          relative_covariance);
+  transaction->addConstraint(relative_vel_constraint);
+
+  auto relative_bg_constraint =
+      std::make_shared<fuse_constraints::RelativeConstraint<
+          bs_variables::GyroscopeBias3DStamped>>(
+          "SLAMINIT", state1.GyroBias(), state2.GyroBias(), relative_delta,
+          relative_covariance);
+  transaction->addConstraint(relative_bg_constraint);
+
+  auto relative_ba_constraint =
+      std::make_shared<fuse_constraints::RelativeConstraint<
+          bs_variables::AccelerationBias3DStamped>>(
+          "SLAMINIT", state1.AccelBias(), state2.AccelBias(), relative_delta,
+          relative_covariance);
+  transaction->addConstraint(relative_ba_constraint);
 }
 
 } // namespace bs_models

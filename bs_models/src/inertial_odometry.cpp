@@ -263,6 +263,10 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
     auto v = bs_common::GetVelocity(graph_msg, cur_stamp);
     auto p = bs_common::GetPosition(graph_msg, cur_stamp);
     auto o = bs_common::GetOrientation(graph_msg, cur_stamp);
+    if (!gb || !ab || !o || !p || !v) {
+      ROS_ERROR("Potential error from slam initialization.");
+      throw std::runtime_error("Potential error from slam initialization.");
+    }
     imu_preint_->UpdateState(*p, *o, *v, *gb, *ab);
     prev_stamp_ = p->stamp();
 
@@ -270,7 +274,6 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
     auto next = std::next(cur);
     if (next == timestamps.end()) { break; }
     auto next_stamp = *next;
-
     // for each imu message between cur_stamp and next_stamp, integrate
     for (const auto& [imu_stamp, imu_msg] : imu_buffer_.GetImuMsgs()) {
       if (imu_stamp < cur_stamp) {
@@ -309,7 +312,7 @@ void InertialOdometry::BreakupConstraint(
     const ros::Time& new_trigger_time,
     const ImuConstraintData& constraint_data) {
   auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(ros::Time::now());
+  transaction->stamp(new_trigger_time);
 
   auto velocity = bs_common::GetVelocity(most_recent_graph_msg_,
                                          constraint_data.start_time);
@@ -331,24 +334,13 @@ void InertialOdometry::BreakupConstraint(
     auto imu_trans1 =
         imu_preint_->RegisterNewImuPreintegratedFactor(new_trigger_time);
     if (!imu_trans1) {
-      auto time_diff = (new_trigger_time - constraint_data.start_time).toSec();
-      if (time_diff <= 0.005) {
-        ROS_WARN(
-            "Attempting to split IMU constraint, but states are too close in "
-            "time. Creating relative constraint with assumed zero motion.");
-        // todo: make a fake imu relative constraint between
-        // constraint_data.start_time and new_trigger_time
-        // reltive pose constraint + 3 relative constraints between velocity,
-        // and biases
-      } else {
-        BEAM_ERROR(
-            "cannot add constraint for first half of constraint being "
-            "broken up. Constraint start time: {}, constraint end time: {}. "
-            "ImuPreintegration buffer: ",
-            bs_common::ToString(constraint_data.start_time),
-            bs_common::ToString(new_trigger_time));
-        std::cout << imu_preint_->PrintBuffer() << "\n";
-      }
+      BEAM_ERROR(
+          "cannot add constraint for first half of constraint being "
+          "broken up. Constraint start time: {}, constraint end time: {}. "
+          "ImuPreintegration buffer: ",
+          bs_common::ToString(constraint_data.start_time),
+          bs_common::ToString(new_trigger_time));
+      std::cout << imu_preint_->PrintBuffer() << "\n";
     } else {
       imu_buffer_.AddConstraint(constraint_data.start_time, new_trigger_time,
                                 imu_trans1->addedConstraints().begin()->uuid());
@@ -368,24 +360,13 @@ void InertialOdometry::BreakupConstraint(
     auto imu_trans2 = imu_preint_->RegisterNewImuPreintegratedFactor(
         constraint_data.end_time);
     if (!imu_trans2) {
-      auto time_diff = (constraint_data.end_time - new_trigger_time).toSec();
-      if (time_diff <= 0.005) {
-        ROS_WARN(
-            "Attempting to split IMU constraint, but states are too close in "
-            "time. Creating relative constraint with assumed zero motion.");
-        // todo: make a fake imu relative constraint between new_trigger_time
-        // and  constraint_data.end_time
-        // reltive pose constraint + 3 relative constraints between velocity,
-        // and biases
-      } else {
-        BEAM_ERROR(
-            "cannot add constraint for second half of constraint being "
-            "broken up. Constraint start time: {}, constraint end time: {}. "
-            "ImuPreintegration buffer: ",
-            bs_common::ToString(new_trigger_time),
-            bs_common::ToString(constraint_data.end_time));
-        std::cout << imu_preint_->PrintBuffer() << "\n";
-      }
+      BEAM_ERROR(
+          "cannot add constraint for second half of constraint being "
+          "broken up. Constraint start time: {}, constraint end time: {}. "
+          "ImuPreintegration buffer: ",
+          bs_common::ToString(new_trigger_time),
+          bs_common::ToString(constraint_data.end_time));
+      std::cout << imu_preint_->PrintBuffer() << "\n";
     } else {
       imu_buffer_.AddConstraint(new_trigger_time, constraint_data.end_time,
                                 imu_trans2->addedConstraints().begin()->uuid());

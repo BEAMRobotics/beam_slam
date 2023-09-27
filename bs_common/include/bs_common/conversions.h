@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Eigen/Dense>
+
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
@@ -81,5 +83,17 @@ nav_msgs::Odometry TransformToOdometryMessage(
 void TransformationMatrixToPoseMsg(const Eigen::Matrix4d& T_WORLD_SENSOR,
                                    const ros::Time& stamp,
                                    geometry_msgs::PoseStamped& pose);
+
+template <typename Variable_t>
+Eigen::VectorXd FixedSizeVariableToEigen(const Variable_t& fuse_variable) {
+  Eigen::VectorXd vec(fuse_variable.SIZE);
+  for(int i = 0; i < fuse_variable.SIZE; i++){
+    vec << fuse_variable.data()[0];
+  }
+  return vec;
+}
+
+Eigen::Quaterniond OrientationVariableToEigenQuaternion(
+    const fuse_variables::Orientation3DStamped& orientation);
 
 } // namespace bs_common
