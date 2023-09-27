@@ -43,6 +43,11 @@ bool ExtrinsicsLookupOnline::GetTransform(Eigen::Matrix4d& T,
                                           const std::string& to_frame,
                                           const std::string& from_frame,
                                           const ros::Time& time) {
+  if (to_frame == from_frame) {
+    T = Eigen::Matrix4d::Identity();
+    return true;
+  }
+
   // if dynamic extrinsics, then we want to lookup the extrinsics now and
   // replace the most recent estimate in ExtrinsicsLookupBase
   if (!calibration_params_.static_extrinsics) {
