@@ -107,16 +107,12 @@ private:
   /// @brief
   /// @param timestamp
   /// @param T_WORLD_BASELINK
-  void ComputeRelativeOdometry(const ros::Time& timestamp,
-                               const Eigen::Matrix4d& T_WORLD_BASELINKcur);
+  void PublishOdometry(const ros::Time& timestamp,
+                       const Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /// @brief Publishes a keyframe object as a slam chunk
   /// @param keyframe
   void PublishSlamChunk(const vision::Keyframe& keyframe);
-
-  /// @brief Publishes a keyframe object as a reloc request
-  /// @param keyframe
-  void PublishRelocRequest(const vision::Keyframe& keyframe);
 
   /// @brief
   /// @param timestamp
@@ -127,21 +123,6 @@ private:
   /// @brief Performs all initial setup after slam initialization succeeds
   /// @param graph initial graph
   void Initialize(fuse_core::Graph::ConstSharedPtr graph);
-
-  /// @brief The UUID of this device
-  fuse_core::UUID device_id_; //!< The UUID of this device
-
-  /// @brief loadable camera parameters
-  bs_parameters::models::VisualOdometryParams vo_params_;
-
-  /// @brief calibration parameters
-  bs_parameters::models::CalibrationParams calibration_params_;
-
-  /// @brief Used to get initial pose estimates
-  std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
-
-  /// @brief subscribers
-  ros::Subscriber measurement_subscriber_;
 
   /// @brief Add all required variables and constraints for a specific landmark
   /// using the IDP parameterization
@@ -159,13 +140,28 @@ private:
   void ProcessLandmarkEUC(const uint64_t id, const ros::Time& timestamp,
                           fuse_core::Transaction::SharedPtr transaction);
 
+  /******************************************************
+   *                   Member Variables                 *
+   *****************************************************/
+  /// @brief The UUID of this device
+  fuse_core::UUID device_id_; //!< The UUID of this device
+
+  /// @brief loadable camera parameters
+  bs_parameters::models::VisualOdometryParams vo_params_;
+
+  /// @brief calibration parameters
+  bs_parameters::models::CalibrationParams calibration_params_;
+
+  /// @brief Used to get initial pose estimates
+  std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
+
+  /// @brief subscribers
+  ros::Subscriber measurement_subscriber_;
   /// @brief publishers
   ros::Publisher odometry_publisher_;
   ros::Publisher keyframe_publisher_;
   ros::Publisher slam_chunk_publisher_;
-  ros::Publisher reloc_publisher_;
   ros::Publisher imu_constraint_trigger_publisher_;
-  // ros::Publisher image_publisher_;
   int imu_constraint_trigger_counter_{0};
 
   /// @brief book keeping variables
@@ -173,7 +169,6 @@ private:
   std::map<ros::Time, vision::Keyframe> keyframes_;
   std::deque<bs_common::CameraMeasurementMsg::ConstPtr>
       visual_measurement_buffer_;
-  Eigen::Matrix4d T_ODOM_BASELINKprev_{Eigen::Matrix4d::Identity()};
   ros::Time previous_reloc_request_{ros::Time(0)};
   ros::Time previous_keyframe_;
   size_t max_container_size_;

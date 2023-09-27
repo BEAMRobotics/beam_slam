@@ -84,8 +84,6 @@ void VisualOdometry::onStart() {
   slam_chunk_publisher_ =
       private_node_handle_.advertise<bs_common::SlamChunkMsg>(
           "/local_mapper/slam_results", 100);
-  reloc_publisher_ = private_node_handle_.advertise<bs_common::RelocRequestMsg>(
-      "/local_mapper/reloc_request", 100);
 }
 
 void VisualOdometry::processMeasurements(
@@ -128,8 +126,8 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   Eigen::Matrix4d T_WORLD_BASELINK;
   if (!LocalizeFrame(timestamp, T_WORLD_BASELINK)) { return false; }
 
-  // compute and publish relative odometry
-  ComputeRelativeOdometry(timestamp, T_WORLD_BASELINK);
+  // publish odometry
+  PublishOdometry(timestamp, T_WORLD_BASELINK);
 
   // if not keyframe -> add to current keyframe sub trajectory
   if (!IsKeyframe(timestamp, T_WORLD_BASELINK)) {
@@ -159,14 +157,6 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
     time_msg.data = timestamp;
     imu_constraint_trigger_publisher_.publish(time_msg);
     imu_constraint_trigger_counter_++;
-  }
-
-  // publish reloc request at given rate
-  if ((timestamp - previous_reloc_request_).toSec() >
-      vo_params_.reloc_request_period) {
-    ROS_INFO_STREAM("Publishing reloc request at: " << timestamp);
-    previous_reloc_request_ = timestamp;
-    PublishRelocRequest(kf);
   }
 
   return true;
@@ -472,23 +462,13 @@ void VisualOdometry::GetPixelPointPairs(
   }
 }
 
-void VisualOdometry::ComputeRelativeOdometry(
-    const ros::Time& timestamp, const Eigen::Matrix4d& T_WORLD_BASELINKcur) {
+void VisualOdometry::PublishOdometry(
+    const ros::Time& timestamp, const Eigen::Matrix4d& T_WORLD_BASELINK) {
   static uint64_t rel_odom_seq = 0;
-  // todo: fix this, the odom pose is garbage, the normal pose is fine
-  // const auto prev_kf_pose = visual_map_->GetBaselinkPose(previous_keyframe_);
-  // const Eigen::Matrix4d T_WORLD_BASELINKprev = prev_kf_pose.value();
-  // const Eigen::Matrix4d T_PREVKF_CURFRAME =
-  //     beam::InvertTransform(T_WORLD_BASELINKprev) * T_WORLD_BASELINKcur;
-  // const Eigen::Matrix4d T_ODOM_BASELINKcur =
-  //     T_ODOM_BASELINKprev_ * T_PREVKF_CURFRAME;
-  // // update odom pose
-  // T_ODOM_BASELINKprev_ = T_ODOM_BASELINKcur;
-
   // publish to odometry topic
   const auto odom_msg = bs_common::TransformToOdometryMessage(
       timestamp, rel_odom_seq++, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetBaselinkFrameId(), T_WORLD_BASELINKcur);
+      extrinsics_.GetBaselinkFrameId(), T_WORLD_BASELINK);
   odometry_publisher_.publish(odom_msg);
 }
 
@@ -516,20 +496,6 @@ void VisualOdometry::PublishSlamChunk(const vision::Keyframe& keyframe) {
 
   slam_chunk_msg.trajectory_measurement = sub_keyframe_path;
   slam_chunk_publisher_.publish(slam_chunk_msg);
-}
-
-void VisualOdometry::PublishRelocRequest(const vision::Keyframe& keyframe) {
-  static uint64_t reloc_seq = 0;
-  const Eigen::Matrix4d T_WORLD_BASELINK =
-      visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
-  bs_common::RelocRequestMsg reloc_msg;
-  geometry_msgs::PoseStamped pose_stamped;
-  bs_common::EigenTransformToPoseStamped(
-      T_WORLD_BASELINK, keyframe.Stamp(), reloc_seq++,
-      extrinsics_.GetBaselinkFrameId(), pose_stamped);
-  reloc_msg.T_WORLD_BASELINK = pose_stamped;
-  reloc_msg.camera_measurement = keyframe.MeasurementMessage();
-  reloc_publisher_.publish(reloc_msg);
 }
 
 void VisualOdometry::PublishPose(const ros::Time& timestamp,
@@ -583,8 +549,6 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
     vision::Keyframe kf(*msg);
     keyframes_.insert({msg->header.stamp, kf});
     previous_keyframe_ = msg->header.stamp;
-    T_ODOM_BASELINKprev_ =
-        visual_map_->GetBaselinkPose(msg->header.stamp).value();
   }
 
   // remove measurements

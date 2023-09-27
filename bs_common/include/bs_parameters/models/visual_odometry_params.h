@@ -45,10 +45,6 @@ public:
       prior_covariance = cov_weight * Eigen::Matrix<double, 6, 6>::Identity();
     }
 
-    // period in which to perform reloc requests
-    getParam<double>(nh, "reloc_request_period", reloc_request_period,
-                     reloc_request_period);
-
     // send a trigger to IO to set IMU relative state constraint
     getParam<bool>(nh, "trigger_inertial_odom_constraints",
                    trigger_inertial_odom_constraints,
@@ -106,7 +102,6 @@ public:
 
   bool trigger_inertial_odom_constraints{true};
   bool use_idp{false};
-  double reloc_request_period{1.0};
   double keyframe_parallax{20.0};
   double reprojection_information_weight{1.0};
   double max_triangulation_distance{30.0};
