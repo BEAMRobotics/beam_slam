@@ -45,13 +45,13 @@ public:
    * @brief Read only access to this keyframes trajectory
    * <time, T_keyframe_frame)>
    */
-  const std::map<uint64_t, Eigen::Matrix4d>& Trajectory() const;
+  const std::map<ros::Time, Eigen::Matrix4d>& Trajectory() const;
 
 protected:
   ros::Time timestamp_;
   bs_common::CameraMeasurementMsg msg_;
   uint64_t sequence_number_;
-  std::map<uint64_t, Eigen::Matrix4d> trajectory_;
+  std::map<ros::Time, Eigen::Matrix4d> trajectory_;
 };
 
 }} // namespace bs_models::vision

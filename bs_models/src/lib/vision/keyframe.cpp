@@ -21,14 +21,14 @@ const uint64_t& Keyframe::SequenceNumber() const {
 
 void Keyframe::AddPose(const ros::Time& timestamp,
                        const Eigen::Matrix4d& T_keyframe_frame) {
-  trajectory_[timestamp.toNSec()] = T_keyframe_frame;
+  trajectory_[timestamp] = T_keyframe_frame;
 }
 
 const bs_common::CameraMeasurementMsg& Keyframe::MeasurementMessage() const {
   return msg_;
 }
 
-const std::map<uint64_t, Eigen::Matrix4d>& Keyframe::Trajectory() const {
+const std::map<ros::Time, Eigen::Matrix4d>& Keyframe::Trajectory() const {
   return trajectory_;
 }
 
