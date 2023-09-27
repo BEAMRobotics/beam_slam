@@ -52,4 +52,6 @@ When compiling fuse, if you get the following error:
 collect2: error: ld returned 1 exit status
 make[2]: *** [/userhome/catkin_ws/devel/.private/fuse_optimizers/lib/fuse_optimizers/fixed_lag_smoother_node] Error 1
 ```
-Then add the following changes to fuse_optimizer/CMakeLists.txt: https://github.com/locusrobotics/fuse/pull/337
+Then apply the patch FuseOpenMP.patch by:
+
+`cd dependencies/fuse; git apply ../../FuseOpenMP.patch;`
