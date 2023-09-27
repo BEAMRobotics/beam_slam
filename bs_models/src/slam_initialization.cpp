@@ -427,7 +427,10 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
     }
 
     // no imu measurements between states -> return
-    if (imu_preint_->CurrentBufferSize() == 0) { return; }
+    if (imu_preint_->CurrentBufferSize() == 0) {
+      ROS_WARN("Not registering a preintegration factor will cause issues.");
+      return;
+    }
 
     auto imu_transaction = imu_preint_->RegisterNewImuPreintegratedFactor(
         timestamp, img_orientation, img_position, velocity);
