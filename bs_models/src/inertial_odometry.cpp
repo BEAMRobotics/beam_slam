@@ -25,8 +25,10 @@ ImuBuffer::ImuBuffer(double buffer_length_s) {
 }
 
 void ImuBuffer::AddData(const sensor_msgs::Imu::ConstPtr& msg) {
+  buffer_mutex_.lock();
   imu_msgs_.emplace(msg->header.stamp, msg);
   CleanOverflow();
+  buffer_mutex_.unlock();
 }
 
 void ImuBuffer::CleanOverflow() {
@@ -47,11 +49,13 @@ void ImuBuffer::CleanOverflow() {
 void ImuBuffer::AddConstraint(const ros::Time& start_time,
                               const ros::Time& end_time,
                               const fuse_core::UUID& constraint_uuid) {
+  buffer_mutex_.lock();
   ImuConstraintData data;
   data.constraint_uuid = constraint_uuid;
   data.start_time = start_time;
   data.end_time = end_time;
   constraint_buffer_.emplace(end_time, data);
+  buffer_mutex_.unlock();
 }
 
 std::map<ros::Time, sensor_msgs::Imu::ConstPtr>
@@ -92,7 +96,9 @@ ros::Time ImuBuffer::GetLastConstraintTime() const {
 }
 
 void ImuBuffer::ClearImuMsgs() {
+  buffer_mutex_.lock();
   imu_msgs_.clear();
+  buffer_mutex_.unlock();
 }
 
 const std::map<ros::Time, sensor_msgs::Imu::ConstPtr>&
@@ -233,7 +239,7 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
   // get first state in the graph
   const ros::Time first_stamp = *timestamps.cbegin();
   auto accel_bias = bs_common::GetAccelBias(graph_msg, first_stamp);
-  auto gyro_bias = bs_common::GetGryoscopeBias(graph_msg, first_stamp);
+  auto gyro_bias = bs_common::GetGyroscopeBias(graph_msg, first_stamp);
   auto velocity = bs_common::GetVelocity(graph_msg, first_stamp);
   auto position = bs_common::GetPosition(graph_msg, first_stamp);
   auto orientation = bs_common::GetOrientation(graph_msg, first_stamp);
@@ -259,7 +265,7 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
 
     // get the current state
     auto ab = bs_common::GetAccelBias(graph_msg, cur_stamp);
-    auto gb = bs_common::GetGryoscopeBias(graph_msg, cur_stamp);
+    auto gb = bs_common::GetGyroscopeBias(graph_msg, cur_stamp);
     auto v = bs_common::GetVelocity(graph_msg, cur_stamp);
     auto p = bs_common::GetPosition(graph_msg, cur_stamp);
     auto o = bs_common::GetOrientation(graph_msg, cur_stamp);
@@ -314,14 +320,21 @@ void InertialOdometry::BreakupConstraint(
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(new_trigger_time);
 
-  auto velocity = bs_common::GetVelocity(most_recent_graph_msg_,
-                                         constraint_data.start_time);
-  auto position = bs_common::GetPosition(most_recent_graph_msg_,
-                                         constraint_data.start_time);
-  auto orientation = bs_common::GetOrientation(most_recent_graph_msg_,
-                                               constraint_data.start_time);
-  imu_preint_->SetStart(constraint_data.start_time, orientation, position,
-                        velocity);
+  const auto start_state = bs_common::GetImuState(most_recent_graph_msg_,
+                                                  constraint_data.start_time);
+  const auto end_state =
+      bs_common::GetImuState(most_recent_graph_msg_, constraint_data.end_time);
+
+  if (!start_state.has_value() || !end_state.has_value()) return;
+
+  imu_preint_->SetStart(
+      constraint_data.start_time,
+      std::make_shared<fuse_variables::Orientation3DStamped>(
+          start_state.value().Orientation()),
+      std::make_shared<fuse_variables::Position3DStamped>(
+          start_state.value().Position()),
+      std::make_shared<fuse_variables::VelocityLinear3DStamped>(
+          start_state.value().Velocity()));
 
   // add first half
   bool first_successful = false;
@@ -341,6 +354,23 @@ void InertialOdometry::BreakupConstraint(
           bs_common::ToString(constraint_data.start_time),
           bs_common::ToString(new_trigger_time));
       std::cout << imu_preint_->PrintBuffer() << "\n";
+
+      if (std::abs(constraint_data.start_time.toSec() -
+                   new_trigger_time.toSec()) < 0.005) {
+        ROS_WARN("Adding zero motion constraint.");
+        bs_common::ImuState new_state(new_trigger_time);
+        new_state.SetPosition(start_state.value().PositionVec());
+        new_state.SetOrientation(start_state.value().OrientationQuat());
+        new_state.SetVelocity(start_state.value().VelocityVec());
+        new_state.SetGyroBias(start_state.value().GyroBiasVec());
+        new_state.SetAccelBias(start_state.value().AccelBiasVec());
+
+        auto zero_motion_transaction = fuse_core::Transaction::make_shared();
+        zero_motion_transaction->stamp(new_trigger_time);
+        bs_common::AddZeroMotionFactor("IO", start_state.value(), new_state,
+                                       zero_motion_transaction);
+        transaction->merge(*zero_motion_transaction);
+      }
     } else {
       imu_buffer_.AddConstraint(constraint_data.start_time, new_trigger_time,
                                 imu_trans1->addedConstraints().begin()->uuid());
@@ -367,6 +397,24 @@ void InertialOdometry::BreakupConstraint(
           bs_common::ToString(new_trigger_time),
           bs_common::ToString(constraint_data.end_time));
       std::cout << imu_preint_->PrintBuffer() << "\n";
+
+      if (std::abs(constraint_data.end_time.toSec() -
+                   new_trigger_time.toSec()) < 0.005) {
+        ROS_WARN("Adding zero motion constraint.");
+        bs_common::ImuState new_state(new_trigger_time);
+        new_state.SetPosition(end_state.value().PositionVec());
+        new_state.SetOrientation(end_state.value().OrientationQuat());
+        new_state.SetVelocity(end_state.value().VelocityVec());
+        new_state.SetGyroBias(end_state.value().GyroBiasVec());
+        new_state.SetAccelBias(end_state.value().AccelBiasVec());
+
+        auto zero_motion_transaction = fuse_core::Transaction::make_shared();
+        zero_motion_transaction->stamp(new_trigger_time);
+        bs_common::AddZeroMotionFactor("IO", end_state.value(), new_state,
+                                       zero_motion_transaction);
+        transaction->merge(*zero_motion_transaction);
+      }
+
     } else {
       imu_buffer_.AddConstraint(new_trigger_time, constraint_data.end_time,
                                 imu_trans2->addedConstraints().begin()->uuid());

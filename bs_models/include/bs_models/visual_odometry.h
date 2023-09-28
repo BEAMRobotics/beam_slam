@@ -1,6 +1,7 @@
 #pragma once
 
 #include <queue>
+#include <mutex>
 
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/async_sensor_model.h>
@@ -175,6 +176,7 @@ private:
   bool track_lost{false};
   ros::Time prev_frame_{ros::Time(0)};
   double lag_duration_;
+  std::mutex buffer_mutex_;
 
   /// @brief callbacks for messages
   using ThrottledMeasurementCallback =

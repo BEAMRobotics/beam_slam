@@ -72,7 +72,7 @@ int GetNumberOfVariables(const fuse_core::Graph& graph);
  * @return pointer to variable
  */
 bs_variables::GyroscopeBias3DStamped::SharedPtr
-    GetGryoscopeBias(fuse_core::Graph::ConstSharedPtr graph,
+    GetGyroscopeBias(fuse_core::Graph::ConstSharedPtr graph,
                      const ros::Time& stamp);
 
 /**
@@ -185,5 +185,10 @@ beam::opt<Eigen::Matrix4d> GetExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
 bs_variables::InverseDepthLandmark::SharedPtr
     GetInverseDepthLandmark(fuse_core::Graph::ConstSharedPtr graph,
                             const uint64_t id);
-
+/// @brief
+/// @param graph
+/// @param stamp
+/// @return
+beam::opt<bs_common::ImuState>
+    GetImuState(fuse_core::Graph::ConstSharedPtr graph, const ros::Time& stamp);
 } // namespace bs_common

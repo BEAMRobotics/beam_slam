@@ -91,11 +91,13 @@ void VisualOdometry::processMeasurements(
   ROS_INFO_STREAM_ONCE(
       "VisualOdometry received VISUAL measurements: " << msg->header.stamp);
 
-  // add measurements to local container
+  // add measurements to local containeru
   AddMeasurementsToContainer(msg);
 
   // buffer the message
+  buffer_mutex_.lock();
   visual_measurement_buffer_.push_back(msg);
+  buffer_mutex_.unlock();
 
   // don't process until we have initialized
   if (!is_initialized_) { return; }
@@ -462,8 +464,8 @@ void VisualOdometry::GetPixelPointPairs(
   }
 }
 
-void VisualOdometry::PublishOdometry(
-    const ros::Time& timestamp, const Eigen::Matrix4d& T_WORLD_BASELINK) {
+void VisualOdometry::PublishOdometry(const ros::Time& timestamp,
+                                     const Eigen::Matrix4d& T_WORLD_BASELINK) {
   static uint64_t rel_odom_seq = 0;
   // publish to odometry topic
   const auto odom_msg = bs_common::TransformToOdometryMessage(
@@ -517,7 +519,7 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
     throw std::runtime_error{"Cannot use Visual Odometry without "
                              "initializing with visual information."};
   }
-
+  buffer_mutex_.lock();
   // get measurments as a vector of timestamps
   std::vector<uint64_t> measurement_stamps;
   std::for_each(visual_measurement_buffer_.begin(),
@@ -565,6 +567,7 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
     if (!ComputeOdometryAndExtendMap(msg)) { break; }
     visual_measurement_buffer_.pop_front();
   }
+  buffer_mutex_.unlock();
 
   is_initialized_ = true;
 }
