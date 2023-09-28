@@ -2,6 +2,9 @@
 
 # beam_slam:
 
+![ROS](https://img.shields.io/badge/ROS-noetic-blue)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04-purple)
+
 beam_slam is a SLAM package developed by the [SRI lab](https://sri-lab.seas.ucla.edu/) at UCLA. While there are many SLAM algorithms available for various applications, beam_slam is particularly designed with infrastructure inspection in mind. To this end, it aims to decouple LIO and VIO as separate, high rate processes which both feed into a single global mapper which intelligently fuses the measurements from both subsystems, aiming to build the most accurate point cloud map possible for later inspections.
 
 ## Dependencies:
