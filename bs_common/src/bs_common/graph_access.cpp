@@ -101,7 +101,7 @@ int GetNumberOfVariables(const fuse_core::Graph& graph) {
 }
 
 bs_variables::GyroscopeBias3DStamped::SharedPtr
-    GetGryoscopeBias(fuse_core::Graph::ConstSharedPtr graph,
+    GetGyroscopeBias(fuse_core::Graph::ConstSharedPtr graph,
                      const ros::Time& stamp) {
   auto gyro_bias = bs_variables::GyroscopeBias3DStamped::make_shared();
   const auto bg_uuid =
@@ -251,8 +251,8 @@ bs_variables::Position3D::SharedPtr
   auto p = bs_variables::Position3D::make_shared();
   auto uuid = fuse_core::uuid::generate(p->type(), child_frame + parent_frame);
   try {
-    *p = dynamic_cast<const bs_variables::Position3D&>(
-        graph->getVariable(uuid));
+    *p =
+        dynamic_cast<const bs_variables::Position3D&>(graph->getVariable(uuid));
   } catch (const std::out_of_range& oor) { return nullptr; }
   return p;
 }
@@ -281,6 +281,25 @@ beam::opt<Eigen::Matrix4d> GetExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
     Eigen::Matrix4d T = FusePoseToEigenTransform(*p, *o);
     return T;
   }
+}
+
+beam::opt<bs_common::ImuState>
+    GetImuState(fuse_core::Graph::ConstSharedPtr graph,
+                const ros::Time& stamp) {
+  auto p = bs_common::GetPosition(graph, stamp);
+  auto o = bs_common::GetOrientation(graph, stamp);
+  auto v = bs_common::GetVelocity(graph, stamp);
+  auto ba = bs_common::GetAccelBias(graph, stamp);
+  auto bg = bs_common::GetGyroscopeBias(graph, stamp);
+  
+  if (!p || !o || !v || !ba || !bg) { return {}; }
+  bs_common::ImuState imu_state(stamp);
+  imu_state.SetPosition(*p);
+  imu_state.SetOrientation(*o);
+  imu_state.SetVelocity(*v);
+  imu_state.SetAccelBias(*ba);
+  imu_state.SetGyroBias(*bg);
+  return imu_state;
 }
 
 } // namespace bs_common
