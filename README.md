@@ -1,6 +1,6 @@
-![beam_logo](https://github.com/BEAMRobotics/beam_slam/assets/25440002/c7dadb61-ef5a-4e50-b497-d7960349a468)
+![beamslam_logo](https://github.com/BEAMRobotics/beam_slam/assets/25440002/f6149e3c-aa2a-4933-9355-6332f4181107)
 
-# beam_slam:
+# beam_slam
 
 [![ROS](https://img.shields.io/badge/ROS-noetic-blue)](https://github.com/BEAMRobotics/beam_slam)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04-purple)](https://github.com/BEAMRobotics/beam_slam)
