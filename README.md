@@ -1,33 +1,25 @@
-# beam_slam
+![beam_logo](https://github.com/BEAMRobotics/beam_slam/assets/25440002/c7dadb61-ef5a-4e50-b497-d7960349a468)
 
-## Description:
+# beam_slam:
 
-This repo contains beam's lidar-camera-inertial SLAM code. All other SLAM code is being replaced by this repo. beam_slam uses the fuse framework with our own custom implementations of cost functions and models to suit our framework.
+beam_slam is a SLAM package developed by the [SRI lab](https://sri-lab.seas.ucla.edu/) at UCLA. While there are many SLAM algorithms available for various applications, beam_slam is particularly designed with infrastructure inspection in mind. To this end, it aims to decouple LIO and VIO as separate, high rate processes which both feed into a single global mapper which intelligently fuses the measurements from both subsystems, aiming to build the most accurate point cloud map possible for later inspections.
 
 ## Dependencies:
 
-* fuse: https://github.com/locusrobotics/fuse
-* tf2_2d: https://github.com/locusrobotics/tf2_2d.git
+Most dependencies are included as submodules under the "dependencies" folder, however some additional dependencies are listed:
 * qwt: sudo apt-get install libqwt-dev (for Kinetic or Melodic) or libqwt-qt5-dev (for Noetic)
-* calibration_publisher: https://github.com/BEAMRobotics/beam_robotics/tree/master/calibration/calibration_publisher
-* libbeam: https://github.com/BEAMRobotics/libbeam (globally installed)
-* basalt: https://github.com/BEAMRobotics/basalt-headers-mirror
+* [calibration_publisher](https://github.com/BEAMRobotics/beam_robotics/tree/master/calibration/calibration_publisher) - include within the catkin workspace
+* [libbeam](https://github.com/BEAMRobotics/libbeam) - installed globally, or within the catkin workspace
 
 If you want to run IMU tests, you will also need:
 
-* sophus: https://github.com/strasdat/Sophus (tested at commit 936265f)
+* [sophus](https://github.com/strasdat/Sophus) - (tested at commit 936265f)
 
 ## Compiling:
 
-When compiling beam_slam modules on Ubuntu 20.04, specify the number of processors to be at most half of the number of processors (i.e. $(nproc)) available. For example:
+To compile everything required to run beam_slam launch files use the following command:
 
-`catkin build -j4` if `$(nproc)` is eight or higher
-
-To compile everything needed to run SLAM follow this compilation:
-
-```
-catkin build -j4 -DCMAKE_BUILD_TYPE=Release bs_optimizers bs_publishers bs_models calibration_publisher
-```
+`catkin build -j4 -DCMAKE_BUILD_TYPE=Release libbeam bs_optimizers bs_publishers bs_models calibration_publisher graph_rviz_plugin`
 
 ## Running SLAM:
 
@@ -36,9 +28,9 @@ catkin build -j4 -DCMAKE_BUILD_TYPE=Release bs_optimizers bs_publishers bs_model
 3. Create a calibration parameter file, example [here](https://github.com/BEAMRobotics/beam_slam/blob/add_documentation/beam_slam_launch/config/ig2/calibration_params.yaml).
 4. Create a yaml config for your desired SLAM setup, example [here](https://github.com/BEAMRobotics/beam_slam/blob/main/beam_slam_launch/config/ig2/lvio.yaml). A detailed explanation of each sensor models parameters are found in the README under bs_models.
 5. Create a launch file to run the fuse optimizer of your choice, example [here](https://github.com/BEAMRobotics/beam_slam/blob/main/beam_slam_launch/launch/ig2/lvio.launch), make sure to keep the name as local_mapper as message names depend on this naming convention
-6. Lastly launch this launch file and run your rosbag with use_sim_time set to true.
-
 ---
+
+Additionally, rviz configurations are included [here](https://github.com/BEAMRobotics/beam_slam/tree/main/beam_slam_launch/rviz) for each specific modality (vio, lio, lvio)
 
 ## Known issues:
 
