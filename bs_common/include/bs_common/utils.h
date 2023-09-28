@@ -78,4 +78,9 @@ std::string GetBeamSlamCalibrationsPath();
 double ShannonEntropyFromPoseCovariance(
     const Eigen::Matrix<double, 6, 6>& covariance);
 
+void AddZeroMotionFactor(const std::string& source,
+                         const bs_common::ImuState& state1,
+                         const bs_common::ImuState& state2,
+                         fuse_core::Transaction::SharedPtr transaction);
+
 } // namespace bs_common

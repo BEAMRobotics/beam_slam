@@ -1,12 +1,12 @@
 #pragma once
 
 #include <queue>
+#include <mutex>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/imu_state.h>
 #include <bs_common/preintegrator.h>
 #include <bs_constraints/inertial/imu_state_3d_stamped_transaction.h>
-#include <mutex>
 #include <sensor_msgs/Imu.h>
 
 namespace bs_models {

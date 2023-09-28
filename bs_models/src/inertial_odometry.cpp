@@ -25,8 +25,10 @@ ImuBuffer::ImuBuffer(double buffer_length_s) {
 }
 
 void ImuBuffer::AddData(const sensor_msgs::Imu::ConstPtr& msg) {
+  buffer_mutex_.lock();
   imu_msgs_.emplace(msg->header.stamp, msg);
   CleanOverflow();
+  buffer_mutex_.unlock();
 }
 
 void ImuBuffer::CleanOverflow() {
@@ -47,11 +49,13 @@ void ImuBuffer::CleanOverflow() {
 void ImuBuffer::AddConstraint(const ros::Time& start_time,
                               const ros::Time& end_time,
                               const fuse_core::UUID& constraint_uuid) {
+  buffer_mutex_.lock();
   ImuConstraintData data;
   data.constraint_uuid = constraint_uuid;
   data.start_time = start_time;
   data.end_time = end_time;
   constraint_buffer_.emplace(end_time, data);
+  buffer_mutex_.unlock();
 }
 
 std::map<ros::Time, sensor_msgs::Imu::ConstPtr>
@@ -92,7 +96,9 @@ ros::Time ImuBuffer::GetLastConstraintTime() const {
 }
 
 void ImuBuffer::ClearImuMsgs() {
+  buffer_mutex_.lock();
   imu_msgs_.clear();
+  buffer_mutex_.unlock();
 }
 
 const std::map<ros::Time, sensor_msgs::Imu::ConstPtr>&

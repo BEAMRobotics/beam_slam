@@ -426,9 +426,25 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
       return;
     }
 
-    // no imu measurements between states -> return
+    // no imu measurements between states -> add zero motion constraint
     if (imu_preint_->CurrentBufferSize() == 0) {
-      ROS_WARN("Not registering a preintegration factor will cause issues.");
+      auto zero_motion_transaction = fuse_core::Transaction::make_shared();
+      zero_motion_transaction->stamp(timestamp);
+
+      auto start_state = imu_preint_->GetImuState();
+      if (timestamp.toSec() - start_state.Stamp().toSec() > 0.005) {
+        ROS_FATAL(
+            "Adding zero motion constraint between states that are far apart!");
+        throw std::runtime_error(
+            "Adding zero motion constraint between states that are far apart!");
+      }
+      bs_common::ImuState new_state(
+          timestamp, start_state.OrientationQuat(), start_state.PositionVec(),
+          start_state.VelocityVec(), start_state.GyroBiasVec(),
+          start_state.AccelBiasVec());
+      bs_common::AddZeroMotionFactor("SLAMINIT", start_state, new_state,
+                                     zero_motion_transaction);
+      local_graph_->update(*zero_motion_transaction);
       return;
     }
 

@@ -1,5 +1,8 @@
 #include <bs_common/utils.h>
 
+#include <fuse_constraints/relative_constraint.h>
+#include <fuse_constraints/relative_pose_3d_stamped_constraint.h>
+
 #include <bs_common/conversions.h>
 
 namespace bs_common {
@@ -78,6 +81,79 @@ double ShannonEntropyFromPoseCovariance(
   double k = pow(2.0 * M_PI * std::exp(1.0), covariance.rows());
   double h = 0.5 * std::log(k * covariance.determinant());
   return h;
+}
+
+void AddZeroMotionFactor(const std::string& source,
+                         const bs_common::ImuState& state1,
+                         const bs_common::ImuState& state2,
+                         fuse_core::Transaction::SharedPtr transaction) {
+  // add all variables in case they dont already exist
+  transaction->addVariable(
+      std::make_shared<fuse_variables::Orientation3DStamped>(
+          state1.Orientation()));
+  transaction->addVariable(
+      std::make_shared<fuse_variables::Position3DStamped>(state1.Position()));
+  transaction->addVariable(
+      std::make_shared<fuse_variables::VelocityLinear3DStamped>(
+          state1.Velocity()));
+  transaction->addVariable(
+      std::make_shared<bs_variables::AccelerationBias3DStamped>(
+          state1.AccelBias()));
+  transaction->addVariable(
+      std::make_shared<bs_variables::GyroscopeBias3DStamped>(
+          state1.GyroBias()));
+
+  transaction->addVariable(
+      std::make_shared<fuse_variables::Orientation3DStamped>(
+          state2.Orientation()));
+  transaction->addVariable(
+      std::make_shared<fuse_variables::Position3DStamped>(state2.Position()));
+  transaction->addVariable(
+      std::make_shared<fuse_variables::VelocityLinear3DStamped>(
+          state2.Velocity()));
+  transaction->addVariable(
+      std::make_shared<bs_variables::AccelerationBias3DStamped>(
+          state2.AccelBias()));
+  transaction->addVariable(
+      std::make_shared<bs_variables::GyroscopeBias3DStamped>(
+          state2.GyroBias()));
+
+  // generate a zero motion constraint
+  fuse_core::Vector7d pose_delta;
+  pose_delta << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+  fuse_core::Matrix6d pose_covariance = fuse_core::Matrix6d::Identity() * 1e-5;
+
+  auto relative_pose_constraint =
+      std::make_shared<fuse_constraints::RelativePose3DStampedConstraint>(
+          source, state1.Position(), state1.Orientation(), state2.Position(),
+          state2.Orientation(), pose_delta, pose_covariance);
+  transaction->addConstraint(relative_pose_constraint);
+
+  fuse_core::Vector3d relative_delta;
+  relative_delta << 0.0, 0.0, 0.0;
+  fuse_core::Matrix3d relative_covariance =
+      fuse_core::Matrix3d::Identity() * 1e-10;
+
+  auto relative_vel_constraint =
+      std::make_shared<fuse_constraints::RelativeConstraint<
+          fuse_variables::VelocityLinear3DStamped>>(
+          source, state1.Velocity(), state2.Velocity(), relative_delta,
+          relative_covariance);
+  transaction->addConstraint(relative_vel_constraint);
+
+  auto relative_bg_constraint =
+      std::make_shared<fuse_constraints::RelativeConstraint<
+          bs_variables::GyroscopeBias3DStamped>>(
+          source, state1.GyroBias(), state2.GyroBias(), relative_delta,
+          relative_covariance);
+  transaction->addConstraint(relative_bg_constraint);
+
+  auto relative_ba_constraint =
+      std::make_shared<fuse_constraints::RelativeConstraint<
+          bs_variables::AccelerationBias3DStamped>>(
+          source, state1.AccelBias(), state2.AccelBias(), relative_delta,
+          relative_covariance);
+  transaction->addConstraint(relative_ba_constraint);
 }
 
 } // namespace bs_common

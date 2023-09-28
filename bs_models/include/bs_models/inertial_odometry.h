@@ -1,6 +1,7 @@
 #pragma once
 
 #include <queue>
+#include <mutex>
 
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/fuse_macros.h>
@@ -65,6 +66,7 @@ private:
   // raw IMU data not added to the constraint buffer
   std::map<ros::Time, sensor_msgs::Imu::ConstPtr> imu_msgs_;
   ros::Duration buffer_length_;
+  std::mutex buffer_mutex_;
 };
 
 class InertialOdometry : public fuse_core::AsyncSensorModel {
