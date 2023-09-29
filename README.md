@@ -1,4 +1,4 @@
-![beamslam_logo](https://github.com/BEAMRobotics/beam_slam/assets/25440002/f6149e3c-aa2a-4933-9355-6332f4181107)
+![beamslam_logo](https://github.com/BEAMRobotics/beam_slam/assets/25440002/053b25ec-563e-42fe-aae4-1d35c06fad5c)
 
 # beam_slam
 
