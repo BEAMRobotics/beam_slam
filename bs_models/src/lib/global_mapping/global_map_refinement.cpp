@@ -7,8 +7,7 @@
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/reloc/reloc_methods.h>
 
-namespace bs_models {
-namespace global_mapping {
+namespace bs_models { namespace global_mapping {
 
 using namespace reloc;
 
@@ -36,7 +35,7 @@ GlobalMapRefinement::Params::Params() {
   multi_scan_reg_params.min_motion_rot_deg = 0;
   multi_scan_reg_params.max_motion_trans_m = 5;
   multi_scan_reg_params.num_neighbors = 10;
-  multi_scan_reg_params.disable_lidar_map = true;  // don't need
+  multi_scan_reg_params.disable_lidar_map = true; // don't need
 
   // set this high because we don't want to remove any scans due to lag duration
   // overflow (this is offline)
@@ -66,9 +65,8 @@ GlobalMapRefinement::Params::Params() {
 void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   std::string read_file = config_path;
   if (read_file.empty()) {
-    BEAM_INFO(
-        "No config file provided to global map refinement, using default "
-        "parameters.");
+    BEAM_INFO("No config file provided to global map refinement, using default "
+              "parameters.");
     return;
   }
 
@@ -78,10 +76,9 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   }
 
   if (!boost::filesystem::exists(read_file)) {
-    BEAM_ERROR(
-        "Cannot find global map refinement config at: {}, using default "
-        "parameters.",
-        read_file);
+    BEAM_ERROR("Cannot find global map refinement config at: {}, using default "
+               "parameters.",
+               read_file);
     return;
   }
 
@@ -92,8 +89,7 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   file >> J;
   reloc_candidate_search_type = J["reloc_candidate_search_type"];
   reloc_refinement_type = J["reloc_refinement_type"];
-  reloc_candidate_search_config =
-      J["reloc_candidate_search_config"];
+  reloc_candidate_search_config = J["reloc_candidate_search_config"];
   reloc_refinement_config = J["reloc_refinement_config"];
   scan_registration_type = J["scan_registration_type"];
 
@@ -110,9 +106,8 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
 
   std::vector<double> vec2 = J["reloc_covariance_diag"];
   if (vec2.size() != 6) {
-    BEAM_ERROR(
-        "Invalid reloc covariance diagonal (6 values required). Using "
-        "default.");
+    BEAM_ERROR("Invalid reloc covariance diagonal (6 values required). Using "
+               "default.");
   } else {
     Eigen::VectorXd vec_eig = Eigen::VectorXd(6);
     vec_eig << vec2[0], vec2[1], vec2[2], vec2[3], vec2[4], vec2[5];
@@ -164,7 +159,7 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
   global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-  submaps_ = global_map_->GetOnlineSubmaps();
+  submaps_ = global_map_->GetSubmaps();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
@@ -176,62 +171,54 @@ GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
   global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-  submaps_ = global_map_->GetOnlineSubmaps();
+  submaps_ = global_map_->GetSubmaps();
 }
 
-GlobalMapRefinement::GlobalMapRefinement(
-    std::shared_ptr<GlobalMap>& global_map, const Params& params)
+GlobalMapRefinement::GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
+                                         const Params& params)
     : global_map_(global_map), params_(params) {
-  submaps_ = global_map_->GetOnlineSubmaps();
+  submaps_ = global_map_->GetSubmaps();
   Setup();
 }
 
-GlobalMapRefinement::GlobalMapRefinement(
-    std::shared_ptr<GlobalMap>& global_map, const std::string& config_path)
+GlobalMapRefinement::GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
+                                         const std::string& config_path)
     : global_map_(global_map) {
   params_.LoadJson(config_path);
-  submaps_ = global_map_->GetOnlineSubmaps();
+  submaps_ = global_map_->GetSubmaps();
   Setup();
 }
 
 void GlobalMapRefinement::Setup() {
   // initiate reloc candidate search
   if (params_.reloc_candidate_search_type == "EUCDIST") {
-    reloc_candidate_search_ =
-        std::make_unique<RelocCandidateSearchEucDist>(
-            params_.reloc_candidate_search_config);
+    reloc_candidate_search_ = std::make_unique<RelocCandidateSearchEucDist>(
+        params_.reloc_candidate_search_config);
   } else {
-    BEAM_ERROR(
-        "Invalid reloc candidate search type. Using default: EUCDIST. "
-        "Input: {}",
-        params_.reloc_candidate_search_type);
-    reloc_candidate_search_ =
-        std::make_unique<RelocCandidateSearchEucDist>(
-            params_.reloc_candidate_search_config);
+    BEAM_ERROR("Invalid reloc candidate search type. Using default: EUCDIST. "
+               "Input: {}",
+               params_.reloc_candidate_search_type);
+    reloc_candidate_search_ = std::make_unique<RelocCandidateSearchEucDist>(
+        params_.reloc_candidate_search_config);
   }
 
   // initiate reloc refinement
   if (params_.reloc_refinement_type == "ICP") {
     reloc_refinement_ = std::make_unique<RelocRefinementIcp>(
-        params_.reloc_covariance,
-        params_.reloc_refinement_config);
+        params_.reloc_covariance, params_.reloc_refinement_config);
   } else if (params_.reloc_refinement_type == "GICP") {
     reloc_refinement_ = std::make_unique<RelocRefinementGicp>(
-        params_.reloc_covariance,
-        params_.reloc_refinement_config);
+        params_.reloc_covariance, params_.reloc_refinement_config);
   } else if (params_.reloc_refinement_type == "NDT") {
     reloc_refinement_ = std::make_unique<RelocRefinementNdt>(
-        params_.reloc_covariance,
-        params_.reloc_refinement_config);
+        params_.reloc_covariance, params_.reloc_refinement_config);
   } else if (params_.reloc_refinement_type == "LOAM") {
     reloc_refinement_ = std::make_unique<RelocRefinementLoam>(
-        params_.reloc_covariance,
-        params_.reloc_refinement_config);
+        params_.reloc_covariance, params_.reloc_refinement_config);
   } else {
     BEAM_ERROR("Invalid reloc refinement type. Using default: ICP");
     reloc_refinement_ = std::make_unique<RelocRefinementIcp>(
-        params_.reloc_covariance,
-        params_.reloc_refinement_config);
+        params_.reloc_covariance, params_.reloc_refinement_config);
   }
 }
 
@@ -358,6 +345,4 @@ void GlobalMapRefinement::SaveGlobalMapData(const std::string& output_path) {
   global_map_->SaveData(save_dir);
 }
 
-}  // namespace global_mapping
-
-}  // namespace bs_models
+}} // namespace bs_models::global_mapping

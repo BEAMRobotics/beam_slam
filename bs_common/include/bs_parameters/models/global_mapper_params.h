@@ -4,11 +4,10 @@
 
 #include <bs_parameters/parameter_base.h>
 
-namespace bs_parameters {
-namespace models {
+namespace bs_parameters { namespace models {
 
 struct GlobalMapperParams : public ParameterBase {
- public:
+public:
   /**
    * @brief Method for loading parameter values from ROS.
    * @param[in] nh - The ROS node handle with which to load parameters
@@ -16,7 +15,6 @@ struct GlobalMapperParams : public ParameterBase {
   void loadFromROS(const ros::NodeHandle& nh) final {
     getParam<std::string>(nh, "global_map_config", global_map_config, "");
     getParam<std::string>(nh, "output_path", output_path, "");
-    getParam<std::string>(nh, "offline_map_path", offline_map_path, "");
     getParam<bool>(nh, "save_global_map_data", save_global_map_data, false);
     getParam<bool>(nh, "save_submaps", save_submaps, false);
     getParam<bool>(nh, "save_submap_frames", save_submap_frames, true);
@@ -33,7 +31,6 @@ struct GlobalMapperParams : public ParameterBase {
 
   std::string global_map_config;
   std::string output_path;
-  std::string offline_map_path;
   bool save_global_map_data;
   bool save_submaps;
   bool save_submap_frames;
@@ -46,5 +43,4 @@ struct GlobalMapperParams : public ParameterBase {
   bool disable_loop_closure;
 };
 
-}  // namespace models
-}  // namespace bs_parameters
+}} // namespace bs_parameters::models

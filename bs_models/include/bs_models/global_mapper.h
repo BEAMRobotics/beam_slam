@@ -107,8 +107,6 @@ private:
 
   std::unique_ptr<global_mapping::GlobalMap> global_map_;
 
-  std::vector<global_mapping::SubmapPtr> offline_submaps_;
-
   /** subscribe to slam chunk data */
   using ThrottledCallbackSlamChunk =
       fuse_core::ThrottledMessageCallback<bs_common::SlamChunkMsg>;

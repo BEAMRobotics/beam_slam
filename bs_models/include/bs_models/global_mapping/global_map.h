@@ -32,15 +32,6 @@ enum class RosMapType {
 using RosMap = std::pair<RosMapType, sensor_msgs::PointCloud2>;
 
 /**
- * @brief Enum class for storing types of submaps
- */
-enum class SubmapType {
-  NONE = 0,
-  OFFLINE,
-  ONLINE,
-};
-
-/**
  * @brief This class takes care of all global mapping functionality. It received
  * incoming slam data from the local mapper, saves it into submaps and then runs
  * reloc on the submaps to refine the final map.
@@ -155,31 +146,17 @@ public:
   ~GlobalMap() = default;
 
   /**
-   * @brief get access to the online submaps (see variable below for definition)
-   * @return vector of pointers to the online submaps stored in this global map
+   * @brief get access to the submaps (see variable below for definition)
+   * @return vector of pointers to the submaps stored in this global map
    */
-  std::vector<SubmapPtr> GetOnlineSubmaps();
+  std::vector<SubmapPtr> GetSubmaps();
 
   /**
-   * @brief get access to the offline submaps (see variable below for
-   * definition)
-   * @return vector of pointers to the offline submaps stored in this global map
-   */
-  std::vector<SubmapPtr> GetOfflineSubmaps();
-
-  /**
-   * @brief set online the submaps vector
+   * @brief set the submaps vector
    * @param submaps vector of pointers to submaps to be stored in this global
    * map
    */
-  void SetOnlineSubmaps(std::vector<SubmapPtr>& submaps);
-
-  /**
-   * @brief set offline the submaps vector
-   * @param submaps vector of pointers to submaps to be stored in this global
-   * map
-   */
-  void SetOfflineSubmaps(std::vector<SubmapPtr>& submaps);
+  void SetSubmaps(std::vector<SubmapPtr>& submaps);
 
   /**
    * @brief Sets store_newly_completed_submaps_ param. See description below for
@@ -251,8 +228,7 @@ public:
    *  - store the best refined pose and submap index (if at least one refinement
    *    was successful)
    *
-   * (2) 1 was unsuccessful, run reloc candidacy search on all online
-   *     maps
+   * (2) 1 was unsuccessful, run reloc candidacy search on all submaps
    *  - if non returned, then we are done
    *  - check that candidate submaps are not the current active submap
    *  - run reloc refinement on all candidate submaps
@@ -483,20 +459,11 @@ private:
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 
-  /** online submaps are the submaps that are being build when AddMeasurement is
+  /** These are the submaps that are being build when AddMeasurement is
    * called, or when a previous global map is loaded in the constructor. It also
-   * has the set and get functions: SetOnlineSubmaps(), GetOnlineSubmaps()
+   * has the set and get functions: SetSubmaps(), GetSubmaps()
    */
-  std::vector<SubmapPtr> online_submaps_;
-
-  /** Offline submaps can only be preloaded using SetOfflineSubmaps(). This
-   * vector of offline submaps represents some pre-loaded global map which will
-   * be used during RelocRequest to see if the robot is currently within an
-   * offline submap which will then get sent back to the local mapper. If it is
-   * determined that the robot is not within any offline submap, then it will
-   * search within the online submaps.
-   */
-  std::vector<SubmapPtr> offline_submaps_;
+  std::vector<SubmapPtr> submaps_;
 
   std::unique_ptr<reloc::RelocCandidateSearchBase> reloc_candidate_search_;
   std::unique_ptr<reloc::RelocRefinementBase> reloc_refinement_;
@@ -506,7 +473,6 @@ private:
   Eigen::Matrix4d T_WORLDLM_WORLDOFF_{Eigen::Matrix4d::Identity()};
   bool T_WORLDLM_WORLDOFF_found_{false};
   int active_submap_id_{0};
-  SubmapType active_submap_type_{SubmapType::NONE};
 
   // ros maps
   std::queue<std::shared_ptr<RosMap>> ros_submaps_;

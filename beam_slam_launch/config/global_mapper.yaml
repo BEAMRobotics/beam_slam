@@ -6,7 +6,6 @@ global_mapper:
   disable_loop_closure: false
   global_map_config: 'DEFAULT_PATH' # Empty will use defaults defined in class. DEFAULT_PATH will use the file in config/global_map/global_map.json
   output_path: '/userhome/results/global_mapper/'
-  offline_map_path:  ''
   save_global_map_data: true
   save_submap_frames: true
   save_submaps: true

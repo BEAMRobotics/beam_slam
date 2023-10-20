@@ -99,14 +99,6 @@ void GlobalMapper::onInit() {
 
   // init PGO graph
   graph_ = fuse_graphs::HashGraph::make_shared();
-
-  // load offline map if supplied
-  if (!params_.offline_map_path.empty()) {
-    BEAM_INFO("Loading offline map from: {}", params_.offline_map_path);
-    GlobalMap global_map_offline(params_.offline_map_path);
-    offline_submaps_ = global_map_offline.GetOnlineSubmaps();
-    BEAM_INFO("Done loading offline map.");
-  }
 }
 
 void GlobalMapper::onStart() {
@@ -166,7 +158,6 @@ void GlobalMapper::onStart() {
   } else {
     global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_);
   }
-  global_map_->SetOfflineSubmaps(offline_submaps_);
   global_map_->SetStoreNewSubmaps(params_.publish_new_submaps);
   global_map_->SetStoreUpdatedGlobalMap(params_.publish_updated_global_map);
   global_map_->SetStoreNewScans(params_.publish_new_scans);
