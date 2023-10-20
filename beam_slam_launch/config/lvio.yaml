@@ -62,7 +62,6 @@ inertial_odometry:
 
 visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
-  reloc_request_period: 3.0
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
   reprojection_information_weight: 1

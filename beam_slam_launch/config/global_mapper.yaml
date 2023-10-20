@@ -3,7 +3,6 @@ sensor_models:
     type: 'bs_models::GlobalMapper'
 
 global_mapper:
-  reloc_request_period: 1
   disable_loop_closure: false
   global_map_config: 'DEFAULT_PATH' # Empty will use defaults defined in class. DEFAULT_PATH will use the file in config/global_map/global_map.json
   output_path: '/userhome/results/global_mapper/'
