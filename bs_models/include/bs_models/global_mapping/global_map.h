@@ -216,37 +216,6 @@ public:
                      const ros::Time& stamp);
 
   /**
-   * @brief This function takes a reloc request message and tries to determine
-   * if the reloc request pose is inside an existing submap.
-   *
-   * There are process works as follows:
-   *
-   * (1) run reloc candidacy search on all offline maps if they exist.
-   *  - if none returned, then skip to 2
-   *  - check that candidate submaps are not the current active submap
-   *  - run reloc refinement on all candidate submaps
-   *  - store the best refined pose and submap index (if at least one refinement
-   *    was successful)
-   *
-   * (2) 1 was unsuccessful, run reloc candidacy search on all submaps
-   *  - if non returned, then we are done
-   *  - check that candidate submaps are not the current active submap
-   *  - run reloc refinement on all candidate submaps
-   *  - store the best refined pose and submap index (if at least one refinement
-   *    was successful)
-   *
-   * (3) If 1 or 2 successful, create a SubmapMsg with the resulting submap and
-   *     refined pose within that submap. If unsuccessful, return nothing
-   *
-   * @param reloc_request_msg input reloc information
-   * @param submap_msg reference to submap message to fill should this be
-   * successful
-   * @return true if a new submap was found and reloc refinement was successful
-   */
-  bool ProcessRelocRequest(const bs_common::RelocRequestMsg& reloc_request_msg,
-                           bs_common::SubmapMsg& submap_msg);
-
-  /**
    * @brief Update submap poses with a new graph message
    * @param graph_msg updated graph which should have all submap poses stored
    * @param update_time ros time of this update
@@ -409,24 +378,6 @@ private:
   void AddNewRosScan(const PointCloud& cloud,
                      const Eigen::Matrix4d& T_WORLD_BASELINK,
                      const ros::Time& stamp);
-
-  /**
-   * @brief Fill a submap message for publishing.
-   * @param submap_msg reference to submap to fill
-   * @param lidar_points lidar points to add (in any frame)
-   * @param loam_points loam pointcloud to add (in any frame)
-   * @param keypoints 3D keypoint locations (in any frame) to add
-   * @param word_ids id of the corresponding visual words
-   * @param T transform to apply to all points (lidar_points, loam_points,
-   * keypoints) to get them into the local mapper's world frame
-   */
-  void FillSubmapMsg(bs_common::SubmapMsg& submap_msg,
-                     const PointCloud& lidar_points,
-                     const beam_matching::LoamPointCloud& loam_points,
-                     const PointCloud& keypoints,
-                     const std::vector<uint32_t> word_ids,
-                     const Eigen::Matrix4d& T) const;
-
   Params params_;
 
   /** If set to true, this will store recently completed submaps as a

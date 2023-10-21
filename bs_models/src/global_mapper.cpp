@@ -22,9 +22,7 @@ GlobalMapper::GlobalMapper()
     : fuse_core::AsyncSensorModel(1),
       device_id_(fuse_core::uuid::NIL),
       throttled_callback_slam_chunk_(std::bind(&GlobalMapper::ProcessSlamChunk,
-                                               this, std::placeholders::_1)),
-      throttled_callback_reloc_(std::bind(&GlobalMapper::ProcessRelocRequest,
-                                          this, std::placeholders::_1)) {}
+                                               this, std::placeholders::_1)) {}
 
 void GlobalMapper::ProcessSlamChunk(
     const bs_common::SlamChunkMsg::ConstPtr& msg) {
@@ -80,18 +78,6 @@ void GlobalMapper::ProcessSlamChunk(
   }
 }
 
-void GlobalMapper::ProcessRelocRequest(
-    const bs_common::RelocRequestMsg::ConstPtr& msg) {
-  // update extrinsics if necessary
-  UpdateExtrinsics();
-
-  // get submap
-  bs_common::SubmapMsg submap_msg;
-  if (global_map_->ProcessRelocRequest(*msg, submap_msg)) {
-    active_submap_publisher_.publish(submap_msg);
-  }
-}
-
 void GlobalMapper::onInit() {
   // load params
   params_.loadFromROS(private_node_handle_);
@@ -109,15 +95,6 @@ void GlobalMapper::onStart() {
           &ThrottledCallbackSlamChunk::callback,
           &throttled_callback_slam_chunk_,
           ros::TransportHints().tcpNoDelay(false));
-
-  reloc_request_subscriber_ =
-      private_node_handle_.subscribe<bs_common::RelocRequestMsg>(
-          ros::names::resolve("/local_mapper/reloc_request"), 1,
-          &ThrottledCallbackRelocRequest::callback, &throttled_callback_reloc_,
-          ros::TransportHints().tcpNoDelay(false));
-
-  active_submap_publisher_ =
-      private_node_handle_.advertise<bs_common::SubmapMsg>("active_submap", 10);
 
   if (params_.publish_new_submaps) {
     submap_lidar_publisher_ =
@@ -218,7 +195,6 @@ void GlobalMapper::onStop() {
 
   // stop subscribers
   slam_chunk_subscriber_.shutdown();
-  reloc_request_subscriber_.shutdown();
 }
 
 void GlobalMapper::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {

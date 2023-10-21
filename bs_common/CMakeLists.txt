@@ -46,7 +46,6 @@ add_message_files(
     LidarMeasurementMsg.msg
     SlamChunkMsg.msg
     SubmapMsg.msg
-    RelocRequestMsg.msg
     DescriptorMsg.msg
 )
 

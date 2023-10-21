@@ -51,16 +51,6 @@ public:
    */
   void ProcessSlamChunk(const bs_common::SlamChunkMsg::ConstPtr& msg);
 
-  /**
-   * @brief This function takes a reloc request message and tries to find if
-   * this pose is within some submap, if so, we want to publish the updated
-   * submap. To do this, the global_mapper just needs to call the
-   * ProcessRelocRequest() from the global_map. See the global_map.h for more
-   * information on how this is done.
-   * @param msg reloc request message
-   */
-  void ProcessRelocRequest(const bs_common::RelocRequestMsg::ConstPtr& msg);
-
 private:
   /**
    * @brief initi subscriber
@@ -112,15 +102,6 @@ private:
       fuse_core::ThrottledMessageCallback<bs_common::SlamChunkMsg>;
   ThrottledCallbackSlamChunk throttled_callback_slam_chunk_;
   ros::Subscriber slam_chunk_subscriber_;
-
-  /** subscribe to reloc request */
-  using ThrottledCallbackRelocRequest =
-      fuse_core::ThrottledMessageCallback<bs_common::RelocRequestMsg>;
-  ThrottledCallbackRelocRequest throttled_callback_reloc_;
-  ros::Subscriber reloc_request_subscriber_;
-
-  /** publish submaps returned from reloc */
-  ros::Publisher active_submap_publisher_;
 
   /** publish results */
   ros::Publisher submap_lidar_publisher_;
