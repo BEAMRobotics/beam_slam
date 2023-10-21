@@ -419,12 +419,6 @@ private:
   std::unique_ptr<reloc::RelocCandidateSearchBase> reloc_candidate_search_;
   std::unique_ptr<reloc::RelocRefinementBase> reloc_refinement_;
 
-  /** These params are used for tracking what submap are we currently in and
-   * other required information */
-  Eigen::Matrix4d T_WORLDLM_WORLDOFF_{Eigen::Matrix4d::Identity()};
-  bool T_WORLDLM_WORLDOFF_found_{false};
-  int active_submap_id_{0};
-
   // ros maps
   std::queue<std::shared_ptr<RosMap>> ros_submaps_;
   std::queue<std::shared_ptr<RosMap>> ros_new_scans_;
