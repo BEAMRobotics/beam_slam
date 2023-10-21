@@ -5,6 +5,7 @@ add_library(
   src/lidar_feature_extractor.cpp
   ## lidar helpers
   src/lib/lidar/lidar_aggregator.cpp
+  # src/lib/global_mapping/active_supmap.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_experimental

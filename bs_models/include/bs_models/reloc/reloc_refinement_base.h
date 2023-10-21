@@ -6,7 +6,6 @@
 #include <ros/time.h>
 
 #include <beam_utils/pointclouds.h>
-#include <bs_common/SubmapMsg.h>
 #include <bs_models/global_mapping/submap.h>
 
 namespace bs_models::reloc {
