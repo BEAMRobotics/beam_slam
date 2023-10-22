@@ -157,7 +157,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   previous_keyframe_ = timestamp;
 
   // send IO trigger
-  if (vo_params_.trigger_inertial_odom_constraints && !use_local_vo_) {
+  if (vo_params_.trigger_inertial_odom_constraints) {
     std_msgs::Time time_msg;
     time_msg.data = timestamp;
     imu_constraint_trigger_publisher_.publish(time_msg);
@@ -197,17 +197,17 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
 
     // perform non-linear pose refinement
-    Eigen::Matrix<double, 6, 6> out_covariance;
+    std::shared_ptr<Eigen::Matrix<double, 6, 6>> out_covariance =
+        std::make_shared<Eigen::Matrix<double, 6, 6>>();
     Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
         T_CAMERA_WORLD_est, cam_model_, pixels, points,
-        std::make_shared<Eigen::Matrix<double, 6, 6>>(prior),
-        std::make_shared<Eigen::Matrix<double, 6, 6>>(out_covariance));
+        std::make_shared<Eigen::Matrix<double, 6, 6>>(prior), out_covariance);
 
     // reorder covariance to be x, y, z, roll, pitch, yaw
-    covariance.block<3, 3>(0, 0) = out_covariance.block<3, 3>(3, 3);
-    covariance.block<3, 3>(0, 3) = out_covariance.block<3, 3>(3, 0);
-    covariance.block<3, 3>(3, 0) = out_covariance.block<3, 3>(0, 3);
-    covariance.block<3, 3>(3, 3) = out_covariance.block<3, 3>(0, 0);
+    covariance.block<3, 3>(0, 0) = out_covariance->block<3, 3>(3, 3);
+    covariance.block<3, 3>(0, 3) = out_covariance->block<3, 3>(3, 0);
+    covariance.block<3, 3>(3, 0) = out_covariance->block<3, 3>(0, 3);
+    covariance.block<3, 3>(3, 3) = out_covariance->block<3, 3>(0, 0);
 
     // compute baselink pose
     T_WORLD_BASELINK =
@@ -248,8 +248,8 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
     // add relative pose constraint to the transaction using the imu estimate
     // and a manually tuned covariance
     Eigen::Matrix<double, 6, 6> imu_covariance =
-        1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
-    visual_map_->AddRelativePoseConstraint(timestamp, previous_keyframe_,
+        Eigen::Matrix<double, 6, 6>::Identity();
+    visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
                                            keyframe_imu_delta_, imu_covariance,
                                            transaction);
   }
@@ -271,7 +271,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
     ceres::Solver::Options options;
     options.minimizer_type = ceres::TRUST_REGION;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-    options.minimizer_progress_to_stdout = false;
+    options.minimizer_progress_to_stdout = true;
     options.num_threads = std::thread::hardware_concurrency() / 2;
     options.max_num_iterations = 10;
     local_graph_->optimizeFor(ros::Duration(0.05), options);
@@ -302,7 +302,10 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
     delta_prevkf_curframe << t_PREVKF_CURFRAME.x(), t_PREVKF_CURFRAME.y(),
         t_PREVKF_CURFRAME.z(), q_PREVKF_CURFRAME.w(), q_PREVKF_CURFRAME.x(),
         q_PREVKF_CURFRAME.y(), q_PREVKF_CURFRAME.z();
-    visual_map_->AddRelativePoseConstraint(timestamp, previous_keyframe_,
+
+    // todo: compute weight on covariance using the information weight
+
+    visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
                                            delta_prevkf_curframe, covariance,
                                            pose_transaction);
     sendTransaction(pose_transaction);
@@ -353,12 +356,10 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
     return false;
   }
 
-  Eigen::Matrix3d R_PREVKF_CURFRAME = T_PREVKF_CURFRAME.block<3, 3>(0, 0);
-
   // update keyframe_imu_delta_ if using local vo
   if (use_local_vo_) {
     Eigen::Vector3d t_PREVKF_CURFRAME = T_PREVKF_CURFRAME.block<3, 1>(0, 3);
-    Eigen::Quaterniond q_PREVKF_CURFRAME(R_PREVKF_CURFRAME);
+    Eigen::Quaterniond q_PREVKF_CURFRAME(T_PREVKF_CURFRAME.block<3, 3>(0, 0));
     fuse_core::Vector7d imu_delta;
     imu_delta << t_PREVKF_CURFRAME.x(), t_PREVKF_CURFRAME.y(),
         t_PREVKF_CURFRAME.z(), q_PREVKF_CURFRAME.w(), q_PREVKF_CURFRAME.x(),
@@ -367,6 +368,7 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
   }
 
   // compute rotation adjusted parallax
+  Eigen::Matrix3d R_PREVKF_CURFRAME = T_PREVKF_CURFRAME.block<3, 3>(0, 0);
   std::vector<uint64_t> frame1_ids =
       landmark_container_->GetLandmarkIDsInImage(kf_time);
   double total_parallax = 0.0;
@@ -606,7 +608,10 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
   }
   buffer_mutex_.lock();
 
-  if (use_local_vo_) { local_graph_ = std::move(graph->clone()); }
+  if (use_local_vo_) {
+    local_graph_ = std::move(graph->clone());
+    visual_map_->UpdateGraph(*local_graph_);
+  }
 
   // get measurments as a vector of timestamps
   std::vector<uint64_t> measurement_stamps;

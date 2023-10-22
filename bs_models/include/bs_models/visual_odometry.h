@@ -204,7 +204,7 @@ private:
   /// @brief experimental stuff
   fuse_core::Vector7d keyframe_imu_delta_;
   fuse_core::Graph::SharedPtr local_graph_;
-  bool use_local_vo_{false};
+  bool use_local_vo_{true};
 };
 
 } // namespace bs_models
