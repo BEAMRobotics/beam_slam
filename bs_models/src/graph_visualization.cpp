@@ -201,7 +201,7 @@ void GraphVisualization::VisualizeCameraLandmarks(
       cloud);
 
   // get all timestamps in the graph
-  auto timestamps = bs_common::CurrentTimestamps(graph_msg);
+  auto timestamps = bs_common::CurrentTimestamps(*graph_msg);
 
   Eigen::Matrix4d T_CAM_BASELINK;
   extrinsics_.GetT_CAMERA_BASELINK(T_CAM_BASELINK);
@@ -222,8 +222,8 @@ void GraphVisualization::VisualizeCameraLandmarks(
     cv::Mat image_out = beam_cv::OpenCVConversions::RosImgToMat(img_msg);
 
     // get pose
-    const auto position = bs_common::GetPosition(graph_msg, timestamp);
-    const auto orientation = bs_common::GetOrientation(graph_msg, timestamp);
+    const auto position = bs_common::GetPosition(*graph_msg, timestamp);
+    const auto orientation = bs_common::GetOrientation(*graph_msg, timestamp);
     Eigen::Matrix4d T_WORLD_BASELINK =
         bs_common::FusePoseToEigenTransform(*position, *orientation);
 
@@ -232,9 +232,9 @@ void GraphVisualization::VisualizeCameraLandmarks(
     for (const auto id : lm_ids) {
       Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
       cv::Point m(pixel[0], pixel[1]);
-      const auto lm_variable = bs_common::GetLandmark(graph_msg, id);
+      const auto lm_variable = bs_common::GetLandmark(*graph_msg, id);
       const auto idp_lm_variable =
-          bs_common::GetInverseDepthLandmark(graph_msg, id);
+          bs_common::GetInverseDepthLandmark(*graph_msg, id);
       if (lm_variable || idp_lm_variable) {
         Eigen::Vector3d camera_t_point;
         if (lm_variable) {
@@ -244,10 +244,10 @@ void GraphVisualization::VisualizeCameraLandmarks(
                   .hnormalized();
         } else if (idp_lm_variable) {
           Eigen::Vector3d anchor_t_point = idp_lm_variable->camera_t_point();
-          const auto p =
-              bs_common::GetPosition(graph_msg, idp_lm_variable->anchorStamp());
+          const auto p = bs_common::GetPosition(
+              *graph_msg, idp_lm_variable->anchorStamp());
           const auto o = bs_common::GetOrientation(
-              graph_msg, idp_lm_variable->anchorStamp());
+              *graph_msg, idp_lm_variable->anchorStamp());
           if (!o || !p) { continue; }
           Eigen::Matrix4d T_WORLD_CAMERAmeasurement =
               T_WORLD_BASELINK * T_BASELINK_CAM;

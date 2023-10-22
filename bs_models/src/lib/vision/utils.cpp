@@ -125,7 +125,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   }
 
   visual_graph->update(*initial_transaction);
-  visual_map->UpdateGraph(visual_graph);
+  visual_map->UpdateGraph(*visual_graph);
 
   // Subsample image times to target hz
   const auto img_times = landmark_container->GetMeasurementTimesVector();
@@ -184,7 +184,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     }
     // add transaction to graph and notify visual map
     visual_graph->update(*transaction);
-    visual_map->UpdateGraph(visual_graph);
+    visual_map->UpdateGraph(*visual_graph);
   }
 
   // optimize graph
@@ -195,7 +195,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   options.logging_type = ceres::PER_MINIMIZER_ITERATION;
   options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
   visual_graph->optimizeFor(ros::Duration(max_optimization_time), options);
-  visual_map->UpdateGraph(visual_graph);
+  visual_map->UpdateGraph(*visual_graph);
 
   // return result
   std::map<uint64_t, Eigen::Matrix4d> init_path;

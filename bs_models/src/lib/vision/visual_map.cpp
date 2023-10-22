@@ -11,6 +11,7 @@
 #include <bs_constraints/visual/inversedepth_reprojection_constraint.h>
 #include <bs_constraints/visual/inversedepth_reprojection_constraint_unary.h>
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
+#include <fuse_constraints/relative_pose_3d_stamped_constraint.h>
 
 namespace bs_models { namespace vision {
 
@@ -421,11 +422,29 @@ void VisualMap::AddPosePrior(const ros::Time& stamp,
   }
 }
 
-void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  graph_ = graph_msg;
+void VisualMap::AddRelativePoseConstraint(
+    const ros::Time& stamp1, const ros::Time& stamp2,
+    const fuse_core::Vector7d& delta,
+    const Eigen::Matrix<double, 6, 6>& covariance,
+    fuse_core::Transaction::SharedPtr transaction) {
+  const auto position1 = GetPosition(stamp1);
+  const auto orientation1 = GetOrientation(stamp1);
+  const auto position2 = GetPosition(stamp2);
+  const auto orientation2 = GetOrientation(stamp2);
+  if (position1 && orientation1 && position2 && orientation2) {
+    auto constraint =
+        std::make_shared<fuse_constraints::RelativePose3DStampedConstraint>(
+            "imu_relative_constraint", *position1, *orientation1, *position2,
+            *orientation2, delta, covariance);
+    transaction->addConstraint(constraint);
+  }
+}
+
+void VisualMap::UpdateGraph(const fuse_core::Graph& graph_msg) {
+  graph_ = std::move(graph_msg.clone());
 
   // remove local copies of poses that are in the new graph
-  const auto graph_timestamps = bs_common::CurrentTimestamps(graph_);
+  const auto graph_timestamps = bs_common::CurrentTimestamps(graph_msg);
   std::vector<uint64_t> times_to_remove;
   for (const auto [t_nsec, position] : positions_) {
     if (graph_timestamps.find(beam::NSecToRos(t_nsec)) !=
@@ -439,7 +458,7 @@ void VisualMap::UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg) {
   }
 
   // remove local copies of landmarks that are in the new graph
-  const auto graph_lm_ids = bs_common::CurrentLandmarkIDs(graph_);
+  const auto graph_lm_ids = bs_common::CurrentLandmarkIDs(graph_msg);
   std::vector<uint64_t> lms_to_remove;
   for (const auto [id, position] : landmark_positions_) {
     if (graph_lm_ids.find(id) != graph_lm_ids.end()) {
@@ -468,7 +487,7 @@ void VisualMap::Clear() {
 }
 
 std::set<ros::Time> VisualMap::CurrentTimestamps() {
-  auto graph_timestamps = bs_common::CurrentTimestamps(graph_);
+  auto graph_timestamps = bs_common::CurrentTimestamps(*graph_);
   for (const auto& [t, pos] : positions_) {
     graph_timestamps.insert(beam::NSecToRos(t));
   }

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <queue>
 #include <mutex>
+#include <queue>
 
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/async_sensor_model.h>
@@ -68,16 +68,20 @@ private:
   /// map
   /// @param timestamp
   /// @param T_WORLD_BASELINK estimated pose
+  /// @param covariance
   /// @return whether it succeeded or not
   bool LocalizeFrame(const ros::Time& timestamp,
-                     Eigen::Matrix4d& T_WORLD_BASELINK);
+                     Eigen::Matrix4d& T_WORLD_BASELINK,
+                     Eigen::Matrix<double, 6, 6>& covariance);
 
   /// @brief Extends the map at the current keyframe time and adds the visual
   /// constraints
   /// @param timestamp
   /// @param T_WORLD_BASELINK
+  /// @param covariance
   void ExtendMap(const ros::Time& timestamp,
-                 const Eigen::Matrix4d& T_WORLD_BASELINK);
+                 const Eigen::Matrix4d& T_WORLD_BASELINK,
+                 const Eigen::Matrix<double, 6, 6>& covariance);
 
   /// @brief Determines if a frame is a keyframe
   /// @param timestamp
@@ -108,8 +112,10 @@ private:
   /// @brief
   /// @param timestamp
   /// @param T_WORLD_BASELINK
+  /// @param covariance
   void PublishOdometry(const ros::Time& timestamp,
-                       const Eigen::Matrix4d& T_WORLD_BASELINK);
+                       const Eigen::Matrix4d& T_WORLD_BASELINK,
+                       const Eigen::Matrix<double, 6, 6>& covariance);
 
   /// @brief Publishes a keyframe object as a slam chunk
   /// @param keyframe
@@ -194,6 +200,11 @@ private:
   Eigen::Matrix4d T_cam_baselink_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  /// @brief experimental stuff
+  fuse_core::Vector7d keyframe_imu_delta_;
+  fuse_core::Graph::SharedPtr local_graph_;
+  bool use_local_vo_{false};
 };
 
 } // namespace bs_models

@@ -234,15 +234,15 @@ void InertialOdometry::onGraphUpdate(
 
 void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
   ROS_INFO("InertialOdometry received initial graph.");
-  std::set<ros::Time> timestamps = bs_common::CurrentTimestamps(graph_msg);
+  std::set<ros::Time> timestamps = bs_common::CurrentTimestamps(*graph_msg);
 
   // get first state in the graph
   const ros::Time first_stamp = *timestamps.cbegin();
-  auto accel_bias = bs_common::GetAccelBias(graph_msg, first_stamp);
-  auto gyro_bias = bs_common::GetGyroscopeBias(graph_msg, first_stamp);
-  auto velocity = bs_common::GetVelocity(graph_msg, first_stamp);
-  auto position = bs_common::GetPosition(graph_msg, first_stamp);
-  auto orientation = bs_common::GetOrientation(graph_msg, first_stamp);
+  auto accel_bias = bs_common::GetAccelBias(*graph_msg, first_stamp);
+  auto gyro_bias = bs_common::GetGyroscopeBias(*graph_msg, first_stamp);
+  auto velocity = bs_common::GetVelocity(*graph_msg, first_stamp);
+  auto position = bs_common::GetPosition(*graph_msg, first_stamp);
+  auto orientation = bs_common::GetOrientation(*graph_msg, first_stamp);
 
   // init odom frame
   T_ODOM_IMUprev_ =
@@ -264,11 +264,11 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
     auto cur_stamp = *cur;
 
     // get the current state
-    auto ab = bs_common::GetAccelBias(graph_msg, cur_stamp);
-    auto gb = bs_common::GetGyroscopeBias(graph_msg, cur_stamp);
-    auto v = bs_common::GetVelocity(graph_msg, cur_stamp);
-    auto p = bs_common::GetPosition(graph_msg, cur_stamp);
-    auto o = bs_common::GetOrientation(graph_msg, cur_stamp);
+    auto ab = bs_common::GetAccelBias(*graph_msg, cur_stamp);
+    auto gb = bs_common::GetGyroscopeBias(*graph_msg, cur_stamp);
+    auto v = bs_common::GetVelocity(*graph_msg, cur_stamp);
+    auto p = bs_common::GetPosition(*graph_msg, cur_stamp);
+    auto o = bs_common::GetOrientation(*graph_msg, cur_stamp);
     if (!gb || !ab || !o || !p || !v) {
       ROS_ERROR("Potential error from slam initialization.");
       throw std::runtime_error("Potential error from slam initialization.");
@@ -320,10 +320,10 @@ void InertialOdometry::BreakupConstraint(
   auto transaction = fuse_core::Transaction::make_shared();
   transaction->stamp(new_trigger_time);
 
-  const auto start_state = bs_common::GetImuState(most_recent_graph_msg_,
+  const auto start_state = bs_common::GetImuState(*most_recent_graph_msg_,
                                                   constraint_data.start_time);
   const auto end_state =
-      bs_common::GetImuState(most_recent_graph_msg_, constraint_data.end_time);
+      bs_common::GetImuState(*most_recent_graph_msg_, constraint_data.end_time);
 
   if (!start_state.has_value() || !end_state.has_value()) return;
 
