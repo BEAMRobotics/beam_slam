@@ -156,4 +156,14 @@ void AddZeroMotionFactor(const std::string& source,
   transaction->addConstraint(relative_ba_constraint);
 }
 
+void ValidateJsonKeysOrThrow(const std::vector<std::string>& required_keys,
+                             const nlohmann::json& J) {
+  for (const auto& key : required_keys) {
+    if (!J.contains(key)) {
+      BEAM_ERROR("Invalid config json, missing key: {}", key);
+      throw std::runtime_error{"invalid config json"};
+    }
+  }
+}
+
 } // namespace bs_common

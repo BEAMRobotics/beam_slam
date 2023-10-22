@@ -1,9 +1,14 @@
 {
-  "matcher_config": "",
+  "type": "ICP",
+  "matcher_config": "matchers/icp.json",
   "filters": [
     {
       "filter_type": "VOXEL",
-      "cell_size": [0.03, 0.03, 0.03]
+      "cell_size": [
+        0.03,
+        0.03,
+        0.03
+      ]
     }
   ]
 }

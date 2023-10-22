@@ -34,7 +34,7 @@ using RosMap = std::pair<RosMapType, sensor_msgs::PointCloud2>;
 /**
  * @brief This class takes care of all global mapping functionality. It received
  * incoming slam data from the local mapper, saves it into submaps and then runs
- * reloc on the submaps to refine the final map.
+ * loop closure on the submaps to refine the final map.
  */
 class GlobalMap {
 public:
@@ -50,35 +50,20 @@ public:
     /** Max linear distance between poses in a submap */
     double submap_size{10};
 
-    /** String describing the reloc type to use.
-     * Options:
-     * - EUCDIST: Euclidean distance candidate search.
-     */
-    std::string reloc_candidate_search_type{"EUCDIST"};
-
-    /** String describing the reloc refinement type to use.
-     * Options:
-     * - ICP: ICP scan registration with lidar data
-     * - GICP: GICP scan registration with lidar data
-     * - NDT: NDT scan registration on lidar data
-     * - LOAM: LOAM scan registration
-     */
-    std::string reloc_refinement_type{"ICP"};
-
-    /** Full path to config file for reloc candidate search. If blank, it
+    /** Full path to config file for loop closure candidate search. If blank, it
      * will use default parameters.*/
-    std::string reloc_candidate_search_config{""};
+    std::string loop_closure_candidate_search_config{""};
 
-    /** Full path to config file for reloc refinement. If blank, it will
+    /** Full path to config file for loop closure refinement. If blank, it will
      * use default parameters.*/
-    std::string reloc_refinement_config{""};
+    std::string loop_closure_refinement_config{""};
 
     /** covariance matrix from binary factors between scan poses which are added
      * from the local mapper results*/
     Eigen::Matrix<double, 6, 6> local_mapper_covariance;
 
-    /** covariance matrix from binary factors between relocs*/
-    Eigen::Matrix<double, 6, 6> reloc_covariance;
+    /** covariance matrix from binary factors between loop closures */
+    Eigen::Matrix<double, 6, 6> loop_closure_covariance;
 
     /* Output filters to apply to lidar submaps before adding them to the Ros
      * maps list */
@@ -90,9 +75,7 @@ public:
     std::vector<beam_filtering::FilterParamsType> ros_globalmap_filter_params;
 
     /** Loads config settings from a json file. If config_path empty, it will
-     * use default params defined herin. If config_path set to DEFAULT_PATH, it
-     * will use the file in
-     * beam_slam_launch/config/global_map/global_map.json */
+     * use default params defined herein.*/
     void LoadJson(const std::string& config_path);
 
     /** Save contents of struct to a json which can be loaded using LoadJson()
@@ -195,7 +178,7 @@ public:
    * @brief add a slam chunk measurement to the appropriate submap and returns a
    * transaction if a new submap is generated. This transaction will contain a
    * constraint between the new submap and the previous, and then initiate a
-   * reloc check on the previous submap to see if a reloc
+   * loop slosure check on the previous submap to see if a loop slosure
    * constraints can also be added to the transaction.
    * @param cam_measurement camera measurement to add
    * @param lid_measurement lidar measurement to add
@@ -314,8 +297,8 @@ public:
 
 private:
   /**
-   * @brief setup general things needed when class is instatiated, such as
-   * initiating the reloc pointer
+   * @brief setup general things needed when class is instantiated, such as
+   * initiating the loop closure pointer
    */
   void Setup();
 
@@ -325,7 +308,7 @@ private:
    * outside the current submap range (since we need the pose and stamp to
    * construct a submap). Note: since the incoming frame is still in world frame
    * of the local mapper, we need to use the initial T_WORLD_SUBMAP before any
-   * relocs were run.
+   * loop closures were run.
    * @param T_WORLD_FRAME transform from current frame to local mapper's world
    * frame
    */
@@ -344,14 +327,14 @@ private:
    * @brief Get loop closure measurements by comparing the a submap to
    * all previous submaps. By default, every new submap will trigger a loop
    * closure for the second last submap. The reason we compare the second last
-   * submap is because we don't want to find relocs until the submap is
-   * complete, this ensures a best estimate of the reloc constraint. When
-   * a global map is complete, you should trigger reloc against the last
+   * submap is because we don't want to find loop closures until the submap is
+   * complete, this ensures a best estimate of the loop closure constraint. When
+   * a global map is complete, you should trigger loop closure against the last
    * submap which probably still isn't complete. Note that loop closure uses
    * reloc under the hood to find the candidate submaps and refined poses
-   * @param query_index index of submap to look for relocs against
+   * @param query_index index of submap to look for loop closures against
    * @return fuse transaction with the frame to frame constraints between two
-   * reloc poses
+   * loop closure poses
    */
   fuse_core::Transaction::SharedPtr RunLoopClosure(int query_index);
 
@@ -416,8 +399,9 @@ private:
    */
   std::vector<SubmapPtr> submaps_;
 
-  std::unique_ptr<reloc::RelocCandidateSearchBase> reloc_candidate_search_;
-  std::unique_ptr<reloc::RelocRefinementBase> reloc_refinement_;
+  std::shared_ptr<reloc::RelocCandidateSearchBase>
+      loop_closure_candidate_search_;
+  std::shared_ptr<reloc::RelocRefinementBase> loop_closure_refinement_;
 
   // ros maps
   std::queue<std::shared_ptr<RosMap>> ros_submaps_;

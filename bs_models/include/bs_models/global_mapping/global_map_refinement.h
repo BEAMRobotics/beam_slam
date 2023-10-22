@@ -38,65 +38,35 @@ namespace bs_models { namespace global_mapping {
  */
 class GlobalMapRefinement {
 public:
-  /**
-   * @brief struct to store all parameters needed for the global map, with
-   * specified defaults and a method to override defaults with a json config
-   * file.
-   */
-  struct Params {
-    /** constructor to make sure special default variables are set */
-    Params();
-
-    /** String describing the reloc type to use.
-     * Options:
-     * - EUCDIST: Euclidean distance candidate search.
-     */
-    std::string reloc_candidate_search_type{"EUCDIST"};
-
-    /** String describing the reloc refinement type to use.
-     * Options:
-     * - ICP: ICP scan registration with lidar data
-     * - GICP: GICP scan registration with lidar data
-     * - NDT: NDT scan registration on lidar data
-     * - LOAM: LOAM scan registration
-     */
-    std::string reloc_refinement_type{"ICP"};
-
-    /** String describing the type of scan registrattion to use
-     * Options:
-     * - MULTISCAN
-     * - SCANTOMAP
-     */
-    std::string scan_registration_type{"SCANTOMAP"};
-
-    /** Full path to config file for reloc candidate search. If blank, it
+  struct LoopClosureParams {
+    /** Full path to config file for loop closure candidate search. If blank, it
      * will use default parameters.*/
-    std::string reloc_candidate_search_config{""};
+    std::string candidate_search_config;
 
-    /** Full path to config file for reloc refinement. If blank, it will
+    /** Full path to config file for loop closure refinement. If blank, it will
      * use default parameters.*/
-    std::string reloc_refinement_config{""};
+    std::string refinement_config;
+  };
 
-    /** covariance matrix for binary factors between scan registration
-     * measurements during submap refinement*/
-    Eigen::Matrix<double, 6, 6> scan_reg_covariance;
+  struct SubmapRefinementParams {
+    /** Full path to config file for scan registration. If blank, it will use
+     * default parameters.*/
+    std::string scan_registration_config;
 
-    /** covariance matrix from binary factors between relocs*/
-    Eigen::Matrix<double, 6, 6> reloc_covariance;
+    /** Full path to config file for matcher. If blank, it will use default
+     * parameters.*/
+    std::string matcher_config;
 
-    /** multi scan registration params */
-    sr::MultiScanLoamRegistration::Params multi_scan_reg_params;
+    /** If not empty, we will output registration results to this folder. */
+    std::string registration_results_output_path;
+  };
 
-    /** scan to map registration params */
-    sr::ScanToMapLoamRegistration::Params scan_to_map_reg_params;
-
-    /** loam scan matcher params */
-    beam_matching::LoamParams loam_matcher_params;
+  struct Params {
+    LoopClosureParams loop_closure;
+    SubmapRefinementParams submap_refinement;
 
     /** Loads config settings from a json file. If config_path empty, it will
-     * use default params defined herin. If config_path set to DEFAULT_PATH, it
-     * will use the file in
-     * beam_slam_launch/config/global_map/global_map_refinement.json */
+     * use default params defined herein. */
     void LoadJson(const std::string& config_path);
   };
 
@@ -185,7 +155,7 @@ private:
 
   /**
    * @brief setup general things needed when class is instatiated, such as
-   * initiating the reloc pointer
+   * initiating the loop closure pointer
    */
   void Setup();
 
@@ -194,8 +164,8 @@ private:
   std::vector<SubmapPtr> submaps_;
 
   // PGO:
-  std::unique_ptr<reloc::RelocCandidateSearchBase> reloc_candidate_search_;
-  std::unique_ptr<reloc::RelocRefinementBase> reloc_refinement_;
+  std::shared_ptr<reloc::RelocCandidateSearchBase> loop_closure_candidate_search_;
+  std::shared_ptr<reloc::RelocRefinementBase> loop_closure_refinement_;
 };
 
 }} // namespace bs_models::global_mapping

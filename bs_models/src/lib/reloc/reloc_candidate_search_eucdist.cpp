@@ -22,28 +22,22 @@ RelocCandidateSearchEucDist::RelocCandidateSearchEucDist(
     : distance_threshold_m_(distance_threshold_m) {}
 
 void RelocCandidateSearchEucDist::LoadConfig() {
-  std::string read_path = config_path_;
-
-  if (read_path.empty()) { return; }
-
-  if (read_path == "DEFAULT_PATH") {
-    read_path = bs_common::GetBeamSlamConfigPath() +
-                "global_map/reloc_candidate_search_eucdist.json";
-  }
-
-  nlohmann::json J;
-  BEAM_INFO("Loading reloc config: {}", read_path);
-  if (!beam::ReadJson(read_path, J)) {
-    BEAM_INFO("Using default params.");
+  if (config_path_.empty()) {
+    BEAM_INFO("No config file provided to RelocCandidateSearchEucDist, using "
+              "default parameters.");
     return;
   }
 
-  try {
-    distance_threshold_m_ = J["distance_threshold_m"];
-  } catch (...) {
-    BEAM_ERROR("Missing one or more parameter, using default reloc "
-               "candidate search params");
+  nlohmann::json J;
+  BEAM_INFO("Loading reloc config: {}", config_path_);
+  if (!beam::ReadJson(config_path_, J)) {
+    BEAM_ERROR("Unable to read config");
+    throw std::runtime_error{"Unable to read config"};
   }
+
+  bs_common::ValidateJsonKeysOrThrow(
+      std::vector<std::string>{"distance_threshold_m"}, J);
+  distance_threshold_m_ = J["distance_threshold_m"];
 }
 
 void RelocCandidateSearchEucDist::FindRelocCandidates(

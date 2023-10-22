@@ -7,21 +7,20 @@
 #include <bs_common/conversions.h>
 #include <bs_common/utils.h>
 
-namespace bs_models { namespace reloc {
+namespace bs_models::reloc {
 
 using namespace global_mapping;
 using namespace beam_matching;
 
-RelocRefinementLoam::RelocRefinementLoam(
-    const Eigen::Matrix<double, 6, 6>& reloc_covariance,
-    const std::string& config)
-    : RelocRefinementBase(config), reloc_covariance_(reloc_covariance) {
+RelocRefinementLoam::RelocRefinementLoam(const std::string& config)
+    : RelocRefinementBase(config) {
   LoadConfig();
   Setup();
 }
 
-fuse_core::Transaction::SharedPtr RelocRefinementLoam::GenerateTransaction(
-    const SubmapPtr& matched_submap, const SubmapPtr& query_submap,
+RelocRefinementResults RelocRefinementLoam::RunRefinement(
+    const global_mapping::SubmapPtr& matched_submap,
+    const global_mapping::SubmapPtr& query_submap,
     const Eigen::Matrix4d& T_MATCH_QUERY_EST) {
   // extract and filter clouds from matched submap
   LoamPointCloud matched_submap_in_submap_frame(
@@ -34,66 +33,41 @@ fuse_core::Transaction::SharedPtr RelocRefinementLoam::GenerateTransaction(
       beam::InvertTransform(query_submap->T_WORLD_SUBMAP()));
 
   // get refined transform
-  Eigen::Matrix4d T_MATCH_QUERY_OPT;
+  RelocRefinementResults results;
+  Eigen::Matrix<double, 6, 6> covariance;
   if (!GetRefinedT_SUBMAP_QUERY(matched_submap_in_submap_frame,
                                 query_submap_in_submap_frame, T_MATCH_QUERY_EST,
-                                T_MATCH_QUERY_OPT)) {
-    return nullptr;
+                                results.T_MATCH_QUERY, covariance)) {
+    return {};
   }
-
-  // create transaction
-  bs_constraints::Pose3DStampedTransaction transaction(query_submap->Stamp());
-  transaction.AddPoseConstraint(
-      matched_submap->Position(), query_submap->Position(),
-      matched_submap->Orientation(), query_submap->Orientation(),
-      bs_common::TransformMatrixToVectorWithQuaternion(T_MATCH_QUERY_OPT),
-      reloc_covariance_, source_);
-
-  return transaction.GetTransaction();
-}
-
-bool RelocRefinementLoam::GetRefinedPose(
-    Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
-    const Eigen::Matrix4d& T_SUBMAP_QUERY_initial, const SubmapPtr& submap,
-    const PointCloud& lidar_cloud_in_query_frame,
-    const LoamPointCloudPtr& loam_cloud_in_query_frame) {
-  // extract and filter clouds from match submap
-  LoamPointCloud submap_in_submap_frame(
-      submap->GetLidarLoamPointsInWorldFrame(),
-      beam::InvertTransform(submap->T_WORLD_SUBMAP()));
-
-  // get refined transform
-  if (!GetRefinedT_SUBMAP_QUERY(
-          submap_in_submap_frame, *loam_cloud_in_query_frame,
-          T_SUBMAP_QUERY_initial, T_SUBMAP_QUERY_refined)) {
-    return false;
-  }
-
-  return true;
+  results.successful = true;
+  results.covariance = covariance;
+  return results;
 }
 
 void RelocRefinementLoam::LoadConfig() {
-  std::string read_path = config_path_;
-
-  if (read_path.empty()) { return; }
-
-  if (read_path == "DEFAULT_PATH") {
-    read_path = bs_common::GetBeamSlamConfigPath() +
-                "global_map/reloc_refinement_loam_registration.json";
-  }
-
-  BEAM_INFO("Loading reloc config: {}", read_path);
-  nlohmann::json J;
-  if (!beam::ReadJson(read_path, J)) {
-    BEAM_INFO("Using default params.");
+  if (config_path_.empty()) {
+    BEAM_INFO("No config file provided to RelocRefinementLoam, using "
+              "default parameters.");
     return;
   }
 
-  try {
-    matcher_config_ = J["matcher_config"];
-  } catch (...) {
-    BEAM_ERROR("Missing one or more parameter, using default reloc params.");
+  BEAM_INFO("Loading reloc config: {}", config_path_);
+  nlohmann::json J;
+  if (!beam::ReadJson(config_path_, J)) {
+    BEAM_ERROR("Unable to read config");
+    throw std::runtime_error{"Unable to read config"};
   }
+
+  bs_common::ValidateJsonKeysOrThrow(std::vector<std::string>{"matcher_config"},
+                                     J);
+  std::string matcher_config_rel = J["matcher_config"];
+  if (matcher_config_rel.empty()) {
+    BEAM_ERROR("Reloc refinement cannot have an empty matcher_config");
+    throw std::runtime_error{"invalid json inputs"};
+  }
+  matcher_config_ = beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
+                                       matcher_config_rel);
 }
 
 void RelocRefinementLoam::Setup() {
@@ -105,7 +79,8 @@ void RelocRefinementLoam::Setup() {
 bool RelocRefinementLoam::GetRefinedT_SUBMAP_QUERY(
     const LoamPointCloud& submap_cloud, const LoamPointCloud& query_cloud,
     const Eigen::Matrix4d& T_SUBMAP_QUERY_EST,
-    Eigen::Matrix4d& T_SUBMAP_QUERY_OPT) {
+    Eigen::Matrix4d& T_SUBMAP_QUERY_OPT,
+    Eigen::Matrix<double, 6, 6>& covariance) {
   // convert query to estimated submap frame and make pointers
   LoamPointCloudPtr submap_ptr = std::make_shared<LoamPointCloud>(submap_cloud);
   LoamPointCloudPtr query_in_submap_frame_est =
@@ -147,8 +122,9 @@ bool RelocRefinementLoam::GetRefinedT_SUBMAP_QUERY(
     boost::filesystem::create_directory(output_path_stamped_);
     matcher_->SaveResults(output_path_stamped_);
   }
+  covariance = matcher_->GetCovariance();
 
   return true;
 }
 
-}} // namespace bs_models::reloc
+} // namespace bs_models::reloc

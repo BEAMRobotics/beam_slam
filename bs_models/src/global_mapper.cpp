@@ -129,12 +129,8 @@ void GlobalMapper::onStart() {
       extrinsics_online_.GetExtrinsicsCopy());
 
   // init global map
-  if (!params_.global_map_config.empty()) {
-    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_,
-                                              params_.global_map_config);
-  } else {
-    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_);
-  }
+  global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_,
+                                            params_.global_map_config);
   global_map_->SetStoreNewSubmaps(params_.publish_new_submaps);
   global_map_->SetStoreUpdatedGlobalMap(params_.publish_updated_global_map);
   global_map_->SetStoreNewScans(params_.publish_new_scans);

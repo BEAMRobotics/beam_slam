@@ -13,7 +13,6 @@ public:
    * @param[in] nh - The ROS node handle with which to load parameters
    */
   void loadFromROS(const ros::NodeHandle& nh) final {
-    getParam<std::string>(nh, "global_map_config", global_map_config, "");
     getParam<std::string>(nh, "output_path", output_path, "");
     getParam<bool>(nh, "save_global_map_data", save_global_map_data, false);
     getParam<bool>(nh, "save_submaps", save_submaps, false);
@@ -27,6 +26,15 @@ public:
                    false);
     getParam<bool>(nh, "publish_new_scans", publish_new_scans, false);
     getParam<bool>(nh, "disable_loop_closure", disable_loop_closure, false);
+
+    /** Config path for global mapper.Provide path relative to config folder  */
+    std::string global_map_config_rel;
+    getParam<std::string>(nh, "global_map_config", global_map_config_rel,
+                          global_map_config_rel);
+    if (!global_map_config_rel.empty()) {
+      global_map_config = beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
+                                             global_map_config_rel);
+    }
   }
 
   std::string global_map_config;

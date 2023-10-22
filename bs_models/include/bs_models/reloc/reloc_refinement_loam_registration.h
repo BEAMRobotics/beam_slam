@@ -23,42 +23,15 @@ public:
    * @param config full path to config json
    * @param reloc_covariance
    */
-  RelocRefinementLoam(const Eigen::Matrix<double, 6, 6>& reloc_covariance,
-                      const std::string& config = "");
+  RelocRefinementLoam(const std::string& config);
 
   /**
-   * @brief Generate a fuse transaction between two candidate loop closure
-   * submaps
-   * @param matched_submap submap that a new query submap matches to
-   * @param query_submap new submap that we are adding constraints with previous
-   * submaps
-   * @param T_MATCH_QUERY_EST estimated transform between the two submaps. This
-   * is determined with a class derived from RelocCandidateSearchBase
+   * @brief See base class
    */
-  fuse_core::Transaction::SharedPtr
-      GenerateTransaction(const global_mapping::SubmapPtr& matched_submap,
-                          const global_mapping::SubmapPtr& query_submap,
-                          const Eigen::Matrix4d& T_MATCH_QUERY_EST) override;
-
-  /**
-   * @brief Implements the pure virtual function defined in the base class which
-   * gets a refined pose from a candidate submap, an initial transform and some
-   * lidar + camera data
-   * @param T_SUBMAP_QUERY_refined reference to tranform from query pose
-   * (baselink) to the submap
-   * @param T_SUBMAP_QUERY_initial initial guess of transform from query pose
-   * (baselink) to submap
-   * @param submap submap that we think the query pose is inside
-   * @param lidar_cloud_in_query_frame not used in this implementation
-   * @param loam_cloud_in_query_frame
-   * @return true if successful, false otherwise
-   */
-  bool GetRefinedPose(Eigen::Matrix4d& T_SUBMAP_QUERY_refined,
-                      const Eigen::Matrix4d& T_SUBMAP_QUERY_initial,
-                      const global_mapping::SubmapPtr& submap,
-                      const PointCloud& lidar_cloud_in_query_frame,
-                      const beam_matching::LoamPointCloudPtr&
-                          loam_cloud_in_query_frame) override;
+  RelocRefinementResults
+      RunRefinement(const global_mapping::SubmapPtr& matched_submap,
+                    const global_mapping::SubmapPtr& query_submap,
+                    const Eigen::Matrix4d& T_MATCH_QUERY_EST) override;
 
 private:
   /**
@@ -83,16 +56,17 @@ private:
    * RelocCandidateSearchBase
    * @param T_SUBMAP_QUERY_OPT reference to the resulting refined transform from
    * query scan to the submap in question
+   * @param covariance this is calculated by loam
    */
   bool GetRefinedT_SUBMAP_QUERY(
       const beam_matching::LoamPointCloud& submap_cloud,
       const beam_matching::LoamPointCloud& query_cloud,
       const Eigen::Matrix4d& T_SUBMAP_QUERY_EST,
-      Eigen::Matrix4d& T_SUBMAP_QUERY_OPT);
+      Eigen::Matrix4d& T_SUBMAP_QUERY_OPT,
+      Eigen::Matrix<double, 6, 6>& covariance);
 
   std::string matcher_config_;
   std::unique_ptr<beam_matching::LoamMatcher> matcher_;
-  Eigen::Matrix<double, 6, 6> reloc_covariance_;
   std::string source_{"RelocRefinementLoam"};
 };
 

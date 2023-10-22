@@ -256,6 +256,8 @@ bool ExtrinsicsLookupOnline::LookupTransform(Eigen::Matrix4d& T,
     break;
   }
 
+  BEAM_INFO("successfully found extrinsics between frames {} and {}", to_frame,
+            from_frame);
   ROSStampedTransformToEigenTransform(TROS, T);
 
   return true;
