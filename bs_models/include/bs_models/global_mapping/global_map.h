@@ -74,6 +74,9 @@ public:
      * creating the global map */
     std::vector<beam_filtering::FilterParamsType> ros_globalmap_filter_params;
 
+    /** string to store the full config from json*/
+    std::string config_str;
+
     /** Loads config settings from a json file. If config_path empty, it will
      * use default params defined herein.*/
     void LoadJson(const std::string& config_path);

@@ -121,6 +121,8 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
       beam_filtering::LoadFilterParamsVector(J_submap_filters);
   ros_globalmap_filter_params =
       beam_filtering::LoadFilterParamsVector(J_globalmap_filters);
+
+  config_str = J.dump();
 }
 
 void GlobalMap::Params::SaveJson(const std::string& filename) {
@@ -133,22 +135,35 @@ void GlobalMap::Params::SaveJson(const std::string& filename) {
       loop_closure_refinement_config.substr(
           config_len, loop_closure_refinement_config.size() - config_len);
 
-  nlohmann::json J = {
-      {"submap_size_m", submap_size},
-      {"loop_closure_candidate_search_config",
-       loop_closure_candidate_search_config_rel},
-      {"loop_closure_refinement_config", loop_closure_refinement_config_rel},
-      {"local_mapper_covariance_diag",
-       {local_mapper_covariance(0, 0), local_mapper_covariance(1, 1),
-        local_mapper_covariance(2, 2), local_mapper_covariance(3, 3),
-        local_mapper_covariance(4, 4), local_mapper_covariance(5, 5)}},
-      {"loop_closure_covariance_diag",
-       {loop_closure_covariance(0, 0), loop_closure_covariance(1, 1),
-        loop_closure_covariance(2, 2), loop_closure_covariance(3, 3),
-        loop_closure_covariance(4, 4), loop_closure_covariance(5, 5)}}};
+  /*
+  nlohmann::json J;
+  if (!config_str.empty()) {
+    J = nlohmann::json::parse(config_str);
+  } else {
+    J = nlohmann::json{
+        {"submap_size_m", submap_size},
+        {"loop_closure_candidate_search_config",
+         loop_closure_candidate_search_config_rel},
+        {"loop_closure_refinement_config", loop_closure_refinement_config_rel},
+        {"local_mapper_covariance_diag",
+         {local_mapper_covariance(0, 0), local_mapper_covariance(1, 1),
+          local_mapper_covariance(2, 2), local_mapper_covariance(3, 3),
+          local_mapper_covariance(4, 4), local_mapper_covariance(5, 5)}},
+        {"loop_closure_covariance_diag",
+         {loop_closure_covariance(0, 0), loop_closure_covariance(1, 1),
+          loop_closure_covariance(2, 2), loop_closure_covariance(3, 3),
+          loop_closure_covariance(4, 4), loop_closure_covariance(5, 5)}}};
+    nlohmann::json J_submap_filters = std::vector<nlohmann::json>();
+    nlohmann::json J_global_filters = std::vector<nlohmann::json>();
+    nlohmann::json J_publishing;
+    J_publishing["submap_lidar_filters"] = J_submap_filters;
+    J_publishing["globalmap_lidar_filters"] = J_global_filters;
+    J["publishing"] = J_publishing;
+  }
 
   std::ofstream file(filename);
   file << std::setw(4) << J << std::endl;
+  */
 }
 
 GlobalMap::GlobalMap(
