@@ -135,7 +135,6 @@ void GlobalMap::Params::SaveJson(const std::string& filename) {
       loop_closure_refinement_config.substr(
           config_len, loop_closure_refinement_config.size() - config_len);
 
-  /*
   nlohmann::json J;
   if (!config_str.empty()) {
     J = nlohmann::json::parse(config_str);
@@ -163,7 +162,6 @@ void GlobalMap::Params::SaveJson(const std::string& filename) {
 
   std::ofstream file(filename);
   file << std::setw(4) << J << std::endl;
-  */
 }
 
 GlobalMap::GlobalMap(
