@@ -152,7 +152,7 @@ void GlobalMapper::onStart() {
     BEAM_INFO("Creating new global mapper results folder: {}", save_path_);
     std::filesystem::create_directory(save_path_);
 
-    if (params_.save_loop_closure_results) {
+    if (params_.save_loop_closure_results && !params_.disable_loop_closure) {
       std::string reloc_ref_save_path =
           beam::CombinePaths(save_path_, "reloc_refinement_results");
       std::filesystem::create_directory(reloc_ref_save_path);
@@ -189,7 +189,6 @@ void GlobalMapper::onStop() {
   if (!save_path_.empty()) {
     global_map_->SaveTrajectoryFile(save_path_,
                                     params_.save_local_mapper_trajectory);
-
     if (params_.save_global_map_data) {
       std::string global_map_path =
           beam::CombinePaths(save_path_, "GlobalMapData");
@@ -201,10 +200,12 @@ void GlobalMapper::onStop() {
       global_map_->SaveTrajectoryClouds(save_path_,
                                         params_.save_local_mapper_trajectory);
     }
+
     if (params_.save_submap_frames) {
       global_map_->SaveSubmapFrames(save_path_,
                                     params_.save_local_mapper_trajectory);
     }
+
     if (params_.save_submaps) {
       global_map_->SaveKeypointSubmaps(save_path_,
                                        params_.save_local_mapper_maps);
