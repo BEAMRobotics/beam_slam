@@ -1,5 +1,7 @@
 #include <bs_models/reloc/reloc_refinement_loam_registration.h>
 
+#include <filesystem>
+
 #include <nlohmann/json.hpp>
 
 #include <beam_utils/filesystem.h>
@@ -21,7 +23,7 @@ RelocRefinementLoam::RelocRefinementLoam(const std::string& config)
 RelocRefinementResults RelocRefinementLoam::RunRefinement(
     const global_mapping::SubmapPtr& matched_submap,
     const global_mapping::SubmapPtr& query_submap,
-    const Eigen::Matrix4d& T_MATCH_QUERY_EST) {
+    const Eigen::Matrix4d& T_MATCH_QUERY_EST, const std::string& output_path) {
   // extract and filter clouds from matched submap
   LoamPointCloud matched_submap_in_submap_frame(
       matched_submap->GetLidarLoamPointsInWorldFrame(),
@@ -32,15 +34,28 @@ RelocRefinementResults RelocRefinementLoam::RunRefinement(
       query_submap->GetLidarLoamPointsInWorldFrame(),
       beam::InvertTransform(query_submap->T_WORLD_SUBMAP()));
 
+  // create output path
+  std::string current_output_path;
+  if (!output_path.empty()) {
+    if (!std::filesystem::exists(output_path)) {
+      BEAM_ERROR("Output path for RelocRefinement does not exist: {}",
+                 output_path);
+      throw std::runtime_error{"invalid output path"};
+    }
+    std::string query_stamp = std::to_string(query_submap->Stamp().toSec());
+    current_output_path = beam::CombinePaths(output_path, query_stamp);
+
+    BEAM_INFO("Saving reloc refinement results to: {}", current_output_path);
+    std::filesystem::create_directory(current_output_path);
+  }
+
   // get refined transform
   RelocRefinementResults results;
   Eigen::Matrix<double, 6, 6> covariance;
-  if (!GetRefinedT_SUBMAP_QUERY(matched_submap_in_submap_frame,
-                                query_submap_in_submap_frame, T_MATCH_QUERY_EST,
-                                results.T_MATCH_QUERY, covariance)) {
-    return {};
-  }
-  results.successful = true;
+  results.successful = GetRefinedT_SUBMAP_QUERY(
+      matched_submap_in_submap_frame, query_submap_in_submap_frame,
+      T_MATCH_QUERY_EST, current_output_path, results.T_MATCH_QUERY,
+      covariance);
   results.covariance = covariance;
   return results;
 }
@@ -78,7 +93,7 @@ void RelocRefinementLoam::Setup() {
 
 bool RelocRefinementLoam::GetRefinedT_SUBMAP_QUERY(
     const LoamPointCloud& submap_cloud, const LoamPointCloud& query_cloud,
-    const Eigen::Matrix4d& T_SUBMAP_QUERY_EST,
+    const Eigen::Matrix4d& T_SUBMAP_QUERY_EST, const std::string& output_path,
     Eigen::Matrix4d& T_SUBMAP_QUERY_OPT,
     Eigen::Matrix<double, 6, 6>& covariance) {
   // convert query to estimated submap frame and make pointers
@@ -93,13 +108,8 @@ bool RelocRefinementLoam::GetRefinedT_SUBMAP_QUERY(
 
   if (!matcher_->Match()) {
     BEAM_WARN("Failed scan matching. Not adding reloc constraint.");
-    if (output_results_) {
-      output_path_stamped_ =
-          debug_output_path_ +
-          beam::ConvertTimeToDate(std::chrono::system_clock::now()) +
-          "_failed/";
-      boost::filesystem::create_directory(output_path_stamped_);
-      matcher_->SaveResults(output_path_stamped_);
+    if (!output_path.empty()) {
+      matcher_->SaveResults(output_path, "failed_cloud_");
     }
     return false;
   }
@@ -115,13 +125,7 @@ bool RelocRefinementLoam::GetRefinedT_SUBMAP_QUERY(
    */
   T_SUBMAP_QUERY_OPT = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAP_QUERY_EST;
 
-  if (output_results_) {
-    output_path_stamped_ =
-        debug_output_path_ +
-        beam::ConvertTimeToDate(std::chrono::system_clock::now()) + "_passed/";
-    boost::filesystem::create_directory(output_path_stamped_);
-    matcher_->SaveResults(output_path_stamped_);
-  }
+  if (!output_path.empty()) { matcher_->SaveResults(output_path, "cloud_"); }
   covariance = matcher_->GetCovariance();
 
   return true;

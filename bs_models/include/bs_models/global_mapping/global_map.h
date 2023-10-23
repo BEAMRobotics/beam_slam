@@ -163,6 +163,13 @@ public:
   void SetStoreUpdatedGlobalMap(bool store_updated_global_map);
 
   /**
+   * @brief If this is called, then the loop closure results will be saved to
+   * this folder.
+   * @param output_path full path to output directory
+   */
+  void SetLoopClosureResultsPath(const std::string& output_path);
+
+  /**
    * @brief If param store_newly_completed_submaps_ is set to true, the global
    * map will store newly completed submaps as a PointCloud2 ROS messages. It
    * will do this for lidar points and camera keypoints. If the param
@@ -389,6 +396,10 @@ private:
    * SetSaveNewData(). The reason for this is that we want to set this
    * from the sensor model, and make sure it isn't overriden by a config file.*/
   bool store_new_scans_{false};
+
+  /** Update this will SetLoopClosureResultsPath(). If this is set, then we will
+   * output the loop closure results to this folder */
+  std::string loop_closure_results_path_;
 
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;

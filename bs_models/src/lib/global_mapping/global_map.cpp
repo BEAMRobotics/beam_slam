@@ -2,8 +2,8 @@
 
 #include <chrono>
 #include <ctime>
+#include <filesystem>
 
-#include <boost/filesystem.hpp>
 #include <pcl/conversions.h>
 
 #include <beam_cv/OpenCVConversions.h>
@@ -83,7 +83,7 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
     loop_closure_refinement_config = beam::CombinePaths(
         bs_common::GetBeamSlamConfigPath(), loop_closure_refinement_config_rel);
   }
-  
+
   std::vector<double> vec = J["local_mapper_covariance_diag"];
   if (vec.size() != 6) {
     BEAM_ERROR(
@@ -203,6 +203,10 @@ void GlobalMap::SetStoreUpdatedGlobalMap(bool store_updated_global_map) {
   store_updated_global_map_ = store_updated_global_map;
 }
 
+void GlobalMap::SetLoopClosureResultsPath(const std::string& output_path) {
+  loop_closure_results_path_ = output_path;
+}
+
 std::vector<std::shared_ptr<RosMap>> GlobalMap::GetRosMaps() {
   std::vector<std::shared_ptr<RosMap>> maps_vector;
   while (!ros_new_scans_.empty()) {
@@ -251,6 +255,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
     submaps_.push_back(new_submap);
     new_transaction = InitiateNewSubmapPose();
 
+    // Run loop closure on the previously completed submap. Current submap is
+    // size -1, therefore the last is size - 2
     fuse_core::Transaction::SharedPtr loop_closure_transaction =
         RunLoopClosure(submaps_.size() - 2);
 
@@ -407,14 +413,16 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   if (submaps_.size() == 1) { return nullptr; }
 
   ROS_DEBUG("Searching for loop closure candidates");
-
   const Eigen::Matrix4d& T_WORLD_QUERY =
       submaps_.at(query_index)->T_WORLD_SUBMAP();
 
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
+  // ignore the current empty submap, and the last full submap (the query)
+  static int ignore_last_n_submaps = 2;
   loop_closure_candidate_search_->FindRelocCandidates(
-      submaps_, T_WORLD_QUERY, matched_indices, Ts_MATCH_QUERY);
+      submaps_, T_WORLD_QUERY, matched_indices, Ts_MATCH_QUERY,
+      ignore_last_n_submaps);
 
   // remove candidate if it is equal to the query submap, or one before
   std::vector<int> matched_indices_filtered;
@@ -446,7 +454,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
     const auto& matched_submap = submaps_.at(matched_indices_filtered[i]);
     const auto& query_submap = submaps_.at(query_index);
     RelocRefinementResults results = loop_closure_refinement_->RunRefinement(
-        matched_submap, query_submap, Ts_MATCH_QUERY[i]);
+        matched_submap, query_submap, Ts_MATCH_QUERY[i],
+        loop_closure_results_path_);
 
     if (!results.successful) { continue; }
 
@@ -480,7 +489,7 @@ void GlobalMap::UpdateSubmapPoses(fuse_core::Graph::ConstSharedPtr graph_msg,
 }
 
 void GlobalMap::SaveData(const std::string& output_path) {
-  if (!boost::filesystem::exists(output_path)) {
+  if (!std::filesystem::exists(output_path)) {
     BEAM_ERROR(
         "Global map output path does not exist, not saving map. Input: {}",
         output_path);
@@ -488,20 +497,24 @@ void GlobalMap::SaveData(const std::string& output_path) {
   }
 
   BEAM_INFO("Saving full global map to: {}", output_path);
-  params_.SaveJson(output_path + "params.json");
-  camera_model_->WriteJSON(output_path + "camera_model.json");
-  extrinsics_->SaveExtrinsicsToJson(output_path + "extrinsics.json");
-  extrinsics_->SaveFrameIdsToJson(output_path + "frame_ids.json");
+  params_.SaveJson(beam::CombinePaths(output_path, "params.json"));
+  camera_model_->WriteJSON(
+      beam::CombinePaths(output_path, "camera_model.json"));
+  extrinsics_->SaveExtrinsicsToJson(
+      beam::CombinePaths(output_path, "extrinsics.json"));
+  extrinsics_->SaveFrameIdsToJson(
+      beam::CombinePaths(output_path, "frame_ids.json"));
   for (uint16_t i = 0; i < submaps_.size(); i++) {
-    std::string submap_dir = output_path + "submap" + std::to_string(i) + "/";
-    boost::filesystem::create_directory(submap_dir);
+    std::string submap_dir =
+        beam::CombinePaths(output_path, "submap" + std::to_string(i));
+    std::filesystem::create_directory(submap_dir);
     submaps_.at(i)->SaveData(submap_dir);
   }
   BEAM_INFO("Done saving global map.");
 }
 
 bool GlobalMap::Load(const std::string& root_directory) {
-  if (!boost::filesystem::exists(root_directory)) {
+  if (!std::filesystem::exists(root_directory)) {
     BEAM_ERROR(
         "Global map root directory path does not exist, not loading map. "
         "Input: {}",
@@ -511,17 +524,20 @@ bool GlobalMap::Load(const std::string& root_directory) {
   BEAM_INFO("Loading full global map from: {}", root_directory);
 
   // load params
-  if (!boost::filesystem::exists(root_directory + "params.json")) {
+  std::string params_path = beam::CombinePaths(root_directory, "params.json");
+  if (!std::filesystem::exists(params_path)) {
     BEAM_ERROR(
-        "params.json not foudn in root directory, not loading GlobalMap. "
+        "params.json not foundn in root directory, not loading GlobalMap. "
         "Input root directory: {}",
         root_directory);
     return false;
   }
-  params_.LoadJson(root_directory + "params.json");
+  params_.LoadJson(params_path);
 
   // load camera model
-  if (!boost::filesystem::exists(root_directory + "camera_model.json")) {
+  std::string camera_model_path =
+      beam::CombinePaths(root_directory, "camera_model.json");
+  if (!std::filesystem::exists(camera_model_path)) {
     BEAM_ERROR(
         "camera_model.json not found in root directory, not loading GlobalMap. "
         "Input root directory: {}",
@@ -529,22 +545,25 @@ bool GlobalMap::Load(const std::string& root_directory) {
     return false;
   }
 
-  std::string camera_filename = root_directory + "camera_model.json";
-  BEAM_INFO("Loading camera model from: {}", camera_filename);
-  camera_model_ = beam_calibration::CameraModel::Create(camera_filename);
+  BEAM_INFO("Loading camera model from: {}", camera_model_path);
+  camera_model_ = beam_calibration::CameraModel::Create(camera_model_path);
 
   // load extrinsics
+  std::string frame_ids_path =
+      beam::CombinePaths(root_directory, "frame_ids.json");
+  std::string extrinsics_path =
+      beam::CombinePaths(root_directory, "extrinsics.json");
   extrinsics_ = std::make_shared<bs_common::ExtrinsicsLookupBase>(
-      root_directory + "frame_ids.json", root_directory + "extrinsics.json");
+      frame_ids_path, extrinsics_path);
 
   // setup general stuff
   Setup();
 
   int submap_num = 0;
   while (true) {
-    std::string submap_dir =
-        root_directory + "submap" + std::to_string(submap_num) + "/";
-    if (!boost::filesystem::exists(submap_dir)) { break; }
+    std::string submap_dir = beam::CombinePaths(
+        root_directory, "submap" + std::to_string(submap_num));
+    if (!std::filesystem::exists(submap_dir)) { break; }
 
     SubmapPtr current_submap = std::make_shared<Submap>(
         ros::Time(0), Eigen::Matrix4d::Identity(), camera_model_, extrinsics_);
@@ -565,66 +584,70 @@ bool GlobalMap::Load(const std::string& root_directory) {
 
 void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
                                  bool save_initial) {
-  if (!boost::filesystem::exists(output_path)) {
+  if (!std::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path, not saving submaps. Input: {}",
                output_path);
     return;
   }
 
   // save optimized submap
-  std::string submaps_path = output_path + "lidar_submaps_optimized/";
-  boost::filesystem::create_directory(submaps_path);
+  std::string submaps_path =
+      beam::CombinePaths(output_path, "lidar_submaps_optimized");
+  std::filesystem::create_directory(submaps_path);
   for (int i = 0; i < submaps_.size(); i++) {
-    std::string submap_name =
-        submaps_path + "lidar_submap" + std::to_string(i) + ".pcd";
-    submaps_.at(i)->SaveLidarMapInWorldFrame(submap_name, max_output_map_size_);
+    std::string submap_path = beam::CombinePaths(
+        submaps_path, "lidar_submap" + std::to_string(i) + ".pcd");
+    submaps_.at(i)->SaveLidarMapInWorldFrame(submap_path, max_output_map_size_);
   }
 
   if (!save_initial) { return; }
 
   // save initial submap
-  std::string submaps_path_initial = output_path + "lidar_submaps_initial/";
-  boost::filesystem::create_directory(submaps_path_initial);
+  std::string submaps_path_initial =
+      beam::CombinePaths(output_path, "lidar_submaps_initial");
+  std::filesystem::create_directory(submaps_path_initial);
   for (int i = 0; i < submaps_.size(); i++) {
-    std::string submap_name =
-        submaps_path_initial + "lidar_submap" + std::to_string(i) + ".pcd";
-    submaps_.at(i)->SaveLidarMapInWorldFrame(submap_name, max_output_map_size_,
+    std::string submap_path = beam::CombinePaths(
+        submaps_path_initial, "lidar_submap" + std::to_string(i) + ".pcd");
+    submaps_.at(i)->SaveLidarMapInWorldFrame(submap_path, max_output_map_size_,
                                              true);
   }
 }
 
 void GlobalMap::SaveKeypointSubmaps(const std::string& output_path,
                                     bool save_initial) {
-  if (!boost::filesystem::exists(output_path)) {
+  if (!std::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path, not saving submaps. Input: {}",
                output_path);
     return;
   }
 
   // save optimized submaps
-  std::string submaps_path = output_path + "keypoint_submaps_optimized/";
-  boost::filesystem::create_directory(submaps_path);
+  std::string submaps_path =
+      beam::CombinePaths(output_path, "keypoint_submaps_optimized");
+  std::filesystem::create_directory(submaps_path);
   for (int i = 0; i < submaps_.size(); i++) {
-    std::string submap_name =
-        submaps_path + "keypoint_submap" + std::to_string(i) + ".pcd";
-    submaps_.at(i)->SaveKeypointsMapInWorldFrame(submap_name);
+    std::string submap_path = beam::CombinePaths(
+        submaps_path, "keypoint_submap" + std::to_string(i) + ".pcd");
+    submaps_.at(i)->SaveKeypointsMapInWorldFrame(submap_path);
   }
 
   if (!save_initial) { return; }
 
   // save initial submaps
-  std::string submaps_path_initial = output_path + "keypoint_submaps_initial/";
-  boost::filesystem::create_directory(submaps_path_initial);
+  std::string submaps_path_initial =
+      beam::CombinePaths(output_path, "keypoint_submaps_initial");
+  std::filesystem::create_directory(submaps_path_initial);
   for (int i = 0; i < submaps_.size(); i++) {
-    std::string submap_name =
-        submaps_path_initial + "keypoint_submap" + std::to_string(i) + ".pcd";
-    submaps_.at(i)->SaveKeypointsMapInWorldFrame(submap_name, true);
+    std::string submap_path = beam::CombinePaths(
+        submaps_path_initial, "keypoint_submap" + std::to_string(i) + ".pcd");
+    submaps_.at(i)->SaveKeypointsMapInWorldFrame(submap_path, true);
   }
 }
 
 void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
                                    bool save_initial) {
-  if (!boost::filesystem::exists(output_path)) {
+  if (!std::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path, not saving trajectory file. Input: {}",
                output_path);
     return;
@@ -651,7 +674,7 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
 
   // save
   std::string output_file =
-      output_path + "global_map_trajectory_optimized.json";
+      beam::CombinePaths(output_path, "global_map_trajectory_optimized.json");
   poses.WriteToJSON(output_file);
 
   if (!save_initial) { return; }
@@ -675,13 +698,13 @@ void GlobalMap::SaveTrajectoryFile(const std::string& output_path,
 
   // save
   std::string output_file_initial =
-      output_path + "global_map_trajectory_initial.json";
+      beam::CombinePaths(output_path, "global_map_trajectory_initial.json");
   poses_initial.WriteToJSON(output_file_initial);
 }
 
 void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
                                      bool save_initial) {
-  if (!boost::filesystem::exists(output_path)) {
+  if (!std::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path, not saving trajectory clouds. Input: {}",
                output_path);
     return;
@@ -706,7 +729,8 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
     }
   }
 
-  std::string output_file = output_path + "global_map_trajectory_optimized.pcd";
+  std::string output_file =
+      beam::CombinePaths(output_path, "global_map_trajectory_optimized.pcd");
   BEAM_INFO("Saving trajectory cloud to: {}", output_file);
   std::string error_message;
   if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
@@ -737,15 +761,15 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
   }
 
   if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
-          output_path + "global_map_trajectory_initial.pcd", cloud_initial,
-          beam::PointCloudFileType::PCDBINARY, error_message)) {
+          beam::CombinePaths(output_path, "global_map_trajectory_initial.pcd"),
+          cloud_initial, beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save trajectory cloud. Reason: {}", error_message);
   }
 }
 
 void GlobalMap::SaveSubmapFrames(const std::string& output_path,
                                  bool save_initial) {
-  if (!boost::filesystem::exists(output_path)) {
+  if (!std::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path, not saving submap frames. Input: {}",
                output_path);
     return;
@@ -762,7 +786,7 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
     cloud += frame_transformed;
   }
   std::string output_file =
-      output_path + "global_map_submap_poses_optimized.pcd";
+      beam::CombinePaths(output_path, "global_map_submap_poses_optimized.pcd");
   BEAM_INFO("Saving submap frames to: {}", output_file);
   std::string error_message{};
   if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
@@ -784,7 +808,7 @@ void GlobalMap::SaveSubmapFrames(const std::string& output_path,
     cloud_initial += frame_transformed;
   }
   std::string output_file_initial =
-      output_path + "global_map_submap_poses_initial.pcd";
+      beam::CombinePaths(output_path, "global_map_submap_poses_initial.pcd");
   BEAM_INFO("Saving submap frames to: {}", output_file_initial);
   if (!beam::SavePointCloud<pcl::PointXYZRGBL>(
           output_file_initial, cloud_initial,

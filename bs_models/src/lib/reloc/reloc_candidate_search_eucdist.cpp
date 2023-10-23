@@ -50,14 +50,12 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
   // create a sorted map to store distances
   std::map<double, std::pair<int, Eigen::Matrix4d>> candidates_sorted;
   for (int i = 0; i < submaps.size() - ignore_last_n_submaps; i++) {
-    Eigen::Matrix4d T_WORLD_SUBMAPCANDIDATE;
-    if (use_initial_poses) {
-      T_WORLD_SUBMAPCANDIDATE = submaps.at(i)->T_WORLD_SUBMAP();
-    } else {
-      T_WORLD_SUBMAPCANDIDATE = submaps.at(i)->T_WORLD_SUBMAP_INIT();
-    }
+    Eigen::Matrix4d T_WORLD_SUBMAPCANDIDATE =
+        use_initial_poses ? submaps.at(i)->T_WORLD_SUBMAP_INIT()
+                          : submaps.at(i)->T_WORLD_SUBMAP();
     Eigen::Matrix4d T_SUBMAPCANDIDATE_QUERY =
         beam::InvertTransform(T_WORLD_SUBMAPCANDIDATE) * T_WORLD_QUERY;
+
     double distance = T_SUBMAPCANDIDATE_QUERY.block(0, 3, 3, 1).norm();
 
     if (distance < distance_threshold_m_) {

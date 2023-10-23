@@ -94,6 +94,7 @@ private:
   bs_common::ExtrinsicsLookupOnline& extrinsics_online_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   bool extrinsics_initialized_{false};
+  std::string save_path_;
 
   std::unique_ptr<global_mapping::GlobalMap> global_map_;
 

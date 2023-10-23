@@ -1,6 +1,7 @@
 #include <bs_models/global_mapper.h>
 
-#include <boost/filesystem.hpp>
+#include <filesystem>
+
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
@@ -134,6 +135,30 @@ void GlobalMapper::onStart() {
   global_map_->SetStoreNewSubmaps(params_.publish_new_submaps);
   global_map_->SetStoreUpdatedGlobalMap(params_.publish_updated_global_map);
   global_map_->SetStoreNewScans(params_.publish_new_scans);
+
+  // setup output
+  if (!std::filesystem::exists(params_.output_path)) {
+    BEAM_ERROR("Invalid output path: {}", params_.output_path);
+    throw std::runtime_error{"invalid output path"};
+  } else if (params_.output_path.empty()) {
+    BEAM_WARN("No output path provided to global mapper, not saving results");
+  } else {
+    save_path_ =
+        beam::CombinePaths(params_.output_path, "global_mapper_results");
+    if (std::filesystem::exists(save_path_)) {
+      BEAM_WARN("Clearing existing global mapper results folder");
+      std::filesystem::remove_all(save_path_);
+    }
+    BEAM_INFO("Creating new global mapper results folder: {}", save_path_);
+    std::filesystem::create_directory(save_path_);
+
+    if (params_.save_loop_closure_results) {
+      std::string reloc_ref_save_path =
+          beam::CombinePaths(save_path_, "reloc_refinement_results");
+      std::filesystem::create_directory(reloc_ref_save_path);
+      global_map_->SetLoopClosureResultsPath(reloc_ref_save_path);
+    }
+  }
 };
 
 void GlobalMapper::onStop() {
@@ -156,37 +181,35 @@ void GlobalMapper::onStop() {
     BEAM_INFO("No loop closures found for final submap.");
   }
 
-  if (!boost::filesystem::exists(params_.output_path)) {
+  if (!std::filesystem::exists(params_.output_path)) {
     BEAM_ERROR("Output path does not exist, not saving results.");
     return;
   }
 
-  std::string dateandtime =
-      beam::ConvertTimeToDate(std::chrono::system_clock::now());
-  std::string save_path =
-      params_.output_path + dateandtime + "_global_mapper_results/";
-  boost::filesystem::create_directory(save_path);
+  if (!save_path_.empty()) {
+    global_map_->SaveTrajectoryFile(save_path_,
+                                    params_.save_local_mapper_trajectory);
 
-  global_map_->SaveTrajectoryFile(save_path,
-                                  params_.save_local_mapper_trajectory);
+    if (params_.save_global_map_data) {
+      std::string global_map_path =
+          beam::CombinePaths(save_path_, "GlobalMapData");
+      std::filesystem::create_directory(global_map_path);
+      global_map_->SaveData(global_map_path);
+    }
 
-  if (params_.save_global_map_data) {
-    std::string global_map_path = save_path + "/GlobalMapData/";
-    boost::filesystem::create_directory(global_map_path);
-    global_map_->SaveData(global_map_path);
-  }
-
-  if (params_.save_trajectory_cloud) {
-    global_map_->SaveTrajectoryClouds(save_path,
-                                      params_.save_local_mapper_trajectory);
-  }
-  if (params_.save_submap_frames) {
-    global_map_->SaveSubmapFrames(save_path,
-                                  params_.save_local_mapper_trajectory);
-  }
-  if (params_.save_submaps) {
-    global_map_->SaveKeypointSubmaps(save_path, params_.save_local_mapper_maps);
-    global_map_->SaveLidarSubmaps(save_path, params_.save_local_mapper_maps);
+    if (params_.save_trajectory_cloud) {
+      global_map_->SaveTrajectoryClouds(save_path_,
+                                        params_.save_local_mapper_trajectory);
+    }
+    if (params_.save_submap_frames) {
+      global_map_->SaveSubmapFrames(save_path_,
+                                    params_.save_local_mapper_trajectory);
+    }
+    if (params_.save_submaps) {
+      global_map_->SaveKeypointSubmaps(save_path_,
+                                       params_.save_local_mapper_maps);
+      global_map_->SaveLidarSubmaps(save_path_, params_.save_local_mapper_maps);
+    }
   }
 
   // stop subscribers

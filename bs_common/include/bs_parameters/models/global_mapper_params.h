@@ -21,6 +21,8 @@ public:
     getParam<bool>(nh, "save_local_mapper_trajectory",
                    save_local_mapper_trajectory, true);
     getParam<bool>(nh, "save_local_mapper_maps", save_local_mapper_maps, false);
+    getParam<bool>(nh, "save_loop_closure_results", save_loop_closure_results,
+                   true);
     getParam<bool>(nh, "publish_new_submaps", publish_new_submaps, false);
     getParam<bool>(nh, "publish_updated_global_map", publish_updated_global_map,
                    false);
@@ -49,6 +51,7 @@ public:
   bool publish_updated_global_map;
   bool publish_new_scans;
   bool disable_loop_closure;
+  bool save_loop_closure_results;
 };
 
 }} // namespace bs_parameters::models

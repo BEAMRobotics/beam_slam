@@ -40,11 +40,17 @@ public:
    * candidate reloc submaps.
    * @param matched_submap
    * @param query_submap
+   * @param T_MATCH_QUERY_EST estimated transform between match and query
+   * submaps. This usually comes from the RelocCandidateSearch class
+   * @param output_path optional output path. If not empty, it will output
+   * results to this folder. If non empty but doesn't exist, throw exception.
+   * Results should be saved in folders named by the query_submap timestamp
    */
   virtual RelocRefinementResults
       RunRefinement(const global_mapping::SubmapPtr& matched_submap,
                     const global_mapping::SubmapPtr& query_submap,
-                    const Eigen::Matrix4d& T_MATCH_QUERY_EST) = 0;
+                    const Eigen::Matrix4d& T_MATCH_QUERY_EST,
+                    const std::string& output_path = "") = 0;
 
   /**
    * @brief Factory method to create a object at runtime given a config file
@@ -54,11 +60,6 @@ public:
 
 protected:
   std::string config_path_;
-
-  /* Debugging tools that can only be set here */
-  bool output_results_{false};
-  std::string debug_output_path_{"/userhome/debug/reloc/"};
-  std::string output_path_stamped_; // to be created in implementation
 };
 
 } // namespace bs_models::reloc

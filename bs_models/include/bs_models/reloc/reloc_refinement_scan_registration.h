@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <map>
 
 #include <fuse_core/transaction.h>
@@ -39,7 +40,8 @@ public:
   RelocRefinementResults
       RunRefinement(const global_mapping::SubmapPtr& matched_submap,
                     const global_mapping::SubmapPtr& query_submap,
-                    const Eigen::Matrix4d& T_MATCH_QUERY_EST) override {
+                    const Eigen::Matrix4d& T_MATCH_QUERY_EST,
+                    const std::string& output_path = "") override {
     // extract and filter clouds from matched submap
     PointCloud matched_submap_world = beam_filtering::FilterPointCloud(
         matched_submap->GetLidarPointsInWorldFrameCombined(), filter_params_);
@@ -51,19 +53,31 @@ public:
     // extract and filter clouds from matched submap
     PointCloud query_submap_world = beam_filtering::FilterPointCloud(
         query_submap->GetLidarPointsInWorldFrameCombined(), filter_params_);
+
     PointCloud query_submap_in_submap_frame;
     pcl::transformPointCloud(
         query_submap_world, query_submap_in_submap_frame,
         beam::InvertTransform(query_submap->T_WORLD_SUBMAP()));
 
+    std::string current_output_path;
+    if (!output_path.empty()) {
+      if (!std::filesystem::exists(output_path)) {
+        BEAM_ERROR("Output path for RelocRefinement does not exist: {}",
+                   output_path);
+        throw std::runtime_error{"invalid output path"};
+      }
+      std::string query_stamp = std::to_string(query_submap->Stamp().toSec());
+      current_output_path = beam::CombinePaths(output_path, query_stamp);
+
+      BEAM_INFO("Saving reloc refinement results to: {}", current_output_path);
+      std::filesystem::create_directory(current_output_path);
+    }
+
     // get refined transform
     RelocRefinementResults results;
-    if (!GetRefinedT_SUBMAP_QUERY(matched_submap_in_submap_frame,
-                                  query_submap_in_submap_frame,
-                                  T_MATCH_QUERY_EST, results.T_MATCH_QUERY)) {
-      return {};
-    }
-    results.successful = true;
+    results.successful = GetRefinedT_SUBMAP_QUERY(
+        matched_submap_in_submap_frame, query_submap_in_submap_frame,
+        T_MATCH_QUERY_EST, current_output_path, results.T_MATCH_QUERY);
     return results;
   }
 
@@ -120,12 +134,14 @@ private:
    * @param T_SUBMAP_QUERY_EST estimated transform between the query cloud and
    * the submap. This usually is determined with a class derived from
    * RelocCandidateSearchBase
+   * @param output_path will save results if not empty
    * @param T_SUBMAP_QUERY_OPT reference to the resulting refined transform from
    * query scan to the submap in question
    */
   bool GetRefinedT_SUBMAP_QUERY(const PointCloud& submap_cloud,
                                 const PointCloud& query_cloud,
                                 const Eigen::Matrix4d& T_SUBMAP_QUERY_EST,
+                                const std::string& output_path,
                                 Eigen::Matrix4d& T_SUBMAP_QUERY_OPT) {
     // convert query to estimated submap frame and make pointers
     PointCloudPtr submap_ptr = std::make_shared<PointCloud>(submap_cloud);
@@ -139,13 +155,8 @@ private:
 
     if (!matcher_->Match()) {
       BEAM_WARN("Failed scan matching. Not adding reloc constraint.");
-      if (output_results_) {
-        output_path_stamped_ =
-            debug_output_path_ +
-            beam::ConvertTimeToDate(std::chrono::system_clock::now()) +
-            "_failed/";
-        boost::filesystem::create_directory(output_path_stamped_);
-        matcher_->SaveResults(output_path_stamped_);
+      if (!output_path.empty()) {
+        matcher_->SaveResults(output_path, "failed_cloud_");
       }
       return false;
     }
@@ -161,14 +172,7 @@ private:
      */
     T_SUBMAP_QUERY_OPT = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAP_QUERY_EST;
 
-    if (output_results_) {
-      output_path_stamped_ =
-          debug_output_path_ +
-          beam::ConvertTimeToDate(std::chrono::system_clock::now()) +
-          "_passed/";
-      boost::filesystem::create_directory(output_path_stamped_);
-      matcher_->SaveResults(output_path_stamped_);
-    }
+    if (!output_path.empty()) { matcher_->SaveResults(output_path, "cloud_"); }
 
     return true;
   }

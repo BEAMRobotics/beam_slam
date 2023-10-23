@@ -31,7 +31,8 @@ public:
   RelocRefinementResults
       RunRefinement(const global_mapping::SubmapPtr& matched_submap,
                     const global_mapping::SubmapPtr& query_submap,
-                    const Eigen::Matrix4d& T_MATCH_QUERY_EST) override;
+                    const Eigen::Matrix4d& T_MATCH_QUERY_EST,
+                    const std::string& output_path = "") override;
 
 private:
   /**
@@ -54,6 +55,7 @@ private:
    * @param T_SUBMAP_QUERY_EST estimated transform between the query cloud and
    * the submap. This usually is determined with a class derived from
    * RelocCandidateSearchBase
+   * @param output_path will save results if not empty
    * @param T_SUBMAP_QUERY_OPT reference to the resulting refined transform from
    * query scan to the submap in question
    * @param covariance this is calculated by loam
@@ -61,7 +63,7 @@ private:
   bool GetRefinedT_SUBMAP_QUERY(
       const beam_matching::LoamPointCloud& submap_cloud,
       const beam_matching::LoamPointCloud& query_cloud,
-      const Eigen::Matrix4d& T_SUBMAP_QUERY_EST,
+      const Eigen::Matrix4d& T_SUBMAP_QUERY_EST, const std::string& output_path,
       Eigen::Matrix4d& T_SUBMAP_QUERY_OPT,
       Eigen::Matrix<double, 6, 6>& covariance);
 
