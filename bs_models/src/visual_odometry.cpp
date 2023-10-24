@@ -244,7 +244,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
                               transaction);
   }
 
-  if (use_local_vo_) {
+  if (vo_params_.use_standalone_vo) {
     // add relative pose constraint to the transaction using the imu estimate
     // and a manually tuned covariance
     Eigen::Matrix<double, 6, 6> imu_covariance =
@@ -264,7 +264,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
     }
   }
 
-  if (use_local_vo_) {
+  if (vo_params_.use_standalone_vo) {
     local_graph_->update(*transaction);
 
     // optimize graph
@@ -329,7 +329,7 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   }
 
   // Update graph object in visual map
-  if (!use_local_vo_) { visual_map_->UpdateGraph(*graph); }
+  if (!vo_params_.use_standalone_vo) { visual_map_->UpdateGraph(*graph); }
 
   // do initial setup
   if (!is_initialized_) { Initialize(graph); }
@@ -357,7 +357,7 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
   }
 
   // update keyframe_imu_delta_ if using local vo
-  if (use_local_vo_) {
+  if (vo_params_.use_standalone_vo) {
     Eigen::Vector3d t_PREVKF_CURFRAME = T_PREVKF_CURFRAME.block<3, 1>(0, 3);
     Eigen::Quaterniond q_PREVKF_CURFRAME(T_PREVKF_CURFRAME.block<3, 3>(0, 0));
     fuse_core::Vector7d imu_delta;
@@ -608,7 +608,7 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
   }
   buffer_mutex_.lock();
 
-  if (use_local_vo_) {
+  if (vo_params_.use_standalone_vo) {
     local_graph_ = std::move(graph->clone());
     visual_map_->UpdateGraph(*local_graph_);
   }
