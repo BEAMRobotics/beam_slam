@@ -41,18 +41,21 @@ void RelocCandidateSearchEucDist::LoadConfig() {
 }
 
 void RelocCandidateSearchEucDist::FindRelocCandidates(
-    const std::vector<global_mapping::SubmapPtr>& submaps,
-    const Eigen::Matrix4d& T_WORLD_QUERY, std::vector<int>& matched_indices,
-    std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
+    const std::vector<global_mapping::SubmapPtr>& search_submaps,
+    const global_mapping::SubmapPtr& query_submap,
+    std::vector<int>& matched_indices,
+    std::vector<Eigen::Matrix4d, beam::AlignMat4d>& Ts_Candidate_Query,
     size_t ignore_last_n_submaps, bool use_initial_poses) {
-  if (submaps.size() <= ignore_last_n_submaps) { return; }
+  if (search_submaps.size() <= ignore_last_n_submaps) { return; }
+
+  const Eigen::Matrix4d& T_WORLD_QUERY = query_submap->T_WORLD_SUBMAP();
 
   // create a sorted map to store distances
   std::map<double, std::pair<int, Eigen::Matrix4d>> candidates_sorted;
-  for (int i = 0; i < submaps.size() - ignore_last_n_submaps; i++) {
+  for (int i = 0; i < search_submaps.size() - ignore_last_n_submaps; i++) {
     Eigen::Matrix4d T_WORLD_SUBMAPCANDIDATE =
-        use_initial_poses ? submaps.at(i)->T_WORLD_SUBMAP_INIT()
-                          : submaps.at(i)->T_WORLD_SUBMAP();
+        use_initial_poses ? search_submaps.at(i)->T_WORLD_SUBMAP_INIT()
+                          : search_submaps.at(i)->T_WORLD_SUBMAP();
     Eigen::Matrix4d T_SUBMAPCANDIDATE_QUERY =
         beam::InvertTransform(T_WORLD_SUBMAPCANDIDATE) * T_WORLD_QUERY;
 
@@ -66,11 +69,11 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
 
   // iterate through sorted map and convert to vectors
   matched_indices.clear();
-  estimated_poses.clear();
+  Ts_Candidate_Query.clear();
   for (auto iter = candidates_sorted.begin(); iter != candidates_sorted.end();
        iter++) {
     matched_indices.push_back(iter->second.first);
-    estimated_poses.push_back(iter->second.second);
+    Ts_Candidate_Query.push_back(iter->second.second);
   }
 }
 

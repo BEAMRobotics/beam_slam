@@ -426,15 +426,13 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   if (submaps_.size() == 1) { return nullptr; }
 
   ROS_DEBUG("Searching for loop closure candidates");
-  const Eigen::Matrix4d& T_WORLD_QUERY =
-      submaps_.at(query_index)->T_WORLD_SUBMAP();
 
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
   // ignore the current empty submap, and the last full submap (the query)
   static int ignore_last_n_submaps = 2;
   loop_closure_candidate_search_->FindRelocCandidates(
-      submaps_, T_WORLD_QUERY, matched_indices, Ts_MATCH_QUERY,
+      submaps_, submaps_.at(query_index), matched_indices, Ts_MATCH_QUERY,
       ignore_last_n_submaps);
 
   // remove candidate if it is equal to the query submap, or one before

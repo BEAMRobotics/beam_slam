@@ -3,7 +3,7 @@ sensor_models:
     type: 'bs_models::GlobalMapper'
 
 global_mapper:
-  disable_loop_closure: false
+  disable_loop_closure: true
   global_map_config: 'global_map/global_map.json'
   output_path: '/userhome/results/global_mapper/'
   save_global_map_data: true
@@ -12,7 +12,7 @@ global_mapper:
   save_trajectory_cloud: true
   save_local_mapper_trajectory: true
   save_local_mapper_maps: true
-  save_loop_closure_results: true
+  save_loop_closure_results: false
   publish_new_submaps: false
   publish_updated_global_map: false
   publish_new_scans: false
