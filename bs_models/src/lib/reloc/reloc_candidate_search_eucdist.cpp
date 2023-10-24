@@ -1,6 +1,5 @@
 #include <bs_models/reloc/reloc_candidate_search_eucdist.h>
 
-#include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
 
 #include <beam_utils/log.h>
@@ -9,11 +8,11 @@
 
 #include <bs_common/utils.h>
 
-namespace bs_models { namespace reloc {
+namespace bs_models::reloc {
 
 RelocCandidateSearchEucDist::RelocCandidateSearchEucDist(
-    const std::string& config_path) {
-  this->config_path_ = config_path;
+    const std::string& config)
+    : config_path_(config) {
   LoadConfig();
 }
 
@@ -33,6 +32,15 @@ void RelocCandidateSearchEucDist::LoadConfig() {
   if (!beam::ReadJson(config_path_, J)) {
     BEAM_ERROR("Unable to read config");
     throw std::runtime_error{"Unable to read config"};
+  }
+
+  bs_common::ValidateJsonKeysOrThrow(std::vector<std::string>{"type"}, J);
+  std::string type = J["type"];
+  if (type != "EUCDIST") {
+    BEAM_ERROR(
+        "Invalid config file provided to RelocCandidateSearchScanContext: {}",
+        type);
+    throw std::runtime_error{"invalid config file"};
   }
 
   bs_common::ValidateJsonKeysOrThrow(
@@ -77,4 +85,4 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
   }
 }
 
-}} // namespace bs_models::reloc
+} // namespace bs_models::reloc

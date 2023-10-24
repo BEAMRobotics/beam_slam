@@ -1,10 +1,5 @@
 #pragma once
 
-#include <map>
-
-#include <ros/time.h>
-
-#include <beam_utils/pointclouds.h>
 #include <bs_models/reloc/reloc_candidate_search_base.h>
 
 namespace bs_models::reloc {
@@ -19,10 +14,9 @@ namespace bs_models::reloc {
 class RelocCandidateSearchEucDist : public RelocCandidateSearchBase {
 public:
   /**
-   * @brief constructor that takes in config path
-   * @param config_path full path to config json
+   * @brief constructor taking in a file path to a json config file
    */
-  RelocCandidateSearchEucDist(const std::string& config_path);
+  RelocCandidateSearchEucDist(const std::string& config);
 
   /**
    * @brief another constructor that takes in parameters
@@ -42,11 +36,8 @@ public:
       size_t ignore_last_n_submaps, bool use_initial_poses = false) override;
 
 private:
-  /**
-   * @brief Method for loading a config json file.
-   */
-  void LoadConfig() override;
-
+  void LoadConfig();
+  std::string config_path_;
   double distance_threshold_m_{5};
 };
 

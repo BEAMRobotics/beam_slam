@@ -1,0 +1,11 @@
+{
+  "loop_closure": {
+    "candidate_search_config": "global_map/reloc_candidate_search_eucdist.json",
+    "refinement_config": "global_map/reloc_refinement_scan_registration.json"
+  },
+  "submap_refinement": {
+    "scan_registration_config": "registration/multi_scan.json",
+    "matcher_config": "matchers/loam_vlp16.json",
+    "registration_results_output_path": ""
+  }
+}

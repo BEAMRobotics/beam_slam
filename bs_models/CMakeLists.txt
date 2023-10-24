@@ -98,6 +98,7 @@ add_library(
   src/lib/reloc/reloc_candidate_search_base.cpp
   src/lib/reloc/reloc_refinement_base.cpp
   src/lib/reloc/reloc_candidate_search_eucdist.cpp
+  src/lib/reloc/reloc_candidate_search_scan_context.cpp
   src/lib/reloc/reloc_refinement_loam_registration.cpp
   ## scan registration
   src/lib/scan_registration/scan_registration_base.cpp

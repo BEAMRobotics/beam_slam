@@ -5,6 +5,7 @@
 #include <bs_common/utils.h>
 
 #include <bs_models/reloc/reloc_candidate_search_eucdist.h>
+#include <bs_models/reloc/reloc_candidate_search_scan_context.h>
 
 namespace bs_models::reloc {
 
@@ -27,8 +28,10 @@ std::shared_ptr<RelocCandidateSearchBase>
   std::string type = J["type"];
   if (type == "EUCDIST") {
     return std::make_shared<RelocCandidateSearchEucDist>(config_path);
+  } else if (type == "SCANCONTEXT") {
+    return std::make_shared<RelocCandidateSearchScanContext>(config_path);
   } else {
-    BEAM_ERROR("Invalid type: {}, options: EUCDIST");
+    BEAM_ERROR("Invalid type: {}, options: EUCDIST, SCANCONTEXT");
     throw std::runtime_error{"invalid type in json"};
   }
 }
