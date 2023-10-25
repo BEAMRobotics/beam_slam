@@ -32,7 +32,7 @@ struct ImuConstraintData {
  */
 class ImuBuffer {
 public:
-  explicit ImuBuffer(double buffer_length_s = 5);
+  explicit ImuBuffer(double buffer_length_s = 10);
 
   // add IMU data to raw IMU buffer
   void AddData(const sensor_msgs::Imu::ConstPtr& msg);
@@ -66,7 +66,6 @@ private:
   // raw IMU data not added to the constraint buffer
   std::map<ros::Time, sensor_msgs::Imu::ConstPtr> imu_msgs_;
   ros::Duration buffer_length_;
-  std::mutex buffer_mutex_;
 };
 
 class InertialOdometry : public fuse_core::AsyncSensorModel {
@@ -174,6 +173,7 @@ private:
   std::shared_ptr<ImuPreintegration> imu_preint_;
   bs_models::ImuPreintegration::Params imu_params_;
   std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
+  std::mutex mutex_;
 
   // extrinsics
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =

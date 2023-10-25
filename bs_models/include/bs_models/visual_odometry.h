@@ -147,6 +147,38 @@ private:
   void ProcessLandmarkEUC(const uint64_t id, const ros::Time& timestamp,
                           fuse_core::Transaction::SharedPtr transaction);
 
+  /// @brief Creates a visual odometry factor between this frame and th previous
+  /// keyframe
+  /// @param timestamp_curframe
+  /// @param T_WORLD_BASELINKcurframe
+  /// @param covariance
+  /// @return
+  fuse_core::Transaction::SharedPtr CreateVisualOdometryFactor(
+      const ros::Time& timestamp_curframe,
+      const Eigen::Matrix4d& T_WORLD_BASELINKcurframe,
+      const Eigen::Matrix<double, 6, 6>& covariance);
+
+  /// @brief Prunes the keyframes using the new graph and publishes them as
+  /// slam chunks
+  /// @param new_graph the newly updated graph (from ongraphupdate or in our own
+  /// marginalization)
+  void PruneKeyframes(const fuse_core::Graph& new_graph);
+
+  /// @brief Marginalizes the current local graph is standalone vo is being used
+  void MarginalizeGraph();
+
+  /// @brief Computes the difference between poses as a 7d vector (x,y,z, qw,
+  /// qx, qy, qz)
+  /// @param T_WORLD_BASELINK1 pose 1
+  /// @param T_WORLD_BASELINK2 pose 2
+  /// @return delta from pose 2 to pose1 (d_baselink1_baselink2)
+  fuse_core::Vector7d ComputeDelta(const Eigen::Matrix4d& T_WORLD_BASELINK1,
+                                   const Eigen::Matrix4d& T_WORLD_BASELINK2);
+
+  /// @brief Publishes all landmarks in the graph as a point cloud
+  /// @param graph 
+  void PublishLandmarkPointCloud(const fuse_core::Graph& graph);
+
   /******************************************************
    *                   Member Variables                 *
    *****************************************************/
@@ -169,6 +201,7 @@ private:
   ros::Publisher keyframe_publisher_;
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher imu_constraint_trigger_publisher_;
+  ros::Publisher camera_landmarks_publisher_;
   int imu_constraint_trigger_counter_{0};
 
   /// @brief book keeping variables
@@ -204,6 +237,7 @@ private:
   /// @brief standalone vo stuff
   fuse_core::Vector7d keyframe_imu_delta_;
   fuse_core::Graph::SharedPtr local_graph_;
+  ceres::Solver::Options local_solver_options_;
 };
 
 } // namespace bs_models
