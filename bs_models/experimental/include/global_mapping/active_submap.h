@@ -8,14 +8,21 @@
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
 
-namespace bs_models {
+namespace bs_models::experimental {
 
 /**
+ * **IMPORTANT** NOTE: this class has been moved to experimental as we are
+ * removing the active submap tracking from SLAM since we do not have time to
+ * properly test this feature. Our LM will no longer be able to track an active
+ * submap produced by the global mapper, but we're leaving it in experimental in
+ * case we want to revisit this concept later on. For example of how to use this
+ * in the LM, see the lidar tracker in experimental
+ *
  * @brief This is a singleton class used to store the current active submap.
  * Below are the following tasks done by this class:
  *
  *  (1) Subscribe to /active_submap topic to load the currently active submap
- *  published by the global mapper via SubmapMsgs
+ *  published by the global mapper via SubmapMsgs (not currently implemented)
  *
  *  (2) To load the active submap data into a useful form
  *
@@ -35,7 +42,7 @@ namespace bs_models {
  *
  */
 class ActiveSubmap {
- public:
+public:
   /**
    * @brief Static Instance getter (singleton)
    * @return reference to the singleton
@@ -79,9 +86,9 @@ class ActiveSubmap {
    * world frame
    * @return vector of 3d points (Eigen Vector3d)
    */
-  std::vector<Eigen::Vector3d> GetVisualMapVectorInCameraFrame(
-      const Eigen::Matrix4d& T_WORLD_CAMERA =
-          Eigen::Matrix4d::Identity()) const;
+  std::vector<Eigen::Vector3d>
+      GetVisualMapVectorInCameraFrame(const Eigen::Matrix4d& T_WORLD_CAMERA =
+                                          Eigen::Matrix4d::Identity()) const;
 
   /**
    * @brief Gets a visual map points. If a transform from camera to world is
@@ -91,9 +98,9 @@ class ActiveSubmap {
    * world frame
    * @return pointcloud
    */
-  PointCloud GetVisualMapCloudInCameraFrame(
-      const Eigen::Matrix4d& T_WORLD_CAMERA =
-          Eigen::Matrix4d::Identity()) const;
+  PointCloud
+      GetVisualMapCloudInCameraFrame(const Eigen::Matrix4d& T_WORLD_CAMERA =
+                                         Eigen::Matrix4d::Identity()) const;
 
   /**
    * @brief Get a const pointer to the visual map points in the world frame
@@ -119,7 +126,7 @@ class ActiveSubmap {
    */
   void RemoveVisualMapPoint(size_t index);
 
- private:
+private:
   /**
    * @brief Private constructor
    */
@@ -149,4 +156,4 @@ class ActiveSubmap {
   ros::Publisher loam_map_publisher_;
 };
 
-}  // namespace bs_models
+} // namespace bs_models

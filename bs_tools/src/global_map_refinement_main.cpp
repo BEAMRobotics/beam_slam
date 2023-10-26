@@ -9,8 +9,8 @@ DEFINE_validator(globalmap_dir, &beam::gflags::ValidateDirMustExist);
 DEFINE_string(
     refinement_config, "",
     "Full path to config file for the map refinement. If left empty, this will "
-    "use the default parameters defined in the class header. If set to "
-    "DEFAULT_PATH, it will lookup the config file in "
+    "use the default parameters defined in the class header. You can use the "
+    "default in: "
     ".../beam_slam/beam_slam_launch/config/global_map/"
     "global_map_refinement.json");
 DEFINE_string(output_path, "", "Full path to output directory.");

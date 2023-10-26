@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 6
-pseudo_marginalization: false
+pseudo_marginalization: true
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -54,7 +54,7 @@ slam_initialization:
   inertial_information_weight: 1.0
   lidar_information_weight: 1.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "" #"/userhome/results/init_results" 
+  output_folder: "" #"/userhome/results/init_results"
 
 inertial_odometry:
   imu_topic: "/imu/data"
@@ -86,7 +86,6 @@ lidar_odometry:
   input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true
   output_lidar_points: true
-  publish_active_submap: true
   publish_registration_map: true
   publish_registration_results: true
   lidar_information_weight: 1.0

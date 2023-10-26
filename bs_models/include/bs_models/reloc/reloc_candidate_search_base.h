@@ -1,11 +1,5 @@
 #pragma once
 
-#include <map>
-
-#include <opencv2/core/mat.hpp>
-#include <ros/time.h>
-
-#include <beam_utils/pointclouds.h>
 #include <bs_models/global_mapping/submap.h>
 
 namespace bs_models::reloc {
@@ -17,12 +11,9 @@ namespace bs_models::reloc {
 class RelocCandidateSearchBase {
 public:
   /**
-   * @brief constructor with an optional path to a json config
-   * @param config path to json config file. If empty, it will use default
-   * parameters
+   * @brief default constructor
    */
-  RelocCandidateSearchBase(const std::string& config = "")
-      : config_path_(config) {}
+  RelocCandidateSearchBase() = default;
 
   /**
    * @brief default destructor
@@ -31,15 +22,14 @@ public:
 
   /**
    * @brief Pure virtual function that takes in a vector of submaps, a query
-   * pose and finds candidate relocs with an estimated relative pose. The
+   * submap and finds candidate relocs with an estimated relative pose. The
    * candidates should be ordered based on the most likely candidate.
-   * @param submaps vector of pointers to submaps
-   * @param T_WORLD_QUERY we look for submaps that contains this pose (note
-   * query pose is the pose of the baselink)
+   * @param search_submaps vector of pointers to submaps
+   * @param query_submap submap that we want to search for
    * @param matched_indices reference to vector of indices which represent the
    * candidate reloc submap indices
-   * @param estimated_poses reference to vector of transforms from query pose
-   * to matched submap (T_SUBMAPCANDIDATE_QUERY)
+   * @param Ts_Candidate_Query reference to vector of transforms
+   * from query submap to matched submap
    * @param ignore_last_n_submaps how many of the final submaps should be
    * ignored. This is useful when using this for loop closure where we don't
    * want to look in the last n submaps
@@ -49,19 +39,19 @@ public:
    * frame
    */
   virtual void FindRelocCandidates(
-      const std::vector<global_mapping::SubmapPtr>& submaps,
-      const Eigen::Matrix4d& T_WORLD_QUERY,
+      const std::vector<global_mapping::SubmapPtr>& search_submaps,
+      const global_mapping::SubmapPtr& query_submap,
       std::vector<int>& matched_indices,
-      std::vector<Eigen::Matrix4d, beam::AlignMat4d>& estimated_poses,
-      size_t ignore_last_n_submaps = 0, bool use_initial_poses = false) = 0;
+      std::vector<Eigen::Matrix4d, beam::AlignMat4d>& Ts_Candidate_Query,
+      size_t ignore_last_n_submaps, bool use_initial_poses = false) = 0;
+
+  /**
+   * @brief Factory method to create a object at runtime given a config file
+   */
+  static std::shared_ptr<RelocCandidateSearchBase>
+      Create(const std::string& config_path);
 
 protected:
-  /**
-   * @brief pure virtual method for loading a config json file.
-   */
-  virtual void LoadConfig() = 0;
-
-  std::string config_path_;
 };
 
 } // namespace bs_models::reloc

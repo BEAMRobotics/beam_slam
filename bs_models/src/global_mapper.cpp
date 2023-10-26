@@ -1,6 +1,7 @@
 #include <bs_models/global_mapper.h>
 
-#include <boost/filesystem.hpp>
+#include <filesystem>
+
 #include <fuse_core/transaction.h>
 #include <pluginlib/class_list_macros.h>
 
@@ -22,9 +23,7 @@ GlobalMapper::GlobalMapper()
     : fuse_core::AsyncSensorModel(1),
       device_id_(fuse_core::uuid::NIL),
       throttled_callback_slam_chunk_(std::bind(&GlobalMapper::ProcessSlamChunk,
-                                               this, std::placeholders::_1)),
-      throttled_callback_reloc_(std::bind(&GlobalMapper::ProcessRelocRequest,
-                                          this, std::placeholders::_1)) {}
+                                               this, std::placeholders::_1)) {}
 
 void GlobalMapper::ProcessSlamChunk(
     const bs_common::SlamChunkMsg::ConstPtr& msg) {
@@ -80,18 +79,6 @@ void GlobalMapper::ProcessSlamChunk(
   }
 }
 
-void GlobalMapper::ProcessRelocRequest(
-    const bs_common::RelocRequestMsg::ConstPtr& msg) {
-  // update extrinsics if necessary
-  UpdateExtrinsics();
-
-  // get submap
-  bs_common::SubmapMsg submap_msg;
-  if (global_map_->ProcessRelocRequest(*msg, submap_msg)) {
-    active_submap_publisher_.publish(submap_msg);
-  }
-}
-
 void GlobalMapper::onInit() {
   // load params
   params_.loadFromROS(private_node_handle_);
@@ -99,14 +86,6 @@ void GlobalMapper::onInit() {
 
   // init PGO graph
   graph_ = fuse_graphs::HashGraph::make_shared();
-
-  // load offline map if supplied
-  if (!params_.offline_map_path.empty()) {
-    BEAM_INFO("Loading offline map from: {}", params_.offline_map_path);
-    GlobalMap global_map_offline(params_.offline_map_path);
-    offline_submaps_ = global_map_offline.GetOnlineSubmaps();
-    BEAM_INFO("Done loading offline map.");
-  }
 }
 
 void GlobalMapper::onStart() {
@@ -117,15 +96,6 @@ void GlobalMapper::onStart() {
           &ThrottledCallbackSlamChunk::callback,
           &throttled_callback_slam_chunk_,
           ros::TransportHints().tcpNoDelay(false));
-
-  reloc_request_subscriber_ =
-      private_node_handle_.subscribe<bs_common::RelocRequestMsg>(
-          ros::names::resolve("/local_mapper/reloc_request"), 1,
-          &ThrottledCallbackRelocRequest::callback, &throttled_callback_reloc_,
-          ros::TransportHints().tcpNoDelay(false));
-
-  active_submap_publisher_ =
-      private_node_handle_.advertise<bs_common::SubmapMsg>("active_submap", 10);
 
   if (params_.publish_new_submaps) {
     submap_lidar_publisher_ =
@@ -160,16 +130,35 @@ void GlobalMapper::onStart() {
       extrinsics_online_.GetExtrinsicsCopy());
 
   // init global map
-  if (!params_.global_map_config.empty()) {
-    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_,
-                                              params_.global_map_config);
-  } else {
-    global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_);
-  }
-  global_map_->SetOfflineSubmaps(offline_submaps_);
+  global_map_ = std::make_unique<GlobalMap>(camera_model, extrinsics_data_,
+                                            params_.global_map_config);
   global_map_->SetStoreNewSubmaps(params_.publish_new_submaps);
   global_map_->SetStoreUpdatedGlobalMap(params_.publish_updated_global_map);
   global_map_->SetStoreNewScans(params_.publish_new_scans);
+
+  // setup output
+  if (!std::filesystem::exists(params_.output_path)) {
+    BEAM_ERROR("Invalid output path: {}", params_.output_path);
+    throw std::runtime_error{"invalid output path"};
+  } else if (params_.output_path.empty()) {
+    BEAM_WARN("No output path provided to global mapper, not saving results");
+  } else {
+    save_path_ =
+        beam::CombinePaths(params_.output_path, "global_mapper_results");
+    if (std::filesystem::exists(save_path_)) {
+      BEAM_WARN("Clearing existing global mapper results folder");
+      std::filesystem::remove_all(save_path_);
+    }
+    BEAM_INFO("Creating new global mapper results folder: {}", save_path_);
+    std::filesystem::create_directory(save_path_);
+
+    if (params_.save_loop_closure_results && !params_.disable_loop_closure) {
+      std::string reloc_ref_save_path =
+          beam::CombinePaths(save_path_, "reloc_refinement_results");
+      std::filesystem::create_directory(reloc_ref_save_path);
+      global_map_->SetLoopClosureResultsPath(reloc_ref_save_path);
+    }
+  }
 };
 
 void GlobalMapper::onStop() {
@@ -192,42 +181,40 @@ void GlobalMapper::onStop() {
     BEAM_INFO("No loop closures found for final submap.");
   }
 
-  if (!boost::filesystem::exists(params_.output_path)) {
+  if (!std::filesystem::exists(params_.output_path)) {
     BEAM_ERROR("Output path does not exist, not saving results.");
     return;
   }
 
-  std::string dateandtime =
-      beam::ConvertTimeToDate(std::chrono::system_clock::now());
-  std::string save_path =
-      params_.output_path + dateandtime + "_global_mapper_results/";
-  boost::filesystem::create_directory(save_path);
+  if (!save_path_.empty()) {
+    global_map_->SaveTrajectoryFile(save_path_,
+                                    params_.save_local_mapper_trajectory);
+    if (params_.save_global_map_data) {
+      std::string global_map_path =
+          beam::CombinePaths(save_path_, "GlobalMapData");
+      std::filesystem::create_directory(global_map_path);
+      global_map_->SaveData(global_map_path);
+    }
 
-  global_map_->SaveTrajectoryFile(save_path,
-                                  params_.save_local_mapper_trajectory);
+    if (params_.save_trajectory_cloud) {
+      global_map_->SaveTrajectoryClouds(save_path_,
+                                        params_.save_local_mapper_trajectory);
+    }
 
-  if (params_.save_global_map_data) {
-    std::string global_map_path = save_path + "/GlobalMapData/";
-    boost::filesystem::create_directory(global_map_path);
-    global_map_->SaveData(global_map_path);
-  }
+    if (params_.save_submap_frames) {
+      global_map_->SaveSubmapFrames(save_path_,
+                                    params_.save_local_mapper_trajectory);
+    }
 
-  if (params_.save_trajectory_cloud) {
-    global_map_->SaveTrajectoryClouds(save_path,
-                                      params_.save_local_mapper_trajectory);
-  }
-  if (params_.save_submap_frames) {
-    global_map_->SaveSubmapFrames(save_path,
-                                  params_.save_local_mapper_trajectory);
-  }
-  if (params_.save_submaps) {
-    global_map_->SaveKeypointSubmaps(save_path, params_.save_local_mapper_maps);
-    global_map_->SaveLidarSubmaps(save_path, params_.save_local_mapper_maps);
+    if (params_.save_submaps) {
+      global_map_->SaveKeypointSubmaps(save_path_,
+                                       params_.save_local_mapper_maps);
+      global_map_->SaveLidarSubmaps(save_path_, params_.save_local_mapper_maps);
+    }
   }
 
   // stop subscribers
   slam_chunk_subscriber_.shutdown();
-  reloc_request_subscriber_.shutdown();
 }
 
 void GlobalMapper::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {

@@ -168,7 +168,6 @@ TEST_F(GlobalMapRefinementTest, MultiScan) {
   // load params
   GlobalMapRefinement::Params params;
   params.LoadJson(refinement_config_path_);
-  params.scan_registration_type = "MULTISCAN";
 
   // create global map refinement
   GlobalMapRefinement refinement(global_map, params);
@@ -267,7 +266,6 @@ TEST_F(GlobalMapRefinementTest, ScanToMap) {
   // load params
   GlobalMapRefinement::Params params;
   params.LoadJson(refinement_config_path_);
-  params.scan_registration_type = "SCANTOMAP";
 
   // create global map refinement
   GlobalMapRefinement refinement(global_map, params);
@@ -309,7 +307,6 @@ TEST_F(GlobalMapRefinementTest, MultiScanRealData) {
   // load params
   GlobalMapRefinement::Params params;
   params.LoadJson(refinement_config_path_);
-  params.scan_registration_type = "MULTISCAN";
 
   // create global map refinement
   GlobalMapRefinement refinement(globalmap_dir, params);

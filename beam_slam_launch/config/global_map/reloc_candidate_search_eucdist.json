@@ -1,3 +1,4 @@
 {
+  "type": "EUCDIST",
   "distance_threshold_m": 3
 }

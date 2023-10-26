@@ -1,3 +1,4 @@
 {
-  "matcher_config": ""
+  "type": "LOAM",
+  "matcher_config": "matchers/loam_vlp16.json"
 }

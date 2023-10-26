@@ -9,6 +9,7 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+#include <nlohmann/json.hpp>
 #include <tf/transform_datatypes.h>
 
 #include <beam_utils/math.h>
@@ -82,5 +83,8 @@ void AddZeroMotionFactor(const std::string& source,
                          const bs_common::ImuState& state1,
                          const bs_common::ImuState& state2,
                          fuse_core::Transaction::SharedPtr transaction);
+
+void ValidateJsonKeysOrThrow(const std::vector<std::string>& required_keys,
+                             const nlohmann::json& J);
 
 } // namespace bs_common

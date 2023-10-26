@@ -13,6 +13,6 @@
 /calibration_params/lidar_hz: 10
 
 # calibrations
-/calibration_params/static_extrinsics: false
+/calibration_params/static_extrinsics: true
 /calibration_params/camera_intrinsics_path: "ig2/cam.json"
 /calibration_params/imu_intrinsics_path: "ig2/imu.json"

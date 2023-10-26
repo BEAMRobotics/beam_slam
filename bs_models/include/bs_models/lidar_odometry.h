@@ -14,7 +14,6 @@
 
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/frame_initializers/frame_initializer.h>
-#include <bs_models/global_mapping/active_submap.h>
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/scan_registration/scan_registration_base.h>
 #include <bs_parameters/models/lidar_odometry_params.h>

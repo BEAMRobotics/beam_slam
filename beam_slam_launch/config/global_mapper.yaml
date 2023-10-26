@@ -1,50 +1,18 @@
-## optimization params - these can be accessed by anything under the namespace /fixed_lag_smoother
-
-optimization_period: 1
-
-## model plugins: declare all plugins to use and give a unique name
-
 sensor_models:
   - name: 'global_mapper'
     type: 'bs_models::GlobalMapper'
 
-motion_models:
-  - name: 'unicycle_3d'
-    type: 'bs_models::Unicycle3D'
-
-## plugin params: specify all params for the plugins, using their unique name
-
-unicycle_3d:
-  process_noise_diagonal: [1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2,
-                           1.0e-2, 1.0e-2, 1.0e-2]
-  buffer_length: 100000
-
-solver_options:
-  minimizer_type: 'TRUST_REGION'
-  linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
-  minimizer_progress_to_stdout: false
-  num_threads: 3
-  num_linear_solver_threads: 3
-  max_num_iterations: 50
-  gradient_tolerance: 0.00000015
-  parameter_tolerance: 0.00000015
-  function_tolerance: 0.00000015
-
 global_mapper:
-  reloc_request_period: 1
-  disable_loop_closure: false
-  global_map_config: 'DEFAULT_PATH' # Empty will use defaults defined in class. DEFAULT_PATH will use the file in config/global_map/global_map.json
-  output_path: '/userhome/results/beam_slam/global_mapper/'
-  offline_map_path:  '/userhome/datasets/slam/kaarta/2019-07-10-17-32-53/offline_map/NoLC/GlobalMapData/'
-  save_global_map_data: false
-  save_submap_frames: false
-  save_submaps: false
-  save_trajectory_cloud: false
-  save_local_mapper_trajectory: false
-  save_local_mapper_maps: false
+  disable_loop_closure: true
+  global_map_config: 'global_map/global_map.json'
+  output_path: '/userhome/results/global_mapper/'
+  save_global_map_data: true
+  save_submap_frames: true
+  save_submaps: true
+  save_trajectory_cloud: true
+  save_local_mapper_trajectory: true
+  save_local_mapper_maps: true
+  save_loop_closure_results: false
   publish_new_submaps: false
   publish_updated_global_map: false
   publish_new_scans: false
