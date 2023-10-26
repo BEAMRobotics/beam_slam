@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include <bs_variables/inverse_depth_landmark.h>
+#include <bs_variables/point_3d_landmark.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/graph.h>
@@ -12,7 +13,6 @@
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/point_3d_fixed_landmark.h>
-#include <bs_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
 #include <beam_calibration/CameraModel.h>
@@ -162,12 +162,21 @@ public:
       GetPosition(const ros::Time& stamp);
 
   /**
-   * @brief Adds ab asbolute pose prior
+   * @brief Adds an asbolute pose prior
    * @param stamp to add prior on
    */
   void AddPosePrior(const ros::Time& stamp,
                     const Eigen::Matrix<double, 6, 6>& covariance,
                     fuse_core::Transaction::SharedPtr transaction);
+
+  /**
+   * @brief Adds a relative pose constraint between two poses
+   */
+  void AddRelativePoseConstraint(const ros::Time& stamp1,
+                                 const ros::Time& stamp2,
+                                 const fuse_core::Vector7d& delta,
+                                 const Eigen::Matrix<double, 6, 6>& covariance,
+                                 fuse_core::Transaction::SharedPtr transaction);
 
   /**
    * @brief Adds orientation in baselink frame
@@ -246,7 +255,7 @@ public:
    * @brief Updates current graph copy
    * @param graph_msg graph to update with
    */
-  void UpdateGraph(fuse_core::Graph::ConstSharedPtr graph_msg);
+  void UpdateGraph(const fuse_core::Graph& graph_msg);
 
   /**
    * @brief Resets map to empty state
@@ -269,7 +278,7 @@ protected:
       inversedepth_landmark_positions_;
 
   // copy of the current graph
-  fuse_core::Graph::ConstSharedPtr graph_;
+  fuse_core::Graph::SharedPtr graph_;
 
   // pointer to camera model to use when adding constraints
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;

@@ -45,6 +45,10 @@ public:
       prior_covariance = cov_weight * Eigen::Matrix<double, 6, 6>::Identity();
     }
 
+    // whether to add relative constraints only to the main graph
+    getParam<bool>(nh, "use_standalone_vo", use_standalone_vo,
+                   use_standalone_vo);
+
     // send a trigger to IO to set IMU relative state constraint
     getParam<bool>(nh, "trigger_inertial_odom_constraints",
                    trigger_inertial_odom_constraints,
@@ -100,6 +104,7 @@ public:
   std::string frame_initializer_config{};
   Eigen::Matrix<double, 6, 6> prior_covariance;
 
+  bool use_standalone_vo{false};
   bool trigger_inertial_odom_constraints{true};
   bool use_idp{false};
   double keyframe_parallax{20.0};

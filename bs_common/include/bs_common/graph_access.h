@@ -32,7 +32,7 @@ std::map<int64_t, ImuBiases>
 /**
  * @brief Save graph to text file using the print function
  */
-void SaveGraphToTxtFile(fuse_core::Graph::ConstSharedPtr graph,
+void SaveGraphToTxtFile(const fuse_core::Graph& graph,
                         const std::string& txt_file_save_path);
 
 /**
@@ -72,7 +72,7 @@ int GetNumberOfVariables(const fuse_core::Graph& graph);
  * @return pointer to variable
  */
 bs_variables::GyroscopeBias3DStamped::SharedPtr
-    GetGyroscopeBias(fuse_core::Graph::ConstSharedPtr graph,
+    GetGyroscopeBias(const fuse_core::Graph& graph,
                      const ros::Time& stamp);
 
 /**
@@ -83,7 +83,7 @@ bs_variables::GyroscopeBias3DStamped::SharedPtr
  * @return pointer to variable
  */
 bs_variables::AccelerationBias3DStamped::SharedPtr
-    GetAccelBias(fuse_core::Graph::ConstSharedPtr graph,
+    GetAccelBias(const fuse_core::Graph& graph,
                  const ros::Time& stamp);
 
 /**
@@ -94,7 +94,7 @@ bs_variables::AccelerationBias3DStamped::SharedPtr
  * @return pointer to variable
  */
 fuse_variables::Position3DStamped::SharedPtr
-    GetPosition(fuse_core::Graph::ConstSharedPtr graph, const ros::Time& stamp);
+    GetPosition(const fuse_core::Graph& graph, const ros::Time& stamp);
 
 /**
  * @brief Gets a pointer to an orientation variable if it exists (nullptr
@@ -104,7 +104,7 @@ fuse_variables::Position3DStamped::SharedPtr
  * @return pointer to variable
  */
 fuse_variables::Orientation3DStamped::SharedPtr
-    GetOrientation(fuse_core::Graph::ConstSharedPtr graph,
+    GetOrientation(const fuse_core::Graph& graph,
                    const ros::Time& stamp);
 
 /**
@@ -115,7 +115,7 @@ fuse_variables::Orientation3DStamped::SharedPtr
  * @return pointer to variable
  */
 fuse_variables::VelocityLinear3DStamped::SharedPtr
-    GetVelocity(fuse_core::Graph::ConstSharedPtr graph, const ros::Time& stamp);
+    GetVelocity(const fuse_core::Graph& graph, const ros::Time& stamp);
 
 /**
  * @brief Gets a pointer to an angular velocity variable if it exists (nullptr
@@ -125,7 +125,7 @@ fuse_variables::VelocityLinear3DStamped::SharedPtr
  * @return pointer to variable
  */
 fuse_variables::VelocityAngular3DStamped::SharedPtr
-    GetAngularVelocity(fuse_core::Graph::ConstSharedPtr graph,
+    GetAngularVelocity(const fuse_core::Graph& graph,
                        const ros::Time& stamp);
 
 /**
@@ -136,7 +136,7 @@ fuse_variables::VelocityAngular3DStamped::SharedPtr
  * @return pointer to variable
  */
 fuse_variables::AccelerationLinear3DStamped::SharedPtr
-    GetLinearAcceleration(fuse_core::Graph::ConstSharedPtr graph,
+    GetLinearAcceleration(const fuse_core::Graph& graph,
                           const ros::Time& stamp);
 
 /**
@@ -144,38 +144,38 @@ fuse_variables::AccelerationLinear3DStamped::SharedPtr
  * @param graph to search in
  * @return set of timestamps
  */
-std::set<ros::Time> CurrentTimestamps(fuse_core::Graph::ConstSharedPtr graph);
+std::set<ros::Time> CurrentTimestamps(const fuse_core::Graph& graph);
 
 /**
  * @brief Gets all landmark id's in the given graph
  * @param graph to search in
  * @return set of landmark ids
  */
-std::set<uint64_t> CurrentLandmarkIDs(fuse_core::Graph::ConstSharedPtr graph);
+std::set<uint64_t> CurrentLandmarkIDs(const fuse_core::Graph& graph);
 
 /// @brief Gets landmark variable from graph
 /// @param graph to search in
 /// @return set of landmark ids
 bs_variables::Point3DLandmark::SharedPtr
-    GetLandmark(fuse_core::Graph::ConstSharedPtr graph, const uint64_t id);
+    GetLandmark(const fuse_core::Graph& graph, const uint64_t id);
 
 /// @brief Gets position extrinsic from graph
 /// @param graph to search in
 bs_variables::Position3D::SharedPtr
-    GetPositionExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
+    GetPositionExtrinsic(const fuse_core::Graph& graph,
                          const std::string& child_frame,
                          const std::string& parent_frame);
 
 /// @brief Gets orientation extrinsic from graph
 /// @param graph to search in
 bs_variables::Orientation3D::SharedPtr
-    GetOrientationExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
+    GetOrientationExtrinsic(const fuse_core::Graph& graph,
                             const std::string& child_frame,
                             const std::string& parent_frame);
 
 /// @brief Gets extrinsic as 4x4 matrix from graph
 /// @param graph to search in
-beam::opt<Eigen::Matrix4d> GetExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
+beam::opt<Eigen::Matrix4d> GetExtrinsic(const fuse_core::Graph& graph,
                                         const std::string& child_frame,
                                         const std::string& parent_frame);
 
@@ -183,12 +183,12 @@ beam::opt<Eigen::Matrix4d> GetExtrinsic(fuse_core::Graph::ConstSharedPtr graph,
 /// @param graph to search in
 /// @return set of landmark ids
 bs_variables::InverseDepthLandmark::SharedPtr
-    GetInverseDepthLandmark(fuse_core::Graph::ConstSharedPtr graph,
+    GetInverseDepthLandmark(const fuse_core::Graph& graph,
                             const uint64_t id);
 /// @brief
 /// @param graph
 /// @param stamp
 /// @return
 beam::opt<bs_common::ImuState>
-    GetImuState(fuse_core::Graph::ConstSharedPtr graph, const ros::Time& stamp);
+    GetImuState(const fuse_core::Graph& graph, const ros::Time& stamp);
 } // namespace bs_common

@@ -87,41 +87,10 @@ void AddZeroMotionFactor(const std::string& source,
                          const bs_common::ImuState& state1,
                          const bs_common::ImuState& state2,
                          fuse_core::Transaction::SharedPtr transaction) {
-  // add all variables in case they dont already exist
-  transaction->addVariable(
-      std::make_shared<fuse_variables::Orientation3DStamped>(
-          state1.Orientation()));
-  transaction->addVariable(
-      std::make_shared<fuse_variables::Position3DStamped>(state1.Position()));
-  transaction->addVariable(
-      std::make_shared<fuse_variables::VelocityLinear3DStamped>(
-          state1.Velocity()));
-  transaction->addVariable(
-      std::make_shared<bs_variables::AccelerationBias3DStamped>(
-          state1.AccelBias()));
-  transaction->addVariable(
-      std::make_shared<bs_variables::GyroscopeBias3DStamped>(
-          state1.GyroBias()));
-
-  transaction->addVariable(
-      std::make_shared<fuse_variables::Orientation3DStamped>(
-          state2.Orientation()));
-  transaction->addVariable(
-      std::make_shared<fuse_variables::Position3DStamped>(state2.Position()));
-  transaction->addVariable(
-      std::make_shared<fuse_variables::VelocityLinear3DStamped>(
-          state2.Velocity()));
-  transaction->addVariable(
-      std::make_shared<bs_variables::AccelerationBias3DStamped>(
-          state2.AccelBias()));
-  transaction->addVariable(
-      std::make_shared<bs_variables::GyroscopeBias3DStamped>(
-          state2.GyroBias()));
-
   // generate a zero motion constraint
   fuse_core::Vector7d pose_delta;
   pose_delta << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-  fuse_core::Matrix6d pose_covariance = fuse_core::Matrix6d::Identity() * 1e-5;
+  fuse_core::Matrix6d pose_covariance = fuse_core::Matrix6d::Identity() * 1e-9;
 
   auto relative_pose_constraint =
       std::make_shared<fuse_constraints::RelativePose3DStampedConstraint>(
