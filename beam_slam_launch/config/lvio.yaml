@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 6
-pseudo_marginalization: true
+pseudo_marginalization: false
 
 solver_options:
   minimizer_type: 'TRUST_REGION'

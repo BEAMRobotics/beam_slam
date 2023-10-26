@@ -14,10 +14,6 @@
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::InertialOdometry, fuse_core::SensorModel);
 
-void timer_callback(const ros::TimerEvent&) {
-  std::cout << "Inertial odom still running" << std::endl;
-}
-
 namespace bs_models {
 
 ImuBuffer::ImuBuffer(double buffer_length_s) {
@@ -313,8 +309,8 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
 void InertialOdometry::BreakupConstraint(
     const ros::Time& new_trigger_time,
     const ImuConstraintData& constraint_data) {
-    auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(new_trigger_time);
+  auto transaction = fuse_core::Transaction::make_shared();
+  transaction->stamp(ros::Time::now());
 
   auto velocity = bs_common::GetVelocity(*most_recent_graph_msg_,
                                          constraint_data.start_time);

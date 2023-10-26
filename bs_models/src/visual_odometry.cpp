@@ -69,7 +69,7 @@ void VisualOdometry::onInit() {
     ceres::Solver::Options options;
     options.minimizer_type = ceres::TRUST_REGION;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-    options.minimizer_progress_to_stdout = true;
+    options.minimizer_progress_to_stdout = false;
     options.num_threads = std::thread::hardware_concurrency() / 2;
     options.max_num_iterations = 10;
     local_solver_options_ = options;

@@ -32,7 +32,7 @@ struct ImuConstraintData {
  */
 class ImuBuffer {
 public:
-  explicit ImuBuffer(double buffer_length_s = 10);
+  explicit ImuBuffer(double buffer_length_s = 5);
 
   // add IMU data to raw IMU buffer
   void AddData(const sensor_msgs::Imu::ConstPtr& msg);
