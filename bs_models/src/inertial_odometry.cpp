@@ -180,7 +180,6 @@ void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
     imu_buffer_.AddConstraint(last_trigger_time_, time,
                               added_constraints_range.begin()->uuid());
   } else {
-    std::cout << "Breaking constraint" << std::endl;
     // this means we have to remove a constraint and replace it with two
     std::optional<ImuConstraintData> maybeConstraintData =
         imu_buffer_.ExtractConstraintContainingTime(time);
@@ -310,16 +309,23 @@ void InertialOdometry::BreakupConstraint(
     const ros::Time& new_trigger_time,
     const ImuConstraintData& constraint_data) {
   auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(ros::Time::now());
+  transaction->stamp(new_trigger_time);
 
-  auto velocity = bs_common::GetVelocity(*most_recent_graph_msg_,
-                                         constraint_data.start_time);
-  auto position = bs_common::GetPosition(*most_recent_graph_msg_,
-                                         constraint_data.start_time);
-  auto orientation = bs_common::GetOrientation(*most_recent_graph_msg_,
-                                               constraint_data.start_time);
-  imu_preint_->SetStart(constraint_data.start_time, orientation, position,
-                        velocity);
+  const auto start_state = bs_common::GetImuState(*most_recent_graph_msg_,
+                                                  constraint_data.start_time);
+  const auto end_state =
+      bs_common::GetImuState(*most_recent_graph_msg_, constraint_data.end_time);
+
+  if (!start_state.has_value()) return;
+
+  imu_preint_->SetStart(
+      constraint_data.start_time,
+      std::make_shared<fuse_variables::Orientation3DStamped>(
+          start_state.value().Orientation()),
+      std::make_shared<fuse_variables::Position3DStamped>(
+          start_state.value().Position()),
+      std::make_shared<fuse_variables::VelocityLinear3DStamped>(
+          start_state.value().Velocity()));
 
   // add first half
   bool first_successful = false;
@@ -339,6 +345,23 @@ void InertialOdometry::BreakupConstraint(
           bs_common::ToString(constraint_data.start_time),
           bs_common::ToString(new_trigger_time));
       std::cout << imu_preint_->PrintBuffer() << "\n";
+
+      if (std::abs(constraint_data.start_time.toSec() -
+                   new_trigger_time.toSec()) < 0.005) {
+        ROS_WARN("Adding zero motion constraint.");
+        bs_common::ImuState new_state(new_trigger_time);
+        new_state.SetPosition(start_state.value().PositionVec());
+        new_state.SetOrientation(start_state.value().OrientationQuat());
+        new_state.SetVelocity(start_state.value().VelocityVec());
+        new_state.SetGyroBias(start_state.value().GyroBiasVec());
+        new_state.SetAccelBias(start_state.value().AccelBiasVec());
+
+        auto zero_motion_transaction = fuse_core::Transaction::make_shared();
+        zero_motion_transaction->stamp(new_trigger_time);
+        bs_common::AddZeroMotionFactor("IO", start_state.value(), new_state,
+                                       zero_motion_transaction);
+        transaction->merge(*zero_motion_transaction);
+      }
     } else {
       imu_buffer_.AddConstraint(constraint_data.start_time, new_trigger_time,
                                 imu_trans1->addedConstraints().begin()->uuid());
@@ -347,29 +370,50 @@ void InertialOdometry::BreakupConstraint(
     }
   }
 
-  // add second half
   bool second_successful = false;
-  std::map<ros::Time, sensor_msgs::Imu::ConstPtr> imu_data2 =
-      imu_buffer_.GetImuData(new_trigger_time, constraint_data.end_time);
-  if (!imu_data1.empty()) {
-    for (const auto& [t, imu_msg] : imu_data2) {
-      imu_preint_->AddToBuffer(*imu_msg);
-    }
-    auto imu_trans2 = imu_preint_->RegisterNewImuPreintegratedFactor(
-        constraint_data.end_time);
-    if (!imu_trans2) {
-      BEAM_ERROR(
-          "cannot add constraint for second half of constraint being "
-          "broken up. Constraint start time: {}, constraint end time: {}. "
-          "ImuPreintegration buffer: ",
-          bs_common::ToString(new_trigger_time),
-          bs_common::ToString(constraint_data.end_time));
-      std::cout << imu_preint_->PrintBuffer() << "\n";
-    } else {
-      imu_buffer_.AddConstraint(new_trigger_time, constraint_data.end_time,
-                                imu_trans2->addedConstraints().begin()->uuid());
-      transaction->merge(*imu_trans2);
-      second_successful = true;
+  if (end_state.has_value()) {
+    // add second half
+    std::map<ros::Time, sensor_msgs::Imu::ConstPtr> imu_data2 =
+        imu_buffer_.GetImuData(new_trigger_time, constraint_data.end_time);
+    if (!imu_data1.empty()) {
+      for (const auto& [t, imu_msg] : imu_data2) {
+        imu_preint_->AddToBuffer(*imu_msg);
+      }
+      auto imu_trans2 = imu_preint_->RegisterNewImuPreintegratedFactor(
+          constraint_data.end_time);
+      if (!imu_trans2) {
+        BEAM_ERROR(
+            "cannot add constraint for second half of constraint being "
+            "broken up. Constraint start time: {}, constraint end time: {}. "
+            "ImuPreintegration buffer: ",
+            bs_common::ToString(new_trigger_time),
+            bs_common::ToString(constraint_data.end_time));
+        std::cout << imu_preint_->PrintBuffer() << "\n";
+
+        if (std::abs(constraint_data.end_time.toSec() -
+                     new_trigger_time.toSec()) < 0.005) {
+          ROS_WARN("Adding zero motion constraint.");
+          bs_common::ImuState new_state(new_trigger_time);
+          new_state.SetPosition(end_state.value().PositionVec());
+          new_state.SetOrientation(end_state.value().OrientationQuat());
+          new_state.SetVelocity(end_state.value().VelocityVec());
+          new_state.SetGyroBias(end_state.value().GyroBiasVec());
+          new_state.SetAccelBias(end_state.value().AccelBiasVec());
+
+          auto zero_motion_transaction = fuse_core::Transaction::make_shared();
+          zero_motion_transaction->stamp(new_trigger_time);
+          bs_common::AddZeroMotionFactor("IO", end_state.value(), new_state,
+                                         zero_motion_transaction);
+          transaction->merge(*zero_motion_transaction);
+        }
+
+      } else {
+        imu_buffer_.AddConstraint(
+            new_trigger_time, constraint_data.end_time,
+            imu_trans2->addedConstraints().begin()->uuid());
+        transaction->merge(*imu_trans2);
+        second_successful = true;
+      }
     }
   }
 
