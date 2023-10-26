@@ -83,7 +83,7 @@ void ImuPreintegration::AddToBuffer(const sensor_msgs::Imu& msg) {
 }
 
 void ImuPreintegration::AddToBuffer(const bs_common::IMUData& imu_data) {
-  std::unique_lock<std::mutex>(preint_mutex_);
+  std::unique_lock<std::mutex> lk(preint_mutex_);
   pre_integrator_ij_.data.emplace(imu_data.t, imu_data);
   pre_integrator_kj_.data.emplace(imu_data.t, imu_data);
 }
@@ -94,7 +94,7 @@ PoseWithCovariance ImuPreintegration::GetPose(const ros::Time& t_now) {
         "Requested time is before current imu state. Request a "
         "pose at a timestamp >= the most recent imu measurement"};
   }
-  std::unique_lock<std::mutex>(preint_mutex_);
+  std::unique_lock<std::mutex> lk(preint_mutex_);
   // integrate between frames if there is data to integrate
   if (!pre_integrator_kj_.data.empty()) {
     pre_integrator_kj_.Integrate(t_now, imu_state_i_.GyroBiasVec(),
@@ -138,7 +138,7 @@ PoseWithCovariance ImuPreintegration::GetRelativeMotion(
   } else if (t1 >= t2) {
     throw std::runtime_error{"Start time of window must precede end times."};
   }
-  std::unique_lock<std::mutex>(preint_mutex_);
+  std::unique_lock<std::mutex> lk(preint_mutex_);
   // get state at t1
   bs_common::ImuState imu_state_1;
   if (window_states_.find(t1.toNSec()) == window_states_.end()) {
@@ -192,7 +192,7 @@ void ImuPreintegration::SetStart(
     fuse_variables::Orientation3DStamped::SharedPtr R_WORLD_IMU,
     fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
     fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
-  std::unique_lock<std::mutex>(preint_mutex_);
+  std::unique_lock<std::mutex> lk(preint_mutex_);
   // remove data in buffer that is before the start state
   pre_integrator_ij_.Clear(t_start);
   pre_integrator_ij_.Reset();
@@ -244,7 +244,7 @@ fuse_core::Transaction::SharedPtr
         fuse_variables::Position3DStamped::SharedPtr t_WORLD_IMU,
         fuse_variables::VelocityLinear3DStamped::SharedPtr velocity) {
   bs_constraints::ImuState3DStampedTransaction transaction(t_now);
-  std::unique_lock<std::mutex>(preint_mutex_);
+  std::unique_lock<std::mutex> lk(preint_mutex_);
   // check requested time
   if (pre_integrator_ij_.data.empty()) {
     ROS_WARN("Cannot register IMU factor, no imu data is available.");
@@ -315,13 +315,15 @@ fuse_core::Transaction::SharedPtr
 
 void ImuPreintegration::UpdateGraph(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
-  std::unique_lock<std::mutex>(preint_mutex_);
+  std::unique_lock<std::mutex> lk(preint_mutex_);
   // update state i with all info, reset state k to updated state i
   if (imu_state_i_.Update(graph_msg)) {
     // reset kj integrator to the ij integrator
     pre_integrator_kj_ = pre_integrator_ij_;
     // reset state k to state i
     imu_state_k_ = imu_state_i_;
+    bg_ = imu_state_i_.GyroBiasVec();
+    ba_ = imu_state_i_.AccelBiasVec();
   }
   // clear state storage within the window
   window_states_.clear();
@@ -342,7 +344,7 @@ void ImuPreintegration::UpdateState(
 }
 
 void ImuPreintegration::Clear() {
-  std::unique_lock<std::mutex>(preint_mutex_);
+  std::unique_lock<std::mutex> lk(preint_mutex_);
   pre_integrator_kj_.data.clear();
   pre_integrator_kj_.Reset();
   pre_integrator_ij_.data.clear();
