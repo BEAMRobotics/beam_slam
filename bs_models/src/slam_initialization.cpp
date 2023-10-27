@@ -317,7 +317,7 @@ bool SLAMInitialization::Initialize() {
     options.max_num_iterations = 1000;
     local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s),
                               options);
-    visual_map_->UpdateGraph(local_graph_);
+    visual_map_->UpdateGraph(*local_graph_);
     if (lidar_path_init_) {
       lidar_path_init_->UpdateRegistrationMap(local_graph_);
     }
@@ -457,7 +457,7 @@ void SLAMInitialization::AddPosesAndInertialConstraints() {
   std::for_each(init_path_.begin(), init_path_.end(), process_frame);
 
   // update visual map with updated graph
-  visual_map_->UpdateGraph(local_graph_);
+  visual_map_->UpdateGraph(*local_graph_);
 }
 
 void SLAMInitialization::AddVisualConstraints() {
@@ -569,7 +569,7 @@ void SLAMInitialization::AddVisualConstraints() {
   // send transaction to graph
   local_graph_->update(*landmark_transaction);
   // update visual map with updated graph
-  visual_map_->UpdateGraph(local_graph_);
+  visual_map_->UpdateGraph(*local_graph_);
 
   ROS_INFO_STREAM(__func__ << ": Added " << num_landmarks
                            << " visual landmarks to initialization graph.");
