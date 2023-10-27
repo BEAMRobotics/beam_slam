@@ -80,6 +80,10 @@ std::string Submap::DescriptorType() const {
   return descriptor_type_;
 }
 
+const std::map<uint64_t, ScanPose>& Submap::LidarKeyframes() const {
+  return lidar_keyframe_poses_;
+}
+
 std::map<uint64_t, ScanPose>::iterator Submap::LidarKeyframesBegin() {
   return lidar_keyframe_poses_.begin();
 }

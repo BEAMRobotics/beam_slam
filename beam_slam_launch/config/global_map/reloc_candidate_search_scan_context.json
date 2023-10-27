@@ -1,3 +1,5 @@
 {
-  "type": "SCANCONTEXT"
+  "type": "SCANCONTEXT",
+  "submap_distance_threshold_m": 3,
+  "matcher_config": "matchers/loam_vlp16_reloc.json"
 }
