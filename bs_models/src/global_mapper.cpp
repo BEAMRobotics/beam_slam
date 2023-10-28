@@ -162,23 +162,21 @@ void GlobalMapper::onStart() {
 };
 
 void GlobalMapper::onStop() {
-  // use beam logging here because ROS logging stops when a node shutdown gets
-  // called
-  BEAM_INFO("Running final loop closure");
-  fuse_core::Transaction::SharedPtr transaction_ptr = nullptr;
-
-  if (!params_.disable_loop_closure) {
-    transaction_ptr = global_map_->TriggerLoopClosure();
-  }
-
-  if (transaction_ptr != nullptr) {
-    BEAM_INFO("Found {} loop closures. Updating map.",
-              bs_common::GetNumberOfConstraints(transaction_ptr));
-    graph_->update(*transaction_ptr);
-    graph_->optimize();
-    global_map_->UpdateSubmapPoses(graph_, ros::Time::now());
-  } else {
-    BEAM_INFO("No loop closures found for final submap.");
+  if (trigger_loop_closure_on_stop_ && !params_.disable_loop_closure) {
+    // use beam logging here because ROS logging stops when a node shutdown gets
+    // called
+    BEAM_INFO("Running final loop closure");
+    fuse_core::Transaction::SharedPtr transaction_ptr =
+        global_map_->TriggerLoopClosure();
+    if (transaction_ptr) {
+      BEAM_INFO("Found {} loop closures. Updating map.",
+                bs_common::GetNumberOfConstraints(transaction_ptr));
+      graph_->update(*transaction_ptr);
+      graph_->optimize();
+      global_map_->UpdateSubmapPoses(graph_, ros::Time::now());
+    } else {
+      BEAM_INFO("No loop closures found for final submap.");
+    }
   }
 
   if (!std::filesystem::exists(params_.output_path)) {
