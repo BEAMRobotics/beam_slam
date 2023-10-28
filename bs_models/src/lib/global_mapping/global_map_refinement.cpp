@@ -212,12 +212,8 @@ void GlobalMapRefinement::SaveGlobalMapData(const std::string& output_path) {
     return;
   }
 
-  std::string save_dir;
-  if (output_path.back() != '/') {
-    save_dir = output_path + "/global_map_data_refined/";
-  } else {
-    save_dir = output_path + "global_map_data_refined/";
-  }
+  std::string save_dir =
+      beam::CombinePaths(output_path, "global_map_data_refined");
   boost::filesystem::create_directory(save_dir);
 
   // save

@@ -260,22 +260,24 @@ void ScanPose::SaveData(const std::string& output_dir) const {
   beam::AddTransformToJson(J_scanpose, T_BASELINK_LIDAR_, "T_BASELINK_LIDAR");
   beam::AddTransformToJson(J_scanpose, T_REFFRAME_BASELINK_initial_,
                            "T_REFFRAME_BASELINK_initial");
-  std::string scanpose_filename = output_dir + "scan_pose.json";
+  std::string scanpose_filename =
+      beam::CombinePaths(output_dir, "scan_pose.json");
   std::ofstream scanpose_file(scanpose_filename);
   scanpose_file << std::setw(4) << J_scanpose << std::endl;
 
   // save pointclouds
   std::string error_message;
-  if (!beam::SavePointCloud<pcl::PointXYZ>(
-          output_dir + "pointcloud.pcd", pointcloud_,
-          beam::PointCloudFileType::PCDBINARY, error_message)) {
+  std::string cloud_path = beam::CombinePaths(output_dir, "pointcloud.pcd");
+  if (!beam::SavePointCloud<pcl::PointXYZ>(cloud_path, pointcloud_,
+                                           beam::PointCloudFileType::PCDBINARY,
+                                           error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 
   beam_matching::LoamPointCloudCombined c = loampointcloud_.GetCombinedCloud();
-  if (!beam::SavePointCloud<PointLoam>(output_dir + "loam_cloud.pcd", c,
-                                       beam::PointCloudFileType::PCDBINARY,
-                                       error_message)) {
+  std::string loam_path = beam::CombinePaths(output_dir, "loam_cloud.pcd");
+  if (!beam::SavePointCloud<PointLoam>(
+          loam_path, c, beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save loam cloud. Reason: {}", error_message);
   }
 }
@@ -289,7 +291,8 @@ bool ScanPose::LoadData(const std::string& root_dir) {
 
   // load general data
   nlohmann::json J;
-  std::ifstream file(root_dir + "scan_pose.json");
+  std::string scan_pose_path = beam::CombinePaths(root_dir, "scan_pose.json");
+  std::ifstream file(scan_pose_path);
   file >> J;
   stamp_.fromNSec(J["stamp_nsecs"]);
   updates_ = J["updates"];
@@ -326,8 +329,8 @@ bool ScanPose::LoadData(const std::string& root_dir) {
   T_BASELINK_LIDAR_ = beam::VectorToEigenTransform(T_BASELINK_LIDAR_vec);
 
   // load pointclouds
-  std::string pointcloud_filename;
-  pointcloud_filename = root_dir + "pointcloud.pcd";
+  std::string pointcloud_filename =
+      beam::CombinePaths(root_dir, "pointcloud.pcd");
   if (boost::filesystem::exists(pointcloud_filename)) {
     if (pcl::io::loadPCDFile<pcl::PointXYZ>(pointcloud_filename, pointcloud_) ==
         -1) {
@@ -336,7 +339,7 @@ bool ScanPose::LoadData(const std::string& root_dir) {
     }
   }
 
-  pointcloud_filename = root_dir + "loam_cloud.pcd";
+  pointcloud_filename = beam::CombinePaths(root_dir, "loam_cloud.pcd");
   if (boost::filesystem::exists(pointcloud_filename)) {
     beam_matching::LoamPointCloudCombined loam_combined;
     if (pcl::io::loadPCDFile<PointLoam>(pointcloud_filename, loam_combined) ==

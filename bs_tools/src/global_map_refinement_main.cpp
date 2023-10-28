@@ -61,11 +61,9 @@ int main(int argc, char* argv[]) {
   std::string dateandtime =
       beam::ConvertTimeToDate(std::chrono::system_clock::now());
 
-  if (FLAGS_output_path.back() != '/') { dateandtime = "/" + dateandtime; }
-
   if (FLAGS_output_results) {
-    std::string save_path =
-        FLAGS_output_path + dateandtime + "_global_map_refined_results/";
+    std::string save_path = beam::CombinePaths(
+        FLAGS_output_path, dateandtime + "_global_map_refined_results");
     boost::filesystem::create_directory(save_path);
     BEAM_INFO("Outputting results to: {}", save_path);
 
@@ -73,8 +71,8 @@ int main(int argc, char* argv[]) {
   }
 
   if (FLAGS_output_globalmap_data) {
-    std::string save_path =
-        FLAGS_output_path + dateandtime + "_global_map_refined_data/";
+    std::string save_path = beam::CombinePaths(
+        FLAGS_output_path, dateandtime + "_global_map_refined_data");
     boost::filesystem::create_directory(save_path);
 
     BEAM_INFO("Outputting global map data to: {}", save_path);

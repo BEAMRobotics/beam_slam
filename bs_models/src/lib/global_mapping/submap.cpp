@@ -539,8 +539,9 @@ bool Submap::LoadData(const std::string& input_dir,
   }
 
   // load submap.json
+  std::string submap_path = beam::CombinePaths(input_dir, "submap.json");
   nlohmann::json J_submap;
-  if (!beam::ReadJson(input_dir + "submap.json", J_submap)) { return false; }
+  if (!beam::ReadJson(submap_path, J_submap)) { return false; }
 
   // parse json
   try {
@@ -573,21 +574,21 @@ bool Submap::LoadData(const std::string& input_dir,
         beam::VectorToEigenTransform(T_WORLD_SUBMAP_initial_vec);
     T_SUBMAP_WORLD_initial_ = beam::InvertTransform(T_WORLD_SUBMAP_initial_);
   } catch (...) {
-    BEAM_ERROR("Cannot load submap json, invalid data. Input: {}",
-               input_dir + "submap.json");
+    BEAM_ERROR("Cannot load submap json, invalid data. Input: {}", submap_path);
     return false;
   }
 
   // load camera model
+  std::string camera_model_path =
+      beam::CombinePaths(input_dir, "camera_model.json");
   if (override_camera_model_pointer) {
-    if (!boost::filesystem::exists(input_dir + "camera_model.json")) {
+    if (!boost::filesystem::exists(camera_model_path)) {
       BEAM_ERROR(
           "Cannot load camera model, camera_model.json does not exist inside "
           "root folder. Not loading submap data. Input root directory: {}",
           input_dir);
       return false;
     }
-    std::string camera_model_path = input_dir + "camera_model.json";
     try {
       camera_model_ = beam_calibration::CameraModel::Create(camera_model_path);
     } catch (...) {
@@ -599,14 +600,16 @@ bool Submap::LoadData(const std::string& input_dir,
   // load camera keyframes json
   nlohmann::json J_cam_keyframes;
   beam::JsonReadErrorType error_type;
-  if (!beam::ReadJson(input_dir + "camera_keyframes.json", J_cam_keyframes,
-                      error_type, false)) {
+  std::string camera_keyframes_path =
+      beam::CombinePaths(input_dir, "camera_keyframes.json");
+  if (!beam::ReadJson(camera_keyframes_path, J_cam_keyframes, error_type,
+                      false)) {
     if (error_type != beam::JsonReadErrorType::EMPTY) {
       BEAM_ERROR(
           "Cannot load camera keyframes json because it is either missing or "
           "has "
           "an invalid extension. Input: {} ",
-          input_dir + "camera_keyframes.json");
+          camera_keyframes_path);
       return false;
     }
   } else {
@@ -621,22 +624,24 @@ bool Submap::LoadData(const std::string& input_dir,
       }
     } catch (...) {
       BEAM_ERROR("Cannot load camera keyframes, invalid data. Input: {}",
-                 input_dir + "camera_keyframes.json");
+                 camera_keyframes_path);
       return false;
     }
   }
 
   // load landmarks
+  std::string landmarks_path = beam::CombinePaths(input_dir, "landmarks.json");
   try {
-    landmarks_.LoadFromJson(input_dir + "landmarks.json", false);
+    landmarks_.LoadFromJson(landmarks_path, false);
   } catch (...) {
     BEAM_ERROR("Cannot load landmarks json, invalid data. Input: {}",
-               input_dir + "landmarks.json");
+               landmarks_path);
     return false;
   }
 
   // load lidar keyframes
-  std::string lidar_keyframes_root = input_dir + "lidar_keyframes/";
+  std::string lidar_keyframes_root =
+      beam::CombinePaths(input_dir, "lidar_keyframes");
   if (!boost::filesystem::exists(lidar_keyframes_root)) {
     BEAM_ERROR(
         "Lidar keyframes folder not found in input root directory, not loading "
@@ -646,8 +651,8 @@ bool Submap::LoadData(const std::string& input_dir,
   }
   int lidar_keyframe_num = 0;
   while (true) {
-    std::string lidar_keyframe_dir = lidar_keyframes_root + "keyframe" +
-                                     std::to_string(lidar_keyframe_num) + "/";
+    std::string lidar_keyframe_dir = beam::CombinePaths(
+        lidar_keyframes_root, "keyframe" + std::to_string(lidar_keyframe_num));
     if (!boost::filesystem::exists(lidar_keyframe_dir)) { break; }
     ScanPose scan_pose(ros::Time(0), Eigen::Matrix4d::Identity());
     try {
@@ -661,7 +666,7 @@ bool Submap::LoadData(const std::string& input_dir,
   }
 
   // load subframe poses
-  std::string subframes_root = input_dir + "subframes/";
+  std::string subframes_root = beam::CombinePaths(input_dir, "subframes");
   if (!boost::filesystem::exists(subframes_root)) {
     BEAM_ERROR(
         "Subframes folder not found in input root directory, not loading "
@@ -672,8 +677,8 @@ bool Submap::LoadData(const std::string& input_dir,
   int subframe_num = 0;
   while (true) {
     // check if subframe exists
-    std::string subframe_filename =
-        subframes_root + "subframe" + std::to_string(subframe_num) + "/";
+    std::string subframe_filename = beam::CombinePaths(
+        subframes_root, "subframe" + std::to_string(subframe_num));
     if (!boost::filesystem::exists(subframe_filename)) { break; }
 
     // load subframe json
@@ -749,26 +754,29 @@ void Submap::SaveData(const std::string& output_dir) {
   beam::AddTransformToJson(J_submap, T_WORLD_SUBMAP_initial_,
                            "T_WORLD_SUBMAP_initial");
 
-  std::string submap_filename = output_dir + "submap.json";
+  std::string submap_filename = beam::CombinePaths(output_dir, "submap.json");
   std::ofstream submap_file(submap_filename);
   submap_file << std::setw(4) << J_submap << std::endl;
 
   // Save intrinsics
-  std::string camera_model_filename = output_dir + "camera_model.json";
+  std::string camera_model_filename =
+      beam::CombinePaths(output_dir, "camera_model.json");
   camera_model_->WriteJSON(camera_model_filename);
 
   // save landmarks
-  landmarks_.SaveToJson(output_dir + "landmarks.json");
+  landmarks_.SaveToJson(beam::CombinePaths(output_dir, "landmarks.json"));
 
   // save lidar keyframes
-  std::string lidar_keyframes_dir = output_dir + "lidar_keyframes/";
+  std::string lidar_keyframes_dir =
+      beam::CombinePaths(output_dir, "lidar_keyframes");
   boost::filesystem::create_directory(lidar_keyframes_dir);
   int lidar_keyframes_counter = 0;
   for (auto it = lidar_keyframe_poses_.begin();
        it != lidar_keyframe_poses_.end(); it++) {
     // create new directory
-    std::string keyframe_dir = lidar_keyframes_dir + "keyframe" +
-                               std::to_string(lidar_keyframes_counter) + "/";
+    std::string keyframe_dir = beam::CombinePaths(
+        lidar_keyframes_dir,
+        "keyframe" + std::to_string(lidar_keyframes_counter));
     boost::filesystem::create_directory(keyframe_dir);
 
     // call save on keyframe
@@ -782,20 +790,21 @@ void Submap::SaveData(const std::string& output_dir) {
        it != camera_keyframe_poses_.end(); it++) {
     beam::AddPoseToJson(J_camera_keyframes, it->first, it->second);
   }
-  std::string camera_keyframes_filename = output_dir + "camera_keyframes.json";
+  std::string camera_keyframes_filename =
+      beam::CombinePaths(output_dir, "camera_keyframes.json");
   std::ofstream camera_keyframe_file(camera_keyframes_filename);
   camera_keyframe_file << std::setw(4) << J_camera_keyframes << std::endl;
 
   // save keyframe images
-  std::string keyframe_dir = output_dir + "image_keyframes/";
+  std::string keyframe_dir = beam::CombinePaths(output_dir, "image_keyframes");
   for (const auto& [time, image] : keyframe_images_) {
     std::string keyframe_filename =
-        keyframe_dir + std::to_string(time) + ".png";
+        beam::CombinePaths(keyframe_dir, std::to_string(time) + ".png");
     cv::imwrite(keyframe_filename, image);
   }
 
   // save subframes
-  std::string subframe_dir = output_dir + "subframes/";
+  std::string subframe_dir = beam::CombinePaths(output_dir, "subframes");
   boost::filesystem::create_directory(subframe_dir);
   int subframes_counter = 0;
   for (auto it = subframe_poses_.begin(); it != subframe_poses_.end(); it++) {
@@ -812,8 +821,8 @@ void Submap::SaveData(const std::string& output_dir) {
     J_subframes["poses"] = J_subframes_poses;
 
     // save to file
-    std::string subframe_filename =
-        subframe_dir + "subframe" + std::to_string(subframes_counter) + ".json";
+    std::string subframe_filename = beam::CombinePaths(
+        subframe_dir, "subframe" + std::to_string(subframes_counter) + ".json");
     std::ofstream subframe_file(subframe_filename);
     subframe_file << std::setw(4) << J_subframes << std::endl;
     subframes_counter++;

@@ -394,27 +394,33 @@ void MultiScanRegistrationBase::OutputResults(
 
   // create directories
   double t = scan_pose_ref.Stamp().toSec();
-  std::string filename = current_scan_path_ + std::to_string(t);
-  boost::filesystem::create_directory(filename + "_ref/");
-  boost::filesystem::create_directory(filename + "_tgt_init/");
-  boost::filesystem::create_directory(filename + "_tgt_alig/");
+  std::string filename_ref =
+      beam::CombinePaths(current_scan_path_, std::to_string(t) + "_ref");
+  std::string filename_init =
+      beam::CombinePaths(current_scan_path_, std::to_string(t) + "_tgt_init");
+  std::string filename_align =
+      beam::CombinePaths(current_scan_path_, std::to_string(t) + "_tgt_alig");
+  boost::filesystem::create_directory(filename_ref);
+  boost::filesystem::create_directory(filename_init);
+  boost::filesystem::create_directory(filename_align);
 
   // save clouds
-  BEAM_INFO("Saving scan registration results to {}", filename);
+  BEAM_INFO("Saving scan registration results to {}",
+            beam::CombinePaths(current_scan_path_, std::to_string(t)));
 
   std::string error_message{};
   if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-          filename + "_ref.pcd", cloud_ref_world_col,
+          filename_ref, cloud_ref_world_col,
           beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
   if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-          filename + "_tgt_init.pcd", cloud_tgt_in_world_init_col,
+          filename_init, cloud_tgt_in_world_init_col,
           beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
   if (!beam::SavePointCloud<pcl::PointXYZRGB>(
-          filename + "_tgt_alig.pcd", cloud_tgt_in_world_aligned_col,
+          filename_align, cloud_tgt_in_world_aligned_col,
           beam::PointCloudFileType::PCDBINARY, error_message)) {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
@@ -429,11 +435,9 @@ void MultiScanRegistrationBase::OutputResults(
   LoamPointCloud loam_cloud_tgt_in_world_aligned(scan_pose_tgt.LoamCloud(),
                                                  T_WORLD_LIDARREF_OPT);
 
-  loam_cloud_ref_world.SaveCombined(filename + "_ref/", "loam");
-  loam_cloud_tgt_in_world_init.SaveCombined(filename + "_tgt_init/",
-                                            "loam.pcd");
-  loam_cloud_tgt_in_world_aligned.SaveCombined(filename + "_tgt_alig/",
-                                               "loam.pcd");
+  loam_cloud_ref_world.SaveCombined(filename_ref, "loam");
+  loam_cloud_tgt_in_world_init.SaveCombined(filename_init, "loam.pcd");
+  loam_cloud_tgt_in_world_aligned.SaveCombined(filename_align, "loam.pcd");
 }
 
 MultiScanRegistration::MultiScanRegistration(
