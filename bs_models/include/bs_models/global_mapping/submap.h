@@ -205,7 +205,7 @@ public:
    * @brief check if submap time is within some range of another timestamp
    * @param time query time
    * @param tolerance max time difference for this to return true
-   * @return true if query time difference is within some tolorance
+   * @return true if query time difference is within some tolerance
    */
   bool Near(const ros::Time& time, const double tolerance) const;
 
