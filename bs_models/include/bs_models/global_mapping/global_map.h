@@ -44,26 +44,25 @@ public:
    * file.
    */
   struct Params {
-    /** constructor to make sure covariances are set */
-    Params();
-
     /** Max linear distance between poses in a submap */
     double submap_size{10};
 
     /** Full path to config file for loop closure candidate search. If blank, it
      * will use default parameters.*/
-    std::string loop_closure_candidate_search_config{""};
+    std::string loop_closure_candidate_search_config;
 
     /** Full path to config file for loop closure refinement. If blank, it will
      * use default parameters.*/
-    std::string loop_closure_refinement_config{""};
+    std::string loop_closure_refinement_config;
 
     /** covariance matrix from binary factors between scan poses which are added
      * from the local mapper results*/
-    Eigen::Matrix<double, 6, 6> local_mapper_covariance;
+    Eigen::Matrix<double, 6, 6> local_mapper_covariance{
+        Eigen::Matrix<double, 6, 6>::Identity() * 1e-3};
 
     /** covariance matrix from binary factors between loop closures */
-    Eigen::Matrix<double, 6, 6> loop_closure_covariance;
+    Eigen::Matrix<double, 6, 6> loop_closure_covariance{
+        Eigen::Matrix<double, 6, 6>::Identity() * 1e-5};
 
     /* Output filters to apply to lidar submaps before adding them to the Ros
      * maps list */
@@ -132,10 +131,23 @@ public:
   ~GlobalMap() = default;
 
   /**
+   * @brief setup general things needed when class is instantiated, such as
+   * initiating the loop closure pointers
+   */
+  void Setup();
+
+  /**
    * @brief get access to the submaps (see variable below for definition)
    * @return vector of pointers to the submaps stored in this global map
    */
   std::vector<SubmapPtr> GetSubmaps();
+
+  /**
+   * @brief Get reference to params. NOTE: if changing this, make sure to call
+   * Setup() so the global map can re-initialize with the new params
+   *
+   */
+  Params& GetParamsMutable();
 
   /**
    * @brief set the submaps vector
@@ -217,12 +229,20 @@ public:
                          const ros::Time& update_time = ros::Time(0));
 
   /**
-   * @brief Calling this will trigger a loop closure (reloc) search for the last
-   * submap. This is convenient for completing a mapping session where the final
-   * submap won't be complete so we wouldn't have run reloc on it.
-   * @return transaction with new variables and constraints if applicable
+   * @brief Get loop closure measurements by comparing the a submap to
+   * all previous submaps. By default, every new submap will trigger a loop
+   * closure for the second last submap. The reason we compare the second last
+   * submap is because we don't want to find loop closures until the submap is
+   * complete, this ensures a best estimate of the loop closure constraint. When
+   * a global map is complete, you should trigger loop closure against the last
+   * submap which probably still isn't complete. Note that loop closure uses
+   * reloc under the hood to find the candidate submaps and refined poses
+   * @param query_index index of submap to look for loop closures against. If
+   * not set, then we will try to run on the last submap
+   * @return fuse transaction with the frame to frame constraints between two
+   * loop closure poses
    */
-  fuse_core::Transaction::SharedPtr TriggerLoopClosure();
+  fuse_core::Transaction::SharedPtr RunLoopClosure(int query_index = -1);
 
   /**
    * @brief Save full global map to a format that can be reloaded later for new
@@ -307,12 +327,6 @@ public:
 
 private:
   /**
-   * @brief setup general things needed when class is instantiated, such as
-   * initiating the loop closure pointer
-   */
-  void Setup();
-
-  /**
    * @brief Get the appropriate submap id that a new measurement should be added
    * to. This will NOT create a new submap if the current measurement is
    * outside the current submap range (since we need the pose and stamp to
@@ -332,21 +346,6 @@ private:
    * constraints between the previous submap and the new one
    */
   fuse_core::Transaction::SharedPtr InitiateNewSubmapPose();
-
-  /**
-   * @brief Get loop closure measurements by comparing the a submap to
-   * all previous submaps. By default, every new submap will trigger a loop
-   * closure for the second last submap. The reason we compare the second last
-   * submap is because we don't want to find loop closures until the submap is
-   * complete, this ensures a best estimate of the loop closure constraint. When
-   * a global map is complete, you should trigger loop closure against the last
-   * submap which probably still isn't complete. Note that loop closure uses
-   * reloc under the hood to find the candidate submaps and refined poses
-   * @param query_index index of submap to look for loop closures against
-   * @return fuse transaction with the frame to frame constraints between two
-   * loop closure poses
-   */
-  fuse_core::Transaction::SharedPtr RunLoopClosure(int query_index);
 
   /**
    * @brief adds submap points (lidar points and camera keypoints) to the queue

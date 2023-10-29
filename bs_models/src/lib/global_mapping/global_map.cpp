@@ -24,26 +24,39 @@ namespace bs_models { namespace global_mapping {
 
 using namespace reloc;
 
-GlobalMap::Params::Params() {
-  double local_map_cov_diag = 1e-3;
-  double loop_cov_diag = 1e-5;
+// GlobalMap::Params::Params() {
+//   double local_map_cov_diag = 1e-3;
+//   double loop_cov_diag = 1e-5;
 
-  // clang-format off
-  local_mapper_covariance << local_map_cov_diag, 0, 0, 0, 0, 0,
-                             0, local_map_cov_diag, 0, 0, 0, 0,
-                             0, 0, local_map_cov_diag, 0, 0, 0,
-                             0, 0, 0, local_map_cov_diag, 0, 0,
-                             0, 0, 0, 0, local_map_cov_diag, 0,
-                             0, 0, 0, 0, 0, local_map_cov_diag;
+//   // clang-format off
+//   local_mapper_covariance << local_map_cov_diag, 0, 0, 0, 0, 0,
+//                              0, local_map_cov_diag, 0, 0, 0, 0,
+//                              0, 0, local_map_cov_diag, 0, 0, 0,
+//                              0, 0, 0, local_map_cov_diag, 0, 0,
+//                              0, 0, 0, 0, local_map_cov_diag, 0,
+//                              0, 0, 0, 0, 0, local_map_cov_diag;
 
-  loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
-                      0, loop_cov_diag, 0, 0, 0, 0,
-                      0, 0, loop_cov_diag, 0, 0, 0,
-                      0, 0, 0, loop_cov_diag, 0, 0,
-                      0, 0, 0, 0, loop_cov_diag, 0,
-                      0, 0, 0, 0, 0, loop_cov_diag;
-  // clang-format on
-}
+//   loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
+//                       0, loop_cov_diag, 0, 0, 0, 0,
+//                       0, 0, loop_cov_diag, 0, 0, 0,
+//                       0, 0, 0, loop_cov_diag, 0, 0,
+//                       0, 0, 0, 0, loop_cov_diag, 0,
+//                       0, 0, 0, 0, 0, loop_cov_diag;
+//   // clang-format on
+//   submap_size = 10;
+// }
+
+// GlobalMap::Params::Params(const Params& params) {
+//   submap_size = params.submap_size;
+//   loop_closure_candidate_search_config =
+//       params.loop_closure_candidate_search_config;
+//   loop_closure_refinement_config = params.loop_closure_refinement_config;
+//   local_mapper_covariance = params.local_mapper_covariance;
+//   loop_closure_covariance = params.loop_closure_covariance;
+//   ros_submap_filter_params = params.ros_submap_filter_params;
+//   ros_globalmap_filter_params = params.ros_globalmap_filter_params;
+//   config_str = params.config_str;
+// }
 
 void GlobalMap::Params::LoadJson(const std::string& config_path) {
   if (config_path.empty()) {
@@ -200,6 +213,10 @@ std::vector<SubmapPtr> GlobalMap::GetSubmaps() {
   return submaps_;
 }
 
+GlobalMap::Params& GlobalMap::GetParamsMutable() {
+  return params_;
+}
+
 void GlobalMap::SetSubmaps(std::vector<SubmapPtr>& submaps) {
   submaps_ = submaps;
 }
@@ -345,12 +362,6 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   return new_transaction;
 }
 
-fuse_core::Transaction::SharedPtr GlobalMap::TriggerLoopClosure() {
-  if (submaps_.size() < 2) { return nullptr; }
-
-  return RunLoopClosure(submaps_.size() - 1);
-}
-
 int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // check if current pose is within "submap_size" from previous submap, or
   // current submap. We prioritize the previous submap for the case where data
@@ -423,7 +434,9 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
 
 fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   // if first submap, don't look for loop_closures
-  if (submaps_.size() == 1) { return nullptr; }
+  if (submaps_.size() < 2) { return nullptr; }
+
+  if (query_index == -1) { query_index = submaps_.size() - 1; }
 
   ROS_DEBUG("Searching for loop closure candidates");
 

@@ -1,3 +1,5 @@
+#include <filesystem>
+
 #include <gflags/gflags.h>
 
 #include <beam_utils/gflags.h>
@@ -13,14 +15,8 @@ DEFINE_string(
     "default in: "
     ".../beam_slam/beam_slam_launch/config/global_map/"
     "global_map_refinement.json");
-DEFINE_string(output_path, "", "Full path to output directory.");
+DEFINE_string(output_path, "", "Full path to output directory. ");
 DEFINE_validator(output_path, &beam::gflags::ValidateDirMustExist);
-DEFINE_bool(output_globalmap_data, true,
-            "Set to true to output all global map data so that it can be "
-            "re-loaded later.");
-DEFINE_bool(output_results, true,
-            "Set to true to output all results in an easily viewable form "
-            "including lidar maps, keypoint maps, and trajectories.");
 DEFINE_bool(run_submap_refinement, true,
             "Set to true to refine the submaps before running the pose graph "
             "optimization. This should always be set to true, but there are "
@@ -37,6 +33,14 @@ int main(int argc, char* argv[]) {
   bs_models::global_mapping::GlobalMapRefinement refinement(
       FLAGS_globalmap_dir, FLAGS_refinement_config);
 
+  std::string save_path =
+      beam::CombinePaths(FLAGS_output_path, "global_map_refined_results");
+  std::filesystem::remove_all(save_path);
+  std::filesystem::create_directory(save_path);
+  std::string global_map_data_path =
+      beam::CombinePaths(save_path, "GlobalMapData");
+  std::filesystem::create_directory(global_map_data_path);
+
   if (FLAGS_run_submap_refinement) {
     if (!refinement.RunSubmapRefinement()) {
       BEAM_ERROR("Submap refinement failed, exiting global map refinement.");
@@ -47,7 +51,10 @@ int main(int argc, char* argv[]) {
   }
 
   if (FLAGS_run_posegraph_optimization) {
-    if (!refinement.RunPoseGraphOptimization()) {
+    std::string lc_save_path =
+        beam::CombinePaths(save_path, "loop_closure_results");
+    std::filesystem::create_directory(lc_save_path);
+    if (!refinement.RunPoseGraphOptimization(lc_save_path)) {
       BEAM_ERROR(
           "Pose graph optimization failed, exiting global map refinement.");
       return 0;
@@ -58,25 +65,11 @@ int main(int argc, char* argv[]) {
 
   BEAM_INFO("Global map refinement completed successfully.");
 
-  std::string dateandtime =
-      beam::ConvertTimeToDate(std::chrono::system_clock::now());
+  BEAM_INFO("Outputting results to: {}", save_path);
+  refinement.SaveResults(save_path, true);
 
-  if (FLAGS_output_results) {
-    std::string save_path = beam::CombinePaths(
-        FLAGS_output_path, dateandtime + "_global_map_refined_results");
-    boost::filesystem::create_directory(save_path);
-    BEAM_INFO("Outputting results to: {}", save_path);
+  BEAM_INFO("Outputting global map data to: {}", global_map_data_path);
+  refinement.SaveGlobalMapData(global_map_data_path);
 
-    refinement.SaveResults(save_path, true);
-  }
-
-  if (FLAGS_output_globalmap_data) {
-    std::string save_path = beam::CombinePaths(
-        FLAGS_output_path, dateandtime + "_global_map_refined_data");
-    boost::filesystem::create_directory(save_path);
-
-    BEAM_INFO("Outputting global map data to: {}", save_path);
-    refinement.SaveGlobalMapData(save_path);
-  }
   return 0;
 }

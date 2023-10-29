@@ -75,30 +75,27 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
                                          const Params& params)
     : params_(params) {
-  Setup();
-
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
   global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-  submaps_ = global_map_->GetSubmaps();
+  BEAM_INFO("Done loading global map data");
+  Setup();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
                                          const std::string& config_path) {
   // load params & setup
   params_.LoadJson(config_path);
-  Setup();
 
   // load global map to get submaps
   BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
   global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-  submaps_ = global_map_->GetSubmaps();
+  Setup();
 }
 
 GlobalMapRefinement::GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
                                          const Params& params)
     : global_map_(global_map), params_(params) {
-  submaps_ = global_map_->GetSubmaps();
   Setup();
 }
 
@@ -106,24 +103,24 @@ GlobalMapRefinement::GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
                                          const std::string& config_path)
     : global_map_(global_map) {
   params_.LoadJson(config_path);
-  submaps_ = global_map_->GetSubmaps();
   Setup();
 }
 
 void GlobalMapRefinement::Setup() {
-  // initiate reloc candidate search
-  loop_closure_candidate_search_ = reloc::RelocCandidateSearchBase::Create(
-      params_.loop_closure.candidate_search_config);
-
-  // initiate reloc refinement
-  loop_closure_refinement_ = reloc::RelocRefinementBase::Create(
-      params_.loop_closure.refinement_config);
+  // set reloc params in global map which is where the reloc gets performed
+  GlobalMap::Params& global_map_params = global_map_->GetParamsMutable();
+  global_map_params.loop_closure_candidate_search_config =
+      params_.loop_closure.candidate_search_config;
+  global_map_params.loop_closure_refinement_config =
+      params_.loop_closure.refinement_config;
+  global_map_->Setup();
 }
 
 bool GlobalMapRefinement::RunSubmapRefinement() {
-  for (uint16_t i = 0; i < submaps_.size(); i++) {
-    BEAM_INFO("Refining submap No. {}", static_cast<int>(i));
-    if (!RefineSubmap(submaps_.at(i))) {
+  std::vector<SubmapPtr> submaps = global_map_->GetSubmaps();
+  for (uint16_t i = 0; i < submaps.size(); i++) {
+    BEAM_INFO("Refining submap No. {}", i);
+    if (!RefineSubmap(submaps.at(i))) {
       BEAM_ERROR("Submap refinement failed, exiting.");
       return false;
     }
@@ -177,9 +174,20 @@ bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap) {
   return true;
 }
 
-bool GlobalMapRefinement::RunPoseGraphOptimization() {
-  // TODO
-  BEAM_ERROR("PGO NOT YET IMPLEMENTED");
+bool GlobalMapRefinement::RunPoseGraphOptimization(
+    const std::string& output_path) {
+  global_map_->SetLoopClosureResultsPath(output_path);
+  size_t num_submaps = global_map_->GetSubmaps().size();
+  if (num_submaps <= pgo_skip_first_n_submaps_) {
+    BEAM_ERROR("Global map size {} not large enough to run PGO, must have at "
+               "least {} submaps",
+               num_submaps, pgo_skip_first_n_submaps_);
+  }
+  BEAM_INFO("Running pose-graph optimization on submaps");
+  for (int i = pgo_skip_first_n_submaps_; i < num_submaps - 1; i++) {
+    global_map_->RunLoopClosure(i);
+  }
+
   return true;
 }
 

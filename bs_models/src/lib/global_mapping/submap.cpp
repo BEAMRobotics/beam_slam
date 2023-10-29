@@ -327,8 +327,6 @@ void Submap::SaveLidarMapInWorldFrame(const std::string& filename,
             error_message)) {
       BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
     }
-
-    BEAM_INFO("Done saving submap.");
   }
 }
 

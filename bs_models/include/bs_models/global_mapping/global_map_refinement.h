@@ -125,9 +125,10 @@ public:
   bool RunSubmapRefinement();
 
   /**
-   * @brief TODO
+   * @brief calls loop closure on the submaps using the global map
+   * @param output_path save results to this path
    */
-  bool RunPoseGraphOptimization();
+  bool RunPoseGraphOptimization(const std::string& output_path);
 
   /**
    * @brief save results to a easily viewable format (i.e., pcd maps, poses,
@@ -161,11 +162,14 @@ private:
 
   Params params_;
   std::shared_ptr<GlobalMap> global_map_;
-  std::vector<SubmapPtr> submaps_;
 
   // PGO:
-  std::shared_ptr<reloc::RelocCandidateSearchBase> loop_closure_candidate_search_;
+  std::shared_ptr<reloc::RelocCandidateSearchBase>
+      loop_closure_candidate_search_;
   std::shared_ptr<reloc::RelocRefinementBase> loop_closure_refinement_;
+
+  // params only tunable here
+  int pgo_skip_first_n_submaps_{3};
 };
 
 }} // namespace bs_models::global_mapping

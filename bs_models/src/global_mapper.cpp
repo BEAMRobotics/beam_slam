@@ -167,7 +167,7 @@ void GlobalMapper::onStop() {
     // called
     BEAM_INFO("Running final loop closure");
     fuse_core::Transaction::SharedPtr transaction_ptr =
-        global_map_->TriggerLoopClosure();
+        global_map_->RunLoopClosure();
     if (transaction_ptr) {
       BEAM_INFO("Found {} loop closures. Updating map.",
                 bs_common::GetNumberOfConstraints(transaction_ptr));
