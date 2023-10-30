@@ -43,7 +43,8 @@ public:
       const global_mapping::SubmapPtr& query_submap,
       std::vector<int>& matched_indices,
       std::vector<Eigen::Matrix4d, beam::AlignMat4d>& Ts_Candidate_Query,
-      size_t ignore_last_n_submaps, bool use_initial_poses = false) = 0;
+      size_t ignore_last_n_submaps, bool use_initial_poses = false,
+      const std::string& output_path = "") = 0;
 
   /**
    * @brief Factory method to create a object at runtime given a config file

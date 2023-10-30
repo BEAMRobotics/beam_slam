@@ -401,7 +401,8 @@ private:
 
   /** Update this will SetLoopClosureResultsPath(). If this is set, then we will
    * output the loop closure results to this folder */
-  std::string loop_closure_results_path_;
+  std::string lc_results_path_refinement_;
+  std::string lc_results_path_candidate_search_;
 
   std::shared_ptr<bs_common::ExtrinsicsLookupBase> extrinsics_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;

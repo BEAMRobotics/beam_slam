@@ -53,7 +53,8 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
     const global_mapping::SubmapPtr& query_submap,
     std::vector<int>& matched_indices,
     std::vector<Eigen::Matrix4d, beam::AlignMat4d>& Ts_Candidate_Query,
-    size_t ignore_last_n_submaps, bool use_initial_poses) {
+    size_t ignore_last_n_submaps, bool use_initial_poses,
+    const std::string& output_path) {
   if (search_submaps.size() <= ignore_last_n_submaps) { return; }
 
   const Eigen::Matrix4d& T_WORLD_QUERY = query_submap->T_WORLD_SUBMAP();
@@ -83,6 +84,8 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
     matched_indices.push_back(iter->second.first);
     Ts_Candidate_Query.push_back(iter->second.second);
   }
+
+  // todo: output results
 }
 
 } // namespace bs_models::reloc
