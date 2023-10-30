@@ -49,6 +49,13 @@ public:
     getParam<bool>(nh, "use_standalone_vo", use_standalone_vo,
                    use_standalone_vo);
 
+    if (use_standalone_vo) {
+      getParam<double>(nh, "odom_information_weight", odom_information_weight,
+                       odom_information_weight);
+      odom_covariance_weight =
+          1 / (odom_information_weight * odom_information_weight);
+    }
+
     // send a trigger to IO to set IMU relative state constraint
     getParam<bool>(nh, "trigger_inertial_odom_constraints",
                    trigger_inertial_odom_constraints,
@@ -112,6 +119,8 @@ public:
   double max_triangulation_distance{30.0};
   double max_triangulation_reprojection{80.0};
   double prior_information_weight{0};
+  double odom_information_weight{1.0};
+  double odom_covariance_weight;
   fuse_core::Loss::SharedPtr reprojection_loss;
 };
 }} // namespace bs_parameters::models

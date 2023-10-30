@@ -377,22 +377,50 @@ void InertialOdometry::BreakupConstraint(
   // add zero motion constraint if need be
   if (std::abs((new_trigger_time - constraint_data.start_time).toSec()) <
       0.05) {
-    bs_common::ImuState new_state(new_trigger_time);
-    bs_common::ImuState start_state(constraint_data.start_time);
-    auto zero_motion_transaction = fuse_core::Transaction::make_shared();
-    zero_motion_transaction->stamp(new_trigger_time + ros::Duration(1e-5));
-    bs_common::AddZeroMotionFactor("IO", start_state, new_state,
-                                   zero_motion_transaction);
-    transaction->merge(*zero_motion_transaction);
+    auto maybe_start_state = bs_common::GetImuState(*most_recent_graph_msg_,
+                                                    constraint_data.start_time);
+    if (maybe_start_state) {
+      auto start_state = maybe_start_state.value();
+      bs_common::ImuState new_state(new_trigger_time);
+      new_state.SetPosition(start_state.PositionVec());
+      new_state.SetOrientation(start_state.OrientationQuat());
+      new_state.SetVelocity(start_state.VelocityVec());
+      new_state.SetGyroBias(start_state.GyroBiasVec());
+      new_state.SetAccelBias(start_state.AccelBiasVec());
+
+      auto zero_motion_transaction = fuse_core::Transaction::make_shared();
+      zero_motion_transaction->stamp(new_trigger_time + ros::Duration(1e-5));
+      bs_common::AddZeroMotionFactor("IO", start_state, new_state,
+                                     zero_motion_transaction);
+      transaction->merge(*zero_motion_transaction);
+    } else {
+      BEAM_ERROR("Cannot retrive IMU state at time {}, not able to add zero "
+                 "motion constraint.",
+                 bs_common::ToString(constraint_data.start_time));
+    }
   } else if (std::abs((new_trigger_time - constraint_data.end_time).toSec()) <
              0.05) {
-    bs_common::ImuState new_state(new_trigger_time);
-    bs_common::ImuState end_state(constraint_data.end_time);
-    auto zero_motion_transaction = fuse_core::Transaction::make_shared();
-    zero_motion_transaction->stamp(new_trigger_time + ros::Duration(1e-5));
-    bs_common::AddZeroMotionFactor("IO", new_state, end_state,
-                                   zero_motion_transaction);
-    transaction->merge(*zero_motion_transaction);
+    auto maybe_end_state = bs_common::GetImuState(*most_recent_graph_msg_,
+                                                  constraint_data.end_time);
+    if (maybe_end_state) {
+      auto end_state = maybe_end_state.value();
+      bs_common::ImuState new_state(new_trigger_time);
+      new_state.SetPosition(end_state.PositionVec());
+      new_state.SetOrientation(end_state.OrientationQuat());
+      new_state.SetVelocity(end_state.VelocityVec());
+      new_state.SetGyroBias(end_state.GyroBiasVec());
+      new_state.SetAccelBias(end_state.AccelBiasVec());
+
+      auto zero_motion_transaction = fuse_core::Transaction::make_shared();
+      zero_motion_transaction->stamp(new_trigger_time + ros::Duration(1e-5));
+      bs_common::AddZeroMotionFactor("IO", new_state, end_state,
+                                     zero_motion_transaction);
+      transaction->merge(*zero_motion_transaction);
+    } else {
+      BEAM_ERROR("Cannot retrive IMU state at time {}, not able to add zero "
+                 "motion constraint.",
+                 bs_common::ToString(constraint_data.end_time));
+    }
   }
 
   // only remove original if both are successful

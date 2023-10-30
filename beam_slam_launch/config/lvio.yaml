@@ -66,6 +66,7 @@ visual_odometry:
   trigger_inertial_odom_constraints: true
   reprojection_information_weight: 1.0
   use_standalone_vo: true
+  odom_information_weight: 1.0
 
 gravity_alignment:
   imu_topic: "/imu/data"
