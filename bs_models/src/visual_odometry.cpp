@@ -253,7 +253,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         "Not enough points for visual refinement: " << pixels.size());
     T_WORLD_BASELINK = T_WORLD_BASELINKcur;
     track_lost = true;
-    covariance = 1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
+    covariance = 1e-2 * Eigen::Matrix<double, 6, 6>::Identity();
   }
 
   return true;
@@ -276,8 +276,13 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
   if (vo_params_.use_standalone_vo) {
     // add relative pose constraint to the transaction using the imu estimate
     // and a manually tuned covariance
+    Eigen::Matrix3d q_imu_cov = 1e-4 * Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d p_imu_cov = 1e-2 * Eigen::Matrix3d::Identity();
     Eigen::Matrix<double, 6, 6> imu_covariance =
-        1e-4 * Eigen::Matrix<double, 6, 6>::Identity();
+        Eigen::Matrix<double, 6, 6>::Identity();
+    imu_covariance.block<3, 3>(0, 0) = p_imu_cov;
+    imu_covariance.block<3, 3>(3, 3) = q_imu_cov;
+
     visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
                                            keyframe_imu_delta_, imu_covariance,
                                            transaction);
