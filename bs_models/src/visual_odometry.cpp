@@ -112,9 +112,8 @@ void VisualOdometry::processMeasurements(
   AddMeasurementsToContainer(msg);
 
   // buffer the message
-  buffer_mutex_.lock();
+  std::unique_lock<std::mutex> lk(buffer_mutex_);
   visual_measurement_buffer_.push_back(msg);
-  buffer_mutex_.unlock();
 
   // don't process until we have initialized
   if (!is_initialized_) { return; }
@@ -226,16 +225,12 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
         T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
 
-    // add a prior on the initial imu estimate
-    Eigen::Matrix<double, 6, 6> prior =
-        1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
-
     // perform non-linear pose refinement
     std::shared_ptr<Eigen::Matrix<double, 6, 6>> out_covariance =
         std::make_shared<Eigen::Matrix<double, 6, 6>>();
-    Eigen::Matrix4d T_CAMERA_WORLD_ref = pose_refiner_->RefinePose(
-        T_CAMERA_WORLD_est, cam_model_, pixels, points,
-        std::make_shared<Eigen::Matrix<double, 6, 6>>(prior), out_covariance);
+    Eigen::Matrix4d T_CAMERA_WORLD_ref =
+        pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels,
+                                  points, nullptr, out_covariance);
 
     // reorder covariance to be x, y, z, roll, pitch, yaw
     covariance.block<3, 3>(0, 0) = out_covariance->block<3, 3>(3, 3);
@@ -282,7 +277,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
     // add relative pose constraint to the transaction using the imu estimate
     // and a manually tuned covariance
     Eigen::Matrix<double, 6, 6> imu_covariance =
-        Eigen::Matrix<double, 6, 6>::Identity();
+        1e-4 * Eigen::Matrix<double, 6, 6>::Identity();
     visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
                                            keyframe_imu_delta_, imu_covariance,
                                            transaction);
@@ -595,6 +590,7 @@ void VisualOdometry::PublishPose(const ros::Time& timestamp,
 }
 
 void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
+  std::unique_lock<std::mutex> lk(buffer_mutex_);
   const auto timestamps = bs_common::CurrentTimestamps(*graph);
   const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(*graph);
   if (current_landmark_ids.empty()) {
@@ -603,7 +599,6 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
     throw std::runtime_error{"Cannot use Visual Odometry without "
                              "initializing with visual information."};
   }
-  buffer_mutex_.lock();
 
   if (vo_params_.use_standalone_vo) {
     local_graph_ = std::move(graph->clone());
@@ -657,8 +652,6 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
     if (!ComputeOdometryAndExtendMap(msg)) { break; }
     visual_measurement_buffer_.pop_front();
   }
-
-  buffer_mutex_.unlock();
 
   is_initialized_ = true;
 }

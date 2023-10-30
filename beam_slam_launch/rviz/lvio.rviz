@@ -7,7 +7,6 @@ Panels:
         - /IO1/Shape1
         - /VO1/Shape1
         - /LO1/Shape1
-        - /CameraLandmarks1
       Splitter Ratio: 0.5
     Tree Height: 261
   - Class: rviz/Selection
@@ -27,7 +26,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Image
   - Class: graph_rviz_plugin/Line graph
     Name: Line graph
     export_directory: ""
@@ -147,7 +146,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: false
-      Enabled: true
+      Enabled: false
       Keep: 0
       Name: IO
       Position Tolerance: 0.10000000149011612
@@ -164,7 +163,7 @@ Visualization Manager:
         Value: Axes
       Topic: /local_mapper/inertial_odometry/odometry
       Unreliable: false
-      Value: true
+      Value: false
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -364,7 +363,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 24.055862426757812
+      Distance: 21.169158935546875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -372,17 +371,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 4.964203357696533
-        Y: -10.383818626403809
-        Z: -1.3021905422210693
+        X: 4.429429531097412
+        Y: -9.21304988861084
+        Z: -1.339835524559021
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8602035045623779
+      Pitch: 1.3652031421661377
       Target Frame: <Fixed Frame>
-      Yaw: 0.5717151165008545
+      Yaw: 0.41671526432037354
     Saved: ~
 Window Geometry:
   Displays:

@@ -116,7 +116,7 @@ void RelocCandidateSearchScanContext::FindRelocCandidates(
   std::map<float, MatchPair> sc_dist_to_match_pair;
   for (const auto& [distance, submap_id] : initial_candidates_sorted) {
     SCManager sc_manager;
-    sc_manager.SC_DIST_THRES = scan_context_dist_thres_;
+    //sc_manager.SC_DIST_THRES = scan_context_dist_thres_;
 
     // iterate through scans in candidate submap and build a scan context
     // database

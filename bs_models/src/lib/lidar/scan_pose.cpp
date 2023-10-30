@@ -274,8 +274,7 @@ void ScanPose::SaveData(const std::string& output_dir) const {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 
-  loampointcloud_.SaveCombined(output_dir, "loam_cloud.pcd", 255, 255, 255,
-                               false);
+  loampointcloud_.SaveCombined(output_dir, "loam_cloud.pcd", 255, 255, 255);
 }
 
 bool ScanPose::LoadData(const std::string& root_dir) {

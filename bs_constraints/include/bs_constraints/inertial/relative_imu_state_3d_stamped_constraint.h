@@ -81,6 +81,16 @@ public:
    */
   Eigen::Matrix4d getRelativePose() const;
 
+  /**
+   * @brief get time of first state
+   */
+  ros::Time GetTime1() { return imu_state_i_.Stamp(); }
+
+  /**
+   * @brief get time of second state
+   */
+  ros::Time GetTime2() { return imu_state_j_.Stamp(); }
+
 protected:
   bs_common::ImuState imu_state_i_;
   bs_common::ImuState imu_state_j_;

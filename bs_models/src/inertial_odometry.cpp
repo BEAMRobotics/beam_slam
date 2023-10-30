@@ -160,6 +160,9 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
+  // todo: if break constraint fails to add a zero motion constraint its bc the
+  // todo: graph isnt updated yet, in this case we want to wait (i.e. we buffer time
+  // todo: triggers)
   std::unique_lock<std::mutex> lk(mutex_);
   if (!initialized_) { return; }
   const ros::Time& time(msg->data);
@@ -168,8 +171,9 @@ void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
     return;
   } else if (time > last_constraint_time) {
     auto trans = imu_preint_->RegisterNewImuPreintegratedFactor(time);
-    trans->stamp(time + ros::Duration(1e-5));
     if (!trans) { return; }
+
+    trans->stamp(time + ros::Duration(1e-5));
     sendTransaction(trans);
     auto added_constraints_range = trans->addedConstraints();
     // check that only one was added
@@ -216,11 +220,11 @@ void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
 void InertialOdometry::onGraphUpdate(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
   std::unique_lock<std::mutex> lk(mutex_);
+  most_recent_graph_msg_ = graph_msg;
   if (!initialized_) {
     Initialize(graph_msg);
     return;
   }
-  most_recent_graph_msg_ = graph_msg;
   imu_preint_->UpdateGraph(graph_msg);
 }
 
@@ -301,7 +305,15 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
     prev_stamp_ = imu_stamp;
   }
 
-  imu_buffer_.ClearImuMsgs();
+  // add existing constraints to imu buffer
+  for (auto& c : graph_msg->getConstraints()) {
+    if (c.type() == "bs_constraints::RelativeImuState3DStampedConstraint") {
+      auto imu_constraint = dynamic_cast<
+          const bs_constraints::RelativeImuState3DStampedConstraint&>(c);
+      imu_buffer_.AddConstraint(imu_constraint.GetTime1(),
+                                imu_constraint.GetTime2(), c.uuid());
+    }
+  }
 
   initialized_ = true;
 }
