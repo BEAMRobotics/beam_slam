@@ -113,6 +113,7 @@ private:
 
   // params that can only be set here:
   int max_output_map_size_{3000000}; // limits output size of lidar maps
+  bool trigger_loop_closure_on_stop_{false};
 
   //   store a pointer to a graph for running the PGO
   std::shared_ptr<fuse_graphs::HashGraph> graph_;

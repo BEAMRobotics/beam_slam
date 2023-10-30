@@ -138,11 +138,16 @@ public:
    */
   std::string DescriptorType() const;
 
+  /**
+   * @brief get access to const& of lidar keyframes
+   */
+  const std::map<uint64_t, ScanPose>& LidarKeyframes() const;
+
   /*--------------------------------/
               ITERATORS
   /--------------------------------*/
   /**
-   * @brief get an iterator to the begining of the lidar keyframes map
+   * @brief get an iterator to the beginning of the lidar keyframes map
    */
   std::map<uint64_t, ScanPose>::iterator LidarKeyframesBegin();
 
@@ -152,7 +157,7 @@ public:
   std::map<uint64_t, ScanPose>::iterator LidarKeyframesEnd();
 
   /**
-   * @brief get an iterator to the begining of the camera keyframes map
+   * @brief get an iterator to the beginning of the camera keyframes map
    */
   std::map<uint64_t, Eigen::Matrix4d>::iterator CameraKeyframesBegin();
 
@@ -162,7 +167,7 @@ public:
   std::map<uint64_t, Eigen::Matrix4d>::iterator CameraKeyframesEnd();
 
   /**
-   * @brief get an iterator to the begining of the subframes map
+   * @brief get an iterator to the beginning of the subframes map
    */
   std::map<uint64_t, std::vector<PoseStamped>>::iterator SubframesBegin();
 
@@ -172,7 +177,7 @@ public:
   std::map<uint64_t, std::vector<PoseStamped>>::iterator SubframesEnd();
 
   /**
-   * @brief get an iterator to the begining of the landmarks measurement
+   * @brief get an iterator to the beginning of the landmarks measurement
    * container
    */
   beam_containers::landmark_container_iterator LandmarksBegin();
@@ -200,7 +205,7 @@ public:
    * @brief check if submap time is within some range of another timestamp
    * @param time query time
    * @param tolerance max time difference for this to return true
-   * @return true if query time difference is within some tolorance
+   * @return true if query time difference is within some tolerance
    */
   bool Near(const ros::Time& time, const double tolerance) const;
 
@@ -259,8 +264,8 @@ public:
    * @brief add a set of trajectory measurements associated with some lidar or
    * image keyframe
    * @param poses set of poses relative to the keyframe (T_KEYFRAME_FRAME)
-   * describing the trajectory between some less freqent measurement (i.e. lidar
-   * or camera). Note that keyframe and frame are both baselink frames.
+   * describing the trajectory between some less frequent measurement (i.e.
+   * lidar or camera). Note that keyframe and frame are both baselink frames.
    * @param stamps set of time stamps associated with the poses above
    * @param stamp stamp associated with the keyframe that this trajectory is
    * attached to
@@ -476,7 +481,8 @@ private:
   std::map<uint64_t, Eigen::Vector3d> landmark_positions_;    // <id, position>
   std::map<uint64_t, cv::Mat> keyframe_images_;               // <time, image>
   beam_containers::LandmarkContainer landmarks_;
-  const std::string descriptor_type_{"ORB"}; // see beam_cv/descriptors/Descriptor.h
+  const std::string descriptor_type_{
+      "ORB"}; // see beam_cv/descriptors/Descriptor.h
 
   // subframe trajectory measurements, where poses are T_KEYFRAME_FRAME
   std::map<uint64_t, std::vector<PoseStamped>> subframe_poses_;

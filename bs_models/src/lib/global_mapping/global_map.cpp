@@ -24,26 +24,39 @@ namespace bs_models { namespace global_mapping {
 
 using namespace reloc;
 
-GlobalMap::Params::Params() {
-  double local_map_cov_diag = 1e-3;
-  double loop_cov_diag = 1e-5;
+// GlobalMap::Params::Params() {
+//   double local_map_cov_diag = 1e-3;
+//   double loop_cov_diag = 1e-5;
 
-  // clang-format off
-  local_mapper_covariance << local_map_cov_diag, 0, 0, 0, 0, 0,
-                             0, local_map_cov_diag, 0, 0, 0, 0,
-                             0, 0, local_map_cov_diag, 0, 0, 0,
-                             0, 0, 0, local_map_cov_diag, 0, 0,
-                             0, 0, 0, 0, local_map_cov_diag, 0,
-                             0, 0, 0, 0, 0, local_map_cov_diag;
+//   // clang-format off
+//   local_mapper_covariance << local_map_cov_diag, 0, 0, 0, 0, 0,
+//                              0, local_map_cov_diag, 0, 0, 0, 0,
+//                              0, 0, local_map_cov_diag, 0, 0, 0,
+//                              0, 0, 0, local_map_cov_diag, 0, 0,
+//                              0, 0, 0, 0, local_map_cov_diag, 0,
+//                              0, 0, 0, 0, 0, local_map_cov_diag;
 
-  loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
-                      0, loop_cov_diag, 0, 0, 0, 0,
-                      0, 0, loop_cov_diag, 0, 0, 0,
-                      0, 0, 0, loop_cov_diag, 0, 0,
-                      0, 0, 0, 0, loop_cov_diag, 0,
-                      0, 0, 0, 0, 0, loop_cov_diag;
-  // clang-format on
-}
+//   loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
+//                       0, loop_cov_diag, 0, 0, 0, 0,
+//                       0, 0, loop_cov_diag, 0, 0, 0,
+//                       0, 0, 0, loop_cov_diag, 0, 0,
+//                       0, 0, 0, 0, loop_cov_diag, 0,
+//                       0, 0, 0, 0, 0, loop_cov_diag;
+//   // clang-format on
+//   submap_size = 10;
+// }
+
+// GlobalMap::Params::Params(const Params& params) {
+//   submap_size = params.submap_size;
+//   loop_closure_candidate_search_config =
+//       params.loop_closure_candidate_search_config;
+//   loop_closure_refinement_config = params.loop_closure_refinement_config;
+//   local_mapper_covariance = params.local_mapper_covariance;
+//   loop_closure_covariance = params.loop_closure_covariance;
+//   ros_submap_filter_params = params.ros_submap_filter_params;
+//   ros_globalmap_filter_params = params.ros_globalmap_filter_params;
+//   config_str = params.config_str;
+// }
 
 void GlobalMap::Params::LoadJson(const std::string& config_path) {
   if (config_path.empty()) {
@@ -200,6 +213,10 @@ std::vector<SubmapPtr> GlobalMap::GetSubmaps() {
   return submaps_;
 }
 
+GlobalMap::Params& GlobalMap::GetParamsMutable() {
+  return params_;
+}
+
 void GlobalMap::SetSubmaps(std::vector<SubmapPtr>& submaps) {
   submaps_ = submaps;
 }
@@ -217,7 +234,15 @@ void GlobalMap::SetStoreUpdatedGlobalMap(bool store_updated_global_map) {
 }
 
 void GlobalMap::SetLoopClosureResultsPath(const std::string& output_path) {
-  loop_closure_results_path_ = output_path;
+  if (!std::filesystem::exists(output_path)) {
+    BEAM_ERROR("Output path for loop closure does not exist: {}", output_path);
+    throw std::runtime_error{"invalid output path"};
+  }
+  lc_results_path_refinement_ = beam::CombinePaths(output_path, "refinement");
+  lc_results_path_candidate_search_ =
+      beam::CombinePaths(output_path, "candidate_search");
+  std::filesystem::create_directory(lc_results_path_refinement_);
+  std::filesystem::create_directory(lc_results_path_candidate_search_);
 }
 
 std::vector<std::shared_ptr<RosMap>> GlobalMap::GetRosMaps() {
@@ -345,12 +370,6 @@ fuse_core::Transaction::SharedPtr GlobalMap::AddMeasurement(
   return new_transaction;
 }
 
-fuse_core::Transaction::SharedPtr GlobalMap::TriggerLoopClosure() {
-  if (submaps_.size() < 2) { return nullptr; }
-
-  return RunLoopClosure(submaps_.size() - 1);
-}
-
 int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // check if current pose is within "submap_size" from previous submap, or
   // current submap. We prioritize the previous submap for the case where data
@@ -423,50 +442,58 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
 
 fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   // if first submap, don't look for loop_closures
-  if (submaps_.size() == 1) { return nullptr; }
+  if (submaps_.size() < 2) { return nullptr; }
+
+  int ignore_last_n_submaps;
+  if (query_index == -1) {
+    // this means we run on the last submap
+    query_index = submaps_.size() - 1;
+    ignore_last_n_submaps = 1;
+  } else {
+    // we ignore all submaps at the query index and after
+    ignore_last_n_submaps = submaps_.size() - query_index;
+  }
 
   ROS_DEBUG("Searching for loop closure candidates");
 
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
   // ignore the current empty submap, and the last full submap (the query)
-  static int ignore_last_n_submaps = 2;
+  static bool use_initial_poses = false;
   loop_closure_candidate_search_->FindRelocCandidates(
       submaps_, submaps_.at(query_index), matched_indices, Ts_MATCH_QUERY,
-      ignore_last_n_submaps);
-
-  // remove candidate if it is equal to the query submap, or one before
-  std::vector<int> matched_indices_filtered;
-  for (int i : matched_indices) {
-    if (i == query_index || i == query_index - 1) { continue; }
-    matched_indices_filtered.push_back(i);
+      ignore_last_n_submaps, use_initial_poses,
+      lc_results_path_candidate_search_);
+  std::string candidates;
+  for (const auto& id : matched_indices) {
+    candidates += std::to_string(id) + " ";
   }
+  if (matched_indices.size() == 0) { return nullptr; }
 
-  ROS_DEBUG("Found %zu loop closure candidates.",
-            matched_indices_filtered.size());
-
-  if (matched_indices_filtered.size() == 0) { return nullptr; }
+  ROS_INFO(
+      "Found %zu loop closure candidates for query index %d. Candidates: %s",
+      matched_indices.size(), query_index, candidates.c_str());
 
   ROS_DEBUG("Matched index[0]: %d, Query Index: %d, No. or submaps: %zu. "
             "Running loop "
             "closure refinement",
-            matched_indices_filtered.at(0), query_index, submaps_.size());
+            matched_indices.at(0), query_index, submaps_.size());
 
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
-  for (int i = 0; i < matched_indices_filtered.size(); i++) {
+  for (int i = 0; i < matched_indices.size(); i++) {
     // if the matched index is adjacent to the query index, ignore it. This
     // would happen from improper candidate search implementations
-    if (matched_indices_filtered[i] == query_index + 1 ||
-        matched_indices_filtered[i] == query_index - 1) {
+    if (matched_indices[i] == query_index + 1 ||
+        matched_indices[i] == query_index - 1) {
       continue;
     }
 
-    const auto& matched_submap = submaps_.at(matched_indices_filtered[i]);
+    const auto& matched_submap = submaps_.at(matched_indices[i]);
     const auto& query_submap = submaps_.at(query_index);
     RelocRefinementResults results = loop_closure_refinement_->RunRefinement(
         matched_submap, query_submap, Ts_MATCH_QUERY[i],
-        loop_closure_results_path_);
+        lc_results_path_refinement_);
 
     if (!results.successful) { continue; }
 
