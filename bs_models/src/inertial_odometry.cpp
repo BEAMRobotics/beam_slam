@@ -168,6 +168,7 @@ void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
     return;
   } else if (time > last_constraint_time) {
     auto trans = imu_preint_->RegisterNewImuPreintegratedFactor(time);
+    trans->stamp(time + ros::Duration(1e-5));
     if (!trans) { return; }
     sendTransaction(trans);
     auto added_constraints_range = trans->addedConstraints();

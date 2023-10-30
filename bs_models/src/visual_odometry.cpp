@@ -854,7 +854,7 @@ fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
       ComputeDelta(T_WORLD_BASELINKprevkf.value(), T_WORLD_BASELINKcurframe);
 
   // todo: compute weight on covariance using the information weight
-  Eigen::Matrix<double, 6, 6> weighted_cov = covariance;
+  Eigen::Matrix<double, 6, 6> weighted_cov = 1e-5 * covariance;
   visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp_curframe,
                                          delta_prevkf_curframe, weighted_cov,
                                          pose_transaction);

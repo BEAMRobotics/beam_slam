@@ -258,6 +258,7 @@ fuse_core::Transaction::SharedPtr
   }
 
   // generate prior constraint at start
+  transaction.AddImuStateVariables(imu_state_i_);
   if (first_window_ && add_prior_on_first_window_) {
     Eigen::Matrix<double, 15, 15> prior_covariance =
         params_.cov_prior_noise * Eigen::Matrix<double, 15, 15>::Identity();
@@ -265,7 +266,6 @@ fuse_core::Transaction::SharedPtr
     // Add relative constraints and variables for first key frame
     transaction.AddPriorImuStateConstraint(imu_state_i_, prior_covariance,
                                            "ImuPreintegration");
-    transaction.AddImuStateVariables(imu_state_i_);
     first_window_ = false;
   }
 
