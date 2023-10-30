@@ -64,7 +64,6 @@ visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
-  reprojection_information_weight: 1.0
   use_standalone_vo: true
   odom_information_weight: 1.0
 
