@@ -226,7 +226,22 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     ROS_INFO("received first graph update, initializing registration and "
              "starting lidar odometry");
     SetupRegistration();
+    const auto timestamps = bs_common::CurrentTimestamps(*graph_msg);
+    for (const auto& t : timestamps) {
+      auto maybe_p = bs_common::GetPosition(*graph_msg, t);
+      auto maybe_o = bs_common::GetOrientation(*graph_msg, t);
+      if (maybe_p && maybe_o) {
+        Eigen::Matrix4d T_WORLD_BASELINK =
+            bs_common::FusePoseToEigenTransform(*maybe_p, *maybe_o);
+        nav_msgs::Odometry odom_msg = bs_common::TransformToOdometryMessage(
+            t, odom_publisher_counter_, extrinsics_.GetWorldFrameId(),
+            extrinsics_.GetBaselinkFrameId(), T_WORLD_BASELINK);
+        odom_publisher_.publish(odom_msg);
+        odom_publisher_counter_++;
+      }
+    }
   }
+
   updates_++;
   PublishExtrinsics(graph_msg);
 
