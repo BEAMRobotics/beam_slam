@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include <beam_filtering/Utils.h>
 #include <beam_matching/Matchers.h>
 
 #include <bs_models/reloc/reloc_candidate_search_base.h>
@@ -54,6 +55,7 @@ private:
       GetTimesToAggregate(const std::map<uint64_t, ScanPose>& keyframes,
                           int center_id) const;
   std::string config_path_;
+  std::vector<beam_filtering::FilterParamsType> filters_;
   std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
   double submap_distance_threshold_m_;
   double scan_context_dist_thres_{0.3};

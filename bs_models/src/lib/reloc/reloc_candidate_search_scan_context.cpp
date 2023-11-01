@@ -37,7 +37,7 @@ void RelocCandidateSearchScanContext::LoadConfig() {
   bs_common::ValidateJsonKeysOrThrow(
       std::vector<std::string>{"type", "submap_distance_threshold_m",
                                "matcher_config", "scan_context_dist_thres",
-                               "num_scans_to_aggregate"},
+                               "num_scans_to_aggregate", "filters"},
       J);
   std::string type = J["type"];
   if (type != "SCANCONTEXT") {
@@ -50,6 +50,7 @@ void RelocCandidateSearchScanContext::LoadConfig() {
   submap_distance_threshold_m_ = J["submap_distance_threshold_m"];
   scan_context_dist_thres_ = J["scan_context_dist_thres"];
   num_scans_to_aggregate_ = J["num_scans_to_aggregate"];
+  filters_ = beam_filtering::LoadFilterParamsVector(J["filters"]);
 
   std::string matcher_config_rel = J["matcher_config"];
   if (matcher_config_rel.empty()) {
@@ -116,7 +117,7 @@ void RelocCandidateSearchScanContext::FindRelocCandidates(
   std::map<float, MatchPair> sc_dist_to_match_pair;
   for (const auto& [distance, submap_id] : initial_candidates_sorted) {
     SCManager sc_manager;
-    //sc_manager.SC_DIST_THRES = scan_context_dist_thres_;
+    sc_manager.SC_DIST_THRES = scan_context_dist_thres_;
 
     // iterate through scans in candidate submap and build a scan context
     // database
@@ -133,11 +134,13 @@ void RelocCandidateSearchScanContext::FindRelocCandidates(
       const auto& query_scan = query_submap_scans.at(query_scan_id);
       std::pair<int, float> candidate_scan_id_and_dist =
           sc_manager.detectLoopClosureID(*query_scan, 0);
+      if (candidate_scan_id_and_dist.first == -1) { continue; }
       MatchPair match_pair;
       match_pair.candidate_submap_id = submap_id;
       match_pair.candidate_scan_id = candidate_scan_id_and_dist.first;
       match_pair.query_scan_id = query_scan_id;
-      match_pair.candidate_scan = query_scan;
+      match_pair.candidate_scan =
+          candidate_submap_scans.at(candidate_scan_id_and_dist.first);
       sc_dist_to_match_pair.emplace(candidate_scan_id_and_dist.second,
                                     match_pair);
     }
@@ -158,8 +161,7 @@ void RelocCandidateSearchScanContext::FindRelocCandidates(
                           : best_submap_match->T_WORLD_SUBMAP();
 
     const auto& scan_candidate = best_match.candidate_scan;
-    const auto& scan_query =
-        query_submap_scans.at(best_match.candidate_scan_id);
+    const auto& scan_query = query_submap_scans.at(best_match.query_scan_id);
 
     auto scan_pose_candidate_iter = best_submap_match->LidarKeyframesBegin();
     std::advance(scan_pose_candidate_iter, best_match.candidate_scan_id);
@@ -170,6 +172,10 @@ void RelocCandidateSearchScanContext::FindRelocCandidates(
     std::advance(scan_pose_query_iter, best_match.query_scan_id);
     auto T_SubmapQuery_Lidar = scan_pose_query_iter->second.T_REFFRAME_LIDAR();
 
+    BEAM_INFO("Aligning aggregate scans between query submap with timestamp {} "
+              "and candidate submap with timestamp {}",
+              std::to_string(query_submap->Stamp().toSec()),
+              std::to_string(best_submap_match->Stamp().toSec()));
     auto maybeT_Candidate_Query = AlignSubmapsFromScanMatches(
         scan_candidate, scan_query, T_SubmapCandidate_Lidar,
         T_SubmapQuery_Lidar, T_World_MatchSubmap, T_World_QuerySubmap,
@@ -199,22 +205,32 @@ std::optional<Eigen::Matrix4d>
   Eigen::Matrix4d T_CandidateSubmapEst_QuerySubmap =
       beam::InvertTransform(T_World_CandidateSubmap) * T_World_QuerySubmap;
 
+  // convert to PointCloud
+  PointCloud scan_candidate_converted;
+  pcl::copyPointCloud(*scan_candidate, scan_candidate_converted);
+  PointCloud scan_query_converted;
+  pcl::copyPointCloud(*scan_query, scan_query_converted);
+
+  // filter clouds
+  PointCloud scan_candidate_filtered =
+      beam_filtering::FilterPointCloud<pcl::PointXYZ>(scan_candidate_converted,
+                                                      filters_);
+  PointCloud scan_query_filtered =
+      beam_filtering::FilterPointCloud<pcl::PointXYZ>(scan_query_converted,
+                                                      filters_);
+
   // transform candidate scan into candidate submap frame
   PointCloudPtr candidate_in_candidate_submap_frame =
       std::make_shared<PointCloud>();
-  PointCloud scan_candidate_converted;
-  pcl::copyPointCloud(*scan_candidate, scan_candidate_converted);
-  pcl::transformPointCloud(scan_candidate_converted,
+  pcl::transformPointCloud(scan_candidate_filtered,
                            *candidate_in_candidate_submap_frame,
                            Eigen::Affine3d(T_SubmapCandidate_Lidar));
 
   // transform query scan into candidate submap frame
   PointCloudPtr query_in_candidate_submap_frame =
       std::make_shared<PointCloud>();
-  PointCloud scan_query_converted;
-  pcl::copyPointCloud(*scan_query, scan_query_converted);
   pcl::transformPointCloud(
-      scan_query_converted, *query_in_candidate_submap_frame,
+      scan_query_filtered, *query_in_candidate_submap_frame,
       Eigen::Affine3d(T_CandidateSubmapEst_QuerySubmap * T_SubmapQuery_Lidar));
 
   // align to get transform between them
@@ -223,7 +239,9 @@ std::optional<Eigen::Matrix4d>
   bool match_success = matcher_->Match();
   Eigen::Matrix4d T_CandidateSub_QuerySub =
       matcher_->GetResult().inverse().matrix();
-  if (!output_path.empty()) { matcher_->SaveResults(output_path, "cloud_"); }
+  if (!output_path.empty()) {
+    matcher_->SaveResults(output_path, "candidate_cloud_");
+  }
 
   if (match_success) {
     BEAM_INFO("match successful");

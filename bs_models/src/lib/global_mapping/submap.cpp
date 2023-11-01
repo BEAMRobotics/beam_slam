@@ -339,7 +339,7 @@ void Submap::SaveLidarLoamMapInWorldFrame(const std::string& path,
     BEAM_WARN("No loam points in submap, not saving.");
     return;
   }
-  map.SaveCombined(path, "map_in_world.pcd");
+  map.SaveCombined(path, "map_in_world.pcd", 255, 255, 255, false);
 }
 
 PointCloud Submap::GetKeypointsInWorldFrame(bool use_initials) {

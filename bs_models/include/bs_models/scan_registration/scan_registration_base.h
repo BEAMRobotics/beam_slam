@@ -15,7 +15,7 @@ namespace bs_models::scan_registration {
 
 /**
  * @brief base class for scan registration parameters. These params will be used
- * in most scan regisatration implementations. This struct serves as a way to
+ * in most scan registration implementations. This struct serves as a way to
  * eliminate code duplication. All scan registration implementations should have
  * a params class that inherits from this base class.
  */
@@ -64,7 +64,7 @@ public:
 
   void SetFixedCovariance(double covariance);
 
-  void SetAddExtrinsicsPrior(bool add_extrinsics_prior){
+  void SetAddExtrinsicsPrior(bool add_extrinsics_prior) {
     add_extrinsics_prior_ = add_extrinsics_prior;
   }
 

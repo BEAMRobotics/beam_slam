@@ -3,5 +3,15 @@
   "submap_distance_threshold_m": 3,
   "scan_context_dist_thres": 0.3,
   "num_scans_to_aggregate": 20,
-  "matcher_config": "matchers/gicp.json"
+  "matcher_config": "matchers/icp.json",
+  "filters": [
+    {
+      "filter_type": "VOXEL",
+      "cell_size": [
+        0.05,
+        0.05,
+        0.05
+      ]
+    }
+  ]
 }
