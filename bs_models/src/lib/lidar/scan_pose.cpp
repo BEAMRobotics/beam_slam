@@ -274,7 +274,8 @@ void ScanPose::SaveData(const std::string& output_dir) const {
     BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 
-  loampointcloud_.SaveCombined(output_dir, "loam_cloud.pcd", 255, 255, 255);
+  loampointcloud_.SaveCombined(output_dir, "loam_cloud.pcd", 255, 255, 255,
+                               false);
 }
 
 bool ScanPose::LoadData(const std::string& root_dir) {
@@ -430,7 +431,8 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
 
   if (!to_reference_frame) {
     loampointcloud_.SaveCombined(save_path,
-                                 std::to_string(stamp_.toSec()) + ".pcd");
+                                 std::to_string(stamp_.toSec()) + ".pcd", 255,
+                                 255, 255, false);
     return;
   }
 
@@ -438,8 +440,8 @@ void ScanPose::SaveLoamCloud(const std::string& save_path,
       T_REFFRAME_BASELINK() * T_BASELINK_LIDAR_;
   beam_matching::LoamPointCloud loam_cloud_transformed(loampointcloud_,
                                                        T_REFFRAME_LIDAR_final);
-  loam_cloud_transformed.SaveCombined(save_path,
-                                      std::to_string(stamp_.toSec()) + ".pcd");
+  loam_cloud_transformed.SaveCombined(
+      save_path, std::to_string(stamp_.toSec()) + ".pcd", 255, 255, 255, false);
 }
 
 } // namespace bs_models
