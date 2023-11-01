@@ -1,5 +1,7 @@
 #include <bs_models/scan_registration/scan_registration_base.h>
 
+#include <filesystem>
+
 #include <nlohmann/json.hpp>
 
 #include <beam_matching/Matchers.h>
@@ -19,11 +21,12 @@ std::unique_ptr<ScanRegistrationBase> ScanRegistrationBase::Create(
     const std::string& registration_config, const std::string& matcher_config,
     const std::string& save_path, bool add_extrinsics_prior) {
   // get registration type
-  if (!boost::filesystem::exists(registration_config)) {
+  if (!std::filesystem::exists(registration_config)) {
     BEAM_ERROR("invalid file path for matcher config, file path: {}",
                registration_config);
     throw std::invalid_argument{"invalid json"};
   }
+
   nlohmann::json J;
   std::ifstream file(registration_config);
   file >> J;
@@ -35,7 +38,6 @@ std::unique_ptr<ScanRegistrationBase> ScanRegistrationBase::Create(
   }
   std::string registration_type = J["registration_type"];
   MatcherType matcher_type = beam_matching::GetTypeFromConfig(matcher_config);
-
   std::unique_ptr<scan_registration::ScanRegistrationBase> registration;
 
   // treat loam different
@@ -98,6 +100,7 @@ std::unique_ptr<ScanRegistrationBase> ScanRegistrationBase::Create(
     BEAM_ERROR("registration type not yet implemented");
     throw std::runtime_error{"function not implemented"};
   }
+
   registration->SetAddExtrinsicsPrior(add_extrinsics_prior);
   return std::move(registration);
 }
@@ -115,7 +118,7 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
   // check file exists
   if (config.empty()) {
     return;
-  } else if (!boost::filesystem::exists(config)) {
+  } else if (!std::filesystem::exists(config)) {
     BEAM_WARN(
         "Invalid scan registration config path, file does not exist, using "
         "default. Input: {}",
@@ -128,6 +131,11 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
     BEAM_INFO("Using default config.");
     return;
   }
+
+  bs_common::ValidateJsonKeysOrThrow(
+      std::vector<std::string>{"min_motion_trans_m", "min_motion_rot_deg",
+                               "max_motion_trans_m", "fix_first_scan"},
+      J);
 
   min_motion_trans_m = J["min_motion_trans_m"];
   min_motion_rot_deg = J["min_motion_rot_deg"];

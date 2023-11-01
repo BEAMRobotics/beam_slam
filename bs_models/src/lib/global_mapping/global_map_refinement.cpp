@@ -7,6 +7,9 @@
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/reloc/reloc_methods.h>
 
+// TODO remove
+#include <bs_models/scan_registration/registration_map.h>
+
 namespace bs_models { namespace global_mapping {
 
 using namespace reloc;
@@ -132,13 +135,12 @@ bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap) {
   // Create optimization graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
       fuse_graphs::HashGraph::make_shared();
-
+  auto& map = bs_models::scan_registration::RegistrationMap::GetInstance();
   std::unique_ptr<sr::ScanRegistrationBase> scan_registration =
       sr::ScanRegistrationBase::Create(
           params_.submap_refinement.scan_registration_config,
           params_.submap_refinement.matcher_config,
           params_.submap_refinement.registration_results_output_path, true);
-
   // clear lidar map
   scan_registration->GetMapMutable().Clear();
 
@@ -150,7 +152,7 @@ bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap) {
     const bs_models::ScanPose& scan_pose = scan_iter->second;
     auto transaction =
         scan_registration->RegisterNewScan(scan_pose).GetTransaction();
-    if (transaction != nullptr) {
+    if (transaction) {
       // std::cout << "\nADDING TRANSACTION: \n";
       // transaction->print();
       graph->update(*transaction);

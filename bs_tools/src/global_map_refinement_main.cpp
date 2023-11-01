@@ -5,6 +5,22 @@
 #include <beam_utils/gflags.h>
 #include <bs_models/global_mapping/global_map_refinement.h>
 
+// clang-format off
+/** 
+ * Example command for running binary:
+ * 
+ ./devel/lib/bs_tools/bs_tools_global_map_refinement_main \
+ -globalmap_dir ~/results/global_mapper/global_mapper_results/GlobalMapData/ \
+ -output_path ~/results \
+ -run_submap_refinement=true \
+ -run_posegraph_optimization=true \ 
+ -refinement_config ~/beam_slam/beam_slam_launch/config/global_map/global_map_refinement_test.json \ 
+ -calibration_yaml ~/beam_slam/beam_slam_launch/config/calibration_params.yaml
+*
+* NOTE: YOU MUST ALSO PUBLISH YOUR EXTRINSIC CALIBRATIONS - USE: calibration_publisher.launch
+*/
+// clang-format on
+
 DEFINE_string(globalmap_dir, "",
               "Full path to global map directory to load (Required).");
 DEFINE_validator(globalmap_dir, &beam::gflags::ValidateDirMustExist);
@@ -17,6 +33,8 @@ DEFINE_string(
     "global_map_refinement.json");
 DEFINE_string(output_path, "", "Full path to output directory. ");
 DEFINE_validator(output_path, &beam::gflags::ValidateDirMustExist);
+DEFINE_string(calibration_yaml, "", "Full path to calibration yaml. ");
+DEFINE_validator(calibration_yaml, &beam::gflags::ValidateFileMustExist);
 DEFINE_bool(run_submap_refinement, true,
             "Set to true to refine the submaps before running the pose graph "
             "optimization. This should always be set to true, but there are "
@@ -29,6 +47,14 @@ DEFINE_bool(run_posegraph_optimization, true,
 
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+  // setup ros and load calibration
+  std::string name = "global_map_refinement";
+  int arg = 0;
+  ros::init(arg, NULL, name);
+  std::string calibration_load_cmd = "rosparam load " + FLAGS_calibration_yaml;
+  BEAM_INFO("Running command: {}", calibration_load_cmd);
+  int result1 = system(calibration_load_cmd.c_str());
 
   bs_models::global_mapping::GlobalMapRefinement refinement(
       FLAGS_globalmap_dir, FLAGS_refinement_config);
