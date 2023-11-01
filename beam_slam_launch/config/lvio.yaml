@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
-lag_duration: 6
-pseudo_marginalization: false
+lag_duration: 10
+pseudo_marginalization: true
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -52,7 +52,7 @@ slam_initialization:
   min_trajectory_length_m: 2.0
   min_visual_parallax: 40.0
   inertial_information_weight: 1.0
-  lidar_information_weight: 1.0
+  lidar_information_weight: 100.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results"
 
@@ -65,7 +65,7 @@ visual_odometry:
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
   use_standalone_vo: true
-  odom_information_weight: 1.0
+  odom_information_weight: 10.0
 
 gravity_alignment:
   imu_topic: "/imu/data"
@@ -86,9 +86,9 @@ lidar_odometry:
   input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true
   output_lidar_points: true
-  publish_registration_map: true
+  publish_registration_map: false
   publish_registration_results: true
-  lidar_information_weight: 1.0
+  lidar_information_weight: 10.0
   frame_initializer_config: "/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 

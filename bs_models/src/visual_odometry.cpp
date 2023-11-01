@@ -66,6 +66,7 @@ void VisualOdometry::onInit() {
 
   // compute the max container size
   ros::param::get("/local_mapper/lag_duration", lag_duration_);
+  if (vo_params_.use_standalone_vo) { lag_duration_ = 6.0 }
   max_container_size_ = calibration_params_.camera_hz * (lag_duration_ + 1);
 
   // create local solver options

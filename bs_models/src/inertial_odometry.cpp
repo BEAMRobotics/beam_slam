@@ -351,13 +351,14 @@ void InertialOdometry::BreakupConstraint(
     auto imu_trans1 =
         imu_preint_->RegisterNewImuPreintegratedFactor(new_trigger_time);
     if (!imu_trans1) {
-      BEAM_ERROR(
-          "cannot add constraint for first half of constraint being "
-          "broken up. Constraint start time: {}, constraint end time: {}. "
-          "ImuPreintegration buffer: ",
-          bs_common::ToString(constraint_data.start_time),
-          bs_common::ToString(new_trigger_time));
-      std::cout << imu_preint_->PrintBuffer() << "\n";
+      ROS_WARN_STREAM(
+          "cannot add constraint for second half of constraint being "
+          "broken up. Constraint start time: "
+          << bs_common::ToString(constraint_data.start_time)
+          << ", constraint end time: " << bs_common::ToString(new_trigger_time)
+          << ".");
+      ROS_DEBUG_STREAM(
+          "ImuPreintegration buffer: " << imu_preint_->PrintBuffer());
     } else {
       imu_buffer_.AddConstraint(constraint_data.start_time, new_trigger_time,
                                 imu_trans1->addedConstraints().begin()->uuid());
@@ -377,13 +378,13 @@ void InertialOdometry::BreakupConstraint(
     auto imu_trans2 = imu_preint_->RegisterNewImuPreintegratedFactor(
         constraint_data.end_time);
     if (!imu_trans2) {
-      BEAM_ERROR(
+      ROS_WARN_STREAM(
           "cannot add constraint for second half of constraint being "
-          "broken up. Constraint start time: {}, constraint end time: {}. "
-          "ImuPreintegration buffer: ",
-          bs_common::ToString(new_trigger_time),
-          bs_common::ToString(constraint_data.end_time));
-      std::cout << imu_preint_->PrintBuffer() << "\n";
+          "broken up. Constraint start time: "
+          << bs_common::ToString(new_trigger_time) << ", constraint end time: "
+          << bs_common::ToString(constraint_data.end_time) << ".");
+      ROS_DEBUG_STREAM(
+          "ImuPreintegration buffer: " << imu_preint_->PrintBuffer());
     } else {
       imu_buffer_.AddConstraint(new_trigger_time, constraint_data.end_time,
                                 imu_trans2->addedConstraints().begin()->uuid());
