@@ -167,16 +167,14 @@ private:
   /// @brief Marginalizes the current local graph is standalone vo is being used
   void MarginalizeGraph();
 
-  /// @brief Computes the difference between poses as a 7d vector (x,y,z, qw,
+  /// @brief Computes the pose as a 7d vector (x,y,z, qw,
   /// qx, qy, qz)
-  /// @param T_WORLD_BASELINK1 pose 1
-  /// @param T_WORLD_BASELINK2 pose 2
-  /// @return delta from pose 2 to pose1 (d_baselink1_baselink2)
-  fuse_core::Vector7d ComputeDelta(const Eigen::Matrix4d& T_WORLD_BASELINK1,
-                                   const Eigen::Matrix4d& T_WORLD_BASELINK2);
+  /// @param T_A_B
+  /// @return delta from B to A
+  fuse_core::Vector7d ComputeDelta(const Eigen::Matrix4d& T_A_B);
 
   /// @brief Publishes all landmarks in the graph as a point cloud
-  /// @param graph 
+  /// @param graph
   void PublishLandmarkPointCloud(const fuse_core::Graph& graph);
 
   /******************************************************

@@ -160,39 +160,45 @@ void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 void InertialOdometry::processTrigger(const std_msgs::Time::ConstPtr& msg) {
-  // todo: if break constraint fails to add a zero motion constraint its bc the
-  // todo: graph isnt updated yet, in this case we want to wait (i.e. we buffer time
-  // todo: triggers)
   std::unique_lock<std::mutex> lk(mutex_);
-  if (!initialized_) { return; }
-  const ros::Time& time(msg->data);
-  ros::Time last_constraint_time = imu_buffer_.GetLastConstraintTime();
-  if (time == last_constraint_time) {
-    return;
-  } else if (time > last_constraint_time) {
-    auto trans = imu_preint_->RegisterNewImuPreintegratedFactor(time);
-    if (!trans) { return; }
+  trigger_buffer_.push_back(msg);
 
-    trans->stamp(time + ros::Duration(1e-5));
-    sendTransaction(trans);
-    auto added_constraints_range = trans->addedConstraints();
-    // check that only one was added
-    if (std::next(added_constraints_range.begin()) !=
-        added_constraints_range.end()) {
-      BEAM_ERROR("invalid number of constraints added to graph from IMU data");
+  if (!initialized_) { return; }
+
+  while (!trigger_buffer_.empty()) {
+    const auto current_trigger = trigger_buffer_.front();
+    const ros::Time& time(current_trigger->data);
+    if (!bs_common::GetPosition(*most_recent_graph_msg_, time)) { break; }
+    trigger_buffer_.pop_front();
+
+    ros::Time last_constraint_time = imu_buffer_.GetLastConstraintTime();
+    if (time == last_constraint_time) {
       return;
+    } else if (time > last_constraint_time) {
+      auto trans = imu_preint_->RegisterNewImuPreintegratedFactor(time);
+      if (!trans) { return; }
+      trans->stamp(time);
+      sendTransaction(trans);
+      auto added_constraints_range = trans->addedConstraints();
+      // check that only one was added
+      if (std::next(added_constraints_range.begin()) !=
+          added_constraints_range.end()) {
+        BEAM_ERROR(
+            "invalid number of constraints added to graph from IMU data");
+        return;
+      }
+      imu_buffer_.AddConstraint(last_trigger_time_, time,
+                                added_constraints_range.begin()->uuid());
+    } else {
+      // this means we have to remove a constraint and replace it with two
+      std::optional<ImuConstraintData> maybeConstraintData =
+          imu_buffer_.ExtractConstraintContainingTime(time);
+      if (maybeConstraintData) {
+        BreakupConstraint(time, maybeConstraintData.value());
+      }
     }
-    imu_buffer_.AddConstraint(last_trigger_time_, time,
-                              added_constraints_range.begin()->uuid());
-  } else {
-    // this means we have to remove a constraint and replace it with two
-    std::optional<ImuConstraintData> maybeConstraintData =
-        imu_buffer_.ExtractConstraintContainingTime(time);
-    if (maybeConstraintData) {
-      BreakupConstraint(time, maybeConstraintData.value());
-    }
+    last_trigger_time_ = time;
   }
-  last_trigger_time_ = time;
 }
 
 void InertialOdometry::ComputeRelativeMotion(const ros::Time& prev_stamp,
@@ -322,7 +328,7 @@ void InertialOdometry::BreakupConstraint(
     const ros::Time& new_trigger_time,
     const ImuConstraintData& constraint_data) {
   auto transaction = fuse_core::Transaction::make_shared();
-  transaction->stamp(new_trigger_time + ros::Duration(1e-5));
+  transaction->stamp(new_trigger_time);
 
   auto velocity = bs_common::GetVelocity(*most_recent_graph_msg_,
                                          constraint_data.start_time);
@@ -401,7 +407,7 @@ void InertialOdometry::BreakupConstraint(
       new_state.SetAccelBias(start_state.AccelBiasVec());
 
       auto zero_motion_transaction = fuse_core::Transaction::make_shared();
-      zero_motion_transaction->stamp(new_trigger_time + ros::Duration(1e-5));
+      zero_motion_transaction->stamp(new_trigger_time);
       bs_common::AddZeroMotionFactor("IO", start_state, new_state,
                                      zero_motion_transaction);
       transaction->merge(*zero_motion_transaction);
@@ -424,7 +430,7 @@ void InertialOdometry::BreakupConstraint(
       new_state.SetAccelBias(end_state.AccelBiasVec());
 
       auto zero_motion_transaction = fuse_core::Transaction::make_shared();
-      zero_motion_transaction->stamp(new_trigger_time + ros::Duration(1e-5));
+      zero_motion_transaction->stamp(new_trigger_time);
       bs_common::AddZeroMotionFactor("IO", new_state, end_state,
                                      zero_motion_transaction);
       transaction->merge(*zero_motion_transaction);

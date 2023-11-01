@@ -1,7 +1,7 @@
 #pragma once
 
-#include <queue>
 #include <mutex>
+#include <queue>
 
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/fuse_macros.h>
@@ -150,6 +150,7 @@ private:
   bool initialized_{false};
   ros::Time prev_stamp_{0.0};
   Eigen::Matrix4d T_ODOM_IMUprev_{Eigen::Matrix4d::Identity()};
+  std::deque<std_msgs::Time::ConstPtr> trigger_buffer_;
 
   // calibration parameters
   bs_parameters::models::CalibrationParams calibration_params_;
