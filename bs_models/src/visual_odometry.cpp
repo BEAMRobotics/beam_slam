@@ -1,11 +1,12 @@
 #include <bs_models/visual_odometry.h>
 
-#include <bs_constraints/visual/euclidean_reprojection_constraint.h>
+#include <pluginlib/class_list_macros.h>
+
 #include <fuse_core/transaction.h>
 #include <fuse_variables/acceleration_linear_3d_stamped.h>
 #include <fuse_variables/velocity_angular_3d_stamped.h>
+
 #include <geometry_msgs/PoseStamped.h>
-#include <pluginlib/class_list_macros.h>
 #include <std_msgs/Time.h>
 
 #include <beam_cv/OpenCVConversions.h>
@@ -16,8 +17,11 @@
 #include <beam_cv/geometry/RelativePoseEstimator.h>
 #include <beam_cv/geometry/Triangulation.h>
 #include <beam_utils/pointclouds.h>
+
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
+#include <bs_constraints/inertial/absolute_imu_state_3d_stamped_constraint.h>
+#include <bs_constraints/visual/euclidean_reprojection_constraint.h>
 #include <bs_models/graph_visualization/helpers.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -47,6 +51,8 @@ void VisualOdometry::onInit() {
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
   cam_intrinsic_matrix_ = cam_model_->GetRectifiedModel()->GetIntrinsicMatrix();
+
+  // create visual map
   visual_map_ =
       std::make_shared<VisualMap>(cam_model_, vo_params_.reprojection_loss,
                                   vo_params_.reprojection_information_weight);
@@ -62,6 +68,7 @@ void VisualOdometry::onInit() {
 
   // compute the max container size
   ros::param::get("/local_mapper/lag_duration", lag_duration_);
+  if (vo_params_.use_standalone_vo) { lag_duration_ = 6.0; }
   max_container_size_ = calibration_params_.camera_hz * (lag_duration_ + 1);
 
   // create local solver options
@@ -277,12 +284,11 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
     // add relative pose constraint to the transaction using the imu estimate
     // and a manually tuned covariance
     Eigen::Matrix3d q_imu_cov = 1e-4 * Eigen::Matrix3d::Identity();
-    Eigen::Matrix3d p_imu_cov = 1e-2 * Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d p_imu_cov = 1e-1 * Eigen::Matrix3d::Identity();
     Eigen::Matrix<double, 6, 6> imu_covariance =
         Eigen::Matrix<double, 6, 6>::Identity();
     imu_covariance.block<3, 3>(0, 0) = p_imu_cov;
     imu_covariance.block<3, 3>(3, 3) = q_imu_cov;
-
     visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
                                            keyframe_imu_delta_, imu_covariance,
                                            transaction);
@@ -784,6 +790,16 @@ void VisualOdometry::MarginalizeGraph() {
       }
       local_graph_->removeVariable(p->uuid());
       local_graph_->removeVariable(o->uuid());
+
+      // remove now unused imu data
+      auto bg = bs_common::GetGyroscopeBias(*local_graph_, t);
+      auto ba = bs_common::GetAccelBias(*local_graph_, t);
+      auto v = bs_common::GetVelocity(*local_graph_, t);
+      if (bg && ba && v) {
+        local_graph_->removeVariable(ba->uuid());
+        local_graph_->removeVariable(bg->uuid());
+        local_graph_->removeVariable(v->uuid());
+      }
     }
 
     PruneKeyframes(*local_graph_);
@@ -798,59 +814,99 @@ void VisualOdometry::MarginalizeGraph() {
       if (constraints.empty()) { local_graph_->removeVariable(lm_uuid); }
     }
 
-    // todo: if its still an imu state, we add an imu prior instead
     // add prior to new start state
     const auto new_timestamps = bs_common::CurrentTimestamps(*local_graph_);
     const ros::Time oldest_time = *new_timestamps.begin();
-    auto transaction = fuse_core::Transaction::make_shared();
-    transaction->stamp(oldest_time);
-    Eigen::Matrix<double, 6, 6> marginalization_prior =
-        1e-9 * Eigen::Matrix<double, 6, 6>::Identity();
-    visual_map_->AddPosePrior(oldest_time, marginalization_prior, transaction);
-    local_graph_->update(*transaction);
+    auto marginal_transaction = fuse_core::Transaction::make_shared();
+    marginal_transaction->stamp(oldest_time);
+    auto maybe_start_imu_state =
+        bs_common::GetImuState(*local_graph_, oldest_time);
+    if (maybe_start_imu_state) {
+      auto start_imu_state = maybe_start_imu_state.value();
+      fuse_core::Constraint::SharedPtr prior =
+          std::make_shared<bs_constraints::AbsoluteImuState3DStampedConstraint>(
+              "PRIOR", start_imu_state, start_imu_state.GetStateVector(),
+              1e-5 * Eigen::Matrix<double, 15, 15>::Identity());
+      marginal_transaction->addConstraint(prior);
+    } else {
+      Eigen::Matrix<double, 6, 6> marginalization_prior =
+          1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
+      visual_map_->AddPosePrior(oldest_time, marginalization_prior,
+                                marginal_transaction);
+    }
+
+    local_graph_->update(*marginal_transaction);
   }
 
   // update visual map
   visual_map_->UpdateGraph(*local_graph_);
 }
 
-fuse_core::Vector7d
-    VisualOdometry::ComputeDelta(const Eigen::Matrix4d& T_WORLD_BASELINK1,
-                                 const Eigen::Matrix4d& T_WORLD_BASELINK2) {
+fuse_core::Vector7d VisualOdometry::ComputeDelta(const Eigen::Matrix4d& T_A_B) {
   // compute delta between previous kf and this frame
-  Eigen::Matrix4d T_BASELINK1_BASELINK2 =
-      beam::InvertTransform(T_WORLD_BASELINK1) * T_WORLD_BASELINK2;
-  Eigen::Vector3d t_BASELINK1_BASELINK2 =
-      T_BASELINK1_BASELINK2.block<3, 1>(0, 3);
-  Eigen::Quaterniond q_BASELINK1_BASELINK2(
-      T_BASELINK1_BASELINK2.block<3, 3>(0, 0));
-  fuse_core::Vector7d delta_BASELINK1_BASELINK2;
-  delta_BASELINK1_BASELINK2 << t_BASELINK1_BASELINK2.x(),
-      t_BASELINK1_BASELINK2.y(), t_BASELINK1_BASELINK2.z(),
-      q_BASELINK1_BASELINK2.w(), q_BASELINK1_BASELINK2.x(),
-      q_BASELINK1_BASELINK2.y(), q_BASELINK1_BASELINK2.z();
-  return delta_BASELINK1_BASELINK2;
+  Eigen::Vector3d t_A_B = T_A_B.block<3, 1>(0, 3);
+  Eigen::Quaterniond q_A_B(T_A_B.block<3, 3>(0, 0));
+  fuse_core::Vector7d delta_A_B;
+  delta_A_B << t_A_B.x(), t_A_B.y(), t_A_B.z(), q_A_B.w(), q_A_B.x(), q_A_B.y(),
+      q_A_B.z();
+  return delta_A_B;
 }
 
 fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
     const ros::Time& timestamp_curframe,
     const Eigen::Matrix4d& T_WORLD_BASELINKcurframe,
     const Eigen::Matrix<double, 6, 6>& covariance) {
-  // send just a relative pose constraint to the main graph
-  auto pose_transaction = fuse_core::Transaction::make_shared();
-  pose_transaction->stamp(timestamp_curframe);
-  visual_map_->AddBaselinkPose(T_WORLD_BASELINKcurframe, timestamp_curframe,
-                               pose_transaction);
+  // retrieve previous keyframe pose from the main graph
+  Eigen::Matrix4d T_WORLDmain_BASELINKprevkf;
+  if (!frame_initializer_->GetPose(T_WORLDmain_BASELINKprevkf,
+                                   previous_keyframe_,
+                                   extrinsics_.GetBaselinkFrameId())) {
+    ROS_FATAL("Cannot retrieve previous keyframe pose.");
+    throw std::runtime_error{"Cannot retrieve previous keyframe pose."};
+  }
 
+  // retrieve previous keyframe pose from the local graph
   auto T_WORLD_BASELINKprevkf =
       visual_map_->GetBaselinkPose(previous_keyframe_);
   if (!T_WORLD_BASELINKprevkf.has_value()) {
     ROS_FATAL("Cannot retrieve previous keyframe pose.");
     throw std::runtime_error{"Cannot retrieve previous keyframe pose."};
   }
-  fuse_core::Vector7d delta_prevkf_curframe =
-      ComputeDelta(T_WORLD_BASELINKprevkf.value(), T_WORLD_BASELINKcurframe);
 
+  // compute relative motion between this frame and previous keyframe in the
+  // local graph
+  auto T_prevkf_curframe =
+      beam::InvertTransform(T_WORLD_BASELINKprevkf.value()) *
+      T_WORLD_BASELINKcurframe;
+
+  // compute pose of this frame wrt the main fraph
+  Eigen::Matrix4d T_WORLDmain_BASELINKcurframe =
+      T_WORLDmain_BASELINKprevkf * T_prevkf_curframe;
+
+  // send a relative pose constraint to the main graph
+  auto pose_transaction = fuse_core::Transaction::make_shared();
+  pose_transaction->stamp(timestamp_curframe);
+
+  // add pose to transaction
+  Eigen::Quaterniond q;
+  Eigen::Vector3d p;
+  beam::TransformMatrixToQuaternionAndTranslation(T_WORLDmain_BASELINKcurframe,
+                                                  q, p);
+  fuse_variables::Orientation3DStamped::SharedPtr orientation =
+      fuse_variables::Orientation3DStamped::make_shared(timestamp_curframe);
+  orientation->w() = q.w();
+  orientation->x() = q.x();
+  orientation->y() = q.y();
+  orientation->z() = q.z();
+  fuse_variables::Position3DStamped::SharedPtr position =
+      fuse_variables::Position3DStamped::make_shared(timestamp_curframe);
+  position->x() = p[0];
+  position->y() = p[1];
+  position->z() = p[2];
+  pose_transaction->addVariable(position);
+  pose_transaction->addVariable(orientation);
+
+  fuse_core::Vector7d delta_prevkf_curframe = ComputeDelta(T_prevkf_curframe);
   Eigen::Matrix<double, 6, 6> weighted_cov =
       vo_params_.odom_covariance_weight * covariance;
   visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp_curframe,
