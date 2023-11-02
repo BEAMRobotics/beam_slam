@@ -56,9 +56,6 @@ public:
     /** Full path to config file for matcher. If blank, it will use default
      * parameters.*/
     std::string matcher_config;
-
-    /** If not empty, we will output registration results to this folder. */
-    std::string registration_results_output_path;
   };
 
   struct Params {
@@ -120,9 +117,10 @@ public:
   /**
    * @brief Calls RefineSUbmap on all submaps, with a check to make sure each
    * one passed, otherwise it exits
+   * @param output_path save results to this path
    * @return true if successful
    */
-  bool RunSubmapRefinement();
+  bool RunSubmapRefinement(const std::string& output_path);
 
   /**
    * @brief calls loop closure on the submaps using the global map
@@ -152,7 +150,7 @@ private:
    * @param submap reference to submap to be refined
    * @return true if successful
    */
-  bool RefineSubmap(SubmapPtr& submap);
+  bool RefineSubmap(SubmapPtr& submap, const std::string& output_path);
 
   /**
    * @brief setup general things needed when class is instatiated, such as

@@ -54,8 +54,7 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   // load submap refinement params
   nlohmann::json J_submap_refinement = J["submap_refinement"];
   bs_common::ValidateJsonKeysOrThrow(
-      std::vector<std::string>{"scan_registration_config", "matcher_config",
-                               "registration_results_output_path"},
+      std::vector<std::string>{"scan_registration_config", "matcher_config"},
       J_submap_refinement);
 
   std::string scan_registration_config_rel =
@@ -70,9 +69,6 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
     submap_refinement.matcher_config = beam::CombinePaths(
         bs_common::GetBeamSlamConfigPath(), matcher_config_rel);
   }
-
-  submap_refinement.registration_results_output_path =
-      J_submap_refinement["registration_results_output_path"];
 }
 
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
@@ -119,11 +115,11 @@ void GlobalMapRefinement::Setup() {
   global_map_->Setup();
 }
 
-bool GlobalMapRefinement::RunSubmapRefinement() {
+bool GlobalMapRefinement::RunSubmapRefinement(const std::string& output_path) {
   std::vector<SubmapPtr> submaps = global_map_->GetSubmaps();
   for (uint16_t i = 0; i < submaps.size(); i++) {
     BEAM_INFO("Refining submap No. {}", i);
-    if (!RefineSubmap(submaps.at(i))) {
+    if (!RefineSubmap(submaps.at(i), output_path)) {
       BEAM_ERROR("Submap refinement failed, exiting.");
       return false;
     }
@@ -131,7 +127,20 @@ bool GlobalMapRefinement::RunSubmapRefinement() {
   return true;
 }
 
-bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap) {
+bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap,
+                                       const std::string& output_path) {
+  if (!output_path.empty() && !std::filesystem::exists(output_path)) {
+    BEAM_ERROR("Invalid output path for submap refinement: {}", output_path);
+    throw std::runtime_error{"invalid path"};
+  }
+  std::string submap_output =
+      output_path.empty()
+          ? output_path
+          : beam::CombinePaths(output_path,
+                               "submap_" +
+                                   std::to_string(submap->Stamp().toSec()));
+  std::filesystem::create_directory(submap_output);
+
   // Create optimization graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
       fuse_graphs::HashGraph::make_shared();
@@ -139,8 +148,8 @@ bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap) {
   std::unique_ptr<sr::ScanRegistrationBase> scan_registration =
       sr::ScanRegistrationBase::Create(
           params_.submap_refinement.scan_registration_config,
-          params_.submap_refinement.matcher_config,
-          params_.submap_refinement.registration_results_output_path, true);
+          params_.submap_refinement.matcher_config, submap_output, true);
+
   // clear lidar map
   scan_registration->GetMapMutable().Clear();
 
@@ -152,11 +161,7 @@ bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap) {
     const bs_models::ScanPose& scan_pose = scan_iter->second;
     auto transaction =
         scan_registration->RegisterNewScan(scan_pose).GetTransaction();
-    if (transaction) {
-      // std::cout << "\nADDING TRANSACTION: \n";
-      // transaction->print();
-      graph->update(*transaction);
-    }
+    if (transaction) { graph->update(*transaction); }
   }
 
   // TODO: Add visual BA constraints

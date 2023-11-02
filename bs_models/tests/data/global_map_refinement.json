@@ -5,7 +5,6 @@
   },
   "submap_refinement": {
     "scan_registration_config": "registration/multi_scan.json",
-    "matcher_config": "matchers/loam_vlp16.json",
-    "registration_results_output_path": ""
+    "matcher_config": "matchers/loam_vlp16.json"
   }
 }

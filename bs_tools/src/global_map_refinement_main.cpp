@@ -68,7 +68,10 @@ int main(int argc, char* argv[]) {
   std::filesystem::create_directory(global_map_data_path);
 
   if (FLAGS_run_submap_refinement) {
-    if (!refinement.RunSubmapRefinement()) {
+    std::string refinement_save_path =
+        beam::CombinePaths(save_path, "submap_refinement_results");
+    std::filesystem::create_directory(refinement_save_path);
+    if (!refinement.RunSubmapRefinement(refinement_save_path)) {
       BEAM_ERROR("Submap refinement failed, exiting global map refinement.");
       return 0;
     }
