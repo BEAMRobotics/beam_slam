@@ -773,6 +773,7 @@ void VisualOdometry::MarginalizeGraph() {
       if (!p || !o) { continue; }
 
       std::vector<fuse_core::UUID> constraints_to_remove;
+
       auto p_constraints = local_graph_->getConnectedConstraints(p->uuid());
       for (const auto& c : p_constraints) {
         constraints_to_remove.push_back(c.uuid());
@@ -781,6 +782,25 @@ void VisualOdometry::MarginalizeGraph() {
       for (const auto& c : o_constraints) {
         constraints_to_remove.push_back(c.uuid());
       }
+
+      auto bg = bs_common::GetGyroscopeBias(*local_graph_, t);
+      auto ba = bs_common::GetAccelBias(*local_graph_, t);
+      auto v = bs_common::GetVelocity(*local_graph_, t);
+      if (bg && ba && v) {
+        auto bg_constraints = local_graph_->getConnectedConstraints(bg->uuid());
+        auto ba_constraints = local_graph_->getConnectedConstraints(ba->uuid());
+        auto v_constraints = local_graph_->getConnectedConstraints(v->uuid());
+        for (const auto& c : bg_constraints) {
+          constraints_to_remove.push_back(c.uuid());
+        }
+        for (const auto& c : ba_constraints) {
+          constraints_to_remove.push_back(c.uuid());
+        }
+        for (const auto& c : v_constraints) {
+          constraints_to_remove.push_back(c.uuid());
+        }
+      }
+
       for (const auto uuid : constraints_to_remove) {
         if (local_graph_->constraintExists(uuid)) {
           try {
@@ -788,20 +808,16 @@ void VisualOdometry::MarginalizeGraph() {
           } catch (const std::exception& e) {}
         }
       }
+
       local_graph_->removeVariable(p->uuid());
       local_graph_->removeVariable(o->uuid());
-
-      // remove now unused imu data
-      auto bg = bs_common::GetGyroscopeBias(*local_graph_, t);
-      auto ba = bs_common::GetAccelBias(*local_graph_, t);
-      auto v = bs_common::GetVelocity(*local_graph_, t);
       if (bg && ba && v) {
         local_graph_->removeVariable(ba->uuid());
         local_graph_->removeVariable(bg->uuid());
         local_graph_->removeVariable(v->uuid());
       }
     }
-
+    
     PruneKeyframes(*local_graph_);
 
     // remove any disconnected landmarks
