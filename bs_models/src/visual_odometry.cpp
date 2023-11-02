@@ -51,6 +51,8 @@ void VisualOdometry::onInit() {
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
   cam_intrinsic_matrix_ = cam_model_->GetRectifiedModel()->GetIntrinsicMatrix();
+
+  // create visual map
   visual_map_ =
       std::make_shared<VisualMap>(cam_model_, vo_params_.reprojection_loss,
                                   vo_params_.reprojection_information_weight);
@@ -282,12 +284,11 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
     // add relative pose constraint to the transaction using the imu estimate
     // and a manually tuned covariance
     Eigen::Matrix3d q_imu_cov = 1e-4 * Eigen::Matrix3d::Identity();
-    Eigen::Matrix3d p_imu_cov = 1e-2 * Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d p_imu_cov = 1e-1 * Eigen::Matrix3d::Identity();
     Eigen::Matrix<double, 6, 6> imu_covariance =
         Eigen::Matrix<double, 6, 6>::Identity();
     imu_covariance.block<3, 3>(0, 0) = p_imu_cov;
     imu_covariance.block<3, 3>(3, 3) = q_imu_cov;
-
     visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
                                            keyframe_imu_delta_, imu_covariance,
                                            transaction);
