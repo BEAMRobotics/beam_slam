@@ -88,7 +88,7 @@ lidar_odometry:
   publish_registration_map: false
   publish_registration_results: false
   lidar_information_weight: 100.0
-  frame_initializer_config: "/frame_initializers/io.json"
+  frame_initializer_config: "/frame_initializers/vo.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 
   # these are only relevant if scan_output_directory is not empty
