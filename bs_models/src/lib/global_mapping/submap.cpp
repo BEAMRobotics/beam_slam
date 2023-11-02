@@ -264,6 +264,11 @@ bool Submap::UpdatePose(fuse_core::Graph::ConstSharedPtr graph_msg) {
   return false;
 }
 
+void Submap::UpdatePose(const Eigen::Matrix4d& T_WORLD_SUBMAP) {
+  T_WORLD_SUBMAP_ = T_WORLD_SUBMAP;
+  bs_common::EigenTransformToFusePose(T_WORLD_SUBMAP, position_, orientation_);
+}
+
 bool Submap::Near(const ros::Time& time, const double tolerance) const {
   return (std::abs(stamp_.toSec() - time.toSec()) <= tolerance);
 }

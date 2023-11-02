@@ -7,12 +7,10 @@
 #include <bs_models/lidar/scan_pose.h>
 #include <bs_models/reloc/reloc_methods.h>
 
-// TODO remove
-#include <bs_models/scan_registration/registration_map.h>
-
 namespace bs_models { namespace global_mapping {
 
 using namespace reloc;
+using namespace beam_matching;
 
 void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   if (config_path.empty()) {
@@ -30,7 +28,9 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   }
 
   bs_common::ValidateJsonKeysOrThrow(
-      std::vector<std::string>{"loop_closure", "submap_refinement"}, J);
+      std::vector<std::string>{"loop_closure", "submap_refinement",
+                               "submap_alignment"},
+      J);
 
   // load loop closure params
   nlohmann::json J_loop_closure = J["loop_closure"];
@@ -65,8 +65,18 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   }
 
   std::string matcher_config_rel = J_submap_refinement["matcher_config"];
-  if (!scan_registration_config_rel.empty()) {
+  if (!matcher_config_rel.empty()) {
     submap_refinement.matcher_config = beam::CombinePaths(
+        bs_common::GetBeamSlamConfigPath(), matcher_config_rel);
+  }
+
+  // load submap alignment params
+  nlohmann::json J_submap_alignment = J["submap_alignment"];
+  bs_common::ValidateJsonKeysOrThrow(std::vector<std::string>{"matcher_config"},
+                                     J_submap_alignment);
+  matcher_config_rel = J_submap_refinement["matcher_config"];
+  if (!matcher_config_rel.empty()) {
+    submap_alignment.matcher_config = beam::CombinePaths(
         bs_common::GetBeamSlamConfigPath(), matcher_config_rel);
   }
 }
@@ -106,6 +116,22 @@ GlobalMapRefinement::GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
 }
 
 void GlobalMapRefinement::Setup() {
+  // setup submap alignment
+  const auto& m_conf = params_.submap_alignment.matcher_config;
+  auto matcher_type = GetTypeFromConfig(m_conf);
+  if (matcher_type == MatcherType::LOAM) {
+    matcher_loam_ = std::make_unique<LoamMatcher>(LoamParams(m_conf));
+  } else if (matcher_type == MatcherType::ICP) {
+    matcher_ = std::make_unique<IcpMatcher>(IcpMatcher::Params(m_conf));
+  } else if (matcher_type == MatcherType::GICP) {
+    matcher_ = std::make_unique<GicpMatcher>(GicpMatcher::Params(m_conf));
+  } else if (matcher_type == MatcherType::NDT) {
+    matcher_ = std::make_unique<NdtMatcher>(NdtMatcher::Params(m_conf));
+  } else {
+    BEAM_ERROR("Invalid matcher type");
+    throw std::invalid_argument{"invalid json"};
+  }
+
   // set reloc params in global map which is where the reloc gets performed
   GlobalMap::Params& global_map_params = global_map_->GetParamsMutable();
   global_map_params.loop_closure_candidate_search_config =
@@ -127,18 +153,34 @@ bool GlobalMapRefinement::RunSubmapRefinement(const std::string& output_path) {
   return true;
 }
 
+bool GlobalMapRefinement::RunSubmapAlignment(const std::string& output_path) {
+  std::vector<SubmapPtr> submaps = global_map_->GetSubmaps();
+
+  if (submaps.size() < 2) {
+    BEAM_WARN(
+        "Not enough submaps to run submap alignment, at least two are needed");
+    return true;
+  }
+
+  for (uint16_t i = 1; i < submaps.size(); i++) {
+    BEAM_INFO("Aligning submap No. {}", i);
+    if (!AlignSubmaps(submaps.at(i - 1), submaps.at(i), output_path)) {
+      BEAM_ERROR("Submap alignment failed, exiting.");
+      return false;
+    }
+  }
+  return true;
+}
+
 bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap,
                                        const std::string& output_path) {
   if (!output_path.empty() && !std::filesystem::exists(output_path)) {
     BEAM_ERROR("Invalid output path for submap refinement: {}", output_path);
     throw std::runtime_error{"invalid path"};
   }
+  std::string dir = "submap_" + std::to_string(submap->Stamp().toSec());
   std::string submap_output =
-      output_path.empty()
-          ? output_path
-          : beam::CombinePaths(output_path,
-                               "submap_" +
-                                   std::to_string(submap->Stamp().toSec()));
+      output_path.empty() ? output_path : beam::CombinePaths(output_path, dir);
   std::filesystem::create_directory(submap_output);
 
   // Create optimization graph
@@ -177,6 +219,92 @@ bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap,
   }
 
   // TODO: update visual data (just frame poses?)
+
+  return true;
+}
+
+bool GlobalMapRefinement::AlignSubmaps(const SubmapPtr& submap_ref,
+                                       SubmapPtr& submap_tgt,
+                                       const std::string& output_path) {
+  if (!output_path.empty() && !std::filesystem::exists(output_path)) {
+    BEAM_ERROR("Invalid output path for submap alignment: {}", output_path);
+    throw std::runtime_error{"invalid path"};
+  }
+  std::string dir = "submap_" + std::to_string(submap_tgt->Stamp().toSec());
+  std::string submap_output =
+      output_path.empty() ? output_path : beam::CombinePaths(output_path, dir);
+  std::filesystem::create_directory(submap_output);
+
+  Eigen::Matrix4d T_World_SubmapRef = submap_ref->T_WORLD_SUBMAP();
+  Eigen::Matrix4d T_World_SubmapRef_Init = submap_ref->T_WORLD_SUBMAP_INIT();
+  Eigen::Matrix4d T_World_SubmapTgt_Init = submap_tgt->T_WORLD_SUBMAP_INIT();
+
+  // get initial relative pose
+  Eigen::Matrix4d T_SubmapRef_SubmapTgt_Init =
+      beam::InvertTransform(T_World_SubmapRef_Init) * T_World_SubmapTgt_Init;
+
+  const bool use_initials = true;
+  if (matcher_loam_) {
+    // first get maps in their initial world frame
+    LoamPointCloudPtr ref_in_ref_submap_frame =
+        std::make_shared<LoamPointCloud>(
+            submap_ref->GetLidarLoamPointsInWorldFrame(use_initials));
+    LoamPointCloudPtr tgt_in_ref_submap_frame =
+        std::make_shared<LoamPointCloud>(
+            submap_tgt->GetLidarLoamPointsInWorldFrame(use_initials));
+
+    // then transform to the reference submap frame
+    Eigen::Matrix4d T_SubmapRef_WorldInit =
+        beam::InvertTransform(T_World_SubmapRef_Init);
+    ref_in_ref_submap_frame->TransformPointCloud(T_SubmapRef_WorldInit);
+    tgt_in_ref_submap_frame->TransformPointCloud(T_SubmapRef_WorldInit);
+
+    // align
+    matcher_loam_->SetRef(ref_in_ref_submap_frame);
+    matcher_loam_->SetTarget(tgt_in_ref_submap_frame);
+    bool match_success = matcher_loam_->Match();
+    Eigen::Matrix4d T_SubmapRef_SubmapTgt =
+        matcher_loam_->ApplyResult(T_SubmapRef_SubmapTgt_Init);
+    if (!output_path.empty()) {
+      matcher_loam_->SaveResults(submap_output, "submap_cloud_");
+    }
+
+    // set new submap pose
+    Eigen::Matrix4d T_World_SubmapTgt =
+        T_World_SubmapRef * T_SubmapRef_SubmapTgt;
+    submap_tgt->UpdatePose(T_World_SubmapTgt);
+  } else {
+    // first get maps in their initial world frame
+    PointCloud ref_in_world =
+        submap_ref->GetLidarPointsInWorldFrameCombined(use_initials);
+    PointCloud tgt_in_world =
+        submap_tgt->GetLidarPointsInWorldFrameCombined(use_initials);
+
+    // then transform to the reference submap frame
+    Eigen::Matrix4d T_SubmapRef_WorldInit =
+        beam::InvertTransform(T_World_SubmapRef_Init);
+    PointCloudPtr ref_in_ref_submap_frame = std::make_shared<PointCloud>();
+    PointCloudPtr tgt_in_ref_submap_frame = std::make_shared<PointCloud>();
+    pcl::transformPointCloud(ref_in_world, *ref_in_ref_submap_frame,
+                             T_SubmapRef_WorldInit.cast<float>());
+    pcl::transformPointCloud(tgt_in_world, *tgt_in_ref_submap_frame,
+                             T_SubmapRef_WorldInit.cast<float>());
+
+    // align
+    matcher_->SetRef(ref_in_ref_submap_frame);
+    matcher_->SetTarget(tgt_in_ref_submap_frame);
+    bool match_success = matcher_->Match();
+    Eigen::Matrix4d T_SubmapRef_SubmapTgt =
+        matcher_->ApplyResult(T_SubmapRef_SubmapTgt_Init);
+    if (!output_path.empty()) {
+      matcher_->SaveResults(submap_output, "submap_cloud_");
+    }
+
+    // set new submap pose
+    Eigen::Matrix4d T_World_SubmapTgt =
+        T_World_SubmapRef * T_SubmapRef_SubmapTgt;
+    submap_tgt->UpdatePose(T_World_SubmapTgt);
+  }
 
   return true;
 }

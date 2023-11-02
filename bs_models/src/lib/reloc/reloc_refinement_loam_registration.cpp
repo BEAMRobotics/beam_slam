@@ -114,16 +114,7 @@ bool RelocRefinementLoam::GetRefinedT_SUBMAP_QUERY(
     return false;
   }
 
-  Eigen::Matrix4d T_SUBMAPREFINED_SUBMAPEST =
-      matcher_->GetResult().inverse().matrix();
-
-  /**
-   * Get refined pose:
-   * T_SUBMAP_QUERY_OPT = T_SUBMAPREFINED_QUERY
-   *                   = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAPEST_QUERY
-   *                   = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAP_QUERY_EST
-   */
-  T_SUBMAP_QUERY_OPT = T_SUBMAPREFINED_SUBMAPEST * T_SUBMAP_QUERY_EST;
+  T_SUBMAP_QUERY_OPT = matcher_->ApplyResult(T_SUBMAP_QUERY_EST);
 
   if (!output_path.empty()) { matcher_->SaveResults(output_path, "cloud_"); }
   covariance = matcher_->GetCovariance();
