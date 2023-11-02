@@ -281,6 +281,12 @@ public:
    */
   bool UpdatePose(fuse_core::Graph::ConstSharedPtr graph_msg);
 
+  /**
+   * @brief update the submap pose with an input transform matrix
+   * @param T_WORLD_SUBMAP
+   */
+  void UpdatePose(const Eigen::Matrix4d& T_WORLD_SUBMAP);
+
   /*-------------------------------/
             SAVING DATA
   /-------------------------------*/

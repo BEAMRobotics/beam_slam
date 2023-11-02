@@ -237,15 +237,15 @@ std::optional<Eigen::Matrix4d>
   matcher_->SetRef(candidate_in_candidate_submap_frame);
   matcher_->SetTarget(query_in_candidate_submap_frame);
   bool match_success = matcher_->Match();
-  Eigen::Matrix4d T_CandidateSub_QuerySub =
-      matcher_->GetResult().inverse().matrix();
+  Eigen::Matrix4d T_Candidate_Query =
+      matcher_->ApplyResult(T_CandidateSubmapEst_QuerySubmap);
   if (!output_path.empty()) {
     matcher_->SaveResults(output_path, "candidate_cloud_");
   }
 
   if (match_success) {
     BEAM_INFO("match successful");
-    return T_CandidateSub_QuerySub;
+    return T_Candidate_Query;
   } else {
     BEAM_WARN("match unsuccessful");
     return {};

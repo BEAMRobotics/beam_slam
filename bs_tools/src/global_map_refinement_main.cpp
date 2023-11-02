@@ -14,7 +14,7 @@
  -output_path ~/results \
  -run_submap_refinement=true \
  -run_posegraph_optimization=true \ 
- -refinement_config ~/beam_slam/beam_slam_launch/config/global_map/global_map_refinement_test.json \ 
+ -refinement_config ~/beam_slam/beam_slam_launch/config/global_map/global_map_refinement.json \ 
  -calibration_yaml ~/beam_slam/beam_slam_launch/config/calibration_params.yaml
 *
 * NOTE: YOU MUST ALSO PUBLISH YOUR EXTRINSIC CALIBRATIONS - USE: calibration_publisher.launch
@@ -37,13 +37,13 @@ DEFINE_string(calibration_yaml, "", "Full path to calibration yaml. ");
 DEFINE_validator(calibration_yaml, &beam::gflags::ValidateFileMustExist);
 DEFINE_bool(run_submap_refinement, true,
             "Set to true to refine the submaps before running the pose graph "
-            "optimization. This should always be set to true, but there are "
-            "possible reasons for skipping this step.");
+            "optimization.");
+DEFINE_bool(run_submap_alignment, true,
+            "Set to true to re-align the submaps after running refinement and "
+            "before running the pose graph optimization. ");
 DEFINE_bool(run_posegraph_optimization, true,
             "Set to true to run pose graph optimization after submap "
-            "refinement to refine the relative pose of the submaps. "
-            "This should always be set to true, but there are "
-            "possible reasons for skipping this step.");
+            "refinement to refine the relative pose of the submaps. ");
 
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -68,12 +68,27 @@ int main(int argc, char* argv[]) {
   std::filesystem::create_directory(global_map_data_path);
 
   if (FLAGS_run_submap_refinement) {
-    if (!refinement.RunSubmapRefinement()) {
+    std::string refinement_save_path =
+        beam::CombinePaths(save_path, "submap_refinement_results");
+    std::filesystem::create_directory(refinement_save_path);
+    if (!refinement.RunSubmapRefinement(refinement_save_path)) {
       BEAM_ERROR("Submap refinement failed, exiting global map refinement.");
       return 0;
     }
   } else {
     BEAM_INFO("Skipping submap refinement.");
+  }
+
+  if (FLAGS_run_submap_alignment) {
+    std::string alignment_save_path =
+        beam::CombinePaths(save_path, "submap_alignment_results");
+    std::filesystem::create_directory(alignment_save_path);
+    if (!refinement.RunSubmapAlignment(alignment_save_path)) {
+      BEAM_ERROR("Submap alignment failed, exiting global map refinement.");
+      return 0;
+    }
+  } else {
+    BEAM_INFO("Skipping submap alignment.");
   }
 
   if (FLAGS_run_posegraph_optimization) {

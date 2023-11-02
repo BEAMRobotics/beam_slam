@@ -2,6 +2,8 @@
 
 #include <pcl/kdtree/kdtree_flann.h>
 
+#include <beam_matching/Matchers.h>
+
 #include <bs_models/global_mapping/global_map.h>
 #include <bs_models/reloc/reloc_candidate_search_base.h>
 #include <bs_models/reloc/reloc_refinement_base.h>
@@ -56,14 +58,18 @@ public:
     /** Full path to config file for matcher. If blank, it will use default
      * parameters.*/
     std::string matcher_config;
+  };
 
-    /** If not empty, we will output registration results to this folder. */
-    std::string registration_results_output_path;
+  struct SubmapAlignmentParams {
+    /** Full path to config file for matcher. If blank, it will use default
+     * parameters.*/
+    std::string matcher_config;
   };
 
   struct Params {
     LoopClosureParams loop_closure;
     SubmapRefinementParams submap_refinement;
+    SubmapAlignmentParams submap_alignment;
 
     /** Loads config settings from a json file. If config_path empty, it will
      * use default params defined herein. */
@@ -118,17 +124,26 @@ public:
   ~GlobalMapRefinement() = default;
 
   /**
-   * @brief Calls RefineSUbmap on all submaps, with a check to make sure each
+   * @brief Calls RefineSubmap on all submaps, with a check to make sure each
    * one passed, otherwise it exits
+   * @param output_path save results to this path
    * @return true if successful
    */
-  bool RunSubmapRefinement();
+  bool RunSubmapRefinement(const std::string& output_path = "");
+
+  /**
+   * @brief Calls AlignSubmaps on all contiguous submap pairs, with a check to
+   * make sure each one passed, otherwise it exits
+   * @param output_path save results to this path
+   * @return true if successful
+   */
+  bool RunSubmapAlignment(const std::string& output_path = "");
 
   /**
    * @brief calls loop closure on the submaps using the global map
    * @param output_path save results to this path
    */
-  bool RunPoseGraphOptimization(const std::string& output_path);
+  bool RunPoseGraphOptimization(const std::string& output_path = "");
 
   /**
    * @brief save results to a easily viewable format (i.e., pcd maps, poses,
@@ -152,7 +167,19 @@ private:
    * @param submap reference to submap to be refined
    * @return true if successful
    */
-  bool RefineSubmap(SubmapPtr& submap);
+  bool RefineSubmap(SubmapPtr& submap, const std::string& output_path);
+
+  /**
+   * @brief Aligns the tgt submap to the reference submap. This is designed to
+   * be called one by one starting with the second submap. Since drift builds up
+   * over time, we want to always use the initial relative poses between the two
+   * submaps to initialize the registration.
+   * @param submap_ref const reference to submap to be aligned to
+   * @param submap_tgt reference to submap to be aligned
+   * @return true if successful
+   */
+  bool AlignSubmaps(const SubmapPtr& submap_ref, SubmapPtr& submap_tgt,
+                    const std::string& output_path);
 
   /**
    * @brief setup general things needed when class is instatiated, such as
@@ -167,6 +194,11 @@ private:
   std::shared_ptr<reloc::RelocCandidateSearchBase>
       loop_closure_candidate_search_;
   std::shared_ptr<reloc::RelocRefinementBase> loop_closure_refinement_;
+
+  // Submap alignment
+  std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
+  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
+      matcher_loam_;
 
   // params only tunable here
   int pgo_skip_first_n_submaps_{3};
