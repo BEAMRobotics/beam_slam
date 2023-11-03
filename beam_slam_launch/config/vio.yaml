@@ -45,10 +45,10 @@ slam_initialization:
   lidar_topic: "/lidar_h/velodyne_points"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
-  min_trajectory_length_m: 2.0
+  min_trajectory_length_m: 3.0
   min_visual_parallax: 40.0
   inertial_information_weight: 1.0
-  lidar_information_weight: 1.0
+  lidar_information_weight: 100.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results" 
 
@@ -60,7 +60,7 @@ visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
-  use_standalone_vo: true
+  use_standalone_vo: false
   odom_information_weight: 1.0
 
 gravity_alignment:

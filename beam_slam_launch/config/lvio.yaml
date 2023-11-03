@@ -30,8 +30,8 @@ sensor_models:
     type: 'bs_models::LidarOdometry'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
-  - name: 'gravity_alignment'
-    type: 'bs_models::GravityAlignment'
+  # - name: 'gravity_alignment'
+  #   type: 'bs_models::GravityAlignment'
 
 publishers:
   - name: 'path_publisher'
@@ -51,7 +51,7 @@ slam_initialization:
   min_trajectory_length_m: 3.0
   min_visual_parallax: 40.0
   inertial_information_weight: 1.0
-  lidar_information_weight: 100.0
+  lidar_information_weight: 1000.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results" 
 
@@ -64,7 +64,7 @@ visual_odometry:
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
   use_standalone_vo: true
-  odom_information_weight: 1000.0
+  odom_information_weight: 100.0
 
 gravity_alignment:
   imu_topic: "/imu/data"
@@ -88,7 +88,7 @@ lidar_odometry:
   publish_registration_map: false
   publish_registration_results: false
   lidar_information_weight: 100.0
-  frame_initializer_config: "/frame_initializers/io.json"
+  frame_initializer_config: "/frame_initializers/vo.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 
   # these are only relevant if scan_output_directory is not empty
