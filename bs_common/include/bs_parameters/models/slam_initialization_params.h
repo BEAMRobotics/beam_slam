@@ -92,8 +92,10 @@ public:
         std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
 
     // read vo params
-    std::string vo_params = beam::CombinePaths(
-        bs_common::GetBeamSlamConfigPath(), "vo/vo_params.json");
+    std::string vo_config;
+    getParam<std::string>(nh, "vo_config", vo_config, vo_config);
+    std::string vo_params =
+        beam::CombinePaths(bs_common::GetBeamSlamConfigPath(), vo_config);
     nlohmann::json J;
 
     if (!beam::ReadJson(vo_params, J)) {
@@ -108,7 +110,6 @@ public:
 
       try {
         max_triangulation_reprojection = J["max_triangulation_reprojection"];
-        max_triangulation_reprojection *= 2.0;
       } catch (...) {
         ROS_ERROR("Missing 'max_triangulation_reprojection' param in vo config "
                   "file. Using default: 40.0.");

@@ -237,6 +237,7 @@ private:
   fuse_core::Vector7d keyframe_imu_delta_;
   fuse_core::Graph::SharedPtr local_graph_;
   ceres::Solver::Options local_solver_options_;
+  Eigen::Matrix<double, 6, 6> imu_covariance_;
 };
 
 } // namespace bs_models

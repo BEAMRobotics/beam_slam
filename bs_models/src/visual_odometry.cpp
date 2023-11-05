@@ -27,6 +27,8 @@
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::VisualOdometry, fuse_core::SensorModel)
 
+constexpr double MARGINALIZATION_PRIOR = 1e-9;
+
 namespace bs_models {
 
 using namespace vision;
@@ -71,11 +73,21 @@ void VisualOdometry::onInit() {
 
   // compute the max container size
   ros::param::get("/local_mapper/lag_duration", lag_duration_);
-  if (vo_params_.use_standalone_vo) { lag_duration_ = 6.0; }
   max_container_size_ = calibration_params_.camera_hz * (lag_duration_ + 1);
 
   // create local solver options
   if (vo_params_.use_standalone_vo) {
+    // manually set lag duration
+    lag_duration_ = 6.0;
+
+    // get the inertial covariance matrix for relative constraints
+    Eigen::Matrix3d q_imu_cov = 1e-4 * Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d p_imu_cov = 1e-2 * Eigen::Matrix3d::Identity();
+    imu_covariance_ = Eigen::Matrix<double, 6, 6>::Identity();
+    imu_covariance_.block<3, 3>(0, 0) = p_imu_cov;
+    imu_covariance_.block<3, 3>(3, 3) = q_imu_cov;
+
+    // setup solve params
     ceres::Solver::Options options;
     options.minimizer_type = ceres::TRUST_REGION;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
@@ -262,7 +274,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         "Not enough points for visual refinement: " << pixels.size());
     T_WORLD_BASELINK = T_WORLD_BASELINKcur;
     track_lost = true;
-    covariance = 100 * Eigen::Matrix<double, 6, 6>::Identity();
+    covariance = Eigen::Matrix<double, 6, 6>::Identity();
   }
 
   return true;
@@ -284,15 +296,8 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 
   if (vo_params_.use_standalone_vo) {
     // add relative pose constraint to the transaction using the imu estimate
-    // and a manually tuned covariance
-    Eigen::Matrix3d q_imu_cov = 1e-4 * Eigen::Matrix3d::Identity();
-    Eigen::Matrix3d p_imu_cov = 1e-2 * Eigen::Matrix3d::Identity();
-    Eigen::Matrix<double, 6, 6> imu_covariance =
-        Eigen::Matrix<double, 6, 6>::Identity();
-    imu_covariance.block<3, 3>(0, 0) = p_imu_cov;
-    imu_covariance.block<3, 3>(3, 3) = q_imu_cov;
     visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
-                                           keyframe_imu_delta_, imu_covariance,
+                                           keyframe_imu_delta_, imu_covariance_,
                                            transaction);
   }
 
@@ -554,53 +559,6 @@ void VisualOdometry::GetPixelPointPairs(
   }
 }
 
-void VisualOdometry::PublishOdometry(
-    const ros::Time& timestamp, const Eigen::Matrix4d& T_WORLD_BASELINK,
-    const Eigen::Matrix<double, 6, 6>& covariance) {
-  static uint64_t rel_odom_seq = 0;
-  // publish to odometry topic
-  const auto odom_msg = bs_common::TransformToOdometryMessage(
-      timestamp, rel_odom_seq++, extrinsics_.GetWorldFrameId(),
-      extrinsics_.GetBaselinkFrameId(), T_WORLD_BASELINK, covariance);
-  odometry_publisher_.publish(odom_msg);
-}
-
-void VisualOdometry::PublishSlamChunk(const vision::Keyframe& keyframe) {
-  static uint64_t slam_chunk_seq = 0;
-  const Eigen::Matrix4d T_WORLD_BASELINK =
-      visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
-  bs_common::SlamChunkMsg slam_chunk_msg;
-  geometry_msgs::PoseStamped pose_stamped;
-  bs_common::EigenTransformToPoseStamped(
-      T_WORLD_BASELINK, keyframe.Stamp(), slam_chunk_seq++,
-      extrinsics_.GetBaselinkFrameId(), pose_stamped);
-  slam_chunk_msg.T_WORLD_BASELINK = pose_stamped;
-  slam_chunk_msg.camera_measurement = keyframe.MeasurementMessage();
-
-  nav_msgs::Path sub_keyframe_path;
-  sub_keyframe_path.header.stamp = keyframe.Stamp();
-  sub_keyframe_path.header.frame_id = extrinsics_.GetBaselinkFrameId();
-  for (const auto [stamp, pose] : keyframe.Trajectory()) {
-    geometry_msgs::PoseStamped pose_stamped;
-    bs_common::EigenTransformToPoseStamped(
-        pose, stamp, 0, extrinsics_.GetBaselinkFrameId(), pose_stamped);
-    sub_keyframe_path.poses.push_back(pose_stamped);
-  }
-
-  slam_chunk_msg.trajectory_measurement = sub_keyframe_path;
-  slam_chunk_publisher_.publish(slam_chunk_msg);
-}
-
-void VisualOdometry::PublishPose(const ros::Time& timestamp,
-                                 const Eigen::Matrix4d& T_WORLD_BASELINK) {
-  static uint64_t kf_odom_seq = 0;
-  geometry_msgs::PoseStamped msg;
-  bs_common::EigenTransformToPoseStamped(T_WORLD_BASELINK, timestamp,
-                                         kf_odom_seq++,
-                                         extrinsics_.GetBaselinkFrameId(), msg);
-  keyframe_publisher_.publish(msg);
-}
-
 void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
   const auto timestamps = bs_common::CurrentTimestamps(*graph);
   const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(*graph);
@@ -830,11 +788,12 @@ void VisualOdometry::MarginalizeGraph() {
       if (constraints.empty()) { local_graph_->removeVariable(lm_uuid); }
     }
 
-    // add prior to new start state
     const auto new_timestamps = bs_common::CurrentTimestamps(*local_graph_);
     const ros::Time oldest_time = *new_timestamps.begin();
     auto marginal_transaction = fuse_core::Transaction::make_shared();
     marginal_transaction->stamp(oldest_time);
+
+    // add prior to new start state
     auto maybe_start_imu_state =
         bs_common::GetImuState(*local_graph_, oldest_time);
     if (maybe_start_imu_state) {
@@ -842,11 +801,12 @@ void VisualOdometry::MarginalizeGraph() {
       fuse_core::Constraint::SharedPtr prior =
           std::make_shared<bs_constraints::AbsoluteImuState3DStampedConstraint>(
               "PRIOR", start_imu_state, start_imu_state.GetStateVector(),
-              1e-5 * Eigen::Matrix<double, 15, 15>::Identity());
+              MARGINALIZATION_PRIOR *
+                  Eigen::Matrix<double, 15, 15>::Identity());
       marginal_transaction->addConstraint(prior);
     } else {
       Eigen::Matrix<double, 6, 6> marginalization_prior =
-          1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
+          MARGINALIZATION_PRIOR * Eigen::Matrix<double, 6, 6>::Identity();
       visual_map_->AddPosePrior(oldest_time, marginalization_prior,
                                 marginal_transaction);
     }
@@ -950,6 +910,53 @@ void VisualOdometry::PublishLandmarkPointCloud(const fuse_core::Graph& graph) {
   sensor_msgs::PointCloud2 ros_cloud = beam::PCLToROS<pcl::PointXYZRGBL>(
       cloud, ros::Time::now(), extrinsics_.GetWorldFrameId(), count++);
   camera_landmarks_publisher_.publish(ros_cloud);
+}
+
+void VisualOdometry::PublishOdometry(
+    const ros::Time& timestamp, const Eigen::Matrix4d& T_WORLD_BASELINK,
+    const Eigen::Matrix<double, 6, 6>& covariance) {
+  static uint64_t rel_odom_seq = 0;
+  // publish to odometry topic
+  const auto odom_msg = bs_common::TransformToOdometryMessage(
+      timestamp, rel_odom_seq++, extrinsics_.GetWorldFrameId(),
+      extrinsics_.GetBaselinkFrameId(), T_WORLD_BASELINK, covariance);
+  odometry_publisher_.publish(odom_msg);
+}
+
+void VisualOdometry::PublishSlamChunk(const vision::Keyframe& keyframe) {
+  static uint64_t slam_chunk_seq = 0;
+  const Eigen::Matrix4d T_WORLD_BASELINK =
+      visual_map_->GetBaselinkPose(keyframe.Stamp()).value();
+  bs_common::SlamChunkMsg slam_chunk_msg;
+  geometry_msgs::PoseStamped pose_stamped;
+  bs_common::EigenTransformToPoseStamped(
+      T_WORLD_BASELINK, keyframe.Stamp(), slam_chunk_seq++,
+      extrinsics_.GetBaselinkFrameId(), pose_stamped);
+  slam_chunk_msg.T_WORLD_BASELINK = pose_stamped;
+  slam_chunk_msg.camera_measurement = keyframe.MeasurementMessage();
+
+  nav_msgs::Path sub_keyframe_path;
+  sub_keyframe_path.header.stamp = keyframe.Stamp();
+  sub_keyframe_path.header.frame_id = extrinsics_.GetBaselinkFrameId();
+  for (const auto [stamp, pose] : keyframe.Trajectory()) {
+    geometry_msgs::PoseStamped pose_stamped;
+    bs_common::EigenTransformToPoseStamped(
+        pose, stamp, 0, extrinsics_.GetBaselinkFrameId(), pose_stamped);
+    sub_keyframe_path.poses.push_back(pose_stamped);
+  }
+
+  slam_chunk_msg.trajectory_measurement = sub_keyframe_path;
+  slam_chunk_publisher_.publish(slam_chunk_msg);
+}
+
+void VisualOdometry::PublishPose(const ros::Time& timestamp,
+                                 const Eigen::Matrix4d& T_WORLD_BASELINK) {
+  static uint64_t kf_odom_seq = 0;
+  geometry_msgs::PoseStamped msg;
+  bs_common::EigenTransformToPoseStamped(T_WORLD_BASELINK, timestamp,
+                                         kf_odom_seq++,
+                                         extrinsics_.GetBaselinkFrameId(), msg);
+  keyframe_publisher_.publish(msg);
 }
 
 } // namespace bs_models

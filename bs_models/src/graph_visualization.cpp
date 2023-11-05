@@ -220,6 +220,11 @@ void GraphVisualization::VisualizeCameraLandmarks(
 
     const auto img_msg = image_buffer_[nsec];
     cv::Mat image_out = beam_cv::OpenCVConversions::RosImgToMat(img_msg);
+    if(image_out.type() == CV_8UC1){
+      cv::Mat dst;
+      cv::cvtColor(image_out, dst, cv::COLOR_GRAY2BGR);
+      image_out = dst;
+    }
 
     // get pose
     const auto position = bs_common::GetPosition(*graph_msg, timestamp);
