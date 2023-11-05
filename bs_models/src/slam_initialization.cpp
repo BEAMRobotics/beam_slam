@@ -42,6 +42,10 @@ void SLAMInitialization::onInit() {
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
   cam_intrinsic_matrix_ = cam_model_->GetRectifiedModel()->GetIntrinsicMatrix();
+  cv::Mat K(3, 3, CV_32F);
+  cv::eigen2cv(cam_intrinsic_matrix_, K);
+  K_ = K;
+
   visual_map_ = std::make_shared<vision::VisualMap>(
       cam_model_, params_.reprojection_loss,
       params_.reprojection_information_weight);
@@ -814,10 +818,8 @@ void SLAMInitialization::AddMeasurementsToContainer(
     }
 
     // attempt essential matrix estimation
-    cv::Mat K(3, 3, CV_32F);
-    cv::eigen2cv(cam_intrinsic_matrix_, K);
     std::vector<uchar> mask;
-    cv::findEssentialMat(fp1, fp2, K, cv::RANSAC, 0.99, 2.0, mask);
+    cv::findEssentialMat(fp1, fp2, K_, cv::RANSAC, 0.99, 1.0, mask);
 
     // remove outliers from container
     for (size_t i = 0; i < mask.size(); i++) {

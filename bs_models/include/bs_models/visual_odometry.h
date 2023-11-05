@@ -223,6 +223,7 @@ private:
   /// @brief computer vision objects
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   Eigen::Matrix3d cam_intrinsic_matrix_;
+  cv::Mat K_;
   std::shared_ptr<beam_containers::LandmarkContainer> landmark_container_;
   std::shared_ptr<vision::VisualMap> visual_map_;
   std::shared_ptr<beam_cv::PoseRefinement> pose_refiner_;
