@@ -3,6 +3,8 @@
 #include <fuse_constraints/relative_constraint.h>
 #include <fuse_constraints/relative_pose_3d_stamped_constraint.h>
 
+#include <beam_utils/filesystem.h>
+
 #include <bs_common/conversions.h>
 
 namespace bs_common {
@@ -156,13 +158,21 @@ void AddZeroMotionFactor(const std::string& source,
   transaction->addConstraint(relative_ba_constraint);
 }
 
-void ValidateJsonKeysOrThrow(const std::vector<std::string>& required_keys,
-                             const nlohmann::json& J) {
-  for (const auto& key : required_keys) {
-    if (!J.contains(key)) {
-      BEAM_ERROR("Invalid config json, missing key: {}", key);
-      throw std::runtime_error{"invalid config json"};
-    }
+std::string GetAbsoluteConfigPathFromJson(const std::string& json_path,
+                                          const std::string& field_name) {
+  nlohmann::json J;
+  if (!beam::ReadJson(json_path, J)) {
+    BEAM_ERROR("Unable to json");
+    throw std::runtime_error{"Unable to read config"};
+  }
+
+  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{field_name}, J);
+
+  std::string path_rel = J[field_name];
+  if (path_rel.empty()) {
+    return "";
+  } else {
+    return beam::CombinePaths(GetBeamSlamConfigPath(), path_rel);
   }
 }
 

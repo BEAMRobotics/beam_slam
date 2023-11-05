@@ -84,7 +84,13 @@ void AddZeroMotionFactor(const std::string& source,
                          const bs_common::ImuState& state2,
                          fuse_core::Transaction::SharedPtr transaction);
 
-void ValidateJsonKeysOrThrow(const std::vector<std::string>& required_keys,
-                             const nlohmann::json& J);
+/**
+ * @brief lookup a field in a json, and if not empty, convert the relative path
+ * (relative to config dir) to an absolute path. If field doesn't exist, or if
+ * json can't be loaded, it will throw. If the field is empty, then we will
+ * return an empty string
+ */
+std::string GetAbsoluteConfigPathFromJson(const std::string& json_path,
+                                          const std::string& field_name);
 
 } // namespace bs_common

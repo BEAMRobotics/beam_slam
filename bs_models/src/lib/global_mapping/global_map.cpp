@@ -73,7 +73,7 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
     throw std::runtime_error{"Unable to read global map config"};
   }
 
-  bs_common::ValidateJsonKeysOrThrow(
+  beam::ValidateJsonKeysOrThrow(
       std::vector<std::string>{
           "submap_size_m", "loop_closure_candidate_search_config",
           "loop_closure_refinement_config", "local_mapper_covariance_diag",
@@ -122,7 +122,7 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   // load filters
   nlohmann::json J_publishing = J["publishing"];
 
-  bs_common::ValidateJsonKeysOrThrow(
+  beam::ValidateJsonKeysOrThrow(
       std::vector<std::string>{"submap_lidar_filters",
                                "globalmap_lidar_filters"},
       J_publishing);

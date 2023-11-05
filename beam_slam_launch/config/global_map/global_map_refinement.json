@@ -4,10 +4,10 @@
     "refinement_config": "global_map/reloc_refinement_scan_registration.json"
   },
   "submap_refinement": {
-    "scan_registration_config": "registration/multi_scan.json",
-    "matcher_config": "matchers/loam_vlp16.json"
+    "scan_registration_config": "registration/scan_to_map_loam_slow.json",
+    "matcher_config": "matchers/loam_vlp16_slow.json"
   },
   "submap_alignment": {
-    "matcher_config": "matchers/loam_vlp16.json"
+    "matcher_config": "matchers/loam_vlp16_slow.json"
   }
 }

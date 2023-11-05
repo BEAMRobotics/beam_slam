@@ -74,8 +74,7 @@ void RelocRefinementLoam::LoadConfig() {
     throw std::runtime_error{"Unable to read config"};
   }
 
-  bs_common::ValidateJsonKeysOrThrow(std::vector<std::string>{"matcher_config"},
-                                     J);
+  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"matcher_config"}, J);
   std::string matcher_config_rel = J["matcher_config"];
   if (matcher_config_rel.empty()) {
     BEAM_ERROR("Reloc refinement cannot have an empty matcher_config");
@@ -87,7 +86,9 @@ void RelocRefinementLoam::LoadConfig() {
 
 void RelocRefinementLoam::Setup() {
   // load matcher
-  beam_matching::LoamParams matcher_params(matcher_config_);
+  std::string ceres_config =
+      bs_common::GetAbsoluteConfigPathFromJson(matcher_config_, "ceres_config");
+  beam_matching::LoamParams matcher_params(matcher_config_, ceres_config);
   matcher_ = std::make_unique<LoamMatcher>(matcher_params);
 }
 

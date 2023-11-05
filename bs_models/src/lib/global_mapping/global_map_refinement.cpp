@@ -27,14 +27,14 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
     throw std::runtime_error{"Unable to read global map refinement config"};
   }
 
-  bs_common::ValidateJsonKeysOrThrow(
-      std::vector<std::string>{"loop_closure", "submap_refinement",
-                               "submap_alignment"},
-      J);
+  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"loop_closure",
+                                                         "submap_refinement",
+                                                         "submap_alignment"},
+                                J);
 
   // load loop closure params
   nlohmann::json J_loop_closure = J["loop_closure"];
-  bs_common::ValidateJsonKeysOrThrow(
+  beam::ValidateJsonKeysOrThrow(
       std::vector<std::string>{"candidate_search_config", "refinement_config"},
       J_loop_closure);
 
@@ -53,7 +53,7 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
 
   // load submap refinement params
   nlohmann::json J_submap_refinement = J["submap_refinement"];
-  bs_common::ValidateJsonKeysOrThrow(
+  beam::ValidateJsonKeysOrThrow(
       std::vector<std::string>{"scan_registration_config", "matcher_config"},
       J_submap_refinement);
 
@@ -72,8 +72,8 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
 
   // load submap alignment params
   nlohmann::json J_submap_alignment = J["submap_alignment"];
-  bs_common::ValidateJsonKeysOrThrow(std::vector<std::string>{"matcher_config"},
-                                     J_submap_alignment);
+  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"matcher_config"},
+                                J_submap_alignment);
   matcher_config_rel = J_submap_alignment["matcher_config"];
   if (!matcher_config_rel.empty()) {
     submap_alignment.matcher_config = beam::CombinePaths(
@@ -120,7 +120,10 @@ void GlobalMapRefinement::Setup() {
   const auto& m_conf = params_.submap_alignment.matcher_config;
   auto matcher_type = GetTypeFromConfig(m_conf);
   if (matcher_type == MatcherType::LOAM) {
-    matcher_loam_ = std::make_unique<LoamMatcher>(LoamParams(m_conf));
+    std::string ceres_config =
+        bs_common::GetAbsoluteConfigPathFromJson(m_conf, "ceres_config");
+    matcher_loam_ =
+        std::make_unique<LoamMatcher>(LoamParams(m_conf, ceres_config));
   } else if (matcher_type == MatcherType::ICP) {
     matcher_ = std::make_unique<IcpMatcher>(IcpMatcher::Params(m_conf));
   } else if (matcher_type == MatcherType::GICP) {

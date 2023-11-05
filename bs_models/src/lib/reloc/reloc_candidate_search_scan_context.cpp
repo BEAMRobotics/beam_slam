@@ -36,7 +36,7 @@ void RelocCandidateSearchScanContext::LoadConfig() {
     throw std::runtime_error{"Unable to read config"};
   }
 
-  bs_common::ValidateJsonKeysOrThrow(
+  beam::ValidateJsonKeysOrThrow(
       std::vector<std::string>{"type", "submap_distance_threshold_m",
                                "matcher_config", "scan_context_dist_thres",
                                "num_scans_to_aggregate", "filters"},

@@ -174,8 +174,10 @@ void LidarOdometry::SetupRegistration() {
     // setup feature extractor if needed
     matcher_type = beam_matching::GetTypeFromConfig(matcher_filepath);
     if (matcher_type == beam_matching::MatcherType::LOAM) {
+      std::string ceres_config = bs_common::GetAbsoluteConfigPathFromJson(
+          matcher_filepath, "ceres_config");
       std::shared_ptr<LoamParams> matcher_params =
-          std::make_shared<LoamParams>(matcher_filepath);
+          std::make_shared<LoamParams>(matcher_filepath, ceres_config);
       feature_extractor_ =
           std::make_shared<LoamFeatureExtractor>(matcher_params);
     }
@@ -214,14 +216,6 @@ void LidarOdometry::SetupRegistration() {
 }
 
 void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
-  /////////////////////////////////////
-  // std::string o_path =
-  //     "/userhome/debug/biases_debug/graph" + std::to_string(updates_);
-  // std::filesystem::create_directory(o_path);
-  // graph_visualization::ExportGraphVisualization(o_path, *graph_msg);
-  // if (updates_ > 3) { throw std::runtime_error{"stopping"}; }
-  /////////////////////////////////////
-
   if (updates_ == 0) {
     ROS_INFO("received first graph update, initializing registration and "
              "starting lidar odometry");

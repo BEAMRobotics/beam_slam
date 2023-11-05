@@ -100,7 +100,7 @@ private:
       return;
     }
 
-    bs_common::ValidateJsonKeysOrThrow(
+    beam::ValidateJsonKeysOrThrow(
         std::vector<std::string>{"matcher_config", "filters"}, J);
     std::string matcher_config_rel = J["matcher_config"];
     if (matcher_config_rel.empty()) {

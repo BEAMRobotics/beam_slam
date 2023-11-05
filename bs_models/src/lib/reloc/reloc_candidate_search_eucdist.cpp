@@ -34,7 +34,7 @@ void RelocCandidateSearchEucDist::LoadConfig() {
     throw std::runtime_error{"Unable to read config"};
   }
 
-  bs_common::ValidateJsonKeysOrThrow(std::vector<std::string>{"type"}, J);
+  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"type"}, J);
   std::string type = J["type"];
   if (type != "EUCDIST") {
     BEAM_ERROR(
@@ -43,7 +43,7 @@ void RelocCandidateSearchEucDist::LoadConfig() {
     throw std::runtime_error{"invalid config file"};
   }
 
-  bs_common::ValidateJsonKeysOrThrow(
+  beam::ValidateJsonKeysOrThrow(
       std::vector<std::string>{"distance_threshold_m"}, J);
   distance_threshold_m_ = J["distance_threshold_m"];
 }

@@ -42,8 +42,10 @@ std::unique_ptr<ScanRegistrationBase> ScanRegistrationBase::Create(
 
   // treat loam different
   if (matcher_type == beam_matching::MatcherType::LOAM) {
+    std::string ceres_config = bs_common::GetAbsoluteConfigPathFromJson(
+        matcher_config, "ceres_config");
     std::unique_ptr<LoamMatcher> matcher =
-        std::make_unique<LoamMatcher>(LoamParams(matcher_config));
+        std::make_unique<LoamMatcher>(LoamParams(matcher_config, ceres_config));
 
     if (registration_type == "SCANTOMAP") {
       ScanToMapLoamRegistration::Params params;
@@ -132,7 +134,7 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
     return;
   }
 
-  bs_common::ValidateJsonKeysOrThrow(
+  beam::ValidateJsonKeysOrThrow(
       std::vector<std::string>{"min_motion_trans_m", "min_motion_rot_deg",
                                "max_motion_trans_m", "fix_first_scan"},
       J);

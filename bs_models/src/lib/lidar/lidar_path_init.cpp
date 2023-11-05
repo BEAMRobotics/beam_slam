@@ -30,7 +30,9 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
     matcher_params->max_correspondence_distance = 0.25;
     matcher_params->max_corner_less_sharp = 10;
   } else {
-    matcher_params = std::make_shared<LoamParams>(matcher_config);
+    std::string ceres_config = bs_common::GetAbsoluteConfigPathFromJson(
+        matcher_config, "ceres_config");
+    matcher_params = std::make_shared<LoamParams>(matcher_config, ceres_config);
   }
 
   // override ceres config
@@ -59,29 +61,20 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
 
   // get filter params
   nlohmann::json J;
-  std::string filepath = bs_common::GetBeamSlamConfigPath() +
-                         "lidar_filters/input_filters_slam_init.json";
+  std::string filepath =
+      beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
+                         "lidar_filters/input_filters_slam_init.json");
 
   BEAM_INFO("Reading input filter params from {}", filepath);
   if (!beam::ReadJson(filepath, J)) {
     BEAM_ERROR("Cannot read input filters json, not using any filters.");
-  } else {
-    nlohmann::json J_filters;
-    bool json_valid{true};
-    try {
-      J_filters = J["filters"];
-    } catch (...) {
-      BEAM_ERROR(
-          "Missing 'filters' param in input filters config file. Not using "
-          "filters.");
-      std::cout << "Json Dump: " << J.dump() << "\n";
-      json_valid = false;
-    }
-    if (json_valid) {
-      input_filter_params_ = beam_filtering::LoadFilterParamsVector(J_filters);
-      BEAM_INFO("Loaded {} input filters", input_filter_params_.size());
-    }
+    throw std::runtime_error{"unable to load params"};
   }
+
+  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"filters"}, J);
+  nlohmann::json J_filters = J["filters"];
+  input_filter_params_ = beam_filtering::LoadFilterParamsVector(J_filters);
+  BEAM_INFO("Loaded {} input filters", input_filter_params_.size());
 }
 
 void LidarPathInit::ProcessLidar(
