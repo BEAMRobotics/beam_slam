@@ -115,7 +115,7 @@ void VisualOdometry::processMeasurements(
   ROS_INFO_STREAM_ONCE(
       "VisualOdometry received VISUAL measurements: " << msg->header.stamp);
 
-  // add measurements to local containeru
+  // add measurements to local container
   AddMeasurementsToContainer(msg);
 
   // buffer the message
@@ -327,6 +327,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   ROS_INFO_STREAM_ONCE("VisualOdometry received initial graph.");
+  std::unique_lock<std::mutex> lk(buffer_mutex_);
   // publish marginalized keyframes as slam chunks (if we have initialized)
   if (is_initialized_ && !vo_params_.use_standalone_vo) {
     PruneKeyframes(*graph);
@@ -334,7 +335,9 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   // update visual map with new graph (if using full VO)
   if (!vo_params_.use_standalone_vo) { visual_map_->UpdateGraph(*graph); }
   // do initial setup
-  if (!is_initialized_) { Initialize(graph); }
+  if (!is_initialized_) {
+    Initialize(graph);
+  }
 }
 
 /****************************************************/
@@ -601,7 +604,6 @@ void VisualOdometry::PublishPose(const ros::Time& timestamp,
 }
 
 void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
-  std::unique_lock<std::mutex> lk(buffer_mutex_);
   const auto timestamps = bs_common::CurrentTimestamps(*graph);
   const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(*graph);
   if (current_landmark_ids.empty()) {
@@ -817,7 +819,7 @@ void VisualOdometry::MarginalizeGraph() {
         local_graph_->removeVariable(v->uuid());
       }
     }
-    
+
     PruneKeyframes(*local_graph_);
 
     // remove any disconnected landmarks

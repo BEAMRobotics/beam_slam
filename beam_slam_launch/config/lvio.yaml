@@ -51,8 +51,8 @@ slam_initialization:
   min_trajectory_length_m: 3.0
   min_visual_parallax: 40.0
   inertial_information_weight: 1.0
-  lidar_information_weight: 1000.0
-  matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
+  lidar_information_weight: 100.0
+  matcher_config: 'matchers/loam_vlp16.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results" 
 
 inertial_odometry:
@@ -88,7 +88,7 @@ lidar_odometry:
   publish_registration_map: false
   publish_registration_results: false
   lidar_information_weight: 100.0
-  frame_initializer_config: "/frame_initializers/vo.json"
+  frame_initializer_config: "/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 
   # these are only relevant if scan_output_directory is not empty
