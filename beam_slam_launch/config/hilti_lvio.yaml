@@ -28,8 +28,6 @@ sensor_models:
   #   type: 'bs_models::LidarOdometry'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
-  # - name: 'gravity_alignment'
-  #   type: 'bs_models::GravityAlignment'
 
 publishers:
   - name: 'path_publisher'
@@ -63,11 +61,6 @@ visual_odometry:
   trigger_inertial_odom_constraints: true
   use_standalone_vo: false
   odom_information_weight: 100.0
-
-gravity_alignment:
-  imu_topic: "/alphasense/imu"
-  constraint_odom_topic: "/local_mapper/lidar_odometry/odometry"
-  gravity_information_weight: 10.0
 
 lidar_odometry:
   registration_config: 'registration/scan_to_map_loam.json'

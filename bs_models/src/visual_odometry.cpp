@@ -27,6 +27,8 @@
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::VisualOdometry, fuse_core::SensorModel)
 
+constexpr double MARGINALIZATION_PRIOR = 1e-9;
+
 namespace bs_models {
 
 using namespace vision;
@@ -71,11 +73,29 @@ void VisualOdometry::onInit() {
 
   // compute the max container size
   ros::param::get("/local_mapper/lag_duration", lag_duration_);
-  if (vo_params_.use_standalone_vo) { lag_duration_ = 6.0; }
   max_container_size_ = calibration_params_.camera_hz * (lag_duration_ + 1);
 
   // create local solver options
   if (vo_params_.use_standalone_vo) {
+    // manually set lag duration
+    lag_duration_ = 6.0;
+
+    // get the inertial covariance matrix for relative constraints
+    double inertial_information_weight;
+    ros::param::get(
+        "/local_mapper/inertial_odometry/inertial_information_weight",
+        inertial_information_weight);
+    double inertial_cov_weight =
+        1.0 / (inertial_information_weight * inertial_information_weight);
+    Eigen::Matrix3d q_imu_cov =
+        inertial_cov_weight * 1e-4 * Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d p_imu_cov =
+        inertial_cov_weight * 1e-2 * Eigen::Matrix3d::Identity();
+    imu_covariance_ = Eigen::Matrix<double, 6, 6>::Identity();
+    imu_covariance_.block<3, 3>(0, 0) = p_imu_cov;
+    imu_covariance_.block<3, 3>(3, 3) = q_imu_cov;
+
+    // setup solve params
     ceres::Solver::Options options;
     options.minimizer_type = ceres::TRUST_REGION;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
@@ -262,7 +282,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         "Not enough points for visual refinement: " << pixels.size());
     T_WORLD_BASELINK = T_WORLD_BASELINKcur;
     track_lost = true;
-    covariance = 100 * Eigen::Matrix<double, 6, 6>::Identity();
+    covariance = Eigen::Matrix<double, 6, 6>::Identity();
   }
 
   return true;
@@ -284,15 +304,8 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 
   if (vo_params_.use_standalone_vo) {
     // add relative pose constraint to the transaction using the imu estimate
-    // and a manually tuned covariance
-    Eigen::Matrix3d q_imu_cov = 1e-4 * Eigen::Matrix3d::Identity();
-    Eigen::Matrix3d p_imu_cov = 1e-2 * Eigen::Matrix3d::Identity();
-    Eigen::Matrix<double, 6, 6> imu_covariance =
-        Eigen::Matrix<double, 6, 6>::Identity();
-    imu_covariance.block<3, 3>(0, 0) = p_imu_cov;
-    imu_covariance.block<3, 3>(3, 3) = q_imu_cov;
     visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
-                                           keyframe_imu_delta_, imu_covariance,
+                                           keyframe_imu_delta_, imu_covariance_,
                                            transaction);
   }
 
@@ -830,11 +843,12 @@ void VisualOdometry::MarginalizeGraph() {
       if (constraints.empty()) { local_graph_->removeVariable(lm_uuid); }
     }
 
-    // add prior to new start state
     const auto new_timestamps = bs_common::CurrentTimestamps(*local_graph_);
     const ros::Time oldest_time = *new_timestamps.begin();
     auto marginal_transaction = fuse_core::Transaction::make_shared();
     marginal_transaction->stamp(oldest_time);
+
+    // add prior to new start state
     auto maybe_start_imu_state =
         bs_common::GetImuState(*local_graph_, oldest_time);
     if (maybe_start_imu_state) {
@@ -842,11 +856,12 @@ void VisualOdometry::MarginalizeGraph() {
       fuse_core::Constraint::SharedPtr prior =
           std::make_shared<bs_constraints::AbsoluteImuState3DStampedConstraint>(
               "PRIOR", start_imu_state, start_imu_state.GetStateVector(),
-              1e-5 * Eigen::Matrix<double, 15, 15>::Identity());
+              MARGINALIZATION_PRIOR *
+                  Eigen::Matrix<double, 15, 15>::Identity());
       marginal_transaction->addConstraint(prior);
     } else {
       Eigen::Matrix<double, 6, 6> marginalization_prior =
-          1e-5 * Eigen::Matrix<double, 6, 6>::Identity();
+          MARGINALIZATION_PRIOR * Eigen::Matrix<double, 6, 6>::Identity();
       visual_map_->AddPosePrior(oldest_time, marginalization_prior,
                                 marginal_transaction);
     }
