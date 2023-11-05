@@ -71,8 +71,10 @@ public:
         std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
 
     // read vo params
-    std::string vo_params = beam::CombinePaths(
-        bs_common::GetBeamSlamConfigPath(), "vo/vo_params.json");
+    std::string vo_config;
+    getParam<std::string>(nh, "vo_config", vo_config, vo_config);
+    std::string vo_params =
+        beam::CombinePaths(bs_common::GetBeamSlamConfigPath(), vo_config);
     nlohmann::json J;
     if (!beam::ReadJson(vo_params, J)) {
       ROS_ERROR("Cannot read input VO Params, using default.");
