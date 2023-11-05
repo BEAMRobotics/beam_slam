@@ -9,5 +9,6 @@
   "imu_p_cov": 1e-2,
   "track_outlier_pixel_threshold": 1.0,
   "use_frame_init_to_localize": true,
-  "marginalization_prior_weight": 1e-9
+  "marginalization_prior_weight": 1e-9,
+  "odom_information_weight": 100
 }

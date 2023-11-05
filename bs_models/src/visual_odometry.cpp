@@ -81,16 +81,8 @@ void VisualOdometry::onInit() {
     lag_duration_ = 6.0;
 
     // get the inertial covariance matrix for relative constraints
-    double inertial_information_weight;
-    ros::param::get(
-        "/local_mapper/inertial_odometry/inertial_information_weight",
-        inertial_information_weight);
-    double inertial_cov_weight =
-        1.0 / (inertial_information_weight * inertial_information_weight);
-    Eigen::Matrix3d q_imu_cov =
-        inertial_cov_weight * 1e-4 * Eigen::Matrix3d::Identity();
-    Eigen::Matrix3d p_imu_cov =
-        inertial_cov_weight * 1e-2 * Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d q_imu_cov = 1e-4 * Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d p_imu_cov = 1e-2 * Eigen::Matrix3d::Identity();
     imu_covariance_ = Eigen::Matrix<double, 6, 6>::Identity();
     imu_covariance_.block<3, 3>(0, 0) = p_imu_cov;
     imu_covariance_.block<3, 3>(3, 3) = q_imu_cov;
@@ -966,6 +958,5 @@ void VisualOdometry::PublishPose(const ros::Time& timestamp,
                                          extrinsics_.GetBaselinkFrameId(), msg);
   keyframe_publisher_.publish(msg);
 }
-
 
 } // namespace bs_models
