@@ -637,6 +637,23 @@ void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
         submaps_path, "lidar_submap" + std::to_string(i) + ".pcd");
     submaps_.at(i)->SaveLidarMapInWorldFrame(submap_path, max_output_map_size_);
   }
+  // save combined
+  {
+    PointCloud map;
+    for (int i = 0; i < submaps_.size(); i++) {
+      map += submaps_.at(i)->GetLidarPointsInWorldFrameCombined(false);
+    }
+    std::string submaps_combined_path =
+        beam::CombinePaths(submaps_path, "submaps_combined.pcd");
+    BEAM_INFO("Saving combined lidar submap of size {} to: {}", map.size(),
+              submaps_combined_path);
+    std::string error_message{};
+    if (!beam::SavePointCloud<pcl::PointXYZ>(
+            submaps_combined_path, map, beam::PointCloudFileType::PCDBINARY,
+            error_message)) {
+      BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
+    }
+  }
 
   if (!save_initial) { return; }
 
@@ -649,6 +666,22 @@ void GlobalMap::SaveLidarSubmaps(const std::string& output_path,
         submaps_path_initial, "lidar_submap" + std::to_string(i) + ".pcd");
     submaps_.at(i)->SaveLidarMapInWorldFrame(submap_path, max_output_map_size_,
                                              true);
+  }
+
+  // save combined
+  PointCloud map;
+  for (int i = 0; i < submaps_.size(); i++) {
+    map += submaps_.at(i)->GetLidarPointsInWorldFrameCombined(true);
+  }
+  std::string submaps_combined_path =
+      beam::CombinePaths(submaps_path_initial, "submaps_combined.pcd");
+  BEAM_INFO("Saving combined lidar submap of size {} to: {}", map.size(),
+            submaps_combined_path);
+  std::string error_message{};
+  if (!beam::SavePointCloud<pcl::PointXYZ>(submaps_combined_path, map,
+                                           beam::PointCloudFileType::PCDBINARY,
+                                           error_message)) {
+    BEAM_ERROR("Unable to save cloud. Reason: {}", error_message);
   }
 }
 
