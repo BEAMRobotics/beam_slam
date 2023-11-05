@@ -2,7 +2,7 @@
   "matcher_type": "LOAM",
   "number_of_beams": 32,
   "fov_deg": 31,
-  "vertical_axis": "X",
+  "vertical_axis": "Z",
   "n_feature_regions": 6,
   "curvature_region": 5,
   "max_corner_sharp": 8,
@@ -17,7 +17,7 @@
   "convergence_criteria_translation_m": 0.001,
   "convergence_criteria_rotation_deg": 1,
   "max_correspondence_iterations": 10,
-  "output_ceres_summary": true,
+  "output_ceres_summary": false,
   "output_optimization_summary": false,
   "ceres_config": ""
 }

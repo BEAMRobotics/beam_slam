@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 10
-pseudo_marginalization: false
+pseudo_marginalization: true
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -24,8 +24,8 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
-  - name: 'lidar_odometry'
-    type: 'bs_models::LidarOdometry'
+  # - name: 'lidar_odometry'
+  #   type: 'bs_models::LidarOdometry'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
   # - name: 'gravity_alignment'
@@ -59,9 +59,9 @@ inertial_odometry:
 
 visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
-  keyframe_parallax: 25.0
+  keyframe_parallax: 40.0
   trigger_inertial_odom_constraints: true
-  use_standalone_vo: true
+  use_standalone_vo: false
   odom_information_weight: 100.0
 
 gravity_alignment:
