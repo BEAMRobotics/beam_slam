@@ -8,6 +8,6 @@
     "matcher_config": "matchers/loam_vlp16.json"
   },
   "submap_alignment": {
-    "matcher_config": "matchers/icp.json"
+    "matcher_config": "matchers/loam_vlp16.json"
   }
 }
