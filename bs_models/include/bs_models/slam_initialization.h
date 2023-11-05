@@ -194,6 +194,7 @@ private:
   // objects for intializing
   std::shared_ptr<beam_calibration::CameraModel> cam_model_;
   Eigen::Matrix3d cam_intrinsic_matrix_;
+  cv::Mat K_;
   std::shared_ptr<vision::VisualMap> visual_map_;
   std::shared_ptr<ImuPreintegration> imu_preint_;
   std::unique_ptr<LidarPathInit> lidar_path_init_;

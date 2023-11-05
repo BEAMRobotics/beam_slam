@@ -1,0 +1,18 @@
+## global parameters: These will be used in multiple locations
+
+# frames
+/calibration_params/imu_frame: "imu0"
+/calibration_params/lidar_frame: "lidar0"
+/calibration_params/camera_frame: "cam0"
+/calibration_params/world_frame: "world"
+/calibration_params/baselink_frame: "imu0"
+
+# topic frequencies
+/calibration_params/imu_hz: 400
+/calibration_params/camera_hz: 40
+/calibration_params/lidar_hz: 10
+
+# calibrations
+/calibration_params/static_extrinsics: true
+/calibration_params/camera_intrinsics_path: "hilti2023/cam0.json"
+/calibration_params/imu_intrinsics_path: "hilti2023/imu.json"

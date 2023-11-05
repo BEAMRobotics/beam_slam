@@ -63,8 +63,8 @@ void VisualFeatureTracker::processImage(
   static ros::Time prev_track_publish(0.0);
   // track features in image
   cv::Mat image = beam_cv::OpenCVConversions::RosImgToMat(*msg);
-  cv::Mat clahe_image = beam_cv::AdaptiveHistogram(image);
-  tracker_->AddImage(clahe_image, msg->header.stamp);
+  // cv::Mat clahe_image = beam_cv::AdaptiveHistogram(image);
+  tracker_->AddImage(image, msg->header.stamp);
 
   // delay publishing by one image to ensure that the tracks are actually
   // published

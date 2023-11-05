@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 10
-pseudo_marginalization: false
+pseudo_marginalization: true
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -24,10 +24,8 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
-  - name: 'lidar_deskewer'
-    type: 'bs_models::LidarScanDeskewer'
-  - name: 'lidar_odometry'
-    type: 'bs_models::LidarOdometry'
+  # - name: 'lidar_odometry'
+  #   type: 'bs_models::LidarOdometry'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
   # - name: 'gravity_alignment'
@@ -38,51 +36,46 @@ publishers:
     type: 'bs_publishers::Path3DPublisher'
 
 visual_feature_tracker:
-  image_topic: '/F1/image'
+  image_topic: '/alphasense/cam0/image_raw'
   descriptor_config: 'vo/orb_descriptor.json'
   detector_config: 'vo/fastssc_detector.json'
   tracker_config: 'vo/tracker.json'
 
 slam_initialization:
-  imu_topic: "/imu/data"
-  lidar_topic: "/lidar_h/velodyne_points"
+  imu_topic: "/alphasense/imu"
+  lidar_topic: "/hesai/pandar"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 3.0
   min_visual_parallax: 40.0
   inertial_information_weight: 1.0
   lidar_information_weight: 100.0
-  matcher_config: 'matchers/loam_vlp16.json' # lidar specific
+  matcher_config: 'matchers/loam_pandar32.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results" 
 
 inertial_odometry:
-  imu_topic: "/imu/data"
+  imu_topic: "/alphasense/imu"
   inertial_information_weight: 1.0
 
 visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
-  keyframe_parallax: 25.0
+  keyframe_parallax: 40.0
   trigger_inertial_odom_constraints: true
-  use_standalone_vo: true
+  use_standalone_vo: false
   odom_information_weight: 100.0
 
 gravity_alignment:
-  imu_topic: "/imu/data"
+  imu_topic: "/alphasense/imu"
   constraint_odom_topic: "/local_mapper/lidar_odometry/odometry"
   gravity_information_weight: 10.0
 
-lidar_deskewer:
-  input_topic: '/lidar_h/velodyne_points'
-  lidar_type: 'VELODYNE'
-  frame_initializer_config: "frame_initializers/io.json"
-
 lidar_odometry:
   registration_config: 'registration/scan_to_map_loam.json'
-  matcher_config: 'matchers/loam_vlp16.json'
+  matcher_config: 'matchers/loam_pandar32.json'
   lidar_type: 'VELODYNE'
   trigger_inertial_odom_constraints: true
   input_filters_config:  '' # 'lidar_filters/input_filters.json'
-  input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
+  input_topic: '/hesai/pandar'
   output_loam_points: true
   output_lidar_points: true
   publish_registration_map: false

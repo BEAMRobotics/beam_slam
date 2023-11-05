@@ -1,0 +1,9 @@
+{
+  "date": "2021_07_30",
+  "method": "none",
+  "cov_prior_noise": 0.001,
+  "cov_gyro_noise": 0.0010679343003532472,
+  "cov_accel_noise": 0.0001688956233495657,
+  "cov_gyro_bias":  2.6541629581345176e-05,
+  "cov_accel_bias": 9.782812831313576e-07
+}

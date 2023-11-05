@@ -51,6 +51,9 @@ void VisualOdometry::onInit() {
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
   cam_intrinsic_matrix_ = cam_model_->GetRectifiedModel()->GetIntrinsicMatrix();
+  cv::Mat K(3, 3, CV_32F);
+  cv::eigen2cv(cam_intrinsic_matrix_, K);
+  K_ = K;
 
   // create visual map
   visual_map_ =
@@ -115,7 +118,7 @@ void VisualOdometry::processMeasurements(
   ROS_INFO_STREAM_ONCE(
       "VisualOdometry received VISUAL measurements: " << msg->header.stamp);
 
-  // add measurements to local containeru
+  // add measurements to local container
   AddMeasurementsToContainer(msg);
 
   // buffer the message
@@ -226,15 +229,14 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
   GetPixelPointPairs(timestamp, pixels, points);
 
   // perform motion only BA to refine estimate
-  if (pixels.size() >= 20) {
+  if (pixels.size() >= 30) {
     if (track_lost) { track_lost = false; }
     // get initial estimate in camera frame
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
         T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
 
     // perform non-linear pose refinement
-    std::shared_ptr<Eigen::Matrix<double, 6, 6>> out_covariance =
-        std::make_shared<Eigen::Matrix<double, 6, 6>>();
+    auto out_covariance = std::make_shared<Eigen::Matrix<double, 6, 6>>();
     Eigen::Matrix4d T_CAMERA_WORLD_ref =
         pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels,
                                   points, nullptr, out_covariance);
@@ -260,7 +262,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         "Not enough points for visual refinement: " << pixels.size());
     T_WORLD_BASELINK = T_WORLD_BASELINKcur;
     track_lost = true;
-    covariance = 1e-2 * Eigen::Matrix<double, 6, 6>::Identity();
+    covariance = 100 * Eigen::Matrix<double, 6, 6>::Identity();
   }
 
   return true;
@@ -284,7 +286,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
     // add relative pose constraint to the transaction using the imu estimate
     // and a manually tuned covariance
     Eigen::Matrix3d q_imu_cov = 1e-4 * Eigen::Matrix3d::Identity();
-    Eigen::Matrix3d p_imu_cov = 1e-1 * Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d p_imu_cov = 1e-2 * Eigen::Matrix3d::Identity();
     Eigen::Matrix<double, 6, 6> imu_covariance =
         Eigen::Matrix<double, 6, 6>::Identity();
     imu_covariance.block<3, 3>(0, 0) = p_imu_cov;
@@ -327,6 +329,7 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   ROS_INFO_STREAM_ONCE("VisualOdometry received initial graph.");
+  std::unique_lock<std::mutex> lk(buffer_mutex_);
   // publish marginalized keyframes as slam chunks (if we have initialized)
   if (is_initialized_ && !vo_params_.use_standalone_vo) {
     PruneKeyframes(*graph);
@@ -472,10 +475,8 @@ void VisualOdometry::AddMeasurementsToContainer(
     }
 
     // attempt essential matrix estimation
-    cv::Mat K(3, 3, CV_32F);
-    cv::eigen2cv(cam_intrinsic_matrix_, K);
     std::vector<uchar> mask;
-    cv::findEssentialMat(fp1, fp2, K, cv::RANSAC, 0.99, 2.0, mask);
+    cv::findEssentialMat(fp1, fp2, K_, cv::RANSAC, 0.99, 1.0, mask);
 
     // remove outliers from container
     for (size_t i = 0; i < mask.size(); i++) {
@@ -501,7 +502,7 @@ beam::opt<Eigen::Vector3d>
       T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
     }
   }
-  // must have at least 3 keyframes that have seen the landmark
+  // must have at least 2 keyframes that have seen the landmark
   if (T_cam_world_v.size() >= 2) {
     // if we've lost track, ease the requirements on new landmarks
     if (track_lost) {
@@ -601,7 +602,6 @@ void VisualOdometry::PublishPose(const ros::Time& timestamp,
 }
 
 void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
-  std::unique_lock<std::mutex> lk(buffer_mutex_);
   const auto timestamps = bs_common::CurrentTimestamps(*graph);
   const auto current_landmark_ids = bs_common::CurrentLandmarkIDs(*graph);
   if (current_landmark_ids.empty()) {
@@ -817,7 +817,7 @@ void VisualOdometry::MarginalizeGraph() {
         local_graph_->removeVariable(v->uuid());
       }
     }
-    
+
     PruneKeyframes(*local_graph_);
 
     // remove any disconnected landmarks

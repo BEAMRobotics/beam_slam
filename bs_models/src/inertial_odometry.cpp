@@ -284,7 +284,7 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
     auto next_stamp = *next;
     // for each imu message between cur_stamp and next_stamp, integrate
     for (const auto& [imu_stamp, imu_msg] : imu_buffer_.GetImuMsgs()) {
-      if (imu_stamp < cur_stamp) {
+      if (imu_stamp <= cur_stamp) {
         continue;
       } else if (imu_stamp <= next_stamp) {
         imu_preint_->AddToBuffer(*imu_msg);
