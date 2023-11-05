@@ -3,11 +3,11 @@
   "max_triangulation_reprojection": 20.0,
   "reprojection_information_weight": 1.0,
   "use_idp": false,
-  "min_points_to_refine": 30,
+  "required_points_to_refine": 30,
   "invalid_loc_covariance_weight": 1e2,
   "imu_q_cov": 1e-4,
   "imu_p_cov": 1e-2,
   "track_outlier_pixel_threshold": 1.0,
-  "localization_init_method": "FRAMEINIT",
+  "use_frame_init_to_localize": true,
   "marginalization_prior_weight": 1e-9
 }
