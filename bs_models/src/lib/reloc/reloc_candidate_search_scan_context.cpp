@@ -1,5 +1,7 @@
 #include <bs_models/reloc/reloc_candidate_search_scan_context.h>
 
+#include <filesystem>
+
 #include <nlohmann/json.hpp>
 #include <pcl/common/transforms.h>
 
@@ -176,10 +178,18 @@ void RelocCandidateSearchScanContext::FindRelocCandidates(
               "and candidate submap with timestamp {}",
               std::to_string(query_submap->Stamp().toSec()),
               std::to_string(best_submap_match->Stamp().toSec()));
+
+    std::string curr_dir;
+    if (!output_path.empty()) {
+      curr_dir = beam::CombinePaths(
+          output_path, std::to_string(query_submap->Stamp().toSec()));
+      std::filesystem::create_directory(curr_dir);
+    }
+
     auto maybeT_Candidate_Query = AlignSubmapsFromScanMatches(
         scan_candidate, scan_query, T_SubmapCandidate_Lidar,
         T_SubmapQuery_Lidar, T_World_MatchSubmap, T_World_QuerySubmap,
-        output_path);
+        curr_dir);
 
     if (!maybeT_Candidate_Query) {
       BEAM_WARN("Scan matching failed, trying next best candidate");

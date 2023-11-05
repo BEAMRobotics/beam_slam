@@ -74,7 +74,7 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   nlohmann::json J_submap_alignment = J["submap_alignment"];
   bs_common::ValidateJsonKeysOrThrow(std::vector<std::string>{"matcher_config"},
                                      J_submap_alignment);
-  matcher_config_rel = J_submap_refinement["matcher_config"];
+  matcher_config_rel = J_submap_alignment["matcher_config"];
   if (!matcher_config_rel.empty()) {
     submap_alignment.matcher_config = beam::CombinePaths(
         bs_common::GetBeamSlamConfigPath(), matcher_config_rel);
