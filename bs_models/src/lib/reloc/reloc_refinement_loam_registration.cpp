@@ -74,7 +74,7 @@ void RelocRefinementLoam::LoadConfig() {
     throw std::runtime_error{"Unable to read config"};
   }
 
-  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"matcher_config"}, J);
+  beam::ValidateJsonKeysOrThrow({"matcher_config"}, J);
   std::string matcher_config_rel = J["matcher_config"];
   if (matcher_config_rel.empty()) {
     BEAM_ERROR("Reloc refinement cannot have an empty matcher_config");

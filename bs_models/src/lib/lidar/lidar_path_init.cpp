@@ -71,7 +71,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
     throw std::runtime_error{"unable to load params"};
   }
 
-  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"filters"}, J);
+  beam::ValidateJsonKeysOrThrow({"filters"}, J);
   nlohmann::json J_filters = J["filters"];
   input_filter_params_ = beam_filtering::LoadFilterParamsVector(J_filters);
   BEAM_INFO("Loaded {} input filters", input_filter_params_.size());

@@ -74,10 +74,9 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   }
 
   beam::ValidateJsonKeysOrThrow(
-      std::vector<std::string>{
-          "submap_size_m", "loop_closure_candidate_search_config",
-          "loop_closure_refinement_config", "local_mapper_covariance_diag",
-          "loop_closure_covariance_diag", "publishing"},
+      {"submap_size_m", "loop_closure_candidate_search_config",
+       "loop_closure_refinement_config", "local_mapper_covariance_diag",
+       "loop_closure_covariance_diag", "publishing"},
       J);
 
   submap_size = J["submap_size_m"];
@@ -123,9 +122,7 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   nlohmann::json J_publishing = J["publishing"];
 
   beam::ValidateJsonKeysOrThrow(
-      std::vector<std::string>{"submap_lidar_filters",
-                               "globalmap_lidar_filters"},
-      J_publishing);
+      {"submap_lidar_filters", "globalmap_lidar_filters"}, J_publishing);
 
   nlohmann::json J_submap_filters = J_publishing["submap_lidar_filters"];
   nlohmann::json J_globalmap_filters = J_publishing["globalmap_lidar_filters"];

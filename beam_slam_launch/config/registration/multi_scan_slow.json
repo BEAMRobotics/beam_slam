@@ -4,6 +4,6 @@
   "min_motion_rot_deg": 0,
   "max_motion_trans_m": 10,
   "fix_first_scan": true,
-  "num_neighbors": 3,
-  "disable_lidar_map": false
+  "num_neighbors": 10,
+  "disable_lidar_map": true
 }

@@ -27,16 +27,13 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
     throw std::runtime_error{"Unable to read global map refinement config"};
   }
 
-  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"loop_closure",
-                                                         "submap_refinement",
-                                                         "submap_alignment"},
-                                J);
+  beam::ValidateJsonKeysOrThrow(
+      {"loop_closure", "submap_refinement", "submap_alignment"}, J);
 
   // load loop closure params
   nlohmann::json J_loop_closure = J["loop_closure"];
   beam::ValidateJsonKeysOrThrow(
-      std::vector<std::string>{"candidate_search_config", "refinement_config"},
-      J_loop_closure);
+      {"candidate_search_config", "refinement_config"}, J_loop_closure);
 
   std::string candidate_search_config_rel =
       J_loop_closure["candidate_search_config"];
@@ -53,9 +50,8 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
 
   // load submap refinement params
   nlohmann::json J_submap_refinement = J["submap_refinement"];
-  beam::ValidateJsonKeysOrThrow(
-      std::vector<std::string>{"scan_registration_config", "matcher_config"},
-      J_submap_refinement);
+  beam::ValidateJsonKeysOrThrow({"scan_registration_config", "matcher_config"},
+                                J_submap_refinement);
 
   std::string scan_registration_config_rel =
       J_submap_refinement["scan_registration_config"];
@@ -72,13 +68,49 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
 
   // load submap alignment params
   nlohmann::json J_submap_alignment = J["submap_alignment"];
-  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"matcher_config"},
-                                J_submap_alignment);
+  beam::ValidateJsonKeysOrThrow({"matcher_config"}, J_submap_alignment);
   matcher_config_rel = J_submap_alignment["matcher_config"];
   if (!matcher_config_rel.empty()) {
     submap_alignment.matcher_config = beam::CombinePaths(
         bs_common::GetBeamSlamConfigPath(), matcher_config_rel);
   }
+}
+
+GlobalMapRefinement::RegistrationResult::RegistrationResult(
+    const Eigen::Matrix4d& Ti, const Eigen::Matrix4d& Tf) {
+  Eigen::Matrix4d T_DIFF = beam::InvertTransform(Ti) * Tf;
+  Eigen::Matrix3d R_DIFF = T_DIFF.block(0, 0, 3, 3);
+  dR = beam::Rad2Deg(std::abs(Eigen::AngleAxis<double>(R_DIFF).angle()));
+  dt = T_DIFF.block(0, 3, 3, 1).norm() * 1000;
+}
+
+void GlobalMapRefinement::Summary::Save(const std::string& output_path) const {
+  nlohmann::json J;
+  std::vector<nlohmann::json> J_submap_refinement;
+  for (const auto& [stamp, result] : submap_refinement) {
+    nlohmann::json J_result;
+    J_result["dt_mm"] = result.dt;
+    J_result["dR_deg"] = result.dR;
+    J_result["sec"] = stamp.sec;
+    J_result["nsec"] = stamp.nsec;
+    J_submap_refinement.push_back(J_result);
+  }
+  J["submap_refinement"] = J_submap_refinement;
+
+  std::vector<nlohmann::json> J_submap_alignment;
+  for (const auto& [stamp, result] : submap_alignment) {
+    nlohmann::json J_result;
+    J_result["dt_mm"] = result.dt;
+    J_result["dR_deg"] = result.dR;
+    J_result["sec"] = stamp.sec;
+    J_result["nsec"] = stamp.nsec;
+    J_submap_alignment.push_back(J_result);
+  }
+  J["submap_alignment"] = J_submap_alignment;
+
+  std::string summary_path = beam::CombinePaths(output_path, "summary.json");
+  std::ofstream file(summary_path);
+  file << std::setw(4) << J << std::endl;
 }
 
 GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
@@ -189,7 +221,6 @@ bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap,
   // Create optimization graph
   std::shared_ptr<fuse_graphs::HashGraph> graph =
       fuse_graphs::HashGraph::make_shared();
-  auto& map = bs_models::scan_registration::RegistrationMap::GetInstance();
   std::unique_ptr<sr::ScanRegistrationBase> scan_registration =
       sr::ScanRegistrationBase::Create(
           params_.submap_refinement.scan_registration_config,
@@ -218,7 +249,12 @@ bool GlobalMapRefinement::RefineSubmap(SubmapPtr& submap,
   BEAM_INFO("updating scan poses");
   for (auto scan_iter = submap->LidarKeyframesBegin();
        scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
-    scan_iter->second.UpdatePose(graph);
+    auto& scan_pose = scan_iter->second;
+    Eigen::Matrix4d T_W_B_init = scan_pose.T_REFFRAME_BASELINK();
+    scan_pose.UpdatePose(graph);
+    Eigen::Matrix4d T_W_B_after = scan_pose.T_REFFRAME_BASELINK();
+    RegistrationResult result(T_W_B_init, T_W_B_after);
+    summary_.submap_refinement.emplace(scan_pose.Stamp(), result);
   }
 
   // TODO: update visual data (just frame poses?)
@@ -246,6 +282,7 @@ bool GlobalMapRefinement::AlignSubmaps(const SubmapPtr& submap_ref,
   Eigen::Matrix4d T_SubmapRef_SubmapTgt_Init =
       beam::InvertTransform(T_World_SubmapRef_Init) * T_World_SubmapTgt_Init;
 
+  const auto T_W_B_i = submap_tgt->T_WORLD_SUBMAP();
   const bool use_initials = true;
   if (matcher_loam_) {
     // first get maps in their initial world frame
@@ -309,6 +346,10 @@ bool GlobalMapRefinement::AlignSubmaps(const SubmapPtr& submap_ref,
     submap_tgt->UpdatePose(T_World_SubmapTgt);
   }
 
+  const auto T_W_B_f = submap_tgt->T_WORLD_SUBMAP();
+  RegistrationResult result(T_W_B_i, T_W_B_f);
+  summary_.submap_alignment.emplace(submap_tgt->Stamp(), result);
+
   return true;
 }
 
@@ -341,6 +382,7 @@ void GlobalMapRefinement::SaveResults(const std::string& output_path,
   }
 
   // save
+  summary_.Save(output_path);
   global_map_->SaveTrajectoryFile(output_path, save_initial);
   global_map_->SaveTrajectoryClouds(output_path, save_initial);
   global_map_->SaveSubmapFrames(output_path, save_initial);

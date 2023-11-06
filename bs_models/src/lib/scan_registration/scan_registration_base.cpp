@@ -134,10 +134,9 @@ void ScanRegistrationParamsBase::LoadBaseFromJson(const std::string& config) {
     return;
   }
 
-  beam::ValidateJsonKeysOrThrow(
-      std::vector<std::string>{"min_motion_trans_m", "min_motion_rot_deg",
-                               "max_motion_trans_m", "fix_first_scan"},
-      J);
+  beam::ValidateJsonKeysOrThrow({"min_motion_trans_m", "min_motion_rot_deg",
+                                 "max_motion_trans_m", "fix_first_scan"},
+                                J);
 
   min_motion_trans_m = J["min_motion_trans_m"];
   min_motion_rot_deg = J["min_motion_rot_deg"];

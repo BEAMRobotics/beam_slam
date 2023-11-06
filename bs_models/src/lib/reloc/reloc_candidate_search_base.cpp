@@ -23,7 +23,7 @@ std::shared_ptr<RelocCandidateSearchBase>
     BEAM_ERROR("Unable to read config");
     throw std::runtime_error{"Unable to read config"};
   }
-  beam::ValidateJsonKeysOrThrow(std::vector<std::string>{"type"}, J);
+  beam::ValidateJsonKeysOrThrow({"type"}, J);
 
   std::string type = J["type"];
   if (type == "EUCDIST") {

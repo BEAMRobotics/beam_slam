@@ -76,6 +76,20 @@ public:
     void LoadJson(const std::string& config_path);
   };
 
+  struct RegistrationResult {
+    RegistrationResult(const Eigen::Matrix4d& Ti, const Eigen::Matrix4d& Tf);
+    double dt; // mm
+    double dR; // deg
+  };
+  using RegistrationResults = std::map<ros::Time, RegistrationResult>;
+
+  struct Summary {
+    RegistrationResults submap_refinement;
+    RegistrationResults submap_alignment;
+
+    void Save(const std::string& output_path) const;
+  };
+
   /**
    * @brief delete default constructor
    */
@@ -199,6 +213,8 @@ private:
   std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
   std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
       matcher_loam_;
+
+  Summary summary_;
 
   // params only tunable here
   int pgo_skip_first_n_submaps_{3};
