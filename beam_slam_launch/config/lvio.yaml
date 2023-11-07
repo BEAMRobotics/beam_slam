@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 10
-pseudo_marginalization: false
+pseudo_marginalization: true
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -87,7 +87,7 @@ lidar_odometry:
   input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true
   output_lidar_points: true
-  publish_registration_map: false
+  publish_registration_map: true
   publish_registration_results: false
   lidar_information_weight: 100.0
   frame_initializer_config: "/frame_initializers/io.json"

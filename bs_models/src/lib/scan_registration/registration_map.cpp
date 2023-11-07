@@ -22,15 +22,11 @@ RegistrationMap::RegistrationMap() {
   world_frame_id_ = extrinsics_online.GetWorldFrameId();
 
   // setup publishers
-  if (publish_updates_) {
-    ros::NodeHandle n;
-    lidar_map_publisher_ =
-        std::make_unique<ros::Publisher>(n.advertise<sensor_msgs::PointCloud2>(
-            "/local_mapper/local_map/lidar_map", 10));
-    loam_map_publisher_ =
-        std::make_unique<ros::Publisher>(n.advertise<sensor_msgs::PointCloud2>(
-            "/local_mapper/local_map/loam_map", 10));
-  }
+  ros::NodeHandle n;
+  lidar_map_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/local_mapper/local_map/lidar_map", 10);
+  loam_map_publisher_ = n.advertise<sensor_msgs::PointCloud2>(
+      "/local_mapper/local_map/loam_map", 10);
 }
 
 RegistrationMap& RegistrationMap::GetInstance() {
@@ -243,14 +239,14 @@ void RegistrationMap::Publish() {
   if (!lidar_map.empty()) {
     sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<pcl::PointXYZ>(
         lidar_map, update_time, world_frame_id_, updates_counter_);
-    lidar_map_publisher_->publish(pc_msg);
+    lidar_map_publisher_.publish(pc_msg);
   }
 
   if (!loam_map.Empty()) {
     LoamPointCloudCombined loam_combined = loam_map.GetCombinedCloud();
     sensor_msgs::PointCloud2 pc_msg = beam::PCLToROS<PointLoam>(
         loam_combined, update_time, world_frame_id_, updates_counter_);
-    loam_map_publisher_->publish(pc_msg);
+    loam_map_publisher_.publish(pc_msg);
   }
 
   updates_counter_++;

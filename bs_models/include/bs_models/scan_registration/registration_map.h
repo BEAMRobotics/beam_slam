@@ -208,8 +208,8 @@ private:
   RegistrationMap();
 
   // publisher
-  std::unique_ptr<ros::Publisher> lidar_map_publisher_;
-  std::unique_ptr<ros::Publisher> loam_map_publisher_;
+  ros::Publisher lidar_map_publisher_;
+  ros::Publisher loam_map_publisher_;
 
   int map_size_{10};
   bool map_params_set_{false};
