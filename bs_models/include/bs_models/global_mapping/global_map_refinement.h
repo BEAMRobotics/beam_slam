@@ -12,7 +12,7 @@
 
 namespace sr = bs_models::scan_registration;
 
-namespace bs_models { namespace global_mapping {
+namespace bs_models::global_mapping {
 
 /**
  * @brief This class is used to refine a global map's submaps.
@@ -48,6 +48,12 @@ public:
     /** Full path to config file for loop closure refinement. If blank, it will
      * use default parameters.*/
     std::string refinement_config;
+
+    /** Weights to assign to loop closure measurements */
+    Eigen::Matrix<double, 6, 6> loop_closure_covariance;
+
+    /** Weights to assign to local mapper measurements */
+    Eigen::Matrix<double, 6, 6> local_mapper_covariance;
   };
 
   struct SubmapRefinementParams {
@@ -218,6 +224,7 @@ private:
 
   // params only tunable here
   int pgo_skip_first_n_submaps_{3};
+  double pose_prior_noise_{1e-9};
 };
 
-}} // namespace bs_models::global_mapping
+} // namespace bs_models::global_mapping

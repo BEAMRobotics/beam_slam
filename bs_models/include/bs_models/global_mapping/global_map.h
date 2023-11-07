@@ -16,7 +16,7 @@
 #include <bs_models/reloc/reloc_candidate_search_base.h>
 #include <bs_models/reloc/reloc_refinement_base.h>
 
-namespace bs_models { namespace global_mapping {
+namespace bs_models::global_mapping {
 
 /**
  * @brief Enum class for the different types of ROS maps to be published
@@ -446,4 +446,4 @@ private:
   ros::Time last_update_time_;
 };
 
-}} // namespace bs_models::global_mapping
+} // namespace bs_models::global_mapping

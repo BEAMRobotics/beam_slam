@@ -20,43 +20,9 @@
 #include <bs_constraints/relative_pose/pose_3d_stamped_transaction.h>
 #include <bs_models/reloc/reloc_methods.h>
 
-namespace bs_models { namespace global_mapping {
+namespace bs_models::global_mapping {
 
 using namespace reloc;
-
-// GlobalMap::Params::Params() {
-//   double local_map_cov_diag = 1e-3;
-//   double loop_cov_diag = 1e-5;
-
-//   // clang-format off
-//   local_mapper_covariance << local_map_cov_diag, 0, 0, 0, 0, 0,
-//                              0, local_map_cov_diag, 0, 0, 0, 0,
-//                              0, 0, local_map_cov_diag, 0, 0, 0,
-//                              0, 0, 0, local_map_cov_diag, 0, 0,
-//                              0, 0, 0, 0, local_map_cov_diag, 0,
-//                              0, 0, 0, 0, 0, local_map_cov_diag;
-
-//   loop_closure_covariance << loop_cov_diag, 0, 0, 0, 0, 0,
-//                       0, loop_cov_diag, 0, 0, 0, 0,
-//                       0, 0, loop_cov_diag, 0, 0, 0,
-//                       0, 0, 0, loop_cov_diag, 0, 0,
-//                       0, 0, 0, 0, loop_cov_diag, 0,
-//                       0, 0, 0, 0, 0, loop_cov_diag;
-//   // clang-format on
-//   submap_size = 10;
-// }
-
-// GlobalMap::Params::Params(const Params& params) {
-//   submap_size = params.submap_size;
-//   loop_closure_candidate_search_config =
-//       params.loop_closure_candidate_search_config;
-//   loop_closure_refinement_config = params.loop_closure_refinement_config;
-//   local_mapper_covariance = params.local_mapper_covariance;
-//   loop_closure_covariance = params.loop_closure_covariance;
-//   ros_submap_filter_params = params.ros_submap_filter_params;
-//   ros_globalmap_filter_params = params.ros_globalmap_filter_params;
-//   config_str = params.config_str;
-// }
 
 void GlobalMap::Params::LoadJson(const std::string& config_path) {
   if (config_path.empty()) {
@@ -443,12 +409,13 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
 
   int ignore_last_n_submaps;
   if (query_index == -1) {
-    // this means we run on the last submap
+    // this means we run on the last submap.
     query_index = submaps_.size() - 1;
-    ignore_last_n_submaps = 1;
+    // Therefore ignore last and previous to last
+    ignore_last_n_submaps = 2;
   } else {
-    // we ignore all submaps at the query index and after
-    ignore_last_n_submaps = submaps_.size() - query_index;
+    // ignore submap before, after and at the query index
+    ignore_last_n_submaps = submaps_.size() - query_index + 1;
   }
 
   ROS_DEBUG("Searching for loop closure candidates");
@@ -479,10 +446,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   fuse_core::Transaction::SharedPtr transaction =
       std::make_shared<fuse_core::Transaction>();
   for (int i = 0; i < matched_indices.size(); i++) {
-    // if the matched index is adjacent to the query index, ignore it. This
-    // would happen from improper candidate search implementations
-    if (matched_indices[i] == query_index + 1 ||
-        matched_indices[i] == query_index - 1) {
+    if (matched_indices[i] >= query_index - 1) {
+      BEAM_ERROR("Error in candidate search implementation, please fix!");
       continue;
     }
 
@@ -1009,4 +974,4 @@ void GlobalMap::AddNewRosScan(const PointCloud& cloud,
   while (ros_new_scans_.size() > max_num_new_scans_) { ros_new_scans_.pop(); }
 }
 
-}} // namespace bs_models::global_mapping
+} // namespace bs_models::global_mapping
