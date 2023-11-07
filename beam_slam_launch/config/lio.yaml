@@ -60,7 +60,7 @@ lidar_deskewer:
   frame_initializer_config: "frame_initializers/io.json"
 
 lidar_odometry:
-  registration_config: 'registration/scan_to_map_loam.json'
+  registration_config: 'registration/scan_to_map.json'
   matcher_config: 'matchers/loam_vlp16.json'
   lidar_type: 'VELODYNE'
   trigger_inertial_odom_constraints: true

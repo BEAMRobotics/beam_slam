@@ -65,7 +65,7 @@ visual_odometry:
   odom_information_weight: 100.0
 
 lidar_odometry:
-  registration_config: 'registration/scan_to_map_loam.json'
+  registration_config: 'registration/scan_to_map.json'
   matcher_config: 'matchers/loam_pandar32.json'
   lidar_type: 'VELODYNE'
   trigger_inertial_odom_constraints: true
