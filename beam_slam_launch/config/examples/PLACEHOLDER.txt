@@ -1,2 +1,0 @@
-This is a placeholder for future TESTED configurations specific to other example datasets 
-such as: NTU, KAARTA, EUROC, KITTY

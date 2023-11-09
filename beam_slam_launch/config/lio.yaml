@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.1
 lag_duration: 6
-pseudo_marginalization: true
+pseudo_marginalization: false
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -43,7 +43,7 @@ slam_initialization:
   inertial_information_weight: 0.1
   lidar_information_weight: 100.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
-  output_folder: "" #"/userhome/results/init_results"
+  output_folder: "" #"/userhome/results/init_results_ig2"
 
 inertial_odometry:
   imu_topic: "/imu/data"

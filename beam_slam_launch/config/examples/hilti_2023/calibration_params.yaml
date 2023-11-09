@@ -14,5 +14,5 @@
 
 # calibrations
 /calibration_params/static_extrinsics: true
-/calibration_params/camera_intrinsics_path: "hilti2023/cam0.json"
-/calibration_params/imu_intrinsics_path: "hilti2023/imu.json"
+/calibration_params/camera_intrinsics_path: "hilti_2023/cam0.json"
+/calibration_params/imu_intrinsics_path: "hilti_2023/imu.json"
