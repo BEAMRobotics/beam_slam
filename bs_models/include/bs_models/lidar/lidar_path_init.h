@@ -124,7 +124,7 @@ private:
   // params only tunable here
   bool forward_predict_{false};
   int min_spline_count_{8};
-  bool skip_alternate_scans_{true};
+  bool skip_alternate_scans_{false};
   bool registered_last_{false};
 };
 
