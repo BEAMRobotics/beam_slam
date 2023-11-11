@@ -40,7 +40,6 @@ public:
                                         tracker_config_rel);
 
     getParam<int>(nh, "sensor_id", sensor_id, 0);
-    getParam<int>(nh, "visual_window_size", visual_window_size, 10);
   }
 
   // subscribing topics
@@ -52,6 +51,5 @@ public:
   std::string tracker_config{};
 
   int sensor_id{0};
-  int visual_window_size{100};
 };
 }} // namespace bs_parameters::models
