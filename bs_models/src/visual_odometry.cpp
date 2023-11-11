@@ -235,6 +235,10 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     T_WORLD_BASELINKcur = T_WORLD_BASELINKprevkf.value() * T_PREVKF_CURFRAME;
   }
 
+  // update position using the previous frame position
+  T_WORLD_BASELINKcur.block<3, 1>(0, 3) =
+      T_WORLD_BASELINKprevframe_.block<3, 1>(0, 3);
+
   // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
@@ -276,6 +280,8 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     track_lost = true;
     covariance = Eigen::Matrix<double, 6, 6>::Identity();
   }
+
+  T_WORLD_BASELINKprevframe_ = T_WORLD_BASELINK;
 
   return true;
 }
@@ -573,6 +579,9 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
     local_graph_ = std::move(graph->clone());
     visual_map_->UpdateGraph(*local_graph_);
   }
+
+  T_WORLD_BASELINKprevframe_ =
+      visual_map_->GetBaselinkPose(*timestamps.rbegin()).value();
 
   // get measurments as a vector of timestamps
   std::vector<uint64_t> measurement_stamps;
