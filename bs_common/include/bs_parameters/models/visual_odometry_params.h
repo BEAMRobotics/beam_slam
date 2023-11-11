@@ -49,13 +49,6 @@ public:
     getParam<bool>(nh, "use_standalone_vo", use_standalone_vo,
                    use_standalone_vo);
 
-    if (use_standalone_vo) {
-      getParam<double>(nh, "odom_information_weight", odom_information_weight,
-                       odom_information_weight);
-      odom_covariance_weight =
-          1 / (odom_information_weight * odom_information_weight);
-    }
-
     // send a trigger to IO to set IMU relative state constraint
     getParam<bool>(nh, "trigger_inertial_odom_constraints",
                    trigger_inertial_odom_constraints,
@@ -64,11 +57,6 @@ public:
     // keyframe parallax (rotation adjusted as in vins mono)
     getParam<double>(nh, "keyframe_parallax", keyframe_parallax,
                      keyframe_parallax);
-
-    double reprojection_loss_a = 5.0 * reprojection_information_weight;
-    // reprojection loss
-    reprojection_loss =
-        std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
 
     // read vo params
     std::string vo_config;
@@ -95,6 +83,12 @@ public:
 
       try {
         reprojection_information_weight = J["reprojection_information_weight"];
+
+        double reprojection_loss_a = 5.0 * reprojection_information_weight;
+        // reprojection loss
+        reprojection_loss =
+            std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
+
       } catch (...) {
         ROS_ERROR(
             "Missing 'reprojection_information_weight' param in vo config "
@@ -107,6 +101,63 @@ public:
         ROS_ERROR(
             "Missing 'use_idp' param in vo config file. Using default: False.");
       }
+
+      try {
+        required_points_to_refine = J["required_points_to_refine"];
+      } catch (...) {
+        ROS_WARN("Missing 'required_points_to_refine' param in vo config "
+                 "file. Using default: 30.");
+      }
+
+      try {
+        invalid_localization_covariance_weight =
+            J["invalid_localization_covariance_weight"];
+      } catch (...) {
+        ROS_WARN("Missing 'invalid_localization_covariance_weight' param in vo "
+                 "config "
+                 "file. Using default: 100.0.");
+      }
+
+      try {
+        track_outlier_pixel_threshold = J["track_outlier_pixel_threshold"];
+      } catch (...) {
+        ROS_WARN("Missing 'track_outlier_pixel_threshold' param in vo config "
+                 "file. Using default: 1.0.");
+      }
+
+      try {
+        use_frame_init_q_to_localize = J["use_frame_init_q_to_localize"];
+      } catch (...) {
+        ROS_WARN("Missing 'use_frame_init_q_to_localize' param in vo config "
+                 "file. Using default: False.");
+      }
+
+      try {
+        use_frame_init_p_to_localize = J["use_frame_init_p_to_localize"];
+      } catch (...) {
+        ROS_WARN("Missing 'use_frame_init_p_to_localize' param in vo config "
+                 "file. Using default: False.");
+      }
+
+      if (use_standalone_vo) {
+        try {
+          odom_information_weight = J["odom_information_weight"];
+          odom_covariance_weight =
+              1 / (odom_information_weight * odom_information_weight);
+        } catch (...) {}
+
+        try {
+          marginalization_prior_weight = J["marginalization_prior_weight"];
+        } catch (...) {}
+
+        try {
+          imu_q_covariance = J["imu_q_covariance"];
+        } catch (...) {}
+
+        try {
+          imu_p_covariance = J["imu_p_covariance"];
+        } catch (...) {}
+      }
     }
   }
 
@@ -115,14 +166,25 @@ public:
 
   bool use_standalone_vo{false};
   bool trigger_inertial_odom_constraints{true};
-  bool use_idp{false};
   double keyframe_parallax{20.0};
+  double prior_information_weight{0};
+
+  bool use_idp{false};
   double reprojection_information_weight{1.0};
   double max_triangulation_distance{30.0};
   double max_triangulation_reprojection{80.0};
-  double prior_information_weight{0};
-  double odom_information_weight{1.0};
-  double odom_covariance_weight;
+
+  int required_points_to_refine{30};
+  double invalid_localization_covariance_weight{1e2};
+  double imu_q_covariance{1e-4};
+  double imu_p_covariance{1e-2};
+  double track_outlier_pixel_threshold{1.0};
+  bool use_frame_init_q_to_localize{true};
+  bool use_frame_init_p_to_localize{false};
+  double marginalization_prior_weight{1e-9};
+  double odom_information_weight{100.0};
+  double odom_covariance_weight{1e-4};
+
   fuse_core::Loss::SharedPtr reprojection_loss;
 };
 }} // namespace bs_parameters::models

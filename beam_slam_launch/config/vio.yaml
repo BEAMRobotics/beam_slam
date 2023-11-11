@@ -49,6 +49,7 @@ slam_initialization:
   min_visual_parallax: 40.0
   inertial_information_weight: 1.0
   lidar_information_weight: 100.0
+  vo_config: "vo/vo_params_init.json"
   matcher_config: 'matchers/loam_vlp16.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results"
 
@@ -57,11 +58,11 @@ inertial_odometry:
   inertial_information_weight: 1.0
 
 visual_odometry:
+  vo_config: "vo/vo_params.json"
   frame_initializer_config: "frame_initializers/io.json"
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
   use_standalone_vo: false
-  odom_information_weight: 1.0
 
 gravity_alignment:
   imu_topic: "/imu/data"

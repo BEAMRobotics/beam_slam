@@ -129,6 +129,13 @@ public:
         ROS_ERROR(
             "Missing 'use_idp' param in vo config file. Using default: False.");
       }
+
+      try {
+        track_outlier_pixel_threshold = J["track_outlier_pixel_threshold"];
+      } catch (...) {
+        ROS_ERROR("Missing 'track_outlier_pixel_threshold' param in vo config "
+                  "file. Using default: 1.0.");
+      }
     }
   }
 
@@ -150,6 +157,7 @@ public:
   double frame_init_frequency{0.1};
   double max_triangulation_distance{30.0};
   double max_triangulation_reprojection{40.0};
+  double track_outlier_pixel_threshold{1.0};
   bool use_idp{false};
   double initialization_window_s{10.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
