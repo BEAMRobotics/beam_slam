@@ -2,5 +2,6 @@
   "max_triangulation_distance": 30.0,
   "max_triangulation_reprojection": 40.0,
   "reprojection_information_weight": 1.0,
-  "use_idp": false
+  "use_idp": false,
+  "track_outlier_pixel_threshold": 1.0
 }

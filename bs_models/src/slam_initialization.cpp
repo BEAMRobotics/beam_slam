@@ -819,7 +819,8 @@ void SLAMInitialization::AddMeasurementsToContainer(
 
     // attempt essential matrix estimation
     std::vector<uchar> mask;
-    cv::findEssentialMat(fp1, fp2, K_, cv::RANSAC, 0.99, 1.0, mask);
+    cv::findEssentialMat(fp1, fp2, K_, cv::RANSAC, 0.99,
+                         params_.track_outlier_pixel_threshold, mask);
 
     // remove outliers from container
     for (size_t i = 0; i < mask.size(); i++) {

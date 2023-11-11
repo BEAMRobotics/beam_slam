@@ -27,8 +27,6 @@
 // Register this sensor model with ROS as a plugin.
 PLUGINLIB_EXPORT_CLASS(bs_models::VisualOdometry, fuse_core::SensorModel)
 
-constexpr double MARGINALIZATION_PRIOR = 1e-9;
-
 namespace bs_models {
 
 using namespace vision;
@@ -81,11 +79,11 @@ void VisualOdometry::onInit() {
     lag_duration_ = 6.0;
 
     // get the inertial covariance matrix for relative constraints
-    Eigen::Matrix3d q_imu_cov = 1e-4 * Eigen::Matrix3d::Identity();
-    Eigen::Matrix3d p_imu_cov = 1e-2 * Eigen::Matrix3d::Identity();
     imu_covariance_ = Eigen::Matrix<double, 6, 6>::Identity();
-    imu_covariance_.block<3, 3>(0, 0) = p_imu_cov;
-    imu_covariance_.block<3, 3>(3, 3) = q_imu_cov;
+    imu_covariance_.block<3, 3>(0, 0) =
+        vo_params_.imu_p_covariance * Eigen::Matrix3d::Identity();
+    imu_covariance_.block<3, 3>(3, 3) =
+        vo_params_.imu_q_covariance * Eigen::Matrix3d::Identity();
 
     // setup solve params
     ceres::Solver::Options options;
@@ -181,7 +179,7 @@ bool VisualOdometry::ComputeOdometryAndExtendMap(
   }
 
   // create new keyframe
-  ROS_INFO_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
+  ROS_DEBUG_STREAM("VisualOdometry: New keyframe detected at: " << timestamp);
   Keyframe kf(*msg);
   keyframes_.insert({timestamp, kf});
 
@@ -235,13 +233,25 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     T_WORLD_BASELINKcur = T_WORLD_BASELINKprevkf.value() * T_PREVKF_CURFRAME;
   }
 
+  if (!vo_params_.use_frame_init_q_to_localize) {
+    // update position using the previous frame position
+    T_WORLD_BASELINKcur.block<3, 3>(3, 3) =
+        T_WORLD_BASELINKprevframe_.block<3, 3>(3, 3);
+  }
+
+  if (!vo_params_.use_frame_init_p_to_localize) {
+    // update position using the previous frame position
+    T_WORLD_BASELINKcur.block<3, 1>(0, 3) =
+        T_WORLD_BASELINKprevframe_.block<3, 1>(0, 3);
+  }
+
   // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   GetPixelPointPairs(timestamp, pixels, points);
 
   // perform motion only BA to refine estimate
-  if (pixels.size() >= 30) {
+  if (pixels.size() >= vo_params_.required_points_to_refine) {
     if (track_lost) { track_lost = false; }
     // get initial estimate in camera frame
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
@@ -274,8 +284,12 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         "Not enough points for visual refinement: " << pixels.size());
     T_WORLD_BASELINK = T_WORLD_BASELINKcur;
     track_lost = true;
-    covariance = Eigen::Matrix<double, 6, 6>::Identity();
+    covariance = vo_params_.invalid_localization_covariance_weight *
+                 Eigen::Matrix<double, 6, 6>::Identity();
   }
+
+  // update previous frame pose
+  T_WORLD_BASELINKprevframe_ = T_WORLD_BASELINK;
 
   return true;
 }
@@ -481,7 +495,8 @@ void VisualOdometry::AddMeasurementsToContainer(
 
     // attempt essential matrix estimation
     std::vector<uchar> mask;
-    cv::findEssentialMat(fp1, fp2, K_, cv::RANSAC, 0.99, 1.0, mask);
+    cv::findEssentialMat(fp1, fp2, K_, cv::RANSAC, 0.99,
+                         vo_params_.track_outlier_pixel_threshold, mask);
 
     // remove outliers from container
     for (size_t i = 0; i < mask.size(); i++) {
@@ -573,6 +588,9 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
     local_graph_ = std::move(graph->clone());
     visual_map_->UpdateGraph(*local_graph_);
   }
+
+  T_WORLD_BASELINKprevframe_ =
+      visual_map_->GetBaselinkPose(*timestamps.rbegin()).value();
 
   // get measurments as a vector of timestamps
   std::vector<uint64_t> measurement_stamps;
@@ -801,12 +819,13 @@ void VisualOdometry::MarginalizeGraph() {
       fuse_core::Constraint::SharedPtr prior =
           std::make_shared<bs_constraints::AbsoluteImuState3DStampedConstraint>(
               "PRIOR", start_imu_state, start_imu_state.GetStateVector(),
-              MARGINALIZATION_PRIOR *
+              vo_params_.marginalization_prior_weight *
                   Eigen::Matrix<double, 15, 15>::Identity());
       marginal_transaction->addConstraint(prior);
     } else {
       Eigen::Matrix<double, 6, 6> marginalization_prior =
-          MARGINALIZATION_PRIOR * Eigen::Matrix<double, 6, 6>::Identity();
+          vo_params_.marginalization_prior_weight *
+          Eigen::Matrix<double, 6, 6>::Identity();
       visual_map_->AddPosePrior(oldest_time, marginalization_prior,
                                 marginal_transaction);
     }
