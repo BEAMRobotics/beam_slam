@@ -1,0 +1,25 @@
+<launch>
+
+  <!-- Load calibration params for this dataset,  including intrinsics and extrinsics.
+       Note: These are global params that need to be loaded for all launch files. -->
+  <rosparam command="load" file="$(find beam_slam_launch)/config/examples/kaarta_2/calibration_params.yaml"/>
+
+  <!-- LAUNCH WITH debug:=true TO TURN ON GDB DEBUGGER -->
+  <arg name="debug" default='false'/>
+  <arg unless="$(arg debug)" name="launch_prefix" value=" "/>
+  <arg if="$(arg debug)" name="launch_prefix" value="gdb -ex run --args"/>
+
+
+  <arg name="extrinsics_file_path" default="$(find beam_slam_launch)/calibrations/kaarta_2/extrinsics.json"/>
+  <node name="calibration_publisher" pkg="calibration_publisher" type="calibration_publisher_main">
+    <param name="robot_name" value=""/>
+    <param name="extrinsics_file_path" value="$(arg extrinsics_file_path)"/>
+  </node>
+
+  <!-- Launch initializer -->
+  <node pkg="bs_optimizers" type="fixed_lag_smoother_node" name="local_mapper" output="screen"
+    launch-prefix="$(arg launch_prefix)">
+    <rosparam command="load" file="$(find beam_slam_launch)/config/examples/kaarta_2/vio.yaml"/>
+  </node>
+
+</launch>
