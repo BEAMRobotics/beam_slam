@@ -6,5 +6,10 @@
   "required_points_to_refine": 20,
   "use_frame_init_q_to_localize": true,
   "use_frame_init_p_to_localize": false,
-  "track_outlier_pixel_threshold": 1.0
+  "track_outlier_pixel_threshold": 1.0,
+  "invalid_localization_covariance_weight": 1e2,
+  "imu_q_covariance": 1e-3,
+  "imu_p_covariance": 1e-3,
+  "marginalization_prior_weight": 1e-9,
+  "odom_information_weight": 100.0
 }

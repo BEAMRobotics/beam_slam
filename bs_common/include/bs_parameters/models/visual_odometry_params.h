@@ -153,8 +153,8 @@ public:
   double marginalization_prior_weight{1e-9};
   double odom_information_weight{100.0};
   double odom_covariance_weight{1e-4};
-  double imu_q_covariance{1e-4};
-  double imu_p_covariance{1e-2};
+  double imu_q_covariance{1e-1};
+  double imu_p_covariance{1e-1};
   double invalid_localization_covariance_weight{1e2};
 
   fuse_core::Loss::SharedPtr reprojection_loss;
