@@ -8,8 +8,8 @@
   "use_frame_init_p_to_localize": false,
   "track_outlier_pixel_threshold": 1.0,
   "invalid_localization_covariance_weight": 1e2,
-  "imu_q_covariance": 1e-4,
-  "imu_p_covariance": 1e-2,
+  "imu_q_covariance": 1e-1,
+  "imu_p_covariance": 1e-1,
   "marginalization_prior_weight": 1e-9,
   "odom_information_weight": 100.0
 }
