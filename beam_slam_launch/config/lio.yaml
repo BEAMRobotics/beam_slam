@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.1
 lag_duration: 6
-pseudo_marginalization: false
+pseudo_marginalization: true
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -42,6 +42,7 @@ slam_initialization:
   min_visual_parallax: 40.0
   inertial_information_weight: 0.1
   lidar_information_weight: 100.0
+  vo_config: "vo/vo_params_init.json"
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results_ig2"
 

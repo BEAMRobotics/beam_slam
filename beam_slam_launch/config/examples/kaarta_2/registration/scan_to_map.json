@@ -1,0 +1,8 @@
+{
+  "registration_type": "SCANTOMAP",
+  "min_motion_trans_m": 0,
+  "min_motion_rot_deg": 0,
+  "max_motion_trans_m": 10,
+  "fix_first_scan": false,
+  "map_size": 10
+}

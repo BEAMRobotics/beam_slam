@@ -100,43 +100,18 @@ public:
 
     if (!beam::ReadJson(vo_params, J)) {
       ROS_ERROR("Cannot read input VO Params, using default.");
-    } else {
-      try {
-        max_triangulation_distance = J["max_triangulation_distance"];
-      } catch (...) {
-        ROS_ERROR("Missing 'max_triangulation_distance' param in vo config "
-                  "file. Using default: 30.0.");
-      }
-
-      try {
-        max_triangulation_reprojection = J["max_triangulation_reprojection"];
-      } catch (...) {
-        ROS_ERROR("Missing 'max_triangulation_reprojection' param in vo config "
-                  "file. Using default: 40.0.");
-      }
-
-      try {
-        reprojection_information_weight = J["reprojection_information_weight"];
-      } catch (...) {
-        ROS_ERROR(
-            "Missing 'reprojection_information_weight' param in vo config "
-            "file. Using default: 1.0.");
-      }
-
-      try {
-        use_idp = J["use_idp"];
-      } catch (...) {
-        ROS_ERROR(
-            "Missing 'use_idp' param in vo config file. Using default: False.");
-      }
-
-      try {
-        track_outlier_pixel_threshold = J["track_outlier_pixel_threshold"];
-      } catch (...) {
-        ROS_ERROR("Missing 'track_outlier_pixel_threshold' param in vo config "
-                  "file. Using default: 1.0.");
-      }
     }
+
+    beam::ValidateJsonKeysOrThrow({"max_triangulation_distance",
+                                   "max_triangulation_reprojection",
+                                   "reprojection_information_weight", "use_idp",
+                                   "track_outlier_pixel_threshold"},
+                                  J);
+    max_triangulation_distance = J["max_triangulation_distance"];
+    max_triangulation_reprojection = J["max_triangulation_reprojection"];
+    reprojection_information_weight = J["reprojection_information_weight"];
+    use_idp = J["use_idp"];
+    track_outlier_pixel_threshold = J["track_outlier_pixel_threshold"];
   }
 
   std::string visual_measurement_topic{

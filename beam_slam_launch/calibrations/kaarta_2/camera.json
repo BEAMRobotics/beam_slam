@@ -4,7 +4,7 @@
   "camera_type": "RADTAN",
   "image_width": 640,
   "image_height": 360,
-  "frame_id": "F_kaarta",
+  "frame_id": "camera",
   "intrinsics": [
     463.510914755,
     463.333045636,

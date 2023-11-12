@@ -16,18 +16,28 @@ solver_options:
   function_tolerance: 0.00000015
 
 sensor_models:
+  - name: 'visual_feature_tracker'
+    type: 'bs_models::VisualFeatureTracker'
   - name: 'slam_initialization'
     type: 'bs_models::SLAMInitialization'
   - name: 'inertial_odometry'
     type: 'bs_models::InertialOdometry'
-  - name: 'lidar_odometry'
-    type: 'bs_models::LidarOdometry'
+  - name: 'visual_odometry'
+    type: 'bs_models::VisualOdometry'
+  # - name: 'lidar_odometry'
+  #   type: 'bs_models::LidarOdometry'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
 
 publishers:
   - name: 'path_publisher'
     type: 'bs_publishers::Path3DPublisher'
+
+visual_feature_tracker:
+  image_topic: '/alphasense/cam0/image_raw'
+  descriptor_config: 'examples/hilti_2023/vo/orb_descriptor.json'
+  detector_config: 'examples/hilti_2023/vo/fastssc_detector.json'
+  tracker_config: 'examples/hilti_2023/vo/tracker.json'
 
 slam_initialization:
   imu_topic: "/alphasense/imu"
@@ -46,6 +56,12 @@ inertial_odometry:
   imu_topic: "/alphasense/imu"
   inertial_information_weight: 1.0
 
+visual_odometry:
+  vo_config: "vo/vo_params.json"
+  frame_initializer_config: "examples/hilti_2023/frame_initializers/io.json"
+  keyframe_parallax: 40.0
+  trigger_inertial_odom_constraints: true
+  use_standalone_vo: false
 
 lidar_odometry:
   registration_config: 'examples/hilti_2023/registration/scan_to_map.json'
@@ -56,7 +72,7 @@ lidar_odometry:
   input_topic: '/hesai/pandar'
   output_loam_points: true
   output_lidar_points: true
-  publish_registration_map: true
+  publish_registration_map: false
   publish_registration_results: false
   lidar_information_weight: 100.0
   frame_initializer_config: "examples/hilti_2023/frame_initializers/io.json"
