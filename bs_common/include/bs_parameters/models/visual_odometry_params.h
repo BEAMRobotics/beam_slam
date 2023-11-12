@@ -112,17 +112,25 @@ public:
 
     if (use_standalone_vo) {
       try {
+        beam::ValidateJsonKeysOrThrow({"standalone_vo_params"}, J);
+      } catch (...) {
+        ROS_WARN("Standalone VO params empty, using default params.");
+        return;
+      }
+      nlohmann::json standalone_vo_J = J["standalone_vo_params"];
+      try {
         beam::ValidateJsonKeysOrThrow({"odom_information_weight",
                                        "marginalization_prior_weight",
                                        "invalid_localization_covariance_weight",
                                        "imu_q_covariance", "imu_p_covariance"},
-                                      J);
-        odom_information_weight = J["odom_information_weight"];
-        marginalization_prior_weight = J["marginalization_prior_weight"];
-        imu_q_covariance = J["imu_q_covariance"];
-        imu_p_covariance = J["imu_p_covariance"];
+                                      standalone_vo_J);
+        odom_information_weight = standalone_vo_J["odom_information_weight"];
+        marginalization_prior_weight =
+            standalone_vo_J["marginalization_prior_weight"];
+        imu_q_covariance = standalone_vo_J["imu_q_covariance"];
+        imu_p_covariance = standalone_vo_J["imu_p_covariance"];
         invalid_localization_covariance_weight =
-            J["invalid_localization_covariance_weight"];
+            standalone_vo_J["invalid_localization_covariance_weight"];
       } catch (...) {
         ROS_WARN("Invalid standalone VO config, using default params.");
       }
