@@ -98,7 +98,7 @@ PoseWithCovariance ImuPreintegration::GetPose(const ros::Time& t_now) {
   // integrate between frames if there is data to integrate
   if (!pre_integrator_kj_.data.empty()) {
     pre_integrator_kj_.Integrate(t_now, imu_state_i_.GyroBiasVec(),
-                                 imu_state_i_.AccelBiasVec(), false, true);
+                                 imu_state_i_.AccelBiasVec(), false, true, false);
   }
 
   // predict state at end of window using integrated IMU measurements
@@ -143,7 +143,7 @@ PoseWithCovariance ImuPreintegration::GetRelativeMotion(
   bs_common::ImuState imu_state_1;
   if (window_states_.find(t1.toNSec()) == window_states_.end()) {
     pre_integrator_ij_.Integrate(t1, imu_state_i_.GyroBiasVec(),
-                                 imu_state_i_.AccelBiasVec(), false, false);
+                                 imu_state_i_.AccelBiasVec(), false, false, false);
     imu_state_1 = PredictState(pre_integrator_ij_, imu_state_i_, t1);
   } else {
     imu_state_1 = window_states_[t1.toNSec()];
@@ -156,7 +156,7 @@ PoseWithCovariance ImuPreintegration::GetRelativeMotion(
 
   // integrate to t2
   pre_integrator.Integrate(t2, imu_state_i_.GyroBiasVec(),
-                           imu_state_i_.AccelBiasVec(), false, true);
+                           imu_state_i_.AccelBiasVec(), false, true, false);
   // get state at t2
   bs_common::ImuState imu_state_2 =
       PredictState(pre_integrator, imu_state_1, t2);
@@ -278,7 +278,7 @@ fuse_core::Transaction::SharedPtr
   // integrate between key frames, incrementally calculating covariance and
   // jacobians
   pre_integrator_ij_.Integrate(t_now, imu_state_i_.GyroBiasVec(),
-                               imu_state_i_.AccelBiasVec(), true, true);
+                               imu_state_i_.AccelBiasVec(), true, true, true);
 
   // predict state at end of window using integrated imu measurements
   bs_common::ImuState imu_state_j =

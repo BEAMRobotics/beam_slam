@@ -319,9 +319,22 @@ bool SLAMInitialization::Initialize() {
     options.minimizer_progress_to_stdout = true;
     options.num_threads = std::thread::hardware_concurrency() / 2;
     options.max_num_iterations = 1000;
-    local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s),
-                              options);
-    visual_map_->UpdateGraph(*local_graph_);
+    if (mode_ == InitMode::LIDAR && landmark_container_->NumImages() > 0) {
+      ros::Duration half_optimization_time =
+          ros::Duration(params_.max_optimization_s / 2.0);
+      // 1. fix all landmarks
+      // 2. optimize for half_optimization_time
+      // 3. try to triangulate more landmarks
+      // 4. un-fix all landmarks
+      // 5. optimize for half_optimization_time
+      local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s),
+                                options);
+      visual_map_->UpdateGraph(*local_graph_);
+    } else {
+      local_graph_->optimizeFor(ros::Duration(params_.max_optimization_s),
+                                options);
+      visual_map_->UpdateGraph(*local_graph_);
+    }
     if (lidar_path_init_) {
       lidar_path_init_->UpdateRegistrationMap(local_graph_);
     }
