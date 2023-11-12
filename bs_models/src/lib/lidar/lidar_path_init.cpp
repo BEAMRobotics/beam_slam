@@ -81,12 +81,6 @@ void LidarPathInit::ProcessLidar(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
 
-  if (registered_last_) {
-    registered_last_ = false;
-    return;
-  }
-  registered_last_ = true;
-
   if (!InitExtrinsics(msg->header.stamp)) { return; }
 
   beam::HighResolutionTimer timer;

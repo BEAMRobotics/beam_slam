@@ -124,7 +124,6 @@ private:
   // params only tunable here
   bool forward_predict_{false};
   int min_spline_count_{8};
-  bool registered_last_{false};
 };
 
 } // namespace bs_models
