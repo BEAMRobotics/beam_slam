@@ -86,32 +86,36 @@ public:
                                           matcher_config_rel);
     }
 
-    double reprojection_loss_a = 5.0 * reprojection_information_weight;
-    // reprojection loss
-    reprojection_loss =
-        std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
-
     // read vo params
     std::string vo_config;
     getParam<std::string>(nh, "vo_config", vo_config, vo_config);
-    std::string vo_params =
-        beam::CombinePaths(bs_common::GetBeamSlamConfigPath(), vo_config);
-    nlohmann::json J;
-
-    if (!beam::ReadJson(vo_params, J)) {
-      ROS_ERROR("Cannot read input VO Params, using default.");
+    if (!vo_config.empty()) {
+      std::string vo_params =
+          beam::CombinePaths(bs_common::GetBeamSlamConfigPath(), vo_config);
+      nlohmann::json J;
+      if (!beam::ReadJson(vo_params, J)) {
+        ROS_ERROR("Cannot read input VO Params, using default.");
+      } else {
+        try {
+          beam::ValidateJsonKeysOrThrow(
+              {"max_triangulation_distance", "max_triangulation_reprojection",
+               "reprojection_information_weight", "use_idp",
+               "track_outlier_pixel_threshold"},
+              J);
+          max_triangulation_distance = J["max_triangulation_distance"];
+          max_triangulation_reprojection = J["max_triangulation_reprojection"];
+          reprojection_information_weight =
+              J["reprojection_information_weight"];
+          use_idp = J["use_idp"];
+          track_outlier_pixel_threshold = J["track_outlier_pixel_threshold"];
+        } catch (...) { ROS_WARN("Invalid VO config, using default params."); }
+      }
     }
 
-    beam::ValidateJsonKeysOrThrow({"max_triangulation_distance",
-                                   "max_triangulation_reprojection",
-                                   "reprojection_information_weight", "use_idp",
-                                   "track_outlier_pixel_threshold"},
-                                  J);
-    max_triangulation_distance = J["max_triangulation_distance"];
-    max_triangulation_reprojection = J["max_triangulation_reprojection"];
-    reprojection_information_weight = J["reprojection_information_weight"];
-    use_idp = J["use_idp"];
-    track_outlier_pixel_threshold = J["track_outlier_pixel_threshold"];
+    // reprojection loss
+    double reprojection_loss_a = 5.0 * reprojection_information_weight;
+    reprojection_loss =
+        std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
   }
 
   std::string visual_measurement_topic{
