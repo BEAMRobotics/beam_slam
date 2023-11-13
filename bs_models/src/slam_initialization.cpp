@@ -47,7 +47,7 @@ void SLAMInitialization::onInit() {
   K_ = K;
 
   visual_map_ = std::make_shared<vision::VisualMap>(
-      cam_model_, params_.reprojection_loss,
+      name(), cam_model_, params_.reprojection_loss,
       params_.reprojection_information_weight);
 
   // create optimization graph
@@ -303,7 +303,7 @@ bool SLAMInitialization::Initialize() {
   }
 
   imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(
-      imu_params_, bg_, ba_, params_.inertial_information_weight);
+      name(), imu_params_, bg_, ba_, params_.inertial_information_weight);
 
   AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
   InterpolateVisualMeasurements();

@@ -235,10 +235,11 @@ private:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   /// @brief standalone vo stuff
-  fuse_core::Vector7d keyframe_imu_delta_;
   fuse_core::Graph::SharedPtr local_graph_;
   ceres::Solver::Options local_solver_options_;
-  Eigen::Matrix<double, 6, 6> imu_covariance_;
+
+  /// @brief params only changeable here
+  bool use_relative_frame_init_{false};
 };
 
 } // namespace bs_models

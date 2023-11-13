@@ -56,9 +56,9 @@ void VisualOdometry::onInit() {
   K_ = K;
 
   // create visual map
-  visual_map_ =
-      std::make_shared<VisualMap>(cam_model_, vo_params_.reprojection_loss,
-                                  vo_params_.reprojection_information_weight);
+  visual_map_ = std::make_shared<VisualMap>(
+      name(), cam_model_, vo_params_.reprojection_loss,
+      vo_params_.reprojection_information_weight);
 
   // Initialize landmark measurement container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
@@ -76,14 +76,7 @@ void VisualOdometry::onInit() {
   // create local solver options
   if (vo_params_.use_standalone_vo) {
     // manually set lag duration
-    lag_duration_ = 6.0;
-
-    // get the inertial covariance matrix for relative constraints
-    imu_covariance_ = Eigen::Matrix<double, 6, 6>::Identity();
-    imu_covariance_.block<3, 3>(0, 0) =
-        vo_params_.imu_p_covariance * Eigen::Matrix3d::Identity();
-    imu_covariance_.block<3, 3>(3, 3) =
-        vo_params_.imu_q_covariance * Eigen::Matrix3d::Identity();
+    // lag_duration_ = 6.0;
 
     // setup solve params
     ceres::Solver::Options options;
@@ -208,7 +201,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix<double, 6, 6>& covariance) {
   std::string error;
   Eigen::Matrix4d T_WORLD_BASELINKcur;
-  if (!vo_params_.use_standalone_vo) {
+  if (!use_relative_frame_init_) {
     if (!frame_initializer_->GetPose(T_WORLD_BASELINKcur, timestamp,
                                      extrinsics_.GetBaselinkFrameId(), error)) {
       ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
@@ -308,13 +301,6 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
                               transaction);
   }
 
-  if (vo_params_.use_standalone_vo) {
-    // add relative pose constraint to the transaction using the imu estimate
-    visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
-                                           keyframe_imu_delta_, imu_covariance_,
-                                           transaction);
-  }
-
   // process each landmark
   const auto landmarks = landmark_container_->GetLandmarkIDsInImage(timestamp);
   for (const auto id : landmarks) {
@@ -353,6 +339,22 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   if (is_initialized_ && !vo_params_.use_standalone_vo) {
     PruneKeyframes(*graph);
   }
+
+  if (is_initialized_ && vo_params_.use_standalone_vo) {
+    // 1. remove any keyframes in the local graph that arent in this new graph
+    // 2. update the local graph with the new variables
+    for (const auto& v : graph->getVariables()) {
+      local_graph_->addVariable(std::move(v.clone()));
+    }
+    for (const auto& c : graph->getConstraints()) {
+      if (c.source() != name()) {
+        local_graph_->addConstraint(std::move(c.clone()));
+      }
+    }
+    // 3. do a minor optimization
+    local_graph_->optimizeFor(ros::Duration(0.025), local_solver_options_);
+  }
+
   // update visual map with new graph (if using full VO)
   if (!vo_params_.use_standalone_vo) { visual_map_->UpdateGraph(*graph); }
   // do initial setup
@@ -377,17 +379,6 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
     ROS_WARN_STREAM(
         "Unable to retrieve relative pose from last keyframe: " << timestamp);
     return false;
-  }
-
-  // update keyframe_imu_delta_ if using local vo
-  if (vo_params_.use_standalone_vo) {
-    Eigen::Vector3d t_PREVKF_CURFRAME = T_PREVKF_CURFRAME.block<3, 1>(0, 3);
-    Eigen::Quaterniond q_PREVKF_CURFRAME(T_PREVKF_CURFRAME.block<3, 3>(0, 0));
-    fuse_core::Vector7d imu_delta;
-    imu_delta << t_PREVKF_CURFRAME.x(), t_PREVKF_CURFRAME.y(),
-        t_PREVKF_CURFRAME.z(), q_PREVKF_CURFRAME.w(), q_PREVKF_CURFRAME.x(),
-        q_PREVKF_CURFRAME.y(), q_PREVKF_CURFRAME.z();
-    keyframe_imu_delta_ = imu_delta;
   }
 
   // compute rotation adjusted parallax
@@ -818,7 +809,7 @@ void VisualOdometry::MarginalizeGraph() {
       auto start_imu_state = maybe_start_imu_state.value();
       fuse_core::Constraint::SharedPtr prior =
           std::make_shared<bs_constraints::AbsoluteImuState3DStampedConstraint>(
-              "PRIOR", start_imu_state, start_imu_state.GetStateVector(),
+              name(), start_imu_state, start_imu_state.GetStateVector(),
               vo_params_.marginalization_prior_weight *
                   Eigen::Matrix<double, 15, 15>::Identity());
       marginal_transaction->addConstraint(prior);

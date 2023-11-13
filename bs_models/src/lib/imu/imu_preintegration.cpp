@@ -37,22 +37,26 @@ bool ImuPreintegration::Params::LoadFromJSON(const std::string& path) {
   return true;
 }
 
-ImuPreintegration::ImuPreintegration(const Params& params,
+ImuPreintegration::ImuPreintegration(const std::string& source,
+                                     const Params& params,
                                      const double info_weight,
                                      bool add_prior_on_first_window)
-    : params_(params),
+    : source_(source),
+      params_(params),
       info_weight_(info_weight),
       add_prior_on_first_window_(add_prior_on_first_window) {
   CheckParameters();
   SetPreintegrator();
 }
 
-ImuPreintegration::ImuPreintegration(const Params& params,
+ImuPreintegration::ImuPreintegration(const std::string& source,
+                                     const Params& params,
                                      const Eigen::Vector3d& init_bg,
                                      const Eigen::Vector3d& init_ba,
                                      const double info_weight,
                                      bool add_prior_on_first_window)
-    : params_(params),
+    : source_(source),
+      params_(params),
       bg_(init_bg),
       ba_(init_ba),
       info_weight_(info_weight),
@@ -264,7 +268,7 @@ fuse_core::Transaction::SharedPtr
 
     // Add relative constraints and variables for first key frame
     transaction.AddPriorImuStateConstraint(imu_state_i_, prior_covariance,
-                                           "ImuPreintegration");
+                                           source_);
     transaction.AddImuStateVariables(imu_state_i_);
     first_window_ = false;
   }
@@ -285,8 +289,8 @@ fuse_core::Transaction::SharedPtr
       PredictState(pre_integrator_ij_, imu_state_i_, t_now);
 
   // Add relative constraints and variables between key frames
-  transaction.AddRelativeImuStateConstraint(imu_state_i_, imu_state_j,
-                                            pre_integrator_ij_, info_weight_);
+  transaction.AddRelativeImuStateConstraint(
+      imu_state_i_, imu_state_j, pre_integrator_ij_, info_weight_, source_);
   transaction.AddImuStateVariables(imu_state_j);
 
   // update orientation, position and velocity of predicted imu state with

@@ -99,7 +99,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
   // Perform SFM
   auto visual_graph = std::make_shared<fuse_graphs::HashGraph>();
   auto visual_map = std::make_shared<vision::VisualMap>(
-      camera_model, loss_function, information_weight);
+      "VisionOnlySFM", camera_model, loss_function, information_weight);
 
   // Add initial poses, landmarks and constraints to graph
   auto initial_transaction = fuse_core::Transaction::make_shared();
@@ -150,8 +150,7 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
     std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
     std::vector<uint64_t> ids_in_frame;
     for (auto& id : matched_ids) {
-      bs_variables::Point3DLandmark::SharedPtr lm =
-          visual_map->GetLandmark(id);
+      bs_variables::Point3DLandmark::SharedPtr lm = visual_map->GetLandmark(id);
       if (lm) {
         try {
           Eigen::Vector3d point = lm->point();

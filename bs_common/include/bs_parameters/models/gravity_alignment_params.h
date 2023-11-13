@@ -19,8 +19,13 @@ public:
     getParamRequired<std::string>(nh, "imu_topic", imu_topic);
 
     // weighting factor of inertial information matrix
-    getParam<double>(nh, "gravity_information_weight",
-                     gravity_information_weight, gravity_information_weight);
+    nlohmann::json info_weights;
+    beam::ReadJson(beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
+                                      "optimization/information_weights.json"),
+                   info_weights);
+    getParamJson<double>(info_weights, "gravity_information_weight",
+                         gravity_information_weight,
+                         gravity_information_weight);
 
     // odometry topic for the poses to add constraints to
     getParamRequired<std::string>(nh, "constraint_odom_topic",

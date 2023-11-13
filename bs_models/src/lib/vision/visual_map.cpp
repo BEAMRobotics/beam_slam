@@ -15,10 +15,12 @@
 
 namespace bs_models { namespace vision {
 
-VisualMap::VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+VisualMap::VisualMap(const std::string& source,
+                     std::shared_ptr<beam_calibration::CameraModel> cam_model,
                      fuse_core::Loss::SharedPtr loss_function,
                      const double reprojection_information_weight)
-    : cam_model_(cam_model),
+    : source_(source),
+      cam_model_(cam_model),
       loss_function_(loss_function),
       reprojection_information_weight_(reprojection_information_weight) {
   cam_model_->InitUndistortMap();
@@ -183,7 +185,7 @@ bool VisualMap::AddVisualConstraint(
     if (lm) {
       auto vis_constraint =
           std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
-              "VO", *orientation, *position, *lm, T_cam_baselink_,
+              source_, *orientation, *position, *lm, T_cam_baselink_,
               camera_intrinsic_matrix_, measurement,
               reprojection_information_weight_);
       vis_constraint->loss(loss_function_);
@@ -346,7 +348,7 @@ bool VisualMap::AddInverseDepthVisualConstraint(
       if (lm->anchorStamp() == measurement_stamp) {
         auto vis_constraint = std::make_shared<
             bs_constraints::InverseDepthReprojectionConstraintUnary>(
-            "VO", *orientation_a, *position_a, *lm, T_cam_baselink_,
+            source_, *orientation_a, *position_a, *lm, T_cam_baselink_,
             camera_intrinsic_matrix_, measurement,
             reprojection_information_weight_);
         vis_constraint->loss(loss_function_);
@@ -354,8 +356,8 @@ bool VisualMap::AddInverseDepthVisualConstraint(
       } else {
         auto vis_constraint = std::make_shared<
             bs_constraints::InverseDepthReprojectionConstraint>(
-            "VO", *orientation_a, *position_a, *orientation_m, *position_m, *lm,
-            T_cam_baselink_, camera_intrinsic_matrix_, measurement,
+            source_, *orientation_a, *position_a, *orientation_m, *position_m,
+            *lm, T_cam_baselink_, camera_intrinsic_matrix_, measurement,
             reprojection_information_weight_);
         vis_constraint->loss(loss_function_);
         transaction->addConstraint(vis_constraint);
@@ -417,7 +419,7 @@ void VisualMap::AddPosePrior(const ros::Time& stamp,
 
     auto prior =
         std::make_shared<fuse_constraints::AbsolutePose3DStampedConstraint>(
-            "PRIOR", *position, *orientation, mean, covariance);
+            source_, *position, *orientation, mean, covariance);
     transaction->addConstraint(prior);
   }
 }
@@ -434,8 +436,8 @@ void VisualMap::AddRelativePoseConstraint(
   if (position1 && orientation1 && position2 && orientation2) {
     auto constraint =
         std::make_shared<fuse_constraints::RelativePose3DStampedConstraint>(
-            "imu_relative_constraint", *position1, *orientation1, *position2,
-            *orientation2, delta, covariance);
+            source_, *position1, *orientation1, *position2, *orientation2,
+            delta, covariance);
     transaction->addConstraint(constraint);
   }
 }

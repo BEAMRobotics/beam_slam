@@ -120,8 +120,12 @@ public:
     /** Weighting factor on lidar scan registration measurements.
     This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
     Residuals */
-    getParam<double>(nh, "lidar_information_weight", lidar_information_weight,
-                     lidar_information_weight);
+    nlohmann::json info_weights;
+    beam::ReadJson(beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
+                                      "optimization/information_weights.json"),
+                   info_weights);
+    getParamJson<double>(info_weights, "lidar_information_weight",
+                         lidar_information_weight, lidar_information_weight);
 
     // Prior weight on frame init poses if desired. If set to 0 then no prior
     // will be added. Since we store covariance here, but we want to specify a

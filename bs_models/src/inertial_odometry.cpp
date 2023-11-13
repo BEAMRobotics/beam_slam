@@ -254,7 +254,7 @@ void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
   Eigen::Vector3d ba(accel_bias->x(), accel_bias->y(), accel_bias->z());
   Eigen::Vector3d bg(gyro_bias->x(), gyro_bias->y(), gyro_bias->z());
   imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(
-      imu_params_, bg, ba, params_.inertial_information_weight, false);
+      name(), imu_params_, bg, ba, params_.inertial_information_weight, false);
 
   // set the start
   imu_preint_->SetStart(first_stamp, orientation, position, velocity);
@@ -409,7 +409,7 @@ void InertialOdometry::BreakupConstraint(
 
       auto zero_motion_transaction = fuse_core::Transaction::make_shared();
       zero_motion_transaction->stamp(new_trigger_time);
-      bs_common::AddZeroMotionFactor("IO", start_state, new_state,
+      bs_common::AddZeroMotionFactor(name(), start_state, new_state,
                                      zero_motion_transaction);
       transaction->merge(*zero_motion_transaction);
     } else {
@@ -432,7 +432,7 @@ void InertialOdometry::BreakupConstraint(
 
       auto zero_motion_transaction = fuse_core::Transaction::make_shared();
       zero_motion_transaction->stamp(new_trigger_time);
-      bs_common::AddZeroMotionFactor("IO", new_state, end_state,
+      bs_common::AddZeroMotionFactor(name(), new_state, end_state,
                                      zero_motion_transaction);
       transaction->merge(*zero_motion_transaction);
     } else {
