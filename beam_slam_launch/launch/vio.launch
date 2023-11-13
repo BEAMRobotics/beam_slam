@@ -9,10 +9,19 @@
   <arg unless="$(arg debug)" name="launch_prefix" value=" "/>
   <arg if="$(arg debug)" name="launch_prefix" value="gdb -ex run --args"/>
   
+  <!-- Launch calibration publisher -->
   <arg name="extrinsics_file_path" default="$(find beam_slam_launch)/calibrations/ig2/extrinsics.json"/>
   <node name="calibration_publisher" pkg="calibration_publisher" type="calibration_publisher_main">
     <param name="robot_name" value=""/>
     <param name="extrinsics_file_path" value="$(arg extrinsics_file_path)"/>
+  </node>
+
+  <!-- Launch visual feature tracker -->
+  <node name="feature_tracker" pkg="bs_tools" type="feature_tracker">
+    <param name="descriptor_config" value="$(find beam_slam_launch)/config/vo/orb_descriptor.json"/>
+    <param name="detector_config" value="$(find beam_slam_launch)/config/vo/fastssc_detector.json"/>
+    <param name="tracker_config" value="$(find beam_slam_launch)/config/vo/tracker.json"/>
+    <param name="image_topic" value="/F1/image"/>
   </node>
 
   <!-- Launch local (odometry) -->
