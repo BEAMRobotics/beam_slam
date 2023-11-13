@@ -94,7 +94,7 @@ void VisualOdometry::onStart() {
   measurement_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
           ros::names::resolve(
-              "/local_mapper/visual_feature_tracker/visual_measurements"),
+              "/feature_tracker/visual_measurements"),
           10, &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));

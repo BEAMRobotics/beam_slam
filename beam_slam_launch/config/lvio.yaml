@@ -16,8 +16,6 @@ solver_options:
   function_tolerance: 0.00000015
 
 sensor_models:
-  - name: 'visual_feature_tracker'
-    type: 'bs_models::VisualFeatureTracker'
   - name: 'slam_initialization'
     type: 'bs_models::SLAMInitialization'
   - name: 'inertial_odometry'
@@ -36,12 +34,6 @@ sensor_models:
 publishers:
   - name: 'path_publisher'
     type: 'bs_publishers::Path3DPublisher'
-
-visual_feature_tracker:
-  image_topic: '/F1/image'
-  descriptor_config: 'vo/orb_descriptor.json'
-  detector_config: 'vo/fastssc_detector.json'
-  tracker_config: 'vo/tracker.json'
 
 slam_initialization:
   imu_topic: "/imu/data"

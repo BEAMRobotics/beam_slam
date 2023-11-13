@@ -38,6 +38,7 @@ slam_initialization:
   min_visual_parallax: 40.0
   inertial_information_weight: 1.0
   lidar_information_weight: 100.0
+  initialization_window_s: 15
   vo_config: "examples/kaarta_2/vo/vo_params_init.json"
   matcher_config: 'examples/kaarta_2/matchers/loam_vlp16.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results"
