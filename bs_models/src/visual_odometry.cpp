@@ -341,17 +341,19 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   }
 
   if (is_initialized_ && vo_params_.use_standalone_vo) {
-    // 1. remove any keyframes in the local graph that arent in this new graph
-    // 2. update the local graph with the new variables
+    // todo: remove any keyframes in the local graph that arent in this new graph
+
+    // update the local graph with the new variables
     for (const auto& v : graph->getVariables()) {
       local_graph_->addVariable(std::move(v.clone()));
     }
     for (const auto& c : graph->getConstraints()) {
+      // todo: also avoid LO constraints
       if (c.source() != name()) {
         local_graph_->addConstraint(std::move(c.clone()));
       }
     }
-    // 3. do a minor optimization
+    // do a minor optimization with this graph update
     local_graph_->optimizeFor(ros::Duration(0.025), local_solver_options_);
   }
 
