@@ -165,7 +165,7 @@ private:
   void PruneKeyframes(const fuse_core::Graph& new_graph);
 
   /// @brief Marginalizes the current local graph is standalone vo is being used
-  void MarginalizeGraph();
+  void MarginalizeGraph(const fuse_core::Graph& new_graph);
 
   /// @brief Computes the pose as a 7d vector (x,y,z, qw,
   /// qx, qy, qz)
@@ -237,9 +237,6 @@ private:
   /// @brief standalone vo stuff
   fuse_core::Graph::SharedPtr local_graph_;
   ceres::Solver::Options local_solver_options_;
-
-  /// @brief params only changeable here
-  bool use_relative_frame_init_{false};
 };
 
 } // namespace bs_models
