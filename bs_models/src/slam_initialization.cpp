@@ -47,7 +47,7 @@ void SLAMInitialization::onInit() {
   K_ = K;
 
   visual_map_ = std::make_shared<vision::VisualMap>(
-      cam_model_, params_.reprojection_loss,
+      name(), cam_model_, params_.reprojection_loss,
       params_.reprojection_information_weight);
 
   // create optimization graph
@@ -64,7 +64,18 @@ void SLAMInitialization::onInit() {
 
   // read imu parameters
   nlohmann::json J;
-  beam::ReadJson(calibration_params_.imu_intrinsics_path, J);
+  BEAM_INFO("loading imu calibration file: {}",
+            calibration_params_.imu_intrinsics_path);
+  if (!beam::ReadJson(calibration_params_.imu_intrinsics_path, J)) {
+    BEAM_CRITICAL("cannot load imu calibration params file: {}",
+                  calibration_params_.imu_intrinsics_path);
+    throw std::runtime_error{"invalid filepath"};
+  }
+
+  beam::ValidateJsonKeysOrThrow({"cov_prior_noise", "cov_gyro_noise",
+                                 "cov_accel_noise", "cov_gyro_bias",
+                                 "cov_accel_bias"},
+                                J);
   imu_params_.cov_prior_noise = J["cov_prior_noise"];
   imu_params_.cov_gyro_noise =
       Eigen::Matrix3d::Identity() * J["cov_gyro_noise"];
@@ -292,7 +303,7 @@ bool SLAMInitialization::Initialize() {
   }
 
   imu_preint_ = std::make_shared<bs_models::ImuPreintegration>(
-      imu_params_, bg_, ba_, params_.inertial_information_weight);
+      name(), imu_params_, bg_, ba_, params_.inertial_information_weight);
 
   AlignPathAndVelocities(mode_ == InitMode::VISUAL && !frame_initializer_);
   InterpolateVisualMeasurements();
@@ -310,7 +321,6 @@ bool SLAMInitialization::Initialize() {
         graph_visualization::GetGraphRelativeImuConstraintsAsCloud(
             *local_graph_, 0.01, 0.15);
   }
-
   if (params_.max_optimization_s > 0.0) {
     ROS_INFO_STREAM(__func__ << ": Optimizing fused initialization graph:");
     ceres::Solver::Options options;

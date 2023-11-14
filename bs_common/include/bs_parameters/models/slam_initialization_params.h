@@ -86,61 +86,66 @@ public:
                                           matcher_config_rel);
     }
 
-    double reprojection_loss_a = 5.0 * reprojection_information_weight;
+    /// Load all information matrix weights for the optimization problem from
+    /// the default location
+    nlohmann::json info_weights;
+    beam::ReadJson(beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
+                                      "optimization/information_weights.json"),
+                   info_weights);
+    getParamJson<double>(info_weights, "inertial_information_weight",
+                         inertial_information_weight,
+                         inertial_information_weight);
+    getParamJson<double>(info_weights, "lidar_information_weight",
+                         lidar_information_weight, lidar_information_weight);
+    getParamJson<double>(info_weights, "reprojection_information_weight",
+                         reprojection_information_weight,
+                         reprojection_information_weight);
+
     // reprojection loss
+    double reprojection_loss_a = 5.0 * reprojection_information_weight;
     reprojection_loss =
         std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
 
     // read vo params
     std::string vo_config;
     getParam<std::string>(nh, "vo_config", vo_config, vo_config);
+    readVOParams(vo_config);
+  }
+
+  /**
+   * @brief Reads visual odom params from a json file
+   *
+   * @param[in] vo_config string of the vo config under the config folder
+   */
+  void readVOParams(const std::string& vo_config) {
+    if (vo_config.empty()) {
+      ROS_ERROR("Empty VO config path, using default params.");
+      return;
+    }
+
     std::string vo_params =
         beam::CombinePaths(bs_common::GetBeamSlamConfigPath(), vo_config);
     nlohmann::json J;
 
     if (!beam::ReadJson(vo_params, J)) {
-      ROS_ERROR("Cannot read input VO Params, using default.");
-    } else {
-      try {
-        max_triangulation_distance = J["max_triangulation_distance"];
-      } catch (...) {
-        ROS_ERROR("Missing 'max_triangulation_distance' param in vo config "
-                  "file. Using default: 30.0.");
-      }
-
-      try {
-        max_triangulation_reprojection = J["max_triangulation_reprojection"];
-      } catch (...) {
-        ROS_ERROR("Missing 'max_triangulation_reprojection' param in vo config "
-                  "file. Using default: 40.0.");
-      }
-
-      try {
-        reprojection_information_weight = J["reprojection_information_weight"];
-      } catch (...) {
-        ROS_ERROR(
-            "Missing 'reprojection_information_weight' param in vo config "
-            "file. Using default: 1.0.");
-      }
-
-      try {
-        use_idp = J["use_idp"];
-      } catch (...) {
-        ROS_ERROR(
-            "Missing 'use_idp' param in vo config file. Using default: False.");
-      }
-
-      try {
-        track_outlier_pixel_threshold = J["track_outlier_pixel_threshold"];
-      } catch (...) {
-        ROS_ERROR("Missing 'track_outlier_pixel_threshold' param in vo config "
-                  "file. Using default: 1.0.");
-      }
+      ROS_ERROR("Invalid VO config path, using default params.");
+      return;
     }
+
+    getParamJson<bool>(J, "use_idp", use_idp, use_idp);
+    getParamJson<double>(J, "max_triangulation_distance",
+                         max_triangulation_distance,
+                         max_triangulation_distance);
+    getParamJson<double>(J, "max_triangulation_reprojection",
+                         max_triangulation_reprojection,
+                         max_triangulation_reprojection);
+    getParamJson<double>(J, "track_outlier_pixel_threshold",
+                         track_outlier_pixel_threshold,
+                         track_outlier_pixel_threshold);
   }
 
   std::string visual_measurement_topic{
-      "/local_mapper/visual_feature_tracker/visual_measurements"};
+      "/feature_tracker/visual_measurements"};
   std::string imu_topic{""};
   std::string lidar_topic{""};
   std::string frame_initializer_config{""};
@@ -149,17 +154,23 @@ public:
 
   std::string matcher_config;
   double max_optimization_s{1.0};
+
+  // optimization weights
   double inertial_information_weight{1.0};
   double reprojection_information_weight{1.0};
   double lidar_information_weight{1.0};
+
+  // slam init thresholds
   double min_trajectory_length_m{2.0};
   double min_visual_parallax{40.0};
   double frame_init_frequency{0.1};
+  double initialization_window_s{10.0};
+
+  // vo params
+  bool use_idp{false};
   double max_triangulation_distance{30.0};
   double max_triangulation_reprojection{40.0};
   double track_outlier_pixel_threshold{1.0};
-  bool use_idp{false};
-  double initialization_window_s{10.0};
   fuse_core::Loss::SharedPtr reprojection_loss;
 };
 }} // namespace bs_parameters::models

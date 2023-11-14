@@ -1,6 +1,6 @@
 # optimization params
 optimization_period: 0.07
-lag_duration: 7
+lag_duration: 10
 pseudo_marginalization: true
 
 solver_options:
@@ -16,6 +16,8 @@ solver_options:
   function_tolerance: 0.00000015
 
 sensor_models:
+  - name: 'visual_feature_tracker'
+    type: 'bs_models::VisualFeatureTracker'
   - name: 'slam_initialization'
     type: 'bs_models::SLAMInitialization'
   - name: 'inertial_odometry'
@@ -24,37 +26,40 @@ sensor_models:
     type: 'bs_models::VisualOdometry'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
-  # - name: 'gravity_alignment'
-  #   type: 'bs_models::GravityAlignment'
 
 publishers:
   - name: 'path_publisher'
     type: 'bs_publishers::Path3DPublisher'
 
+visual_feature_tracker:
+  image_topic: '/monocular_camera/image'
+  descriptor_config: 'vo/orb_descriptor.json'
+  detector_config: 'vo/fastssc_detector.json'
+  tracker_config: 'vo/tracker.json'
+
 slam_initialization:
   imu_topic: "/imu/data"
-  lidar_topic: "/lidar_h/velodyne_points"
+  lidar_topic: "/velodyne_points"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 3.0
   min_visual_parallax: 40.0
-  vo_config: "vo/vo_params_init.json"
-  matcher_config: 'matchers/loam_vlp16.json' # lidar specific
+  inertial_information_weight: 1.0
+  lidar_information_weight: 100.0
+  vo_config: "examples/kaarta_2/vo/vo_params_init.json"
+  matcher_config: 'examples/kaarta_2/matchers/loam_vlp16.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results"
 
 inertial_odometry:
   imu_topic: "/imu/data"
+  inertial_information_weight: 1.0
 
 visual_odometry:
-  vo_config: "vo/vo_params.json"
+  vo_config: "examples/kaarta_2/vo/vo_params.json"
   frame_initializer_config: "frame_initializers/io.json"
-  keyframe_parallax: 25.0
+  keyframe_parallax: 40.0
   trigger_inertial_odom_constraints: true
-  use_standalone_vo: false
-
-gravity_alignment:
-  imu_topic: "/imu/data"
-  constraint_odom_topic: "/local_mapper/visual_odometry/odometry"
+  use_standalone_vo: true
 
 path_publisher:
   path_topic: 'path' # Default: path

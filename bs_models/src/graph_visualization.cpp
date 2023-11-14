@@ -61,7 +61,7 @@ void GraphVisualization::onInit() {
 void GraphVisualization::onStart() {
   feature_track_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
-          "/local_mapper/visual_feature_tracker/visual_measurements", 100,
+          "/feature_tracker/visual_measurements", 100,
           &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));

@@ -1,0 +1,7 @@
+{
+  "num_features": 150,
+  "threshold": 20,
+  "ssc_tolerance": 0.1,
+  "nonmax_suppression": true,
+  "type": "TYPE_9_16"
+}

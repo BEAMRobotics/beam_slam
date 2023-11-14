@@ -47,7 +47,7 @@ public:
    * registrations against the map
    * @return map timestamp in NS -> transaction
    */
-  std::map<uint64_t, LidarTransactionType> GetTransactions() const;
+  std::map<uint64_t, LidarTransactionType> GetTransactions();
 
   /**
    * @brief Save three types of scans to separate folders:
@@ -70,13 +70,18 @@ public:
   void UpdateRegistrationMap(fuse_core::Graph::ConstSharedPtr graph_msg);
 
   /**
-   * @brief Removes all frames prior to start_time (unless it's not set), sets
-   * the first scan pose in the keyframes list to identity, and adjusts all
-   * subsequent poses to reflect this start change. The reason for this is that
-   * the initial scan pose will be calculated with respect to the first
-   * keyframe. Since we often rejects frames at the start that are stationary,
-   * the post of the first kept keyframe likely won't be identity and is likely
-   * to have drifted.
+   * @brief Steps:
+   *  1. Removes all lidar keyframes prior to start_time (unless it's not set).
+   *  2.  sets the first scan pose in the keyframes list to identity, and
+   * adjusts all subsequent poses to reflect this start change. The reason for
+   * this is that the initial scan pose will be calculated with respect to the
+   * first keyframe. Since we often rejects frames at the start that are
+   * stationary, the post of the first kept keyframe likely won't be identity
+   * and is likely to have drifted.
+   * 3. Get all static positions added in the list of transactions
+   * 4. Remove all transactions that contain a stamped variable prior to the
+   * start keyframe time
+   * 5. Re-add the static pose variables to the first transaction
    */
   void SetTrajectoryStart(const ros::Time& start_time = ros::Time(0));
 
@@ -85,11 +90,11 @@ public:
   double GetMeanRegistrationTimeInS();
 
 private:
+  struct Results {};
+
   bool InitExtrinsics(const ros::Time& stamp);
 
   Eigen::Matrix4d Get_T_WORLD_BASELINKEST(const ros::Time& stamp);
-
-  void RemoveTransactionsWithStamp(const ros::Time& stamp);
 
   // scan registration objects
   std::unique_ptr<scan_registration::ScanToMapLoamRegistration>
@@ -124,7 +129,6 @@ private:
   // params only tunable here
   bool forward_predict_{false};
   int min_spline_count_{8};
-  bool registered_last_{false};
 };
 
 } // namespace bs_models

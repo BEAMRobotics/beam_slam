@@ -81,12 +81,6 @@ void LidarPathInit::ProcessLidar(
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
   ROS_DEBUG("Received incoming scan");
 
-  if (registered_last_) {
-    registered_last_ = false;
-    return;
-  }
-  registered_last_ = true;
-
   if (!InitExtrinsics(msg->header.stamp)) { return; }
 
   beam::HighResolutionTimer timer;
@@ -117,11 +111,7 @@ void LidarPathInit::ProcessLidar(
   keyframes_.push_back(current_scan_pose);
   keyframe_transactions_.emplace(current_scan_pose.Stamp().toNSec(),
                                  transaction);
-  while (keyframes_.size() > lidar_buffer_size_) {
-    keyframe_transactions_.erase(keyframes_.front().Stamp().toNSec());
-    keyframes_.pop_front();
-    SetTrajectoryStart();
-  }
+  while (keyframes_.size() > lidar_buffer_size_) { keyframes_.pop_front(); }
 }
 
 Eigen::Matrix4d LidarPathInit::Get_T_WORLD_BASELINKEST(const ros::Time& stamp) {
@@ -163,28 +153,13 @@ bool LidarPathInit::InitExtrinsics(const ros::Time& stamp) {
   return true;
 }
 
-void LidarPathInit::RemoveTransactionsWithStamp(const ros::Time& stamp) {
-  std::vector<uint64_t> transactions_to_remove;
-  for (const auto& [t, transaction] : keyframe_transactions_) {
-    const fuse_core::Transaction::SharedPtr trans =
-        transaction.GetTransaction();
-    for (const auto& it : trans->involvedStamps()) {
-      if (it == stamp) { transactions_to_remove.push_back(t); }
-    }
-  }
-  for (const auto& t : transactions_to_remove) {
-    keyframe_transactions_.erase(t);
-  }
-}
-
 void LidarPathInit::SetTrajectoryStart(const ros::Time& start_time) {
   if (start_time != ros::Time(0)) {
-    while (keyframes_.front().Stamp() < start_time) {
-      RemoveTransactionsWithStamp(keyframes_.front().Stamp());
-      keyframes_.pop_front();
-    }
+    while (keyframes_.front().Stamp() < start_time) { keyframes_.pop_front(); }
   }
+  ros::Time first_keyframe_time = keyframes_.front().Stamp();
 
+  // reset poses in keyframes
   auto iter = keyframes_.begin();
   const Eigen::Matrix4d& T_WORLDOLD_KEYFRAME0 = iter->T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_KEYFRAME0_WORLDOLD =
@@ -197,6 +172,75 @@ void LidarPathInit::SetTrajectoryStart(const ros::Time& start_time) {
         T_KEYFRAME0_WORLDOLD * T_WORLDOLD_KEYFRAMEX;
     iter->UpdatePose(T_KEYFRAME0_KEYFRAMEX);
     iter++;
+  }
+
+  // remove all old transactions
+  std::vector<std::shared_ptr<bs_variables::Position3D>> static_ps;
+  std::vector<std::shared_ptr<bs_variables::Orientation3D>> static_os;
+  std::vector<uint64_t> transactions_to_remove;
+  std::unordered_set<fuse_core::UUID, fuse_core::uuid::hash> removed_vars;
+  for (auto& [timestamp_ns, transaction] : keyframe_transactions_) {
+    auto trans = transaction.GetTransaction();
+
+    // first see if extrinsics or static pose variables exist
+    auto added_var_range = trans->addedVariables();
+    for (auto it = added_var_range.begin(); it != added_var_range.end(); it++) {
+      if (it->type() == "bs_variables::Position3D") {
+        auto var = bs_variables::Position3D::make_shared();
+        *var = dynamic_cast<const bs_variables::Position3D&>(*it);
+        static_ps.push_back(var);
+      } else if (it->type() == "bs_variables::Orientation3D") {
+        auto var = bs_variables::Orientation3D::make_shared();
+        *var = dynamic_cast<const bs_variables::Orientation3D&>(*it);
+        static_os.push_back(var);
+      }
+    }
+
+    // next, remove it if any variables exist that are prior to the start
+    // keyframe time
+    auto timestamps_range = trans->involvedStamps();
+    for (auto it = timestamps_range.begin(); it != timestamps_range.end();
+         it++) {
+      if (*it < first_keyframe_time) {
+        // std::cout << "\n\ntransaction stamp: "
+        //           << std::to_string(trans->stamp().toSec()) << "\n";
+        // std::cout << "ts: " << std::to_string(it->toSec()) << "\n";
+        transactions_to_remove.push_back(timestamp_ns);
+        auto var_range = trans->addedVariables();
+        for (auto var_it = var_range.begin(); var_it != var_range.end();
+             var_it++) {
+          if (var_it->type() != "bs_variables::Position3D" &&
+              var_it->type() != "bs_variables::Orientation3D") {
+            removed_vars.emplace(var_it->uuid());
+          }
+        }
+      }
+    }
+  }
+
+  // some variables may have been removed that are still in a transaction, so
+  // let's add those
+  for (auto& [timestamp_ns, transaction] : keyframe_transactions_) {
+    auto trans = transaction.GetTransaction();
+    auto consts_range = trans->addedConstraints();
+    for (auto it = consts_range.begin(); it != consts_range.end(); it++) {
+      for (const auto& var_uuid : it->variables()) {
+        if (removed_vars.find(var_uuid) != removed_vars.end()) {
+          transactions_to_remove.push_back(timestamp_ns);
+          break;
+        }
+      }
+    }
+  }
+
+  for (const auto& t : transactions_to_remove) {
+    keyframe_transactions_.erase(t);
+  }
+
+  auto first_trans = keyframe_transactions_.begin()->second.GetTransaction();
+  for (int i = 0; i < static_ps.size(); i++) {
+    first_trans->addVariable(static_ps.at(i));
+    first_trans->addVariable(static_os.at(i));
   }
 }
 
@@ -267,8 +311,8 @@ std::map<uint64_t, Eigen::Matrix4d> LidarPathInit::GetPath() const {
   return path;
 }
 
-std::map<uint64_t, LidarTransactionType>
-    LidarPathInit::GetTransactions() const {
+std::map<uint64_t, LidarTransactionType> LidarPathInit::GetTransactions() {
+  SetTrajectoryStart();
   return keyframe_transactions_;
 }
 

@@ -58,132 +58,115 @@ public:
     getParam<double>(nh, "keyframe_parallax", keyframe_parallax,
                      keyframe_parallax);
 
-    // read vo params
+    /// Load all information matrix weights for the optimization problem from
+    /// the default location
+    nlohmann::json info_weights;
+    beam::ReadJson(beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
+                                      "optimization/information_weights.json"),
+                   info_weights);
+    getParamJson<double>(info_weights, "reprojection_information_weight",
+                         reprojection_information_weight,
+                         reprojection_information_weight);
+    getParamJson<double>(info_weights, "visual_odom_information_weight",
+                         odom_information_weight, odom_information_weight);
+
+    // compute reprojection loss
+    double reprojection_loss_a = 5.0 * reprojection_information_weight;
+    reprojection_loss =
+        std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
+
+    // compute odom cov from info
+    odom_covariance_weight =
+        1 / (odom_information_weight * odom_information_weight);
+
+    // read detailed vo params from json
     std::string vo_config;
     getParam<std::string>(nh, "vo_config", vo_config, vo_config);
+    readVOParams(vo_config);
+  }
+
+  /**
+   * @brief Reads visual odom params from a json file
+   *
+   * @param[in] vo_config string of the vo config under the config folder
+   */
+  void readVOParams(const std::string& vo_config) {
+    if (vo_config.empty()) {
+      ROS_ERROR("Empty VO config path, using default params.");
+      return;
+    }
+
     std::string vo_params =
         beam::CombinePaths(bs_common::GetBeamSlamConfigPath(), vo_config);
     nlohmann::json J;
+
     if (!beam::ReadJson(vo_params, J)) {
-      ROS_ERROR("Cannot read input VO Params, using default.");
-    } else {
+      ROS_ERROR("Invalid VO config path, using default params.");
+      return;
+    }
+
+    getParamJson<bool>(J, "use_idp", use_idp, use_idp);
+    getParamJson<double>(J, "max_triangulation_distance",
+                         max_triangulation_distance,
+                         max_triangulation_distance);
+    getParamJson<double>(J, "max_triangulation_reprojection",
+                         max_triangulation_reprojection,
+                         max_triangulation_reprojection);
+    getParamJson<double>(J, "track_outlier_pixel_threshold",
+                         track_outlier_pixel_threshold,
+                         track_outlier_pixel_threshold);
+    getParamJson<int>(J, "required_points_to_refine",
+                         required_points_to_refine, required_points_to_refine);
+    getParamJson<bool>(J, "use_frame_init_q_to_localize",
+                       use_frame_init_q_to_localize,
+                       use_frame_init_q_to_localize);
+    getParamJson<bool>(J, "use_frame_init_p_to_localize",
+                       use_frame_init_p_to_localize,
+                       use_frame_init_p_to_localize);
+
+    if (use_standalone_vo) {
       try {
-        max_triangulation_distance = J["max_triangulation_distance"];
+        beam::ValidateJsonKeysOrThrow({"standalone_vo_params"}, J);
       } catch (...) {
-        ROS_ERROR("Missing 'max_triangulation_distance' param in vo config "
-                  "file. Using default: 30.0.");
+        ROS_WARN("Standalone VO params empty, using default params.");
+        return;
       }
-
-      try {
-        max_triangulation_reprojection = J["max_triangulation_reprojection"];
-      } catch (...) {
-        ROS_ERROR("Missing 'max_triangulation_reprojection' param in vo config "
-                  "file. Using default: 80.0.");
-      }
-
-      try {
-        reprojection_information_weight = J["reprojection_information_weight"];
-
-        double reprojection_loss_a = 5.0 * reprojection_information_weight;
-        // reprojection loss
-        reprojection_loss =
-            std::make_shared<fuse_loss::CauchyLoss>(reprojection_loss_a);
-
-      } catch (...) {
-        ROS_ERROR(
-            "Missing 'reprojection_information_weight' param in vo config "
-            "file. Using default: 1.0.");
-      }
-
-      try {
-        use_idp = J["use_idp"];
-      } catch (...) {
-        ROS_ERROR(
-            "Missing 'use_idp' param in vo config file. Using default: False.");
-      }
-
-      try {
-        required_points_to_refine = J["required_points_to_refine"];
-      } catch (...) {
-        ROS_WARN("Missing 'required_points_to_refine' param in vo config "
-                 "file. Using default: 30.");
-      }
-
-      try {
-        invalid_localization_covariance_weight =
-            J["invalid_localization_covariance_weight"];
-      } catch (...) {
-        ROS_WARN("Missing 'invalid_localization_covariance_weight' param in vo "
-                 "config "
-                 "file. Using default: 100.0.");
-      }
-
-      try {
-        track_outlier_pixel_threshold = J["track_outlier_pixel_threshold"];
-      } catch (...) {
-        ROS_WARN("Missing 'track_outlier_pixel_threshold' param in vo config "
-                 "file. Using default: 1.0.");
-      }
-
-      try {
-        use_frame_init_q_to_localize = J["use_frame_init_q_to_localize"];
-      } catch (...) {
-        ROS_WARN("Missing 'use_frame_init_q_to_localize' param in vo config "
-                 "file. Using default: False.");
-      }
-
-      try {
-        use_frame_init_p_to_localize = J["use_frame_init_p_to_localize"];
-      } catch (...) {
-        ROS_WARN("Missing 'use_frame_init_p_to_localize' param in vo config "
-                 "file. Using default: False.");
-      }
-
-      if (use_standalone_vo) {
-        try {
-          odom_information_weight = J["odom_information_weight"];
-          odom_covariance_weight =
-              1 / (odom_information_weight * odom_information_weight);
-        } catch (...) {}
-
-        try {
-          marginalization_prior_weight = J["marginalization_prior_weight"];
-        } catch (...) {}
-
-        try {
-          imu_q_covariance = J["imu_q_covariance"];
-        } catch (...) {}
-
-        try {
-          imu_p_covariance = J["imu_p_covariance"];
-        } catch (...) {}
-      }
+      nlohmann::json standalone_vo_J = J["standalone_vo_params"];
+      getParamJson<double>(standalone_vo_J, "marginalization_prior_weight",
+                           marginalization_prior_weight,
+                           marginalization_prior_weight);
+      getParamJson<double>(standalone_vo_J,
+                           "invalid_localization_covariance_weight",
+                           invalid_localization_covariance_weight,
+                           invalid_localization_covariance_weight);
     }
   }
 
+  // frame init params
   std::string frame_initializer_config{};
   Eigen::Matrix<double, 6, 6> prior_covariance;
+  double prior_information_weight{0};
 
+  // yaml vo params
   bool use_standalone_vo{false};
   bool trigger_inertial_odom_constraints{true};
   double keyframe_parallax{20.0};
-  double prior_information_weight{0};
 
+  // main vo params
   bool use_idp{false};
-  double reprojection_information_weight{1.0};
   double max_triangulation_distance{30.0};
-  double max_triangulation_reprojection{80.0};
-
-  int required_points_to_refine{30};
-  double invalid_localization_covariance_weight{1e2};
-  double imu_q_covariance{1e-4};
-  double imu_p_covariance{1e-2};
+  double max_triangulation_reprojection{30.0};
+  double reprojection_information_weight{1.0};
   double track_outlier_pixel_threshold{1.0};
+  int required_points_to_refine{30};
   bool use_frame_init_q_to_localize{true};
   bool use_frame_init_p_to_localize{false};
+
+  // vo params used only when standalone vo is true
   double marginalization_prior_weight{1e-9};
   double odom_information_weight{100.0};
   double odom_covariance_weight{1e-4};
+  double invalid_localization_covariance_weight{1e2};
 
   fuse_core::Loss::SharedPtr reprojection_loss;
 };

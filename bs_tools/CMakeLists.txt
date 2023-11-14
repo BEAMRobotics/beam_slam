@@ -11,25 +11,33 @@ find_package(
   beam REQUIRED 
   COMPONENTS 
     utils
+    cv
+)
+
+set(catkin_build_depends
+    roscpp
+    sensor_msgs
+    bs_common
+    bs_models
 )
 
 find_package(
   catkin REQUIRED
   COMPONENTS
-    bs_models
+    ${catkin_build_depends}
+    message_generation
 )
 
 catkin_package(
   INCLUDE_DIRS
+    include
   LIBRARIES
+    ${PROJECT_NAME}
   CATKIN_DEPENDS 
-    bs_models
+    ${catkin_build_depends}
+    message_runtime
 )
 
-include_directories(
-  include
-  #${catkin_INCLUDE_DIRS}
-)
 add_library(
   ${PROJECT_NAME}
   src/placeholder.cpp
@@ -63,5 +71,19 @@ target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
   beam::utils
+)
+
+add_executable(feature_tracker
+  src/feature_tracker_node.cpp
+)
+target_include_directories(feature_tracker
+  PUBLIC
+    ${PROJECT_NAME}
+)
+target_link_libraries(feature_tracker
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  beam::utils
+  beam::cv
 )
 
