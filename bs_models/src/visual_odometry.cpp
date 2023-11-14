@@ -713,6 +713,7 @@ void VisualOdometry::ProcessLandmarkEUC(
 
 void VisualOdometry::UpdateLocalGraph(const fuse_core::Graph& new_graph) {
   const auto graph_stamps = bs_common::CurrentTimestamps(new_graph);
+
   // get the pose of a reference keyframe wrt both graphs
   ros::Time reference_kf_time;
   Eigen::Matrix4d T_WORLDmain_BASELINKrefkf;
@@ -733,12 +734,14 @@ void VisualOdometry::UpdateLocalGraph(const fuse_core::Graph& new_graph) {
       }
     }
   }
+
   // compute pose states with respect to the local graph
   for (const auto& t : graph_stamps) {
     if (keyframes_.find(t) == keyframes_.end()) {
       const auto p = bs_common::GetPosition(new_graph, t);
       const auto o = bs_common::GetOrientation(new_graph, t);
       if (o && p) {
+        // compute pose wrt local graph
         Eigen::Matrix4d T_WORLDmain_BASELINKcur;
         bs_common::FusePoseToEigenTransform(*p, *o, T_WORLDmain_BASELINKcur);
         Eigen::Matrix4d T_BASELINKrefkf_BASELINKcur =
@@ -747,13 +750,13 @@ void VisualOdometry::UpdateLocalGraph(const fuse_core::Graph& new_graph) {
         Eigen::Matrix4d T_WORLDlocal_BASELINKcur =
             T_WORLDlocal_BASELINKrefkf * T_BASELINKrefkf_BASELINKcur;
 
+        // add variables to local graph
         fuse_variables::Position3DStamped::SharedPtr p_local =
             std::make_shared<fuse_variables::Position3DStamped>(t);
         fuse_variables::Orientation3DStamped::SharedPtr o_local =
             std::make_shared<fuse_variables::Orientation3DStamped>(t);
         bs_common::EigenTransformToFusePose(T_WORLDlocal_BASELINKcur, *p_local,
                                             *o_local);
-
         local_graph_->addVariable(p_local);
         local_graph_->addVariable(o_local);
       }
