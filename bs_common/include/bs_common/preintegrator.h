@@ -100,6 +100,7 @@ public:
    * @param ba current accelerometer bias estimate
    * @param compute_jacobian optionally compute the jacobian
    * @param compute_covariance optionally compute the covariance
+   * @param compute_information optionally compute the information matrix
    */
   void Increment(const ros::Duration& dt, const IMUData& data,
                  const Eigen::Vector3d& bg, const Eigen::Vector3d& ba,
@@ -113,10 +114,11 @@ public:
    * @param ba current accelerometer bias estimate
    * @param compute_jacobian optionally compute the jacobian
    * @param compute_covariance optionally compute the covariance
+   * @param compute_information optionally compute the information matrix
    */
   bool Integrate(const ros::Time& t, const Eigen::Vector3d& bg,
                  const Eigen::Vector3d& ba, bool compute_jacobian,
-                 bool compute_covariance);
+                 bool compute_covariance,  bool compute_information);
 
   /**
    * @brief Computes the square-root information matrix from the covariance

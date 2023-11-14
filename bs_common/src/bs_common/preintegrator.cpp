@@ -90,7 +90,7 @@ void PreIntegrator::Increment(const ros::Duration& dt, const IMUData& data,
 
 bool PreIntegrator::Integrate(const ros::Time& t, const Eigen::Vector3d& bg,
                               const Eigen::Vector3d& ba, bool compute_jacobian,
-                              bool compute_covariance) {
+                              bool compute_covariance, bool compute_information) {
   if (data.empty()) return false;
   Reset();
 
@@ -109,7 +109,7 @@ bool PreIntegrator::Integrate(const ros::Time& t, const Eigen::Vector3d& bg,
               compute_covariance);
   }
 
-  if (compute_covariance) { ComputeSqrtInvCov(); }
+  if (compute_information) { ComputeSqrtInvCov(); }
 
   return true;
 }

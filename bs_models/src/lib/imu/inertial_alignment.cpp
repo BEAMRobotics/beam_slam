@@ -76,7 +76,7 @@ void EstimateParameters(const std::map<uint64_t, Eigen::Matrix4d>& path,
   // lambda to integrate each frame to its time
   auto integrate = [&](auto& imu_frame) {
     imu_frame.GetPreintegratorMutable().Integrate(imu_frame.Stamp(), bg, ba,
-                                                  true, false);
+                                                  true, false, false);
   };
 
   std::for_each(imu_frames.begin(), imu_frames.end(), integrate);
