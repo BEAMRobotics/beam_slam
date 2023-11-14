@@ -344,16 +344,7 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
 
   // update local graph with main graph
   MarginalizeLocalGraph(*graph);
-  for (const auto& v : graph->getVariables()) {
-    local_graph_->addVariable(std::move(v.clone()));
-  }
-  for (const auto& c : graph->getConstraints()) {
-    if (c.source() == "bs_models::Unicycle3D" ||
-        c.source() == "bs_models::InertialOdometry") {
-      local_graph_->addConstraint(std::move(c.clone()));
-    }
-  }
-  local_graph_->optimizeFor(ros::Duration(0.02), local_solver_options_);
+  UpdateLocalGraph(*graph);
   PruneKeyframes(*local_graph_);
   visual_map_->UpdateGraph(*local_graph_);
 }
@@ -720,11 +711,78 @@ void VisualOdometry::ProcessLandmarkEUC(
   }
 }
 
+void VisualOdometry::UpdateLocalGraph(const fuse_core::Graph& new_graph) {
+  const auto graph_stamps = bs_common::CurrentTimestamps(new_graph);
+  // get the pose of a reference keyframe wrt both graphs
+  ros::Time reference_kf_time;
+  Eigen::Matrix4d T_WORLDmain_BASELINKrefkf;
+  Eigen::Matrix4d T_WORLDlocal_BASELINKrefkf;
+  for (const auto& t : graph_stamps) {
+    if (keyframes_.find(t) != keyframes_.end()) {
+      reference_kf_time = t;
+      const auto p1 = bs_common::GetPosition(new_graph, t);
+      const auto o1 = bs_common::GetOrientation(new_graph, t);
+      const auto p2 = bs_common::GetPosition(*local_graph_, t);
+      const auto o2 = bs_common::GetOrientation(*local_graph_, t);
+      if (o1 && p1 && p2 && o2) {
+        bs_common::FusePoseToEigenTransform(*p1, *o1,
+                                            T_WORLDmain_BASELINKrefkf);
+        bs_common::FusePoseToEigenTransform(*p2, *o2,
+                                            T_WORLDlocal_BASELINKrefkf);
+        break;
+      }
+    }
+  }
+  // compute pose states with respect to the local graph
+  for (const auto& t : graph_stamps) {
+    if (keyframes_.find(t) == keyframes_.end()) {
+      const auto p = bs_common::GetPosition(new_graph, t);
+      const auto o = bs_common::GetOrientation(new_graph, t);
+      if (o && p) {
+        Eigen::Matrix4d T_WORLDmain_BASELINKcur;
+        bs_common::FusePoseToEigenTransform(*p, *o, T_WORLDmain_BASELINKcur);
+        Eigen::Matrix4d T_BASELINKrefkf_BASELINKcur =
+            beam::InvertTransform(T_WORLDmain_BASELINKrefkf) *
+            T_WORLDmain_BASELINKcur;
+        Eigen::Matrix4d T_WORLDlocal_BASELINKcur =
+            T_WORLDlocal_BASELINKrefkf * T_BASELINKrefkf_BASELINKcur;
+
+        fuse_variables::Position3DStamped::SharedPtr p_local =
+            std::make_shared<fuse_variables::Position3DStamped>(t);
+        fuse_variables::Orientation3DStamped::SharedPtr o_local =
+            std::make_shared<fuse_variables::Orientation3DStamped>(t);
+        bs_common::EigenTransformToFusePose(T_WORLDlocal_BASELINKcur, *p_local,
+                                            *o_local);
+
+        local_graph_->addVariable(p_local);
+        local_graph_->addVariable(o_local);
+      }
+    }
+  }
+
+  // add variables
+  for (const auto& v : new_graph.getVariables()) {
+    if (v.type() != "fuse_variables::Position3DStamped" ||
+        v.type() != "fuse_variables::Orientation3DStamped") {
+      local_graph_->addVariable(std::move(v.clone()));
+    }
+  }
+
+  // add inertial and motion model constraints
+  for (const auto& c : new_graph.getConstraints()) {
+    if (c.source() == "bs_models::Unicycle3D" ||
+        c.source() == "bs_models::InertialOdometry") {
+      local_graph_->addConstraint(std::move(c.clone()));
+    }
+  }
+  local_graph_->optimizeFor(ros::Duration(0.02), local_solver_options_);
+}
+
 void VisualOdometry::MarginalizeLocalGraph(const fuse_core::Graph& new_graph) {
   const auto new_timestamps = bs_common::CurrentTimestamps(new_graph);
   const auto current_timestamps = bs_common::CurrentTimestamps(*local_graph_);
   const ros::Time oldest_new_time = *new_timestamps.begin();
-  
+
   for (const auto& t : current_timestamps) {
     if (t > oldest_new_time) { break; }
 
