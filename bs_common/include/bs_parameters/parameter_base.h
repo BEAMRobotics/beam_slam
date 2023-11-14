@@ -1,7 +1,10 @@
 #pragma once
 
-#include <ros/node_handle.h>
 #include <boost/lexical_cast.hpp>
+#include <ros/node_handle.h>
+
+#include <nlohmann/json.hpp>
+#include <beam_utils/filesystem.h>
 
 namespace bs_parameters {
 
@@ -21,7 +24,6 @@ struct ParameterBase {
  * @param[in] nh - The ROS node handle with which to load parameters
  * @param[in] key - The ROS parameter key for the required parameter
  * @param[out] value - The ROS parameter value for the \p key
- * @throws std::runtime_error if the parameter does not exist
  * @param[in] default value
  */
 template <typename T>
@@ -31,7 +33,8 @@ void getParam(const ros::NodeHandle& nh, const std::string& key, T& value,
     value = default_value;
     const std::string info =
         "Could not find parameter " + key + " in namespace " +
-        nh.getNamespace() + ", using default: " + boost::lexical_cast<std::string>(value);
+        nh.getNamespace() +
+        ", using default: " + boost::lexical_cast<std::string>(value);
     ROS_INFO_STREAM(info);
   }
 }
@@ -51,6 +54,28 @@ void getParamRequired(const ros::NodeHandle& nh, const std::string& key,
                               " in namespace " + nh.getNamespace();
     ROS_FATAL_STREAM(error);
     throw std::runtime_error(error);
+  }
+}
+
+/**
+ * @brief Utility method for handling required ROS params
+ * @param[in] J - json object containing the parameter
+ * @param[in] key - The parameter key for the required parameter
+ * @param[out] value - The parameter value for the \p key
+ * @param[in] default value
+ */
+template <typename T>
+void getParamJson(const nlohmann::json& J, const std::string& key, T& value,
+                  const T& default_value) {
+  try {
+    beam::ValidateJsonKeysOrThrow({key}, J);
+    value = J[key];
+  } catch (...) {
+    value = default_value;
+    const std::string info =
+        "Could not find parameter " + key + " in JSON file" +
+        ", using default: " + boost::lexical_cast<std::string>(value);
+    ROS_INFO_STREAM(info);
   }
 }
 

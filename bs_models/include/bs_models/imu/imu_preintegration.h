@@ -1,7 +1,7 @@
 #pragma once
 
-#include <queue>
 #include <mutex>
+#include <queue>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/imu_state.h>
@@ -47,7 +47,8 @@ public:
    * @brief Constructor
    * @param params all input params optional. See struct above
    */
-  ImuPreintegration(const Params& params, const double info_weight = 1.0,
+  ImuPreintegration(const std::string& source, const Params& params,
+                    const double info_weight = 1.0,
                     bool add_prior_on_first_window = true);
 
   /**
@@ -56,7 +57,8 @@ public:
    * @param init_bg initial gyroscope bias
    * @param init_ba initial acceleration bias
    */
-  ImuPreintegration(const Params& params, const Eigen::Vector3d& init_bg,
+  ImuPreintegration(const std::string& source, const Params& params,
+                    const Eigen::Vector3d& init_bg,
                     const Eigen::Vector3d& init_ba,
                     const double info_weight = 1.0,
                     bool add_prior_on_first_window = true);
@@ -189,6 +191,7 @@ private:
   Params params_;           // class parameters
   bool first_window_{true}; // flag for first window between key frames
   bool add_prior_on_first_window_{true};
+  std::string source_;
 
   bs_common::ImuState imu_state_i_; // current key frame
   bs_common::ImuState imu_state_k_; // intermediate frame

@@ -165,7 +165,7 @@ private:
   void PruneKeyframes(const fuse_core::Graph& new_graph);
 
   /// @brief Marginalizes the current local graph is standalone vo is being used
-  void MarginalizeGraph();
+  void MarginalizeGraph(const fuse_core::Graph& new_graph);
 
   /// @brief Computes the pose as a 7d vector (x,y,z, qw,
   /// qx, qy, qz)
@@ -235,10 +235,8 @@ private:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
   /// @brief standalone vo stuff
-  fuse_core::Vector7d keyframe_imu_delta_;
   fuse_core::Graph::SharedPtr local_graph_;
   ceres::Solver::Options local_solver_options_;
-  Eigen::Matrix<double, 6, 6> imu_covariance_;
 };
 
 } // namespace bs_models

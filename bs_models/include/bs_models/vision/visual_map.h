@@ -28,7 +28,8 @@ public:
    * @brief Custom constructor
    * @param cam_model camera model being used
    */
-  VisualMap(std::shared_ptr<beam_calibration::CameraModel> cam_model,
+  VisualMap(const std::string& source,
+            std::shared_ptr<beam_calibration::CameraModel> cam_model,
             fuse_core::Loss::SharedPtr loss_function,
             const double reprojection_information_weight);
 
@@ -268,6 +269,7 @@ public:
   std::set<ros::Time> CurrentTimestamps();
 
 protected:
+  std::string source_;
   // temp maps for in between optimization cycles
   std::map<uint64_t, fuse_variables::Orientation3DStamped::SharedPtr>
       orientations_;

@@ -39,19 +39,15 @@ slam_initialization:
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.0
-  inertial_information_weight: 0.1
-  lidar_information_weight: 100.0
   matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
   output_folder: "" #"/userhome/results/init_results_ig2"
 
 inertial_odometry:
   imu_topic: "/imu/data"
-  inertial_information_weight: 0.1
 
 gravity_alignment:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/lidar_odometry/odometry"
-  gravity_information_weight: 10
 
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_points'
@@ -69,10 +65,8 @@ lidar_odometry:
   output_lidar_points: true
   publish_registration_map: true
   publish_registration_results: false
-  lidar_information_weight: 10.0
   frame_initializer_config: "/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
-
   # these are only relevant if scan_output_directory is not empty
   save_graph_updates: true
   save_marginalized_scans: true

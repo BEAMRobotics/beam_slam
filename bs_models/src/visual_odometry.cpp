@@ -56,9 +56,9 @@ void VisualOdometry::onInit() {
   K_ = K;
 
   // create visual map
-  visual_map_ =
-      std::make_shared<VisualMap>(cam_model_, vo_params_.reprojection_loss,
-                                  vo_params_.reprojection_information_weight);
+  visual_map_ = std::make_shared<VisualMap>(
+      name(), cam_model_, vo_params_.reprojection_loss,
+      vo_params_.reprojection_information_weight);
 
   // Initialize landmark measurement container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
@@ -75,16 +75,6 @@ void VisualOdometry::onInit() {
 
   // create local solver options
   if (vo_params_.use_standalone_vo) {
-    // manually set lag duration
-    lag_duration_ = 6.0;
-
-    // get the inertial covariance matrix for relative constraints
-    imu_covariance_ = Eigen::Matrix<double, 6, 6>::Identity();
-    imu_covariance_.block<3, 3>(0, 0) =
-        vo_params_.imu_p_covariance * Eigen::Matrix3d::Identity();
-    imu_covariance_.block<3, 3>(3, 3) =
-        vo_params_.imu_q_covariance * Eigen::Matrix3d::Identity();
-
     // setup solve params
     ceres::Solver::Options options;
     options.minimizer_type = ceres::TRUST_REGION;
@@ -100,9 +90,8 @@ void VisualOdometry::onStart() {
   // setup subscribers
   measurement_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
-          ros::names::resolve(
-              "/feature_tracker/visual_measurements"),
-          10, &ThrottledMeasurementCallback::callback,
+          ros::names::resolve("/feature_tracker/visual_measurements"), 10,
+          &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
 
@@ -308,13 +297,6 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
                               transaction);
   }
 
-  if (vo_params_.use_standalone_vo) {
-    // add relative pose constraint to the transaction using the imu estimate
-    visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp,
-                                           keyframe_imu_delta_, imu_covariance_,
-                                           transaction);
-  }
-
   // process each landmark
   const auto landmarks = landmark_container_->GetLandmarkIDsInImage(timestamp);
   for (const auto id : landmarks) {
@@ -330,9 +312,6 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 
     // optimize graph
     local_graph_->optimizeFor(ros::Duration(0.05), local_solver_options_);
-
-    // marginalize graph
-    MarginalizeGraph();
 
     // send just a relative pose constraint to the main graph
     auto pose_transaction =
@@ -353,6 +332,23 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   if (is_initialized_ && !vo_params_.use_standalone_vo) {
     PruneKeyframes(*graph);
   }
+
+  if (is_initialized_ && vo_params_.use_standalone_vo) {
+    MarginalizeGraph(*graph);
+    // update the local graph with the new variables
+    for (const auto& v : graph->getVariables()) {
+      local_graph_->addVariable(std::move(v.clone()));
+    }
+    for (const auto& c : graph->getConstraints()) {
+      if (c.source() == "bs_models::Unicycle3D" ||
+          c.source() == "bs_models::InertialOdometry") {
+        local_graph_->addConstraint(std::move(c.clone()));
+      }
+    }
+    // do a minor optimization with this graph update
+    local_graph_->optimizeFor(ros::Duration(0.025), local_solver_options_);
+  }
+
   // update visual map with new graph (if using full VO)
   if (!vo_params_.use_standalone_vo) { visual_map_->UpdateGraph(*graph); }
   // do initial setup
@@ -377,17 +373,6 @@ bool VisualOdometry::IsKeyframe(const ros::Time& timestamp,
     ROS_WARN_STREAM(
         "Unable to retrieve relative pose from last keyframe: " << timestamp);
     return false;
-  }
-
-  // update keyframe_imu_delta_ if using local vo
-  if (vo_params_.use_standalone_vo) {
-    Eigen::Vector3d t_PREVKF_CURFRAME = T_PREVKF_CURFRAME.block<3, 1>(0, 3);
-    Eigen::Quaterniond q_PREVKF_CURFRAME(T_PREVKF_CURFRAME.block<3, 3>(0, 0));
-    fuse_core::Vector7d imu_delta;
-    imu_delta << t_PREVKF_CURFRAME.x(), t_PREVKF_CURFRAME.y(),
-        t_PREVKF_CURFRAME.z(), q_PREVKF_CURFRAME.w(), q_PREVKF_CURFRAME.x(),
-        q_PREVKF_CURFRAME.y(), q_PREVKF_CURFRAME.z();
-    keyframe_imu_delta_ = imu_delta;
   }
 
   // compute rotation adjusted parallax
@@ -732,105 +717,81 @@ void VisualOdometry::ProcessLandmarkEUC(
   }
 }
 
-void VisualOdometry::MarginalizeGraph() {
-  const auto timestamps = bs_common::CurrentTimestamps(*local_graph_);
-  const ros::Time most_recent_time = *timestamps.rbegin();
-  const ros::Time expiration_time =
-      most_recent_time - ros::Duration(lag_duration_);
+void VisualOdometry::MarginalizeGraph(const fuse_core::Graph& new_graph) {
+  const auto new_timestamps = bs_common::CurrentTimestamps(new_graph);
+  const auto current_timestamps = bs_common::CurrentTimestamps(*local_graph_);
 
-  // return if no variables need to be marginalized
-  if (*timestamps.begin() < expiration_time) {
-    // remove expired pose states and their constraints
-    for (const auto& t : timestamps) {
-      if (t > expiration_time) continue;
+  const ros::Time oldest_new_time = *new_timestamps.begin();
+  for (const auto& t : current_timestamps) {
+    if (t > oldest_new_time) { break; }
 
-      auto p = bs_common::GetPosition(*local_graph_, t);
-      auto o = bs_common::GetOrientation(*local_graph_, t);
-      if (!p || !o) { continue; }
+    std::vector<fuse_core::UUID> constraints_to_remove;
 
-      std::vector<fuse_core::UUID> constraints_to_remove;
-
+    auto p = bs_common::GetPosition(*local_graph_, t);
+    if (p) {
       auto p_constraints = local_graph_->getConnectedConstraints(p->uuid());
       for (const auto& c : p_constraints) {
         constraints_to_remove.push_back(c.uuid());
       }
+    }
+
+    auto o = bs_common::GetOrientation(*local_graph_, t);
+    if (o) {
       auto o_constraints = local_graph_->getConnectedConstraints(o->uuid());
       for (const auto& c : o_constraints) {
         constraints_to_remove.push_back(c.uuid());
       }
+    }
 
-      auto bg = bs_common::GetGyroscopeBias(*local_graph_, t);
-      auto ba = bs_common::GetAccelBias(*local_graph_, t);
-      auto v = bs_common::GetVelocity(*local_graph_, t);
-      if (bg && ba && v) {
-        auto bg_constraints = local_graph_->getConnectedConstraints(bg->uuid());
-        auto ba_constraints = local_graph_->getConnectedConstraints(ba->uuid());
-        auto v_constraints = local_graph_->getConnectedConstraints(v->uuid());
-        for (const auto& c : bg_constraints) {
-          constraints_to_remove.push_back(c.uuid());
-        }
-        for (const auto& c : ba_constraints) {
-          constraints_to_remove.push_back(c.uuid());
-        }
-        for (const auto& c : v_constraints) {
-          constraints_to_remove.push_back(c.uuid());
-        }
-      }
-
-      for (const auto uuid : constraints_to_remove) {
-        if (local_graph_->constraintExists(uuid)) {
-          try {
-            local_graph_->removeConstraint(uuid);
-          } catch (const std::exception& e) {}
-        }
-      }
-
-      local_graph_->removeVariable(p->uuid());
-      local_graph_->removeVariable(o->uuid());
-      if (bg && ba && v) {
-        local_graph_->removeVariable(ba->uuid());
-        local_graph_->removeVariable(bg->uuid());
-        local_graph_->removeVariable(v->uuid());
+    auto bg = bs_common::GetGyroscopeBias(*local_graph_, t);
+    if (bg) {
+      auto bg_constraints = local_graph_->getConnectedConstraints(bg->uuid());
+      for (const auto& c : bg_constraints) {
+        constraints_to_remove.push_back(c.uuid());
       }
     }
 
-    PruneKeyframes(*local_graph_);
-
-    // remove any disconnected landmarks
-    const auto landmarks = bs_common::CurrentLandmarkIDs(*local_graph_);
-    for (auto& lm : landmarks) {
-      const auto lm_uuid = visual_map_->GetLandmarkUUID(lm);
-      auto constraints = local_graph_->getConnectedConstraints(lm_uuid);
-      auto num_constraints =
-          std::distance(constraints.begin(), constraints.end());
-      if (constraints.empty()) { local_graph_->removeVariable(lm_uuid); }
+    auto ba = bs_common::GetAccelBias(*local_graph_, t);
+    if (ba) {
+      auto ba_constraints = local_graph_->getConnectedConstraints(ba->uuid());
+      for (const auto& c : ba_constraints) {
+        constraints_to_remove.push_back(c.uuid());
+      }
     }
 
-    const auto new_timestamps = bs_common::CurrentTimestamps(*local_graph_);
-    const ros::Time oldest_time = *new_timestamps.begin();
-    auto marginal_transaction = fuse_core::Transaction::make_shared();
-    marginal_transaction->stamp(oldest_time);
-
-    // add prior to new start state
-    auto maybe_start_imu_state =
-        bs_common::GetImuState(*local_graph_, oldest_time);
-    if (maybe_start_imu_state) {
-      auto start_imu_state = maybe_start_imu_state.value();
-      fuse_core::Constraint::SharedPtr prior =
-          std::make_shared<bs_constraints::AbsoluteImuState3DStampedConstraint>(
-              "PRIOR", start_imu_state, start_imu_state.GetStateVector(),
-              vo_params_.marginalization_prior_weight *
-                  Eigen::Matrix<double, 15, 15>::Identity());
-      marginal_transaction->addConstraint(prior);
-    } else {
-      Eigen::Matrix<double, 6, 6> marginalization_prior =
-          vo_params_.marginalization_prior_weight *
-          Eigen::Matrix<double, 6, 6>::Identity();
-      visual_map_->AddPosePrior(oldest_time, marginalization_prior,
-                                marginal_transaction);
+    auto v = bs_common::GetVelocity(*local_graph_, t);
+    if (v) {
+      auto v_constraints = local_graph_->getConnectedConstraints(v->uuid());
+      for (const auto& c : v_constraints) {
+        constraints_to_remove.push_back(c.uuid());
+      }
     }
 
-    local_graph_->update(*marginal_transaction);
+    for (const auto uuid : constraints_to_remove) {
+      if (local_graph_->constraintExists(uuid)) {
+        try {
+          local_graph_->removeConstraint(uuid);
+        } catch (const std::exception& e) {}
+      }
+    }
+
+    if (p) { local_graph_->removeVariable(p->uuid()); }
+    if (o) { local_graph_->removeVariable(o->uuid()); }
+    if (ba) { local_graph_->removeVariable(ba->uuid()); }
+    if (bg) { local_graph_->removeVariable(bg->uuid()); }
+    if (v) { local_graph_->removeVariable(v->uuid()); }
+  }
+
+  PruneKeyframes(*local_graph_);
+
+  // remove any disconnected landmarks
+  const auto landmarks = bs_common::CurrentLandmarkIDs(*local_graph_);
+  for (auto& lm : landmarks) {
+    const auto lm_uuid = visual_map_->GetLandmarkUUID(lm);
+    auto constraints = local_graph_->getConnectedConstraints(lm_uuid);
+    auto num_constraints =
+        std::distance(constraints.begin(), constraints.end());
+    if (constraints.empty()) { local_graph_->removeVariable(lm_uuid); }
   }
 
   // update visual map

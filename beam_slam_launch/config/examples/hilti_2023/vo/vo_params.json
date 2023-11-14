@@ -1,17 +1,13 @@
 {
   "max_triangulation_distance": 30.0,
   "max_triangulation_reprojection": 20.0,
-  "reprojection_information_weight": 1.0,
   "use_idp": false,
   "required_points_to_refine": 20,
   "use_frame_init_q_to_localize": true,
   "use_frame_init_p_to_localize": false,
   "track_outlier_pixel_threshold": 1.0,
   "standalone_vo_params": {
-    "imu_q_covariance": 1e-3,
-    "imu_p_covariance": 1e-3,
     "invalid_localization_covariance_weight": 1e2,
-    "marginalization_prior_weight": 1e-9,
-    "odom_information_weight": 100.0
-    }
+    "marginalization_prior_weight": 1e-9
+  }
 }
