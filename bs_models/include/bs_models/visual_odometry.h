@@ -165,7 +165,7 @@ private:
   void PruneKeyframes(const fuse_core::Graph& new_graph);
 
   /// @brief Marginalizes the current local graph is standalone vo is being used
-  void MarginalizeGraph(const fuse_core::Graph& new_graph);
+  void MarginalizeLocalGraph(const fuse_core::Graph& new_graph);
 
   /// @brief Computes the pose as a 7d vector (x,y,z, qw,
   /// qx, qy, qz)

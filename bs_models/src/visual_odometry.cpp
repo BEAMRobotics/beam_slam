@@ -328,31 +328,34 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   ROS_INFO_STREAM_ONCE("VisualOdometry received initial graph.");
   std::unique_lock<std::mutex> lk(buffer_mutex_);
-  // publish marginalized keyframes as slam chunks (if we have initialized)
-  if (is_initialized_ && !vo_params_.use_standalone_vo) {
-    PruneKeyframes(*graph);
-  }
-
-  if (is_initialized_ && vo_params_.use_standalone_vo) {
-    MarginalizeGraph(*graph);
-    // update the local graph with the new variables
-    for (const auto& v : graph->getVariables()) {
-      local_graph_->addVariable(std::move(v.clone()));
-    }
-    for (const auto& c : graph->getConstraints()) {
-      if (c.source() == "bs_models::Unicycle3D" ||
-          c.source() == "bs_models::InertialOdometry") {
-        local_graph_->addConstraint(std::move(c.clone()));
-      }
-    }
-    // do a minor optimization with this graph update
-    local_graph_->optimizeFor(ros::Duration(0.025), local_solver_options_);
-  }
-
-  // update visual map with new graph (if using full VO)
-  if (!vo_params_.use_standalone_vo) { visual_map_->UpdateGraph(*graph); }
   // do initial setup
-  if (!is_initialized_) { Initialize(graph); }
+  if (!is_initialized_) {
+    Initialize(graph);
+    is_initialized_ = true;
+    return;
+  }
+
+  // update visual map with main graph
+  if (!vo_params_.use_standalone_vo) {
+    PruneKeyframes(*graph);
+    visual_map_->UpdateGraph(*graph);
+    return;
+  }
+
+  // update local graph with main graph
+  MarginalizeLocalGraph(*graph);
+  for (const auto& v : graph->getVariables()) {
+    local_graph_->addVariable(std::move(v.clone()));
+  }
+  for (const auto& c : graph->getConstraints()) {
+    if (c.source() == "bs_models::Unicycle3D" ||
+        c.source() == "bs_models::InertialOdometry") {
+      local_graph_->addConstraint(std::move(c.clone()));
+    }
+  }
+  local_graph_->optimizeFor(ros::Duration(0.02), local_solver_options_);
+  PruneKeyframes(*local_graph_);
+  visual_map_->UpdateGraph(*local_graph_);
 }
 
 /****************************************************/
@@ -572,6 +575,8 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
   if (vo_params_.use_standalone_vo) {
     local_graph_ = std::move(graph->clone());
     visual_map_->UpdateGraph(*local_graph_);
+  } else {
+    visual_map_->UpdateGraph(*graph);
   }
 
   T_WORLD_BASELINKprevframe_ =
@@ -624,8 +629,6 @@ void VisualOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph) {
     if (!ComputeOdometryAndExtendMap(msg)) { break; }
     visual_measurement_buffer_.pop_front();
   }
-
-  is_initialized_ = true;
 }
 
 void VisualOdometry::ProcessLandmarkIDP(
@@ -717,11 +720,11 @@ void VisualOdometry::ProcessLandmarkEUC(
   }
 }
 
-void VisualOdometry::MarginalizeGraph(const fuse_core::Graph& new_graph) {
+void VisualOdometry::MarginalizeLocalGraph(const fuse_core::Graph& new_graph) {
   const auto new_timestamps = bs_common::CurrentTimestamps(new_graph);
   const auto current_timestamps = bs_common::CurrentTimestamps(*local_graph_);
-
   const ros::Time oldest_new_time = *new_timestamps.begin();
+  
   for (const auto& t : current_timestamps) {
     if (t > oldest_new_time) { break; }
 
@@ -782,8 +785,6 @@ void VisualOdometry::MarginalizeGraph(const fuse_core::Graph& new_graph) {
     if (v) { local_graph_->removeVariable(v->uuid()); }
   }
 
-  PruneKeyframes(*local_graph_);
-
   // remove any disconnected landmarks
   const auto landmarks = bs_common::CurrentLandmarkIDs(*local_graph_);
   for (auto& lm : landmarks) {
@@ -793,9 +794,6 @@ void VisualOdometry::MarginalizeGraph(const fuse_core::Graph& new_graph) {
         std::distance(constraints.begin(), constraints.end());
     if (constraints.empty()) { local_graph_->removeVariable(lm_uuid); }
   }
-
-  // update visual map
-  visual_map_->UpdateGraph(*local_graph_);
 }
 
 fuse_core::Vector7d VisualOdometry::ComputeDelta(const Eigen::Matrix4d& T_A_B) {
@@ -835,7 +833,7 @@ fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
       beam::InvertTransform(T_WORLD_BASELINKprevkf.value()) *
       T_WORLD_BASELINKcurframe;
 
-  // compute pose of this frame wrt the main fraph
+  // compute pose of this frame wrt the main graph
   Eigen::Matrix4d T_WORLDmain_BASELINKcurframe =
       T_WORLDmain_BASELINKprevkf * T_prevkf_curframe;
 
