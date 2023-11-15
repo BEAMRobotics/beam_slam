@@ -213,15 +213,21 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
 
     // perform non-linear pose refinement
     auto out_covariance = std::make_shared<Eigen::Matrix<double, 6, 6>>();
-    Eigen::Matrix4d T_CAMERA_WORLD_ref =
-        pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels,
-                                  points, nullptr, out_covariance);
-
-    // reorder covariance to be x, y, z, roll, pitch, yaw
-    covariance.block<3, 3>(0, 0) = out_covariance->block<3, 3>(3, 3);
-    covariance.block<3, 3>(0, 3) = out_covariance->block<3, 3>(3, 0);
-    covariance.block<3, 3>(3, 0) = out_covariance->block<3, 3>(0, 3);
-    covariance.block<3, 3>(3, 3) = out_covariance->block<3, 3>(0, 0);
+    Eigen::Matrix4d T_CAMERA_WORLD_ref;
+    try {
+      T_CAMERA_WORLD_ref =
+          pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels,
+                                    points, nullptr, out_covariance);
+      // reorder covariance to be x, y, z, roll, pitch, yaw
+      covariance.block<3, 3>(0, 0) = out_covariance->block<3, 3>(3, 3);
+      covariance.block<3, 3>(0, 3) = out_covariance->block<3, 3>(3, 0);
+      covariance.block<3, 3>(3, 0) = out_covariance->block<3, 3>(0, 3);
+      covariance.block<3, 3>(3, 3) = out_covariance->block<3, 3>(0, 0);
+    } catch (const std::runtime_error& re) {
+      T_CAMERA_WORLD_ref = T_CAMERA_WORLD_est;
+      covariance = vo_params_.invalid_localization_covariance_weight *
+                   Eigen::Matrix<double, 6, 6>::Identity();
+    }
 
     // compute baselink pose
     T_WORLD_BASELINK =
