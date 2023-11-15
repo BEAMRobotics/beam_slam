@@ -212,9 +212,9 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
 
     // perform non-linear pose refinement
-    auto out_covariance = std::make_shared<Eigen::Matrix<double, 6, 6>>();
     Eigen::Matrix4d T_CAMERA_WORLD_ref;
     try {
+      auto out_covariance = std::make_shared<Eigen::Matrix<double, 6, 6>>();
       T_CAMERA_WORLD_ref =
           pose_refiner_->RefinePose(T_CAMERA_WORLD_est, cam_model_, pixels,
                                     points, nullptr, out_covariance);
