@@ -197,49 +197,14 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
                                    Eigen::Matrix<double, 6, 6>& covariance) {
   std::string error;
   Eigen::Matrix4d T_WORLD_BASELINKcur;
-  if (!vo_params_.use_standalone_vo) {
-    if (!frame_initializer_->GetPose(T_WORLD_BASELINKcur, timestamp,
-                                     extrinsics_.GetBaselinkFrameId(), error)) {
-      ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
-                      "buffering frame: "
-                      << timestamp << ".\n\tError: " << error);
-      return false;
-    }
-  } else {
-    Eigen::Matrix4d T_PREVKF_CURFRAME;
-    if (!frame_initializer_->GetRelativePose(T_PREVKF_CURFRAME,
-                                             previous_keyframe_, timestamp)) {
-      ROS_WARN_STREAM(
-          "Unable to retrieve relative pose from last keyframe: " << timestamp);
-      return false;
-    }
-    auto T_WORLD_BASELINKprevkf =
-        visual_map_->GetBaselinkPose(previous_keyframe_);
-    if (!T_WORLD_BASELINKprevkf.has_value()) {
-      ROS_FATAL("Cannot retrieve previous keyframe pose.");
-      throw std::runtime_error{"Cannot retrieve previous keyframe pose."};
-    }
-    T_WORLD_BASELINKcur = T_WORLD_BASELINKprevkf.value() * T_PREVKF_CURFRAME;
-  }
-
-  if (!vo_params_.use_frame_init_q_to_localize) {
-    // update position using the previous frame position
-    T_WORLD_BASELINKcur.block<3, 3>(3, 3) =
-        T_WORLD_BASELINKprevframe_.block<3, 3>(3, 3);
-  }
-
-  if (!vo_params_.use_frame_init_p_to_localize) {
-    // update position using the previous frame position
-    T_WORLD_BASELINKcur.block<3, 1>(0, 3) =
-        T_WORLD_BASELINKprevframe_.block<3, 1>(0, 3);
-  }
+  if (!GetInitialPoseEstimate(timestamp, T_WORLD_BASELINKcur)) { return false; }
 
   // get 2d-3d correspondences
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
   std::vector<Eigen::Vector3d, beam::AlignVec3d> points;
   GetPixelPointPairs(timestamp, pixels, points);
 
-  // perform motion only BA to refine estimate
+  // perform visual refinement
   if (pixels.size() >= vo_params_.required_points_to_refine) {
     if (track_lost) { track_lost = false; }
     // get initial estimate in camera frame
@@ -857,16 +822,6 @@ void VisualOdometry::MarginalizeLocalGraph(const fuse_core::Graph& new_graph) {
   }
 }
 
-fuse_core::Vector7d VisualOdometry::ComputeDelta(const Eigen::Matrix4d& T_A_B) {
-  // compute delta between previous kf and this frame
-  Eigen::Vector3d t_A_B = T_A_B.block<3, 1>(0, 3);
-  Eigen::Quaterniond q_A_B(T_A_B.block<3, 3>(0, 0));
-  fuse_core::Vector7d delta_A_B;
-  delta_A_B << t_A_B.x(), t_A_B.y(), t_A_B.z(), q_A_B.w(), q_A_B.x(), q_A_B.y(),
-      q_A_B.z();
-  return delta_A_B;
-}
-
 fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
     const ros::Time& timestamp_curframe,
     const Eigen::Matrix4d& T_WORLD_BASELINKcurframe,
@@ -921,13 +876,56 @@ fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
   pose_transaction->addVariable(position);
   pose_transaction->addVariable(orientation);
 
-  fuse_core::Vector7d delta_prevkf_curframe = ComputeDelta(T_prevkf_curframe);
+  fuse_core::Vector7d delta_prevkf_curframe =
+      bs_common::ComputeDelta(T_prevkf_curframe);
   Eigen::Matrix<double, 6, 6> weighted_cov =
       vo_params_.odom_covariance_weight * covariance;
   visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp_curframe,
                                          delta_prevkf_curframe, weighted_cov,
                                          pose_transaction);
   return pose_transaction;
+}
+
+bool VisualOdometry::GetInitialPoseEstimate(const ros::Time& timestamp,
+                                            Eigen::Matrix4d& T_WORLD_BASELINK) {
+  std::string error;
+  if (!vo_params_.use_standalone_vo) {
+    if (!frame_initializer_->GetPose(T_WORLD_BASELINK, timestamp,
+                                     extrinsics_.GetBaselinkFrameId(), error)) {
+      ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
+                      "buffering frame: "
+                      << timestamp << ".\n\tError: " << error);
+      return false;
+    }
+  } else {
+    Eigen::Matrix4d T_PREVKF_CURFRAME;
+    if (!frame_initializer_->GetRelativePose(T_PREVKF_CURFRAME,
+                                             previous_keyframe_, timestamp)) {
+      ROS_WARN_STREAM(
+          "Unable to retrieve relative pose from last keyframe: " << timestamp);
+      return false;
+    }
+    auto T_WORLD_BASELINKprevkf =
+        visual_map_->GetBaselinkPose(previous_keyframe_);
+    if (!T_WORLD_BASELINKprevkf.has_value()) {
+      ROS_FATAL("Cannot retrieve previous keyframe pose.");
+      throw std::runtime_error{"Cannot retrieve previous keyframe pose."};
+    }
+    T_WORLD_BASELINK = T_WORLD_BASELINKprevkf.value() * T_PREVKF_CURFRAME;
+  }
+
+  if (!vo_params_.use_frame_init_q_to_localize) {
+    // update position using the previous frame position
+    T_WORLD_BASELINK.block<3, 3>(3, 3) =
+        T_WORLD_BASELINKprevframe_.block<3, 3>(3, 3);
+  }
+
+  if (!vo_params_.use_frame_init_p_to_localize) {
+    // update position using the previous frame position
+    T_WORLD_BASELINK.block<3, 1>(0, 3) =
+        T_WORLD_BASELINKprevframe_.block<3, 1>(0, 3);
+  }
+  return true;
 }
 
 void VisualOdometry::PruneKeyframes(const fuse_core::Graph& new_graph) {

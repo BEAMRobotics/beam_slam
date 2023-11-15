@@ -16,14 +16,6 @@
     <param name="extrinsics_file_path" value="$(arg extrinsics_file_path)"/>
   </node>
 
-  <!-- Launch visual feature tracker -->
-  <node name="feature_tracker" pkg="bs_tools" type="feature_tracker">
-    <param name="descriptor_config" value="$(find beam_slam_launch)/config/vo/orb_descriptor.json"/>
-    <param name="detector_config" value="$(find beam_slam_launch)/config/vo/fastssc_detector.json"/>
-    <param name="tracker_config" value="$(find beam_slam_launch)/config/vo/tracker.json"/>
-    <param name="image_topic" value="/F1/image"/>
-  </node>
-
   <!-- Launch local (odometry) -->
   <node pkg="bs_optimizers" type="fixed_lag_smoother_node" name="local_mapper" output="screen"
     launch-prefix="$(arg launch_prefix)">

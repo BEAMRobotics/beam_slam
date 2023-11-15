@@ -279,4 +279,14 @@ Eigen::Quaterniond OrientationVariableToEigenQuaternion(
   return q;
 }
 
+fuse_core::Vector7d ComputeDelta(const Eigen::Matrix4d& T_A_B) {
+  // compute delta between previous kf and this frame
+  Eigen::Vector3d t_A_B = T_A_B.block<3, 1>(0, 3);
+  Eigen::Quaterniond q_A_B(T_A_B.block<3, 3>(0, 0));
+  fuse_core::Vector7d delta_A_B;
+  delta_A_B << t_A_B.x(), t_A_B.y(), t_A_B.z(), q_A_B.w(), q_A_B.x(), q_A_B.y(),
+      q_A_B.z();
+  return delta_A_B;
+}
+
 } // namespace bs_common

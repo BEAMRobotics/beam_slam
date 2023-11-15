@@ -77,6 +77,7 @@ add_library(
   src/inertial_odometry.cpp
   src/gravity_alignment.cpp
   src/slam_initialization.cpp
+  src/visual_feature_tracker.cpp
   src/global_mapper.cpp
   src/graph_visualization.cpp
   ## vision helpers
