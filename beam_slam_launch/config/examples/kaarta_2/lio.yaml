@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 10
-pseudo_marginalization: false
+pseudo_marginalization: true
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
@@ -24,6 +24,8 @@ sensor_models:
     type: 'bs_models::LidarOdometry'
   - name: 'graph_visualization'
     type: 'bs_models::GraphVisualization'
+  - name: 'lidar_deskewer'
+    type: 'bs_models::LidarScanDeskewer'
 
 publishers:
   - name: 'path_publisher'
@@ -34,7 +36,7 @@ slam_initialization:
   lidar_topic: "/velodyne_points"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
-  min_trajectory_length_m: 3.0
+  min_trajectory_length_m: 2.5
   min_visual_parallax: 40.0
   inertial_information_weight: 1.0
   lidar_information_weight: 100.0
