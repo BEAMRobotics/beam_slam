@@ -107,11 +107,12 @@ std::map<uint64_t, Eigen::Matrix4d> ComputePathWithVision(
 
   visual_map->AddCameraPose(T_world_camera0, first_time, initial_transaction);
   visual_map->AddCameraPose(T_world_cameraN, last_time, initial_transaction);
-
+  Eigen::Vector3d viewing_angle_tmp(0.0, 0.0, 0.0);
+  uint64_t word_id_tmp{0};
   for (const auto& id : inlier_indices) {
     const auto landmark_id = matched_ids[id];
-    visual_map->AddLandmark(points[id].value(), landmark_id,
-                            initial_transaction);
+    visual_map->AddLandmark(points[id].value(), viewing_angle_tmp, word_id_tmp,
+                            landmark_id, initial_transaction);
     try {
       Eigen::Vector2d first_pixel =
           landmark_container->GetValue(first_time, landmark_id);

@@ -12,6 +12,7 @@
 #include <beam_calibration/CameraModel.h>
 #include <beam_containers/LandmarkContainer.h>
 #include <beam_cv/descriptors/Descriptors.h>
+#include <beam_cv/ImageDatabase.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
@@ -102,7 +103,9 @@ private:
    * @brief Triangulates a landmark
    * @return position of landmark if it can be estimated
    */
-  beam::opt<Eigen::Vector3d> TriangulateLandmark(const uint64_t lm_id);
+  beam::opt<Eigen::Vector3d> TriangulateLandmark(const uint64_t lm_id,
+                          Eigen::Vector3d& average_viewing_angle,
+                          uint64_t& visual_word_id);
 
   /**
    * @brief If the path was estimated using FRAMEINIT or LIDAR, then we
@@ -182,6 +185,7 @@ private:
   std::list<ros::Time> frame_init_buffer_;
   ros::Time prev_frame_{ros::Time(0)};
   double last_lidar_scan_time_s_{0};
+  std::shared_ptr<beam_cv::ImageDatabase> image_db_;
 
   // measurement buffer sizes
   int max_landmark_container_size_;

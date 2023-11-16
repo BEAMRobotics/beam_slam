@@ -60,6 +60,11 @@ void VisualOdometry::onInit() {
       name(), cam_model_, vo_params_.reprojection_loss,
       vo_params_.reprojection_information_weight);
 
+  // local map matching stuff
+  image_db_ = std::make_shared<beam_cv::ImageDatabase>();
+  landmark_projection_mask_ = cv::Mat(
+      cam_model_->GetWidth(), cam_model_->GetHeight(), CV_8UC1, cv::Scalar(0));
+
   // Initialize landmark measurement container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
 
@@ -268,6 +273,9 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
                               transaction);
   }
 
+  // project all current landmarks into current image and store as
+  if (vo_params_.local_map_matching) { ProjectMapPoints(T_WORLD_BASELINK); }
+
   // process each landmark
   const auto landmarks = landmark_container_->GetLandmarkIDsInImage(timestamp);
   for (const auto id : landmarks) {
@@ -460,20 +468,71 @@ void VisualOdometry::AddMeasurementsToContainer(
 }
 
 beam::opt<Eigen::Vector3d>
-    VisualOdometry::TriangulateLandmark(const uint64_t id) {
+    VisualOdometry::TriangulateLandmark(const uint64_t id,
+                                        Eigen::Vector3d& average_viewing_angle,
+                                        uint64_t& visual_word_id) {
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+  std::vector<Eigen::Vector3d, beam::AlignVec3d> viewing_angles;
+  std::vector<uint64_t> word_ids;
+
   beam_containers::Track track = landmark_container_->GetTrack(id);
   for (auto& m : track) {
     const auto T_camera_world = visual_map_->GetCameraPose(m.time_point);
     // check if the pose is in the graph
     if (T_camera_world.has_value()) {
-      pixels.push_back(m.value.cast<int>());
-      T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
+      Eigen::Vector2i pixel_i = m.value.cast<int>();
+      Eigen::Matrix4d T_WORLD_CAMERA =
+          beam::InvertTransform(T_camera_world.value());
+
+      pixels.push_back(pixel_i);
+      T_cam_world_v.push_back(T_WORLD_CAMERA);
+
+      if (vo_params_.local_map_matching) {
+        Eigen::Vector3d bearing_cam;
+        if (cam_model_->BackProject(pixel_i, bearing_cam)) {
+          // compute viewing angle in world frame
+          Eigen::Vector3d bearing_world =
+              (T_WORLD_CAMERA * bearing_cam.homogeneous()).hnormalized();
+          viewing_angles.push_back(bearing_world);
+          // compute word id
+          word_ids.push_back(image_db_->GetWordID(m.descriptor));
+        }
+      }
     }
   }
+
   // must have at least 2 keyframes that have seen the landmark
   if (T_cam_world_v.size() >= 2) {
+    if (vo_params_.local_map_matching) {
+      // compute average viewing angle
+      average_viewing_angle = Eigen::Vector3d::Zero();
+      for (const auto& viewing_angle : viewing_angles) {
+        average_viewing_angle += viewing_angle;
+      }
+      average_viewing_angle /= static_cast<double>(viewing_angles.size());
+
+      // compute mode word id
+      std::map<uint64_t, int> word_id_counts;
+      for (const auto& word_id : word_ids) {
+        if (word_id_counts.find(word_id) == word_id_counts.end()) {
+          word_id_counts[word_id] = 1;
+        } else {
+          word_id_counts[word_id]++;
+        }
+      }
+      int max = 0;
+      for (const auto& [id, count] : word_id_counts) {
+        if (count > max) {
+          visual_word_id = id;
+          max = count;
+        }
+      }
+    } else {
+      average_viewing_angle = Eigen::Vector3d::Zero();
+      visual_word_id = 0;
+    }
+
     // if we've lost track, ease the requirements on new landmarks
     if (track_lost) {
       return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
@@ -492,6 +551,7 @@ void VisualOdometry::GetPixelPointPairs(
     const ros::Time& timestamp,
     std::vector<Eigen::Vector2i, beam::AlignVec2i>& pixels,
     std::vector<Eigen::Vector3d, beam::AlignVec3d>& points) {
+  // todo: update with new to old id map
   std::vector<std::pair<Eigen::Vector2i, Eigen::Vector3d>> pixel_point_pairs;
   std::vector<uint64_t> landmarks =
       landmark_container_->GetLandmarkIDsInImage(timestamp);
@@ -607,7 +667,10 @@ void VisualOdometry::ProcessLandmarkIDP(
   } else {
     // if the landmark doesnt exist we try to initialize it
     // triangulate and add landmark
-    const auto initial_point = TriangulateLandmark(id);
+    Eigen::Vector3d avg_viewing_angle;
+    uint64_t word_id;
+    const auto initial_point =
+        TriangulateLandmark(id, avg_viewing_angle, word_id);
     if (!initial_point.has_value()) { return; }
 
     // use the first keyframe that sees the landmark as the anchor frame
@@ -667,10 +730,27 @@ void VisualOdometry::ProcessLandmarkEUC(
       visual_map_->AddVisualConstraint(timestamp, id, pixel, transaction);
     } catch (const std::out_of_range& oor) { return; }
   } else {
-    // triangulate and add landmark
-    const auto initial_point = TriangulateLandmark(id);
+    // triangulate landmark
+    Eigen::Vector3d avg_viewing_angle;
+    uint64_t word_id;
+    const auto initial_point =
+        TriangulateLandmark(id, avg_viewing_angle, word_id);
     if (!initial_point.has_value()) { return; }
-    visual_map_->AddLandmark(initial_point.value(), id, transaction);
+
+    if (vo_params_.local_map_matching) {
+      Eigen::Vector2d cur_pixel = landmark_container_->GetValue(timestamp, id);
+      uint64_t matched_id;
+      if (SearchLocalMap(cur_pixel, avg_viewing_angle, word_id, matched_id)) {
+        // add constraint to matched id
+        visual_map_->AddVisualConstraint(timestamp, matched_id, cur_pixel,
+                                         transaction);
+        new_to_old_lm_ids_.insert({id, matched_id});
+        return;
+      }
+    }
+
+    visual_map_->AddLandmark(initial_point.value(), avg_viewing_angle, word_id,
+                             id, transaction);
 
     // add constraints to keyframes that view its
     for (const auto& [kf_stamp, kf] : keyframes_) {
@@ -1002,4 +1082,34 @@ void VisualOdometry::PublishPose(const ros::Time& timestamp,
   keyframe_publisher_.publish(msg);
 }
 
+void VisualOdometry::ProjectMapPoints(const Eigen::Matrix4d& T_WORLD_BASELINK) {
+  landmark_projection_mask_ =
+      cv::Mat::zeros(cam_model_->GetWidth(), cam_model_->GetHeight(), CV_8UC1);
+  image_projection_to_lm_id_.clear();
+
+  const auto landmarks = visual_map_->GetLandmarks();
+  for (const auto& [id, point] : landmarks) {
+    // transform into current frame
+    Eigen::Vector3d point_t_cam =
+        ((T_cam_baselink_ * beam::InvertTransform(T_WORLD_BASELINK)) *
+         point.homogeneous())
+            .hnormalized();
+    // project into image and store
+    Eigen::Vector2d pixel;
+    bool in_image = false;
+    if (!cam_model_->ProjectPoint(point_t_cam, pixel, in_image) || !in_image) {
+      continue;
+    }
+    landmark_projection_mask_.at<uchar>(pixel[0], pixel[1]) = 1;
+    uint64_t pixel_index = pixel[1] * cam_model_->GetWidth() + pixel[0];
+    image_projection_to_lm_id_[pixel_index] = id;
+  }
+}
+
+bool VisualOdometry::SearchLocalMap(const Eigen::Vector2d& pixel,
+                                    const Eigen::Vector3d& viewing_angle,
+                                    const uint64_t word_id,
+                                    uint64_t& matched_id) {
+  return false;
+}
 } // namespace bs_models

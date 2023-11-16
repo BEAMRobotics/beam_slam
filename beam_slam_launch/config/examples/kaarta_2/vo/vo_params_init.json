@@ -3,5 +3,6 @@
   "max_triangulation_reprojection": 40.0,
   "reprojection_information_weight": 1.0,
   "use_idp": false,
-  "track_outlier_pixel_threshold": 1.0
+  "track_outlier_pixel_threshold": 1.0,
+  "local_map_matching": false,
 }

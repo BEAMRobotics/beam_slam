@@ -50,6 +50,8 @@ void SLAMInitialization::onInit() {
       name(), cam_model_, params_.reprojection_loss,
       params_.reprojection_information_weight);
 
+  image_db_ = std::make_shared<beam_cv::ImageDatabase>();
+
   // create optimization graph
   local_graph_ = std::make_shared<fuse_graphs::HashGraph>();
 
@@ -334,7 +336,8 @@ bool SLAMInitialization::Initialize() {
       const auto timestamps = bs_common::CurrentTimestamps(*local_graph_);
       const auto first_stamp = *timestamps.begin();
       const auto last_stamp = *timestamps.rbegin();
-      const auto first_position_uuid = visual_map_->GetPositionUUID(first_stamp);
+      const auto first_position_uuid =
+          visual_map_->GetPositionUUID(first_stamp);
       const auto last_position_uuid = visual_map_->GetPositionUUID(last_stamp);
       local_graph_->holdVariable(first_position_uuid, true);
       local_graph_->holdVariable(last_position_uuid, true);
@@ -520,11 +523,15 @@ void SLAMInitialization::AddVisualConstraints() {
   landmark_transaction->stamp(start);
   auto process_landmark = [&](const auto& id) {
     // triangulate and add landmark
-    const auto initial_point = TriangulateLandmark(id);
+    Eigen::Vector3d avg_viewing_angle;
+    uint64_t word_id;
+    const auto initial_point =
+        TriangulateLandmark(id, avg_viewing_angle, word_id);
     if (!initial_point.has_value()) { return; }
 
     if (!params_.use_idp) {
-      visual_map_->AddLandmark(initial_point.value(), id, landmark_transaction);
+      visual_map_->AddLandmark(initial_point.value(), avg_viewing_angle,
+                               word_id, id, landmark_transaction);
       num_landmarks++;
 
       // add constraints to keyframes that view it
@@ -615,20 +622,69 @@ void SLAMInitialization::AddLidarConstraints() {
   local_graph_->update(*transaction_combined);
 }
 
-beam::opt<Eigen::Vector3d>
-    SLAMInitialization::TriangulateLandmark(const uint64_t lm_id) {
+beam::opt<Eigen::Vector3d> SLAMInitialization::TriangulateLandmark(
+    const uint64_t lm_id, Eigen::Vector3d& average_viewing_angle,
+    uint64_t& visual_word_id) {
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> T_cam_world_v;
   std::vector<Eigen::Vector2i, beam::AlignVec2i> pixels;
+  std::vector<Eigen::Vector3d, beam::AlignVec3d> viewing_angles;
+  std::vector<uint64_t> word_ids;
+
   beam_containers::Track track = landmark_container_->GetTrack(lm_id);
   for (auto& m : track) {
     const auto T_camera_world = visual_map_->GetCameraPose(m.time_point);
     // check if the pose is in the graph
     if (T_camera_world.has_value()) {
-      pixels.push_back(m.value.cast<int>());
-      T_cam_world_v.push_back(beam::InvertTransform(T_camera_world.value()));
+      Eigen::Vector2i pixel_i = m.value.cast<int>();
+      Eigen::Matrix4d T_WORLD_CAMERA =
+          beam::InvertTransform(T_camera_world.value());
+
+      pixels.push_back(pixel_i);
+      T_cam_world_v.push_back(T_WORLD_CAMERA);
+
+      if (params_.local_map_matching) {
+        Eigen::Vector3d bearing_cam;
+        if (cam_model_->BackProject(pixel_i, bearing_cam)) {
+          // compute viewing angle in world frame
+          Eigen::Vector3d bearing_world =
+              (T_WORLD_CAMERA * bearing_cam.homogeneous()).hnormalized();
+          viewing_angles.push_back(bearing_world);
+          // compute word id
+          word_ids.push_back(image_db_->GetWordID(m.descriptor));
+        }
+      }
     }
   }
   if (T_cam_world_v.size() >= 2) {
+    if (params_.local_map_matching) {
+      // compute average viewing angle
+      average_viewing_angle = Eigen::Vector3d::Zero();
+      for (const auto& viewing_angle : viewing_angles) {
+        average_viewing_angle += viewing_angle;
+      }
+      average_viewing_angle /= static_cast<double>(viewing_angles.size());
+
+      // compute mode word id
+      std::map<uint64_t, int> word_id_counts;
+      for (const auto& word_id : word_ids) {
+        if (word_id_counts.find(word_id) == word_id_counts.end()) {
+          word_id_counts[word_id] = 1;
+        } else {
+          word_id_counts[word_id]++;
+        }
+      }
+      int max = 0;
+      for (const auto& [id, count] : word_id_counts) {
+        if (count > max) {
+          visual_word_id = id;
+          max = count;
+        }
+      }
+    } else {
+      average_viewing_angle = Eigen::Vector3d::Zero();
+      visual_word_id = 0;
+    }
+
     return beam_cv::Triangulation::TriangulatePoint(
         cam_model_, T_cam_world_v, pixels, params_.max_triangulation_distance,
         params_.max_triangulation_reprojection);
@@ -777,6 +833,7 @@ void SLAMInitialization::shutdown() {
   visual_map_ = nullptr;
   imu_preint_ = nullptr;
   lidar_path_init_ = nullptr;
+  image_db_ = nullptr;
 }
 
 void SLAMInitialization::AddMeasurementsToContainer(

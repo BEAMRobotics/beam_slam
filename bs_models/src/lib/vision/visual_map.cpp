@@ -256,11 +256,14 @@ void VisualMap::AddPosition(const Eigen::Vector3d& p_WORLD_BASELINK,
   AddPosition(position, transaction);
 }
 
-void VisualMap::AddLandmark(const Eigen::Vector3d& position, uint64_t id,
+void VisualMap::AddLandmark(const Eigen::Vector3d& position,
+                            const Eigen::Vector3d& viewing_angle,
+                            const uint64_t word_id, const uint64_t id,
                             fuse_core::Transaction::SharedPtr transaction) {
   // construct landmark variable
   bs_variables::Point3DLandmark::SharedPtr landmark =
-      bs_variables::Point3DLandmark::make_shared(id);
+      bs_variables::Point3DLandmark::make_shared(id, viewing_angle,
+                            word_id);
   landmark->x() = position[0];
   landmark->y() = position[1];
   landmark->z() = position[2];
@@ -494,6 +497,18 @@ std::set<ros::Time> VisualMap::CurrentTimestamps() {
     graph_timestamps.insert(beam::NSecToRos(t));
   }
   return graph_timestamps;
+}
+
+std::map<uint64_t, Eigen::Vector3d> VisualMap::GetLandmarks() {
+  std::map<uint64_t, Eigen::Vector3d> landmarks;
+  std::set<uint64_t> graph_lms = bs_common::CurrentLandmarkIDs(*graph_);
+  for (const auto& id : graph_lms) {
+    landmarks[id] = bs_common::GetLandmark(*graph_, id)->point();
+  }
+  for (const auto& [id, landmark] : landmark_positions_) {
+    landmarks[id] = landmark->point();
+  }
+  return landmarks;
 }
 
 }} // namespace bs_models::vision

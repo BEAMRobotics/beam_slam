@@ -3,6 +3,8 @@
 #include <mutex>
 #include <queue>
 
+#include <boost/bimap.hpp>
+
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
 #include <fuse_core/async_sensor_model.h>
 #include <fuse_core/macros.h>
@@ -10,6 +12,7 @@
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_containers/LandmarkContainer.h>
+#include <beam_cv/ImageDatabase.h>
 #include <beam_cv/geometry/PoseRefinement.h>
 
 #include <bs_common/bs_msgs.h>
@@ -98,7 +101,10 @@ private:
   /// @brief Triangulates a landmark of the given id
   /// @param id of landmark
   /// @return optional 3d location
-  beam::opt<Eigen::Vector3d> TriangulateLandmark(const uint64_t id);
+  beam::opt<Eigen::Vector3d>
+      TriangulateLandmark(const uint64_t id,
+                          Eigen::Vector3d& average_viewing_angle,
+                          uint64_t& visual_word_id);
 
   /// @brief Gets 2d-3d correspondences for landmarks measured at a given time
   /// @param timestamp
@@ -184,6 +190,21 @@ private:
   bool GetInitialPoseEstimate(const ros::Time& timestamp,
                               Eigen::Matrix4d& T_WORLD_BASELINK);
 
+  /// @brief Projects the current map landmarks into an iamge and stores for
+  /// search
+  /// @param T_WORLD_BASELINK frame to project into
+  void ProjectMapPoints(const Eigen::Matrix4d& T_WORLD_BASELINK);
+
+  /// @brief Searches for a matching landmark using the projected local map points
+  /// @param pixel input pixel measurement
+  /// @param viewing_angle input viewing angle of measurement
+  /// @param word_id input visual word id of measurement
+  /// @param matched_id matching landmark id in the local map
+  /// @return true if point matched, false otherwise
+  bool SearchLocalMap(const Eigen::Vector2d& pixel,
+                      const Eigen::Vector3d& viewing_angle,
+                      const uint64_t word_id, uint64_t& matched_id);
+
   /******************************************************
    *                   Member Variables                 *
    *****************************************************/
@@ -222,6 +243,12 @@ private:
   double lag_duration_;
   std::mutex buffer_mutex_;
   Eigen::Matrix4d T_WORLD_BASELINKprevframe_;
+
+  /// @brief local map matching stuff
+  boost::bimap<uint64_t, uint64_t> new_to_old_lm_ids_;
+  cv::Mat landmark_projection_mask_;
+  std::map<uint64_t, uint64_t> image_projection_to_lm_id_;
+  std::shared_ptr<beam_cv::ImageDatabase> image_db_;
 
   /// @brief callbacks for messages
   using ThrottledMeasurementCallback =
