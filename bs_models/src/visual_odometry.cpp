@@ -326,6 +326,8 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   UpdateLocalGraph(*graph);
   PruneKeyframes(*local_graph_);
   visual_map_->UpdateGraph(*local_graph_);
+
+  // todo: cleanup new_to_old_lm_ids map
 }
 
 /****************************************************/
@@ -551,11 +553,10 @@ void VisualOdometry::GetPixelPointPairs(
     const ros::Time& timestamp,
     std::vector<Eigen::Vector2i, beam::AlignVec2i>& pixels,
     std::vector<Eigen::Vector3d, beam::AlignVec3d>& points) {
-  // todo: update with new to old id map
   std::vector<std::pair<Eigen::Vector2i, Eigen::Vector3d>> pixel_point_pairs;
   std::vector<uint64_t> landmarks =
       landmark_container_->GetLandmarkIDsInImage(timestamp);
-  for (auto& id : landmarks) {
+  for (const uint64_t id : landmarks) {
     if (vo_params_.use_idp) {
       auto lm = visual_map_->GetInverseDepthLandmark(id);
       if (lm) {
@@ -571,8 +572,13 @@ void VisualOdometry::GetPixelPointPairs(
         pixels.push_back(pixel);
       }
     } else {
+      uint64_t graph_lm_id = id;
+      if (new_to_old_lm_ids_.left.find(id) != new_to_old_lm_ids_.left.end()) {
+        graph_lm_id = new_to_old_lm_ids_.left.at(id);
+      }
+
       bs_variables::Point3DLandmark::SharedPtr lm =
-          visual_map_->GetLandmark(id);
+          visual_map_->GetLandmark(graph_lm_id);
       if (lm) {
         Eigen::Vector3d point = lm->point();
         Eigen::Vector2i pixel =
@@ -728,6 +734,13 @@ void VisualOdometry::ProcessLandmarkEUC(
     try {
       Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
       visual_map_->AddVisualConstraint(timestamp, id, pixel, transaction);
+    } catch (const std::out_of_range& oor) { return; }
+  } else if (new_to_old_lm_ids_.left.find(id) !=
+             new_to_old_lm_ids_.left.end()) {
+    try {
+      Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
+      visual_map_->AddVisualConstraint(
+          timestamp, new_to_old_lm_ids_.left.at(id), pixel, transaction);
     } catch (const std::out_of_range& oor) { return; }
   } else {
     // triangulate landmark
@@ -1110,6 +1123,7 @@ bool VisualOdometry::SearchLocalMap(const Eigen::Vector2d& pixel,
                                     const Eigen::Vector3d& viewing_angle,
                                     const uint64_t word_id,
                                     uint64_t& matched_id) {
+  // todo: implement search
   return false;
 }
 } // namespace bs_models
