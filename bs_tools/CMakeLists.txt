@@ -38,27 +38,6 @@ catkin_package(
     message_runtime
 )
 
-add_library(
-  ${PROJECT_NAME}
-  src/placeholder.cpp
-)
-add_dependencies(${PROJECT_NAME}
-  ${catkin_EXPORTED_TARGETS}
-)
-target_include_directories(${PROJECT_NAME}
-  PUBLIC
-    include
-    ${Boost_INCLUDE_DIRS}
-    ${catkin_INCLUDE_DIRS}
-    ${CERES_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIRS}
-)
-target_link_libraries(
-  ${PROJECT_NAME}
-    ${catkin_LIBRARIES}
-    beam::beam
-)
-
 ## Add executables
 add_executable(${PROJECT_NAME}_global_map_refinement_main
 	src/global_map_refinement_main.cpp
@@ -66,6 +45,7 @@ add_executable(${PROJECT_NAME}_global_map_refinement_main
 target_include_directories(${PROJECT_NAME}_global_map_refinement_main
   PUBLIC
     ${PROJECT_NAME}
+    ${catkin_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
   ${PROJECT_NAME}
@@ -84,6 +64,22 @@ target_link_libraries(feature_tracker
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
   beam::utils
+  beam::cv
+)
+
+add_executable(calibration_viewer
+  src/calibration_viewer_node.cpp
+)
+target_include_directories(calibration_viewer
+  PUBLIC
+    ${PROJECT_NAME}
+    ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(calibration_viewer
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  beam::utils
+  beam::calibration
   beam::cv
 )
 

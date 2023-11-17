@@ -1,0 +1,9 @@
+<launch>
+
+  <node name="calibration_viewer" pkg="bs_tools" type="calibration_viewer">
+    <param name="frame_initializer_config" value="/frame_initializers/io.json"/>
+    <param name="lidar_topic" value="/lidar_h/velodyne_points"/>
+    <param name="image_topic" value="/F1/image"/>
+  </node>
+
+</launch>
