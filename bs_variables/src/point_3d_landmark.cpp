@@ -43,9 +43,13 @@
 #include <ostream>
 
 namespace bs_variables {
-Point3DLandmark::Point3DLandmark(const uint64_t& landmark_id)
+Point3DLandmark::Point3DLandmark(const uint64_t& landmark_id,
+                                 const Eigen::Vector3d& avg_viewing_angle,
+                                 const uint64_t& word_id)
     : FixedSizeVariable(fuse_core::uuid::generate(detail::type(), landmark_id)),
-      id_(landmark_id) {}
+      id_(landmark_id),
+      avg_viewing_angle_(avg_viewing_angle),
+      word_id_(word_id) {}
 
 void Point3DLandmark::print(std::ostream& stream) const {
   stream << type() << ":\n"

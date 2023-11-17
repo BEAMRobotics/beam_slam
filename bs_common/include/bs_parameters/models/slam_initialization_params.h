@@ -142,10 +142,11 @@ public:
     getParamJson<double>(J, "track_outlier_pixel_threshold",
                          track_outlier_pixel_threshold,
                          track_outlier_pixel_threshold);
+    getParamJson<bool>(J, "local_map_matching", local_map_matching,
+                       local_map_matching);
   }
 
-  std::string visual_measurement_topic{
-      "/feature_tracker/visual_measurements"};
+  std::string visual_measurement_topic{"/feature_tracker/visual_measurements"};
   std::string imu_topic{""};
   std::string lidar_topic{""};
   std::string frame_initializer_config{""};
@@ -168,6 +169,7 @@ public:
 
   // vo params
   bool use_idp{false};
+  bool local_map_matching{false};
   double max_triangulation_distance{30.0};
   double max_triangulation_reprojection{40.0};
   double track_outlier_pixel_threshold{1.0};

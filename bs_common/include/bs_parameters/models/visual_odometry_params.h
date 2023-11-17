@@ -115,14 +115,16 @@ public:
     getParamJson<double>(J, "track_outlier_pixel_threshold",
                          track_outlier_pixel_threshold,
                          track_outlier_pixel_threshold);
-    getParamJson<int>(J, "required_points_to_refine",
-                         required_points_to_refine, required_points_to_refine);
+    getParamJson<int>(J, "required_points_to_refine", required_points_to_refine,
+                      required_points_to_refine);
     getParamJson<bool>(J, "use_frame_init_q_to_localize",
                        use_frame_init_q_to_localize,
                        use_frame_init_q_to_localize);
     getParamJson<bool>(J, "use_frame_init_p_to_localize",
                        use_frame_init_p_to_localize,
                        use_frame_init_p_to_localize);
+    getParamJson<bool>(J, "local_map_matching", local_map_matching,
+                       local_map_matching);
 
     if (use_standalone_vo) {
       try {
@@ -154,6 +156,7 @@ public:
 
   // main vo params
   bool use_idp{false};
+  bool local_map_matching{false};
   double max_triangulation_distance{30.0};
   double max_triangulation_reprojection{30.0};
   double reprojection_information_weight{1.0};

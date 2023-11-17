@@ -6,6 +6,7 @@
   "use_frame_init_q_to_localize": true,
   "use_frame_init_p_to_localize": false,
   "track_outlier_pixel_threshold": 1.0,
+  "local_map_matching": false,
   "standalone_vo_params": {
     "invalid_localization_covariance_weight": 1e2,
     "marginalization_prior_weight": 1e-9

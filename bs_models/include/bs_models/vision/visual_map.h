@@ -78,7 +78,9 @@ public:
    * @param id of the landmark to add
    * @param transaction to add to
    */
-  void AddLandmark(const Eigen::Vector3d& position, uint64_t id,
+  void AddLandmark(const Eigen::Vector3d& position,
+                   const Eigen::Vector3d& viewing_angle, const uint64_t word_id,
+                   const uint64_t id,
                    fuse_core::Transaction::SharedPtr transaction);
 
   /**
@@ -215,6 +217,18 @@ public:
    */
   void AddPosition(fuse_variables::Position3DStamped::SharedPtr position,
                    fuse_core::Transaction::SharedPtr transaction);
+
+  /**
+   * @brief Gets all landmark ids
+   * @return set of ids
+   */
+  std::set<uint64_t> GetLandmarkIDs();
+
+  /**
+   * @brief Gets all landmarks
+   * @return map of landmarks <id: point>
+   */
+  std::map<uint64_t, Eigen::Vector3d> GetLandmarks();
 
   /**
    * @brief Gets fuse uuid of landmark
