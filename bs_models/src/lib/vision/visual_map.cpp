@@ -262,8 +262,7 @@ void VisualMap::AddLandmark(const Eigen::Vector3d& position,
                             fuse_core::Transaction::SharedPtr transaction) {
   // construct landmark variable
   bs_variables::Point3DLandmark::SharedPtr landmark =
-      bs_variables::Point3DLandmark::make_shared(id, viewing_angle,
-                            word_id);
+      bs_variables::Point3DLandmark::make_shared(id, viewing_angle, word_id);
   landmark->x() = position[0];
   landmark->y() = position[1];
   landmark->z() = position[2];
@@ -509,6 +508,14 @@ std::map<uint64_t, Eigen::Vector3d> VisualMap::GetLandmarks() {
     landmarks[id] = landmark->point();
   }
   return landmarks;
+}
+
+std::set<uint64_t> VisualMap::GetLandmarkIDs() {
+  std::set<uint64_t> graph_lms = bs_common::CurrentLandmarkIDs(*graph_);
+  for (const auto& [id, landmark] : landmark_positions_) {
+    graph_lms.insert(id);
+  }
+  return graph_lms;
 }
 
 }} // namespace bs_models::vision

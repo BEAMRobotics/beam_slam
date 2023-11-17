@@ -219,6 +219,12 @@ public:
                    fuse_core::Transaction::SharedPtr transaction);
 
   /**
+   * @brief Gets all landmark ids
+   * @return set of ids
+   */
+  std::set<uint64_t> GetLandmarkIDs();
+
+  /**
    * @brief Gets all landmarks
    * @return map of landmarks <id: point>
    */

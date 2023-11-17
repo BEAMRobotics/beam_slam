@@ -43,7 +43,7 @@ void VisualOdometry::onInit() {
   vo_params_.loadFromROS(private_node_handle_);
   calibration_params_.loadFromROS();
 
-  // create frame initializer (inertial, lidar, constant velocity)
+  // create frame initializer
   frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
       vo_params_.frame_initializer_config);
 
@@ -314,20 +314,27 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
     return;
   }
 
-  // update visual map with main graph
+  std::set<uint64_t> old_ids, new_ids;
   if (!vo_params_.use_standalone_vo) {
+    // update visual map with main graph
+    old_ids = visual_map_->GetLandmarkIDs();
     PruneKeyframes(*graph);
     visual_map_->UpdateGraph(*graph);
-    return;
+    new_ids = visual_map_->GetLandmarkIDs();
+  } else {
+    // update local graph using main graph
+    old_ids = visual_map_->GetLandmarkIDs();
+    MarginalizeLocalGraph(*graph);
+    UpdateLocalGraph(*graph);
+    PruneKeyframes(*local_graph_);
+    visual_map_->UpdateGraph(*local_graph_);
+    new_ids = visual_map_->GetLandmarkIDs();
   }
 
-  // update local graph with main graph
-  MarginalizeLocalGraph(*graph);
-  UpdateLocalGraph(*graph);
-  PruneKeyframes(*local_graph_);
-  visual_map_->UpdateGraph(*local_graph_);
-
-  // todo: cleanup new_to_old_lm_ids map
+  // clean up new to old landmark map if its used
+  if (vo_params_.local_map_matching) {
+    CleanNewToOldLandmarkMap(old_ids, new_ids);
+  }
 }
 
 /****************************************************/
@@ -1123,7 +1130,63 @@ bool VisualOdometry::SearchLocalMap(const Eigen::Vector2d& pixel,
                                     const Eigen::Vector3d& viewing_angle,
                                     const uint64_t word_id,
                                     uint64_t& matched_id) {
-  // todo: implement search
+  // compute the search radius around the pixel
+  Eigen::Vector2i top_left{static_cast<int>(pixel[0]) - 5,
+                           static_cast<int>(pixel[1]) - 5};
+  Eigen::Vector2i bottom_right{static_cast<int>(pixel[0]) + 5,
+                               static_cast<int>(pixel[1]) + 5};
+  if (top_left[0] < 0) { top_left[0] = 0; }
+  if (top_left[1] < 0) { top_left[1] = 0; }
+  if (bottom_right[0] > cam_model_->GetHeight()) {
+    bottom_right[0] = cam_model_->GetHeight();
+  }
+  if (bottom_right[1] > cam_model_->GetWidth()) {
+    bottom_right[1] = cam_model_->GetWidth();
+  }
+
+  // find all candidate landmarks within the radius
+  std::vector<uint64_t> candidate_lm_matches;
+  for (int row = top_left[1]; row < bottom_right[1]; row++) {
+    for (int col = top_left[0]; col < bottom_right[0]; col++) {
+      if (landmark_projection_mask_.at<uchar>(col, row) != 0) {
+        uint64_t pixel_index = row * cam_model_->GetWidth() + col;
+        candidate_lm_matches.push_back(image_projection_to_lm_id_[pixel_index]);
+      }
+    }
+  }
+
+  // check each candidate for a match
+  for (const uint64_t id : candidate_lm_matches) {
+    auto landmark = visual_map_->GetLandmark(id);
+    if (!landmark) { continue; }
+    if (landmark->word_id() == word_id) {
+      const double angle =
+          std::acos((viewing_angle.dot(landmark->viewing_angle())) /
+                    (viewing_angle.norm() *
+                    landmark->viewing_angle().norm()));
+      if (beam::Rad2Deg(angle) < 10.0) {
+        matched_id = id;
+        return true;
+      }
+    }
+  }
   return false;
+}
+
+void VisualOdometry::CleanNewToOldLandmarkMap(
+    const std::set<uint64_t>& old_ids, const std::set<uint64_t>& new_ids) {
+  // find out which landmark id's have been removed
+  std::set<uint64_t> removed_ids;
+  std::set_difference(old_ids.begin(), old_ids.end(), new_ids.begin(),
+                      new_ids.end(),
+                      std::inserter(removed_ids, removed_ids.begin()));
+
+  // remove from the association map
+  for (const uint64_t id : removed_ids) {
+    if (new_to_old_lm_ids_.right.find(id) != new_to_old_lm_ids_.right.end())
+    {
+      new_to_old_lm_ids_.right.erase(id);
+    }
+  }
 }
 } // namespace bs_models

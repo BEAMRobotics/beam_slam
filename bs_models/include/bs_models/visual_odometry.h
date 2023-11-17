@@ -195,7 +195,8 @@ private:
   /// @param T_WORLD_BASELINK frame to project into
   void ProjectMapPoints(const Eigen::Matrix4d& T_WORLD_BASELINK);
 
-  /// @brief Searches for a matching landmark using the projected local map points
+  /// @brief Searches for a matching landmark using the projected local map
+  /// points
   /// @param pixel input pixel measurement
   /// @param viewing_angle input viewing angle of measurement
   /// @param word_id input visual word id of measurement
@@ -204,6 +205,12 @@ private:
   bool SearchLocalMap(const Eigen::Vector2d& pixel,
                       const Eigen::Vector3d& viewing_angle,
                       const uint64_t word_id, uint64_t& matched_id);
+
+  /// @brief Cleans up the new to old landmark id map
+  /// @param old_ids landmark id's before marginalization
+  /// @param new_ids landmark id's after marginalization
+  void CleanNewToOldLandmarkMap(const std::set<uint64_t>& old_ids,
+                                const std::set<uint64_t>& new_ids);
 
   /******************************************************
    *                   Member Variables                 *
