@@ -1131,10 +1131,10 @@ bool VisualOdometry::SearchLocalMap(const Eigen::Vector2d& pixel,
                                     const uint64_t word_id,
                                     uint64_t& matched_id) {
   // compute the search radius around the pixel
-  Eigen::Vector2i top_left{static_cast<int>(pixel[0]) - 5,
-                           static_cast<int>(pixel[1]) - 5};
-  Eigen::Vector2i bottom_right{static_cast<int>(pixel[0]) + 5,
-                               static_cast<int>(pixel[1]) + 5};
+  Eigen::Vector2i top_left{static_cast<int>(pixel[0]) - 10,
+                           static_cast<int>(pixel[1]) - 10};
+  Eigen::Vector2i bottom_right{static_cast<int>(pixel[0]) + 10,
+                               static_cast<int>(pixel[1]) + 10};
   if (top_left[0] < 0) { top_left[0] = 0; }
   if (top_left[1] < 0) { top_left[1] = 0; }
   if (bottom_right[0] > cam_model_->GetHeight()) {
@@ -1162,8 +1162,7 @@ bool VisualOdometry::SearchLocalMap(const Eigen::Vector2d& pixel,
     if (landmark->word_id() == word_id) {
       const double angle =
           std::acos((viewing_angle.dot(landmark->viewing_angle())) /
-                    (viewing_angle.norm() *
-                    landmark->viewing_angle().norm()));
+                    (viewing_angle.norm() * landmark->viewing_angle().norm()));
       if (beam::Rad2Deg(angle) < 10.0) {
         matched_id = id;
         return true;
@@ -1183,8 +1182,7 @@ void VisualOdometry::CleanNewToOldLandmarkMap(
 
   // remove from the association map
   for (const uint64_t id : removed_ids) {
-    if (new_to_old_lm_ids_.right.find(id) != new_to_old_lm_ids_.right.end())
-    {
+    if (new_to_old_lm_ids_.right.find(id) != new_to_old_lm_ids_.right.end()) {
       new_to_old_lm_ids_.right.erase(id);
     }
   }
