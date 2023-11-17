@@ -3,7 +3,7 @@
 # frames
 /calibration_params/imu_frame: "imu"
 /calibration_params/lidar_frame: "velodyne"
-/calibration_params/camera_frame: "camera"
+/calibration_params/camera_frame: "camera1"
 /calibration_params/world_frame: "world"
 /calibration_params/baselink_frame: "imu"
 

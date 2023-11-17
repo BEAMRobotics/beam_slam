@@ -165,21 +165,24 @@ private:
   void PruneKeyframes(const fuse_core::Graph& new_graph);
 
   /// @brief Marginalizes the current local graph is standalone vo is being used
+  /// @param new_graph graph pulled from on graph update
   void MarginalizeLocalGraph(const fuse_core::Graph& new_graph);
 
   /// @brief Updates the local graph with non visual constraints in the new
   /// graph
+  /// @param new_graph graph pulled from on graph update
   void UpdateLocalGraph(const fuse_core::Graph& new_graph);
-
-  /// @brief Computes the pose as a 7d vector (x,y,z, qw,
-  /// qx, qy, qz)
-  /// @param T_A_B
-  /// @return delta from B to A
-  fuse_core::Vector7d ComputeDelta(const Eigen::Matrix4d& T_A_B);
 
   /// @brief Publishes all landmarks in the graph as a point cloud
   /// @param graph
   void PublishLandmarkPointCloud(const fuse_core::Graph& graph);
+
+  /// @brief Gets initial pose estimate using the frame initializer
+  /// @param timestamp
+  /// @param T_WORLD_BASELINK estimated pose
+  /// @return whether it succeeded or not
+  bool GetInitialPoseEstimate(const ros::Time& timestamp,
+                              Eigen::Matrix4d& T_WORLD_BASELINK);
 
   /******************************************************
    *                   Member Variables                 *
