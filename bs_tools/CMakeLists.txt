@@ -32,11 +32,28 @@ add_executable(${PROJECT_NAME}_global_map_refinement_main
 )
 target_include_directories(${PROJECT_NAME}_global_map_refinement_main
   PUBLIC
-    ${PROJECT_NAME}
+    # ${PROJECT_NAME}
     ${catkin_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
-  ${PROJECT_NAME}
+  # ${PROJECT_NAME}
   ${catkin_LIBRARIES}
   beam::utils
 )
+
+add_executable(calibration_viewer
+  src/calibration_viewer_node.cpp
+)
+target_include_directories(calibration_viewer
+  PUBLIC
+    # ${PROJECT_NAME}
+    ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(calibration_viewer
+  # ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  beam::utils
+  beam::calibration
+  beam::cv
+)
+

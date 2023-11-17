@@ -1,8 +1,10 @@
 #include <ros/ros.h>
 
+#include <pcl/common/transforms.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 
+#include <beam_calibration/CameraModel.h>
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_utils/pointclouds.h>
 #include <bs_models/frame_initializers/frame_initializer.h>
@@ -49,7 +51,7 @@ struct CalibrationViewer {
     const std::string intrinsics_topic =
         "/calibration_params/camera_intrinsics_path";
     if (!nh_.getParam(intrinsics_topic, camera_intrinsics_path_rel)) {
-      ROS_ERROR("Failed to load parameter {}", intrinsics_topic);
+      ROS_ERROR("Failed to load parameter %s", intrinsics_topic.c_str());
       throw std::runtime_error("Failed to load intrinsics parameter");
     }
     camera_intrinsics_path_ = beam::CombinePaths(
@@ -57,8 +59,8 @@ struct CalibrationViewer {
   }
 
   void Setup() {
-    image_subscriber_ =
-        nh_.subscribe(image_topic, 10, &CalibrationViewer::ImageCallback, this);
+    image_subscriber_ = nh_.subscribe(image_topic_, 10,
+                                      &CalibrationViewer::ImageCallback, this);
     lidar_subscriber_ = nh_.subscribe(lidar_topic_, 10,
                                       &CalibrationViewer::LidarCallback, this);
     image_publisher_ =
@@ -85,7 +87,7 @@ struct CalibrationViewer {
     s.end = ros::Time(0);
     s.start = ros::TIME_MAX;
     for (const auto& p : s.scan) {
-      ros::Time pt = cloud_stamp + ros::Duration(p.time);
+      ros::Time pt = s.stamp + ros::Duration(p.time);
       if (pt < s.start) { s.start = pt; }
       if (pt > s.end) { s.end = pt; }
     }
@@ -96,7 +98,7 @@ struct CalibrationViewer {
     if (scans_.empty() || images_.empty()) { return; }
 
     while (!images_.empty()) {
-      const auto& image = images.front();
+      auto& image = images_.front();
       while (!scans_.empty()) {
         const auto& scan = scans_.front();
         if (scan.end < image.stamp) {
@@ -124,13 +126,26 @@ struct CalibrationViewer {
       AlignScanToTime(const pcl::PointCloud<PointXYZIRT>& scan,
                       const ros::Time& stamp) {
     pcl::PointCloud<PointXYZIRT> cloud_aligned;
+
+    // get pose of at the align time
+    Eigen::Matrix4d T_World_Lidar0;
+    if (!frame_initializer_->GetPose(T_World_Lidar0, stamp,
+                                     extrinsics_.GetLidarFrameId())) {
+      ROS_WARN("cannot get pose at image time %ss, skipping",
+               std::to_string(stamp.toSec()).c_str());
+      return cloud_aligned;
+    }
+    Eigen::Matrix4f T_Lidar0_World =
+        beam::InvertTransform(T_World_Lidar0).cast<float>();
+
+    // align cloud
     for (const auto& p : scan) {
       ros::Time pt = stamp + ros::Duration(p.time);
       Eigen::Matrix4d T_World_LidarN;
       if (!frame_initializer_->GetPose(T_World_LidarN, pt,
                                        extrinsics_.GetLidarFrameId())) {
         // if any point doesn't return a valid result, then skip
-        break;
+        continue;
       }
       Eigen::Affine3f T_Lidar0_LidarN(T_Lidar0_World *
                                       T_World_LidarN.cast<float>());
@@ -149,22 +164,22 @@ struct CalibrationViewer {
       return;
     }
     pcl::PointCloud<PointXYZIRT> cloud_in_cam;
-    pcl::transformPointCloud(cloud, cloud_in_cam, Eigen::Affine3d(T_Lidar_Cam));
+    pcl::transformPointCloud(cloud, cloud_in_cam, Eigen::Affine3d(T_Cam_Lidar));
 
     std::vector<Eigen::Vector2d> pixels;
-    cv::Mat depth_image(image.rows, image.cols, cv::CV_32F);
+    cv::Mat depth_image(image.rows, image.cols, CV_32F);
     for (const auto& p : cloud_in_cam) {
       if (p.z < 0) { continue; }
       Eigen::Vector2d pixel;
       Eigen::Vector3d p_in_cam(p.x, p.y, p.z);
       bool in_image;
-      if (!camera_model->ProjectPoint(p_in_cam, pixel, in_image)) { continue; }
+      if (!camera_model_->ProjectPoint(p_in_cam, pixel, in_image)) { continue; }
 
       if (!in_image) { continue; }
       pixels.push_back(pixel);
       int row = static_cast<int>(pixel[1]);
       int col = static_cast<int>(pixel[0]);
-      depth_image.at(row, col) = p_in_cam.norm();
+      depth_image.at<float>(row, col) = p_in_cam.norm();
     }
 
     cv::Mat depth_image_col;
@@ -172,16 +187,17 @@ struct CalibrationViewer {
 
     static int radius = 2;
     for (const auto& pixel : pixels) {
-      int row = static_cast<int>(pixels[1]);
-      int col = static_cast<int>(pixels[0]);
       cv::Point p(pixel[0], pixel[1]);
-      cv::circle(image, p, radius, depth_image_col.at(row, col));
+      int r = static_cast<int>(pixel[1]);
+      int c = static_cast<int>(pixel[0]);
+      auto col = depth_image_col.at<cv::Point3i>(r, c);
+      cv::circle(image, p, radius, cv::Scalar(col.x, col.y, col.z));
     }
 
     std_msgs::Header header;
     header.stamp = stamp;
     header.seq = publisher_counter_++;
-    header.frame_id = extrinsics_->GetCameraFrameId();
+    header.frame_id = extrinsics_.GetCameraFrameId();
     sensor_msgs::Image out_msg =
         beam_cv::OpenCVConversions::MatToRosImg(image, header, "bgr8");
     image_publisher_.publish(out_msg);
