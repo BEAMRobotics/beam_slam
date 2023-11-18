@@ -123,7 +123,7 @@ void AddZeroMotionFactor(const std::string& source,
   // generate a zero motion constraint
   fuse_core::Vector7d pose_delta;
   pose_delta << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-  fuse_core::Matrix6d pose_covariance = fuse_core::Matrix6d::Identity() * 1e-9;
+  fuse_core::Matrix6d pose_covariance = fuse_core::Matrix6d::Identity() * 1e-6;
 
   auto relative_pose_constraint =
       std::make_shared<fuse_constraints::RelativePose3DStampedConstraint>(
@@ -134,7 +134,7 @@ void AddZeroMotionFactor(const std::string& source,
   fuse_core::Vector3d relative_delta;
   relative_delta << 0.0, 0.0, 0.0;
   fuse_core::Matrix3d relative_covariance =
-      fuse_core::Matrix3d::Identity() * 1e-10;
+      fuse_core::Matrix3d::Identity() * 1e-2;
 
   auto relative_vel_constraint =
       std::make_shared<fuse_constraints::RelativeConstraint<
