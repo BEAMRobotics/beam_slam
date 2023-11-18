@@ -395,7 +395,7 @@ void InertialOdometry::BreakupConstraint(
 
   // add zero motion constraint if need be
   if (std::abs((new_trigger_time - constraint_data.start_time).toSec()) <
-      0.05) {
+      0.005) {
     auto maybe_start_position = bs_common::GetPosition(
         *most_recent_graph_msg_, constraint_data.start_time);
     auto maybe_start_orientation = bs_common::GetOrientation(
@@ -426,7 +426,7 @@ void InertialOdometry::BreakupConstraint(
                  bs_common::ToString(constraint_data.start_time));
     }
   } else if (std::abs((new_trigger_time - constraint_data.end_time).toSec()) <
-             0.05) {
+             0.005) {
     auto maybe_end_position = bs_common::GetPosition(*most_recent_graph_msg_,
                                                      constraint_data.end_time);
     auto maybe_end_orientation = bs_common::GetOrientation(

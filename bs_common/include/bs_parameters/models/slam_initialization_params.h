@@ -86,8 +86,7 @@ public:
                                           matcher_config_rel);
     }
 
-    /// Load all information matrix weights for the optimization problem from
-    /// the default location
+    /// Load all information matrix weights for the optimization problem
     std::string info_weights_config;
     getParamRequired<std::string>(
         nh, "/local_mapper/information_weights_config", info_weights_config);
