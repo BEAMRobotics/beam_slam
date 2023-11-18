@@ -1,0 +1,18 @@
+## global parameters: These will be used in multiple locations
+
+# frames
+/calibration_params/imu_frame: "imu"
+/calibration_params/lidar_frame: "velodyne"
+/calibration_params/camera_frame: "camera1"
+/calibration_params/world_frame: "world"
+/calibration_params/baselink_frame: "imu"
+
+# topic frequencies
+/calibration_params/imu_hz: 200
+/calibration_params/camera_hz: 10
+/calibration_params/lidar_hz: 10
+
+# calibrations
+/calibration_params/static_extrinsics: true
+/calibration_params/camera_intrinsics_path: "kaarta_2/camera.json"
+/calibration_params/imu_intrinsics_path: "kaarta_2/imu.json"
