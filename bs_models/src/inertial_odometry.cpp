@@ -396,10 +396,18 @@ void InertialOdometry::BreakupConstraint(
   // add zero motion constraint if need be
   if (std::abs((new_trigger_time - constraint_data.start_time).toSec()) <
       0.05) {
-    auto maybe_start_state = bs_common::GetImuState(*most_recent_graph_msg_,
-                                                    constraint_data.start_time);
-    if (maybe_start_state) {
-      auto start_state = maybe_start_state.value();
+    auto maybe_start_position = bs_common::GetPosition(
+        *most_recent_graph_msg_, constraint_data.start_time);
+    auto maybe_start_orientation = bs_common::GetOrientation(
+        *most_recent_graph_msg_, constraint_data.start_time);
+    if (maybe_start_position && maybe_start_orientation) {
+      bs_common::ImuState start_state(constraint_data.start_time);
+      start_state.SetPosition(*maybe_start_position);
+      start_state.SetOrientation(*maybe_start_orientation);
+      start_state.SetVelocity(Eigen::Vector3d::Zero());
+      start_state.SetGyroBias(Eigen::Vector3d::Zero());
+      start_state.SetAccelBias(Eigen::Vector3d::Zero());
+
       bs_common::ImuState new_state(new_trigger_time);
       new_state.SetPosition(start_state.PositionVec());
       new_state.SetOrientation(start_state.OrientationQuat());
@@ -413,16 +421,24 @@ void InertialOdometry::BreakupConstraint(
                                      zero_motion_transaction);
       transaction->merge(*zero_motion_transaction);
     } else {
-      BEAM_ERROR("Cannot retrive IMU state at time {}, not able to add zero "
+      BEAM_ERROR("Cannot retrieve IMU state at time {}, not able to add zero "
                  "motion constraint.",
                  bs_common::ToString(constraint_data.start_time));
     }
   } else if (std::abs((new_trigger_time - constraint_data.end_time).toSec()) <
              0.05) {
-    auto maybe_end_state = bs_common::GetImuState(*most_recent_graph_msg_,
-                                                  constraint_data.end_time);
-    if (maybe_end_state) {
-      auto end_state = maybe_end_state.value();
+    auto maybe_end_position = bs_common::GetPosition(*most_recent_graph_msg_,
+                                                     constraint_data.end_time);
+    auto maybe_end_orientation = bs_common::GetOrientation(
+        *most_recent_graph_msg_, constraint_data.end_time);
+    if (maybe_end_position && maybe_end_orientation) {
+      bs_common::ImuState end_state(constraint_data.end_time);
+      end_state.SetPosition(*maybe_end_position);
+      end_state.SetOrientation(*maybe_end_orientation);
+      end_state.SetVelocity(Eigen::Vector3d::Zero());
+      end_state.SetGyroBias(Eigen::Vector3d::Zero());
+      end_state.SetAccelBias(Eigen::Vector3d::Zero());
+
       bs_common::ImuState new_state(new_trigger_time);
       new_state.SetPosition(end_state.PositionVec());
       new_state.SetOrientation(end_state.OrientationQuat());
@@ -436,7 +452,7 @@ void InertialOdometry::BreakupConstraint(
                                      zero_motion_transaction);
       transaction->merge(*zero_motion_transaction);
     } else {
-      BEAM_ERROR("Cannot retrive IMU state at time {}, not able to add zero "
+      BEAM_ERROR("Cannot retrieve IMU state at time {}, not able to add zero "
                  "motion constraint.",
                  bs_common::ToString(constraint_data.end_time));
     }
