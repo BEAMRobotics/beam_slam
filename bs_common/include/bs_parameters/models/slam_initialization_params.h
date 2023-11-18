@@ -88,9 +88,12 @@ public:
 
     /// Load all information matrix weights for the optimization problem from
     /// the default location
+    std::string info_weights_config;
+    getParamRequired<std::string>(
+        nh, "/local_mapper/information_weights_config", info_weights_config);
     nlohmann::json info_weights;
     beam::ReadJson(beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
-                                      "optimization/information_weights.json"),
+                                      info_weights_config),
                    info_weights);
     getParamJson<double>(info_weights, "inertial_information_weight",
                          inertial_information_weight,

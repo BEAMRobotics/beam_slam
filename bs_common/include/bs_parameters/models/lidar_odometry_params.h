@@ -120,9 +120,12 @@ public:
     /** Weighting factor on lidar scan registration measurements.
     This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
     Residuals */
+    std::string info_weights_config;
+    getParamRequired<std::string>(
+        nh, "/local_mapper/information_weights_config", info_weights_config);
     nlohmann::json info_weights;
     beam::ReadJson(beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
-                                      "optimization/information_weights.json"),
+                                      info_weights_config),
                    info_weights);
     getParamJson<double>(info_weights, "lidar_information_weight",
                          lidar_information_weight, lidar_information_weight);

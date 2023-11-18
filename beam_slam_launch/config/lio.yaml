@@ -2,6 +2,7 @@
 optimization_period: 0.1
 lag_duration: 6
 pseudo_marginalization: true
+information_weights_config: '/optimization/lio_information_weights.json'
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
