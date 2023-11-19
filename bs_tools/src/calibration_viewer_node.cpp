@@ -75,8 +75,9 @@ struct CalibrationViewer {
 
   void ImageCallback(const sensor_msgs::Image::ConstPtr& msg) {
     ImageStamped i;
-    i.image = beam_cv::OpenCVConversions::RosImgToMat(*msg);
+    i.image = beam_cv::OpenCVConversions::RosImgToMat(*msg).clone();
     i.stamp = msg->header.stamp;
+    images_.emplace(i);
     ProcessData();
   }
 
@@ -97,24 +98,22 @@ struct CalibrationViewer {
   void ProcessData() {
     if (scans_.empty() || images_.empty()) { return; }
 
-    while (!images_.empty()) {
-      auto& image = images_.front();
-      while (!scans_.empty()) {
-        const auto& scan = scans_.front();
-        if (scan.end < image.stamp) {
-          // remove lidar data before the image
-          scans_.pop();
-          continue;
-        } else if (scan.start > image.stamp) {
-          // remove image which is before the first lidar scan
-          images_.pop();
-          continue;
-        } else if (scan.start <= image.stamp && scan.end >= image.stamp) {
-          pcl::PointCloud<PointXYZIRT> cloud_aligned =
-              AlignScanToTime(scan.scan, image.stamp);
-          DisplayData(cloud_aligned, image.image, image.stamp);
-          images_.pop();
-        }
+    while (!images_.empty() && !scans_.empty()) {
+      const auto& image = images_.front();
+      const auto& scan = scans_.front();
+      if (scan.end < image.stamp) {
+        // remove lidar data before the image
+        scans_.pop();
+        continue;
+      } else if (scan.start > image.stamp) {
+        // remove image which is before the first lidar scan
+        images_.pop();
+        continue;
+      } else if (scan.start <= image.stamp && scan.end >= image.stamp) {
+        pcl::PointCloud<PointXYZIRT> cloud_aligned =
+            AlignScanToTime(scan.scan, image.stamp);
+        DisplayData(cloud_aligned, image.image, image.stamp);
+        images_.pop();
       }
     }
 
@@ -131,8 +130,8 @@ struct CalibrationViewer {
     Eigen::Matrix4d T_World_Lidar0;
     if (!frame_initializer_->GetPose(T_World_Lidar0, stamp,
                                      extrinsics_.GetLidarFrameId())) {
-      ROS_WARN("cannot get pose at image time %ss, skipping",
-               std::to_string(stamp.toSec()).c_str());
+      ROS_WARN_THROTTLE(1, "cannot get pose at image time %ss, skipping",
+                        std::to_string(stamp.toSec()).c_str());
       return cloud_aligned;
     }
     Eigen::Matrix4f T_Lidar0_World =
@@ -156,8 +155,8 @@ struct CalibrationViewer {
     return cloud_aligned;
   }
 
-  void DisplayData(const pcl::PointCloud<PointXYZIRT>& cloud, cv::Mat& image,
-                   const ros::Time& stamp) {
+  void DisplayData(const pcl::PointCloud<PointXYZIRT>& cloud,
+                   const cv::Mat& image, const ros::Time& stamp) {
     Eigen::Matrix4d T_Cam_Lidar;
     if (!extrinsics_.GetT_CAMERA_LIDAR(T_Cam_Lidar, stamp)) {
       ROS_WARN("cannot get extrinsics, skipping image");
@@ -165,9 +164,7 @@ struct CalibrationViewer {
     }
     pcl::PointCloud<PointXYZIRT> cloud_in_cam;
     pcl::transformPointCloud(cloud, cloud_in_cam, Eigen::Affine3d(T_Cam_Lidar));
-
-    std::vector<Eigen::Vector2d> pixels;
-    cv::Mat depth_image(image.rows, image.cols, CV_32F);
+    std::vector<Eigen::Vector3d> pixels;
     for (const auto& p : cloud_in_cam) {
       if (p.z < 0) { continue; }
       Eigen::Vector2d pixel;
@@ -176,24 +173,25 @@ struct CalibrationViewer {
       if (!camera_model_->ProjectPoint(p_in_cam, pixel, in_image)) { continue; }
 
       if (!in_image) { continue; }
-      pixels.push_back(pixel);
-      int row = static_cast<int>(pixel[1]);
-      int col = static_cast<int>(pixel[0]);
-      depth_image.at<float>(row, col) = p_in_cam.norm();
+      Eigen::Vector3d v(pixel[0], pixel[1], p_in_cam.norm());
+      pixels.push_back(v);
     }
 
-    cv::Mat depth_image_col;
-    cv::applyColorMap(depth_image, depth_image_col, cv::COLORMAP_JET);
-
-    static int radius = 2;
-    for (const auto& pixel : pixels) {
+    static int radius = 1;
+    for (auto& pixel : pixels) {
       cv::Point p(pixel[0], pixel[1]);
       int r = static_cast<int>(pixel[1]);
       int c = static_cast<int>(pixel[0]);
-      auto col = depth_image_col.at<cv::Point3i>(r, c);
-      cv::circle(image, p, radius, cv::Scalar(col.x, col.y, col.z));
+      double d = pixel[2];
+      if (d > max_d_) {
+        d = 255;
+      } else if (d < min_d_) {
+        d = min_d_;
+      } else {
+        d = 255 * (d - min_d_) / (max_d_ - min_d_);
+      }
+      cv::circle(image, p, radius, cv::Scalar(255 - d, 0, d));
     }
-
     std_msgs::Header header;
     header.stamp = stamp;
     header.seq = publisher_counter_++;
@@ -216,6 +214,8 @@ struct CalibrationViewer {
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 
+  const double max_d_{10};
+  const double min_d_{0.5};
   int publisher_counter_{0};
   std::queue<ScanStamped> scans_;
   std::queue<ImageStamped> images_;
