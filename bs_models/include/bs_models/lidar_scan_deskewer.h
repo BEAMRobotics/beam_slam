@@ -11,9 +11,6 @@
 
 namespace bs_models {
 
-// using SortedPacketsVelodyne = std::map<int64_t, pcl::PointCloud<PointXYZIRT>>;
-// using SortedPacketsOuster = std::map<int64_t, pcl::PointCloud<PointXYZITRRNR>>;
-
 class LidarScanDeskewer : public fuse_core::AsyncSensorModel {
 public:
   FUSE_SMART_PTR_DEFINITIONS(LidarScanDeskewer);
@@ -54,8 +51,10 @@ private:
       bs_common::ExtrinsicsLookupOnline::GetInstance();
   std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
 
-  using VelodyneCloudWithStamp = std::pair<ros::Time, pcl::PointCloud<PointXYZIRT>>;
-  using OusterCloudWithStamp = std::pair<ros::Time, pcl::PointCloud<PointXYZITRRNR>>;
+  using VelodyneCloudWithStamp =
+      std::pair<ros::Time, pcl::PointCloud<PointXYZIRT>>;
+  using OusterCloudWithStamp =
+      std::pair<ros::Time, pcl::PointCloud<PointXYZITRRNR>>;
 
   std::queue<VelodyneCloudWithStamp> queue_velodyne_;
   std::queue<OusterCloudWithStamp> queue_ouster_;

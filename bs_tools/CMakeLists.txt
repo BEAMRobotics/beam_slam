@@ -11,25 +11,30 @@ find_package(
   beam REQUIRED 
   COMPONENTS 
     utils
+    cv
+)
+
+set(catkin_build_depends
+    sensor_msgs
+    bs_common
+    bs_models
 )
 
 find_package(
   catkin REQUIRED
   COMPONENTS
-    bs_models
+    ${catkin_build_depends}
 )
 
 catkin_package(
   INCLUDE_DIRS
+    include
   LIBRARIES
+    ${PROJECT_NAME}
   CATKIN_DEPENDS 
-    bs_models
+    ${catkin_build_depends}
 )
 
-include_directories(
-  include
-  #${catkin_INCLUDE_DIRS}
-)
 add_library(
   ${PROJECT_NAME}
   src/placeholder.cpp
@@ -63,4 +68,20 @@ target_link_libraries(${PROJECT_NAME}_global_map_refinement_main
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
   beam::utils
+)
+
+add_executable(calibration_viewer
+  src/calibration_viewer_node.cpp
+)
+target_include_directories(calibration_viewer
+  PUBLIC
+    ${PROJECT_NAME}
+    ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(calibration_viewer
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  beam::utils
+  beam::calibration
+  beam::cv
 )
