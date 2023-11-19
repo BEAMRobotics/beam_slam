@@ -33,14 +33,14 @@ publishers:
     type: 'bs_publishers::Path3DPublisher'
 
 visual_feature_tracker:
-  image_topic: '/monocular_camera/image_debayered'
+  image_topic: '/F1/image'
   descriptor_config: 'examples/ig3/vo/orb_descriptor.json'
   detector_config: 'examples/ig3/vo/fastssc_detector.json'
   tracker_config: 'examples/ig3/vo/tracker.json'
 
 slam_initialization:
   imu_topic: "/imu/data"
-  lidar_topic: "/velodyne_packets_unpacked"
+  lidar_topic: "/lidar_h/velodyne_points"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.5

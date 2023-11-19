@@ -9,7 +9,7 @@
 
 # topic frequencies
 /calibration_params/imu_hz: 200
-/calibration_params/camera_hz: 10
+/calibration_params/camera_hz: 20
 /calibration_params/lidar_hz: 10
 
 # calibrations
