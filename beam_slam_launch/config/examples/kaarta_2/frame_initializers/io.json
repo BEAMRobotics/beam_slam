@@ -3,6 +3,6 @@
   "info": "/local_mapper/inertial_odometry/odometry",
   "sensor_frame_id_override": "",
   "T_ORIGINAL_OVERRIDE": [],
-  "queue_size": 100,
+  "queue_size": 1000,
   "poses_buffer_time": 30
 }
