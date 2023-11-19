@@ -47,6 +47,7 @@ public:
     if (init_mode != "VISUAL" && init_mode != "LIDAR") {
       ROS_ERROR("Invalid init mode type, options: 'VISUAL', 'LIDAR'.");
     }
+
     // maximum optimizaiton time in seconds
     getParam<double>(nh, "max_optimization_s", max_optimization_s, 1.0);
 
@@ -88,20 +89,26 @@ public:
 
     /// Load all information matrix weights for the optimization problem
     std::string info_weights_config;
+
     getParamRequired<std::string>(
         nh, "/local_mapper/information_weights_config", info_weights_config);
     nlohmann::json info_weights;
-    beam::ReadJson(beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
-                                      info_weights_config),
-                   info_weights);
-    getParamJson<double>(info_weights, "inertial_information_weight",
-                         inertial_information_weight,
-                         inertial_information_weight);
-    getParamJson<double>(info_weights, "lidar_information_weight",
-                         lidar_information_weight, lidar_information_weight);
-    getParamJson<double>(info_weights, "reprojection_information_weight",
-                         reprojection_information_weight,
-                         reprojection_information_weight);
+
+    std::string info_weights_path = beam::CombinePaths(
+        bs_common::GetBeamSlamConfigPath(), info_weights_config);
+    ROS_INFO("reading info weights from from: %s", info_weights_path.c_str());
+    if (!beam::ReadJson(info_weights_path, info_weights)) {
+      ROS_ERROR("cannot read info weights json, using defaults");
+    } else {
+      getParamJson<double>(info_weights, "inertial_information_weight",
+                           inertial_information_weight,
+                           inertial_information_weight);
+      getParamJson<double>(info_weights, "lidar_information_weight",
+                           lidar_information_weight, lidar_information_weight);
+      getParamJson<double>(info_weights, "reprojection_information_weight",
+                           reprojection_information_weight,
+                           reprojection_information_weight);
+    }
 
     // reprojection loss
     double reprojection_loss_a = 5.0 * reprojection_information_weight;
@@ -129,6 +136,7 @@ public:
         beam::CombinePaths(bs_common::GetBeamSlamConfigPath(), vo_config);
     nlohmann::json J;
 
+    ROS_INFO("reading vo params from: %s", vo_params.c_str());
     if (!beam::ReadJson(vo_params, J)) {
       ROS_ERROR("Invalid VO config path, using default params.");
       return;
