@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 10
-pseudo_marginalization: false
+pseudo_marginalization: true
 information_weights_config: '/optimization/lvio_information_weights.json'
 
 solver_options:
@@ -25,6 +25,8 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
+  - name: 'lidar_deskewer'
+    type: 'bs_models::LidarScanDeskewer'
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
   - name: 'graph_visualization'
@@ -35,14 +37,14 @@ publishers:
     type: 'bs_publishers::Path3DPublisher'
 
 visual_feature_tracker:
-  image_topic: '/monocular_camera/image_debayered'
+  image_topic: '/F1/image'
   descriptor_config: 'examples/ig3/vo/orb_descriptor.json'
   detector_config: 'examples/ig3/vo/fastssc_detector.json'
   tracker_config: 'examples/ig3/vo/tracker.json'
 
 slam_initialization:
   imu_topic: "/imu/data"
-  lidar_topic: "/velodyne_packets_unpacked"
+  lidar_topic: "/lidar_h/velodyne_points"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
   min_trajectory_length_m: 2.5
@@ -57,9 +59,14 @@ inertial_odometry:
 visual_odometry:
   vo_config: "vo/vo_params.json"
   frame_initializer_config: "examples/ig3/frame_initializers/io.json"
-  keyframe_parallax: 20.0
+  keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
   use_standalone_vo: true
+
+lidar_deskewer:
+  input_topic: '/lidar_h/velodyne_points'
+  lidar_type: 'VELODYNE'
+  frame_initializer_config: "frame_initializers/io.json"
 
 lidar_odometry:
   registration_config: 'examples/ig3/registration/scan_to_map.json'
@@ -67,7 +74,7 @@ lidar_odometry:
   lidar_type: 'VELODYNE'
   trigger_inertial_odom_constraints: true
   input_filters_config:  '' # 'lidar_filters/input_filters.json'
-  input_topic: '/velodyne_packets_unpacked'
+  input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true
   output_lidar_points: true
   publish_registration_map: false

@@ -19,9 +19,12 @@ public:
     getParamRequired<std::string>(nh, "imu_topic", imu_topic);
 
     // weighting factor of inertial information matrix
+    std::string info_weights_config;
+    getParamRequired<std::string>(
+        nh, "/local_mapper/information_weights_config", info_weights_config);
     nlohmann::json info_weights;
     beam::ReadJson(beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
-                                      "optimization/information_weights.json"),
+                                      info_weights_config),
                    info_weights);
     getParamJson<double>(info_weights, "gravity_information_weight",
                          gravity_information_weight,

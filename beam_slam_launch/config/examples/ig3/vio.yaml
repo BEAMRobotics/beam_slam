@@ -55,7 +55,7 @@ inertial_odometry:
 visual_odometry:
   vo_config: "examples/ig3/vo/vo_params.json"
   frame_initializer_config: "frame_initializers/io.json"
-  keyframe_parallax: 20.0
+  keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
   use_standalone_vo: false
 
