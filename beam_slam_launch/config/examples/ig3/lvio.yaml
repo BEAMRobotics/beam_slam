@@ -29,12 +29,8 @@ sensor_models:
     type: 'bs_models::LidarScanDeskewer'
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
-  - name: 'graph_visualization'
-    type: 'bs_models::GraphVisualization'
-
-publishers:
-  - name: 'path_publisher'
-    type: 'bs_publishers::Path3DPublisher'
+  - name: 'graph_publisher'
+    type: 'bs_models::GraphPublisher'
 
 visual_feature_tracker:
   image_topic: '/F1/image'
@@ -77,7 +73,7 @@ lidar_odometry:
   input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
   output_loam_points: true
   output_lidar_points: true
-  publish_registration_map: false
+  publish_registration_map: true
   publish_registration_results: false
   frame_initializer_config: "examples/ig3/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
@@ -86,7 +82,3 @@ lidar_odometry:
   save_graph_updates: true
   save_marginalized_scans: true
   save_scan_registration_results: true
-
-path_publisher:
-  path_topic: 'path' # Default: path
-  pose_array_topic: 'pose_array' # Default: pose_array

@@ -25,14 +25,10 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
-  - name: 'graph_visualization'
-    type: 'bs_models::GraphVisualization'
+  - name: 'graph_publisher'
+    type: 'bs_models::GraphPublisher'
   # - name: 'gravity_alignment'
   #   type: 'bs_models::GravityAlignment'
-
-publishers:
-  - name: 'path_publisher'
-    type: 'bs_publishers::Path3DPublisher'
 
 visual_feature_tracker:
   image_topic: '/F1/image'
@@ -65,6 +61,3 @@ gravity_alignment:
   imu_topic: "/imu/data"
   constraint_odom_topic: "/local_mapper/visual_odometry/odometry"
 
-path_publisher:
-  path_topic: 'path' # Default: path
-  pose_array_topic: 'pose_array' # Default: pose_array

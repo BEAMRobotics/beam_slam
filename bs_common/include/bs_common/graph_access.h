@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <bs_variables/accel_bias_3d_stamped.h>
@@ -72,8 +73,7 @@ int GetNumberOfVariables(const fuse_core::Graph& graph);
  * @return pointer to variable
  */
 bs_variables::GyroscopeBias3DStamped::SharedPtr
-    GetGyroscopeBias(const fuse_core::Graph& graph,
-                     const ros::Time& stamp);
+    GetGyroscopeBias(const fuse_core::Graph& graph, const ros::Time& stamp);
 
 /**
  * @brief Gets a pointer to an accel bias variable if it exists (nullptr
@@ -83,8 +83,7 @@ bs_variables::GyroscopeBias3DStamped::SharedPtr
  * @return pointer to variable
  */
 bs_variables::AccelerationBias3DStamped::SharedPtr
-    GetAccelBias(const fuse_core::Graph& graph,
-                 const ros::Time& stamp);
+    GetAccelBias(const fuse_core::Graph& graph, const ros::Time& stamp);
 
 /**
  * @brief Gets a pointer to a position variable if it exists (nullptr
@@ -104,8 +103,7 @@ fuse_variables::Position3DStamped::SharedPtr
  * @return pointer to variable
  */
 fuse_variables::Orientation3DStamped::SharedPtr
-    GetOrientation(const fuse_core::Graph& graph,
-                   const ros::Time& stamp);
+    GetOrientation(const fuse_core::Graph& graph, const ros::Time& stamp);
 
 /**
  * @brief Gets a pointer to a velocity variable if it exists (nullptr
@@ -125,8 +123,7 @@ fuse_variables::VelocityLinear3DStamped::SharedPtr
  * @return pointer to variable
  */
 fuse_variables::VelocityAngular3DStamped::SharedPtr
-    GetAngularVelocity(const fuse_core::Graph& graph,
-                       const ros::Time& stamp);
+    GetAngularVelocity(const fuse_core::Graph& graph, const ros::Time& stamp);
 
 /**
  * @brief Gets a pointer to a linear acceleration variable if it exists
@@ -152,6 +149,14 @@ std::set<ros::Time> CurrentTimestamps(const fuse_core::Graph& graph);
  * @return set of landmark ids
  */
 std::set<uint64_t> CurrentLandmarkIDs(const fuse_core::Graph& graph);
+
+/**
+ * @brief return graph poses
+ * @param graph to search in
+ * @return map from timestamp to T_World_Baselink
+ */
+std::map<ros::Time, Eigen::Matrix4d>
+    GetGraphPoses(const fuse_core::Graph& graph);
 
 /// @brief Gets landmark variable from graph
 /// @param graph to search in
@@ -183,12 +188,11 @@ beam::opt<Eigen::Matrix4d> GetExtrinsic(const fuse_core::Graph& graph,
 /// @param graph to search in
 /// @return set of landmark ids
 bs_variables::InverseDepthLandmark::SharedPtr
-    GetInverseDepthLandmark(const fuse_core::Graph& graph,
-                            const uint64_t id);
+    GetInverseDepthLandmark(const fuse_core::Graph& graph, const uint64_t id);
 /// @brief
 /// @param graph
 /// @param stamp
 /// @return
-beam::opt<bs_common::ImuState>
-    GetImuState(const fuse_core::Graph& graph, const ros::Time& stamp);
+beam::opt<bs_common::ImuState> GetImuState(const fuse_core::Graph& graph,
+                                           const ros::Time& stamp);
 } // namespace bs_common

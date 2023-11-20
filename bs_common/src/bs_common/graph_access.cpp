@@ -101,8 +101,7 @@ int GetNumberOfVariables(const fuse_core::Graph& graph) {
 }
 
 bs_variables::GyroscopeBias3DStamped::SharedPtr
-    GetGyroscopeBias(const fuse_core::Graph& graph,
-                     const ros::Time& stamp) {
+    GetGyroscopeBias(const fuse_core::Graph& graph, const ros::Time& stamp) {
   auto gyro_bias = bs_variables::GyroscopeBias3DStamped::make_shared();
   const auto bg_uuid =
       fuse_core::uuid::generate(gyro_bias->type(), stamp, fuse_core::uuid::NIL);
@@ -114,8 +113,7 @@ bs_variables::GyroscopeBias3DStamped::SharedPtr
 }
 
 bs_variables::AccelerationBias3DStamped::SharedPtr
-    GetAccelBias(const fuse_core::Graph& graph,
-                 const ros::Time& stamp) {
+    GetAccelBias(const fuse_core::Graph& graph, const ros::Time& stamp) {
   auto accel_bias = bs_variables::AccelerationBias3DStamped::make_shared();
   const auto ba_uuid = fuse_core::uuid::generate(accel_bias->type(), stamp,
                                                  fuse_core::uuid::NIL);
@@ -127,8 +125,7 @@ bs_variables::AccelerationBias3DStamped::SharedPtr
 }
 
 fuse_variables::Position3DStamped::SharedPtr
-    GetPosition(const fuse_core::Graph& graph,
-                const ros::Time& stamp) {
+    GetPosition(const fuse_core::Graph& graph, const ros::Time& stamp) {
   auto position = fuse_variables::Position3DStamped::make_shared();
   const auto pos_uuid =
       fuse_core::uuid::generate(position->type(), stamp, fuse_core::uuid::NIL);
@@ -140,8 +137,7 @@ fuse_variables::Position3DStamped::SharedPtr
 }
 
 fuse_variables::Orientation3DStamped::SharedPtr
-    GetOrientation(const fuse_core::Graph& graph,
-                   const ros::Time& stamp) {
+    GetOrientation(const fuse_core::Graph& graph, const ros::Time& stamp) {
   auto orientation = fuse_variables::Orientation3DStamped::make_shared();
   const auto or_uuid = fuse_core::uuid::generate(orientation->type(), stamp,
                                                  fuse_core::uuid::NIL);
@@ -153,8 +149,7 @@ fuse_variables::Orientation3DStamped::SharedPtr
 }
 
 fuse_variables::VelocityLinear3DStamped::SharedPtr
-    GetVelocity(const fuse_core::Graph& graph,
-                const ros::Time& stamp) {
+    GetVelocity(const fuse_core::Graph& graph, const ros::Time& stamp) {
   auto velocity = fuse_variables::VelocityLinear3DStamped::make_shared();
   const auto vel_uuid =
       fuse_core::uuid::generate(velocity->type(), stamp, fuse_core::uuid::NIL);
@@ -166,8 +161,7 @@ fuse_variables::VelocityLinear3DStamped::SharedPtr
 }
 
 fuse_variables::VelocityAngular3DStamped::SharedPtr
-    GetAngularVelocity(const fuse_core::Graph& graph,
-                       const ros::Time& stamp) {
+    GetAngularVelocity(const fuse_core::Graph& graph, const ros::Time& stamp) {
   auto velocity = fuse_variables::VelocityAngular3DStamped::make_shared();
   const auto vel_uuid =
       fuse_core::uuid::generate(velocity->type(), stamp, fuse_core::uuid::NIL);
@@ -221,6 +215,48 @@ std::set<uint64_t> CurrentLandmarkIDs(const fuse_core::Graph& graph) {
   return ids;
 }
 
+std::map<ros::Time, Eigen::Matrix4d>
+    GetGraphPoses(const fuse_core::Graph& graph) {
+  std::map<ros::Time, Eigen::Matrix4d> poses;
+  const auto var_range = graph.getVariables();
+  for (auto var_it = var_range.begin(); var_it != var_range.end(); var_it++) {
+    if (var_it->type() == "fuse_variables::Position3DStamped") {
+      auto v = dynamic_cast<const fuse_variables::Position3DStamped&>(*var_it);
+      auto pose_it = poses.find(v.stamp());
+      if (pose_it != poses.end()) {
+        pose_it->second(0, 3) = v.x();
+        pose_it->second(1, 3) = v.y();
+        pose_it->second(2, 3) = v.z();
+      } else {
+        Eigen::Matrix4d T_World_Baselink = Eigen::Matrix4d::Identity();
+        T_World_Baselink(0, 3) = v.x();
+        T_World_Baselink(1, 3) = v.y();
+        T_World_Baselink(2, 3) = v.z();
+        poses.emplace(v.stamp(), T_World_Baselink);
+      }
+    } else if (var_it->type() == "fuse_variables::Orientation3DStamped") {
+      auto v =
+          dynamic_cast<const fuse_variables::Orientation3DStamped&>(*var_it);
+      auto pose_it = poses.find(v.stamp());
+      Eigen::Quaterniond q;
+      q.x() = v.x();
+      q.y() = v.y();
+      q.z() = v.z();
+      q.w() = v.w();
+      Eigen::Matrix3d R_World_Baselink(q);
+      if (pose_it != poses.end()) {
+        pose_it->second.block(0, 0, 3, 3) = R_World_Baselink;
+      } else {
+        Eigen::Matrix4d T_World_Baselink = Eigen::Matrix4d::Identity();
+        T_World_Baselink.block(0, 0, 3, 3) = R_World_Baselink;
+        poses.emplace(v.stamp(), T_World_Baselink);
+      }
+    }
+  }
+
+  return poses;
+}
+
 bs_variables::Point3DLandmark::SharedPtr
     GetLandmark(const fuse_core::Graph& graph, const uint64_t id) {
   auto lm = bs_variables::Point3DLandmark::make_shared();
@@ -233,8 +269,7 @@ bs_variables::Point3DLandmark::SharedPtr
 }
 
 bs_variables::InverseDepthLandmark::SharedPtr
-    GetInverseDepthLandmark(const fuse_core::Graph& graph,
-                            const uint64_t id) {
+    GetInverseDepthLandmark(const fuse_core::Graph& graph, const uint64_t id) {
   auto lm = bs_variables::InverseDepthLandmark::make_shared();
   auto lm_uuid = fuse_core::uuid::generate(lm->type(), id);
   try {
@@ -251,8 +286,7 @@ bs_variables::Position3D::SharedPtr
   auto p = bs_variables::Position3D::make_shared();
   auto uuid = fuse_core::uuid::generate(p->type(), child_frame + parent_frame);
   try {
-    *p =
-        dynamic_cast<const bs_variables::Position3D&>(graph.getVariable(uuid));
+    *p = dynamic_cast<const bs_variables::Position3D&>(graph.getVariable(uuid));
   } catch (const std::out_of_range& oor) { return nullptr; }
   return p;
 }
@@ -283,15 +317,14 @@ beam::opt<Eigen::Matrix4d> GetExtrinsic(const fuse_core::Graph& graph,
   }
 }
 
-beam::opt<bs_common::ImuState>
-    GetImuState(const fuse_core::Graph& graph,
-                const ros::Time& stamp) {
+beam::opt<bs_common::ImuState> GetImuState(const fuse_core::Graph& graph,
+                                           const ros::Time& stamp) {
   auto p = bs_common::GetPosition(graph, stamp);
   auto o = bs_common::GetOrientation(graph, stamp);
   auto v = bs_common::GetVelocity(graph, stamp);
   auto ba = bs_common::GetAccelBias(graph, stamp);
   auto bg = bs_common::GetGyroscopeBias(graph, stamp);
-  
+
   if (!p || !o || !v || !ba || !bg) { return {}; }
   bs_common::ImuState imu_state(stamp);
   imu_state.SetPosition(*p);

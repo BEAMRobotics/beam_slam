@@ -23,14 +23,10 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
   - name: 'lidar_odometry'
     type: 'bs_models::LidarOdometry'
-  - name: 'graph_visualization'
-    type: 'bs_models::GraphVisualization'
+  - name: 'graph_publisher'
+    type: 'bs_models::GraphPublisher'
   - name: 'lidar_deskewer'
     type: 'bs_models::LidarScanDeskewer'
-
-publishers:
-  - name: 'path_publisher'
-    type: 'bs_publishers::Path3DPublisher'
 
 slam_initialization:
   imu_topic: "/imu/data"
@@ -70,7 +66,3 @@ lidar_odometry:
   save_graph_updates: true
   save_marginalized_scans: true
   save_scan_registration_results: true
-
-path_publisher:
-  path_topic: 'path' # Default: path
-  pose_array_topic: 'pose_array' # Default: pose_array

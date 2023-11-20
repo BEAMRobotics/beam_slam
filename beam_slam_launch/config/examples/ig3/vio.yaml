@@ -25,12 +25,8 @@ sensor_models:
     type: 'bs_models::InertialOdometry'
   - name: 'visual_odometry'
     type: 'bs_models::VisualOdometry'
-  - name: 'graph_visualization'
-    type: 'bs_models::GraphVisualization'
-
-publishers:
-  - name: 'path_publisher'
-    type: 'bs_publishers::Path3DPublisher'
+  - name: 'graph_publisher'
+    type: 'bs_models::GraphPublisher'
 
 visual_feature_tracker:
   image_topic: '/F1/image'
@@ -58,7 +54,3 @@ visual_odometry:
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
   use_standalone_vo: false
-
-path_publisher:
-  path_topic: 'path' # Default: path
-  pose_array_topic: 'pose_array' # Default: pose_array

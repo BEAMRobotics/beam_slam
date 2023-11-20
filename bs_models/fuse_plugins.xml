@@ -50,6 +50,11 @@
       Visualize graph contents
     </description>
   </class>    
+  <class type="bs_models::GraphPublisher" base_class_type="fuse_core::SensorModel">
+    <description>
+      Publish graph poses as path, marginalized poses as odom, and camera features
+    </description>
+  </class>    
   <class type="bs_models::experimental::LidarAggregation" base_class_type="fuse_core::SensorModel">
     <description>
       A sensor model for aggregating and motion compensating lidar data

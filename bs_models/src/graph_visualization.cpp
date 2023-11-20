@@ -220,7 +220,7 @@ void GraphVisualization::VisualizeCameraLandmarks(
 
     const auto img_msg = image_buffer_[nsec];
     cv::Mat image_out = beam_cv::OpenCVConversions::RosImgToMat(img_msg);
-    if(image_out.type() == CV_8UC1){
+    if (image_out.type() == CV_8UC1) {
       cv::Mat dst;
       cv::cvtColor(image_out, dst, cv::COLOR_GRAY2BGR);
       image_out = dst;
@@ -249,8 +249,8 @@ void GraphVisualization::VisualizeCameraLandmarks(
                   .hnormalized();
         } else if (idp_lm_variable) {
           Eigen::Vector3d anchor_t_point = idp_lm_variable->camera_t_point();
-          const auto p = bs_common::GetPosition(
-              *graph_msg, idp_lm_variable->anchorStamp());
+          const auto p = bs_common::GetPosition(*graph_msg,
+                                                idp_lm_variable->anchorStamp());
           const auto o = bs_common::GetOrientation(
               *graph_msg, idp_lm_variable->anchorStamp());
           if (!o || !p) { continue; }
