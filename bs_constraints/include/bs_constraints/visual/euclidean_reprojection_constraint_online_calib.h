@@ -43,8 +43,8 @@ public:
       const fuse_variables::Orientation3DStamped& R_WORLD_BASELINK,
       const fuse_variables::Position3DStamped& t_WORLD_BASELINK,
       const bs_variables::Point3DLandmark& P_WORLD,
-      const bs_variables::Orientation3D& R_CAM_BASELINK,
-      const bs_variables::Position3D& t_CAM_BASELINK,
+      const bs_variables::Orientation3D& R_BASELINK_CAM,
+      const bs_variables::Position3D& t_BASELINK_CAM,
       const Eigen::Matrix3d& intrinsic_matrix,
       const Eigen::Vector2d& measurement,
       const double reprojection_information_weight);

@@ -76,6 +76,7 @@ void VisualOdometry::onInit() {
 
   // get extrinsics
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
+  T_baselink_cam_ = beam::InvertTransform(T_cam_baselink_);
 
   // compute the max container size
   ros::param::get("/local_mapper/lag_duration", lag_duration_);
@@ -314,9 +315,11 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   // update T_cam_baselink_ from the graph if it exists
   if (vo_params_.use_online_calibration) {
     auto maybe_extrinsic =
-        bs_common::GetExtrinsic(*graph, extrinsics_.GetCameraFrameId(),
-                                extrinsics_.GetBaselinkFrameId());
-    if (maybe_extrinsic) { T_cam_baselink_ = maybe_extrinsic.value(); }
+        bs_common::GetExtrinsic(*graph, extrinsics_.GetBaselinkFrameId(), extrinsics_.GetCameraFrameId());
+    if (maybe_extrinsic) {
+      T_baselink_cam_ = maybe_extrinsic.value();
+      T_cam_baselink_ = beam::InvertTransform(T_baselink_cam_);
+    }
   }
 
   // do initial setup
@@ -954,7 +957,7 @@ fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
   }
 
   // retrieve previous keyframe pose from the local graph
-  auto T_WORLD_BASELINKprevkf =
+  const auto T_WORLD_BASELINKprevkf =
       visual_map_->GetBaselinkPose(previous_keyframe_);
   if (!T_WORLD_BASELINKprevkf.has_value()) {
     ROS_FATAL("Cannot retrieve previous keyframe pose.");
@@ -963,12 +966,12 @@ fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
 
   // compute relative motion between this frame and previous keyframe in the
   // local graph
-  auto T_prevkf_curframe =
+  const auto T_prevkf_curframe =
       beam::InvertTransform(T_WORLD_BASELINKprevkf.value()) *
       T_WORLD_BASELINKcurframe;
 
   // compute pose of this frame wrt the main graph
-  Eigen::Matrix4d T_WORLDmain_BASELINKcurframe =
+  const Eigen::Matrix4d T_WORLDmain_BASELINKcurframe =
       T_WORLDmain_BASELINKprevkf * T_prevkf_curframe;
 
   // send a relative pose constraint to the main graph
@@ -994,17 +997,27 @@ fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
   pose_transaction->addVariable(position);
   pose_transaction->addVariable(orientation);
 
-  fuse_core::Vector7d delta_prevkf_curframe =
-      bs_common::ComputeDelta(T_prevkf_curframe);
-  Eigen::Matrix<double, 6, 6> weighted_cov =
+  const Eigen::Matrix<double, 6, 6> weighted_cov =
       vo_params_.odom_covariance_weight * covariance;
   if (!vo_params_.use_online_calibration) {
+    const fuse_core::Vector7d delta_prevkf_curframe =
+        bs_common::ComputeDelta(T_prevkf_curframe);
     visual_map_->AddRelativePoseConstraint(
         previous_keyframe_, timestamp_curframe, delta_prevkf_curframe,
         weighted_cov, pose_transaction);
   } else {
-    // todo: use nicks online calib relative pose thing
-    // todo: compute the delta wrt camera pose not baselink
+    // compute the delta wrt camera pose not baselink
+    const Eigen::Matrix4d T_CAMprevkf_WORLD =
+        T_cam_baselink_ * beam::InvertTransform(T_WORLD_BASELINKprevkf.value());
+    const Eigen::Matrix4d T_WORLD_CAMcurframe =
+        T_WORLD_BASELINKcurframe * T_baselink_cam_;
+    const Eigen::Matrix4d T_CAMprevkf_CAMcurframe =
+        T_CAMprevkf_WORLD * T_WORLD_CAMcurframe;
+    const fuse_core::Vector7d delta_prevkf_curframe =
+        bs_common::ComputeDelta(T_CAMprevkf_CAMcurframe);
+    visual_map_->AddRelativePoseConstraintOnlineCalib(
+        previous_keyframe_, timestamp_curframe, delta_prevkf_curframe,
+        weighted_cov, pose_transaction);
   }
   return pose_transaction;
 }

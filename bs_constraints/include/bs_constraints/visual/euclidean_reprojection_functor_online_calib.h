@@ -38,7 +38,7 @@ public:
   template <typename T>
   bool operator()(const T* const o_WORLD_BASELINK,
                   const T* const p_WORLD_BASELINK, const T* const P,
-                  const T* const o_CAM_BASELINK, const T* const p_CAM_BASELINK,
+                  const T* const o_BASELINK_CAM, const T* const p_BASELINK_CAM,
                   T* residual) const {
     Eigen::Matrix<T, 3, 1> P_WORLD(P[0], P[1], P[2]);
 
@@ -46,9 +46,12 @@ public:
         bs_constraints::OrientationAndPositionToTransformationMatrix(
             o_WORLD_BASELINK, p_WORLD_BASELINK);
 
-    Eigen::Matrix<T, 4, 4> T_CAM_BASELINK =
+    Eigen::Matrix<T, 4, 4> T_BASELINK_CAM =
         bs_constraints::OrientationAndPositionToTransformationMatrix(
-            o_CAM_BASELINK, p_CAM_BASELINK);
+            o_BASELINK_CAM, p_BASELINK_CAM);
+
+    Eigen::Matrix<T, 4, 4> T_CAM_BASELINK =
+        bs_constraints::InvertTransform(T_BASELINK_CAM);
 
     Eigen::Matrix<T, 4, 4> T_BASELINK_WORLD =
         bs_constraints::InvertTransform(T_WORLD_BASELINK);

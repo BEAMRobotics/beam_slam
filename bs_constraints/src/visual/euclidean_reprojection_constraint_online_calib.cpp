@@ -18,15 +18,15 @@ EuclideanReprojectionConstraintOnlineCalib::
         const fuse_variables::Orientation3DStamped& R_WORLD_BASELINK,
         const fuse_variables::Position3DStamped& t_WORLD_BASELINK,
         const bs_variables::Point3DLandmark& P_WORLD,
-        const bs_variables::Orientation3D& R_CAM_BASELINK,
-        const bs_variables::Position3D& t_CAM_BASELINK,
+        const bs_variables::Orientation3D& R_BASELINK_CAM,
+        const bs_variables::Position3D& t_BASELINK_CAM,
         const Eigen::Matrix3d& intrinsic_matrix,
         const Eigen::Vector2d& measurement,
         const double reprojection_information_weight)
     : fuse_core::Constraint(source,
                             {R_WORLD_BASELINK.uuid(), t_WORLD_BASELINK.uuid(),
-                             P_WORLD.uuid(), R_CAM_BASELINK.uuid(),
-                             t_CAM_BASELINK.uuid()}),
+                             P_WORLD.uuid(), R_BASELINK_CAM.uuid(),
+                             t_BASELINK_CAM.uuid()}),
       intrinsic_matrix_(intrinsic_matrix),
       pixel_(measurement),
       sqrt_information_(reprojection_information_weight *
@@ -42,8 +42,8 @@ void EuclideanReprojectionConstraintOnlineCalib::print(
 
 ceres::CostFunction*
     EuclideanReprojectionConstraintOnlineCalib::costFunction() const {
-  return new ceres::AutoDiffCostFunction<EuclideanReprojectionFunctorOnlineCalib, 2, 4, 3,
-                                         3, 4, 3>(
+  return new ceres::AutoDiffCostFunction<
+      EuclideanReprojectionFunctorOnlineCalib, 2, 4, 3, 3, 4, 3>(
       new EuclideanReprojectionFunctorOnlineCalib(sqrt_information_, pixel_,
                                                   intrinsic_matrix_));
 }

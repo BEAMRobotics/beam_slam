@@ -4,9 +4,9 @@
 #include <unordered_map>
 
 #include <bs_variables/inverse_depth_landmark.h>
+#include <bs_variables/orientation_3d.h>
 #include <bs_variables/point_3d_landmark.h>
 #include <bs_variables/position_3d.h>
-#include <bs_variables/orientation_3d.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/graph.h>
@@ -186,6 +186,15 @@ public:
                                  fuse_core::Transaction::SharedPtr transaction);
 
   /**
+   * @brief Adds a relative pose constraint between two poses
+   */
+  void AddRelativePoseConstraintOnlineCalib(
+      const ros::Time& stamp1, const ros::Time& stamp2,
+      const fuse_core::Vector7d& delta,
+      const Eigen::Matrix<double, 6, 6>& covariance,
+      fuse_core::Transaction::SharedPtr transaction);
+
+  /**
    * @brief Adds orientation in baselink frame
    * @param stamp associated to orientation
    * @param q_WORLD_BASELINK quaternion representing orientation
@@ -302,8 +311,8 @@ protected:
       landmark_positions_;
   std::map<uint64_t, bs_variables::InverseDepthLandmark::SharedPtr>
       inversedepth_landmark_positions_;
-  bs_variables::Position3D::SharedPtr p_CAM_BASELINK_;
-  bs_variables::Orientation3D::SharedPtr o_CAM_BASELINK_;
+  bs_variables::Position3D::SharedPtr p_BASELINK_CAM_;
+  bs_variables::Orientation3D::SharedPtr o_BASELINK_CAM_;
 
   // copy of the current graph
   fuse_core::Graph::SharedPtr graph_;
@@ -316,6 +325,7 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
+  Eigen::Matrix4d T_baselink_cam_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 
