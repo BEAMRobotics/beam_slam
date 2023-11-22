@@ -57,7 +57,7 @@ visual_odometry:
   frame_initializer_config: "examples/ig3/frame_initializers/io.json"
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
-  use_standalone_vo: true
+  use_standalone_vo: false
 
 lidar_deskewer:
   input_topic: '/lidar_h/velodyne_points'
@@ -75,7 +75,7 @@ lidar_odometry:
   output_lidar_points: true
   publish_registration_map: true
   publish_registration_results: false
-  frame_initializer_config: "examples/ig3/frame_initializers/io.json"
+  frame_initializer_config: "examples/ig3/frame_initializers/vo.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 
   # these are only relevant if scan_output_directory is not empty

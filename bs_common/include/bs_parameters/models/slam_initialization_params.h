@@ -154,6 +154,8 @@ public:
                          track_outlier_pixel_threshold);
     getParamJson<bool>(J, "local_map_matching", local_map_matching,
                        local_map_matching);
+    getParamJson<bool>(J, "use_online_calibration", use_online_calibration,
+                       use_online_calibration);
   }
 
   std::string visual_measurement_topic{"/feature_tracker/visual_measurements"};
@@ -178,6 +180,7 @@ public:
   double initialization_window_s{10.0};
 
   // vo params
+  bool use_online_calibration{false};
   bool use_idp{false};
   bool local_map_matching{false};
   double max_triangulation_distance{30.0};

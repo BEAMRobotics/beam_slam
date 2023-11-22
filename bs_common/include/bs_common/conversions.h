@@ -24,6 +24,10 @@ void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
                               fuse_variables::Position3DStamped& p,
                               fuse_variables::Orientation3DStamped& o);
 
+void EigenTransformToFusePose(const Eigen::Matrix4d& T_WORLD_SENSOR,
+                              bs_variables::Position3D& p,
+                              bs_variables::Orientation3D& o);
+
 void FusePoseToEigenTransform(const fuse_variables::Position3DStamped& p,
                               const fuse_variables::Orientation3DStamped& o,
                               Eigen::Matrix4d& T_WORLD_SENSOR);

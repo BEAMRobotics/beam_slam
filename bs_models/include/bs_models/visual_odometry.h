@@ -272,6 +272,7 @@ private:
 
   /// @brief robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
+  Eigen::Matrix4d T_baselink_cam_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
 

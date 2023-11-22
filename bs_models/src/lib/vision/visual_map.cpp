@@ -7,7 +7,10 @@
 
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
+#include <bs_constraints/global/absolute_pose_3d_constraint.h>
+#include <bs_constraints/relative_pose/relative_pose_3d_stamped_with_extrinsics_constraint.h>
 #include <bs_constraints/visual/euclidean_reprojection_constraint.h>
+#include <bs_constraints/visual/euclidean_reprojection_constraint_online_calib.h>
 #include <bs_constraints/visual/inversedepth_reprojection_constraint.h>
 #include <bs_constraints/visual/inversedepth_reprojection_constraint_unary.h>
 #include <fuse_constraints/absolute_pose_3d_stamped_constraint.h>
@@ -18,11 +21,15 @@ namespace bs_models { namespace vision {
 VisualMap::VisualMap(const std::string& source,
                      std::shared_ptr<beam_calibration::CameraModel> cam_model,
                      fuse_core::Loss::SharedPtr loss_function,
-                     const double reprojection_information_weight)
+                     const double reprojection_information_weight,
+                     const bool use_online_calibration,
+                     const bool add_calibration_prior)
     : source_(source),
       cam_model_(cam_model),
       loss_function_(loss_function),
-      reprojection_information_weight_(reprojection_information_weight) {
+      reprojection_information_weight_(reprojection_information_weight),
+      use_online_calibration_(use_online_calibration),
+      add_calibration_prior_(add_calibration_prior) {
   cam_model_->InitUndistortMap();
   camera_intrinsic_matrix_ =
       cam_model->GetRectifiedModel()->GetIntrinsicMatrix();
@@ -30,6 +37,7 @@ VisualMap::VisualMap(const std::string& source,
     ROS_ERROR("Unable to get baselink to camera transform.");
     throw std::runtime_error("Unable to get baselink to camera transform.");
   }
+  T_baselink_cam_ = beam::InvertTransform(T_cam_baselink_);
 }
 
 beam::opt<Eigen::Matrix4d> VisualMap::GetCameraPose(const ros::Time& stamp) {
@@ -165,6 +173,9 @@ fuse_variables::Position3DStamped::SharedPtr
 bool VisualMap::AddVisualConstraint(
     const ros::Time& stamp, uint64_t lm_id, const Eigen::Vector2d& pixel,
     fuse_core::Transaction::SharedPtr transaction) {
+  // if the camera calibration hasn't been added yet
+  if (!calibration_added_) { AddCameraCalibration(transaction); }
+
   // get landmark
   bs_variables::Point3DLandmark::SharedPtr lm = GetLandmark(lm_id);
 
@@ -183,13 +194,23 @@ bool VisualMap::AddVisualConstraint(
   if (!position || !orientation) { return false; }
   try {
     if (lm) {
-      auto vis_constraint =
-          std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
-              source_, *orientation, *position, *lm, T_cam_baselink_,
-              camera_intrinsic_matrix_, measurement,
-              reprojection_information_weight_);
-      vis_constraint->loss(loss_function_);
-      transaction->addConstraint(vis_constraint);
+      if (!use_online_calibration_) {
+        auto vis_constraint =
+            std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
+                source_, *orientation, *position, *lm, T_cam_baselink_,
+                camera_intrinsic_matrix_, measurement,
+                reprojection_information_weight_);
+        vis_constraint->loss(loss_function_);
+        transaction->addConstraint(vis_constraint);
+      } else {
+        auto vis_constraint = std::make_shared<
+            bs_constraints::EuclideanReprojectionConstraintOnlineCalib>(
+            source_, *orientation, *position, *lm, *o_BASELINK_CAM_,
+            *p_BASELINK_CAM_, camera_intrinsic_matrix_, measurement,
+            reprojection_information_weight_);
+        vis_constraint->loss(loss_function_);
+        transaction->addConstraint(vis_constraint);
+      }
       return true;
     }
   } catch (const std::logic_error& le) {}
@@ -277,6 +298,9 @@ void VisualMap::AddOrientation(
   // add to transaction
   transaction->addVariable(orientation);
   orientations_[orientation->stamp().toNSec()] = orientation;
+
+  // if the camera calibration hasn't been added yet
+  if (!calibration_added_) { AddCameraCalibration(transaction); }
 }
 
 void VisualMap::AddPosition(
@@ -285,6 +309,9 @@ void VisualMap::AddPosition(
   // add to transaction
   transaction->addVariable(position);
   positions_[position->stamp().toNSec()] = position;
+
+  // if the camera calibration hasn't been added yet
+  if (!calibration_added_) { AddCameraCalibration(transaction); }
 }
 
 void VisualMap::AddLandmark(bs_variables::Point3DLandmark::SharedPtr landmark,
@@ -292,6 +319,9 @@ void VisualMap::AddLandmark(bs_variables::Point3DLandmark::SharedPtr landmark,
   // add to transaction
   transaction->addVariable(landmark);
   landmark_positions_[landmark->id()] = landmark;
+
+  // if the camera calibration hasn't been added yet
+  if (!calibration_added_) { AddCameraCalibration(transaction); }
 }
 
 void VisualMap::AddInverseDepthLandmark(
@@ -313,12 +343,18 @@ void VisualMap::AddInverseDepthLandmark(
   // add to transaction
   transaction->addVariable(landmark);
   inversedepth_landmark_positions_[landmark->id()] = landmark;
+
+  // if the camera calibration hasn't been added yet
+  if (!calibration_added_) { AddCameraCalibration(transaction); }
 }
 
 bool VisualMap::AddInverseDepthVisualConstraint(
     const ros::Time& measurement_stamp, uint64_t lm_id,
     const Eigen::Vector2d& pixel,
     fuse_core::Transaction::SharedPtr transaction) {
+  // if the camera calibration hasn't been added yet
+  if (!calibration_added_) { AddCameraCalibration(transaction); }
+
   // get landmark
   bs_variables::InverseDepthLandmark::SharedPtr lm =
       GetInverseDepthLandmark(lm_id);
@@ -431,6 +467,9 @@ void VisualMap::AddRelativePoseConstraint(
     const fuse_core::Vector7d& delta,
     const Eigen::Matrix<double, 6, 6>& covariance,
     fuse_core::Transaction::SharedPtr transaction) {
+  // if the camera calibration hasn't been added yet
+  if (!calibration_added_) { AddCameraCalibration(transaction); }
+
   const auto position1 = GetPosition(stamp1);
   const auto orientation1 = GetOrientation(stamp1);
   const auto position2 = GetPosition(stamp2);
@@ -440,6 +479,27 @@ void VisualMap::AddRelativePoseConstraint(
         std::make_shared<fuse_constraints::RelativePose3DStampedConstraint>(
             source_, *position1, *orientation1, *position2, *orientation2,
             delta, covariance);
+    transaction->addConstraint(constraint);
+  }
+}
+
+void VisualMap::AddRelativePoseConstraintOnlineCalib(
+    const ros::Time& stamp1, const ros::Time& stamp2,
+    const fuse_core::Vector7d& delta,
+    const Eigen::Matrix<double, 6, 6>& covariance,
+    fuse_core::Transaction::SharedPtr transaction) {
+  // if the camera calibration hasn't been added yet
+  if (!calibration_added_) { AddCameraCalibration(transaction); }
+
+  const auto position1 = GetPosition(stamp1);
+  const auto orientation1 = GetOrientation(stamp1);
+  const auto position2 = GetPosition(stamp2);
+  const auto orientation2 = GetOrientation(stamp2);
+  if (position1 && orientation1 && position2 && orientation2) {
+    auto constraint = std::make_shared<
+        bs_constraints::RelativePose3DStampedWithExtrinsicsConstraint>(
+        source_, *position1, *orientation1, *position2, *orientation2,
+        *p_BASELINK_CAM_, *o_BASELINK_CAM_, delta, covariance);
     transaction->addConstraint(constraint);
   }
 }
@@ -479,6 +539,23 @@ void VisualMap::UpdateGraph(const fuse_core::Graph& graph_msg) {
   for (const auto& id : lms_to_remove) {
     inversedepth_landmark_positions_.erase(id);
   }
+
+  // update T_cam_baselink_ from the graph if it exists
+  if (use_online_calibration_) {
+    auto maybe_extrinsic =
+        bs_common::GetExtrinsic(graph_msg, extrinsics_.GetBaselinkFrameId(),
+                                extrinsics_.GetCameraFrameId());
+    if (maybe_extrinsic) {
+      p_BASELINK_CAM_ = bs_common::GetPositionExtrinsic(
+          *graph_, extrinsics_.GetBaselinkFrameId(),
+          extrinsics_.GetCameraFrameId());
+      o_BASELINK_CAM_ = bs_common::GetOrientationExtrinsic(
+          *graph_, extrinsics_.GetBaselinkFrameId(),
+          extrinsics_.GetCameraFrameId());
+      T_baselink_cam_ = maybe_extrinsic.value();
+      T_cam_baselink_ = beam::InvertTransform(T_baselink_cam_);
+    }
+  }
 }
 
 void VisualMap::Clear() {
@@ -516,6 +593,34 @@ std::set<uint64_t> VisualMap::GetLandmarkIDs() {
     graph_lms.insert(id);
   }
   return graph_lms;
+}
+
+void VisualMap::AddCameraCalibration(
+    fuse_core::Transaction::SharedPtr transaction) {
+  bs_variables::Position3D::SharedPtr p =
+      std::make_shared<bs_variables::Position3D>(
+          extrinsics_.GetBaselinkFrameId(), extrinsics_.GetCameraFrameId());
+  bs_variables::Orientation3D::SharedPtr o =
+      std::make_shared<bs_variables::Orientation3D>(
+          extrinsics_.GetBaselinkFrameId(), extrinsics_.GetCameraFrameId());
+  bs_common::EigenTransformToFusePose(T_baselink_cam_, *p, *o);
+  transaction->addVariable(p);
+  transaction->addVariable(o);
+
+  if (add_calibration_prior_ && !calibration_added_) {
+    // add prior onto the variable
+    fuse_core::Vector7d mean;
+    mean << p->x(), p->y(), p->z(), o->w(), o->x(), o->y(), o->z();
+    fuse_core::Matrix6d prior_covariance =
+        1e-5 * fuse_core::Matrix6d::Identity();
+    auto prior = std::make_shared<bs_constraints::AbsolutePose3DConstraint>(
+        source_, *p, *o, mean, prior_covariance);
+    transaction->addConstraint(prior);
+  }
+
+  p_BASELINK_CAM_ = p;
+  o_BASELINK_CAM_ = o;
+  calibration_added_ = true;
 }
 
 }} // namespace bs_models::vision

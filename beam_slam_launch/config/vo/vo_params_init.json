@@ -4,5 +4,6 @@
   "reprojection_information_weight": 1.0,
   "use_idp": false,
   "track_outlier_pixel_threshold": 1.0,
-  "local_map_matching": true
+  "local_map_matching": false,
+  "use_online_calibration": true
 }

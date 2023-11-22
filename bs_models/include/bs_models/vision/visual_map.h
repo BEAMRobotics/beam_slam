@@ -4,7 +4,9 @@
 #include <unordered_map>
 
 #include <bs_variables/inverse_depth_landmark.h>
+#include <bs_variables/orientation_3d.h>
 #include <bs_variables/point_3d_landmark.h>
+#include <bs_variables/position_3d.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/graph.h>
@@ -31,7 +33,9 @@ public:
   VisualMap(const std::string& source,
             std::shared_ptr<beam_calibration::CameraModel> cam_model,
             fuse_core::Loss::SharedPtr loss_function,
-            const double reprojection_information_weight);
+            const double reprojection_information_weight,
+            const bool use_online_calibration = false,
+            const bool add_calibration_prior = false);
 
   /**
    * @brief Default destructor
@@ -182,6 +186,15 @@ public:
                                  fuse_core::Transaction::SharedPtr transaction);
 
   /**
+   * @brief Adds a relative pose constraint between two poses
+   */
+  void AddRelativePoseConstraintOnlineCalib(
+      const ros::Time& stamp1, const ros::Time& stamp2,
+      const fuse_core::Vector7d& delta,
+      const Eigen::Matrix<double, 6, 6>& covariance,
+      fuse_core::Transaction::SharedPtr transaction);
+
+  /**
    * @brief Adds orientation in baselink frame
    * @param stamp associated to orientation
    * @param q_WORLD_BASELINK quaternion representing orientation
@@ -217,6 +230,12 @@ public:
    */
   void AddPosition(fuse_variables::Position3DStamped::SharedPtr position,
                    fuse_core::Transaction::SharedPtr transaction);
+
+  /**
+   * @brief Adds camera extrinsic variable to the transaction
+   * @param transaction to add to
+   */
+  void AddCameraCalibration(fuse_core::Transaction::SharedPtr transaction);
 
   /**
    * @brief Gets all landmark ids
@@ -292,6 +311,8 @@ protected:
       landmark_positions_;
   std::map<uint64_t, bs_variables::InverseDepthLandmark::SharedPtr>
       inversedepth_landmark_positions_;
+  bs_variables::Position3D::SharedPtr p_BASELINK_CAM_;
+  bs_variables::Orientation3D::SharedPtr o_BASELINK_CAM_;
 
   // copy of the current graph
   fuse_core::Graph::SharedPtr graph_;
@@ -304,8 +325,14 @@ protected:
 
   // robot extrinsics
   Eigen::Matrix4d T_cam_baselink_;
+  Eigen::Matrix4d T_baselink_cam_;
   bs_common::ExtrinsicsLookupOnline& extrinsics_ =
       bs_common::ExtrinsicsLookupOnline::GetInstance();
+
+  // online calib stuff
+  bool use_online_calibration_{false};
+  bool calibration_added_{false};
+  bool add_calibration_prior_{false};
 };
 
 }} // namespace bs_models::vision
