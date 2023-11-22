@@ -128,6 +128,8 @@ public:
                        use_frame_init_p_to_localize);
     getParamJson<bool>(J, "local_map_matching", local_map_matching,
                        local_map_matching);
+    getParamJson<bool>(J, "use_online_calibration", use_online_calibration,
+                       use_online_calibration);
 
     if (use_standalone_vo) {
       try {
@@ -158,6 +160,7 @@ public:
   double keyframe_parallax{20.0};
 
   // main vo params
+  bool use_online_calibration{false};
   bool use_idp{false};
   bool local_map_matching{false};
   double max_triangulation_distance{30.0};

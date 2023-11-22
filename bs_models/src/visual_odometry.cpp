@@ -56,9 +56,12 @@ void VisualOdometry::onInit() {
   K_ = K;
 
   // create visual map
+  bool use_online_calib_for_reproj_constraints =
+      vo_params_.use_online_calibration && !vo_params_.use_standalone_vo;
   visual_map_ = std::make_shared<VisualMap>(
       name(), cam_model_, vo_params_.reprojection_loss,
-      vo_params_.reprojection_information_weight);
+      vo_params_.reprojection_information_weight,
+      use_online_calib_for_reproj_constraints, false);
 
   // local map matching stuff
   image_db_ = std::make_shared<beam_cv::ImageDatabase>();
@@ -307,6 +310,15 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
 void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   ROS_INFO_STREAM_ONCE("VisualOdometry received initial graph.");
   std::unique_lock<std::mutex> lk(buffer_mutex_);
+
+  // update T_cam_baselink_ from the graph if it exists
+  if (vo_params_.use_online_calibration) {
+    auto maybe_extrinsic =
+        bs_common::GetExtrinsic(*graph, extrinsics_.GetCameraFrameId(),
+                                extrinsics_.GetBaselinkFrameId());
+    if (maybe_extrinsic) { T_cam_baselink_ = maybe_extrinsic.value(); }
+  }
+
   // do initial setup
   if (!is_initialized_) {
     Initialize(graph);
@@ -986,9 +998,14 @@ fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
       bs_common::ComputeDelta(T_prevkf_curframe);
   Eigen::Matrix<double, 6, 6> weighted_cov =
       vo_params_.odom_covariance_weight * covariance;
-  visual_map_->AddRelativePoseConstraint(previous_keyframe_, timestamp_curframe,
-                                         delta_prevkf_curframe, weighted_cov,
-                                         pose_transaction);
+  if (!vo_params_.use_online_calibration) {
+    visual_map_->AddRelativePoseConstraint(
+        previous_keyframe_, timestamp_curframe, delta_prevkf_curframe,
+        weighted_cov, pose_transaction);
+  } else {
+    // todo: use nicks online calib relative pose thing
+    // todo: compute the delta wrt camera pose not baselink
+  }
   return pose_transaction;
 }
 

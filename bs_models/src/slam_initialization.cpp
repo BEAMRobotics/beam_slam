@@ -48,7 +48,8 @@ void SLAMInitialization::onInit() {
 
   visual_map_ = std::make_shared<vision::VisualMap>(
       name(), cam_model_, params_.reprojection_loss,
-      params_.reprojection_information_weight);
+      params_.reprojection_information_weight, params_.use_online_calibration,
+      true);
 
   image_db_ = std::make_shared<beam_cv::ImageDatabase>();
 

@@ -65,6 +65,7 @@ add_library(${PROJECT_NAME}
   src/motion/unicycle_3d_state_kinematic_constraint.cpp
 
   src/visual/euclidean_reprojection_constraint.cpp
+  src/visual/euclidean_reprojection_constraint_online_calib.cpp
   src/visual/inversedepth_reprojection_constraint.cpp
   src/visual/inversedepth_reprojection_constraint_unary.cpp
   
