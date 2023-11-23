@@ -215,16 +215,18 @@ void FixedLagSmoother::optimizationLoop() {
       try {
         graph_->update(*new_transaction);
       } catch (const std::exception& ex) {
-        std::ostringstream oss;
-        oss << "Graph:\n";
-        graph_->print(oss);
-        oss << "\nTransaction:\n";
-        new_transaction->print(oss);
+        std::string output_path = "/tmp/fixed_lag_smoother_error.log";
+        std::ofstream f(output_path);
+        f << "Graph:\n";
+        graph_->print(f);
+        f << "\nTransaction:\n";
+        new_transaction->print(f);
         ROS_FATAL_STREAM("Failed to update graph with transaction: "
                          << ex.what()
                          << "\nLeaving optimization loop and requesting "
                             "node shutdown...\n");
-        ROS_DEBUG_STREAM(oss.str());
+        ROS_WARN("outputting graph to: %s", output_path.c_str());
+        f.close();
         ros::requestShutdown();
         break;
       }
