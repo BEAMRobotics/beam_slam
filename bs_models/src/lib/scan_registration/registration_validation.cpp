@@ -19,13 +19,14 @@ bool RegistrationValidation::Validate(
   m.entropy = bs_common::ShannonEntropyFromPoseCovariance(covariance);
 
   metrics_.push_back(m);
-
+  bool passed;
   if (metrics_.size() > list_size_) {
     metrics_.pop_front();
-    return CheckStoredMetrics();
+    passed = CheckStoredMetrics();
   } else {
-    return CheckMetricInitial(m);
+    passed = CheckMetricInitial(m);
   }
+  return passed;
 }
 
 bool RegistrationValidation::CheckStoredMetrics() const {
@@ -77,15 +78,15 @@ bool RegistrationValidation::CheckStoredMetrics() const {
               "Dev. = {}",
               m_recent.t, t_mean - 2 * t_stddev);
     return false;
-  } else if (m_recent.entropy > entropy_mean + 2 * entropy_stddev) {
-    BEAM_WARN("failed translation check. Translation = {} > mean + 2 x Std. "
+  } else if (m_recent.entropy > entropy_mean + 5 * entropy_stddev) {
+    BEAM_WARN("failed entropy check. entropy = {} > mean + 5 x Std. "
               "Dev. = {}",
-              m_recent.entropy, entropy_mean + 2 * entropy_stddev);
+              m_recent.entropy, entropy_mean + 5 * entropy_stddev);
     return false;
-  } else if (m_recent.entropy < entropy_mean - 2 * entropy_stddev) {
-    BEAM_WARN("failed translation check. Translation = {} < mean - 2 x Std. "
+  } else if (m_recent.entropy < entropy_mean - 5 * entropy_stddev) {
+    BEAM_WARN("failed entropy check. entropy = {} < mean - 5 x Std. "
               "Dev. = {}",
-              m_recent.entropy, entropy_mean - 2 * entropy_stddev);
+              m_recent.entropy, entropy_mean - 5 * entropy_stddev);
     return false;
   }
 

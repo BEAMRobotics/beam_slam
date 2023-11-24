@@ -50,13 +50,13 @@ private:
   bool CheckMetricInitial(const RegistrationMetrics& m) const;
 
   std::list<RegistrationMetrics> metrics_;
-  int list_size_{10};
+  int list_size_{15};
 
   // these are used when metrics_.size() < list_size_ since we don't have
   // enough data to get reliable statistics
   double t_init_thresh_{0.5};
-  double r_init_thresh_{3.14 / 6}; // ~30deg
-  double entropy_init_thresh_{-5}; // set empirically  
+  double r_init_thresh_{3.14 / 6};  // ~30deg
+  double entropy_init_thresh_{-10}; // set empirically
 };
 
 }} // namespace bs_models::scan_registration
