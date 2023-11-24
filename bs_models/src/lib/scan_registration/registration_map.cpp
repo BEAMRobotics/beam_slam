@@ -331,8 +331,6 @@ Eigen::Matrix4d RegistrationMap::CorrectMapDriftFromGraphMsg(
   }
 
   // update all poses
-  // TODO: remove
-  std::cout << "\n\n\nT_WorldCorrected_World: \n" << T_WorldCorrected_World << "\n";
   std::unique_lock<std::mutex> lk(mutex_);
   for (auto& [t_in_ns, scan] : scans_) {
     scan.T_Map_Scan = T_WorldCorrected_World * scan.T_Map_Scan;
