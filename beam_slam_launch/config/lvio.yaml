@@ -31,8 +31,6 @@ sensor_models:
     type: 'bs_models::LidarOdometry'
   - name: 'graph_publisher'
     type: 'bs_models::GraphPublisher'
-  # - name: 'gravity_alignment'
-  #   type: 'bs_models::GravityAlignment'
 
 visual_feature_tracker:
   image_topic: '/F1/image'
@@ -80,7 +78,6 @@ lidar_odometry:
   output_loam_points: true
   output_lidar_points: true
   publish_registration_map: true
-  publish_registration_results: false
   frame_initializer_config: "/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
   # these are only relevant if scan_output_directory is not empty

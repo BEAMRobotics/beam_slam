@@ -55,7 +55,6 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
   scan_registration_ =
       std::make_unique<scan_registration::ScanToMapLoamRegistration>(
           std::move(matcher), reg_params.GetBaseParams(), reg_params.map_size);
-  // scan_registration_->SetFixedCovariance(0.000001);
   scan_registration_->SetInformationWeight(information_weight);
   feature_extractor_ = std::make_shared<LoamFeatureExtractor>(matcher_params);
 

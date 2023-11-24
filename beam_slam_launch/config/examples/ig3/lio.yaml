@@ -58,7 +58,6 @@ lidar_odometry:
   output_loam_points: true
   output_lidar_points: true
   publish_registration_map: true
-  publish_registration_results: false
   frame_initializer_config: "examples/ig3/frame_initializers/io.json"
   scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
 

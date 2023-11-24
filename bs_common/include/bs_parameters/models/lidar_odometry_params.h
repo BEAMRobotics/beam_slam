@@ -42,13 +42,6 @@ public:
     getParam<bool>(nh, "publish_registration_map", publish_registration_map,
                    publish_registration_map);
 
-    /** If set to true, it will publish all scan registration results including
-     * the initial scan, the aligned to local RegistrationMap and the aligned to
-     * ActiveSubmap
-     */
-    getParam<bool>(nh, "publish_registration_results",
-                   publish_registration_results, publish_registration_results);
-
     getParam<bool>(nh, "save_graph_updates", save_graph_updates,
                    save_graph_updates);
 
@@ -162,7 +155,6 @@ public:
   bool output_loam_points{true};
   bool output_lidar_points{true};
   bool publish_registration_map{false};
-  bool publish_registration_results{false};
   bool save_graph_updates{false};
   bool save_scan_registration_results{false};
   bool save_marginalized_scans{true};
