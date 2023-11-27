@@ -113,7 +113,7 @@ private:
 
   /** Params that can only be updated here: */
   bool update_registration_map_all_scans_{false};
-  bool update_registration_map_in_batch_{false};
+  bool update_registration_map_in_batch_{true};
   ros::Duration registration_map_batch_update_dur_{10};
   bool use_frame_init_relative_{true};
   int max_scan_buffer_size_{4};
