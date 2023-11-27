@@ -21,6 +21,7 @@ sensor_models:
     type: 'bs_models::VisualFeatureTracker'
   - name: 'slam_initialization'
     type: 'bs_models::SLAMInitialization'
+    ignition: true
   - name: 'inertial_odometry'
     type: 'bs_models::InertialOdometry'
   - name: 'visual_odometry'
@@ -59,7 +60,7 @@ visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
-  use_standalone_vo: true
+  use_standalone_vo: false
 
 gravity_alignment:
   imu_topic: "/imu/data"

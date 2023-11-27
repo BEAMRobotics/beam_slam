@@ -5,5 +5,5 @@
   "use_idp": false,
   "track_outlier_pixel_threshold": 1.0,
   "local_map_matching": false,
-  "use_online_calibration": true
+  "use_online_calibration": false
 }

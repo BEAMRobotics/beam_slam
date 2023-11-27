@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 10
-pseudo_marginalization: true
+pseudo_marginalization: false
 information_weights_config: '/optimization/lio_information_weights.json'
 
 solver_options:

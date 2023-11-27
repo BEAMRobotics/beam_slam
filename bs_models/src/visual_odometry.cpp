@@ -315,7 +315,8 @@ void VisualOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph) {
   // update T_cam_baselink_ from the graph if it exists
   if (vo_params_.use_online_calibration) {
     auto maybe_extrinsic =
-        bs_common::GetExtrinsic(*graph, extrinsics_.GetBaselinkFrameId(), extrinsics_.GetCameraFrameId());
+        bs_common::GetExtrinsic(*graph, extrinsics_.GetBaselinkFrameId(),
+                                extrinsics_.GetCameraFrameId());
     if (maybe_extrinsic) {
       T_baselink_cam_ = maybe_extrinsic.value();
       T_cam_baselink_ = beam::InvertTransform(T_baselink_cam_);
