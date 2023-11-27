@@ -290,24 +290,27 @@ void RegistrationMap::UpdateScanPosesFromGraphMsg(
   }
 }
 
-void RegistrationMap::CorrectMapDriftFromGraphMsg(
-    const fuse_core::Graph::ConstSharedPtr& graph_msg) {
+Eigen::Matrix4d RegistrationMap::CorrectMapDriftFromGraphMsg(
+    const fuse_core::Graph::ConstSharedPtr& graph_msg, double update_point) {
   Eigen::Matrix4d T_WorldCorrected_World;
   bool success = false;
-  for (auto riter = scans_.rbegin(); riter != scans_.rend(); riter++) {
-    if (!graph_msg->variableExists(riter->second.position_uuid) ||
-        !graph_msg->variableExists(riter->second.orientation_uuid)) {
+  uint64_t time_start_ns = scans_.begin()->first;
+  uint64_t time_end_ns = scans_.rbegin()->first;
+  uint64_t update_time_ns =
+      time_start_ns + (time_end_ns - time_start_ns) * update_point;
+  for (auto iter = scans_.begin(); iter != scans_.end(); iter++) {
+    if (iter->first < update_time_ns) { continue; }
+
+    if (!graph_msg->variableExists(iter->second.position_uuid) ||
+        !graph_msg->variableExists(iter->second.orientation_uuid)) {
       continue;
     }
 
-    ros::Time stamp;
-    stamp.fromNSec(riter->first);
-
     auto position = dynamic_cast<const fuse_variables::Position3DStamped&>(
-        graph_msg->getVariable(riter->second.position_uuid));
+        graph_msg->getVariable(iter->second.position_uuid));
     auto orientation =
         dynamic_cast<const fuse_variables::Orientation3DStamped&>(
-            graph_msg->getVariable(riter->second.orientation_uuid));
+            graph_msg->getVariable(iter->second.orientation_uuid));
 
     Eigen::Matrix4d T_World_BaselinkCorrected;
     bs_common::FusePoseToEigenTransform(position, orientation,
@@ -317,20 +320,22 @@ void RegistrationMap::CorrectMapDriftFromGraphMsg(
     Eigen::Matrix4d T_Baselink_Scan;
     extrinsics.GetT_BASELINK_LIDAR(T_Baselink_Scan);
     T_WorldCorrected_World = T_World_BaselinkCorrected * T_Baselink_Scan *
-                             beam::InvertTransform(riter->second.T_Map_Scan);
+                             beam::InvertTransform(iter->second.T_Map_Scan);
     success = true;
     break;
   }
 
   if (!success) {
     BEAM_ERROR("Cannot update registration map, no scan found in graph msg");
-    return;
+    return Eigen::Matrix4d::Identity();
   }
 
-  // update al poses
+  // update all poses
+  std::unique_lock<std::mutex> lk(mutex_);
   for (auto& [t_in_ns, scan] : scans_) {
     scan.T_Map_Scan = T_WorldCorrected_World * scan.T_Map_Scan;
   }
+  return T_WorldCorrected_World;
 }
 
 }} // namespace bs_models::scan_registration

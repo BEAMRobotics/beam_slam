@@ -176,9 +176,14 @@ public:
    * registration map that has a pose in the graph, calculate the difference
    * between the two poses, and apply that correction to all poses in the
    * registration map
+   * @param update_point value between 0 and 1 where 0 updates the graph using
+   * the first (oldest) scan, 1 updates using the last (newest) scan, and for
+   * example 0.5 updates using the middle scan
+   * @return T_WorldCorrected_World
    */
-  void CorrectMapDriftFromGraphMsg(
-      const fuse_core::Graph::ConstSharedPtr& graph_msg);
+  Eigen::Matrix4d CorrectMapDriftFromGraphMsg(
+      const fuse_core::Graph::ConstSharedPtr& graph_msg,
+      double update_point = 0.5);
 
   /**
    * @brief clears all scans and their associated poses
@@ -207,10 +212,11 @@ private:
    */
   RegistrationMap();
 
-  // publisher
+  // publishers
   ros::Publisher lidar_map_publisher_;
   ros::Publisher loam_map_publisher_;
 
+  std::mutex mutex_;
   int map_size_{10};
   bool map_params_set_{false};
   int updates_counter_{0};

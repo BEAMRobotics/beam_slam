@@ -51,10 +51,6 @@ private:
 
   void SaveMarginalizedScanPose(const std::shared_ptr<ScanPose>& scan_pose);
 
-  void PublishScanRegistrationResults(
-      const fuse_core::Transaction::SharedPtr& transaction,
-      const ScanPose& scan_pose);
-
   void PublishTfTransform(const Eigen::Matrix4d& T_Child_Parent,
                           const std::string& child_frame,
                           const std::string& parent_frame,
@@ -67,8 +63,6 @@ private:
 
   /** Publishers */
   ros::Publisher results_publisher_; // for global mapper
-  ros::Publisher registration_publisher_init_;
-  ros::Publisher registration_publisher_aligned_;
 
   ros::Publisher odom_publisher_;
   int odom_publisher_counter_{0};
@@ -78,8 +72,6 @@ private:
   int imu_constraint_trigger_counter_{0};
 
   tf::TransformBroadcaster tf_broadcaster_;
-
-  int published_registration_results_{0};
 
   /** callback for lidar data */
   using ThrottledCallback =
@@ -117,11 +109,15 @@ private:
   std::string graph_updates_path_;
   std::string marginalized_scans_path_;
   std::string registration_results_path_;
+  ros::Time last_map_update_time_{0};
 
   /** Params that can only be updated here: */
   bool update_registration_map_all_scans_{false};
-  bool update_registration_map_in_batch_{false};
+  bool update_registration_map_in_batch_{true};
+  ros::Duration registration_map_batch_update_dur_{10};
   bool use_frame_init_relative_{true};
+  int max_scan_buffer_size_{4};
+  bool publish_extrinsics_{false};
 };
 
 } // namespace bs_models

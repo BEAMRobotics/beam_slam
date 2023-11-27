@@ -120,15 +120,6 @@ void LidarOdometry::onStart() {
             "/local_mapper/slam_results", 100);
   }
 
-  if (params_.publish_registration_results) {
-    registration_publisher_init_ =
-        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "registration/initial", 10);
-    registration_publisher_aligned_ =
-        private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-            "registration/aligned", 10);
-  }
-
   // odometry publishers
   odom_publisher_ =
       private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
@@ -194,8 +185,8 @@ void LidarOdometry::SetupRegistration() {
   // Get last scan pose to initialize with if registration map isn't empty
   if (!map.Empty()) {
     // get extrinsics
-    Eigen::Matrix4d T_Baselink_Lidar;
-    if (!extrinsics_.GetT_BASELINK_LIDAR(T_Baselink_Lidar)) {
+    Eigen::Matrix4d T_Lidar_Baselink;
+    if (!extrinsics_.GetT_LIDAR_BASELINK(T_Lidar_Baselink)) {
       ROS_ERROR(
           "Cannot lookup transform from lidar to baselink, not sending reloc "
           "request.");
@@ -208,8 +199,8 @@ void LidarOdometry::SetupRegistration() {
     last_scan_pose_time_ = map.GetLastCloudPoseStamp();
     map.GetScanPose(last_scan_pose_time_, T_MAP_SCAN);
 
-    T_World_BaselinkLast_ =
-        T_MAP_SCAN * beam::InvertTransform(T_Baselink_Lidar);
+    T_World_BaselinkLast_ = T_MAP_SCAN * T_Lidar_Baselink;
+    last_map_update_time_ = ros::Time::now();
   }
 
   scan_registration_->SetInformationWeight(params_.lidar_information_weight);
@@ -220,6 +211,7 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
     ROS_INFO("received first graph update, initializing registration and "
              "starting lidar odometry");
     SetupRegistration();
+
     const auto timestamps = bs_common::CurrentTimestamps(*graph_msg);
     for (const auto& t : timestamps) {
       auto maybe_p = bs_common::GetPosition(*graph_msg, t);
@@ -243,7 +235,14 @@ void LidarOdometry::onGraphUpdate(fuse_core::Graph::ConstSharedPtr graph_msg) {
   if (update_registration_map_all_scans_) {
     scan_registration_->GetMapMutable().UpdateScanPosesFromGraphMsg(graph_msg);
   } else if (update_registration_map_in_batch_) {
-    scan_registration_->GetMapMutable().CorrectMapDriftFromGraphMsg(graph_msg);
+    ros::Time now = ros::Time::now();
+    if (now >= (last_map_update_time_ + registration_map_batch_update_dur_)) {
+      last_map_update_time_ = now;
+      Eigen::Matrix4d T_WorldCorrected_World =
+          scan_registration_->GetMapMutable().CorrectMapDriftFromGraphMsg(
+              graph_msg);
+      T_World_BaselinkLast_ = T_WorldCorrected_World * T_World_BaselinkLast_;
+    }
   }
 
   // the remainder just publishes and/or saves results.
@@ -296,6 +295,12 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 
   // buffer the message
   scan_buffer_.push_back(msg);
+
+  while (!scan_buffer_.empty() && scan_buffer_.size() > max_scan_buffer_size_) {
+    ROS_WARN("Lidar buffer size exceeded max of %d, removing last scan",
+             max_scan_buffer_size_);
+    scan_buffer_.pop_front();
+  }
 
   while (!scan_buffer_.empty()) {
     const auto current_msg = scan_buffer_.front();
@@ -414,7 +419,6 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
       imu_constraint_trigger_counter_++;
     }
 
-    PublishScanRegistrationResults(transaction, *current_scan_pose);
     active_clouds_.push_back(current_scan_pose);
 
     // publish odom
@@ -515,87 +519,6 @@ void LidarOdometry::PublishMarginalizedScanPose(
   results_publisher_.publish(slam_chunk_msg);
 }
 
-void LidarOdometry::PublishScanRegistrationResults(
-    const fuse_core::Transaction::SharedPtr& transaction,
-    const ScanPose& scan_pose) {
-  if (!params_.publish_registration_results || transaction == nullptr) {
-    return;
-  }
-
-  const PointCloud& scan_in_lidar_frame = scan_pose.Cloud();
-  Eigen::Matrix4d T_World_BaselinkInit = scan_pose.T_REFFRAME_BASELINK();
-  Eigen::Matrix4d T_Baselink_Lidar = scan_pose.T_BASELINK_LIDAR();
-
-  const auto& sc_orientation = scan_pose.Orientation();
-  const auto& sc_position = scan_pose.Position();
-
-  // get pose of baselink as measured from transaction constraint
-  fuse_constraints::RelativePose3DStampedConstraint dummy_rel_pose_const;
-  Eigen::Matrix4d T_World_LidarRef = Eigen::Matrix4d::Identity();
-  bool publish_results{false};
-  std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_World_LidarRef;
-  auto added_constraints = transaction->addedConstraints();
-  for (auto iter = added_constraints.begin(); iter != added_constraints.end();
-       iter++) {
-    if (iter->type() == "fuse_constraints::RelativePose3DStampedConstraint") {
-      auto constraint = dynamic_cast<
-          const fuse_constraints::RelativePose3DStampedConstraint&>(*iter);
-      const fuse_core::Vector7d& mean = constraint.delta();
-      const std::vector<fuse_core::UUID>& variables = constraint.variables();
-
-      // build transform between two poses
-      Eigen::Quaterniond q(mean[3], mean[4], mean[5], mean[6]);
-      Eigen::Matrix3d R_Ref_Scan(q);
-      Eigen::Matrix4d T_Ref_Scan = Eigen::Matrix4d::Identity();
-      T_Ref_Scan.block(0, 0, 3, 3) = R_Ref_Scan;
-      T_Ref_Scan.block(0, 3, 3, 1) = Eigen::Vector3d(mean[0], mean[1], mean[2]);
-
-      // get pose of reference
-      const RegistrationMap& map = scan_registration_->GetMap();
-      ros::Time ref_stamp;
-      if (!map.GetUUIDStamp(variables.at(0), ref_stamp)) {
-        ROS_WARN("UUID not found in registration map, not publishing scan "
-                 "registration result.");
-        continue;
-      }
-      Eigen::Matrix4d T_World_Ref;
-      map.GetScanPose(ref_stamp, T_World_Ref);
-      Ts_World_LidarRef.push_back(T_World_Ref *
-                                  beam::InvertTransform(T_Ref_Scan));
-    }
-  }
-  if (Ts_World_LidarRef.size() > 0) {
-    T_World_LidarRef = beam::AverageTransforms(Ts_World_LidarRef);
-    publish_results = true;
-  } else {
-    publish_results = false;
-  }
-
-  // convert to lidar poses
-  PointCloud scan_in_world_init_frame;
-  Eigen::Matrix4d T_World_Lidar = T_World_BaselinkInit * T_Baselink_Lidar;
-  pcl::transformPointCloud(scan_in_lidar_frame, scan_in_world_init_frame,
-                           T_World_Lidar);
-  sensor_msgs::PointCloud2 msg_init = beam::PCLToROS<pcl::PointXYZ>(
-      scan_in_world_init_frame, scan_pose.Stamp(),
-      extrinsics_.GetWorldFrameId(), published_registration_results_);
-  registration_publisher_init_.publish(msg_init);
-
-  if (publish_results) {
-    PointCloud scan_in_world_lm_frame;
-
-    pcl::transformPointCloud(scan_in_lidar_frame, scan_in_world_lm_frame,
-                             T_World_LidarRef);
-    sensor_msgs::PointCloud2 msg_align_lm = beam::PCLToROS<pcl::PointXYZ>(
-        scan_in_world_lm_frame, scan_pose.Stamp(),
-        extrinsics_.GetWorldFrameId(), published_registration_results_);
-
-    registration_publisher_aligned_.publish(msg_align_lm);
-  }
-
-  published_registration_results_++;
-}
-
 void LidarOdometry::PublishTfTransform(const Eigen::Matrix4d& T_Child_Parent,
                                        const std::string& child_frame,
                                        const std::string& parent_frame,
@@ -614,6 +537,7 @@ void LidarOdometry::PublishTfTransform(const Eigen::Matrix4d& T_Child_Parent,
 
 void LidarOdometry::PublishExtrinsics(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
+  if (!publish_extrinsics_) { return; }
   const auto var_range = graph_msg->getVariables();
   if (!graph_msg->variableExists(extrinsics_position_uuid_) ||
       !graph_msg->variableExists(extrinsics_orientation_uuid_)) {
