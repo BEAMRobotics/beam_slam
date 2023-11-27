@@ -167,7 +167,7 @@ void Pose3DStampedTransaction::AddExtrinsicVariablesForFrame(
 
   if (add_extrinsics_prior) {
     BEAM_INFO("adding extrinsics prior for: {}", frame_id);
-    double prior_cov_diag = 1e-4;
+    double prior_cov_diag = 1e-5;
     fuse_core::Matrix6d prior =
         Eigen::Matrix<double, 6, 6>::Identity() * prior_cov_diag;
     AddExtrinsicPrior(*p, *o, prior, "Pose3DStampedTransaction");

@@ -1026,15 +1026,7 @@ fuse_core::Transaction::SharedPtr VisualOdometry::CreateVisualOdometryFactor(
 bool VisualOdometry::GetInitialPoseEstimate(const ros::Time& timestamp,
                                             Eigen::Matrix4d& T_WORLD_BASELINK) {
   std::string error;
-  if (!vo_params_.use_standalone_vo) {
-    if (!frame_initializer_->GetPose(T_WORLD_BASELINK, timestamp,
-                                     extrinsics_.GetBaselinkFrameId(), error)) {
-      ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
-                      "buffering frame: "
-                      << timestamp << ".\n\tError: " << error);
-      return false;
-    }
-  } else {
+  if (use_frame_init_relative_) {
     Eigen::Matrix4d T_PREVKF_CURFRAME;
     if (!frame_initializer_->GetRelativePose(T_PREVKF_CURFRAME,
                                              previous_keyframe_, timestamp)) {
@@ -1049,6 +1041,14 @@ bool VisualOdometry::GetInitialPoseEstimate(const ros::Time& timestamp,
       throw std::runtime_error{"Cannot retrieve previous keyframe pose."};
     }
     T_WORLD_BASELINK = T_WORLD_BASELINKprevkf.value() * T_PREVKF_CURFRAME;
+  } else {
+    if (!frame_initializer_->GetPose(T_WORLD_BASELINK, timestamp,
+                                     extrinsics_.GetBaselinkFrameId(), error)) {
+      ROS_WARN_STREAM("Unable to estimate pose from frame initializer, "
+                      "buffering frame: "
+                      << timestamp << ".\n\tError: " << error);
+      return false;
+    }
   }
 
   if (!vo_params_.use_frame_init_q_to_localize) {

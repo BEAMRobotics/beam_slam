@@ -279,6 +279,9 @@ private:
   /// @brief standalone vo stuff
   fuse_core::Graph::SharedPtr local_graph_;
   ceres::Solver::Options local_solver_options_;
+
+  /// @brief params only changeable here
+  bool use_frame_init_relative_{true};
 };
 
 } // namespace bs_models
