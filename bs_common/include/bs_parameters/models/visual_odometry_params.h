@@ -61,8 +61,9 @@ public:
     /// Load all information matrix weights for the optimization problem from
     /// the default location
     std::string info_weights_config;
-    getParamRequired<std::string>(
-        nh, "/local_mapper/information_weights_config", info_weights_config);
+    getParamRequired<std::string>(ros::NodeHandle("~"),
+                                  "information_weights_config",
+                                  info_weights_config);
     nlohmann::json info_weights;
     beam::ReadJson(beam::CombinePaths(bs_common::GetBeamSlamConfigPath(),
                                       info_weights_config),

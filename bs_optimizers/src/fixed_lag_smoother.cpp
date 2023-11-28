@@ -89,7 +89,7 @@ FixedLagSmoother::FixedLagSmoother(fuse_core::Graph::UniquePtr graph,
   params_.loadFromROS(private_node_handle);
 
   // get additional parameter
-  bs_parameters::getParam(private_node_handle, "pseudo_marginalization",
+  bs_parameters::getParam(ros::NodeHandle("~"), "pseudo_marginalization",
                           use_pseudo_marginalization_, false);
 
   // Test for auto-start

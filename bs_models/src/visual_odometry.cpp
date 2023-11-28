@@ -79,7 +79,8 @@ void VisualOdometry::onInit() {
   T_baselink_cam_ = beam::InvertTransform(T_cam_baselink_);
 
   // compute the max container size
-  ros::param::get("/local_mapper/lag_duration", lag_duration_);
+  bs_parameters::getParamRequired(ros::NodeHandle("~"), "lag_duration",
+                                  lag_duration_);
   max_container_size_ = calibration_params_.camera_hz * (lag_duration_ + 1);
 
   // create local solver options

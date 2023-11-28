@@ -61,23 +61,11 @@ public:
     getParam<double>(nh, "min_visual_parallax", min_visual_parallax,
                      min_visual_parallax);
 
-    // weighting factor on inertial measurements
-    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
-    // Residuals
-    getParam<double>(nh, "inertial_information_weight",
-                     inertial_information_weight, inertial_information_weight);
-
     // size of init window in seconds. This controls the data buffers, this
     // should be larger than the amount of time it takes to produce the min.
     // traj.
     getParam<double>(nh, "initialization_window_s", initialization_window_s,
                      initialization_window_s);
-
-    // weighting factor on lidar scan registration measurements
-    // This gets applied to the sqrt inv cov such that: E = (w sqrt(cov^-1)) *
-    // Residuals
-    getParam<double>(nh, "lidar_information_weight", lidar_information_weight,
-                     lidar_information_weight);
 
     std::string matcher_config_rel;
     getParam<std::string>(nh, "matcher_config", matcher_config_rel,
@@ -90,8 +78,9 @@ public:
     /// Load all information matrix weights for the optimization problem
     std::string info_weights_config;
 
-    getParamRequired<std::string>(
-        nh, "/local_mapper/information_weights_config", info_weights_config);
+    getParamRequired<std::string>(ros::NodeHandle("~"),
+                                  "information_weights_config",
+                                  info_weights_config);
     nlohmann::json info_weights;
 
     std::string info_weights_path = beam::CombinePaths(
