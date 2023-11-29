@@ -16,10 +16,18 @@
     <param name="extrinsics_file_path" value="$(arg extrinsics_file_path)"/>
   </node>
 
-  <!-- Launch local (odometry) -->
+  <!-- Launch local mapper (odometry) -->
   <node pkg="bs_optimizers" type="fixed_lag_smoother_node" name="local_mapper" output="screen"
     launch-prefix="$(arg launch_prefix)">
     <rosparam command="load" file="$(find beam_slam_launch)/config/vio.yaml"/>
   </node>
+
+  <!-- LAUNCH WITH global_mapper:=true to turn on global mapper -->
+  <arg name="global_mapper" default='false'/>
+  <group if="$(arg global_mapper)">
+    <node pkg="bs_optimizers" type="fixed_lag_smoother_node" name="global_mapper" output="screen">
+      <rosparam command="load" file="$(find beam_slam_launch)/config/global_mapper.yaml"/>
+    </node>
+  </group>
 
 </launch>

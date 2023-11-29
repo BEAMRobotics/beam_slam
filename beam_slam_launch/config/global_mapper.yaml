@@ -1,3 +1,5 @@
+pseudo_marginalization: true
+
 sensor_models:
   - name: 'global_mapper'
     type: 'bs_models::GlobalMapper'
