@@ -85,6 +85,7 @@ add_library(
   src/lib/vision/visual_map.cpp
   src/lib/vision/keyframe.cpp
   src/lib/vision/utils.cpp
+  src/lib/vision/vo_localization_validation.cpp
   ## imu helpers
   src/lib/imu/imu_preintegration.cpp
   src/lib/imu/inertial_alignment.cpp

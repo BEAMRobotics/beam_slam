@@ -32,7 +32,7 @@ void Position3D::print(std::ostream& stream) const {
 }
 
 bool Position3D::holdConstant() const {
-  return false;
+  return true;
 }
 
 } // namespace bs_variables
