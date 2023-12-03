@@ -121,12 +121,6 @@ public:
                          track_outlier_pixel_threshold);
     getParamJson<int>(J, "required_points_to_refine", required_points_to_refine,
                       required_points_to_refine);
-    getParamJson<bool>(J, "use_frame_init_q_to_localize",
-                       use_frame_init_q_to_localize,
-                       use_frame_init_q_to_localize);
-    getParamJson<bool>(J, "use_frame_init_p_to_localize",
-                       use_frame_init_p_to_localize,
-                       use_frame_init_p_to_localize);
     getParamJson<bool>(J, "local_map_matching", local_map_matching,
                        local_map_matching);
     getParamJson<bool>(J, "use_online_calibration", use_online_calibration,
@@ -169,8 +163,6 @@ public:
   double reprojection_information_weight{1.0};
   double track_outlier_pixel_threshold{1.0};
   int required_points_to_refine{30};
-  bool use_frame_init_q_to_localize{true};
-  bool use_frame_init_p_to_localize{false};
 
   // vo params used only when standalone vo is true
   double marginalization_prior_weight{1e-9};

@@ -3,8 +3,6 @@
   "max_triangulation_reprojection": 20.0,
   "use_idp": false,
   "required_points_to_refine": 20,
-  "use_frame_init_q_to_localize": true,
-  "use_frame_init_p_to_localize": false,
   "track_outlier_pixel_threshold": 1.0,
   "local_map_matching": false,
   "standalone_vo_params": {

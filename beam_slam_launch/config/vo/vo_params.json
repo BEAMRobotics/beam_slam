@@ -3,13 +3,11 @@
   "max_triangulation_reprojection": 20.0,
   "use_idp": false,
   "required_points_to_refine": 20,
-  "use_frame_init_q_to_localize": true,
-  "use_frame_init_p_to_localize": true,
   "track_outlier_pixel_threshold": 1.0,
   "local_map_matching": false,
   "use_online_calibration": false,
   "standalone_vo_params": {
-    "invalid_localization_covariance_weight": 1e2,
+    "invalid_localization_covariance_weight": 1e-1,
     "marginalization_prior_weight": 1e-9
   }
 }

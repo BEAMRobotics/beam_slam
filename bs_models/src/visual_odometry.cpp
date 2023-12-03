@@ -251,6 +251,12 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         beam::InvertTransform(T_WORLD_BASELINKcur) * T_WORLD_BASELINK;
     bool passed_localization =
         validator_->Validate(T_init_refined, covariance, avg_reprojection);
+    if (!passed_localization) {
+      track_lost = true;
+      T_WORLD_BASELINK = T_WORLD_BASELINKcur;
+      covariance = vo_params_.invalid_localization_covariance_weight *
+                   Eigen::Matrix<double, 6, 6>::Identity();
+    }
   } else {
     ROS_WARN_STREAM(
         "Not enough points for visual refinement: " << pixels.size());
@@ -1052,18 +1058,6 @@ bool VisualOdometry::GetInitialPoseEstimate(const ros::Time& timestamp,
                       << timestamp << ".\n\tError: " << error);
       return false;
     }
-  }
-
-  if (!vo_params_.use_frame_init_q_to_localize) {
-    // update position using the previous frame position
-    T_WORLD_BASELINK.block<3, 3>(3, 3) =
-        T_WORLD_BASELINKprevframe_.block<3, 3>(3, 3);
-  }
-
-  if (!vo_params_.use_frame_init_p_to_localize) {
-    // update position using the previous frame position
-    T_WORLD_BASELINK.block<3, 1>(0, 3) =
-        T_WORLD_BASELINKprevframe_.block<3, 1>(0, 3);
   }
   return true;
 }
