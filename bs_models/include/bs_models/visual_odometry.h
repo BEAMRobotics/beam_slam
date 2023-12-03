@@ -262,6 +262,7 @@ private:
   std::mutex buffer_mutex_;
   Eigen::Matrix4d T_WORLD_BASELINKprevframe_;
   std::shared_ptr<vision::VOLocalizationValidation> validator_;
+  int num_loc_fails_in_a_row_{0};
 
   /// @brief local map matching stuff
   boost::bimap<uint64_t, uint64_t> new_to_old_lm_ids_;

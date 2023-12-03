@@ -223,7 +223,8 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
         T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
 
     // perform non-linear pose refinement
-    Eigen::Matrix4d T_CAMERA_WORLD_ref;
+    Eigen::Matrix4d T_CAMERA_WORLD_ref = T_CAMERA_WORLD_est;
+    bool passed_refinement{true};
     try {
       auto out_covariance = std::make_shared<Eigen::Matrix<double, 6, 6>>();
       T_CAMERA_WORLD_ref =
@@ -234,29 +235,34 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
       covariance.block<3, 3>(0, 3) = out_covariance->block<3, 3>(3, 0);
       covariance.block<3, 3>(3, 0) = out_covariance->block<3, 3>(0, 3);
       covariance.block<3, 3>(3, 3) = out_covariance->block<3, 3>(0, 0);
-    } catch (const std::runtime_error& re) {
-      T_CAMERA_WORLD_ref = T_CAMERA_WORLD_est;
-      covariance = vo_params_.invalid_localization_covariance_weight *
-                   Eigen::Matrix<double, 6, 6>::Identity();
-    }
+    } catch (const std::runtime_error& re) { passed_refinement = false; }
 
     // compute baselink pose
     T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
 
     // validate localization
-    const double avg_reprojection =
-        ComputeAverageReprojection(T_WORLD_BASELINK, pixels, points);
-    const Eigen::Matrix4d T_init_refined =
-        beam::InvertTransform(T_WORLD_BASELINKcur) * T_WORLD_BASELINK;
-    bool passed_localization =
-        validator_->Validate(T_init_refined, covariance, avg_reprojection);
-    if (!passed_localization) {
+    bool passed_localization{true};
+    if (passed_refinement) {
+      const double avg_reprojection =
+          ComputeAverageReprojection(T_WORLD_BASELINK, pixels, points);
+      const Eigen::Matrix4d T_init_refined =
+          beam::InvertTransform(T_WORLD_BASELINKcur) * T_WORLD_BASELINK;
+      passed_localization =
+          validator_->Validate(T_init_refined, covariance, avg_reprojection);
+    }
+
+    // fallback to frame init if failed localization
+    if (!passed_localization || !passed_refinement) {
       track_lost = true;
       T_WORLD_BASELINK = T_WORLD_BASELINKcur;
       covariance = vo_params_.invalid_localization_covariance_weight *
                    Eigen::Matrix<double, 6, 6>::Identity();
+      num_loc_fails_in_a_row_++;
+    } else {
+      num_loc_fails_in_a_row_ = 0;
     }
+
   } else {
     ROS_WARN_STREAM(
         "Not enough points for visual refinement: " << pixels.size());
@@ -264,6 +270,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     track_lost = true;
     covariance = vo_params_.invalid_localization_covariance_weight *
                  Eigen::Matrix<double, 6, 6>::Identity();
+    num_loc_fails_in_a_row_++;
   }
 
   // update previous frame pose
