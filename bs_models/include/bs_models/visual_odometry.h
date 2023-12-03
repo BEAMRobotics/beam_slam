@@ -20,6 +20,7 @@
 #include <bs_models/frame_initializers/frame_initializer.h>
 #include <bs_models/vision/keyframe.h>
 #include <bs_models/vision/visual_map.h>
+#include <bs_models/vision/vo_localization_validation.h>
 #include <bs_parameters/models/calibration_params.h>
 #include <bs_parameters/models/visual_odometry_params.h>
 
@@ -212,6 +213,16 @@ private:
   void CleanNewToOldLandmarkMap(const std::set<uint64_t>& old_ids,
                                 const std::set<uint64_t>& new_ids);
 
+  /// @brief
+  /// @param T_WORLD_BASELINK
+  /// @param pixels
+  /// @param points
+  /// @return
+  double ComputeAverageReprojection(
+      const Eigen::Matrix4d& T_WORLD_BASELINK,
+      const std::vector<Eigen::Vector2i, beam::AlignVec2i>& pixels,
+      const std::vector<Eigen::Vector3d, beam::AlignVec3d>& points);
+
   /******************************************************
    *                   Member Variables                 *
    *****************************************************/
@@ -250,6 +261,7 @@ private:
   double lag_duration_;
   std::mutex buffer_mutex_;
   Eigen::Matrix4d T_WORLD_BASELINKprevframe_;
+  std::shared_ptr<vision::VOLocalizationValidation> validator_;
 
   /// @brief local map matching stuff
   boost::bimap<uint64_t, uint64_t> new_to_old_lm_ids_;

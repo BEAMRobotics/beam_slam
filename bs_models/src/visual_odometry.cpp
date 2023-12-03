@@ -73,6 +73,7 @@ void VisualOdometry::onInit() {
 
   // create pose refiner for motion only BA
   pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(0.02, true, 0.2);
+  validator_ = std::make_shared<vision::VOLocalizationValidation>();
 
   // get extrinsics
   extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
@@ -243,12 +244,13 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     T_WORLD_BASELINK =
         beam::InvertTransform(T_CAMERA_WORLD_ref) * T_cam_baselink_;
 
-    // output the difference between the imu and vo estimates
-    Eigen::Vector3d diff = T_WORLD_BASELINKcur.block<3, 1>(0, 3) -
-                           T_WORLD_BASELINK.block<3, 1>(0, 3);
-    ROS_DEBUG_STREAM("Difference between IMU estimate and VO estimate: ["
-                     << diff.x() << ", " << diff.y() << ", " << diff.z()
-                     << "]");
+    // validate localization
+    const double avg_reprojection =
+        ComputeAverageReprojection(T_WORLD_BASELINK, pixels, points);
+    const Eigen::Matrix4d T_init_refined =
+        beam::InvertTransform(T_WORLD_BASELINKcur) * T_WORLD_BASELINK;
+    bool passed_localization =
+        validator_->Validate(T_init_refined, covariance, avg_reprojection);
   } else {
     ROS_WARN_STREAM(
         "Not enough points for visual refinement: " << pixels.size());
@@ -1219,4 +1221,32 @@ void VisualOdometry::CleanNewToOldLandmarkMap(
     }
   }
 }
+
+double VisualOdometry::ComputeAverageReprojection(
+    const Eigen::Matrix4d& T_WORLD_BASELINK,
+    const std::vector<Eigen::Vector2i, beam::AlignVec2i>& pixels,
+    const std::vector<Eigen::Vector3d, beam::AlignVec3d>& points) {
+  if (pixels.size() == 0) { return 0; }
+  double total_reproj = 0.0;
+  const Eigen::Matrix4d T_BASELINK_WORLD =
+      beam::InvertTransform(T_WORLD_BASELINK);
+  for (int i = 0; i < pixels.size(); i++) {
+    const auto p_WORLD = points[i];
+    const Eigen::Vector3d p_CAMERA =
+        ((T_cam_baselink_ * T_BASELINK_WORLD) * p_WORLD.homogeneous())
+            .hnormalized();
+
+    Eigen::Vector2d projection;
+    bool in_image{false};
+    if (!cam_model_->ProjectPoint(p_CAMERA, projection, in_image) ||
+        !in_image) {
+      continue;
+    } else {
+      total_reproj += (pixels[i].cast<double>() - projection).norm();
+    }
+  }
+
+  return total_reproj / static_cast<double>(pixels.size());
+}
+
 } // namespace bs_models

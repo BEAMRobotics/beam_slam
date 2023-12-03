@@ -1,15 +1,15 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 10
-pseudo_marginalization: true
+pseudo_marginalization: false
 information_weights_config: '/optimization/lvio_information_weights.json'
 
 solver_options:
   minimizer_type: 'TRUST_REGION'
   linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
   minimizer_progress_to_stdout: false
-  num_threads: 6
-  num_linear_solver_threads: 6
+  num_threads: 8
+  num_linear_solver_threads: 8
   max_num_iterations: 10
   max_solver_time_in_seconds: 0.05
   gradient_tolerance: 0.00000015
@@ -58,7 +58,7 @@ visual_odometry:
   frame_initializer_config: "frame_initializers/io.json"
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
-  use_standalone_vo: false
+  use_standalone_vo: true
 
 gravity_alignment:
   imu_topic: "/imu/data"
