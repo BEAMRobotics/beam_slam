@@ -1,7 +1,7 @@
 # optimization params
 optimization_period: 0.07
 lag_duration: 10
-pseudo_marginalization: false
+pseudo_marginalization: true
 information_weights_config: '/optimization/lvio_information_weights.json'
 
 solver_options:
@@ -44,7 +44,7 @@ slam_initialization:
   lidar_topic: "/lidar_h/velodyne_points"
   init_mode: "LIDAR"
   max_optimization_s: 1.0
-  min_trajectory_length_m: 3.0
+  min_trajectory_length_m: 3.5
   min_visual_parallax: 40.0
   vo_config: "vo/vo_params_init.json"
   matcher_config: 'matchers/loam_vlp16.json' # lidar specific
