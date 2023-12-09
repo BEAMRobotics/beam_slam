@@ -348,9 +348,4 @@ void FrameInitializer::InitializeFromPoseFile(const std::string& file_path) {
   pose_lookup_ = std::make_shared<bs_common::PoseLookup>(poses);
 }
 
-void FrameInitializer::Clear() {
-  graph_path_.clear();
-  if (type_ != "POSEFILE") { poses_->clear(); }
-}
-
 } // namespace bs_models

@@ -60,12 +60,6 @@ void SLAMInitialization::onInit() {
   // create landmark container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
 
-  // create frame initializer if desired
-  if (!params_.frame_initializer_config.empty()) {
-    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
-        params_.frame_initializer_config);
-  }
-
   // read imu parameters
   nlohmann::json J;
   BEAM_INFO("loading imu calibration file: {}",
@@ -119,6 +113,13 @@ void SLAMInitialization::onInit() {
 
 void SLAMInitialization::onStart() {
   ROS_INFO_STREAM("Starting: " << name());
+
+  // initialize frame init
+  if (!params_.frame_initializer_config.empty()) {
+    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+        params_.frame_initializer_config);
+  }
+
   // subscribe to topics
   visual_measurement_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
@@ -832,32 +833,6 @@ void SLAMInitialization::OutputResults() {
   }
 }
 
-void SLAMInitialization::shutdown() {
-  visual_measurement_subscriber_.shutdown();
-  imu_subscriber_.shutdown();
-  lidar_subscriber_.shutdown();
-  imu_buffer_.clear();
-  frame_init_buffer_.clear();
-  local_graph_->clear();
-  // frame_initializer_->Clear();
-  visual_map_->Clear();
-  imu_preint_->Reset();
-  lidar_path_init_->Reset();
-  image_db_->Clear();
-  init_path_.clear();
-  velocities_.clear();
-  last_lidar_scan_time_s_ = 0;
-  prev_frame_ = ros::Time(0);
-
-  // !temp: reset lidar path init
-  if (mode_ == InitMode::LIDAR) {
-    mode_ = InitMode::LIDAR;
-    lidar_path_init_ = std::make_unique<LidarPathInit>(
-        lidar_buffer_size_, params_.matcher_config,
-        params_.lidar_information_weight);
-  }
-}
-
 void SLAMInitialization::AddMeasurementsToContainer(
     const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
   // check that message hasnt already been added to container
@@ -934,6 +909,32 @@ void SLAMInitialization::AddMeasurementsToContainer(
     }
   }
   prev_frame_ = msg->header.stamp;
+}
+
+void SLAMInitialization::shutdown() {
+  visual_measurement_subscriber_.shutdown();
+  imu_subscriber_.shutdown();
+  lidar_subscriber_.shutdown();
+  imu_buffer_.clear();
+  frame_init_buffer_.clear();
+  local_graph_->clear();
+  visual_map_->Clear();
+  imu_preint_->Reset();
+  image_db_->Clear();
+  init_path_.clear();
+  velocities_.clear();
+  last_lidar_scan_time_s_ = 0;
+  prev_frame_ = ros::Time(0);
+
+  // !temp: reset lidar path init
+  // lidar_path_init_->Reset(); // TODO
+  if (mode_ == InitMode::LIDAR) {
+    ROS_WARN("NICK - to implement reset function for LidarPathInit");
+    mode_ = InitMode::LIDAR;
+    lidar_path_init_ = std::make_unique<LidarPathInit>(
+        lidar_buffer_size_, params_.matcher_config,
+        params_.lidar_information_weight);
+  }
 }
 
 } // namespace bs_models

@@ -68,11 +68,6 @@ public:
    */
   void PathCallback(const nav_msgs::PathConstPtr message);
 
-  /**
-   * @brief Clears any local data that is stored
-   */
-  void Clear();
-
 private:
   /**
    * @brief Check to see if world frame and baselink frame IDs match those

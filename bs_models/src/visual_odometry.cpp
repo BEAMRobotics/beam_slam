@@ -61,10 +61,6 @@ void VisualOdometry::onInit() {
       private_node_handle_.advertise<sensor_msgs::PointCloud2>(
           "camera_landmarks", 10);
 
-  // create frame initializer
-  frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
-      vo_params_.frame_initializer_config);
-
   // Load camera model and create visua map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
@@ -117,6 +113,11 @@ void VisualOdometry::onInit() {
 
 void VisualOdometry::onStart() {
   ROS_INFO_STREAM("Starting: " << name());
+  
+  // initialize frame init
+  frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+      vo_params_.frame_initializer_config);
+
   // setup subscriber
   measurement_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
@@ -1281,7 +1282,6 @@ void VisualOdometry::shutdown() {
   resetting_ = false;
   keyframes_.clear();
   visual_measurement_buffer_.clear();
-  // frame_initializer_->Clear();
   prev_frame_ = ros::Time(0);
   previous_keyframe_ = ros::Time(0);
   if (local_graph_) { local_graph_->clear(); }
