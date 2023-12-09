@@ -7,8 +7,8 @@
 #include <fuse_variables/velocity_angular_3d_stamped.h>
 
 #include <geometry_msgs/PoseStamped.h>
-#include <std_msgs/Empty.h>
 #include <std_msgs/Time.h>
+#include <std_srvs/Empty.h>
 
 #include <beam_cv/OpenCVConversions.h>
 #include <beam_cv/Utils.h>
@@ -135,6 +135,11 @@ void VisualOdometry::processMeasurements(
     const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
   ROS_INFO_STREAM_ONCE(
       "VisualOdometry received VISUAL measurements: " << msg->header.stamp);
+
+  if (resetting_) {
+    ROS_WARN("System is being reset.");
+    return;
+  }
 
   // add measurements to local container
   AddMeasurementsToContainer(msg);
@@ -281,12 +286,12 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     num_loc_fails_in_a_row_++;
   }
 
-  if (num_loc_fails_in_a_row_ > 10) {
+  if (num_loc_fails_in_a_row_ > 1) {
     ROS_ERROR_STREAM("Too many localization failures in a row ("
                      << num_loc_fails_in_a_row_ << "). Resetting system.");
     std_msgs::Empty reset;
     reset_publisher_.publish(reset);
-    shutdown();
+    resetting_ = true;
   }
 
   // update previous frame pose
@@ -1274,6 +1279,7 @@ void VisualOdometry::shutdown() {
   image_projection_to_lm_id_.clear();
   new_to_old_lm_ids_.clear();
   is_initialized_ = false;
+  resetting_ = false;
   keyframes_.clear();
   visual_measurement_buffer_.clear();
   // frame_initializer_->Clear();

@@ -12,6 +12,7 @@
 #include <bs_common/visualization.h>
 #include <bs_models/graph_visualization/helpers.h>
 #include <bs_models/imu/inertial_alignment.h>
+#include <bs_models/scan_registration/registration_map.h>
 #include <bs_models/vision/utils.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -140,6 +141,8 @@ void SLAMInitialization::onStart() {
 void SLAMInitialization::onStop() {
   ROS_INFO_STREAM("Stopping: " << name());
   shutdown();
+  // reset and clear registration map
+  bs_models::scan_registration::RegistrationMap::GetInstance().Clear();
 }
 
 void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
@@ -845,6 +848,14 @@ void SLAMInitialization::shutdown() {
   velocities_.clear();
   last_lidar_scan_time_s_ = 0;
   prev_frame_ = ros::Time(0);
+
+  // !temp: reset lidar path init
+  if (mode_ == InitMode::LIDAR) {
+    mode_ = InitMode::LIDAR;
+    lidar_path_init_ = std::make_unique<LidarPathInit>(
+        lidar_buffer_size_, params_.matcher_config,
+        params_.lidar_information_weight);
+  }
 }
 
 void SLAMInitialization::AddMeasurementsToContainer(

@@ -254,6 +254,7 @@ private:
 
   /// @brief book keeping variables
   bool is_initialized_{false};
+  bool resetting_{false};
   std::map<ros::Time, vision::Keyframe> keyframes_;
   std::deque<bs_common::CameraMeasurementMsg::ConstPtr>
       visual_measurement_buffer_;

@@ -108,8 +108,9 @@ FixedLagSmoother::FixedLagSmoother(fuse_core::Graph::UniquePtr graph,
       ros::names::resolve(params_.reset_service),
       &FixedLagSmoother::resetServiceCallback, this);
 
-  reset_subscriber_ = node_handle_.subscribe(
-      "/local_mapper/reset", 1, &FixedLagSmoother::resetCallback, this);
+  reset_subscriber_ =
+      node_handle_.subscribe(ros::names::resolve(params_.reset_service), 1,
+                             &FixedLagSmoother::resetCallback, this);
 }
 
 FixedLagSmoother::~FixedLagSmoother() {

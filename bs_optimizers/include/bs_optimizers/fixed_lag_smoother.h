@@ -229,9 +229,8 @@ protected:
                               //!< frequency
   ros::ServiceServer reset_service_server_; //!< Service that resets the
                                             //!< optimizer to its initial state
-
-  ros::Subscriber reset_subscriber_;//!< Subscriber that resets the
-                                    //!< optimizer to its initial state
+  ros::Subscriber reset_subscriber_;        //!< Subscriber that resets the
+                                            //!< optimizer to its initial state
 
   /**
    * @brief Automatically start the smoother if no ignition sensors are
