@@ -116,7 +116,7 @@ void VisualOdometry::onInit() {
 }
 
 void VisualOdometry::onStart() {
-  ROS_INFO("Starting Visual Odometry");
+  ROS_INFO_STREAM("Starting: " << name());
   // setup subscriber
   measurement_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
@@ -127,7 +127,7 @@ void VisualOdometry::onStart() {
 }
 
 void VisualOdometry::onStop() {
-  ROS_INFO("Stopping Visual Odometry");
+  ROS_INFO_STREAM("Stopping: " << name());
   shutdown();
 }
 

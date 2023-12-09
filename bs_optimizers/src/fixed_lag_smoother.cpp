@@ -477,6 +477,7 @@ void FixedLagSmoother::processQueue(fuse_core::Transaction& transaction,
 
 bool FixedLagSmoother::resetServiceCallback(std_srvs::Empty::Request&,
                                             std_srvs::Empty::Response&) {
+  ROS_ERROR_STREAM("Reset service received! Resetting system...");
   // Tell all the plugins to stop
   stopPlugins();
   // Reset the optimizer state
@@ -511,6 +512,7 @@ bool FixedLagSmoother::resetServiceCallback(std_srvs::Empty::Request&,
 }
 
 void FixedLagSmoother::resetCallback(const std_msgs::Empty::ConstPtr&) {
+  ROS_ERROR_STREAM("Reset callback received! Resetting system...");
   // Tell all the plugins to stop
   stopPlugins();
   // Reset the optimizer state

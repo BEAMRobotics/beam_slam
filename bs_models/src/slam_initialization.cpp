@@ -117,7 +117,7 @@ void SLAMInitialization::onInit() {
 }
 
 void SLAMInitialization::onStart() {
-  ROS_INFO("Starting SLAM initialization");
+  ROS_INFO_STREAM("Starting: " << name());
   // subscribe to topics
   visual_measurement_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
@@ -138,7 +138,7 @@ void SLAMInitialization::onStart() {
 }
 
 void SLAMInitialization::onStop() {
-  ROS_INFO("Stopping SLAM initialization");
+  ROS_INFO_STREAM("Stopping: " << name());
   shutdown();
 }
 
