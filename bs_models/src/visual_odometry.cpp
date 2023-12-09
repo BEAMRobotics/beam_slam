@@ -136,11 +136,6 @@ void VisualOdometry::processMeasurements(
   ROS_INFO_STREAM_ONCE(
       "VisualOdometry received VISUAL measurements: " << msg->header.stamp);
 
-  if (resetting_) {
-    ROS_WARN("System is being reset.");
-    return;
-  }
-
   // add measurements to local container
   AddMeasurementsToContainer(msg);
 
@@ -152,6 +147,9 @@ void VisualOdometry::processMeasurements(
   if (!is_initialized_) { return; }
 
   while (!visual_measurement_buffer_.empty()) {
+    // if we are currently resetting, don't process
+    if (resetting_) { break; }
+
     beam::HighResolutionTimer timer;
     // retrieve and process the message at the front of the buffer
     const auto current_msg = visual_measurement_buffer_.front();
@@ -286,12 +284,13 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     num_loc_fails_in_a_row_++;
   }
 
-  if (num_loc_fails_in_a_row_ > 1) {
+  if (num_loc_fails_in_a_row_ > 5) {
     ROS_ERROR_STREAM("Too many localization failures in a row ("
                      << num_loc_fails_in_a_row_ << "). Resetting system.");
     std_msgs::Empty reset;
     reset_publisher_.publish(reset);
     resetting_ = true;
+    return false;
   }
 
   // update previous frame pose
@@ -1284,7 +1283,8 @@ void VisualOdometry::shutdown() {
   visual_measurement_buffer_.clear();
   // frame_initializer_->Clear();
   prev_frame_ = ros::Time(0);
-  local_graph_->clear();
+  previous_keyframe_ = ros::Time(0);
+  if (local_graph_) { local_graph_->clear(); }
   visual_map_->Clear();
   validator_->Clear();
   image_db_->Clear();
