@@ -19,7 +19,6 @@ FrameInitializer::FrameInitializer(const std::string& config_path) {
 
   ROS_INFO_STREAM("Loading frame initializer from: " << config_path);
 
-  std::string type;
   std::string info;
   std::string sensor_frame_id_override;
   std::vector<double> tf_override;
@@ -28,7 +27,7 @@ FrameInitializer::FrameInitializer(const std::string& config_path) {
   Eigen::Matrix4d T_ORIGINAL_OVERRIDE = Eigen::Matrix4d::Identity();
 
   try {
-    type = J["type"];
+    type_ = J["type"];
   } catch (...) {
     ROS_ERROR("Missing or misspelt parameter: 'type'");
     throw std::runtime_error{"Missing or misspelt parameter: 'type'"};
@@ -83,9 +82,9 @@ FrameInitializer::FrameInitializer(const std::string& config_path) {
   }
 
   // if type == posefile ->
-  if (type == "POSEFILE") {
+  if (type_ == "POSEFILE") {
     InitializeFromPoseFile(info);
-  } else if (type == "ODOMETRY") {
+  } else if (type_ == "ODOMETRY") {
     poses_buffer_duration_ = ros::Duration(poses_buffer_time);
     authority_ = "odometry";
     poses_ = std::make_shared<tf2::BufferCore>(poses_buffer_duration_);
@@ -347,6 +346,11 @@ void FrameInitializer::InitializeFromPoseFile(const std::string& file_path) {
   }
 
   pose_lookup_ = std::make_shared<bs_common::PoseLookup>(poses);
+}
+
+void FrameInitializer::Clear() {
+  graph_path_.clear();
+  if (type_ != "POSEFILE") { poses_->clear(); }
 }
 
 } // namespace bs_models

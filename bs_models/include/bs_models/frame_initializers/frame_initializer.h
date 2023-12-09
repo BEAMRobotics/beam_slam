@@ -68,6 +68,11 @@ public:
    */
   void PathCallback(const nav_msgs::PathConstPtr message);
 
+  /**
+   * @brief Clears any local data that is stored
+   */
+  void Clear();
+
 private:
   /**
    * @brief Check to see if world frame and baselink frame IDs match those
@@ -97,6 +102,7 @@ private:
   bool override_sensor_frame_id_{false};
   std::string sensor_frame_id_;
   std::mutex path_mutex_;
+  std::string type_;
 };
 
 } // namespace bs_models

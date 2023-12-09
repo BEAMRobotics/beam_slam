@@ -42,6 +42,7 @@
 #include <fuse_optimizers/variable_stamp_index.h>
 #include <ros/ros.h>
 #include <std_srvs/Empty.h>
+#include <std_msgs/Empty.h>
 
 #include <atomic>
 #include <condition_variable>
@@ -229,6 +230,9 @@ protected:
   ros::ServiceServer reset_service_server_; //!< Service that resets the
                                             //!< optimizer to its initial state
 
+  ros::Subscriber reset_subscriber_;//!< Subscriber that resets the
+                                    //!< optimizer to its initial state
+
   /**
    * @brief Automatically start the smoother if no ignition sensors are
    * specified
@@ -329,6 +333,11 @@ protected:
    */
   bool resetServiceCallback(std_srvs::Empty::Request&,
                             std_srvs::Empty::Response&);
+
+  /**
+   * @brief Service callback that resets the optimizer to its original state
+   */
+  void resetCallback(const std_msgs::Empty::ConstPtr&);
 
   /**
    * @brief Thread-safe read-only access to the optimizer start time

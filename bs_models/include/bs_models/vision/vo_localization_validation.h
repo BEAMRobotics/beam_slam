@@ -46,6 +46,8 @@ public:
                 const Eigen::Matrix<double, 6, 6>& covariance,
                 const double avg_reprojection);
 
+  void Clear();
+
 private:
   bool CheckStoredMetrics() const;
 

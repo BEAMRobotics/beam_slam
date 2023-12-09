@@ -134,4 +134,8 @@ bool VOLocalizationValidation::CheckMetricInitial(
   return true;
 }
 
+void VOLocalizationValidation::Clear() {
+  metrics_.clear();
+}
+
 }} // namespace bs_models::vision

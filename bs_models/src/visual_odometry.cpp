@@ -7,6 +7,7 @@
 #include <fuse_variables/velocity_angular_3d_stamped.h>
 
 #include <geometry_msgs/PoseStamped.h>
+#include <std_msgs/Empty.h>
 #include <std_msgs/Time.h>
 
 #include <beam_cv/OpenCVConversions.h>
@@ -42,6 +43,23 @@ void VisualOdometry::onInit() {
   device_id_ = fuse_variables::loadDeviceId(private_node_handle_);
   vo_params_.loadFromROS(private_node_handle_);
   calibration_params_.loadFromROS();
+
+  // setup publishers
+  reset_publisher_ =
+      private_node_handle_.advertise<std_msgs::Empty>("/local_mapper/reset", 1);
+  odometry_publisher_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
+  keyframe_publisher_ =
+      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 10);
+  imu_constraint_trigger_publisher_ =
+      private_node_handle_.advertise<std_msgs::Time>(
+          "/local_mapper/inertial_odometry/trigger", 10);
+  slam_chunk_publisher_ =
+      private_node_handle_.advertise<bs_common::SlamChunkMsg>(
+          "/local_mapper/slam_results", 100);
+  camera_landmarks_publisher_ =
+      private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+          "camera_landmarks", 10);
 
   // create frame initializer
   frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
@@ -98,29 +116,19 @@ void VisualOdometry::onInit() {
 }
 
 void VisualOdometry::onStart() {
-  // setup subscribers
+  ROS_INFO("Starting Visual Odometry");
+  // setup subscriber
   measurement_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
           ros::names::resolve("/feature_tracker/visual_measurements"), 10,
           &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
+}
 
-  // setup publishers
-  odometry_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
-  keyframe_publisher_ =
-      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 10);
-  imu_constraint_trigger_publisher_ =
-      private_node_handle_.advertise<std_msgs::Time>(
-          "/local_mapper/inertial_odometry/trigger", 10);
-  slam_chunk_publisher_ =
-      private_node_handle_.advertise<bs_common::SlamChunkMsg>(
-          "/local_mapper/slam_results", 100);
-
-  camera_landmarks_publisher_ =
-      private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-          "camera_landmarks", 10);
+void VisualOdometry::onStop() {
+  ROS_INFO("Stopping Visual Odometry");
+  shutdown();
 }
 
 void VisualOdometry::processMeasurements(
@@ -217,7 +225,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
 
   // perform visual refinement
   if (pixels.size() >= vo_params_.required_points_to_refine) {
-    if (track_lost) { track_lost = false; }
+    if (track_lost_) { track_lost_ = false; }
     // get initial estimate in camera frame
     Eigen::Matrix4d T_CAMERA_WORLD_est = beam::InvertTransform(
         T_WORLD_BASELINKcur * beam::InvertTransform(T_cam_baselink_));
@@ -254,7 +262,7 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
 
     // fallback to frame init if failed localization
     if (!passed_localization || !passed_refinement) {
-      track_lost = true;
+      track_lost_ = true;
       T_WORLD_BASELINK = T_WORLD_BASELINKcur;
       covariance = vo_params_.invalid_localization_covariance_weight *
                    Eigen::Matrix<double, 6, 6>::Identity();
@@ -267,10 +275,18 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     ROS_WARN_STREAM(
         "Not enough points for visual refinement: " << pixels.size());
     T_WORLD_BASELINK = T_WORLD_BASELINKcur;
-    track_lost = true;
+    track_lost_ = true;
     covariance = vo_params_.invalid_localization_covariance_weight *
                  Eigen::Matrix<double, 6, 6>::Identity();
     num_loc_fails_in_a_row_++;
+  }
+
+  if (num_loc_fails_in_a_row_ > 10) {
+    ROS_ERROR_STREAM("Too many localization failures in a row ("
+                     << num_loc_fails_in_a_row_ << "). Resetting system.");
+    std_msgs::Empty reset;
+    reset_publisher_.publish(reset);
+    shutdown();
   }
 
   // update previous frame pose
@@ -575,7 +591,7 @@ beam::opt<Eigen::Vector3d>
     }
 
     // if we've lost track, ease the requirements on new landmarks
-    if (track_lost) {
+    if (track_lost_) {
       return beam_cv::Triangulation::TriangulatePoint(cam_model_, T_cam_world_v,
                                                       pixels);
     } else {
@@ -1248,6 +1264,24 @@ double VisualOdometry::ComputeAverageReprojection(
   }
 
   return total_reproj / static_cast<double>(pixels.size());
+}
+
+void VisualOdometry::shutdown() {
+  measurement_subscriber_.shutdown();
+  imu_constraint_trigger_counter_ = 0;
+  num_loc_fails_in_a_row_ = 0;
+  track_lost_ = false;
+  image_projection_to_lm_id_.clear();
+  new_to_old_lm_ids_.clear();
+  is_initialized_ = false;
+  keyframes_.clear();
+  visual_measurement_buffer_.clear();
+  // frame_initializer_->Clear();
+  prev_frame_ = ros::Time(0);
+  local_graph_->clear();
+  visual_map_->Clear();
+  validator_->Clear();
+  image_db_->Clear();
 }
 
 } // namespace bs_models

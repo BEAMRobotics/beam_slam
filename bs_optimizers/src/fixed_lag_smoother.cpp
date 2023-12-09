@@ -107,6 +107,9 @@ FixedLagSmoother::FixedLagSmoother(fuse_core::Graph::UniquePtr graph,
   reset_service_server_ = node_handle_.advertiseService(
       ros::names::resolve(params_.reset_service),
       &FixedLagSmoother::resetServiceCallback, this);
+
+  reset_subscriber_ = node_handle_.subscribe(
+      "/local_mapper/reset", 1, &FixedLagSmoother::resetCallback, this);
 }
 
 FixedLagSmoother::~FixedLagSmoother() {
@@ -505,6 +508,38 @@ bool FixedLagSmoother::resetServiceCallback(std_srvs::Empty::Request&,
   autostart();
 
   return true;
+}
+
+void FixedLagSmoother::resetCallback(const std_msgs::Empty::ConstPtr&) {
+  // Tell all the plugins to stop
+  stopPlugins();
+  // Reset the optimizer state
+  optimization_request_ = false;
+  started_ = false;
+  ignited_ = false;
+  setStartTime(ros::Time(0, 0));
+  // DANGER: The optimizationLoop() function obtains the lock
+  // optimization_mutex_ lock and the
+  //         pending_transactions_mutex_ lock at the same time. We perform a
+  //         parallel locking scheme here to prevent the possibility of
+  //         deadlocks.
+  {
+    std::lock_guard<std::mutex> lock(optimization_mutex_);
+    // Clear all pending transactions
+    {
+      std::lock_guard<std::mutex> lock(pending_transactions_mutex_);
+      pending_transactions_.clear();
+    }
+    // Clear the graph and marginal tracking states
+    graph_->clear();
+    marginal_transaction_ = fuse_core::Transaction();
+    timestamp_tracking_.clear();
+    lag_expiration_ = ros::Time(0, 0);
+  }
+  // Tell all the plugins to start
+  startPlugins();
+  // Test for auto-start
+  autostart();
 }
 
 void FixedLagSmoother::transactionCallback(

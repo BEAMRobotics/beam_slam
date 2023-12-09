@@ -379,4 +379,8 @@ double LidarPathInit::GetMedianRegistrationTimeInS() {
   return *iter;
 }
 
+void LidarPathInit::Reset(){
+  
+}
+
 } // namespace bs_models

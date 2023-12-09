@@ -117,6 +117,7 @@ void SLAMInitialization::onInit() {
 }
 
 void SLAMInitialization::onStart() {
+  ROS_INFO("Starting SLAM initialization");
   // subscribe to topics
   visual_measurement_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
@@ -134,6 +135,11 @@ void SLAMInitialization::onStart() {
       ros::names::resolve(params_.lidar_topic), 100,
       &ThrottledLidarCallback::callback, &throttled_lidar_callback_,
       ros::TransportHints().tcpNoDelay(false));
+}
+
+void SLAMInitialization::onStop() {
+  ROS_INFO("Stopping SLAM initialization");
+  shutdown();
 }
 
 void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
@@ -830,11 +836,15 @@ void SLAMInitialization::shutdown() {
   imu_buffer_.clear();
   frame_init_buffer_.clear();
   local_graph_->clear();
-  frame_initializer_ = nullptr;
-  visual_map_ = nullptr;
-  imu_preint_ = nullptr;
-  lidar_path_init_ = nullptr;
-  image_db_ = nullptr;
+  // frame_initializer_->Clear();
+  visual_map_->Clear();
+  imu_preint_->Reset();
+  lidar_path_init_->Reset();
+  image_db_->Clear();
+  init_path_.clear();
+  velocities_.clear();
+  last_lidar_scan_time_s_ = 0;
+  prev_frame_ = ros::Time(0);
 }
 
 void SLAMInitialization::AddMeasurementsToContainer(

@@ -24,6 +24,7 @@
   <depend>pluginlib</depend>
   <depend>roscpp</depend>
   <depend>std_srvs</depend>
+  <depend>std_msgs</depend>
   <test_depend>fuse_models</test_depend>
   <test_depend>geometry_msgs</test_depend>
   <test_depend>nav_msgs</test_depend>

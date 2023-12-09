@@ -23,6 +23,7 @@ set(build_depends
   pluginlib
   roscpp
   std_srvs
+  std_msgs
   bs_constraints
   bs_common
 )

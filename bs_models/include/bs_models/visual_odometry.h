@@ -56,7 +56,7 @@ private:
   void onStart() override;
 
   /// @brief Unsubscribe to the input topics and clear memory
-  void onStop() override {}
+  void onStop() override;
 
   /// @brief Callback for when a newly optimized graph is available
   /// @param graph_msg incoming grpah
@@ -223,6 +223,9 @@ private:
       const std::vector<Eigen::Vector2i, beam::AlignVec2i>& pixels,
       const std::vector<Eigen::Vector3d, beam::AlignVec3d>& points);
 
+  /// @brief shuts down subscribers and resets to base state
+  void shutdown();
+
   /******************************************************
    *                   Member Variables                 *
    *****************************************************/
@@ -238,31 +241,32 @@ private:
   /// @brief Used to get initial pose estimates
   std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
 
-  /// @brief subscribers
+  /// @brief subscribers/clients
   ros::Subscriber measurement_subscriber_;
+
   /// @brief publishers
   ros::Publisher odometry_publisher_;
   ros::Publisher keyframe_publisher_;
   ros::Publisher slam_chunk_publisher_;
   ros::Publisher imu_constraint_trigger_publisher_;
   ros::Publisher camera_landmarks_publisher_;
-  int imu_constraint_trigger_counter_{0};
+  ros::Publisher reset_publisher_;
 
   /// @brief book keeping variables
   bool is_initialized_{false};
   std::map<ros::Time, vision::Keyframe> keyframes_;
   std::deque<bs_common::CameraMeasurementMsg::ConstPtr>
       visual_measurement_buffer_;
-  ros::Time previous_reloc_request_{ros::Time(0)};
   ros::Time previous_keyframe_;
   size_t max_container_size_;
-  bool track_lost{false};
+  bool track_lost_{false};
   ros::Time prev_frame_{ros::Time(0)};
   double lag_duration_;
   std::mutex buffer_mutex_;
   Eigen::Matrix4d T_WORLD_BASELINKprevframe_;
   std::shared_ptr<vision::VOLocalizationValidation> validator_;
   int num_loc_fails_in_a_row_{0};
+  int imu_constraint_trigger_counter_{0};
 
   /// @brief local map matching stuff
   boost::bimap<uint64_t, uint64_t> new_to_old_lm_ids_;
