@@ -4,6 +4,7 @@
 #include <pluginlib/class_list_macros.h>
 
 #include <beam_utils/filesystem.h>
+#include <std_msgs/Empty.h>
 
 #include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
@@ -108,6 +109,12 @@ void InertialOdometry::onInit() {
   calibration_params_.loadFromROS();
   params_.loadFromROS(private_node_handle_);
 
+  // setup publishers
+  odometry_publisher_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
+  reset_publisher_ =
+      private_node_handle_.advertise<std_msgs::Empty>("/local_mapper/reset", 1);
+
   // read imu parameters
   nlohmann::json J;
   beam::ReadJson(calibration_params_.imu_intrinsics_path, J);
@@ -122,6 +129,7 @@ void InertialOdometry::onInit() {
 }
 
 void InertialOdometry::onStart() {
+  ROS_INFO_STREAM("Starting: " << name());
   // subscribe to imu topic
   imu_subscriber_ = private_node_handle_.subscribe<sensor_msgs::Imu>(
       ros::names::resolve(params_.imu_topic), 1000,
@@ -132,10 +140,11 @@ void InertialOdometry::onStart() {
       ros::names::resolve("/local_mapper/inertial_odometry/trigger"), 10,
       &ThrottledTriggerCallback::callback, &throttled_trigger_callback_,
       ros::TransportHints().tcpNoDelay(false));
+}
 
-  // setup publishers
-  odometry_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
+void InertialOdometry::onStop() {
+  ROS_INFO_STREAM("Stopping: " << name());
+  shutdown();
 }
 
 void InertialOdometry::processIMU(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -232,6 +241,23 @@ void InertialOdometry::onGraphUpdate(
     return;
   }
   imu_preint_->UpdateGraph(graph_msg);
+
+  const auto cur_imu_state = imu_preint_->GetImuState();
+  const auto bg_norm = cur_imu_state.GyroBiasVec().norm();
+  const auto ba_norm = cur_imu_state.AccelBiasVec().norm();
+
+  if (bg_norm > 1.0) {
+    ROS_ERROR_STREAM("IMU Gyro Bias estimate too large: "
+                     << bg_norm << ". Resetting system.");
+    std_msgs::Empty reset;
+    reset_publisher_.publish(reset);
+  }
+  if (ba_norm > 2.5) {
+    ROS_ERROR_STREAM("IMU Accel Bias estimate too large: "
+                     << ba_norm << ". Resetting system.");
+    std_msgs::Empty reset;
+    reset_publisher_.publish(reset);
+  }
 }
 
 void InertialOdometry::Initialize(fuse_core::Graph::ConstSharedPtr graph_msg) {
@@ -463,6 +489,18 @@ void InertialOdometry::BreakupConstraint(
     transaction->removeConstraint(constraint_data.constraint_uuid);
   }
   sendTransaction(transaction);
+}
+
+void InertialOdometry::shutdown() {
+  imu_subscriber_.shutdown();
+  trigger_subscriber_.shutdown();
+  odom_seq_ = 0;
+  initialized_ = false;
+  prev_stamp_ = ros::Time(0.0);
+  T_ODOM_IMUprev_ = Eigen::Matrix4d::Identity();
+  trigger_buffer_.clear();
+  imu_buffer_ = ImuBuffer();
+  imu_preint_->Reset();
 }
 
 } // namespace bs_models

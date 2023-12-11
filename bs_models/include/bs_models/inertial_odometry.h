@@ -117,7 +117,7 @@ private:
   /**
    * @brief Unsubscribe to the input topics
    */
-  void onStop() override {}
+  void onStop() override;
 
   /**
    * @brief Read in graph updates
@@ -146,6 +146,11 @@ private:
   void BreakupConstraint(const ros::Time& new_trigger_time,
                          const ImuConstraintData& constraint_data);
 
+  /**
+   * @brief Resets to base state
+   */
+  void shutdown();
+
   int odom_seq_ = 0;
   bool initialized_{false};
   ros::Time prev_stamp_{0.0};
@@ -164,6 +169,7 @@ private:
 
   // publishers
   ros::Publisher odometry_publisher_;
+  ros::Publisher reset_publisher_;
 
   // data storage
   ros::Time last_trigger_time_;
@@ -173,7 +179,6 @@ private:
   // primary odom objects
   std::shared_ptr<ImuPreintegration> imu_preint_;
   bs_models::ImuPreintegration::Params imu_params_;
-  std::unique_ptr<bs_models::FrameInitializer> frame_initializer_;
   std::mutex mutex_;
 
   // extrinsics
