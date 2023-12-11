@@ -925,16 +925,7 @@ void SLAMInitialization::shutdown() {
   velocities_.clear();
   last_lidar_scan_time_s_ = 0;
   prev_frame_ = ros::Time(0);
-
-  // !temp: reset lidar path init
-  // lidar_path_init_->Reset(); // TODO
-  if (mode_ == InitMode::LIDAR) {
-    ROS_WARN("NICK - to implement reset function for LidarPathInit");
-    mode_ = InitMode::LIDAR;
-    lidar_path_init_ = std::make_unique<LidarPathInit>(
-        lidar_buffer_size_, params_.matcher_config,
-        params_.lidar_information_weight);
-  }
+  if (lidar_path_init_) { lidar_path_init_->Reset(); }
 }
 
 } // namespace bs_models

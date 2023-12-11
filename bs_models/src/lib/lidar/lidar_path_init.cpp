@@ -379,8 +379,13 @@ double LidarPathInit::GetMedianRegistrationTimeInS() {
   return *iter;
 }
 
-void LidarPathInit::Reset(){
-  
+void LidarPathInit::Reset() {
+  keyframes_.clear();
+  keyframe_transactions_.clear();
+  registration_times_.clear();
+  map_optimized_ = PointCloud();
+  map_registered_ = PointCloud();
+  map_init_ = PointCloud();
 }
 
 } // namespace bs_models
