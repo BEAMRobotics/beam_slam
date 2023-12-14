@@ -34,12 +34,6 @@ LidarOdometry::LidarOdometry()
 void LidarOdometry::onInit() {
   params_.loadFromROS(private_node_handle_);
 
-  // init frame initializer
-  if (!params_.frame_initializer_config.empty()) {
-    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
-        params_.frame_initializer_config);
-  }
-
   // get filter params
   nlohmann::json J;
   if (!params_.input_filters_config.empty()) {
@@ -109,6 +103,12 @@ void LidarOdometry::onInit() {
 }
 
 void LidarOdometry::onStart() {
+  // init frame initializer
+  if (!params_.frame_initializer_config.empty()) {
+    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+        params_.frame_initializer_config);
+  }
+
   subscriber_ = private_node_handle_.subscribe<sensor_msgs::PointCloud2>(
       ros::names::resolve(params_.input_topic), 10,
       &ThrottledCallback::callback, &throttled_callback_,
@@ -151,6 +151,12 @@ void LidarOdometry::onStop() {
   }
   active_clouds_.clear();
   subscriber_.shutdown();
+  updates_ = 0;
+  T_World_BaselinkLast_ = Eigen::Matrix4d::Identity();
+  last_map_update_time_ = ros::Time(0);
+  last_scan_pose_time_ = ros::Time(0);
+  RegistrationMap& map = RegistrationMap::GetInstance();
+  map.Clear();
 }
 
 void LidarOdometry::SetupRegistration() {
