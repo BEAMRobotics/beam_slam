@@ -44,23 +44,6 @@ void VisualOdometry::onInit() {
   vo_params_.loadFromROS(private_node_handle_);
   calibration_params_.loadFromROS();
 
-  // setup publishers
-  reset_publisher_ =
-      private_node_handle_.advertise<std_msgs::Empty>("/local_mapper/reset", 1);
-  odometry_publisher_ =
-      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
-  keyframe_publisher_ =
-      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 10);
-  imu_constraint_trigger_publisher_ =
-      private_node_handle_.advertise<std_msgs::Time>(
-          "/local_mapper/inertial_odometry/trigger", 10);
-  slam_chunk_publisher_ =
-      private_node_handle_.advertise<bs_common::SlamChunkMsg>(
-          "/local_mapper/slam_results", 100);
-  camera_landmarks_publisher_ =
-      private_node_handle_.advertise<sensor_msgs::PointCloud2>(
-          "camera_landmarks", 10);
-
   // Load camera model and create visua map object
   cam_model_ = beam_calibration::CameraModel::Create(
       calibration_params_.cam_intrinsics_path);
@@ -89,10 +72,6 @@ void VisualOdometry::onInit() {
   pose_refiner_ = std::make_shared<beam_cv::PoseRefinement>(0.02, true, 0.2);
   validator_ = std::make_shared<vision::VOLocalizationValidation>();
 
-  // get extrinsics
-  extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
-  T_baselink_cam_ = beam::InvertTransform(T_cam_baselink_);
-
   // compute the max container size
   bs_parameters::getParamRequired(ros::NodeHandle("~"), "lag_duration",
                                   lag_duration_);
@@ -113,7 +92,6 @@ void VisualOdometry::onInit() {
 
 void VisualOdometry::onStart() {
   ROS_INFO_STREAM("Starting: " << name());
-  
   // initialize frame init
   frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
       vo_params_.frame_initializer_config);
@@ -125,6 +103,27 @@ void VisualOdometry::onStart() {
           &ThrottledMeasurementCallback::callback,
           &throttled_measurement_callback_,
           ros::TransportHints().tcpNoDelay(false));
+
+  // setup publishers
+  reset_publisher_ =
+      private_node_handle_.advertise<std_msgs::Empty>("/local_mapper/reset", 1);
+  odometry_publisher_ =
+      private_node_handle_.advertise<nav_msgs::Odometry>("odometry", 100);
+  keyframe_publisher_ =
+      private_node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 10);
+  imu_constraint_trigger_publisher_ =
+      private_node_handle_.advertise<std_msgs::Time>(
+          "/local_mapper/inertial_odometry/trigger", 10);
+  slam_chunk_publisher_ =
+      private_node_handle_.advertise<bs_common::SlamChunkMsg>(
+          "/local_mapper/slam_results", 100);
+  camera_landmarks_publisher_ =
+      private_node_handle_.advertise<sensor_msgs::PointCloud2>(
+          "camera_landmarks", 10);
+
+  // get extrinsics
+  extrinsics_.GetT_CAMERA_BASELINK(T_cam_baselink_);
+  T_baselink_cam_ = beam::InvertTransform(T_cam_baselink_);
 }
 
 void VisualOdometry::onStop() {
@@ -285,8 +284,9 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     num_loc_fails_in_a_row_++;
   }
 
-  if (num_loc_fails_in_a_row_ > 5) {
-    ROS_ERROR_STREAM("Too many localization failures in a row ("
+  if (num_loc_fails_in_a_row_ >= 10) {
+    ROS_ERROR_STREAM(name()
+                     << ": Too many localization failures in a row ("
                      << num_loc_fails_in_a_row_ << "). Resetting system.");
     std_msgs::Empty reset;
     reset_publisher_.publish(reset);
@@ -1288,6 +1288,7 @@ void VisualOdometry::shutdown() {
   visual_map_->Clear();
   validator_->Clear();
   image_db_->Clear();
+  landmark_container_->clear();
 }
 
 } // namespace bs_models

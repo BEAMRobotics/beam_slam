@@ -63,6 +63,7 @@ private:
 
   /** Publishers */
   ros::Publisher results_publisher_; // for global mapper
+    ros::Publisher reset_publisher_;
 
   ros::Publisher odom_publisher_;
   int odom_publisher_counter_{0};
@@ -110,6 +111,8 @@ private:
   std::string marginalized_scans_path_;
   std::string registration_results_path_;
   ros::Time last_map_update_time_{0};
+  int skipped_scans_in_a_row_{0};
+  bool resetting_{false};
 
   /** Params that can only be updated here: */
   bool update_registration_map_all_scans_{false};

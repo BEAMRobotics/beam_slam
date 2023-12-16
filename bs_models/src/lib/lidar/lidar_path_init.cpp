@@ -386,6 +386,7 @@ void LidarPathInit::Reset() {
   map_optimized_ = PointCloud();
   map_registered_ = PointCloud();
   map_init_ = PointCloud();
+  scan_registration_->reset();
 }
 
 } // namespace bs_models

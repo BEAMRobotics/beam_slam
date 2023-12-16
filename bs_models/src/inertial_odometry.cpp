@@ -247,14 +247,14 @@ void InertialOdometry::onGraphUpdate(
   const auto ba_norm = cur_imu_state.AccelBiasVec().norm();
 
   if (bg_norm > 1.0) {
-    ROS_ERROR_STREAM("IMU Gyro Bias estimate too large: "
-                     << bg_norm << ". Resetting system.");
+    ROS_ERROR_STREAM(name() << ": IMU Gyro Bias estimate too large: " << bg_norm
+                            << ". Resetting system.");
     std_msgs::Empty reset;
     reset_publisher_.publish(reset);
   }
   if (ba_norm > 2.5) {
-    ROS_ERROR_STREAM("IMU Accel Bias estimate too large: "
-                     << ba_norm << ". Resetting system.");
+    ROS_ERROR_STREAM(name() << ": IMU Accel Bias estimate too large: "
+                            << ba_norm << ". Resetting system.");
     std_msgs::Empty reset;
     reset_publisher_.publish(reset);
   }

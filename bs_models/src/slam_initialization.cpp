@@ -926,6 +926,7 @@ void SLAMInitialization::shutdown() {
   last_lidar_scan_time_s_ = 0;
   prev_frame_ = ros::Time(0);
   if (lidar_path_init_) { lidar_path_init_->Reset(); }
+  landmark_container_->clear();
 }
 
 } // namespace bs_models
