@@ -46,6 +46,11 @@ public:
   bs_constraints::Pose3DStampedTransaction
       RegisterNewScan(const ScanPose& new_scan) override;
 
+  /**
+   * @brief
+   */
+  void reset() { scan_pose_prev_ = nullptr; }
+
 protected:
   /**
    * @brief Pure virtual function for registering a new scan to the map.

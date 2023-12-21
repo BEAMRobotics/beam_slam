@@ -177,6 +177,11 @@ public:
    */
   size_t CurrentBufferSize();
 
+  /**
+   * @brief Resets the imu preint to base
+   */
+  void Reset();
+
 private:
   /**
    * @brief Checks parameters

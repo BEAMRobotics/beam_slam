@@ -12,6 +12,7 @@
 #include <bs_common/visualization.h>
 #include <bs_models/graph_visualization/helpers.h>
 #include <bs_models/imu/inertial_alignment.h>
+#include <bs_models/scan_registration/registration_map.h>
 #include <bs_models/vision/utils.h>
 
 // Register this sensor model with ROS as a plugin.
@@ -58,12 +59,6 @@ void SLAMInitialization::onInit() {
 
   // create landmark container
   landmark_container_ = std::make_shared<beam_containers::LandmarkContainer>();
-
-  // create frame initializer if desired
-  if (!params_.frame_initializer_config.empty()) {
-    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
-        params_.frame_initializer_config);
-  }
 
   // read imu parameters
   nlohmann::json J;
@@ -117,6 +112,14 @@ void SLAMInitialization::onInit() {
 }
 
 void SLAMInitialization::onStart() {
+  ROS_INFO_STREAM("Starting: " << name());
+
+  // initialize frame init
+  if (!params_.frame_initializer_config.empty()) {
+    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+        params_.frame_initializer_config);
+  }
+
   // subscribe to topics
   visual_measurement_subscriber_ =
       private_node_handle_.subscribe<bs_common::CameraMeasurementMsg>(
@@ -134,6 +137,13 @@ void SLAMInitialization::onStart() {
       ros::names::resolve(params_.lidar_topic), 100,
       &ThrottledLidarCallback::callback, &throttled_lidar_callback_,
       ros::TransportHints().tcpNoDelay(false));
+}
+
+void SLAMInitialization::onStop() {
+  ROS_INFO_STREAM("Stopping: " << name());
+  shutdown();
+  // reset and clear registration map
+  bs_models::scan_registration::RegistrationMap::GetInstance().Clear();
 }
 
 void SLAMInitialization::processFrameInit(const ros::Time& timestamp) {
@@ -823,20 +833,6 @@ void SLAMInitialization::OutputResults() {
   }
 }
 
-void SLAMInitialization::shutdown() {
-  visual_measurement_subscriber_.shutdown();
-  imu_subscriber_.shutdown();
-  lidar_subscriber_.shutdown();
-  imu_buffer_.clear();
-  frame_init_buffer_.clear();
-  local_graph_->clear();
-  frame_initializer_ = nullptr;
-  visual_map_ = nullptr;
-  imu_preint_ = nullptr;
-  lidar_path_init_ = nullptr;
-  image_db_ = nullptr;
-}
-
 void SLAMInitialization::AddMeasurementsToContainer(
     const bs_common::CameraMeasurementMsg::ConstPtr& msg) {
   // check that message hasnt already been added to container
@@ -913,6 +909,24 @@ void SLAMInitialization::AddMeasurementsToContainer(
     }
   }
   prev_frame_ = msg->header.stamp;
+}
+
+void SLAMInitialization::shutdown() {
+  visual_measurement_subscriber_.shutdown();
+  imu_subscriber_.shutdown();
+  lidar_subscriber_.shutdown();
+  imu_buffer_.clear();
+  frame_init_buffer_.clear();
+  local_graph_->clear();
+  visual_map_->Clear();
+  imu_preint_->Reset();
+  image_db_->Clear();
+  init_path_.clear();
+  velocities_.clear();
+  last_lidar_scan_time_s_ = 0;
+  prev_frame_ = ros::Time(0);
+  if (lidar_path_init_) { lidar_path_init_->Reset(); }
+  landmark_container_->clear();
 }
 
 } // namespace bs_models

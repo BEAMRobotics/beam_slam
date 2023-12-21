@@ -89,6 +89,8 @@ public:
   double GetMedianRegistrationTimeInS();
   double GetMeanRegistrationTimeInS();
 
+  void Reset();
+
 private:
   struct Results {};
 

@@ -34,12 +34,6 @@ LidarOdometry::LidarOdometry()
 void LidarOdometry::onInit() {
   params_.loadFromROS(private_node_handle_);
 
-  // init frame initializer
-  if (!params_.frame_initializer_config.empty()) {
-    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
-        params_.frame_initializer_config);
-  }
-
   // get filter params
   nlohmann::json J;
   if (!params_.input_filters_config.empty()) {
@@ -109,6 +103,13 @@ void LidarOdometry::onInit() {
 }
 
 void LidarOdometry::onStart() {
+  ROS_INFO_STREAM("Starting: " << name());
+  // init frame initializer
+  if (!params_.frame_initializer_config.empty()) {
+    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+        params_.frame_initializer_config);
+  }
+
   subscriber_ = private_node_handle_.subscribe<sensor_msgs::PointCloud2>(
       ros::names::resolve(params_.input_topic), 10,
       &ThrottledCallback::callback, &throttled_callback_,
@@ -128,6 +129,8 @@ void LidarOdometry::onStart() {
   imu_constraint_trigger_publisher_ =
       private_node_handle_.advertise<std_msgs::Time>(
           "/local_mapper/inertial_odometry/trigger", 10);
+  reset_publisher_ =
+      private_node_handle_.advertise<std_msgs::Empty>("/local_mapper/reset", 1);
 
   std::string baselink_frame = extrinsics_.GetBaselinkFrameId();
   std::string lidar_frame = extrinsics_.GetLidarFrameId();
@@ -140,6 +143,7 @@ void LidarOdometry::onStart() {
 }
 
 void LidarOdometry::onStop() {
+  ROS_INFO_STREAM("Stopping: " << name());
   // if output set, save scans before stopping
   ROS_INFO("LidarOdometry stopped, processing remaining scans in window.");
   for (auto iter = active_clouds_.begin(); iter != active_clouds_.end();
@@ -151,6 +155,14 @@ void LidarOdometry::onStop() {
   }
   active_clouds_.clear();
   subscriber_.shutdown();
+  updates_ = 0;
+  T_World_BaselinkLast_ = Eigen::Matrix4d::Identity();
+  last_map_update_time_ = ros::Time(0);
+  last_scan_pose_time_ = ros::Time(0);
+  RegistrationMap& map = RegistrationMap::GetInstance();
+  map.Clear();
+  skipped_scans_in_a_row_ = 0;
+  resetting_ = false;
 }
 
 void LidarOdometry::SetupRegistration() {
@@ -293,6 +305,8 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     return;
   }
 
+  if (resetting_) { return; }
+
   // buffer the message
   scan_buffer_.push_back(msg);
 
@@ -384,8 +398,18 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     if (transaction == nullptr) {
       ROS_WARN("No transaction generated, skipping scan.");
       scan_buffer_.pop_front();
+      skipped_scans_in_a_row_++;
+      if (skipped_scans_in_a_row_ >= 10) {
+        ROS_ERROR_STREAM(name()
+                         << ": Too many localization failures in a row ("
+                         << skipped_scans_in_a_row_ << "). Resetting system.");
+        std_msgs::Empty reset;
+        reset_publisher_.publish(reset);
+        resetting_ = true;
+      }
       break;
     }
+    skipped_scans_in_a_row_ = 0;
     sendTransaction(transaction);
 
     // add priors from initializer

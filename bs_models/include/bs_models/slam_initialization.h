@@ -11,8 +11,8 @@
 
 #include <beam_calibration/CameraModel.h>
 #include <beam_containers/LandmarkContainer.h>
-#include <beam_cv/descriptors/Descriptors.h>
 #include <beam_cv/ImageDatabase.h>
+#include <beam_cv/descriptors/Descriptors.h>
 
 #include <bs_common/bs_msgs.h>
 #include <bs_common/extrinsics_lookup_online.h>
@@ -87,6 +87,11 @@ private:
   void onStart() override;
 
   /**
+   * @brief Unsubscribe to the input topics and clear memory
+   */
+  void onStop() override;
+
+  /**
    * @brief Clears all memory and shuts down subscribers
    */
   void shutdown();
@@ -103,7 +108,8 @@ private:
    * @brief Triangulates a landmark
    * @return position of landmark if it can be estimated
    */
-  beam::opt<Eigen::Vector3d> TriangulateLandmark(const uint64_t lm_id,
+  beam::opt<Eigen::Vector3d>
+      TriangulateLandmark(const uint64_t lm_id,
                           Eigen::Vector3d& average_viewing_angle,
                           uint64_t& visual_word_id);
 

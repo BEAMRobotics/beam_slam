@@ -23,6 +23,7 @@ find_package(
 
 set(catkin_build_depends
     std_msgs
+    std_srvs
     geometry_msgs
     nav_msgs
     pluginlib

@@ -97,6 +97,7 @@ private:
   bool override_sensor_frame_id_{false};
   std::string sensor_frame_id_;
   std::mutex path_mutex_;
+  std::string type_;
 };
 
 } // namespace bs_models
