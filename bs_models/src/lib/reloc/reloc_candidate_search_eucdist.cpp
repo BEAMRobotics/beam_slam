@@ -52,8 +52,7 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
     const global_mapping::SubmapPtr& query_submap,
     std::vector<int>& matched_indices,
     std::vector<Eigen::Matrix4d, beam::AlignMat4d>& Ts_Candidate_Query,
-    size_t ignore_last_n_submaps, bool use_initial_poses,
-    const std::string& output_path) {
+    size_t ignore_last_n_submaps, const std::string& output_path) {
   if (search_submaps.size() <= ignore_last_n_submaps) { return; }
 
   const Eigen::Matrix4d& T_WORLD_QUERY = query_submap->T_WORLD_SUBMAP();
@@ -62,8 +61,7 @@ void RelocCandidateSearchEucDist::FindRelocCandidates(
   std::map<double, std::pair<int, Eigen::Matrix4d>> candidates_sorted;
   for (int i = 0; i < search_submaps.size() - ignore_last_n_submaps; i++) {
     Eigen::Matrix4d T_WORLD_SUBMAPCANDIDATE =
-        use_initial_poses ? search_submaps.at(i)->T_WORLD_SUBMAP_INIT()
-                          : search_submaps.at(i)->T_WORLD_SUBMAP();
+        search_submaps.at(i)->T_WORLD_SUBMAP();
     Eigen::Matrix4d T_SUBMAPCANDIDATE_QUERY =
         beam::InvertTransform(T_WORLD_SUBMAPCANDIDATE) * T_WORLD_QUERY;
 

@@ -383,7 +383,8 @@ public:
    * case we use the camera keyrfame
    * @param return vectors of stamped poses, where poses are T_SUBMAP_FRAME
    */
-  std::vector<Submap::PoseStamped> GetTrajectory() const;
+  std::vector<Submap::PoseStamped>
+      GetTrajectory(bool use_initials = false) const;
 
   /*-------------------------------/
             READ/WRITE DATA

@@ -172,7 +172,7 @@ void LidarOdometry::SetupRegistration() {
     const auto& reg_filepath = params_.registration_config;
     const auto& matcher_filepath = params_.matcher_config;
     scan_registration_ = ScanRegistrationBase::Create(
-        reg_filepath, matcher_filepath, registration_results_path_, true);
+        reg_filepath, matcher_filepath, registration_results_path_, 1e-5);
 
     // setup feature extractor if needed
     matcher_type = beam_matching::GetTypeFromConfig(matcher_filepath);

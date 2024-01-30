@@ -1,5 +1,5 @@
 {
-  "submap_size_m": 5,
+  "submap_size_m": 10,
   "loop_closure_candidate_search_config": "global_map/reloc_candidate_search_eucdist.json",
   "loop_closure_refinement_config": "global_map/reloc_refinement_scan_registration.json",
   "local_mapper_covariance_diag": [

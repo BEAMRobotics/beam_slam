@@ -341,31 +341,15 @@ int GlobalMap::GetSubmapId(const Eigen::Matrix4d& T_WORLD_BASELINK) {
   // first check if submaps is empty
   if (submaps_.empty()) { return 0; }
 
+  int cur_submap_id = submaps_.size() - 1;
   Eigen::Vector3d t_WORLD_FRAME = T_WORLD_BASELINK.block(0, 3, 3, 1);
-
   Eigen::Vector3d t_WORLD_SUBMAPCUR =
-      submaps_.at(submaps_.size() - 1)->T_WORLD_SUBMAP_INIT().block(0, 3, 3, 1);
+      submaps_.at(cur_submap_id)->T_WORLD_SUBMAP_INIT().block(0, 3, 3, 1);
 
-  // if only one submap exists, we only check the pose is within this first
-  // submap
-  if (submaps_.size() == 1) {
-    if ((t_WORLD_FRAME - t_WORLD_SUBMAPCUR).norm() < params_.submap_size) {
-      return 0;
-    } else {
-      return 1;
-    }
-  }
-
-  // otherwise, also check the prev submap and prioritize that one
-  Eigen::Vector3d t_WORLD_SUBMAPPREV =
-      submaps_.at(submaps_.size() - 2)->T_WORLD_SUBMAP_INIT().block(0, 3, 3, 1);
-
-  if ((t_WORLD_FRAME - t_WORLD_SUBMAPPREV).norm() < params_.submap_size) {
-    return submaps_.size() - 2;
-  } else if ((t_WORLD_FRAME - t_WORLD_SUBMAPCUR).norm() < params_.submap_size) {
-    return submaps_.size() - 1;
+  if ((t_WORLD_FRAME - t_WORLD_SUBMAPCUR).norm() < params_.submap_size) {
+    return cur_submap_id;
   } else {
-    return submaps_.size();
+    return cur_submap_id + 1;
   }
 }
 
@@ -423,11 +407,9 @@ fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
   std::vector<int> matched_indices;
   std::vector<Eigen::Matrix4d, beam::AlignMat4d> Ts_MATCH_QUERY;
   // ignore the current empty submap, and the last full submap (the query)
-  static bool use_initial_poses = false;
   loop_closure_candidate_search_->FindRelocCandidates(
       submaps_, submaps_.at(query_index), matched_indices, Ts_MATCH_QUERY,
-      ignore_last_n_submaps, use_initial_poses,
-      lc_results_path_candidate_search_);
+      ignore_last_n_submaps, lc_results_path_candidate_search_);
   std::string candidates;
   for (const auto& id : matched_indices) {
     candidates += std::to_string(id) + " ";
@@ -779,7 +761,7 @@ void GlobalMap::SaveTrajectoryClouds(const std::string& output_path,
   for (uint16_t i = 0; i < submaps_.size(); i++) {
     const SubmapPtr& submap = submaps_.at(i);
     Eigen::Matrix4d T_WORLD_SUBMAP = submap->T_WORLD_SUBMAP_INIT();
-    auto poses_stamped = submap->GetTrajectory();
+    auto poses_stamped = submap->GetTrajectory(true);
     for (const Submap::PoseStamped& pose_stamped : poses_stamped) {
       Eigen::Vector4d p(0, 0, 0, 1);
       const Eigen::Matrix4d& T_SUBMAP_BASELINK = pose_stamped.pose;

@@ -447,7 +447,8 @@ beam_matching::LoamPointCloud
   return map;
 }
 
-std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {
+std::vector<Submap::PoseStamped>
+    Submap::GetTrajectory(bool use_initials) const {
   // first we create an ordered map so we can easily make sure poses are in
   // order, then we'll convert to a vector
   std::map<uint64_t, Eigen::Matrix4d> poses_stamped_map;
@@ -463,7 +464,10 @@ std::vector<Submap::PoseStamped> Submap::GetTrajectory() const {
        it != lidar_keyframe_poses_.end(); it++) {
     if (poses_stamped_map.find(it->first) == poses_stamped_map.end()) {
       // transform to baselink pose
-      const Eigen::Matrix4d& T_SUBMAP_LIDAR = it->second.T_REFFRAME_LIDAR();
+
+      Eigen::Matrix4d T_SUBMAP_LIDAR = use_initials
+                                           ? it->second.T_REFFRAME_LIDAR_INIT()
+                                           : it->second.T_REFFRAME_LIDAR();
       ros::Time stamp;
       stamp.fromNSec(it->first);
       Eigen::Matrix4d T_LIDAR_BASELINK;

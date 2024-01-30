@@ -1,0 +1,18 @@
+<launch>
+
+  <!-- Load calibration params for this dataset,  including intrinsics and extrinsics.
+       Note: These are global params that need to be loaded for all launch files. -->
+  <rosparam command="load" file="$(find beam_slam_launch)/config/calibration_params.yaml"/>
+
+  <arg name="extrinsics_file_path" default="$(find beam_slam_launch)/calibrations/ig2/extrinsics.json"/>
+
+  <node name="calibration_publisher" pkg="calibration_publisher" type="calibration_publisher_main">
+    <param name="robot_name" value=""/>
+    <param name="extrinsics_file_path" value="$(arg extrinsics_file_path)"/>
+  </node>
+
+  <node pkg="bs_optimizers" type="fixed_lag_smoother_node" name="global_mapper" output="screen">
+      <rosparam command="load" file="$(find beam_slam_launch)/config/global_mapper.yaml"/>
+  </node>
+
+</launch>

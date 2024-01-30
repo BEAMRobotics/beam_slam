@@ -33,18 +33,13 @@ public:
    * @param ignore_last_n_submaps how many of the final submaps should be
    * ignored. This is useful when using this for loop closure where we don't
    * want to look in the last n submaps
-   * @param use_initial_poses if set to true, we will use the initial pose in
-   * the submaps. This is useful when running reloc on submaps that are being
-   * optimized, but the initial query pose estimate is in the original world
-   * frame
    */
   virtual void FindRelocCandidates(
       const std::vector<global_mapping::SubmapPtr>& search_submaps,
       const global_mapping::SubmapPtr& query_submap,
       std::vector<int>& matched_indices,
       std::vector<Eigen::Matrix4d, beam::AlignMat4d>& Ts_Candidate_Query,
-      size_t ignore_last_n_submaps, bool use_initial_poses = false,
-      const std::string& output_path = "") = 0;
+      size_t ignore_last_n_submaps, const std::string& output_path = "") = 0;
 
   /**
    * @brief Factory method to create a object at runtime given a config file

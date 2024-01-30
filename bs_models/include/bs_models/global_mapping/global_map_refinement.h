@@ -207,6 +207,11 @@ private:
    */
   void Setup();
 
+  void SaveViewableSubmap(const std::string& save_path, const PointCloud& cloud,
+                          uint8_t r, uint8_t g, uint8_t b,
+                          const Eigen::Vector3d& t_world_BaselinkStart,
+                          const Eigen::Vector3d& t_world_BaselinkEnd) const;
+
   Params params_;
   std::shared_ptr<GlobalMap> global_map_;
 
@@ -223,8 +228,15 @@ private:
   Summary summary_;
 
   // params only tunable here
-  int pgo_skip_first_n_submaps_{3};
-  double pose_prior_noise_{1e-9};
+  int pgo_skip_first_n_submaps_{2};
+  double pose_prior_noise_fixed_{1e-9};
+
+  // double pose_prior_noise_refinement_{10};
+  double refinement_prior_cov_multiplyer_{1};
+
+  Eigen::Vector3f output_vox_{0.04, 0.04, 0.04};
+  Eigen::Vector3f output_crop_min_{-30, -30, -10};
+  Eigen::Vector3f output_crop_max_{30, 30, 10};
 };
 
 } // namespace bs_models::global_mapping

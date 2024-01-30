@@ -5,7 +5,7 @@ sensor_models:
     type: 'bs_models::GlobalMapper'
 
 global_mapper:
-  disable_loop_closure: false
+  disable_loop_closure: true
   global_map_config: 'global_map/global_map.json'
   output_path: '/userhome/results/global_mapper/'
   save_global_map_data: true
