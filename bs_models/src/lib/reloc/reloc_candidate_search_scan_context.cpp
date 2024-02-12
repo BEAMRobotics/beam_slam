@@ -215,10 +215,6 @@ std::optional<Eigen::Matrix4d>
         const Eigen::Matrix4d& T_World_CandidateSubmap,
         const Eigen::Matrix4d& T_World_QuerySubmap,
         const std::string& output_path) const {
-  // get all needed transforms
-  Eigen::Matrix4d T_CandidateSubmapEst_QuerySubmap =
-      beam::InvertTransform(T_World_CandidateSubmap) * T_World_QuerySubmap;
-
   // convert to PointCloud
   PointCloud scan_candidate_converted;
   pcl::copyPointCloud(scan_candidate, scan_candidate_converted);
@@ -226,40 +222,39 @@ std::optional<Eigen::Matrix4d>
   pcl::copyPointCloud(scan_query, scan_query_converted);
 
   // filter clouds
-  PointCloud scan_candidate_filtered =
-      beam_filtering::FilterPointCloud<pcl::PointXYZ>(scan_candidate_converted,
-                                                      filters_);
+  PointCloudPtr scan_candidate_filtered = std::make_shared<PointCloud>();
+  *scan_candidate_filtered = beam_filtering::FilterPointCloud<pcl::PointXYZ>(
+      scan_candidate_converted, filters_);
   PointCloud scan_query_filtered =
       beam_filtering::FilterPointCloud<pcl::PointXYZ>(scan_query_converted,
                                                       filters_);
 
-  // transform candidate scan into candidate submap frame
-  PointCloudPtr candidate_in_candidate_submap_frame =
-      std::make_shared<PointCloud>();
-  pcl::transformPointCloud(scan_candidate_filtered,
-                           *candidate_in_candidate_submap_frame,
-                           Eigen::Affine3d(T_SubmapCandidate_Lidar));
-
   // transform query scan into candidate submap frame
-  PointCloudPtr query_in_candidate_submap_frame =
-      std::make_shared<PointCloud>();
-  pcl::transformPointCloud(
-      scan_query_filtered, *query_in_candidate_submap_frame,
-      Eigen::Affine3d(T_CandidateSubmapEst_QuerySubmap * T_SubmapQuery_Lidar));
+  auto scan_query_in_candidate = std::make_shared<PointCloud>();
+  auto T_CandidateSubmap_QuerySubmap_Init =
+      beam::InvertTransform(T_World_CandidateSubmap) * T_World_QuerySubmap;
+  auto T_Candidate_Query_Init = beam::InvertTransform(T_SubmapCandidate_Lidar) *
+                                T_CandidateSubmap_QuerySubmap_Init *
+                                T_SubmapQuery_Lidar;
+  pcl::transformPointCloud(scan_query_filtered, *scan_query_in_candidate,
+                           Eigen::Affine3d(T_Candidate_Query_Init));
 
   // align to get transform between them
-  matcher_->SetRef(candidate_in_candidate_submap_frame);
-  matcher_->SetTarget(query_in_candidate_submap_frame);
+  matcher_->SetRef(scan_candidate_filtered);
+  matcher_->SetTarget(scan_query_in_candidate);
   bool match_success = matcher_->Match();
   Eigen::Matrix4d T_Candidate_Query =
-      matcher_->ApplyResult(T_CandidateSubmapEst_QuerySubmap);
+      matcher_->ApplyResult(T_Candidate_Query_Init);
   if (!output_path.empty()) {
     matcher_->SaveResults(output_path, "candidate_cloud_");
   }
 
   if (match_success) {
     BEAM_INFO("match successful");
-    return T_Candidate_Query;
+    auto T_CandidateSubmap_QuerySubmap =
+        T_SubmapCandidate_Lidar * T_Candidate_Query *
+        beam::InvertTransform(T_SubmapQuery_Lidar);
+    return T_CandidateSubmap_QuerySubmap;
   } else {
     BEAM_WARN("match unsuccessful");
     return {};

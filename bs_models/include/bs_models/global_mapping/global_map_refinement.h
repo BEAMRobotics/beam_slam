@@ -231,7 +231,6 @@ private:
   int pgo_skip_first_n_submaps_{2};
   double pose_prior_noise_fixed_{1e-9};
 
-  // double pose_prior_noise_refinement_{10};
   double refinement_prior_cov_multiplyer_{1};
 
   Eigen::Vector3f output_vox_{0.04, 0.04, 0.04};
