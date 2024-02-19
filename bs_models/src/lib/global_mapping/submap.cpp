@@ -752,7 +752,7 @@ void Submap::SaveData(const std::string& output_dir) {
       {"num_camera_keyframes", camera_keyframe_poses_.size()},
       {"num_subframes", subframe_poses_.size()},
       {"num_landmarks", landmarks_.size()},
-      {"device_id", fuse_core::uuid::to_string(position_.uuid())},
+      {"device_id", fuse_core::uuid::to_string(fuse_core::uuid::NIL)},
       {"position_xyz", {position_.x(), position_.y(), position_.z()}},
       {"orientation_xyzw",
        {orientation_.x(), orientation_.y(), orientation_.z(),

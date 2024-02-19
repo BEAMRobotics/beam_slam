@@ -2,7 +2,9 @@
 
 #include <map>
 
-#include <boost/filesystem.hpp>
+// Keep this include before any opencv include
+#include <pcl/kdtree/kdtree_flann.h>
+
 #include <fuse_core/graph.h>
 #include <fuse_variables/orientation_3d_stamped.h>
 #include <fuse_variables/position_3d_stamped.h>

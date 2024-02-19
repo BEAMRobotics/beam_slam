@@ -1,93 +1,51 @@
 #pragma once
 
-#include <pcl/kdtree/kdtree_flann.h>
-
-#include <beam_matching/Matchers.h>
-
 #include <bs_models/global_mapping/global_map.h>
-#include <bs_models/reloc/reloc_candidate_search_base.h>
-#include <bs_models/reloc/reloc_refinement_base.h>
-#include <bs_models/scan_registration/multi_scan_registration.h>
-#include <bs_models/scan_registration/scan_to_map_registration.h>
-
-namespace sr = bs_models::scan_registration;
+#include <bs_models/global_mapping/global_map_batch_optimization.h>
+#include <bs_models/global_mapping/submap_alignment.h>
+#include <bs_models/global_mapping/submap_pose_graph_optimization.h>
+#include <bs_models/global_mapping/submap_refinement.h>
 
 namespace bs_models::global_mapping {
 
 /**
  * @brief This class is used to refine a global map's submaps.
  *
- * This is intended to be used in 3 steps:
+ * This is intended to be used by calling any of the 4 refinement steps, in any
+ * order:
  *
- * (1) Construct the object and supply the list of submaps (or global map)
- * along with parameters
+ * (1) RunSubmapRefinement
+ * (2) RunSubmapAlignment
+ * (3) RunPoseGraphOptimization
+ * (4) RunBatchOptimization
  *
- * (2) Call RunSubmapRefinement to optimize the data in
- * each submap
+ * An example ordering would be to run 1, 2, then 3. The idea behind this
+ * ordering is that each submap refinement is independent of the other submaps,
+ * but this might cause misalignment between them, so we then re-align them. The
+ * PGO should then run better if the submaps have already been refined &
+ * realigned. The submap refinement does take much longer than the PGO,
+ * therefore the PGO may want to be run on its own, or vice-versa. We may want
+ * to try different implementations of the submap refinement to optimize the
+ * settings before running the PGO, in which case we might only want to refine
+ * submaps. This interface allows the user to decide how they want to run the
+ * map refinement.
  *
- * (3) Call RunPoseGraphOptimization (PGO) to refine the pose of the
- * submaps relative to each other
- *
- * The idea behind this ordering is that each submap refinement is independent
- * of the other submaps, while the PGO is performed between all submaps. The PGO
- * should run better if the submaps have already been refined. The submap
- * refinement does take much longer than the PGO, therefore the PGO may want to
- * be run on its own, or vice-versa. We may want to try different
- * implementations of the submap refinement to optimize the settings before
- * running the PGO, in which case we might only want to refine submaps. This
- * interface allows the user to decide how they want to run the map refinement.
+ * The batch optimization (4) is a replacement for running 1 to 4 which may work
+ * better or worse
  *
  */
 class GlobalMapRefinement {
 public:
-  struct LoopClosureParams {
-    /** Full path to config file for loop closure candidate search. If blank, it
-     * will use default parameters.*/
-    std::string candidate_search_config;
-
-    /** Full path to config file for loop closure refinement. If blank, it will
-     * use default parameters.*/
-    std::string refinement_config;
-
-    /** Weights to assign to loop closure measurements */
-    Eigen::Matrix<double, 6, 6> loop_closure_covariance;
-
-    /** Weights to assign to local mapper measurements */
-    Eigen::Matrix<double, 6, 6> local_mapper_covariance;
-  };
-
-  struct SubmapRefinementParams {
-    /** Full path to config file for scan registration. If blank, it will use
-     * default parameters.*/
-    std::string scan_registration_config;
-
-    /** Full path to config file for matcher. If blank, it will use default
-     * parameters.*/
-    std::string matcher_config;
-  };
-
-  struct SubmapAlignmentParams {
-    /** Full path to config file for matcher. If blank, it will use default
-     * parameters.*/
-    std::string matcher_config;
-  };
-
   struct Params {
-    LoopClosureParams loop_closure;
-    SubmapRefinementParams submap_refinement;
-    SubmapAlignmentParams submap_alignment;
+    SubmapRefinement::Params submap_refinement;
+    SubmapAlignment::Params submap_alignment;
+    SubmapPoseGraphOptimization::Params submap_pgo;
+    GlobalMapBatchOptimization::Params batch;
 
     /** Loads config settings from a json file. If config_path empty, it will
      * use default params defined herein. */
     void LoadJson(const std::string& config_path);
   };
-
-  struct RegistrationResult {
-    RegistrationResult(const Eigen::Matrix4d& Ti, const Eigen::Matrix4d& Tf);
-    double dt; // mm
-    double dR; // deg
-  };
-  using RegistrationResults = std::map<ros::Time, RegistrationResult>;
 
   struct Summary {
     RegistrationResults submap_refinement;
@@ -166,11 +124,20 @@ public:
   bool RunPoseGraphOptimization(const std::string& output_path = "");
 
   /**
+   * @brief Two step batch optimization: 1. Go over all scans and register them
+   * according to the registration method used. 2) find loops over entire
+   * trajectory. Both measurements from 1 and 2 are optimized incrementally each
+   * time we get to a loop
+   * @param output_path save results to this path
+   */
+  bool RunBatchOptimization(const std::string& output_path = "");
+
+  /**
    * @brief save results to a easily viewable format (i.e., pcd maps, poses,
    * ...)
    * @param output_path full path to output directory. Directory must exist
-   * @param save_initial save results using initial estimate of poses stored in
-   * the submaps.
+   * @param save_initial save results using initial estimate of poses stored
+   * in the submaps.
    */
   void SaveResults(const std::string& output_path, bool save_initial = false);
 
@@ -182,60 +149,9 @@ public:
   void SaveGlobalMapData(const std::string& output_path);
 
 private:
-  /**
-   * @brief Refines a single submap
-   * @param submap reference to submap to be refined
-   * @return true if successful
-   */
-  bool RefineSubmap(SubmapPtr& submap, const std::string& output_path);
-
-  /**
-   * @brief Aligns the tgt submap to the reference submap. This is designed to
-   * be called one by one starting with the second submap. Since drift builds up
-   * over time, we want to always use the initial relative poses between the two
-   * submaps to initialize the registration.
-   * @param submap_ref const reference to submap to be aligned to
-   * @param submap_tgt reference to submap to be aligned
-   * @return true if successful
-   */
-  bool AlignSubmaps(const SubmapPtr& submap_ref, SubmapPtr& submap_tgt,
-                    const std::string& output_path);
-
-  /**
-   * @brief setup general things needed when class is instatiated, such as
-   * initiating the loop closure pointer
-   */
-  void Setup();
-
-  void SaveViewableSubmap(const std::string& save_path, const PointCloud& cloud,
-                          uint8_t r, uint8_t g, uint8_t b,
-                          const Eigen::Vector3d& t_world_BaselinkStart,
-                          const Eigen::Vector3d& t_world_BaselinkEnd) const;
-
   Params params_;
   std::shared_ptr<GlobalMap> global_map_;
-
-  // PGO:
-  std::shared_ptr<reloc::RelocCandidateSearchBase>
-      loop_closure_candidate_search_;
-  std::shared_ptr<reloc::RelocRefinementBase> loop_closure_refinement_;
-
-  // Submap alignment
-  std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
-  std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
-      matcher_loam_;
-
   Summary summary_;
-
-  // params only tunable here
-  int pgo_skip_first_n_submaps_{2};
-  double pose_prior_noise_fixed_{1e-9};
-
-  double refinement_prior_cov_multiplyer_{1};
-
-  Eigen::Vector3f output_vox_{0.04, 0.04, 0.04};
-  Eigen::Vector3f output_crop_min_{-30, -30, -10};
-  Eigen::Vector3f output_crop_max_{30, 30, 10};
 };
 
 } // namespace bs_models::global_mapping

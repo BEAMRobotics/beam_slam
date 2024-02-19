@@ -1,0 +1,69 @@
+# optimization params
+optimization_period: 0.07
+lag_duration: 6
+pseudo_marginalization: true
+information_weights_config: '/optimization/lio_information_weights.json'
+
+solver_options:
+  minimizer_type: 'TRUST_REGION'
+  linear_solver_type: 'SPARSE_NORMAL_CHOLESKY'
+  minimizer_progress_to_stdout: false
+  num_threads: 6
+  num_linear_solver_threads: 6
+  max_num_iterations: 10
+  max_solver_time_in_seconds: 0.05
+  gradient_tolerance: 0.00000015
+  parameter_tolerance: 0.00000015
+  function_tolerance: 0.00000015
+
+sensor_models:
+  - name: 'slam_initialization'
+    type: 'bs_models::SLAMInitialization'
+  - name: 'inertial_odometry'
+    type: 'bs_models::InertialOdometry'
+  - name: 'lidar_deskewer'
+    type: 'bs_models::LidarScanDeskewer'
+  - name: 'lidar_odometry'
+    type: 'bs_models::LidarOdometry'
+  - name: 'graph_publisher'
+    type: 'bs_models::GraphPublisher'
+  # - name: 'gravity_alignment'
+  #   type: 'bs_models::GravityAlignment'
+
+slam_initialization:
+  imu_topic: "/imu/data"
+  lidar_topic: "/lidar_h/velodyne_points"
+  init_mode: "LIDAR"
+  max_optimization_s: 1.0
+  min_trajectory_length_m: 2.0
+  matcher_config: 'matchers/loam_vlp16_init.json' # lidar specific
+  output_folder: "" #"/userhome/results/init_results_ig2"
+
+inertial_odometry:
+  imu_topic: "/imu/data"
+
+gravity_alignment:
+  imu_topic: "/imu/data"
+  constraint_odom_topic: "/local_mapper/lidar_odometry/odometry"
+
+lidar_deskewer:
+  input_topic: '/lidar_h/velodyne_points'
+  lidar_type: 'VELODYNE'
+  frame_initializer_config: "frame_initializers/io.json"
+
+lidar_odometry:
+  registration_config: 'registration/scan_to_map_slow.json'
+  matcher_config: 'matchers/loam_vlp16.json'
+  lidar_type: 'VELODYNE'
+  trigger_inertial_odom_constraints: true
+  input_filters_config:  '' # 'lidar_filters/input_filters.json'
+  input_topic: '/local_mapper/lidar_deskewer/points_undistorted'
+  output_loam_points: true
+  output_lidar_points: true
+  publish_registration_map: true
+  frame_initializer_config: "/frame_initializers/io.json"
+  scan_output_directory: "" #'/userhome/data/2021_10_27_16_21_54_ConestogoBridge/debug'
+  # these are only relevant if scan_output_directory is not empty
+  save_graph_updates: true
+  save_marginalized_scans: true
+  save_scan_registration_results: true

@@ -2,8 +2,6 @@
 
 #include <queue>
 
-#include <pcl/kdtree/kdtree_flann.h>
-
 #include <fuse_core/transaction.h>
 #include <sensor_msgs/PointCloud2.h>
 

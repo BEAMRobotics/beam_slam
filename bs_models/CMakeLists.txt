@@ -97,6 +97,11 @@ add_library(
   src/lib/global_mapping/global_map.cpp
   src/lib/global_mapping/submap.cpp
   src/lib/global_mapping/global_map_refinement.cpp
+  src/lib/global_mapping/submap_refinement.cpp
+  src/lib/global_mapping/submap_alignment.cpp
+  src/lib/global_mapping/submap_pose_graph_optimization.cpp
+  src/lib/global_mapping/global_map_batch_optimization.cpp
+  src/lib/global_mapping/utils.cpp
   ## relocalization
   src/lib/reloc/reloc_candidate_search_base.cpp
   src/lib/reloc/reloc_refinement_base.cpp
