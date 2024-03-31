@@ -7,3 +7,6 @@
 [submodule "dependencies/basalt-headers-mirror"]
 	path = dependencies/basalt-headers-mirror
 	url = git@github.com:VladyslavUsenko/basalt-headers-mirror.git
+[submodule "dependencies/graph_rviz_plugin"]
+	path = dependencies/graph_rviz_plugin
+	url = https://github.com/flynneva/graph_rviz_plugin.git
