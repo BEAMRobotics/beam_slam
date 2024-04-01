@@ -84,6 +84,10 @@ const std::map<uint64_t, ScanPose>& Submap::LidarKeyframes() const {
   return lidar_keyframe_poses_;
 }
 
+std::map<uint64_t, ScanPose>& Submap::LidarKeyframesMutable() {
+  return lidar_keyframe_poses_;
+}
+
 std::map<uint64_t, ScanPose>::iterator Submap::LidarKeyframesBegin() {
   return lidar_keyframe_poses_.begin();
 }

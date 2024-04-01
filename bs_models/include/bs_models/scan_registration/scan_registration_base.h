@@ -86,6 +86,8 @@ public:
 
   void SetInformationWeight(double w);
 
+  ScanRegistrationParamsBase& GetBaseParamsMutable() { return base_params_; }
+
 protected:
   bool PassedMotionThresholds(const Eigen::Matrix4d& T_CLOUD1_CLOUD2);
 

@@ -3,6 +3,8 @@
 #include <beam_filtering/CropBox.h>
 #include <beam_filtering/VoxelDownsample.h>
 
+#include <bs_common/conversions.h>
+
 namespace bs_models::global_mapping {
 
 const Eigen::Vector3f OUTPUT_VOX{0.04, 0.04, 0.04};
@@ -46,23 +48,51 @@ void SaveViewableSubmap(const std::string& save_path, const PointCloud& cloud,
 
 void UpdateSubmapScanPosesFromGraph(
     std::vector<SubmapPtr> submaps,
-    std::shared_ptr<fuse_graphs::HashGraph> graph, uint64_t max_timestamp) {
+    std::shared_ptr<fuse_graphs::HashGraph> graph, uint64_t max_timestamp,
+    bool scan_poses_in_world) {
+  if (scan_poses_in_world) {
+    for (auto& submap : submaps) {
+      for (auto scan_iter = submap->LidarKeyframesBegin();
+           scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
+        scan_iter->second.UpdatePose(graph);
+        if (max_timestamp != 0 && scan_iter->first >= max_timestamp) { return; }
+      }
+    }
+    return;
+  }
+
   for (auto& submap : submaps) {
     for (auto scan_iter = submap->LidarKeyframesBegin();
          scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
-      scan_iter->second.UpdatePose(graph);
-      if (max_timestamp != 0 && scan_iter->first >= max_timestamp) { return; }
+      if (max_timestamp != 0 && scan_iter->first > max_timestamp) { return; }
+
+      auto p_uuid = scan_iter->second.Position().uuid();
+      auto o_uuid = scan_iter->second.Orientation().uuid();
+      if (!graph->variableExists(p_uuid) || !graph->variableExists(o_uuid)) {
+        continue;
+      }
+
+      auto p = dynamic_cast<const fuse_variables::Position3DStamped&>(
+          graph->getVariable(p_uuid));
+      auto o = dynamic_cast<const fuse_variables::Orientation3DStamped&>(
+          graph->getVariable(o_uuid));
+      Eigen::Matrix4d T_World_Baselink =
+          bs_common::FusePoseToEigenTransform(p, o);
+      Eigen::Matrix4d T_Submap_Baselink =
+          beam::InvertTransform(submap->T_WORLD_SUBMAP()) * T_World_Baselink;
+      scan_iter->second.UpdatePose(T_Submap_Baselink);
     }
   }
 }
 
 void UpdateSubmapPosesFromGraph(std::vector<SubmapPtr> submaps,
-                                std::shared_ptr<fuse_graphs::HashGraph> graph) {
+                                std::shared_ptr<fuse_graphs::HashGraph> graph,
+                                bool verbose) {
   for (uint16_t i = 0; i < submaps.size(); i++) {
     bool success = submaps.at(i)->UpdatePose(graph);
-    if (success) {
+    if (verbose && success) {
       BEAM_INFO("Updated submap {} pose from graph", i);
-    } else {
+    } else if (verbose && !success) {
       BEAM_INFO("Submap {} pose not in the graph", i);
     }
   }

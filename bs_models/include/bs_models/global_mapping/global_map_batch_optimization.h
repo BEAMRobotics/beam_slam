@@ -33,15 +33,22 @@ private:
 
   pcl::PointCloud<pcl::PointXYZI> AggregateScan(uint64_t scan_time_ns) const;
 
+  void ConvertScanPosesToWorld(std::vector<SubmapPtr> submaps);
+
+  void UpdateInputSubmaps(std::vector<SubmapPtr> submaps);
+
   Params params_;
   std::string output_path_;
-
-  std::vector<SubmapPtr> submaps_;
   std::unique_ptr<beam_matching::Matcher<PointCloudPtr>> matcher_;
   std::unique_ptr<beam_matching::Matcher<beam_matching::LoamPointCloudPtr>>
       matcher_loam_;
   std::shared_ptr<fuse_graphs::HashGraph> graph_;
   std::map<uint64_t, int> scan_stamp_to_submap_id_;
+
+  // NOTE: to enable scan registration in a consistent global coordinate frame,
+  // we transform all scan poses in the submaps to be expressed in the world
+  // frame. Then once done the run() function, we convert back
+  std::vector<SubmapPtr> submaps_;
 
   // params only tunable here:
   int scans_to_aggregate_{30};

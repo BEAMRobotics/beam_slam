@@ -50,7 +50,7 @@ GlobalMapBatchOptimization::GlobalMapBatchOptimization(
 }
 
 bool GlobalMapBatchOptimization::Run(std::vector<SubmapPtr> submaps) {
-  submaps_ = submaps;
+  ConvertScanPosesToWorld(submaps);
 
   // get mapping from all scan stamps, to their respective submap ids
   scan_stamp_to_submap_id_.clear();
@@ -72,15 +72,17 @@ bool GlobalMapBatchOptimization::Run(std::vector<SubmapPtr> submaps) {
   BEAM_INFO("Running batch optimization");
   for (int i = 0; i < submaps_.size(); i++) {
     BEAM_INFO("Working on submap No. {}", i);
-    for (auto scan_iter = submaps_.at(i)->LidarKeyframesBegin();
-         scan_iter != submaps_.at(i)->LidarKeyframesEnd(); scan_iter++) {
+    const auto& submap = submaps_.at(i);
+    for (auto scan_iter = submap->LidarKeyframesBegin();
+         scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
       auto transaction = scan_registration->RegisterNewScan(scan_iter->second)
                              .GetTransaction();
       if (transaction) { graph_->update(*transaction); }
 
       if (params_.update_graph_on_all_scans) {
         graph_->optimize();
-        UpdateSubmapScanPosesFromGraph(submaps_, graph_, scan_iter->first);
+        UpdateSubmapScanPosesFromGraph(submaps_, graph_, scan_iter->first,
+                                       true);
         UpdateSubmapPosesFromGraph(submaps_, graph_);
       }
 
@@ -89,8 +91,9 @@ bool GlobalMapBatchOptimization::Run(std::vector<SubmapPtr> submaps) {
   }
   BEAM_INFO("Running final graph optimization");
   graph_->optimize();
-  UpdateSubmapScanPosesFromGraph(submaps_, graph_);
+  UpdateSubmapScanPosesFromGraph(submaps_, graph_, true);
   UpdateSubmapPosesFromGraph(submaps_, graph_);
+  UpdateInputSubmaps(submaps);
 
   return true;
 }
@@ -99,6 +102,8 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
   // Aggregate around scan for helping scan context
   uint64_t timestamp_query_ns = query.Stamp().toNSec();
   PointCloudSC query_scan_agg = AggregateScan(timestamp_query_ns);
+  SCManager sc_manager;
+  auto sc_query = sc_manager.makeScancontext(query_scan_agg);
 
   double trajectory_length = 0;
   Eigen::Matrix4d T_World_BaselinkQuery = query.T_REFFRAME_BASELINK();
@@ -118,31 +123,26 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
     Eigen::Matrix4d T_BaselinkLast_BaselinkCandidate =
         beam::InvertTransform(T_World_Baselink_Last) *
         T_World_BaselinkCandidate;
-    trajectory_length +=
+    T_World_Baselink_Last = T_World_BaselinkCandidate;
+    double dist_from_last =
         T_BaselinkLast_BaselinkCandidate.block(0, 3, 3, 1).norm();
+    trajectory_length += dist_from_last;
     if (trajectory_length < params_.lc_min_traj_dist_m) { continue; }
 
     // check min distance threshold for LC
     Eigen::Matrix4d T_BaselinkQuery_BaselinkCandidate =
         beam::InvertTransform(T_World_BaselinkQuery) *
         T_World_BaselinkCandidate;
-    trajectory_length +=
+    double dist_to_candidate =
         T_BaselinkQuery_BaselinkCandidate.block(0, 3, 3, 1).norm();
-    if (trajectory_length > params_.lc_dist_thresh_m) { continue; }
+    if (dist_to_candidate > params_.lc_dist_thresh_m) { continue; }
 
     // check scan context
-    SCManager sc_manager;
-    sc_manager.SC_DIST_THRES = params_.lc_scan_context_dist_thres;
     PointCloudSC candidate_scan = AggregateScan(it->first);
-    sc_manager.makeAndSaveScancontextAndKeys(candidate_scan);
-    auto sc_result = sc_manager.detectLoopClosureID(query_scan_agg);
-    std::cout << "Scan context score: " << sc_result.first << ", "
-              << sc_result.second << "\n";
-    if (sc_result.first == -1) { continue; }
-
-    BEAM_INFO("Found loop closure between query scan with timestamp {}s and "
-              "prior scan with timestamp {}s",
-              int(timestamp_query_ns * 1e-9), int(it->first * 1e-9));
+    auto sc_candidate = sc_manager.makeScancontext(candidate_scan);
+    std::pair<double, int> sc_result =
+        sc_manager.distanceBtnScanContext(sc_query, sc_candidate);
+    if (sc_result.first > params_.lc_scan_context_dist_thres) { continue; }
 
     // register scans
     Eigen::Matrix4d T_Query_Candidate_Init =
@@ -197,8 +197,10 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
 
   // update all scans
   BEAM_INFO("Updating submap poses");
-  UpdateSubmapScanPosesFromGraph(submaps_, graph_, query.Stamp().toNSec());
+  UpdateSubmapScanPosesFromGraph(submaps_, graph_, query.Stamp().toNSec(),
+                                 true);
   UpdateSubmapPosesFromGraph(submaps_, graph_);
+  BEAM_INFO("Done updating submap poses");
 }
 
 PointCloudSC
@@ -259,6 +261,36 @@ PointCloudSC
   PointCloudSC cloud_out;
   pcl::copyPointCloud(pc_downsampled, cloud_out);
   return cloud_out;
+}
+
+void GlobalMapBatchOptimization::ConvertScanPosesToWorld(
+    std::vector<SubmapPtr> submaps) {
+  for (const auto& submap : submaps) {
+    Submap submap_converted = *submap;
+    for (auto& [_, scan_pose] : submap_converted.LidarKeyframesMutable()) {
+      Eigen::Matrix4d T_World_Baselink =
+          submap_converted.T_WORLD_SUBMAP() * scan_pose.T_REFFRAME_BASELINK();
+      scan_pose.UpdatePose(T_World_Baselink);
+    }
+    submaps_.emplace_back(std::make_shared<Submap>(submap_converted));
+  }
+}
+
+void GlobalMapBatchOptimization::UpdateInputSubmaps(
+    std::vector<SubmapPtr> submaps) {
+  for (int submap_it = 0; submap_it < submaps.size(); submap_it++) {
+    Eigen::Matrix4d T_World_Submap = submaps_.at(submap_it)->T_WORLD_SUBMAP();
+    submaps.at(submap_it)->UpdatePose(T_World_Submap);
+    for (auto& [timestamp, scan_pose] :
+         submaps.at(submap_it)->LidarKeyframesMutable()) {
+      const auto& scan_pose_in_world =
+          submaps_.at(submap_it)->LidarKeyframes().at(timestamp);
+      Eigen::Matrix4d T_Submap_Baselink =
+          beam::InvertTransform(T_World_Submap) *
+          scan_pose_in_world.T_REFFRAME_BASELINK();
+      scan_pose.UpdatePose(T_Submap_Baselink);
+    }
+  }
 }
 
 } // namespace bs_models::global_mapping

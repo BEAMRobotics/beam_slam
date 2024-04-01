@@ -145,6 +145,11 @@ public:
    */
   const std::map<uint64_t, ScanPose>& LidarKeyframes() const;
 
+  /**
+   * @brief get access to const& of lidar keyframes
+   */
+  std::map<uint64_t, ScanPose>& LidarKeyframesMutable();
+
   /*--------------------------------/
               ITERATORS
   /--------------------------------*/
