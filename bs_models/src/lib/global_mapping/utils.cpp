@@ -49,19 +49,32 @@ void SaveViewableSubmap(const std::string& save_path, const PointCloud& cloud,
 void UpdateSubmapScanPosesFromGraph(
     std::vector<SubmapPtr> submaps,
     std::shared_ptr<fuse_graphs::HashGraph> graph, uint64_t max_timestamp,
-    bool scan_poses_in_world) {
+    bool scan_poses_in_world, bool verbose) {
   if (scan_poses_in_world) {
     for (auto& submap : submaps) {
+      int counter = 0;
       for (auto scan_iter = submap->LidarKeyframesBegin();
            scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
-        scan_iter->second.UpdatePose(graph);
-        if (max_timestamp != 0 && scan_iter->first >= max_timestamp) { return; }
+        if (scan_iter->second.UpdatePose(graph)) { counter++; }
+        if (max_timestamp != 0 && scan_iter->first >= max_timestamp) {
+          if (verbose) {
+            BEAM_INFO("Updated {} scan poses for submap with timestamp {}s",
+                      counter, std::to_string(submap->Stamp().toSec()));
+            BEAM_INFO("Hit max timestamp, done updating submap scan poses");
+          }
+          return;
+        }
+      }
+      if (verbose) {
+        BEAM_INFO("Updated {} scan poses for submap with timestamp {}s",
+                  counter, std::to_string(submap->Stamp().toSec()));
       }
     }
     return;
   }
 
   for (auto& submap : submaps) {
+    int counter = 0;
     for (auto scan_iter = submap->LidarKeyframesBegin();
          scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
       if (max_timestamp != 0 && scan_iter->first > max_timestamp) { return; }
@@ -81,6 +94,11 @@ void UpdateSubmapScanPosesFromGraph(
       Eigen::Matrix4d T_Submap_Baselink =
           beam::InvertTransform(submap->T_WORLD_SUBMAP()) * T_World_Baselink;
       scan_iter->second.UpdatePose(T_Submap_Baselink);
+      counter++;
+    }
+    if (verbose) {
+      BEAM_INFO("Updated {} scan poses for submap with timestamp {}s", counter,
+                std::to_string(submap->Stamp().toSec()));
     }
   }
 }

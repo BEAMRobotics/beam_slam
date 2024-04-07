@@ -456,6 +456,8 @@ public:
   bool LoadData(const std::string& input_dir,
                 bool override_camera_model_pointer);
 
+  const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& Extrinsics() const;
+
 private:
   /**
    * @brief Get 3D positions of each landmark given current tracks and

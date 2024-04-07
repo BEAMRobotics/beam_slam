@@ -39,7 +39,7 @@ void SaveViewableSubmap(const std::string& save_path, const PointCloud& cloud,
 void UpdateSubmapScanPosesFromGraph(
     std::vector<SubmapPtr> submaps,
     std::shared_ptr<fuse_graphs::HashGraph> graph, uint64_t max_timestamp = 0,
-    bool scan_poses_in_world = false);
+    bool scan_poses_in_world = false, bool verbose = false);
 
 /**
  * @brief update the submap poses (i.e., first pose in the submap, or submap

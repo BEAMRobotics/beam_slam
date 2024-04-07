@@ -41,6 +41,7 @@ pcl::PointCloud<pcl::PointXYZRGBL>
 
 pcl::PointCloud<pcl::PointXYZRGBL>
     GetGraphRelativePoseWithExtrinsicsConstraintsAsCloud(
-        const fuse_core::Graph& graph, const std::string& source);
+        const fuse_core::Graph& graph, const std::string& source = "",
+        bool draw_poses = true);
 
 } // namespace bs_models::graph_visualization

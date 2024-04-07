@@ -80,7 +80,8 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   nlohmann::json J_batch_optimizer = J["batch_optimizer"];
   beam::ValidateJsonKeysOrThrow({"matcher_config", "scan_registration_config",
                                  "update_graph_on_all_scans",
-                                 "lc_dist_thresh_m", "lc_min_traj_dist_m",
+                                 "update_graph_on_all_lcs", "lc_dist_thresh_m",
+                                 "lc_min_traj_dist_m", "lc_max_per_query_scan",
                                  "lc_scan_context_dist_thres"},
                                 J_batch_optimizer);
   matcher_config_rel = J_batch_optimizer["matcher_config"];
@@ -95,8 +96,10 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   }
   batch.update_graph_on_all_scans =
       J_batch_optimizer["update_graph_on_all_scans"];
+  batch.update_graph_on_all_lcs = J_batch_optimizer["update_graph_on_all_lcs"];
   batch.lc_dist_thresh_m = J_batch_optimizer["lc_dist_thresh_m"];
   batch.lc_min_traj_dist_m = J_batch_optimizer["lc_min_traj_dist_m"];
+  batch.lc_max_per_query_scan = J_batch_optimizer["lc_max_per_query_scan"];
   batch.lc_scan_context_dist_thres =
       J_batch_optimizer["lc_scan_context_dist_thres"];
 }
@@ -236,7 +239,7 @@ bool GlobalMapRefinement::RunBatchOptimization(const std::string& output_path) {
         beam::CombinePaths(output_path, "trajectory_initial.pcd"));
   }
 
-  std::vector<SubmapPtr> submaps = global_map_->GetSubmaps();
+  auto submaps = global_map_->GetSubmaps();
   GlobalMapBatchOptimization batch(params_.batch, output_path);
   batch.Run(submaps);
 

@@ -234,7 +234,8 @@ pcl::PointCloud<pcl::PointXYZRGBL>
 
 pcl::PointCloud<pcl::PointXYZRGBL>
     GetGraphRelativePoseWithExtrinsicsConstraintsAsCloud(
-        const fuse_core::Graph& graph, const std::string& source) {
+        const fuse_core::Graph& graph, const std::string& source,
+        bool draw_poses) {
   pcl::PointCloud<pcl::PointXYZRGBL> cloud;
   const auto constraints = graph.getConstraints();
   for (auto it = constraints.begin(); it != constraints.end(); it++) {
@@ -315,19 +316,20 @@ pcl::PointCloud<pcl::PointXYZRGBL>
       o2 = orientations.at(0);
     }
 
-    // draw start variable pose
     Eigen::Matrix4d T_World_Baselink1;
     bs_common::FusePoseToEigenTransform(p1, o1, T_World_Baselink1);
-    pcl::PointCloud<pcl::PointXYZRGBL> frame1 =
-        beam::CreateFrameCol(p1.stamp(), 0.01, 0.15);
-    beam::MergeFrameToCloud(cloud, frame1, T_World_Baselink1);
-
-    // draw end variable pose
     Eigen::Matrix4d T_World_Baselink2;
     bs_common::FusePoseToEigenTransform(p2, o2, T_World_Baselink2);
-    pcl::PointCloud<pcl::PointXYZRGBL> frame2 =
+
+    // draw start & end variable pose
+    if (draw_poses) {
+      pcl::PointCloud<pcl::PointXYZRGBL> frame1 =
+          beam::CreateFrameCol(p1.stamp(), 0.01, 0.15);
+      beam::MergeFrameToCloud(cloud, frame1, T_World_Baselink1);
+      pcl::PointCloud<pcl::PointXYZRGBL> frame2 =
         beam::CreateFrameCol(p2.stamp(), 0.01, 0.15);
-    beam::MergeFrameToCloud(cloud, frame2, T_World_Baselink2);
+      beam::MergeFrameToCloud(cloud, frame2, T_World_Baselink2);
+    }
 
     // get extrinsics
     Eigen::Matrix4d T_Baselink_Sensor = Eigen::Matrix4d::Identity();

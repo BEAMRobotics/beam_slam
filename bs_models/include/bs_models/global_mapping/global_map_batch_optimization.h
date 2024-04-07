@@ -14,8 +14,10 @@ public:
     std::string scan_registration_config;
     std::string matcher_config;
     bool update_graph_on_all_scans;
+    bool update_graph_on_all_lcs;
     double lc_dist_thresh_m;
     double lc_min_traj_dist_m;
+    int lc_max_per_query_scan; // set to 0 to not do lc, or -1 to not set a max
     double lc_scan_context_dist_thres;
   };
 
@@ -44,6 +46,7 @@ private:
       matcher_loam_;
   std::shared_ptr<fuse_graphs::HashGraph> graph_;
   std::map<uint64_t, int> scan_stamp_to_submap_id_;
+  std::string lidar_frame_id_;
 
   // NOTE: to enable scan registration in a consistent global coordinate frame,
   // we transform all scan poses in the submaps to be expressed in the world
