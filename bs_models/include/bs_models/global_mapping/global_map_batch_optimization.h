@@ -19,6 +19,7 @@ public:
     double lc_min_traj_dist_m;
     int lc_max_per_query_scan; // set to 0 to not do lc, or -1 to not set a max
     double lc_scan_context_dist_thres;
+    double lc_cov_multiplier;
   };
 
   GlobalMapBatchOptimization() = delete;

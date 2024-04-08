@@ -204,7 +204,8 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
         beam::InvertTransform(query.T_REFFRAME_LIDAR()) *
         candidate.T_REFFRAME_LIDAR();
     Eigen::Matrix4d T_Query_Candidate_Measured;
-    Eigen::Matrix<double, 6, 6> cov = Eigen::Matrix<double, 6, 6>::Identity();
+    Eigen::Matrix<double, 6, 6> cov =
+        params_.lc_cov_multiplier * Eigen::Matrix<double, 6, 6>::Identity();
     if (matcher_loam_) {
       auto query_cloud = std::make_shared<LoamPointCloud>(query.LoamCloud());
       auto candidate_in_query_est = std::make_shared<LoamPointCloud>(
@@ -214,7 +215,7 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
       bool match_success = matcher_loam_->Match();
       T_Query_Candidate_Measured =
           matcher_loam_->ApplyResult(T_Query_Candidate_Init);
-      cov = matcher_loam_->GetCovariance();
+      cov = params_.lc_cov_multiplier * matcher_loam_->GetCovariance();
     } else {
       auto query_cloud = std::make_shared<PointCloud>(query.Cloud());
       auto candidate_cloud = candidate.Cloud();

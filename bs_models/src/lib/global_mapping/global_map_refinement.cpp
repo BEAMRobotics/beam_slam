@@ -78,12 +78,12 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
 
   // load batch optimizer params
   nlohmann::json J_batch_optimizer = J["batch_optimizer"];
-  beam::ValidateJsonKeysOrThrow({"matcher_config", "scan_registration_config",
-                                 "update_graph_on_all_scans",
-                                 "update_graph_on_all_lcs", "lc_dist_thresh_m",
-                                 "lc_min_traj_dist_m", "lc_max_per_query_scan",
-                                 "lc_scan_context_dist_thres"},
-                                J_batch_optimizer);
+  beam::ValidateJsonKeysOrThrow(
+      {"matcher_config", "scan_registration_config",
+       "update_graph_on_all_scans", "update_graph_on_all_lcs",
+       "lc_dist_thresh_m", "lc_min_traj_dist_m", "lc_max_per_query_scan",
+       "lc_scan_context_dist_thres", "lc_cov_multiplier"},
+      J_batch_optimizer);
   matcher_config_rel = J_batch_optimizer["matcher_config"];
   if (!matcher_config_rel.empty()) {
     batch.matcher_config = beam::CombinePaths(
@@ -102,6 +102,7 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   batch.lc_max_per_query_scan = J_batch_optimizer["lc_max_per_query_scan"];
   batch.lc_scan_context_dist_thres =
       J_batch_optimizer["lc_scan_context_dist_thres"];
+  batch.lc_cov_multiplier = J_batch_optimizer["lc_cov_multiplier"];
 }
 
 void GlobalMapRefinement::Summary::Save(const std::string& output_path) const {
