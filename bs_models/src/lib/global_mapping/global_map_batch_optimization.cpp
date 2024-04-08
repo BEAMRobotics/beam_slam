@@ -165,13 +165,18 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
   Eigen::Matrix4d T_World_Baselink_Last = T_World_BaselinkQuery;
   int new_measurements_count = 0;
 
-  // get start iterator from scan_stamp_to_submap_id_
+  // Get a map of candidate scans that are within the dist thresholds, by
+  // reverse iterating over all scan poses starting from the query timestamp
+  std::map<double, std::pair<uint64_t, int>>
+      candidates; // dist -> (scan_stamp, submap_id)
   auto tmp = scan_stamp_to_submap_id_.find(timestamp_query_ns);
   auto it_start = std::reverse_iterator(std::next(tmp));
   for (auto it = it_start; it != scan_stamp_to_submap_id_.rend(); it++) {
     // Get candidate scan
+    const auto candidate_stamp = it->first;
+    const auto candidate_submap_id = it->second;
     const auto& candidate =
-        submaps_.at(it->second)->LidarKeyframes().at(it->first);
+        submaps_.at(candidate_submap_id)->LidarKeyframes().at(candidate_stamp);
     Eigen::Matrix4d T_World_BaselinkCandidate = candidate.T_REFFRAME_BASELINK();
 
     // check distance from scan, skip if lower than thresh
@@ -192,8 +197,19 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
         T_BaselinkQuery_BaselinkCandidate.block(0, 3, 3, 1).norm();
     if (dist_to_candidate > params_.lc_dist_thresh_m) { continue; }
 
+    candidates.emplace(dist_to_candidate,
+                       std::make_pair(candidate_stamp, candidate_submap_id));
+  }
+
+  // iterate by smallest distance
+  for (auto it = candidates.begin(); it != candidates.end(); it++) {
+    const auto candidate_stamp = it->second.first;
+    const auto candidate_submap_id = it->second.second;
+    const auto& candidate =
+        submaps_.at(candidate_submap_id)->LidarKeyframes().at(candidate_stamp);
+
     // check scan context
-    PointCloudSC candidate_scan = AggregateScan(it->first);
+    PointCloudSC candidate_scan = AggregateScan(candidate_stamp);
     auto sc_candidate = sc_manager.makeScancontext(candidate_scan);
     std::pair<double, int> sc_result =
         sc_manager.distanceBtnScanContext(sc_query, sc_candidate);
