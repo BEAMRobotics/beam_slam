@@ -8,7 +8,9 @@
 #include <beam_matching/Scancontext.h>
 #include <beam_utils/pointclouds.h>
 
+#include <bs_common/conversions.h>
 #include <bs_common/graph_access.h>
+#include <bs_common/utils.h>
 #include <bs_common/visualization.h>
 #include <bs_constraints/relative_pose/relative_pose_3d_stamped_with_extrinsics_constraint.h>
 #include <bs_models/graph_visualization/helpers.h>
@@ -163,7 +165,6 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
   double trajectory_length = 0;
   Eigen::Matrix4d T_World_BaselinkQuery = query.T_REFFRAME_BASELINK();
   Eigen::Matrix4d T_World_Baselink_Last = T_World_BaselinkQuery;
-  int new_measurements_count = 0;
 
   // Get a map of candidate scans that are within the dist thresholds, by
   // reverse iterating over all scan poses starting from the query timestamp
@@ -201,7 +202,8 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
                        std::make_pair(candidate_stamp, candidate_submap_id));
   }
 
-  // iterate by smallest distance
+  // iterate by smallest distance and store measurements
+  std::vector<LoopClosureMeasurement> measurements;
   for (auto it = candidates.begin(); it != candidates.end(); it++) {
     const auto candidate_stamp = it->second.first;
     const auto candidate_submap_id = it->second.second;
@@ -248,30 +250,40 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
           matcher_->ApplyResult(T_Query_Candidate_Init);
     }
 
-    // add transaction to the graph
-    new_measurements_count++;
-    bs_constraints::Pose3DStampedTransaction transaction(query.Stamp());
-    transaction.AddPoseConstraint(
-        candidate.Position(), query.Position(), candidate.Orientation(),
-        query.Orientation(),
-        bs_common::TransformMatrixToVectorWithQuaternion(
-            beam::InvertTransform(T_Query_Candidate_Measured)),
-        cov, "GlobalMapBatchOptimization::RunLoopClosureOnAllScans",
-        lidar_frame_id_);
+    LoopClosureMeasurement measurement;
+    measurement.T_Query_Candidate_Measured = T_Query_Candidate_Measured;
+    measurement.covariance = cov;
+    measurement.candidate_position = candidate.Position();
+    measurement.candidate_orientation = candidate.Orientation();
+    measurement.scan_context_dist = sc_result.first;
+    measurements.push_back(measurement);
 
-    graph_->update(*(transaction.GetTransaction()));
     if (params_.lc_max_per_query_scan > 0 &&
-        new_measurements_count >= params_.lc_max_per_query_scan) {
+        measurements.size() >= params_.lc_max_per_query_scan) {
       break;
     }
   }
 
-  if (new_measurements_count == 0) { return; }
+  measurements = RemoveOutlierMeasurements(measurements);
+  for (const auto& m : measurements) {
+    bs_constraints::Pose3DStampedTransaction transaction(query.Stamp());
+    transaction.AddPoseConstraint(
+        m.candidate_position, query.Position(), m.candidate_orientation,
+        query.Orientation(),
+        bs_common::TransformMatrixToVectorWithQuaternion(
+            beam::InvertTransform(m.T_Query_Candidate_Measured)),
+        m.covariance, "GlobalMapBatchOptimization::RunLoopClosureOnAllScans",
+        lidar_frame_id_);
+
+    graph_->update(*(transaction.GetTransaction()));
+  }
+
+  if (measurements.empty()) { return; }
 
   // optimize
   if (params_.update_graph_on_all_lcs) {
     BEAM_INFO("Optimizing the graph with {} loop closure constraints",
-              new_measurements_count);
+              measurements.size());
     graph_->optimize();
     // update all scans
     BEAM_INFO("Updating submap poses");
@@ -282,8 +294,96 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
   } else {
     BEAM_INFO("Added {} loop closure constraints to the graph for query scan "
               "with time: {} s",
-              new_measurements_count, std::to_string(query.Stamp().toSec()));
+              measurements.size(), std::to_string(query.Stamp().toSec()));
   }
+}
+
+std::vector<GlobalMapBatchOptimization::LoopClosureMeasurement>
+    GlobalMapBatchOptimization::RemoveOutlierMeasurements(
+        const std::vector<GlobalMapBatchOptimization::LoopClosureMeasurement>&
+            measurements) const {
+  // we need at least a few measurements to be able to properly estimate
+  // statistics
+  if (measurements.size() < min_measurements_for_outlier_rejection_) {
+    return measurements;
+  }
+
+  // calculate the metrics we care about and the sum at the same time
+  OutlierRejectionMetrics metrics_sum;
+  std::vector<OutlierRejectionMetrics> metrics;
+  for (const LoopClosureMeasurement& m : measurements) {
+    OutlierRejectionMetrics metric;
+    Eigen::Matrix4d T_World_Candidate = bs_common::FusePoseToEigenTransform(
+        m.candidate_position, m.candidate_orientation);
+    Eigen::Matrix4d T_World_Query =
+        T_World_Candidate * beam::InvertTransform(m.T_Query_Candidate_Measured);
+    Eigen::Matrix3d R = T_World_Query.block(0, 0, 3, 3);
+    Eigen::AngleAxisd aa(R);
+    metric.t = T_World_Query.block(0, 3, 3, 1).norm();
+    metric.r = aa.angle();
+    metric.d = m.scan_context_dist;
+    metric.e = bs_common::ShannonEntropyFromPoseCovariance(m.covariance);
+    metrics.push_back(metric);
+
+    metrics_sum.t += metric.t;
+    metrics_sum.r += metric.r;
+    metrics_sum.d += metric.d;
+    metrics_sum.e += metric.e;
+  }
+
+  OutlierRejectionMetrics metrics_mean;
+  metrics_mean.t = metrics_sum.t / metrics.size();
+  metrics_mean.r = metrics_sum.r / metrics.size();
+  metrics_mean.d = metrics_sum.d / metrics.size();
+  metrics_mean.e = metrics_sum.e / metrics.size();
+
+  OutlierRejectionMetrics metrics_diffsquared;
+  for (const OutlierRejectionMetrics& m : metrics) {
+    metrics_diffsquared.t += (m.t - metrics_mean.t) * (m.t - metrics_mean.t);
+    metrics_diffsquared.r += (m.r - metrics_mean.r) * (m.r - metrics_mean.r);
+    metrics_diffsquared.d += (m.d - metrics_mean.d) * (m.d - metrics_mean.d);
+    metrics_diffsquared.e += (m.e - metrics_mean.e) * (m.e - metrics_mean.e);
+  }
+
+  OutlierRejectionMetrics metrics_stddev;
+  metrics_stddev.t = std::sqrt(metrics_diffsquared.t / metrics.size());
+  metrics_stddev.r = std::sqrt(metrics_diffsquared.r / metrics.size());
+  metrics_stddev.d = std::sqrt(metrics_diffsquared.d / metrics.size());
+  metrics_stddev.e = std::sqrt(metrics_diffsquared.e / metrics.size());
+
+  // check save if metric is outside mean +/- 2 std. dev.
+  std::vector<LoopClosureMeasurement> measurements_filtered;
+  for (int i = 0; i < measurements.size(); i++) {
+    const auto& metric = metrics.at(i);
+    if (!CheckMetric(metric.t, metrics_mean.t, metrics_stddev.t,
+                     "failed translation check")) {
+      continue;
+    } else if (!CheckMetric(metric.r, metrics_mean.r, metrics_stddev.r,
+                            "failed rotation check")) {
+      continue;
+    } else if (!CheckMetric(metric.e, metrics_mean.e, metrics_stddev.e,
+                            "failed shannon entropy check")) {
+      continue;
+    } else if (metric.d > metrics_mean.d + 2 * metrics_stddev.d) {
+      BEAM_WARN(
+          "failed scan context check. Distance: {} > mean + 2 std. dev = {}",
+          metric.d, metrics_mean.d + 2 * metrics_stddev.d);
+      continue;
+    }
+    measurements_filtered.push_back(measurements.at(i));
+  }
+  return measurements_filtered;
+}
+
+bool GlobalMapBatchOptimization::CheckMetric(double value, double mean,
+                                             double std_dev,
+                                             const std::string& error) const {
+  if (value < mean - 2 * std_dev || value > mean + 2 * std_dev) {
+    BEAM_WARN("{}, value: {}, expected range: [{}, {}]", error, value,
+              mean - 2 * std_dev, mean + 2 * std_dev);
+    return false;
+  }
+  return true;
 }
 
 PointCloudSC
@@ -374,20 +474,6 @@ void GlobalMapBatchOptimization::UpdateInputSubmaps(
       scan_pose.UpdatePose(T_Submap_Baselink);
     }
   }
-  // submaps = submaps_;
-  // for (int submap_it = 0; submap_it < submaps.size(); submap_it++) {
-  //   Eigen::Matrix4d T_World_Submap =
-  //   submaps_.at(submap_it)->T_WORLD_SUBMAP(); for (auto& [timestamp,
-  //   scan_pose] :
-  //        submaps.at(submap_it)->LidarKeyframesMutable()) {
-  //     const auto& scan_pose_in_world =
-  //         submaps.at(submap_it)->LidarKeyframes().at(timestamp);
-  //     Eigen::Matrix4d T_Submap_Baselink =
-  //         beam::InvertTransform(T_World_Submap) *
-  //         scan_pose_in_world.T_REFFRAME_BASELINK();
-  //     scan_pose.UpdatePose(T_Submap_Baselink);
-  //   }
-  // }
 }
 
 } // namespace bs_models::global_mapping
