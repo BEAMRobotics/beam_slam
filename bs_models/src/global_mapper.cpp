@@ -162,15 +162,6 @@ void GlobalMapper::onStart() {
 };
 
 void GlobalMapper::onStop() {
-  const auto submaps = global_map_->GetSubmaps();
-  for (int i = 0; i < submaps.size(); i++) {
-    const auto& s = submaps.at(i);
-    auto start = s->LidarKeyframes().begin()->first / 1e9;
-    auto end = s->LidarKeyframes().rbegin()->first / 1e9;
-    BEAM_ERROR("submap {} keyframes range: [{}, {}]s", i, std::to_string(start),
-               std::to_string(end));
-  }
-
   if (trigger_loop_closure_on_stop_ && !params_.disable_loop_closure) {
     // use beam logging here because ROS logging stops when a node shutdown gets
     // called
