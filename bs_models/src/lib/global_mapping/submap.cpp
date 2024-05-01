@@ -358,7 +358,6 @@ void Submap::SaveLidarLoamMapInWorldFrame(const std::string& path,
 
 PointCloud Submap::GetKeypointsInWorldFrame(bool use_initials) {
   TriangulateKeypoints();
-
   PointCloud cloud;
   for (auto it = landmark_positions_.begin(); it != landmark_positions_.end();
        it++) {
@@ -889,11 +888,10 @@ void Submap::TriangulateKeypoints(bool override_points) {
       Ts_CAM_WORLD.push_back(T_CAM_WORLD);
       pixels.push_back(measurement.value.cast<int>());
     }
-
     // triangulate point and add if successful
     auto point = beam_cv::Triangulation::TriangulatePoint(
         camera_model_, Ts_CAM_WORLD, pixels, 100.0, 20.0);
-    landmark_positions_.emplace(landmark_id, point.value());
+    if (point) { landmark_positions_.emplace(landmark_id, point.value()); }
   }
 }
 

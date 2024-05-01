@@ -361,8 +361,10 @@ std::vector<GlobalMapBatchOptimization::LoopClosureMeasurement>
     } else if (!CheckMetric(metric.r, metrics_mean.r, metrics_stddev.r,
                             "failed rotation check")) {
       continue;
-    } else if (!CheckMetric(metric.e, metrics_mean.e, metrics_stddev.e,
-                            "failed shannon entropy check")) {
+    } else if (metric.e > metrics_mean.e + 2 * metrics_stddev.e) {
+      BEAM_WARN(
+          "failed shannon entropy check, value: {}, expected range: <= {}]",
+          metric.e, metrics_mean.e + 2 * metrics_stddev.e);
       continue;
     } else if (metric.d > metrics_mean.d + 2 * metrics_stddev.d) {
       BEAM_WARN(
