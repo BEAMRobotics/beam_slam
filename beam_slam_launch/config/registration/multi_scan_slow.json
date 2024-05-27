@@ -1,9 +1,9 @@
 {
-  "registration_type": "MULTISCAN",
-  "min_motion_trans_m": 0,
-  "min_motion_rot_deg": 0,
-  "max_motion_trans_m": 5,
-  "fix_first_scan": true,
-  "num_neighbors": 10,
-  "disable_lidar_map": true
+    "registration_type": "MULTISCAN",
+    "min_motion_trans_m": 0,
+    "min_motion_rot_deg": 0,
+    "max_motion_trans_m": 5,
+    "fix_first_scan": true,
+    "num_neighbors": 10,
+    "disable_lidar_map": true
 }

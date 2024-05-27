@@ -1,26 +1,26 @@
 {
-  "loop_closure": {
-    "candidate_search_config": "global_map/reloc_candidate_search_scan_context.json",
-    "refinement_config": "global_map/reloc_refinement_scan_registration.json",
-    "local_mapper_covariance": 1e-3,
-    "loop_closure_covariance": 1e-5
-  },
-  "submap_refinement": {
-    "scan_registration_config": "registration/scan_to_map_slow.json",
-    "matcher_config": "matchers/loam_vlp16_slow.json"
-  },
-  "submap_alignment": {
-    "matcher_config": "matchers/loam_vlp16_slow.json"
-  },
-  "batch_optimizer": {
-    "scan_registration_config": "registration/multi_scan_slow.json",
-    "matcher_config": "matchers/loam_vlp16_slow.json",
-    "update_graph_on_all_scans": false,
-    "update_graph_on_all_lcs": false,
-    "lc_dist_thresh_m": 4,
-    "lc_min_traj_dist_m": 8,
-    "lc_max_per_query_scan": 5,
-    "lc_scan_context_dist_thres": 0.4,
-    "lc_cov_multiplier": 1
-  }
+    "loop_closure": {
+        "candidate_search_config": "global_map/reloc_candidate_search_scan_context.json",
+        "refinement_config": "global_map/reloc_refinement_scan_registration.json",
+        "local_mapper_covariance": 0.001,
+        "loop_closure_covariance": 1e-05
+    },
+    "submap_refinement": {
+        "scan_registration_config": "registration/multi_scan_slow.json",
+        "matcher_config": "matchers/loam_vlp16_slow.json"
+    },
+    "submap_alignment": {
+        "matcher_config": "matchers/loam_vlp16_slow.json"
+    },
+    "batch_optimizer": {
+        "scan_registration_config": "registration/multi_scan_slow.json",
+        "matcher_config": "matchers/loam_vlp16_slow.json",
+        "update_graph_on_all_scans": false,
+        "update_graph_on_all_lcs": false,
+        "lc_dist_thresh_m": 4,
+        "lc_min_traj_dist_m": 10,
+        "lc_max_per_query_scan": 10,
+        "lc_scan_context_dist_thres": 0.35,
+        "lc_cov_multiplier": 1
+    }
 }

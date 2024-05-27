@@ -23,7 +23,7 @@ SubmapRefinement::SubmapRefinement(const SubmapRefinement::Params& params,
 
 bool SubmapRefinement::Run(std::vector<SubmapPtr> submaps) {
   for (uint16_t i = 0; i < submaps.size(); i++) {
-    BEAM_INFO("Refining submap No. {}", i);
+    BEAM_INFO("Refining submap No. {}/{}", i+1, submaps.size());
     if (!RefineSubmap(submaps.at(i))) {
       BEAM_ERROR("Submap refinement failed, exiting.");
       return false;

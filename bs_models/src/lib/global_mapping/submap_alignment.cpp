@@ -20,7 +20,7 @@ bool SubmapAlignment::Run(std::vector<SubmapPtr> submaps) {
   }
 
   for (uint16_t i = 1; i < submaps.size(); i++) {
-    BEAM_INFO("Aligning submap No. {}", i);
+    BEAM_INFO("Aligning submap No. {}/{}", i+1, submaps.size());
     if (!AlignSubmaps(submaps.at(i - 1), submaps.at(i))) {
       BEAM_ERROR("Submap alignment failed, exiting.");
       return false;
