@@ -19,7 +19,8 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   }
 
   beam::ValidateJsonKeysOrThrow({"loop_closure", "submap_refinement",
-                                 "submap_alignment", "batch_optimizer"},
+                                 "submap_alignment", "batch_optimizer",
+                                 "submap_resize"},
                                 J);
 
   // load loop closure params
@@ -103,6 +104,11 @@ void GlobalMapRefinement::Params::LoadJson(const std::string& config_path) {
   batch.lc_scan_context_dist_thres =
       J_batch_optimizer["lc_scan_context_dist_thres"];
   batch.lc_cov_multiplier = J_batch_optimizer["lc_cov_multiplier"];
+
+  auto J_resize = J["submap_resize"];
+  beam::ValidateJsonKeysOrThrow({"apply", "target_submap_length_m"}, J_resize);
+  resize.apply = J_resize["apply"];
+  resize.target_submap_length_m = J_resize["target_submap_length_m"];
 }
 
 void GlobalMapRefinement::Summary::Save(const std::string& output_path) const {
@@ -134,28 +140,52 @@ void GlobalMapRefinement::Summary::Save(const std::string& output_path) const {
   file << std::setw(4) << J << std::endl;
 }
 
-GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
-                                         const Params& params)
-    : params_(params) {
-  BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
-  global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-}
-
-GlobalMapRefinement::GlobalMapRefinement(const std::string& global_map_data_dir,
-                                         const std::string& config_path) {
-  params_.LoadJson(config_path);
-  BEAM_INFO("Loading global map data from: {}", global_map_data_dir);
-  global_map_ = std::make_shared<GlobalMap>(global_map_data_dir);
-}
-
 GlobalMapRefinement::GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
                                          const Params& params)
-    : global_map_(global_map), params_(params) {}
+    : global_map_(global_map), params_(params) {
+  Initialize();
+}
 
 GlobalMapRefinement::GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
                                          const std::string& config_path)
     : global_map_(global_map) {
   params_.LoadJson(config_path);
+  Initialize();
+}
+
+void GlobalMapRefinement::Initialize() {
+  if (!params_.resize.apply) { return; }
+  std::vector<SubmapPtr> submaps_init = global_map_->GetSubmaps();
+  std::vector<SubmapPtr> submaps_new;
+  auto camera_model = submaps_init.front()->CameraModel();
+  auto extrinsics = submaps_init.front()->Extrinsics();
+  submaps_new.push_back(std::make_shared<Submap>(
+      submaps_init.front()->Stamp(), submaps_init.front()->T_WORLD_SUBMAP(),
+      camera_model, extrinsics));
+  Eigen::Matrix4d T_World_SubmapK = submaps_init.front()->T_WORLD_SUBMAP();
+  for (const auto& submap_j : submaps_init) {
+    Eigen::Matrix4d T_World_SubmapJ = submap_j->T_WORLD_SUBMAP();
+    for (const auto& [ts_ns, scan_pose] : submap_j->LidarKeyframes()) {
+      Eigen::Matrix4d T_SubmapJ_Baselink = scan_pose.T_REFFRAME_BASELINK();
+      Eigen::Matrix4d T_World_Baselink = T_World_SubmapJ * T_SubmapJ_Baselink;
+      Eigen::Matrix4d T_SubmapK_Baselink =
+          beam::InvertTransform(T_World_SubmapK) * T_World_Baselink;
+      double dist = T_SubmapK_Baselink.block(0, 3, 3, 1).norm();
+      if (dist > params_.resize.target_submap_length_m) {
+        // create new submap: K + 1
+        T_World_SubmapK = T_World_Baselink;
+        submaps_new.push_back(std::make_shared<Submap>(
+            scan_pose.Stamp(), T_World_SubmapK, camera_model, extrinsics));
+        T_SubmapK_Baselink = Eigen::Matrix4d::Identity();
+      }
+
+      // add to submap K
+      ScanPose scan_pose_new = scan_pose;
+      scan_pose_new.UpdatePose(T_SubmapK_Baselink);
+      submaps_new.back()->LidarKeyframesMutable().emplace(ts_ns, scan_pose_new);
+    }
+  }
+  global_map_->SetSubmaps(submaps_new);
 }
 
 bool GlobalMapRefinement::RunSubmapRefinement(const std::string& output_path) {

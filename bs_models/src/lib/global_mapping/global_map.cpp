@@ -180,7 +180,7 @@ GlobalMap::Params& GlobalMap::GetParamsMutable() {
   return params_;
 }
 
-void GlobalMap::SetSubmaps(std::vector<SubmapPtr>& submaps) {
+void GlobalMap::SetSubmaps(const std::vector<SubmapPtr>& submaps) {
   submaps_ = submaps;
 }
 

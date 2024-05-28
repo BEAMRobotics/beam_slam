@@ -152,7 +152,7 @@ public:
    * @param submaps vector of pointers to submaps to be stored in this global
    * map
    */
-  void SetSubmaps(std::vector<SubmapPtr>& submaps);
+  void SetSubmaps(const std::vector<SubmapPtr>& submaps);
 
   /**
    * @brief Sets store_newly_completed_submaps_ param. See description below for

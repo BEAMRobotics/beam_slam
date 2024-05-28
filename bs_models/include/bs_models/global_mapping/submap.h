@@ -458,6 +458,8 @@ public:
 
   const std::shared_ptr<bs_common::ExtrinsicsLookupBase>& Extrinsics() const;
 
+  std::shared_ptr<beam_calibration::CameraModel> CameraModel();
+
 private:
   /**
    * @brief Get 3D positions of each landmark given current tracks and

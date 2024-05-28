@@ -36,11 +36,18 @@ namespace bs_models::global_mapping {
  */
 class GlobalMapRefinement {
 public:
+  struct SubmapResizeParams {
+    bool apply;
+    bool save_original_sizes;
+    double target_submap_length_m;
+  };
+
   struct Params {
     SubmapRefinement::Params submap_refinement;
     SubmapAlignment::Params submap_alignment;
     SubmapPoseGraphOptimization::Params submap_pgo;
     GlobalMapBatchOptimization::Params batch;
+    SubmapResizeParams resize;
 
     /** Loads config settings from a json file. If config_path empty, it will
      * use default params defined herein. */
@@ -60,32 +67,12 @@ public:
   GlobalMapRefinement() = delete;
 
   /**
-   * @brief constructor requiring a path to a directory containing global map
-   * data, and optional params struct.
-   * @param global_map_data_dir directory must contain data from only one global
-   * map. See GlobalMap.h (SaveData function) for format of data
-   * @param params see struct above
-   */
-  GlobalMapRefinement(const std::string& global_map_data_dir,
-                      const Params& params = Params());
-
-  /**
-   * @brief constructor requiring a path to a directory containing global map
-   * data, and optional path to a global map refinement config file.
-   * @param global_map_data_dir directory must contain data from only one global
-   * map. See GlobalMap.h (SaveData function) for format of data
-   * @param params see struct above
-   */
-  GlobalMapRefinement(const std::string& global_map_data_dir,
-                      const std::string& config_path = "");
-
-  /**
    * @brief constructor requiring a list of submaps and optional params struct.
    * @param submaps  vector of pointers to submaps to refine
    * @param params see struct above
    */
   GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
-                      const Params& params = Params());
+                      const Params& params);
 
   /**
    * @brief constructor requiring a list of submaps and optional path to config
@@ -94,7 +81,7 @@ public:
    * @param config_path full path to json config file
    */
   GlobalMapRefinement(std::shared_ptr<GlobalMap>& global_map,
-                      const std::string& config_path = "");
+                      const std::string& config_path);
 
   /**
    * @brief default destructor
@@ -149,6 +136,8 @@ public:
   void SaveGlobalMapData(const std::string& output_path);
 
 private:
+  void Initialize();
+
   Params params_;
   std::shared_ptr<GlobalMap> global_map_;
   Summary summary_;

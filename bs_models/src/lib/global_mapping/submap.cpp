@@ -186,6 +186,10 @@ const std::shared_ptr<bs_common::ExtrinsicsLookupBase>&
   return extrinsics_;
 }
 
+std::shared_ptr<beam_calibration::CameraModel> Submap::CameraModel() {
+  return camera_model_;
+}
+
 void Submap::AddLidarMeasurement(const PointCloud& cloud,
                                  const Eigen::Matrix4d& T_WORLDLM_BASELINK,
                                  const ros::Time& stamp) {
