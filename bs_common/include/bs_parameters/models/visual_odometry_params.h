@@ -125,6 +125,8 @@ public:
                        local_map_matching);
     getParamJson<bool>(J, "use_online_calibration", use_online_calibration,
                        use_online_calibration);
+    getParamJson<bool>(J, "use_pose_covariance_weighting", use_pose_covariance_weighting,
+                       use_pose_covariance_weighting);
 
     if (use_standalone_vo) {
       try {
@@ -153,6 +155,7 @@ public:
   bool use_standalone_vo{false};
   bool trigger_inertial_odom_constraints{true};
   double keyframe_parallax{20.0};
+  bool use_pose_covariance_weighting{false};
 
   // main vo params
   bool use_online_calibration{false};

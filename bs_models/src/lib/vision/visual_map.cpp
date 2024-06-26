@@ -172,7 +172,7 @@ fuse_variables::Position3DStamped::SharedPtr
 
 bool VisualMap::AddVisualConstraint(
     const ros::Time& stamp, uint64_t lm_id, const Eigen::Vector2d& pixel,
-    fuse_core::Transaction::SharedPtr transaction) {
+    fuse_core::Transaction::SharedPtr transaction, const Eigen::Matrix<double 6, 6> pose_covariance) {
   // if the camera calibration hasn't been added yet
   if (!calibration_added_) { AddCameraCalibration(transaction); }
 
@@ -199,7 +199,7 @@ bool VisualMap::AddVisualConstraint(
             std::make_shared<bs_constraints::EuclideanReprojectionConstraint>(
                 source_, *orientation, *position, *lm, T_cam_baselink_,
                 camera_intrinsic_matrix_, measurement,
-                reprojection_information_weight_);
+                reprojection_information_weight_, pose_covariance);
         vis_constraint->loss(loss_function_);
         transaction->addConstraint(vis_constraint);
       } else {

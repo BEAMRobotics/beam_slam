@@ -323,7 +323,11 @@ void VisualOdometry::ExtendMap(const ros::Time& timestamp,
     if (vo_params_.use_idp) {
       ProcessLandmarkIDP(id, timestamp, transaction);
     } else {
-      ProcessLandmarkEUC(id, timestamp, transaction);
+      if (vo_params_.use_pose_covariance_weighting) {
+        ProcessLandmarkEUC(id, timestamp, transaction, covariance);
+      } else {
+        ProcessLandmarkEUC(id, timestamp, transaction);
+      }
     }
   }
 
@@ -789,18 +793,21 @@ void VisualOdometry::ProcessLandmarkIDP(
 
 void VisualOdometry::ProcessLandmarkEUC(
     const uint64_t id, const ros::Time& timestamp,
-    fuse_core::Transaction::SharedPtr transaction) {
+    fuse_core::Transaction::SharedPtr transaction,
+    const Eigen::Matrix<double, 6, 6> pose_covariance) {
   if (visual_map_->GetLandmark(id)) {
     try {
       Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
-      visual_map_->AddVisualConstraint(timestamp, id, pixel, transaction);
+      visual_map_->AddVisualConstraint(timestamp, id, pixel, transaction,
+                                       pose_covariance);
     } catch (const std::out_of_range& oor) { return; }
   } else if (new_to_old_lm_ids_.left.find(id) !=
              new_to_old_lm_ids_.left.end()) {
     try {
       Eigen::Vector2d pixel = landmark_container_->GetValue(timestamp, id);
-      visual_map_->AddVisualConstraint(
-          timestamp, new_to_old_lm_ids_.left.at(id), pixel, transaction);
+      visual_map_->AddVisualConstraint(timestamp,
+                                       new_to_old_lm_ids_.left.at(id), pixel,
+                                       transaction, pose_covariance);
     } catch (const std::out_of_range& oor) { return; }
   } else {
     // triangulate landmark
@@ -816,7 +823,7 @@ void VisualOdometry::ProcessLandmarkEUC(
       if (SearchLocalMap(cur_pixel, avg_viewing_angle, word_id, matched_id)) {
         // add constraint to matched id
         visual_map_->AddVisualConstraint(timestamp, matched_id, cur_pixel,
-                                         transaction);
+                                         transaction, pose_covariance);
         new_to_old_lm_ids_.insert({id, matched_id});
         return;
       }
@@ -829,7 +836,8 @@ void VisualOdometry::ProcessLandmarkEUC(
     for (const auto& [kf_stamp, kf] : keyframes_) {
       try {
         Eigen::Vector2d pixel = landmark_container_->GetValue(kf_stamp, id);
-        visual_map_->AddVisualConstraint(kf_stamp, id, pixel, transaction);
+        visual_map_->AddVisualConstraint(kf_stamp, id, pixel, transaction,
+                                         pose_covariance);
       } catch (const std::out_of_range& oor) { continue; }
     }
   }

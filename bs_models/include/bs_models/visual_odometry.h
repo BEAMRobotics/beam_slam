@@ -152,7 +152,9 @@ private:
   /// @param timestamp timestamp of measurement
   /// @param transaction transaction to ammed to
   void ProcessLandmarkEUC(const uint64_t id, const ros::Time& timestamp,
-                          fuse_core::Transaction::SharedPtr transaction);
+                          fuse_core::Transaction::SharedPtr transaction,
+                          const Eigen::Matrix<double, 6, 6> pose_covariance =
+                              Eigen::Matrix<double, 6, 6>::Identity());
 
   /// @brief Creates a visual odometry factor between this frame and th previous
   /// keyframe

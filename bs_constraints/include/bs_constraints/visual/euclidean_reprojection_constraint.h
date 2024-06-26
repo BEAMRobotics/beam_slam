@@ -1,12 +1,12 @@
 #pragma once
 
+#include <bs_variables/point_3d_landmark.h>
 #include <fuse_core/constraint.h>
 #include <fuse_core/eigen.h>
 #include <fuse_core/fuse_macros.h>
 #include <fuse_core/serialization.h>
 #include <fuse_core/uuid.h>
 #include <fuse_variables/orientation_3d_stamped.h>
-#include <bs_variables/point_3d_landmark.h>
 #include <fuse_variables/position_3d_stamped.h>
 
 #include <boost/serialization/access.hpp>
@@ -43,7 +43,9 @@ public:
       const Eigen::Matrix4d& T_cam_baselink,
       const Eigen::Matrix3d& intrinsic_matrix,
       const Eigen::Vector2d& measurement,
-      const double reprojection_information_weight);
+      const double reprojection_information_weight,
+      const Eigen::Matrix<double 6, 6> pose_covariance =
+          Eigen::Matrix<double 6, 6>::Identity());
 
   /**
    * @brief Destructor
@@ -82,6 +84,7 @@ protected:
   Eigen::Matrix4d T_cam_baselink_;
   Eigen::Matrix3d intrinsic_matrix_;
   Eigen::Matrix2d sqrt_information_;
+  Eigen::Matrix<double 6, 6> pose_covariance_;
 
 private:
   // Allow Boost Serialization access to private methods
@@ -99,7 +102,7 @@ private:
   template <class Archive>
   void serialize(Archive& archive, const unsigned int /* version */) {
     archive& boost::serialization::base_object<fuse_core::Constraint>(*this);
-    archive& pixel_;
+    archive & pixel_;
   }
 };
 

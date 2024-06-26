@@ -20,14 +20,16 @@ EuclideanReprojectionConstraint::EuclideanReprojectionConstraint(
     const bs_variables::Point3DLandmark& P_WORLD,
     const Eigen::Matrix4d& T_cam_baselink,
     const Eigen::Matrix3d& intrinsic_matrix, const Eigen::Vector2d& measurement,
-    const double reprojection_information_weight)
+    const double reprojection_information_weight,
+    const Eigen::Matrix<double 6, 6> pose_covariance)
     : fuse_core::Constraint(source, {R_WORLD_BASELINK.uuid(),
                                      t_WORLD_BASELINK.uuid(), P_WORLD.uuid()}),
       T_cam_baselink_(T_cam_baselink),
       intrinsic_matrix_(intrinsic_matrix),
       pixel_(measurement),
       sqrt_information_(reprojection_information_weight *
-                        Eigen::Matrix2d::Identity()) {}
+                        Eigen::Matrix2d::Identity()),
+      pose_covariance_(pose_covariance) {}
 
 void EuclideanReprojectionConstraint::print(std::ostream& stream) const {
   stream << type() << "\n"
@@ -37,13 +39,13 @@ void EuclideanReprojectionConstraint::print(std::ostream& stream) const {
 }
 
 ceres::CostFunction* EuclideanReprojectionConstraint::costFunction() const {
-  return new EuclideanReprojection(sqrt_information_, pixel_, intrinsic_matrix_,
-                                   T_cam_baselink_);
-  // return new ceres::AutoDiffCostFunction<EuclideanReprojectionFunctor, 2, 4,
-  // 3, 3>(
-  //     new EuclideanReprojectionFunctor(sqrt_information_, pixel_,
-  //     intrinsic_matrix_,
-  //                             T_cam_baselink_));
+  // return new EuclideanReprojection(sqrt_information_, pixel_,
+  // intrinsic_matrix_,
+  //                                  T_cam_baselink_);
+  return new ceres::AutoDiffCostFunction<EuclideanReprojectionFunctor, 2, 4, 3,
+                                         3>(new EuclideanReprojectionFunctor(
+      sqrt_information_, pixel_, intrinsic_matrix_, T_cam_baselink_,
+      pose_covariance_));
 }
 
 } // namespace bs_constraints
