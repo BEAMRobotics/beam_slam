@@ -106,8 +106,8 @@ public:
   bool AddVisualConstraint(const ros::Time& stamp, uint64_t lm_id,
                            const Eigen::Vector2d& pixel,
                            fuse_core::Transaction::SharedPtr transaction,
-                           const Eigen::Matrix<double 6, 6> pose_covariance =
-                               Eigen::Matrix<double 6, 6>::Identity());
+                           const Eigen::Matrix<double, 6, 6> pose_covariance =
+                               Eigen::Matrix<double, 6, 6>::Identity());
   /**
    * @brief Helper function to add a new inverse depth landmark variable to a
    * transaction or graph

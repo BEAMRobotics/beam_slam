@@ -21,7 +21,7 @@ EuclideanReprojectionConstraint::EuclideanReprojectionConstraint(
     const Eigen::Matrix4d& T_cam_baselink,
     const Eigen::Matrix3d& intrinsic_matrix, const Eigen::Vector2d& measurement,
     const double reprojection_information_weight,
-    const Eigen::Matrix<double 6, 6> pose_covariance)
+    const Eigen::Matrix<double, 6, 6> pose_covariance)
     : fuse_core::Constraint(source, {R_WORLD_BASELINK.uuid(),
                                      t_WORLD_BASELINK.uuid(), P_WORLD.uuid()}),
       T_cam_baselink_(T_cam_baselink),

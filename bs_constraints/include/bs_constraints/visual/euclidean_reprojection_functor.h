@@ -33,8 +33,8 @@ public:
       const Eigen::Vector2d& pixel_measurement,
       const Eigen::Matrix3d& intrinsic_matrix,
       const Eigen::Matrix4d& T_cam_baselink,
-      const Eigen::Matrix<double 6, 6> pose_covariance =
-          Eigen::Matrix<double 6, 6>::Identity())
+      const Eigen::Matrix<double, 6, 6> pose_covariance =
+          Eigen::Matrix<double, 6, 6>::Identity())
       : information_matrix_(information_matrix),
         pixel_measurement_(pixel_measurement),
         intrinsic_matrix_(intrinsic_matrix),
@@ -79,8 +79,8 @@ public:
       // [     0      (fy/gz)) (-fy * gy / gz^2)     -fy(1+gy^2/gz^2)   (-fy * gx gy / gz^2)  -fy gx/gz]
       // A_ is pose covariance in order (x, y, z, qx, qy, qz)
       // clang-format on
-      T fx = intrinsics_matrix_.cast<T>(0, 0);
-      T fy = intrinsics_matrix_.cast<T>(1, 1);
+      T fx = intrinsic_matrix_.cast<T>()(0, 0);
+      T fy = intrinsic_matrix_.cast<T>()(1, 1);
       T gx = P_WORLD[0];
       T gy = P_WORLD[1];
       T gz = P_WORLD[2];
@@ -115,7 +115,7 @@ private:
   Eigen::Vector2d pixel_measurement_;  //!< The measured pixel value
   Eigen::Matrix3d intrinsic_matrix_;
   Eigen::Matrix4d T_cam_baselink_;
-  Eigen::Matrix<double 6, 6> pose_covariance_;
+  Eigen::Matrix<double, 6, 6> pose_covariance_;
 };
 
 } // namespace bs_constraints

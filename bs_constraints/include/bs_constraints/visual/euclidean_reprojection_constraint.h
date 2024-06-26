@@ -44,8 +44,8 @@ public:
       const Eigen::Matrix3d& intrinsic_matrix,
       const Eigen::Vector2d& measurement,
       const double reprojection_information_weight,
-      const Eigen::Matrix<double 6, 6> pose_covariance =
-          Eigen::Matrix<double 6, 6>::Identity());
+      const Eigen::Matrix<double, 6, 6> pose_covariance =
+          Eigen::Matrix<double, 6, 6>::Identity());
 
   /**
    * @brief Destructor
@@ -84,7 +84,7 @@ protected:
   Eigen::Matrix4d T_cam_baselink_;
   Eigen::Matrix3d intrinsic_matrix_;
   Eigen::Matrix2d sqrt_information_;
-  Eigen::Matrix<double 6, 6> pose_covariance_;
+  Eigen::Matrix<double, 6, 6> pose_covariance_;
 
 private:
   // Allow Boost Serialization access to private methods

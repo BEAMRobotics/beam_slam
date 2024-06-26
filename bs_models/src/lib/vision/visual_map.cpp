@@ -172,7 +172,7 @@ fuse_variables::Position3DStamped::SharedPtr
 
 bool VisualMap::AddVisualConstraint(
     const ros::Time& stamp, uint64_t lm_id, const Eigen::Vector2d& pixel,
-    fuse_core::Transaction::SharedPtr transaction, const Eigen::Matrix<double 6, 6> pose_covariance) {
+    fuse_core::Transaction::SharedPtr transaction, const Eigen::Matrix<double, 6, 6> pose_covariance) {
   // if the camera calibration hasn't been added yet
   if (!calibration_added_) { AddCameraCalibration(transaction); }
 
