@@ -265,12 +265,15 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
 
     // fallback to frame init if failed localization
     if (!passed_localization || !passed_refinement) {
+      ROS_WARN_STREAM("Track lost");
       track_lost_ = true;
       T_WORLD_BASELINK = T_WORLD_BASELINKcur;
       covariance = vo_params_.invalid_localization_covariance_weight *
                    Eigen::Matrix<double, 6, 6>::Identity();
+      loc_success_window_.push_back(false);
       num_loc_fails_in_a_row_++;
     } else {
+      loc_success_window_.push_back(true);
       num_loc_fails_in_a_row_ = 0;
     }
 
@@ -281,18 +284,25 @@ bool VisualOdometry::LocalizeFrame(const ros::Time& timestamp,
     track_lost_ = true;
     covariance = vo_params_.invalid_localization_covariance_weight *
                  Eigen::Matrix<double, 6, 6>::Identity();
+    loc_success_window_.push_back(false);
     num_loc_fails_in_a_row_++;
   }
 
-  if (num_loc_fails_in_a_row_ >= 10) {
-    ROS_ERROR_STREAM(name()
-                     << ": Too many localization failures in a row ("
-                     << num_loc_fails_in_a_row_ << "). Resetting system.");
+  int fail_count =
+      std::count_if(loc_success_window_.begin(), loc_success_window_.end(),
+                    [](bool i) { return !i; });
+  if (num_loc_fails_in_a_row_ >= 3 || fail_count >= 5) {
+    ROS_ERROR_STREAM(name() << ": Too many localization failures in a row ("
+                            << num_loc_fails_in_a_row_
+                            << ") or too many fails in recent window ("
+                            << fail_count << "). Resetting system.");
     std_msgs::Empty reset;
     reset_publisher_.publish(reset);
     resetting_ = true;
     return false;
   }
+
+  if (loc_success_window_.size() > 20) { loc_success_window_.pop_front(); }
 
   // update previous frame pose
   T_WORLD_BASELINKprevframe_ = T_WORLD_BASELINK;
@@ -1297,6 +1307,7 @@ void VisualOdometry::shutdown() {
   validator_->Clear();
   image_db_->Clear();
   landmark_container_->clear();
+  loc_success_window_.clear();
 }
 
 } // namespace bs_models

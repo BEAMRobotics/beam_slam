@@ -37,7 +37,7 @@ fuse_core::LocalParameterization* Orientation3D::localParameterization() const {
 }
 
 bool Orientation3D::holdConstant() const {
-  return true;
+  return false;
 }
 
 } // namespace bs_variables

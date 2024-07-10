@@ -269,6 +269,7 @@ private:
   Eigen::Matrix4d T_WORLD_BASELINKprevframe_;
   std::shared_ptr<vision::VOLocalizationValidation> validator_;
   int num_loc_fails_in_a_row_{0};
+  std::deque<bool> loc_success_window_;
   int imu_constraint_trigger_counter_{0};
 
   /// @brief local map matching stuff
