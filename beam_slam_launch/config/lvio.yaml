@@ -59,7 +59,6 @@ visual_odometry:
   keyframe_parallax: 25.0
   trigger_inertial_odom_constraints: true
   use_standalone_vo: true
-  use_pose_covariance_weighting: false
 
 gravity_alignment:
   imu_topic: "/imu/data"

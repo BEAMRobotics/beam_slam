@@ -43,11 +43,14 @@ public:
   EuclideanReprojection(const Eigen::Matrix2d& information_matrix,
                         const Eigen::Vector2d& pixel_measurement,
                         const Eigen::Matrix3d& intrinsic_matrix,
-                        const Eigen::Matrix4d& T_cam_baselink)
+                        const Eigen::Matrix4d& T_cam_baselink,
+                        const Eigen::Matrix<double, 6, 6> pose_covariance =
+                            Eigen::Matrix<double, 6, 6>::Identity())
       : information_matrix_(information_matrix),
         pixel_measurement_(pixel_measurement),
         intrinsic_matrix_(intrinsic_matrix),
-        T_cam_baselink_(T_cam_baselink) {}
+        T_cam_baselink_(T_cam_baselink),
+        pose_covariance_(pose_covariance) {}
 
   /**
    * @brief Evaluate the cost function. Used by the Ceres optimization engine.
@@ -87,9 +90,39 @@ public:
     // 3. project into image space
     Eigen::Vector2d reprojection = (intrinsic_matrix_ * P_CAMERA).hnormalized();
 
+    Eigen::Matrix2d info_matrix;
+    if (!pose_covariance_.isIdentity()) {
+      // clang-format off
+      // Get the covariance weigthing to point losses from a pose uncertainty
+      // From https://arxiv.org/pdf/2103.15980.pdf , equation A.7:
+      // dh( e A p )  =   dh(p')  *  d(e A p)
+      //     d(e)          d(p')       d(e)
+      // where e is a small increment around the SE(3) manifold of A, A is a pose, p is a point,
+      // h is the projection function, and p' = Ap = g, the jacobian is thus 2x6:
+      // J =
+      // [ (fx/gz)      (0)    (-fx * gx / gz^2)  (-fx * gx gy / gz^2)    fx(1+gx^2/gz^2)     -fx gy/gz]
+      // [     0      (fy/gz)) (-fy * gy / gz^2)     -fy(1+gy^2/gz^2)   (-fy * gx gy / gz^2)  -fy gx/gz]
+      // A_ is pose covariance in order (x, y, z, qx, qy, qz)
+      // clang-format on
+      double fx = intrinsic_matrix_(0, 0);
+      double fy = intrinsic_matrix_(1, 1);
+      double gx = P_WORLD[0];
+      double gy = P_WORLD[1];
+      double gz = P_WORLD[2];
+      double gz2 = gz * gz;
+      double gxyz = (gx * gy) / gz2;
+      Eigen::Matrix<double, 2, 6, Eigen::RowMajor> J;
+      J << fx / gz, 0, -fx * (gx / gz2), -fx * gxyz,
+          fx * (1 + (gx * gx) / gz2), -fx * gy / gz, 0, fy / gz,
+          -fy * (gy / gz2), -fy * (1 + (gy * gy) / gz2), fy * gxyz,
+          fy * gx / gz;
+      info_matrix = J * pose_covariance_ * J.transpose();
+    } else {
+      info_matrix = information_matrix_;
+    }
+
     // compute weighted reprojection error
-    Eigen::Vector2d E =
-        information_matrix_ * (pixel_measurement_ - reprojection);
+    Eigen::Vector2d E = info_matrix * (pixel_measurement_ - reprojection);
     residual[0] = E[0];
     residual[1] = E[1];
 
@@ -140,7 +173,7 @@ public:
             d_E_d_q_WORLD_BASELINK(jacobians[0]);
         d_E_d_q_WORLD_BASELINK = d_E_d_P_CAMERA * d_P_CAMERA_d_P_BASELINK *
                                  d_P_BASELINK_D_q_WORLD_BASELINK;
-        d_E_d_q_WORLD_BASELINK.applyOnTheLeft(-information_matrix_);
+        d_E_d_q_WORLD_BASELINK.applyOnTheLeft(-info_matrix);
       }
 
       if (jacobians[1]) {
@@ -153,7 +186,7 @@ public:
             d_E_d_t_WORLD_BASELINK(jacobians[1]);
         d_E_d_t_WORLD_BASELINK = d_E_d_P_CAMERA * d_P_CAMERA_d_P_BASELINK *
                                  d_P_BASELINK_d_t_WORLD_BASELINK;
-        d_E_d_t_WORLD_BASELINK.applyOnTheLeft(-information_matrix_);
+        d_E_d_t_WORLD_BASELINK.applyOnTheLeft(-info_matrix);
       }
 
       if (jacobians[2]) {
@@ -165,7 +198,7 @@ public:
             DPointRotationDPoint(R_BASELINK_WORLD, P_WORLD);
         d_E_D_P_WORLD =
             d_E_d_P_CAMERA * d_P_CAMERA_d_P_BASELINK * d_P_BASELINK_d_P_WORLD;
-        d_E_D_P_WORLD.applyOnTheLeft(-information_matrix_);
+        d_E_D_P_WORLD.applyOnTheLeft(-info_matrix);
       }
     }
     return true;
@@ -176,6 +209,7 @@ private:
   Eigen::Vector2d pixel_measurement_;  //!< The measured pixel value
   Eigen::Matrix3d intrinsic_matrix_;
   Eigen::Matrix4d T_cam_baselink_;
+  Eigen::Matrix<double, 6, 6> pose_covariance_;
 };
 
 } // namespace bs_constraints

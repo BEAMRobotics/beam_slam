@@ -526,7 +526,9 @@ void SLAMInitialization::AddVisualConstraints() {
       }
     }
   }
-
+  Eigen::Matrix<double, 6, 1> covariance_vector;
+  covariance_vector << 1e-3, 1e-3, 1e-3, 1e-6, 1e-6, 1e-6;
+  Eigen::Matrix<double, 6, 6> init_covariance = covariance_vector.asDiagonal();
   const auto start = beam::NSecToRos(init_path_.begin()->first);
   const auto end = beam::NSecToRos(init_path_.rbegin()->first);
   size_t num_landmarks = 0;
@@ -549,8 +551,13 @@ void SLAMInitialization::AddVisualConstraints() {
       for (const auto& stamp : kf_times) {
         try {
           Eigen::Vector2d pixel = landmark_container_->GetValue(stamp, id);
-          visual_map_->AddVisualConstraint(stamp, id, pixel,
-                                           landmark_transaction);
+          if (params_.use_pose_covariance_weighting) {
+            visual_map_->AddVisualConstraint(
+                stamp, id, pixel, landmark_transaction, init_covariance);
+          } else {
+            visual_map_->AddVisualConstraint(
+                stamp, id, pixel, landmark_transaction);
+          }
         } catch (const std::out_of_range& oor) { continue; }
       }
     } else {

@@ -39,13 +39,13 @@ void EuclideanReprojectionConstraint::print(std::ostream& stream) const {
 }
 
 ceres::CostFunction* EuclideanReprojectionConstraint::costFunction() const {
-  // return new EuclideanReprojection(sqrt_information_, pixel_,
-  // intrinsic_matrix_,
-  //                                  T_cam_baselink_);
-  return new ceres::AutoDiffCostFunction<EuclideanReprojectionFunctor, 2, 4, 3,
-                                         3>(new EuclideanReprojectionFunctor(
-      sqrt_information_, pixel_, intrinsic_matrix_, T_cam_baselink_,
-      pose_covariance_));
+  return new EuclideanReprojection(sqrt_information_, pixel_, intrinsic_matrix_,
+                                   T_cam_baselink_, pose_covariance_);
+  // return new ceres::AutoDiffCostFunction<EuclideanReprojectionFunctor, 2, 4,
+  // 3,
+  //                                        3>(new EuclideanReprojectionFunctor(
+  //     sqrt_information_, pixel_, intrinsic_matrix_, T_cam_baselink_,
+  //     pose_covariance_));
 }
 
 } // namespace bs_constraints

@@ -145,6 +145,9 @@ public:
                        local_map_matching);
     getParamJson<bool>(J, "use_online_calibration", use_online_calibration,
                        use_online_calibration);
+    getParamJson<bool>(J, "use_pose_covariance_weighting",
+                       use_pose_covariance_weighting,
+                       use_pose_covariance_weighting);
   }
 
   std::string visual_measurement_topic{"/feature_tracker/visual_measurements"};
@@ -171,6 +174,7 @@ public:
   // vo params
   bool use_online_calibration{false};
   bool use_idp{false};
+  bool use_pose_covariance_weighting{false};
   bool local_map_matching{false};
   double max_triangulation_distance{30.0};
   double max_triangulation_reprojection{40.0};

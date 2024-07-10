@@ -2,6 +2,7 @@
   "max_triangulation_distance": 30.0,
   "max_triangulation_reprojection": 20.0,
   "use_idp": false,
+  "use_pose_covariance_weighting": false,
   "required_points_to_refine": 20,
   "track_outlier_pixel_threshold": 1.0,
   "local_map_matching": false,
