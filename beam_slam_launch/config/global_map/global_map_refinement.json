@@ -17,9 +17,9 @@
         "matcher_config": "matchers/loam_vlp16_slow.json",
         "update_graph_on_all_scans": false,
         "update_graph_on_all_lcs": false,
-        "lc_dist_thresh_m": 5,
+        "lc_dist_thresh_m": 8,
         "lc_min_traj_dist_m": 6,
-        "lc_max_per_query_scan": 15,
+        "lc_max_per_query_scan": 25,
         "lc_scan_context_dist_thres": 0.35,
         "lc_cov_multiplier": 1
     },

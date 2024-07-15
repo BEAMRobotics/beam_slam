@@ -6,6 +6,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
 
+#include <beam_filtering/VoxelDownsample.h>
 #include <beam_utils/math.h>
 #include <beam_utils/se3.h>
 
@@ -34,10 +35,8 @@ RegistrationMap& RegistrationMap::GetInstance() {
   return instance;
 }
 
-bool RegistrationMap::SetParams(int map_size, bool publish_updates) {
-  publish_updates_ = publish_updates;
-
-  if (map_params_set_ && map_size != map_size_) {
+void RegistrationMap::SetMapSize(int map_size) {
+  if (map_size_set_ && map_size != map_size_) {
     BEAM_WARN(
         "Map parameters already set, overriding and purging extra clouds.");
     // in case the map size decreased and existing scans are here, let's purge
@@ -46,10 +45,16 @@ bool RegistrationMap::SetParams(int map_size, bool publish_updates) {
       scans_.erase(first_scan_stamp);
     }
   }
-
   map_size_ = map_size;
-  map_params_set_ = true;
-  return true;
+  map_size_set_ = true;
+}
+
+void RegistrationMap::SetPublishUpdates(bool publish_updates) {
+  publish_updates_ = publish_updates;
+}
+
+void RegistrationMap::SetVoxelDownsampleSize(double downsample_voxel_size) {
+  downsample_voxel_size_ = downsample_voxel_size;
 }
 
 int RegistrationMap::MapSize() const {
@@ -93,7 +98,12 @@ PointCloud RegistrationMap::GetPointCloudMap() const {
   for (auto it = scans_.begin(); it != scans_.end(); it++) {
     cloud += it->second.cloud;
   }
-  return cloud;
+
+  if (downsample_voxel_size_ == -1) {
+    return cloud;
+  } else {
+    return DownsampleCloud(cloud);
+  }
 }
 
 LoamPointCloud RegistrationMap::GetLoamCloudMap() const {
@@ -101,7 +111,37 @@ LoamPointCloud RegistrationMap::GetLoamCloudMap() const {
   for (auto it = scans_.begin(); it != scans_.end(); it++) {
     cloud.Merge(it->second.loam_cloud);
   }
-  return cloud;
+
+  if (downsample_voxel_size_ == -1) {
+    return cloud;
+  } else {
+    if (log_time_) { timer_.restart(); }
+    // Downsample only strong features because we rarely use weak features if
+    // check_strong_features_first is set to true (default)
+    cloud.edges.strong.cloud = DownsampleCloud(cloud.edges.strong.cloud);
+    cloud.surfaces.strong.cloud = DownsampleCloud(cloud.surfaces.strong.cloud);
+    if (log_time_) { BEAM_INFO("Downsampling time: {}s", timer_.elapsed()); }
+    return cloud;
+  }
+}
+
+PointCloud RegistrationMap::DownsampleCloud(const PointCloud& cloud_in) const {
+  beam_filtering::VoxelDownsample voxel_filter(Eigen::Vector3f(
+      downsample_voxel_size_, downsample_voxel_size_, downsample_voxel_size_));
+  auto cloud_ptr = std::make_shared<PointCloud>(cloud_in);
+  voxel_filter.SetInputCloud(cloud_ptr);
+  voxel_filter.Filter();
+  return voxel_filter.GetFilteredCloud();
+}
+
+pcl::PointCloud<PointXYZIRT> RegistrationMap::DownsampleCloud(
+    const pcl::PointCloud<PointXYZIRT>& cloud_in) const {
+  beam_filtering::VoxelDownsample<PointXYZIRT> voxel_filter(Eigen::Vector3f(
+      downsample_voxel_size_, downsample_voxel_size_, downsample_voxel_size_));
+  auto cloud_ptr = std::make_shared<pcl::PointCloud<PointXYZIRT>>(cloud_in);
+  voxel_filter.SetInputCloud(cloud_ptr);
+  voxel_filter.Filter();
+  return voxel_filter.GetFilteredCloud();
 }
 
 bool RegistrationMap::UpdateScan(const ros::Time& stamp,

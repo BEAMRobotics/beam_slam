@@ -318,7 +318,7 @@ std::map<uint64_t, LidarTransactionType> LidarPathInit::GetTransactions() {
 void LidarPathInit::UpdateRegistrationMap(
     fuse_core::Graph::ConstSharedPtr graph_msg) {
   auto& registration_map = scan_registration_->GetMapMutable();
-  registration_map.SetParams(keyframes_.size());
+  registration_map.SetMapSize(keyframes_.size());
   int counter{0};
 
   for (ScanPose& p : keyframes_) {

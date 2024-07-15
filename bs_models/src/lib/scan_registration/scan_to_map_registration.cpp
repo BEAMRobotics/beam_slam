@@ -88,13 +88,17 @@ bs_constraints::Pose3DStampedTransaction
 }
 
 ScanToMapLoamRegistration::Params::Params(
-    const ScanRegistrationParamsBase& base_params, int _map_size)
-    : ScanRegistrationParamsBase(base_params), map_size(_map_size) {}
+    const ScanRegistrationParamsBase& base_params, int _map_size,
+    double _downsample_voxel_size)
+    : ScanRegistrationParamsBase(base_params),
+      map_size(_map_size),
+      downsample_voxel_size(_downsample_voxel_size) {}
 
 void ScanToMapLoamRegistration::Params::LoadFromJson(
     const std::string& config) {
   std::string read_file = config;
   if (config.empty()) {
+    BEAM_INFO("Config file empty, using default parameters");
     return;
   } else if (config == "DEFAULT_PATH") {
     std::string default_path =
@@ -122,16 +126,21 @@ void ScanToMapLoamRegistration::Params::LoadFromJson(
 
   // load other params specific to this class
   nlohmann::json J;
-  std::ifstream file(read_file);
-  file >> J;
+  if (!beam::ReadJson(read_file, J)) {
+    BEAM_ERROR("Unable to json");
+    throw std::runtime_error{"Unable to read config"};
+  }
+  beam::ValidateJsonKeysOrThrow({"downsample_voxel_size", "map_size"}, J);
 
   map_size = J["map_size"];
+  downsample_voxel_size = J["downsample_voxel_size"];
 }
 
 void ScanToMapLoamRegistration::Params::Print(std::ostream& stream) const {
   GetBaseParams().Print(stream);
   stream << "ScanToMapLoamRegistration::Params: \n";
   stream << "map_size: " << map_size << "\n";
+  stream << "downsample_voxel_size: " << downsample_voxel_size << "\n";
 }
 
 ScanRegistrationParamsBase
@@ -147,11 +156,13 @@ ScanRegistrationParamsBase
 
 ScanToMapLoamRegistration::ScanToMapLoamRegistration(
     std::unique_ptr<LoamMatcher> matcher,
-    const ScanRegistrationParamsBase& base_params, int map_size)
+    const ScanRegistrationParamsBase& base_params, int map_size,
+    double downsample_voxel_size)
     : ScanToMapRegistrationBase(base_params),
       matcher_(std::move(matcher)),
-      params_(base_params, map_size) {
-  map_.SetParams(params_.map_size);
+      params_(base_params, map_size, downsample_voxel_size) {
+  map_.SetMapSize(params_.map_size);
+  map_.SetVoxelDownsampleSize(params_.downsample_voxel_size);
 }
 
 bool ScanToMapLoamRegistration::RegisterScanToMap(const ScanPose& scan_pose,

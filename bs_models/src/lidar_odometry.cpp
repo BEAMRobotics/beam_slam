@@ -189,7 +189,7 @@ void LidarOdometry::SetupRegistration() {
   // set registration map to publish
   RegistrationMap& map = RegistrationMap::GetInstance();
   if (params_.publish_registration_map) {
-    map.SetParams(map.MapSize(), true);
+    map.SetPublishUpdates(true);
     ROS_INFO("Publishing initial lidar_odometry registration map");
     map.Publish();
   }
@@ -387,12 +387,17 @@ void LidarOdometry::process(const sensor_msgs::PointCloud2::ConstPtr& msg) {
 
     Eigen::Matrix4d T_World_BaselinkCurrent;
     fuse_core::Transaction::SharedPtr transaction;
+    if (log_registration_time_) { timer_.restart(); }
     transaction = scan_registration_->RegisterNewScan(*current_scan_pose)
                       .GetTransaction();
-
+    if (log_registration_time_) {
+      BEAM_INFO("Registration time: {}s", timer_.elapsed());
+    }
     Eigen::Matrix4d T_WORLD_LIDAR;
+
     scan_registration_->GetMap().GetScanPose(current_scan_pose->Stamp(),
                                              T_WORLD_LIDAR);
+
     T_World_BaselinkCurrent = T_WORLD_LIDAR * T_Baselink_Lidar;
 
     if (transaction == nullptr) {

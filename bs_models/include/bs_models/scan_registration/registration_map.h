@@ -6,6 +6,7 @@
 
 #include <beam_matching/loam/LoamPointCloud.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/time.h>
 
 namespace bs_models { namespace scan_registration {
 
@@ -36,14 +37,23 @@ public:
   static RegistrationMap& GetInstance();
 
   /**
-   * @brief set the parameters of this lidar map. Since this is implemented as a
-   * singleton, this checks if the params were already set, if so then it'll
-   * output a warning.
-   * @param map_size number of scans to store in this map
-   * @param publish_updates if set to true, this class with publish the full
+   * @brief if not set to -1, we will run a voxel
+   * downsample filter each time GetLoamCloudMap or  GetPointCloudMap is called.
+   * For the loam cloud, we filter each set of features separately
+   */
+  void SetVoxelDownsampleSize(double downsample_voxel_size);
+
+  /**
+   * @brief map_size: number of scans to store in this map. If already set,
+   * it'll override and purge extra clouds
+   */
+  void SetMapSize(int map_size);
+
+  /**
+   * @brief if set to true, this class with publish the full
    * lidar map in the world frame whenever the map is updated
    */
-  bool SetParams(int map_size, bool publish_updates = false);
+  void SetPublishUpdates(bool publish_updates);
 
   /**
    * @brief return map size
@@ -212,18 +222,27 @@ private:
    */
   RegistrationMap();
 
+  PointCloud DownsampleCloud(const PointCloud& cloud_in) const;
+
+  pcl::PointCloud<PointXYZIRT>
+      DownsampleCloud(const pcl::PointCloud<PointXYZIRT>& cloud_in) const;
+
   // publishers
   ros::Publisher lidar_map_publisher_;
   ros::Publisher loam_map_publisher_;
 
   std::mutex mutex_;
   int map_size_{10};
-  bool map_params_set_{false};
+  double downsample_voxel_size_{-1};
+  bool map_size_set_{false};
   int updates_counter_{0};
   bool publish_updates_{false};
   std::string world_frame_id_;
 
   std::map<uint64_t, ScanPoseInMapFrame> scans_;
+
+  bool log_time_{false};
+  mutable beam::HighResolutionTimer timer_;
 };
 
 }} // namespace bs_models::scan_registration

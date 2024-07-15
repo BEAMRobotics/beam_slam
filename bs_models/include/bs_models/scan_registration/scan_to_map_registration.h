@@ -88,10 +88,13 @@ public:
     Params() = default;
 
     /** constructor that takes in a base params object */
-    Params(const ScanRegistrationParamsBase& base_params, int _map_size);
+    Params(const ScanRegistrationParamsBase& base_params, int _map_size,
+           double _downsample_voxel_size);
 
     /** number of prev scans to save in the map */
     int map_size{10};
+
+    double downsample_voxel_size{-1};
 
     /** load derived params & base params */
     void LoadFromJson(const std::string& config);
@@ -104,7 +107,8 @@ public:
 
   ScanToMapLoamRegistration(std::unique_ptr<LoamMatcher> matcher,
                             const ScanRegistrationParamsBase& base_params,
-                            int map_size = 10);
+                            int map_size = 10,
+                            double downsample_voxel_size = -1);
 
 private:
   bool RegisterScanToMap(const ScanPose& scan_pose,

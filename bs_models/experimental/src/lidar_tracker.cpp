@@ -43,9 +43,8 @@ void LidarTracker::onInit() {
 
   // init frame initializer
   if (!params_.frame_initializer_config.empty()) {
-    frame_initializer_ =
-        std::make_unique<bs_models::FrameInitializer>(
-            params_.frame_initializer_config);
+    frame_initializer_ = std::make_unique<bs_models::FrameInitializer>(
+        params_.frame_initializer_config);
   }
 
   // get filter params
@@ -349,7 +348,7 @@ void LidarTracker::SetupRegistration() {
   // set registration map to publish
   RegistrationMap& map = RegistrationMap::GetInstance();
   if (params_.publish_local_map) {
-    map.SetParams(map.MapSize(), true);
+    map.SetPublishUpdates(true);
     ROS_INFO("Publishing initial lidar_odometry registration map");
     map.Publish();
   }

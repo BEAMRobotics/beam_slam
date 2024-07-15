@@ -52,7 +52,8 @@ std::unique_ptr<ScanRegistrationBase> ScanRegistrationBase::Create(
       params.LoadFromJson(registration_config);
       params.save_path = save_path;
       registration = std::make_unique<ScanToMapLoamRegistration>(
-          std::move(matcher), params.GetBaseParams(), params.map_size);
+          std::move(matcher), params.GetBaseParams(), params.map_size,
+          params.downsample_voxel_size);
       registration->SetExtrinsicsPrior(extrinsics_prior);
       return std::move(registration);
     } else if (registration_type == "MULTISCAN") {

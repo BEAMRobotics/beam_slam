@@ -11,6 +11,7 @@
 #include <beam_filtering/Utils.h>
 #include <beam_matching/Matchers.h>
 #include <beam_utils/pointclouds.h>
+#include <beam_utils/time.h>
 
 #include <bs_common/extrinsics_lookup_online.h>
 #include <bs_models/frame_initializers/frame_initializer.h>
@@ -63,7 +64,7 @@ private:
 
   /** Publishers */
   ros::Publisher results_publisher_; // for global mapper
-    ros::Publisher reset_publisher_;
+  ros::Publisher reset_publisher_;
 
   ros::Publisher odom_publisher_;
   int odom_publisher_counter_{0};
@@ -121,6 +122,9 @@ private:
   bool use_frame_init_relative_{true};
   int max_scan_buffer_size_{4};
   bool publish_extrinsics_{false};
+  bool log_registration_time_{true};
+
+  beam::HighResolutionTimer timer_;
 };
 
 } // namespace bs_models
