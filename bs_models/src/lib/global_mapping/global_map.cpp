@@ -42,10 +42,11 @@ void GlobalMap::Params::LoadJson(const std::string& config_path) {
   beam::ValidateJsonKeysOrThrow(
       {"submap_size_m", "loop_closure_candidate_search_config",
        "loop_closure_refinement_config", "local_mapper_covariance_diag",
-       "loop_closure_covariance_diag", "publishing"},
+       "loop_closure_covariance_diag", "publishing", "disable_loop_closure"},
       J);
 
   submap_size = J["submap_size_m"];
+  disable_loop_closure = J["disable_loop_closure"];
 
   std::string loop_closure_candidate_search_config_rel =
       J["loop_closure_candidate_search_config"];
@@ -388,6 +389,8 @@ fuse_core::Transaction::SharedPtr GlobalMap::InitiateNewSubmapPose() {
 }
 
 fuse_core::Transaction::SharedPtr GlobalMap::RunLoopClosure(int query_index) {
+  if (params_.disable_loop_closure) { return nullptr; }
+
   // if first submap, don't look for loop_closures
   if (submaps_.size() < 2) { return nullptr; }
 

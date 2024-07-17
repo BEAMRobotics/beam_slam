@@ -43,20 +43,16 @@ void GlobalMapper::ProcessSlamChunk(
           msg->trajectory_measurement, T_WORLD_BASELINK, stamp);
 
   // send transaction if not empty
-  if (new_transaction != nullptr && !params_.disable_loop_closure) {
+  if (new_transaction != nullptr) {
     // uncomment if using sensor model's graph:
     // ROS_DEBUG("Sending transaction:");
     // sendTransaction(new_transaction);
     // ROS_DEBUG("Done sending transaction.");
 
     // uncomment if using self contained graph:
-    ROS_DEBUG("Sending transaction:");
     graph_->update(*new_transaction);
-    ROS_DEBUG("Optimizing graph");
     graph_->optimize();
-    ROS_DEBUG("Updating global map");
     global_map_->UpdateSubmapPoses(graph_, ros::Time::now());
-    ROS_DEBUG("Global map updated.");
   }
 
   if (params_.publish_new_submaps || params_.publish_updated_global_map ||
@@ -152,7 +148,7 @@ void GlobalMapper::onStart() {
     BEAM_INFO("Creating new global mapper results folder: {}", save_path_);
     std::filesystem::create_directory(save_path_);
 
-    if (params_.save_loop_closure_results && !params_.disable_loop_closure) {
+    if (params_.save_loop_closure_results) {
       std::string reloc_ref_save_path =
           beam::CombinePaths(save_path_, "reloc_refinement_results");
       std::filesystem::create_directory(reloc_ref_save_path);
@@ -162,7 +158,7 @@ void GlobalMapper::onStart() {
 };
 
 void GlobalMapper::onStop() {
-  if (trigger_loop_closure_on_stop_ && !params_.disable_loop_closure) {
+  if (trigger_loop_closure_on_stop_) {
     // use beam logging here because ROS logging stops when a node shutdown gets
     // called
     BEAM_INFO("Running final loop closure");
@@ -175,7 +171,7 @@ void GlobalMapper::onStop() {
       graph_->optimize();
       global_map_->UpdateSubmapPoses(graph_, ros::Time::now());
     } else {
-      BEAM_INFO("No loop closures found for final submap.");
+      BEAM_INFO("No loop closures added on stop.");
     }
   }
 

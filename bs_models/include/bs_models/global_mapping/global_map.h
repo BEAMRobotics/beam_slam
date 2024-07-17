@@ -74,6 +74,8 @@ public:
     /** string to store the full config from json*/
     std::string config_str;
 
+    bool disable_loop_closure{false};
+
     /** Loads config settings from a json file. If config_path empty, it will
      * use default params defined herein.*/
     void LoadJson(const std::string& config_path);

@@ -27,7 +27,6 @@ public:
     getParam<bool>(nh, "publish_updated_global_map", publish_updated_global_map,
                    false);
     getParam<bool>(nh, "publish_new_scans", publish_new_scans, false);
-    getParam<bool>(nh, "disable_loop_closure", disable_loop_closure, false);
 
     /** Config path for global mapper.Provide path relative to config folder  */
     std::string global_map_config_rel;
@@ -50,7 +49,6 @@ public:
   bool publish_new_submaps;
   bool publish_updated_global_map;
   bool publish_new_scans;
-  bool disable_loop_closure;
   bool save_loop_closure_results;
 };
 
