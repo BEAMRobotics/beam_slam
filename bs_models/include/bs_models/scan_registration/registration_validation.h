@@ -56,7 +56,7 @@ private:
   // enough data to get reliable statistics
   double t_init_thresh_{0.5};
   double r_init_thresh_{3.14 / 6};  // ~30deg
-  double entropy_init_thresh_{-10}; // set empirically
+  double entropy_init_thresh_{-4}; // set empirically
 };
 
 }} // namespace bs_models::scan_registration

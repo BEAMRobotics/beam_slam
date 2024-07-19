@@ -1,8 +1,10 @@
 {
   "solver_options": {
     "minimizer_progress_to_stdout": false,
-    "max_num_iterations": 5,
-    "max_solver_time_in_seconds": 0.05,
+    "max_num_iterations": 50,
+    "max_solver_time_in_seconds": 0.1,
+    "number_of_threads": 4,
+    "max_thread_use_percent": 0.5,
     "function_tolerance": 1e-8,
     "gradient_tolerance": 1e-10,
     "parameter_tolerance": 1e-8,
