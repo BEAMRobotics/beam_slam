@@ -11,11 +11,6 @@
     "linear_solver_type": "DENSE_QR",
     "preconditioner_type": "SCHUR_JACOBI"
   },
-  "problem_options": {
-    "local_parameterization_take_ownership": false,
-    "cost_function_take_ownership": false,
-    "loss_function_take_ownership": false
-  },
   "loss_function": {
     "type": "HUBER",
     "scaling": 1
