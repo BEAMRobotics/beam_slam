@@ -4,6 +4,6 @@
     "min_motion_rot_deg": 0,
     "max_motion_trans_m": 10,
     "fix_first_scan": false,
-    "map_size": 12,
+    "map_size": 45,
     "downsample_voxel_size": 0.1
 }

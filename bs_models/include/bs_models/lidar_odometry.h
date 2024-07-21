@@ -122,7 +122,7 @@ private:
   bool use_frame_init_relative_{true};
   int max_scan_buffer_size_{4};
   bool publish_extrinsics_{false};
-  bool log_registration_time_{true};
+  bool log_registration_time_{false};
 
   beam::HighResolutionTimer timer_;
 };
