@@ -26,9 +26,8 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
     matcher_params = std::make_shared<LoamParams>("DEFAULT_PATH");
     // set well tested config
     matcher_params->iterate_correspondences = true;
-    matcher_params->max_correspondence_iterations = 5;
-    matcher_params->max_correspondence_distance = 0.25;
-    matcher_params->max_corner_less_sharp = 10;
+    matcher_params->max_correspondence_iterations = 10;
+    matcher_params->max_correspondence_distance = 0.3;
   } else {
     std::string ceres_config = bs_common::GetAbsoluteConfigPathFromJson(
         matcher_config, "ceres_config");
@@ -46,7 +45,7 @@ LidarPathInit::LidarPathInit(int lidar_buffer_size,
       std::make_unique<LoamMatcher>(*matcher_params);
 
   scan_registration::ScanToMapLoamRegistration::Params reg_params;
-  reg_params.map_size = 10;
+  reg_params.map_size = 30;
   reg_params.min_motion_trans_m = 0;
   reg_params.min_motion_rot_deg = 0;
   reg_params.max_motion_trans_m = 10;
