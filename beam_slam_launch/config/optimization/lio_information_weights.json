@@ -1,5 +1,5 @@
 {
-  "inertial_information_weight": 1e-3,
+  "inertial_information_weight": 1e-43,
   "lidar_information_weight": 1.0,
   "reprojection_information_weight": 1.0,
   "visual_odom_information_weight": 1.0,
