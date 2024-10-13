@@ -81,6 +81,7 @@ bool GlobalMapBatchOptimization::Run(std::vector<SubmapPtr> submaps) {
   scan_registration->GetMapMutable().Clear();
 
   BEAM_INFO("Running batch optimization");
+  std::set<int64_t> invalid_scans;
   for (int i = 0; i < submaps_.size(); i++) {
     BEAM_INFO("Working on submap No. {}", i);
     const auto& submap = submaps_.at(i);
@@ -88,7 +89,12 @@ bool GlobalMapBatchOptimization::Run(std::vector<SubmapPtr> submaps) {
          scan_iter != submap->LidarKeyframesEnd(); scan_iter++) {
       auto transaction = scan_registration->RegisterNewScan(scan_iter->second)
                              .GetTransaction();
-      if (transaction) { graph_->update(*transaction); }
+      if (transaction) {
+        graph_->update(*transaction);
+      } else {
+        invalid_scans.insert(scan_iter->first);
+        continue;
+      }
 
       if (params_.update_graph_on_all_scans) {
         graph_->optimize();
@@ -96,8 +102,7 @@ bool GlobalMapBatchOptimization::Run(std::vector<SubmapPtr> submaps) {
                                        true);
         UpdateSubmapPosesFromGraph(submaps_, graph_);
       }
-
-      RunLoopClosureOnAllScans(scan_iter->second);
+      RunLoopClosureOnAllScans(scan_iter->second, invalid_scans);
     }
   }
 
@@ -153,7 +158,8 @@ bool GlobalMapBatchOptimization::Run(std::vector<SubmapPtr> submaps) {
   return true;
 }
 
-void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
+void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(
+    ScanPose& query, const std::set<int64_t>& invalid_scans) {
   if (params_.lc_max_per_query_scan == 0) { return; }
 
   // Aggregate around scan for helping scan context
@@ -173,8 +179,12 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
   auto tmp = scan_stamp_to_submap_id_.find(timestamp_query_ns);
   auto it_start = std::reverse_iterator(std::next(tmp));
   for (auto it = it_start; it != scan_stamp_to_submap_id_.rend(); it++) {
-    // Get candidate scan
     const auto candidate_stamp = it->first;
+    if (invalid_scans.find(candidate_stamp) != invalid_scans.end()) {
+      continue;
+    }
+
+    // Get candidate scan
     const auto candidate_submap_id = it->second;
     const auto& candidate =
         submaps_.at(candidate_submap_id)->LidarKeyframes().at(candidate_stamp);
@@ -256,6 +266,7 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
     measurement.candidate_position = candidate.Position();
     measurement.candidate_orientation = candidate.Orientation();
     measurement.scan_context_dist = sc_result.first;
+    measurement.candidate_stamp = candidate.Stamp();
     measurements.push_back(measurement);
 
     if (params_.lc_max_per_query_scan > 0 &&
@@ -274,7 +285,6 @@ void GlobalMapBatchOptimization::RunLoopClosureOnAllScans(ScanPose& query) {
             beam::InvertTransform(m.T_Query_Candidate_Measured)),
         m.covariance, "GlobalMapBatchOptimization::RunLoopClosureOnAllScans",
         lidar_frame_id_);
-
     graph_->update(*(transaction.GetTransaction()));
   }
 

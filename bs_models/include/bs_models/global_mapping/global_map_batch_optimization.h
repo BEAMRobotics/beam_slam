@@ -39,6 +39,7 @@ private:
     Eigen::Matrix<double, 6, 6> covariance;
     fuse_variables::Position3DStamped candidate_position;
     fuse_variables::Orientation3DStamped candidate_orientation;
+    ros::Time candidate_stamp;
     double scan_context_dist;
   };
 
@@ -49,7 +50,7 @@ private:
     double d{0}; // scan context distance
   };
 
-  void RunLoopClosureOnAllScans(ScanPose& query);
+  void RunLoopClosureOnAllScans(ScanPose& query, const std::set<int64_t>& invalid_scans);
 
   pcl::PointCloud<pcl::PointXYZI> AggregateScan(uint64_t scan_time_ns) const;
 
