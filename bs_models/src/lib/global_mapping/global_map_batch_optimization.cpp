@@ -154,6 +154,7 @@ bool GlobalMapBatchOptimization::Run(std::vector<SubmapPtr> submaps) {
   static bool verbose = false;
   UpdateSubmapScanPosesFromGraph(submaps_, graph_, 0, true, verbose);
   UpdateSubmapPosesFromGraph(submaps_, graph_, verbose);
+  RemoveInvalidScans(submaps_, invalid_scans);
   UpdateInputSubmaps(submaps);
   return true;
 }
@@ -486,6 +487,34 @@ void GlobalMapBatchOptimization::UpdateInputSubmaps(
       scan_pose.UpdatePose(T_Submap_Baselink);
     }
   }
+}
+
+void GlobalMapBatchOptimization::RemoveInvalidScans(
+    std::vector<SubmapPtr>& submaps,
+    const std::set<int64_t>& invalid_scan_timestamps) {
+  BEAM_INFO("Attempting to remove {} lidar keyframes from the submaps",
+            invalid_scan_timestamps.size());
+  int counter = 0;
+  for (auto& submap : submaps) {
+    std::map<uint64_t, ScanPose>& lidar_keyframes =
+        submap->LidarKeyframesMutable();
+    for (const auto& timestamp : invalid_scan_timestamps) {
+      // Do not remove timestamps if they correspond to a submap timestamp
+      if (timestamp == submap->Stamp().toNSec()) {
+        BEAM_WARN("Found an invalid timestamp equal to the submap timestamp "
+                  "{} s, not removing. ",
+                  timestamp / 1e9);
+        continue;
+      }
+      auto it = lidar_keyframes.find(timestamp);
+      if (it != lidar_keyframes.end()) {
+        counter++;
+        lidar_keyframes.erase(it);
+      }
+    }
+  }
+  BEAM_INFO("Successfully removed {} lidar keyframes from the submaps",
+            counter);
 }
 
 } // namespace bs_models::global_mapping

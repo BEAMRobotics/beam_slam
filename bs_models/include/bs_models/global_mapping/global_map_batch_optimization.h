@@ -50,7 +50,8 @@ private:
     double d{0}; // scan context distance
   };
 
-  void RunLoopClosureOnAllScans(ScanPose& query, const std::set<int64_t>& invalid_scans);
+  void RunLoopClosureOnAllScans(ScanPose& query,
+                                const std::set<int64_t>& invalid_scans);
 
   pcl::PointCloud<pcl::PointXYZI> AggregateScan(uint64_t scan_time_ns) const;
 
@@ -63,6 +64,9 @@ private:
 
   bool CheckMetric(double value, double mean, double std_dev,
                    const std::string& error) const;
+
+  void RemoveInvalidScans(std::vector<SubmapPtr>& submaps,
+                          const std::set<int64_t>& invalid_scan_timestamps);
 
   Params params_;
   std::string output_path_;
