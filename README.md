@@ -11,7 +11,6 @@ beam_slam is a SLAM package developed by the [SRI lab](https://sri-lab.seas.ucla
 
 Most dependencies are included as submodules under the "dependencies" folder, however some additional dependencies are listed:
 * qwt: sudo apt-get install libqwt-dev (for Kinetic or Melodic) or libqwt-qt5-dev (for Noetic)
-* [calibration_publisher](https://github.com/BEAMRobotics/beam_robotics/tree/master/calibration/calibration_publisher) - include within the catkin workspace
 * [libbeam](https://github.com/BEAMRobotics/libbeam) - installed globally, or within the catkin workspace
 
 If you want to run IMU tests, you will also need:

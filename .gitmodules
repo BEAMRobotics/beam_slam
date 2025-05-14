@@ -10,3 +10,6 @@
 [submodule "dependencies/graph_rviz_plugin"]
 	path = dependencies/graph_rviz_plugin
 	url = https://github.com/flynneva/graph_rviz_plugin.git
+[submodule "dependencies/calibration_publisher"]
+	path = dependencies/calibration_publisher
+	url = git@github.com:nickcharron/calibration_publisher.git
